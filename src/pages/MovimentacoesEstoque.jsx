@@ -492,8 +492,11 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleExport = () => {
+    // Importar função para label
+    const { getLabelOperacao, getLocalEstoque } = require("../components/movimentacoes/utils/movimentacaoUtils");
+    
     const csvRows = [];
-    const headers = ['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Origem', 'Destino', 'Documento', 'Motivo'];
+    const headers = ['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Local Estoque', 'Origem', 'Destino', 'Documento', 'Motivo'];
     csvRows.push(headers.join(';'));
 
     movimentacoes.forEach(m => {
@@ -501,9 +504,10 @@ export default function MovimentacoesEstoque() {
         m.numero_movimentacao,
         format(new Date(m.data_movimentacao), 'dd/MM/yyyy HH:mm'),
         m.tipo_movimentacao,
-        m.tipo_detalhado,
+        getLabelOperacao(m.tipo_detalhado), // Usar label amigável
         m.produto_nome,
         m.quantidade,
+        getLocalEstoque(m), // Local principal conforme regra
         m.local_estoque_origem || '',
         m.local_estoque_destino || '',
         m.numero_documento || '',
