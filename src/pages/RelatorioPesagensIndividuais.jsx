@@ -224,7 +224,7 @@ export default function RelatorioPesagensIndividuais() {
 
    const [showConfigColunasPainel, setShowConfigColunasPainel] = useState(false);
   const [colunasPainelVisiveis, setColunasPainelVisiveis] = useState(() => {
-    const saved = localStorage.getItem('colunas_painel_apartacao');
+    const saved = localStorage.getItem(tipoRelatorio === 'vendas' ? 'colunas_painel_vendas' : 'colunas_painel_apartacao');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
