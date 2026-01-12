@@ -650,9 +650,23 @@ export default function MovimentacoesEstoque() {
         )}
       </AnimatePresence>
 
+      {/* Cabeçalho dos Itens sempre visível quando não está editando/criando */}
+      {!showForm && (
+        <div className="mt-2">
+          <div className="bg-white border rounded shadow-sm">
+            <div className="py-2 px-3 bg-slate-100 border-b">
+              <h2 className="text-sm font-semibold">Itens / Produtos</h2>
+            </div>
+            <div className="p-3 text-xs text-slate-600">
+              Use "Editar" em uma movimentação para carregar os itens deste lançamento aqui.
+            </div>
+          </div>
+        </div>
+      )}
+
       {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={openEditPrompt} onCancel={handleCancel} isLoading={isLoading} />}
 
-      <ImportarNFeMovimentacao
+       <ImportarNFeMovimentacao
         open={showImportXML}
         onClose={() => setShowImportXML(false)}
         onSuccess={handleImportacaoXML}
