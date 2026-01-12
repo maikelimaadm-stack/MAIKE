@@ -53,6 +53,7 @@ import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
 import GerenciarEmbarquesDialog from "../components/embarque/GerenciarEmbarquesDialog";
 import ResumoEmbarque from "../components/embarque/ResumoEmbarque";
+import ResumoVendaDia from "../components/pesagens/ResumoVendaDia";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -290,6 +291,9 @@ export default function LancamentoPesagensIndividuais() {
   // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+
+  // Painel direito: modo de visualização (apartacao | venda | abate)
+  const [painelResumoTipo, setPainelResumoTipo] = useState('apartacao');
 
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
@@ -2280,6 +2284,31 @@ export default function LancamentoPesagensIndividuais() {
       </Card>
 
       {/* ÁREA PRINCIPAL: TABELA + RESUMO DE LOTES */}
+      <div className="flex justify-end mb-1">
+        <div className="flex items-center gap-1 bg-white rounded px-2 py-1 border shadow-sm">
+          <button
+            className={`h-7 px-2 rounded text-xs ${painelResumoTipo==='apartacao' ? 'bg-emerald-600 text-white' : 'border border-slate-300 text-slate-700'}`}
+            onClick={() => setPainelResumoTipo('apartacao')}
+            title="Ver Apartação"
+          >
+            Apartação
+          </button>
+          <button
+            className={`h-7 px-2 rounded text-xs ${painelResumoTipo==='venda' ? 'bg-emerald-600 text-white' : 'border border-slate-300 text-slate-700'}`}
+            onClick={() => setPainelResumoTipo('venda')}
+            title="Ver Resumo de Venda"
+          >
+            Venda
+          </button>
+          <button
+            className={`h-7 px-2 rounded text-xs ${painelResumoTipo==='abate' ? 'bg-emerald-600 text-white' : 'border border-slate-300 text-slate-700'}`}
+            onClick={() => setPainelResumoTipo('abate')}
+            title="Ver Abate/Documentação"
+          >
+            Abate
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-3 gap-2">
         {/* TABELA DE PESAGENS */}
         <div className="xl:col-span-3 lg:col-span-2">
@@ -2585,24 +2614,31 @@ export default function LancamentoPesagensIndividuais() {
         </div>
 
         {/* RESUMO: Lotes ou Documentação */}
-        {tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (
-        <ResumoEmbarque
+        {painelResumoTipo === 'abate' ? (
+          <ResumoEmbarque
             embarques={embarques}
             documentos={documentosEmbarque}
             embarqueSelecionado={embarqueSelecionadoDoc}
             pesagens={pesagens}
             pendingPesagens={pendingPesagensDB}
           />
+        ) : painelResumoTipo === 'venda' ? (
+          <ResumoVendaDia
+            pesagens={pesagens}
+            pendingPesagensDB={pendingPesagensDB}
+            dataPesagem={dataPesagem}
+          />
         ) : (
           <ResumoLotes
-          apartacaoSelecionada={apartacaoSelecionada}
-          apartacoes={apartacoes}
-          lotesApartacaoAtual={lotesApartacaoAtual}
-          pesagens={pesagens}
-          pesagensDia={pesagensDia}
-          pendingPesagensDB={pendingPesagensDB}
-          dataPesagem={dataPesagem} />
-        )}
+            apartacaoSelecionada={apartacaoSelecionada}
+            apartacoes={apartacoes}
+            lotesApartacaoAtual={lotesApartacaoAtual}
+            pesagens={pesagens}
+            pesagensDia={pesagensDia}
+            pendingPesagensDB={pendingPesagensDB}
+            dataPesagem={dataPesagem}
+          />
+        )
       </div>
 
       {/* RESUMO DE SANIDADES APLICADAS */}
