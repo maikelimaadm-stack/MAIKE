@@ -1404,41 +1404,7 @@ export default function RelatorioPesagensIndividuais() {
 
               return (
                 <div className="space-y-4">
-                  {/* Resumo Geral de Vendas */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="border border-black text-xs font-bold py-1">Métrica</TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-right py-1">Valor</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow className="hover:bg-gray-50">
-                        <TableCell className="border border-gray-300 text-xs py-1">Animais vendidos</TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtInt(total)}</TableCell>
-                      </TableRow>
-                      <TableRow className="hover:bg-gray-50">
-                        <TableCell className="border border-gray-300 text-xs py-1">Peso total (kg)</TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pesoTotal)}</TableCell>
-                      </TableRow>
-                      <TableRow className="hover:bg-gray-50">
-                        <TableCell className="border border-gray-300 text-xs py-1">Peso médio (kg)</TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pesoMedio)}</TableCell>
-                      </TableRow>
-                      <TableRow className="hover:bg-gray-50">
-                        <TableCell className="border border-gray-300 text-xs py-1">Média (@)</TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(mediaArrobasPeso)}</TableCell>
-                      </TableRow>
-                      <TableRow className="hover:bg-gray-50">
-                        <TableCell className="border border-gray-300 text-xs py-1">Média valor da arroba</TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(mediaValorArroba)}</TableCell>
-                      </TableRow>
-                      <TableRow className="hover:bg-gray-50">
-                        <TableCell className="border border-gray-300 text-xs py-1">Valor total</TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(valorTotal)}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+
 
                   {/* Totais por Marca (após Comprador) */}
                   <div>
