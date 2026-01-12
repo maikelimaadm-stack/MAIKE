@@ -214,8 +214,8 @@ export default function RelatorioExtratoMovimentacoes() {
               <TableCell className="text-xs py-1 border border-gray-300">{m.unidade_medida || 'UN'}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(m.valor_unitario)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoeda(m.valor_total)}</TableCell>
-              <TableCell className="text-xs py-1 border border-gray-300">{m.local_estoque_origem || '-'}</TableCell>
-              <TableCell className="text-xs py-1 border border-gray-300">{m.local_estoque_destino || '-'}</TableCell>
+              <TableCell className="text-xs py-1 border border-gray-300">{nomeLocal(m.local_estoque_origem) || '-'}</TableCell>
+              <TableCell className="text-xs py-1 border border-gray-300">{nomeLocal(m.local_estoque_destino) || '-'}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300">{m.numero_documento || '-'}</TableCell>
             </TableRow>
           ))}

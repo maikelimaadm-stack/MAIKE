@@ -32,6 +32,11 @@ export default function RelatorioSaldoAtual() {
     enabled: !!empresaId,
   });
 
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais-saldo'] ,
+    queryFn: () => base44.entities.LocalEstoque.list(),
+  });
+
   const { data: lotesNota = [] } = useQuery({
     queryKey: ['lotes-nota-saldo', empresaId],
     queryFn: async () => {
@@ -59,6 +64,7 @@ export default function RelatorioSaldoAtual() {
         saldos[key] = {
           produto_id: l.produto_id,
           produto_nome: l.produto_nome,
+          local_estoque_id: l.local_estoque_id,
           local_estoque_nome: l.local_estoque_nome,
           quantidade: 0,
           custo_medio: 0,
@@ -91,7 +97,8 @@ export default function RelatorioSaldoAtual() {
     });
   }, [saldosPorProdutoLocal, produtos]);
 
-  const locaisUnicos = [...new Set(dadosCompletos.map(d => d.local_estoque_nome))].filter(Boolean).sort();
+  const locaisOpcoes = locais.map(l => l.id);
+  const nomeLocal = (id) => locais.find(l => l.id === id)?.nome || id;
   const categoriasUnicas = [...new Set(dadosCompletos.map(d => d.categoria))].filter(Boolean).sort();
 
   const toggleFiltro = (lista, setLista, valor) => {
@@ -100,7 +107,7 @@ export default function RelatorioSaldoAtual() {
 
   const dadosFiltrados = useMemo(() => {
     let filtered = dadosCompletos.filter(d => {
-      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(d.local_estoque_nome)) return false;
+      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(d.local_estoque_id)) return false;
       if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(d.categoria)) return false;
       if (apenasComSaldo && d.quantidade <= 0) return false;
       return true;
@@ -173,7 +180,8 @@ export default function RelatorioSaldoAtual() {
             <FiltroMultiplo
               label="Locais"
               selecionados={locaisSelecionados}
-              opcoes={locaisUnicos}
+              opcoes={locaisOpcoes}
+              renderLabel={nomeLocal}
               onToggle={(v) => toggleFiltro(locaisSelecionados, setLocaisSelecionados, v)}
             />
             <FiltroMultiplo

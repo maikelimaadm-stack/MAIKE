@@ -882,7 +882,7 @@ export default function MovimentacaoEstoqueFormV2({
     const dadosMovimentacao = {
       empresa_id: empresaId,
       tipo_movimentacao: tipoMovimentacaoFinal,
-      tipo_detalhado: toValue(operacao), // Sempre salvar como slug
+      tipo_detalhado: operacao, // valor já é slug
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
       
       // Locais (APENAS CAMPOS DO SCHEMA)
@@ -971,6 +971,12 @@ export default function MovimentacaoEstoqueFormV2({
     }
   };
 
+  const handleLocalDestinoChange = (novoLocalId) => {
+    setLocalEstoqueDestinoId(novoLocalId);
+    const l = locais.find(x => x.id === novoLocalId);
+    setLocalEstoqueDestinoNome(l?.nome || '');
+  };
+
   // ========== RENDER ==========
   return (
     <>
@@ -1051,7 +1057,7 @@ export default function MovimentacaoEstoqueFormV2({
                     <AutocompleteGenerico
                       items={locais}
                       value={localEstoqueDestinoId}
-                      onChange={setLocalEstoqueDestinoId}
+                      onChange={handleLocalDestinoChange}
                       placeholder="Selecione o destino"
                       displayField="nome"
                       searchFields={["nome"]}
