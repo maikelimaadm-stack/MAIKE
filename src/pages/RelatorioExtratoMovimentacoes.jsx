@@ -198,7 +198,7 @@ export default function RelatorioExtratoMovimentacoes() {
             <TableRow key={m.id} className="hover:bg-gray-50">
               <TableCell className="text-xs py-1 border border-gray-300">{formatarData(m.data_movimentacao)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300">{m.tipo_movimentacao}</TableCell>
-              <TableCell className="text-xs py-1 border border-gray-300">{m.tipo_detalhado || '-'}</TableCell>
+              <TableCell className="text-xs py-1 border border-gray-300">{getLabelOperacao(m.tipo_detalhado)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300">{m.produto_nome}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(m.quantidade)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300">{m.unidade_medida || 'UN'}</TableCell>
