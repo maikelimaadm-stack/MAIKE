@@ -258,6 +258,35 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
+  // ========== EFEITO: Carregar itens na edição após produtos carregarem ==========
+  useEffect(() => {
+    if (!initialData?.id || itensCarregados) return;
+    if (!produtos || produtos.length === 0) return;
+
+    // Carregar item editado como primeiro item da lista
+    const prod = produtos.find(p => p.id === initialData.produto_id);
+    if (prod) {
+      const itemInicial = {
+        produto_id: initialData.produto_id,
+        produto_nome: prod.nome_produto,
+        produto_codigo: prod.codigo_interno || prod.codigo_barras || '',
+        unidade: initialData.unidade_medida || prod.unidade_medida || 'UN',
+        quantidade: initialData.quantidade || 0,
+        preco_unitario: initialData.valor_unitario || 0,
+        total: (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
+        desconto: 0,
+        liquido: initialData.valor_total || (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
+        lote_origem_id: '',
+        lote_origem_info: null,
+        modo_custo_saida: null,
+        rateio_lotes: null,
+        observacao_item: ''
+      };
+      setItens([itemInicial]);
+      setItensCarregados(true);
+    }
+  }, [initialData, produtos, itensCarregados]);
+
   // Clientes = fornecedores com tipo Cliente
   const clientes = useMemo(() => {
     return fornecedores.filter(f => f.tipos?.includes('Cliente') || f.tipos?.includes('Fornecedor'));
