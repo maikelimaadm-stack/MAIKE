@@ -267,7 +267,7 @@ export default function RelatorioPesagensIndividuais() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
     setColunasPainelOrdem(items);
-    localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(items));
+    localStorage.setItem(tipoRelatorio === 'vendas' ? 'colunas_painel_ordem_vendas' : 'colunas_painel_ordem_apartacao', JSON.stringify(items));
   };
 
   // Garante que novas colunas do painel entrem na ordem salva
