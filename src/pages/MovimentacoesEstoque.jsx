@@ -238,7 +238,7 @@ export default function MovimentacoesEstoque() {
        empresa_id: empresaSelecionadaId,
       numero_movimentacao: String(proximoNumero),
       tipo_movimentacao: dadosComuns.tipo_movimentacao,
-      tipo_detalhado: dadosComuns.tipo_detalhado,
+      tipo_detalhado: toValue(dadosComuns.tipo_detalhado),
       data_movimentacao: dadosComuns.data_movimentacao ? new Date(dadosComuns.data_movimentacao).toISOString() : new Date().toISOString(),
       produto_id: produto.produto_id,
       produto_nome: produto.produto_nome,
