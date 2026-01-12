@@ -373,30 +373,8 @@ export default function MovimentacaoEstoqueFormV2({
     }
   }, [initialData?.id]);
 
-  // Precarregar itens quando vier lista de produtos_selecionados (edição em lote)
-  useEffect(() => {
-    if (!initialData?.produtos_selecionados || itensCarregados) return;
-
-    const itensMapeados = initialData.produtos_selecionados.map((ps) => ({
-      produto_id: ps.produto_id,
-      produto_nome: ps.produto_nome,
-      produto_codigo: ps.produto_codigo || '',
-      unidade: ps.unidade || 'UN',
-      quantidade: typeof ps.quantidade === 'number' ? ps.quantidade : parseNumeroBR(ps.quantidade || 0),
-      preco_unitario: typeof ps.valor_unitario === 'number' ? ps.valor_unitario : parseMoedaBR(ps.valor_unitario || 0),
-      total: typeof ps.valor_total === 'number' ? ps.valor_total : parseMoedaBR(ps.valor_total || 0),
-      desconto: typeof ps.desconto === 'number' ? ps.desconto : parseMoedaBR(ps.desconto || 0),
-      liquido: typeof ps.valor_total === 'number' ? ps.valor_total : parseMoedaBR(ps.valor_total || 0),
-      lote_origem_id: ps.lote_origem_id || '',
-      lote_origem_info: null,
-      rateio_lotes: ps.rateio_lotes || [],
-      observacao_item: ps.observacao_item || '',
-      modo_custo_saida: ps.modo_custo_saida || null,
-    }));
-
-    setItens(itensMapeados);
-    setItensCarregados(true);
-  }, [initialData, itensCarregados]);
+  // Removido: efeitos concorrentes de re-hidratação para evitar conflitos
+  // A re-hidratação agora é feita somente no efeito único acima, dependente de initialData?.id
 
   // Clientes = fornecedores com tipo Cliente
   const clientes = useMemo(() => {
