@@ -497,32 +497,6 @@ export default function MovimentacoesEstoque() {
 
   const openEditPrompt = (movimentacao) => {
     setPendingEditMov(movimentacao);
-    // Deixa o formulário visível imediatamente (cabeçalho/itens vazios)
-    setEditingMovimentacao({
-      tipo_movimentacao: movimentacao.tipo_movimentacao,
-      tipo_detalhado: movimentacao.tipo_detalhado,
-      data_movimentacao: movimentacao.data_movimentacao,
-      local_estoque_origem: movimentacao.local_estoque_origem,
-      local_estoque_destino: movimentacao.local_estoque_destino,
-      local_origem: movimentacao.local_origem,
-      local_destino: movimentacao.local_destino,
-      tipo_documento: movimentacao.tipo_documento,
-      numero_documento: movimentacao.numero_documento,
-      serie_documento: movimentacao.serie_documento,
-      chave_documento: movimentacao.chave_documento,
-      data_documento: movimentacao.data_documento,
-      cfop: movimentacao.cfop,
-      natureza_operacao: movimentacao.natureza_operacao,
-      fornecedor_id: movimentacao.fornecedor_id,
-      fornecedor_nome: movimentacao.fornecedor_nome,
-      cliente_nome: movimentacao.cliente_nome,
-      centro_custo_id: movimentacao.centro_custo_id,
-      centro_custo_nome: movimentacao.centro_custo_nome,
-      motivo_movimentacao: movimentacao.motivo_movimentacao,
-      observacoes: movimentacao.observacoes,
-      produtos_selecionados: []
-    });
-    setShowForm(true);
     setEditChoiceOpen(true);
   };
 
@@ -676,23 +650,9 @@ export default function MovimentacoesEstoque() {
         )}
       </AnimatePresence>
 
-      {/* Cabeçalho dos Itens sempre visível quando não está editando/criando */}
-      {!showForm && (
-        <div className="mt-2">
-          <div className="bg-white border rounded shadow-sm">
-            <div className="py-2 px-3 bg-slate-100 border-b">
-              <h2 className="text-sm font-semibold">Itens / Produtos</h2>
-            </div>
-            <div className="p-3 text-xs text-slate-600">
-              Use "Editar" em uma movimentação para carregar os itens deste lançamento aqui.
-            </div>
-          </div>
-        </div>
-      )}
-
       {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={openEditPrompt} onCancel={handleCancel} isLoading={isLoading} />}
 
-       <ImportarNFeMovimentacao
+      <ImportarNFeMovimentacao
         open={showImportXML}
         onClose={() => setShowImportXML(false)}
         onSuccess={handleImportacaoXML}
@@ -708,7 +668,7 @@ export default function MovimentacoesEstoque() {
             <DialogDescription className="text-xs">Deseja editar apenas este item ou todos os produtos deste lançamento (mesmos dados de cabeçalho)?</DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditChoiceOpen(false); setPendingEditMov(null); setShowForm(false); setEditingMovimentacao(null); }}>Cancelar</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditChoiceOpen(false); setPendingEditMov(null); }}>Cancelar</Button>
             <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
               setEditChoiceOpen(false);
               setIsBulkEditing(false);
