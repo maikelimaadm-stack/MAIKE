@@ -335,6 +335,10 @@ export default function Backup() {
             <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
             <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
           </div>
+          <div className="flex items-center gap-2 ml-2">
+            <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
+            <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
+          </div>
 
           <Button 
             onClick={handleCopyAllPaths} 
