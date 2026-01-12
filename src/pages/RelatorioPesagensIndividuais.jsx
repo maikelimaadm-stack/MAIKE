@@ -1567,7 +1567,8 @@ export default function RelatorioPesagensIndividuais() {
                                         : ((Number(v.peso)||0)/30) * (Number(v.valor_arroba)||0);
                                       const renderCell = (id) => {
                                         switch(id){
-                                          case 'data_pesagem': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>;
+                                          case 'comprador': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>;
+                                  case 'data_pesagem': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>;
                                           case 'numero_animal': return <TableCell key={id} className="border border-gray-300 text-xs font-medium py-1">{v.numero_animal}</TableCell>;
                                           case 'peso': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(v.peso,0)}</TableCell>;
                                           case 'quantidade_arrobas_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>;
