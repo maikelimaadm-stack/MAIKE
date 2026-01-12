@@ -678,11 +678,11 @@ export default function RelatoriosEstoque() {
                       <>
                         <TableCell className="text-xs py-1 border border-gray-300">{formatarData(d.data_movimentacao)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{d.tipo_movimentacao}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{d.tipo_detalhado || '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{getLabelOperacao(d.tipo_detalhado)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{d.produto_nome}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(d.quantidade)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(d.valor_total)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{d.local_estoque_origem || d.local_estoque_destino || d.fornecedor_nome || '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{getLocalEstoque(d) || d.fornecedor_nome || '-'}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{d.numero_documento || '-'}</TableCell>
                       </>
                     )}
