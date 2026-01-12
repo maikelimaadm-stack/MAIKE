@@ -86,6 +86,25 @@ const COLUNAS_DETALHES_APARTACAO = [
   { id: 'observacao', label: 'Obs', default: false },
 ];
 
+// Colunas de detalhes para relatório de Vendas (detalhes por boi)
+const COLUNAS_DETALHES_VENDAS = [
+  { id: 'data_pesagem', label: 'Data', default: true },
+  { id: 'numero_animal', label: 'Animal', default: true },
+  { id: 'peso', label: 'Peso (kg)', default: true },
+  { id: 'quantidade_arrobas_calc', label: 'Qtd @', default: true },
+  { id: 'valor_arroba', label: 'Valor @', default: true },
+  { id: 'valor_total_calc', label: 'Valor Total', default: true },
+  { id: 'comprador', label: 'Comprador', default: true },
+  { id: 'destino_venda', label: 'Destino', default: false },
+  { id: 'nome_lote', label: 'Lote', default: false },
+  { id: 'nome_apartacao', label: 'Apartação', default: false },
+  { id: 'sexo', label: 'Sexo', default: false },
+  { id: 'raca', label: 'Raça', default: false },
+  { id: 'era', label: 'Era', default: false },
+  { id: 'marca', label: 'Marca', default: false },
+  { id: 'observacao', label: 'Obs', default: false },
+];
+
 const EIXO_X_OPCOES = [
   { value: 'nome_lote', label: 'Lote' },
   { value: 'nome_apartacao', label: 'Apartação' },
@@ -134,6 +153,9 @@ export default function RelatorioPesagensIndividuais() {
   // Estado para mostrar detalhes no relatório de apartação
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
   const [showConfigColunasDetalhes, setShowConfigColunasDetalhes] = useState(false);
+  // Vendas: toggle detalhes
+  const [mostrarDetalhesVendas, setMostrarDetalhesVendas] = useState(false);
+  const [showConfigColunasVendas, setShowConfigColunasVendas] = useState(false);
   
   // Colunas de detalhes visíveis e ordem
   const [colunasDetalhesVisiveis, setColunasDetalhesVisiveis] = useState(() => {
@@ -142,6 +164,14 @@ export default function RelatorioPesagensIndividuais() {
       try { return JSON.parse(saved); } catch { }
     }
     return COLUNAS_DETALHES_APARTACAO.filter(c => c.default).map(c => c.id);
+  });
+  // Vendas: colunas visíveis
+  const [colunasVendasVisiveis, setColunasVendasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_detalhes_vendas');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return COLUNAS_DETALHES_VENDAS.filter(c => c.default).map(c => c.id);
   });
   
   const [colunasDetalhesOrdem, setColunasDetalhesOrdem] = useState(() => {
@@ -153,6 +183,18 @@ export default function RelatorioPesagensIndividuais() {
         // Garante que novas colunas sejam adicionadas ao fim
         return [...arr, ...base.filter(id => !arr.includes(id))];
       } catch { }
+    }
+    return base;
+  });
+  // Vendas: ordem das colunas
+  const [colunasVendasOrdem, setColunasVendasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_detalhes_ordem_vendas');
+    const base = COLUNAS_DETALHES_VENDAS.map(c => c.id);
+    if (saved) {
+      try {
+        const arr = JSON.parse(saved) || [];
+        return [...arr, ...base.filter(id => !arr.includes(id))];
+      } catch {}
     }
     return base;
   });
@@ -373,6 +415,20 @@ export default function RelatorioPesagensIndividuais() {
     }
   };
 
+  const toggleColunaDetalheVendas = (colunaId) => {
+    const habilitando = !colunasVendasVisiveis.includes(colunaId);
+    const novas = habilitando 
+      ? [...colunasVendasVisiveis, colunaId] 
+      : colunasVendasVisiveis.filter(id => id !== colunaId);
+    setColunasVendasVisiveis(novas);
+    localStorage.setItem('colunas_detalhes_vendas', JSON.stringify(novas));
+    if (habilitando && !colunasVendasOrdem.includes(colunaId)) {
+      const novaOrdem = [...colunasVendasOrdem, colunaId];
+      setColunasVendasOrdem(novaOrdem);
+      localStorage.setItem('colunas_detalhes_ordem_vendas', JSON.stringify(novaOrdem));
+    }
+  };
+
   // Drag and drop para reordenar colunas de detalhes
   const handleDragEndDetalhes = (result) => {
     if (!result.destination) return;
@@ -383,6 +439,15 @@ export default function RelatorioPesagensIndividuais() {
     localStorage.setItem('colunas_detalhes_ordem_apartacao', JSON.stringify(items));
   };
 
+  const handleDragEndDetalhesVendas = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasVendasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasVendasOrdem(items);
+    localStorage.setItem('colunas_detalhes_ordem_vendas', JSON.stringify(items));
+  };
+
   // Colunas de detalhes ordenadas
   const colunasDetalhesOrdenadas = useMemo(() => {
     const ordemCompletada = [...colunasDetalhesOrdem, ...colunasDetalhesVisiveis.filter(id => !colunasDetalhesOrdem.includes(id))];
@@ -390,6 +455,13 @@ export default function RelatorioPesagensIndividuais() {
       .map(id => COLUNAS_DETALHES_APARTACAO.find(c => c.id === id))
       .filter(c => c && colunasDetalhesVisiveis.includes(c.id));
   }, [colunasDetalhesOrdem, colunasDetalhesVisiveis]);
+
+  const colunasVendasOrdenadas = useMemo(() => {
+    const ordemCompletada = [...colunasVendasOrdem, ...colunasVendasVisiveis.filter(id => !colunasVendasOrdem.includes(id))];
+    return ordemCompletada
+      .map(id => COLUNAS_DETALHES_VENDAS.find(c => c.id === id))
+      .filter(c => c && colunasVendasVisiveis.includes(c.id));
+  }, [colunasVendasOrdem, colunasVendasVisiveis]);
 
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
@@ -1449,59 +1521,55 @@ export default function RelatorioPesagensIndividuais() {
                   </div>
 
                   {/* Detalhes das Vendas */}
-                  <div>
-                    <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">DETALHES DAS VENDAS</span></div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Animal</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Peso (kg)</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd @</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Valor @</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Comprador</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Destino</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Lote</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Apartação</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Sexo</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Raça</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Era</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
-                            <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {vendas.map((v) => {
-                            const qtdAt = (Number(v.peso)||0)/30;
-                            const vTotal = !isNaN(Number(v.valor_venda_total)) && Number(v.valor_venda_total) > 0
-                              ? Number(v.valor_venda_total)
-                              : ((Number(v.peso)||0)/30) * (Number(v.valor_arroba)||0);
-                            return (
-                              <TableRow key={v.id} className="hover:bg-gray-50">
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs font-medium py-1">{v.numero_animal}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(v.peso,0)}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.sexo || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.raca || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.era || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1">{v.marca || '-'}</TableCell>
-                                <TableCell className="border border-gray-300 text-xs py-1 max-w-[160px] truncate">{v.observacao || '-'}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                  {mostrarDetalhesVendas && (
+                    <div>
+                      <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">DETALHES DAS VENDAS</span></div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {colunasVendasOrdenadas.map(col => (
+                                <TableHead key={col.id} className={`border border-black text-xs font-bold py-1 ${['peso','quantidade_arrobas_calc','valor_arroba','valor_total_calc'].includes(col.id) ? 'text-right' : ''}`}>{col.label}</TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {vendas.map((v) => {
+                              const qtdAt = (Number(v.peso)||0)/30;
+                              const vTotal = !isNaN(Number(v.valor_venda_total)) && Number(v.valor_venda_total) > 0
+                                ? Number(v.valor_venda_total)
+                                : ((Number(v.peso)||0)/30) * (Number(v.valor_arroba)||0);
+                              const renderCell = (id) => {
+                                switch(id){
+                                  case 'data_pesagem': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>;
+                                  case 'numero_animal': return <TableCell key={id} className="border border-gray-300 text-xs font-medium py-1">{v.numero_animal}</TableCell>;
+                                  case 'peso': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(v.peso,0)}</TableCell>;
+                                  case 'quantidade_arrobas_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>;
+                                  case 'valor_arroba': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>;
+                                  case 'valor_total_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>;
+                                  case 'comprador': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>;
+                                  case 'destino_venda': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>;
+                                  case 'nome_lote': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>;
+                                  case 'nome_apartacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>;
+                                  case 'sexo': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.sexo || '-'}</TableCell>;
+                                  case 'raca': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.raca || '-'}</TableCell>;
+                                  case 'era': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.era || '-'}</TableCell>;
+                                  case 'marca': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.marca || '-'}</TableCell>;
+                                  case 'observacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1 max-w-[160px] truncate">{v.observacao || '-'}</TableCell>;
+                                  default: return <TableCell key={id} className="border border-gray-300 text-xs py-1">-</TableCell>;
+                                }
+                              };
+                              return (
+                                <TableRow key={v.id} className="hover:bg-gray-50">
+                                  {colunasVendasOrdenadas.map(col => renderCell(col.id))}
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="mt-2 text-xs text-right font-semibold">
                     TOTAL GERAL: {fmtInt(total)} animais | Peso Total: {fmtNum(pesoTotal)} kg | Peso Médio: {fmtNum(pesoMedio)} kg | Média (@): {fmtNum(mediaArrobasPeso)} | Valor Total: {fmtBRL(valorTotal)}
@@ -1813,6 +1881,76 @@ export default function RelatorioPesagensIndividuais() {
 
           <div className="flex justify-end gap-2 pt-3 border-t">
             <Button variant="outline" onClick={() => setShowConfigColunasDetalhes(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Configuração de Colunas de Detalhes - Vendas */}
+      <Dialog open={showConfigColunasVendas} onOpenChange={setShowConfigColunasVendas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas de Detalhes (Vendas)</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DETALHES_VENDAS.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVendasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColunaDetalheVendas(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEndDetalhesVendas}>
+                <Droppable droppableId="colunas-detalhes-vendas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasVendasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DETALHES_VENDAS.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVendasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVendasVisiveis.includes(colunaId) && (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Visível</span>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunasVendas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
           </div>
         </DialogContent>
       </Dialog>
