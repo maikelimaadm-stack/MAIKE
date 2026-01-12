@@ -29,8 +29,14 @@ export default function ResumoVendaDia({ pesagens = [], pendingPesagensDB = [], 
       return s + (isNaN(calc) ? 0 : calc);
     }, 0);
 
-    return { total, pesoTotal, pesoMedio, mediaArroba, valorTotal };
+    const mediaArrobasPeso = pesoMedio / 30;
+
+    return { total, pesoTotal, pesoMedio, mediaArroba, mediaArrobasPeso, valorTotal };
   }, [vendasDia]);
+
+  const fmtNum = (n, d = 2) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fmtInt = (n) => Number(n || 0).toLocaleString('pt-BR');
+  const fmtBRL = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
     <div className="xl:col-span-1 lg:col-span-1">
@@ -53,23 +59,27 @@ export default function ResumoVendaDia({ pesagens = [], pendingPesagensDB = [], 
               <TableBody>
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Animais vendidos</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{stats.total}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtInt(stats.total)}</TableCell>
                 </TableRow>
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Peso total (kg)</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{stats.pesoTotal.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtNum(stats.pesoTotal)}</TableCell>
                 </TableRow>
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Peso médio (kg)</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{stats.pesoMedio.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtNum(stats.pesoMedio)}</TableCell>
+                </TableRow>
+                <TableRow className="hover:bg-gray-50">
+                  <TableCell className="text-xs">Média (@)</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtNum(stats.mediaArrobasPeso)}</TableCell>
                 </TableRow>
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Média da arroba (R$)</TableCell>
-                  <TableCell className="text-xs text-right font-mono">R$ {stats.mediaArroba.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtBRL(stats.mediaArroba)}</TableCell>
                 </TableRow>
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Valor total (R$)</TableCell>
-                  <TableCell className="text-xs text-right font-mono">R$ {stats.valorTotal.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtBRL(stats.valorTotal)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
