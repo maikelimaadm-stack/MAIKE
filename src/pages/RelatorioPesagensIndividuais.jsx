@@ -1440,7 +1440,7 @@ export default function RelatorioPesagensIndividuais() {
                     </TableBody>
                   </Table>
 
-                  {/* Totais por Marca */}
+                  {/* Totais por Marca (após Comprador) */}
                   <div>
                     <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">TOTAIS POR MARCA</span></div>
                     <Table>
@@ -1522,12 +1522,37 @@ export default function RelatorioPesagensIndividuais() {
 
                   {/* Vendas agrupadas por Comprador, com cabeçalho e detalhes opcionais */}
                   <div>
+                    <div className="flex gap-2 mb-2 print:hidden">
+                      <Button 
+                        variant={mostrarDetalhesVendas ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setMostrarDetalhesVendas(!mostrarDetalhesVendas)}
+                        className={`h-8 text-xs gap-1 ${mostrarDetalhesVendas ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                      >
+                        {mostrarDetalhesVendas ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {mostrarDetalhesVendas ? 'Ocultar Detalhes' : 'Mostrar Detalhes'}
+                      </Button>
+                      {mostrarDetalhesVendas && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setShowConfigColunasVendas(true)}
+                          className="h-8 text-xs gap-1"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                          Colunas Detalhes
+                        </Button>
+                      )}
+                    </div>
                     <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">VENDAS POR COMPRADOR</span></div>
                     {Object.entries(porComprador).sort((a,b)=>a[0].localeCompare(b[0])).map(([comprador, items]) => {
                       const qtd = items.length;
                       const pTot = items.reduce((s,i)=>s+(Number(i.peso)||0),0);
                       const pMed = qtd ? pTot/qtd : 0;
                       const atMed = pMed/30;
+                      const pesos = items.map(i => Number(i.peso) || 0).filter(n => n > 0);
+                      const menor = pesos.length ? Math.min(...pesos) : 0;
+                      const maior = pesos.length ? Math.max(...pesos) : 0;
                       const vTot = items.reduce((s,v)=>{
                         const d = Number(v.valor_venda_total);
                         if(!isNaN(d)&&d>0) return s+d;
@@ -1540,11 +1565,13 @@ export default function RelatorioPesagensIndividuais() {
                             <h3 className="font-bold text-sm">COMPRADOR: {comprador}</h3>
                           </div>
                           <div className="bg-gray-100 px-3 py-2 border-b">
-                            <div className="grid grid-cols-5 gap-4 text-xs">
+                            <div className="grid grid-cols-7 gap-4 text-xs">
                               <div><strong>Total:</strong> {fmtInt(qtd)} animais</div>
                               <div><strong>Peso Médio:</strong> {fmtNum(pMed)} kg</div>
                               <div><strong>Peso Total:</strong> {fmtNum(pTot)} kg</div>
                               <div><strong>Média (@):</strong> {fmtNum(atMed)}</div>
+                              <div><strong>Menor Peso:</strong> {fmtNum(menor,0)} kg</div>
+                              <div><strong>Maior Peso:</strong> {fmtNum(maior,0)} kg</div>
                               <div><strong>Valor Total:</strong> {fmtBRL(vTot)}</div>
                             </div>
                           </div>
@@ -1574,7 +1601,6 @@ export default function RelatorioPesagensIndividuais() {
                                           case 'quantidade_arrobas_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>;
                                           case 'valor_arroba': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>;
                                           case 'valor_total_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>;
-                                          case 'comprador': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>;
                                           case 'destino_venda': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>;
                                           case 'nome_lote': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>;
                                           case 'nome_apartacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>;
