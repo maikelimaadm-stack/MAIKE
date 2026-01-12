@@ -1414,6 +1414,29 @@ export default function RelatorioPesagensIndividuais() {
 
               return (
                 <div className="space-y-4">
+                  {/* Botões de controle - apenas na tela, não imprime */}
+                  <div className="flex gap-2 print:hidden">
+                    <Button 
+                      variant={mostrarDetalhesVendas ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setMostrarDetalhesVendas(!mostrarDetalhesVendas)}
+                      className="h-8 text-xs gap-1"
+                    >
+                      {mostrarDetalhesVendas ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {mostrarDetalhesVendas ? 'Ocultar Detalhes' : 'Mostrar Detalhes'}
+                    </Button>
+                    {mostrarDetalhesVendas && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowConfigColunasVendas(true)}
+                        className="h-8 text-xs gap-1"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        Colunas Detalhes
+                      </Button>
+                    )}
+                  </div>
                   {/* Resumo Geral de Vendas */}
                   <Table>
                     <TableHeader>
