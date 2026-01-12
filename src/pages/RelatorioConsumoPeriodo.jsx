@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import RelatorioBase from "../components/relatorios/RelatorioBase";
 import { FiltroData, FiltroMultiplo, BotaoLimparFiltros } from "../components/relatorios/FiltrosRelatorio";
-import { getLocalEstoque, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
+import { getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return "0,00";
@@ -37,6 +37,11 @@ export default function RelatorioConsumoPeriodo() {
     enabled: !!empresaId,
   });
 
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais-consumo'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+  });
+
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-atual', empresaId],
     queryFn: async () => {
@@ -47,7 +52,8 @@ export default function RelatorioConsumoPeriodo() {
   });
 
   const operacoesUnicas = [...new Set(movimentacoes.map(m => m.tipo_detalhado))].filter(Boolean).sort();
-  const locaisUnicos = [...new Set(movimentacoes.map(m => getLocalEstoque(m)))].filter(Boolean).sort();
+  const locaisOpcoes = locais.map(l => l.id);
+  const nomeLocal = (id) => locais.find(l => l.id === id)?.nome || id;
 
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
@@ -67,7 +73,7 @@ export default function RelatorioConsumoPeriodo() {
         fDate.setHours(23, 59, 59, 999);
         if (mDate > fDate) return false;
       }
-      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(getLocalEstoque(m))) return false;
+      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(m.local_estoque_origem)) return false;
       if (operacoesSelecionadas.length > 0 && !operacoesSelecionadas.includes(m.tipo_detalhado)) return false;
       return true;
     });
@@ -121,7 +127,8 @@ export default function RelatorioConsumoPeriodo() {
             <FiltroMultiplo
               label="Locais"
               selecionados={locaisSelecionados}
-              opcoes={locaisUnicos}
+              opcoes={locaisOpcoes}
+              renderLabel={nomeLocal}
               onToggle={(v) => toggleFiltro(locaisSelecionados, setLocaisSelecionados, v)}
             />
             <FiltroMultiplo

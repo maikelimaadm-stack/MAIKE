@@ -75,13 +75,14 @@ const parseMoedaBR = (str) => {
 
 // Criar lote de estoque (para entradas)
 const criarLoteEstoque = async (empresaId, produto, dadosComuns, fornecedor) => {
-const destinoStr = (dadosComuns.local_estoque_destino || dadosComuns.local_destino || "").trim();
+const destinoId = (dadosComuns.local_estoque_destino || '').trim();
+const destinoNome = (dadosComuns.local_destino || '').trim();
 const loteData = {
   empresa_id: empresaId,
   produto_id: produto.produto_id,
   produto_nome: produto.produto_nome,
-  local_estoque_id: destinoStr,
-  local_estoque_nome: destinoStr,
+  local_estoque_id: destinoId,
+  local_estoque_nome: destinoNome,
   numero_documento: dadosComuns.numero_documento || null,
   serie_documento: dadosComuns.serie_documento || null,
   data_documento: dadosComuns.data_documento || null,

@@ -144,10 +144,16 @@ export default function MovimentacaoEstoqueFormV2({
     initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10)
   );
   const [localEstoqueOrigemId, setLocalEstoqueOrigemId] = useState(
-    initialData?.local_estoque_origem_id || ''
+    initialData?.local_estoque_origem || ''
+  );
+  const [localEstoqueOrigemNome, setLocalEstoqueOrigemNome] = useState(
+    initialData?.local_origem || ''
   );
   const [localEstoqueDestinoId, setLocalEstoqueDestinoId] = useState(
-    initialData?.local_estoque_destino_id || ''
+    initialData?.local_estoque_destino || ''
+  );
+  const [localEstoqueDestinoNome, setLocalEstoqueDestinoNome] = useState(
+    initialData?.local_destino || ''
   );
   
   // Documento/NF-e
@@ -401,6 +407,8 @@ export default function MovimentacaoEstoqueFormV2({
   const handleLocalOrigemChange = (novoLocalId) => {
     const localAnterior = localEstoqueOrigemId;
     setLocalEstoqueOrigemId(novoLocalId);
+    const l = locais.find(x => x.id === novoLocalId);
+    setLocalEstoqueOrigemNome(l?.nome || '');
     
     // Se mudou o local e tem produto selecionado, validar
     if ((tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && currentItem.produto_id && novoLocalId && novoLocalId !== localAnterior) {
@@ -861,7 +869,15 @@ export default function MovimentacaoEstoqueFormV2({
       tipo === 'TRANSFERENCIA' ? 'Transferência' : 'Ajuste';
 
     // Preparar locais usando função utilitária
-    const locaisPreparados = prepararLocaisParaSalvar(tipo, operacao, localEstoqueOrigemId, localEstoqueDestinoId, locais);
+    const locaisPreparados = prepararLocaisParaSalvar({
+      tipo_movimentacao: tipoMovimentacaoFinal,
+      tipo_detalhado: toValue(operacao),
+      origemId: localEstoqueOrigemId,
+      origemNome: localEstoqueOrigemNome,
+      destinoId: localEstoqueDestinoId,
+      destinoNome: localEstoqueDestinoNome,
+      locais,
+    });
 
     const dadosMovimentacao = {
       empresa_id: empresaId,
@@ -869,13 +885,8 @@ export default function MovimentacaoEstoqueFormV2({
       tipo_detalhado: toValue(operacao), // Sempre salvar como slug
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
       
-      // Locais usando função utilitária
-      local_estoque_origem_id: locaisPreparados.local_estoque_origem_id,
-      local_estoque_origem: locaisPreparados.local_estoque_origem,
-      local_estoque_origem_nome: locaisPreparados.local_estoque_origem_nome,
-      local_estoque_destino_id: locaisPreparados.local_estoque_destino_id,
-      local_estoque_destino: locaisPreparados.local_estoque_destino,
-      local_estoque_destino_nome: locaisPreparados.local_estoque_destino_nome,
+      // Locais (APENAS CAMPOS DO SCHEMA)
+      ...locaisPreparados,
       
       // Documento
       tipo_documento: mostrarDocumento ? tipoDocumento : undefined,
@@ -953,6 +964,8 @@ export default function MovimentacaoEstoqueFormV2({
   const handleLocalPrincipalChange = (novoLocalId) => {
     if (tipo === 'ENTRADA' || (tipo === 'AJUSTE' && operacao === 'ajuste_positivo')) {
       setLocalEstoqueDestinoId(novoLocalId);
+      const l = locais.find(x => x.id === novoLocalId);
+      setLocalEstoqueDestinoNome(l?.nome || '');
     } else {
       handleLocalOrigemChange(novoLocalId);
     }

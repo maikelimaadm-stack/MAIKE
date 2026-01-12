@@ -59,8 +59,8 @@ export default function RelatorioKardex() {
         m.empresa_id === empresaId && 
         m.status === 'Ativa' &&
         m.produto_id === produtoId &&
-        (localEstoqueId ? (m.local_estoque_origem_id === localEstoqueId || m.local_estoque_destino_id === localEstoqueId) : true)
-      );
+        (localEstoqueId ? (m.local_estoque_origem === localEstoqueId || m.local_estoque_destino === localEstoqueId) : true)
+        );
     },
     enabled: !!empresaId && !!produtoId,
   });
@@ -198,7 +198,7 @@ export default function RelatorioKardex() {
           <TableBody>
             {movimentacoesComSaldo.map((m) => {
               const isEntrada = m.tipo_movimentacao === 'Entrada' || 
-                (m.tipo_movimentacao === 'Transferência' && m.local_estoque_destino_id === localEstoqueId) ||
+                (m.tipo_movimentacao === 'Transferência' && m.local_estoque_destino === localEstoqueId) ||
                 (m.tipo_movimentacao === 'Ajuste' && m.tipo_detalhado?.includes('positivo'));
               const qtdEntrada = isEntrada ? m.quantidade : 0;
               const qtdSaida = !isEntrada ? m.quantidade : 0;

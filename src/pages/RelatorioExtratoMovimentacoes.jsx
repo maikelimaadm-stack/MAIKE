@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import RelatorioBase from "../components/relatorios/RelatorioBase";
 import { FiltroData, FiltroMultiplo, FiltroSelect, BotaoLimparFiltros } from "../components/relatorios/FiltrosRelatorio";
 import { format } from "date-fns";
-import { toLabel, getLocalEstoque, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
+import { toLabel, getLabelOperacao, toValue } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return "0,00";
@@ -47,6 +47,11 @@ export default function RelatorioExtratoMovimentacoes() {
     enabled: !!empresaId,
   });
 
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais-extrato'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+  });
+
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-atual', empresaId],
     queryFn: async () => {
@@ -60,8 +65,9 @@ export default function RelatorioExtratoMovimentacoes() {
   // Operações únicas: extrair values únicos das movimentações
   const operacoesUnicasValues = [...new Set(movimentacoes.map(m => m.tipo_detalhado))].filter(Boolean).sort();
   const produtosUnicos = [...new Set(movimentacoes.map(m => m.produto_nome))].filter(Boolean).sort();
-  // Locais usando função utilitária correta
-  const locaisUnicos = [...new Set(movimentacoes.map(m => getLocalEstoque(m)))].filter(Boolean).sort();
+  // Opções de locais (IDs) - para FILTRO por ID
+  const locaisOpcoes = locais.map(l => l.id);
+  const nomeLocal = (id) => locais.find(l => l.id === id)?.nome || id;
   const documentosUnicos = [...new Set(movimentacoes.map(m => m.numero_documento))].filter(Boolean).sort();
 
   const toggleFiltro = (lista, setLista, valor) => {
@@ -86,8 +92,11 @@ export default function RelatorioExtratoMovimentacoes() {
       if (operacoesSelecionadas.length > 0 && !operacoesSelecionadas.includes(m.tipo_detalhado)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(m.produto_nome)) return false;
       if (locaisSelecionados.length > 0) {
-        const local = getLocalEstoque(m);
-        if (!locaisSelecionados.includes(local)) return false;
+        const lid = (m.tipo_movimentacao === 'Entrada') ? m.local_estoque_destino
+          : (m.tipo_movimentacao === 'Saída') ? m.local_estoque_origem
+          : (m.tipo_movimentacao === 'Transferência') ? (m.local_estoque_origem || m.local_estoque_destino)
+          : (toValue(m.tipo_detalhado || '').includes('ajuste_positivo') ? m.local_estoque_destino : m.local_estoque_origem);
+        if (!lid || !locaisSelecionados.includes(lid)) return false;
       }
       if (documentosSelecionados.length > 0 && !documentosSelecionados.includes(m.numero_documento)) return false;
       return true;
@@ -169,7 +178,8 @@ export default function RelatorioExtratoMovimentacoes() {
             <FiltroMultiplo
               label="Locais"
               selecionados={locaisSelecionados}
-              opcoes={locaisUnicos}
+              opcoes={locaisOpcoes}
+              renderLabel={nomeLocal}
               onToggle={(v) => toggleFiltro(locaisSelecionados, setLocaisSelecionados, v)}
             />
             <BotaoLimparFiltros onClick={limparFiltros} />

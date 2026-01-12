@@ -218,7 +218,17 @@ export default function RelatoriosEstoque() {
       case 'extrato_movimentacoes': {
         let movs = filtrarPorData(movimentacoes);
         if (produtoId) movs = movs.filter(m => m.produto_id === produtoId);
-        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem_id === localEstoqueId || m.local_estoque_destino_id === localEstoqueId);
+        if (localEstoqueId) {
+          movs = movs.filter(m => (
+            (m.tipo_movimentacao === 'Entrada' && m.local_estoque_destino === localEstoqueId) ||
+            (m.tipo_movimentacao === 'Saída' && m.local_estoque_origem === localEstoqueId) ||
+            (m.tipo_movimentacao === 'Transferência' && (m.local_estoque_origem === localEstoqueId || m.local_estoque_destino === localEstoqueId)) ||
+            (m.tipo_movimentacao === 'Ajuste' && (
+              (toValue(m.tipo_detalhado || '')?.includes('ajuste_positivo') && m.local_estoque_destino === localEstoqueId) ||
+              (toValue(m.tipo_detalhado || '')?.includes('ajuste_negativo') && m.local_estoque_origem === localEstoqueId)
+            ))
+          ));
+        }
         if (fornecedorId) movs = movs.filter(m => m.fornecedor_id === fornecedorId);
 
         return movs.sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
@@ -226,7 +236,7 @@ export default function RelatoriosEstoque() {
 
       case 'consumo_periodo': {
         let movs = filtrarPorData(movimentacoes.filter(m => m.tipo_movimentacao === 'Saída'));
-        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem_id === localEstoqueId);
+        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem === localEstoqueId);
         if (centroCustoId) movs = movs.filter(m => m.centro_custo_id === centroCustoId);
 
         // Agrupar por produto
@@ -251,7 +261,7 @@ export default function RelatoriosEstoque() {
       case 'perdas_quebras': {
         let movs = filtrarPorData(movimentacoes.filter(m => m.tipo_detalhado === 'perda_quebra'));
         if (produtoId) movs = movs.filter(m => m.produto_id === produtoId);
-        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem_id === localEstoqueId);
+        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem === localEstoqueId);
 
         return movs.sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
       }
@@ -285,7 +295,7 @@ export default function RelatoriosEstoque() {
       case 'kardex': {
         if (!produtoId) return [];
         let movs = filtrarPorData(movimentacoes.filter(m => m.produto_id === produtoId));
-        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem_id === localEstoqueId || m.local_estoque_destino_id === localEstoqueId);
+        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem === localEstoqueId || m.local_estoque_destino === localEstoqueId);
 
         // Ordenar por data crescente e calcular saldo progressivo
         movs = movs.sort((a, b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao));
@@ -304,13 +314,13 @@ export default function RelatoriosEstoque() {
 
       case 'transferencias': {
         let movs = filtrarPorData(movimentacoes.filter(m => m.tipo_movimentacao === 'Transferência'));
-        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem_id === localEstoqueId || m.local_estoque_destino_id === localEstoqueId);
+        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem === localEstoqueId || m.local_estoque_destino === localEstoqueId);
         return movs.sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
       }
 
       case 'ajustes': {
         let movs = filtrarPorData(movimentacoes.filter(m => m.tipo_movimentacao === 'Ajuste'));
-        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem_id === localEstoqueId || m.local_estoque_destino_id === localEstoqueId);
+        if (localEstoqueId) movs = movs.filter(m => m.local_estoque_origem === localEstoqueId || m.local_estoque_destino === localEstoqueId);
         return movs.sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
       }
 
