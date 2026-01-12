@@ -928,8 +928,8 @@ export default function LancamentoPesagensIndividuais() {
       }
     }
 
-    // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN
-    const isSN = numeroAnimal.trim().toUpperCase() === 'SN';
+    // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN e variações SNx
+    const isSN = /^SN\s*\d*$/i.test(numeroAnimal.trim()) || numeroAnimal.trim().toUpperCase() === 'SN';
     if (!editingId && !isSN) {
       const duplicado = pesagensDia.find((p) =>
       p.numero_animal === numeroAnimal.trim() &&

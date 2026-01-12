@@ -52,17 +52,24 @@ import PesagensIndividuais from './pages/PesagensIndividuais';
 import PlanoContas from './pages/PlanoContas';
 import PopularCidades from './pages/PopularCidades';
 import Produtos from './pages/Produtos';
+import RelatorioConsumoPeriodo from './pages/RelatorioConsumoPeriodo';
 import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
+import RelatorioEntradasFornecedor from './pages/RelatorioEntradasFornecedor';
 import RelatorioEstoque from './pages/RelatorioEstoque';
+import RelatorioExtratoMovimentacoes from './pages/RelatorioExtratoMovimentacoes';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
 import RelatorioFornecedores from './pages/RelatorioFornecedores';
 import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
+import RelatorioKardex from './pages/RelatorioKardex';
 import RelatorioMovimentacoesPecuaria from './pages/RelatorioMovimentacoesPecuaria';
+import RelatorioPerdasAnalitico from './pages/RelatorioPerdasAnalitico';
 import RelatorioPesagens from './pages/RelatorioPesagens';
 import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
 import RelatorioProdutos from './pages/RelatorioProdutos';
+import RelatorioSaldoAtual from './pages/RelatorioSaldoAtual';
 import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
 import Relatorios from './pages/Relatorios';
+import RelatoriosEstoque from './pages/RelatoriosEstoque';
 import RemoverDuplicados from './pages/RemoverDuplicados';
 import SimulacaoResultados from './pages/SimulacaoResultados';
 import TipoTarefaForm from './pages/TipoTarefaForm';
@@ -70,13 +77,6 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
-import RelatorioSaldoAtual from './pages/RelatorioSaldoAtual';
-import RelatorioExtratoMovimentacoes from './pages/RelatorioExtratoMovimentacoes';
-import RelatorioConsumoPeriodo from './pages/RelatorioConsumoPeriodo';
-import RelatorioPerdasAnalitico from './pages/RelatorioPerdasAnalitico';
-import RelatorioKardex from './pages/RelatorioKardex';
-import RelatorioEntradasFornecedor from './pages/RelatorioEntradasFornecedor';
-import RelatoriosEstoque from './pages/RelatoriosEstoque';
 import __Layout from './Layout.jsx';
 
 
@@ -135,17 +135,24 @@ export const PAGES = {
     "PlanoContas": PlanoContas,
     "PopularCidades": PopularCidades,
     "Produtos": Produtos,
+    "RelatorioConsumoPeriodo": RelatorioConsumoPeriodo,
     "RelatorioCustosSafra": RelatorioCustosSafra,
+    "RelatorioEntradasFornecedor": RelatorioEntradasFornecedor,
     "RelatorioEstoque": RelatorioEstoque,
+    "RelatorioExtratoMovimentacoes": RelatorioExtratoMovimentacoes,
     "RelatorioFinanceiro": RelatorioFinanceiro,
     "RelatorioFornecedores": RelatorioFornecedores,
     "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
+    "RelatorioKardex": RelatorioKardex,
     "RelatorioMovimentacoesPecuaria": RelatorioMovimentacoesPecuaria,
+    "RelatorioPerdasAnalitico": RelatorioPerdasAnalitico,
     "RelatorioPesagens": RelatorioPesagens,
     "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
     "RelatorioProdutos": RelatorioProdutos,
+    "RelatorioSaldoAtual": RelatorioSaldoAtual,
     "RelatorioSuplementacao": RelatorioSuplementacao,
     "Relatorios": Relatorios,
+    "RelatoriosEstoque": RelatoriosEstoque,
     "RemoverDuplicados": RemoverDuplicados,
     "SimulacaoResultados": SimulacaoResultados,
     "TipoTarefaForm": TipoTarefaForm,
@@ -153,13 +160,6 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
-    "RelatorioSaldoAtual": RelatorioSaldoAtual,
-    "RelatorioExtratoMovimentacoes": RelatorioExtratoMovimentacoes,
-    "RelatorioConsumoPeriodo": RelatorioConsumoPeriodo,
-    "RelatorioPerdasAnalitico": RelatorioPerdasAnalitico,
-    "RelatorioKardex": RelatorioKardex,
-    "RelatorioEntradasFornecedor": RelatorioEntradasFornecedor,
-    "RelatoriosEstoque": RelatoriosEstoque,
 }
 
 export const pagesConfig = {
