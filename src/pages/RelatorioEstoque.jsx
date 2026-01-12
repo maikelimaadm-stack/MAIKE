@@ -156,6 +156,12 @@ export default function RelatorioEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais-relatorio'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+  });
+  const nomeLocal = (id) => locais.find(l => l.id === id)?.nome || id;
+
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-atual-relatorio', empresaSelecionadaId],
     queryFn: async () => {
@@ -167,7 +173,7 @@ export default function RelatorioEstoque() {
   });
 
   // Extrair valores únicos para filtros
-  const tiposUnicos = ['Entrada', 'Saída', 'Ajuste'];
+  const tiposUnicos = ['Entrada', 'Saída', 'Transferência', 'Ajuste'];
   const operacoesUnicas = [...new Set(movimentacoes.map(m => m.tipo_detalhado))].filter(Boolean).sort();
   const produtosUnicos = [...new Set(movimentacoes.map(m => m.produto_nome))].filter(Boolean).sort();
   const categoriasUnicas = [...new Set(movimentacoes.map(m => m.produto_categoria))].filter(Boolean).sort();
@@ -221,8 +227,16 @@ export default function RelatorioEstoque() {
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(m.produto_nome)) return false;
       if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(m.produto_categoria)) return false;
       if (locaisSelecionados.length > 0) {
-        const local = getLocalEstoque(m);
-        if (!locaisSelecionados.includes(local)) return false;
+        const lids = [];
+        if (m.tipo_movimentacao === 'Entrada') lids.push(m.local_estoque_destino);
+        else if (m.tipo_movimentacao === 'Saída') lids.push(m.local_estoque_origem);
+        else if (m.tipo_movimentacao === 'Transferência') lids.push(m.local_estoque_origem, m.local_estoque_destino);
+        else {
+          const tipoSlug = String(m.tipo_detalhado || '').toLowerCase();
+          const isPos = tipoSlug.includes('ajuste_positivo');
+          lids.push(isPos ? m.local_estoque_destino : m.local_estoque_origem);
+        }
+        if (!lids.some(l => l && locaisSelecionados.includes(l))) return false;
       }
       if (fornecedoresSelecionados.length > 0 && !fornecedoresSelecionados.includes(m.fornecedor_nome)) return false;
       if (clientesSelecionados.length > 0) {
@@ -328,10 +342,12 @@ export default function RelatorioEstoque() {
   };
 
   // Totais
-  const totalEntradas = movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Entrada').reduce((s, m) => s + (m.quantidade || 0), 0);
-  const totalSaidas = movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Saída').reduce((s, m) => s + (m.quantidade || 0), 0);
-  const valorTotalEntradas = movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Entrada').reduce((s, m) => s + (m.valor_total || 0), 0);
-  const valorTotalSaidas = movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Saída').reduce((s, m) => s + (m.valor_total || 0), 0);
+  const isEntrada = (m) => m.tipo_movimentacao === 'Entrada' || (m.tipo_movimentacao === 'Ajuste' && String(m.tipo_detalhado || '').toLowerCase().includes('ajuste_positivo'));
+  const isSaida = (m) => m.tipo_movimentacao === 'Saída' || (m.tipo_movimentacao === 'Ajuste' && !String(m.tipo_detalhado || '').toLowerCase().includes('ajuste_positivo'));
+  const totalEntradas = movimentacoesFiltradas.filter(isEntrada).reduce((s, m) => s + (m.quantidade || 0), 0);
+  const totalSaidas = movimentacoesFiltradas.filter(isSaida).reduce((s, m) => s + (m.quantidade || 0), 0);
+  const valorTotalEntradas = movimentacoesFiltradas.filter(isEntrada).reduce((s, m) => s + (m.valor_total || 0), 0);
+  const valorTotalSaidas = movimentacoesFiltradas.filter(isSaida).reduce((s, m) => s + (m.valor_total || 0), 0);
   const saldoQuantidade = totalEntradas - totalSaidas;
   const saldoValor = valorTotalEntradas - valorTotalSaidas;
 
@@ -527,7 +543,7 @@ export default function RelatorioEstoque() {
                   {locaisUnicos.map(l => (
                     <div key={l} className="flex items-center space-x-2">
                       <Checkbox checked={locaisSelecionados.includes(l)} onCheckedChange={() => toggleFiltro(locaisSelecionados, setLocaisSelecionados, l)} />
-                      <label className="text-sm cursor-pointer">{l}</label>
+                      <label className="text-sm cursor-pointer">{nomeLocal(l)}</label>
                     </div>
                   ))}
                 </div>
@@ -707,14 +723,15 @@ export default function RelatorioEstoque() {
                 const valor = m.valor_total || 0;
 
                 if (matrizFinal[linha] && matrizFinal[linha][col]) {
-                  if (m.tipo_movimentacao === 'Entrada') {
+                  const tipoSlug = String(m.tipo_detalhado || '').toLowerCase();
+                  if (m.tipo_movimentacao === 'Entrada' || (m.tipo_movimentacao === 'Ajuste' && tipoSlug.includes('ajuste_positivo'))) {
                     matrizFinal[linha][col].entradas += qtd;
                     matrizFinal[linha][col].valorEntradas += valor;
                     totaisColunaFinal.entradas[col] += qtd;
                     totaisColunaFinal.valorEntradas[col] += valor;
                     totaisLinhaFinal[linha].entradas += qtd;
                     totaisLinhaFinal[linha].valorEntradas += valor;
-                  } else if (m.tipo_movimentacao === 'Saída') {
+                  } else if (m.tipo_movimentacao === 'Saída' || (m.tipo_movimentacao === 'Ajuste' && !tipoSlug.includes('ajuste_positivo'))) {
                     matrizFinal[linha][col].saidas += qtd;
                     matrizFinal[linha][col].valorSaidas += valor;
                     totaisColunaFinal.saidas[col] += qtd;
@@ -845,10 +862,10 @@ export default function RelatorioEstoque() {
             /* RELATÓRIO ANALÍTICO */
             <>
               {Object.entries(movimentacoesAgrupadas).map(([grupo, registros], idx) => {
-                const totalGrupoEnt = registros.filter(r => r.tipo_movimentacao === 'Entrada').reduce((s, r) => s + (r.quantidade || 0), 0);
-                const totalGrupoSai = registros.filter(r => r.tipo_movimentacao === 'Saída').reduce((s, r) => s + (r.quantidade || 0), 0);
-                const valorGrupoEnt = registros.filter(r => r.tipo_movimentacao === 'Entrada').reduce((s, r) => s + (r.valor_total || 0), 0);
-                const valorGrupoSai = registros.filter(r => r.tipo_movimentacao === 'Saída').reduce((s, r) => s + (r.valor_total || 0), 0);
+                const totalGrupoEnt = registros.filter(isEntrada).reduce((s, r) => s + (r.quantidade || 0), 0);
+                const totalGrupoSai = registros.filter(isSaida).reduce((s, r) => s + (r.quantidade || 0), 0);
+                const valorGrupoEnt = registros.filter(isEntrada).reduce((s, r) => s + (r.valor_total || 0), 0);
+                const valorGrupoSai = registros.filter(isSaida).reduce((s, r) => s + (r.valor_total || 0), 0);
 
                 return (
                   <div key={idx} className="mb-4">

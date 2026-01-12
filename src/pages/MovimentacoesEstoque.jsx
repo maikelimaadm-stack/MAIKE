@@ -289,8 +289,8 @@ export default function MovimentacoesEstoque() {
       preco_custo: novoCustoMedio
     });
 
-    // Criar/atualizar lote de estoque para entradas e transferências recebidas
-    if (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') {
+    // Criar/atualizar lote de estoque para entradas, transferências recebidas e ajuste positivo
+    if (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência' || (dadosComuns.tipo_movimentacao === 'Ajuste' && String(dadosComuns.tipo_detalhado || '').toLowerCase().includes('ajuste_positivo'))) {
       const fornecedor = fornecedores.find(f => f.id === dadosComuns.fornecedor_id);
       await criarLoteEstoque(empresaSelecionadaId, {
         ...produto,
@@ -299,8 +299,8 @@ export default function MovimentacoesEstoque() {
       }, { ...dadosComuns, ...locais }, fornecedor);
     }
 
-    // Baixar lote de estoque para saídas e transferências enviadas
-    if (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') {
+    // Baixar lote de estoque para saídas, transferências enviadas e ajuste negativo
+    if (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência' || (dadosComuns.tipo_movimentacao === 'Ajuste' && !String(dadosComuns.tipo_detalhado || '').toLowerCase().includes('ajuste_positivo'))) {
       if (produto.modo_custo_saida === 'fifo' && produto.rateio_lotes) {
         // FIFO - baixar de múltiplos lotes
         await baixarLotesFIFO(produto.rateio_lotes);

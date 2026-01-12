@@ -105,9 +105,9 @@ export default function RelatorioKardex() {
       } else if (m.tipo_movimentacao === 'Saída') {
         saldo -= qtd;
       } else if (m.tipo_movimentacao === 'Transferência') {
-        if (m.local_estoque_origem_id === localEstoqueId) {
+        if (m.local_estoque_origem === localEstoqueId) {
           saldo -= qtd;
-        } else if (m.local_estoque_destino_id === localEstoqueId) {
+        } else if (m.local_estoque_destino === localEstoqueId) {
           saldo += qtd;
         }
       } else if (m.tipo_movimentacao === 'Ajuste') {
