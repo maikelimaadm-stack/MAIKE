@@ -191,6 +191,28 @@ export default function Backup() {
     toast.success(`${paths.length} caminhos copiados!`);
   };
 
+  const [exportando, setExportando] = useState(false);
+  const baixarBackupJSON = async () => {
+    try {
+      setExportando(true);
+      const res = await base44.functions.invoke('exportAllData');
+      const blob = new Blob([JSON.stringify(res.data)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_dados_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Backup de dados exportado com sucesso');
+    } catch (e) {
+      toast.error('Falha ao exportar backup');
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex justify-between items-start">
@@ -199,6 +221,15 @@ export default function Backup() {
           <p className="text-xs text-slate-600">Lista completa de arquivos do projeto</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            onClick={baixarBackupJSON}
+            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+            size="sm"
+            disabled={exportando}
+          >
+            <Download className="w-3.5 h-3.5 mr-2" />
+            {exportando ? 'Exportando...' : 'Exportar Dados (.json)'}
+          </Button>
           <Button 
             onClick={handleCopyAllPaths} 
             variant="outline"
@@ -211,6 +242,7 @@ export default function Backup() {
           <Button 
             onClick={handleDownloadListaTXT}
             className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+            size="sm"
           >
             <Download className="w-3.5 h-3.5 mr-2" />
             Baixar Lista (.txt)
@@ -218,7 +250,7 @@ export default function Backup() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -338,7 +370,7 @@ export default function Backup() {
               <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
                 <li>Baixe a lista de arquivos clicando no botão acima</li>
                 <li>Use o Base44 Dashboard para fazer download de cada arquivo</li>
-                <li>Para backup de dados, exporte cada entidade do banco de dados</li>
+                <li>Para backup de dados, você pode usar o botão "Exportar Dados (.json)" acima</li>
                 <li>Salve tudo em local seguro (ex: Google Drive, Dropbox)</li>
                 <li>Recomendamos fazer backups semanais</li>
                 <li>Para restaurar, reimporte os arquivos via Base44 Dashboard</li>
