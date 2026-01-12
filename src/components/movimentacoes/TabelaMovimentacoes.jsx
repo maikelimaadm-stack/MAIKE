@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { toLabel, getLocalEstoque, getLabelOperacao } from './utils/movimentacaoUtils';
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
