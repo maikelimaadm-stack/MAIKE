@@ -19,7 +19,7 @@ import { Loader2 } from "lucide-react";
 import MovimentacaoEstoqueFormV2 from "../components/movimentacoes/MovimentacaoEstoqueFormV2";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
 import ImportarNFeMovimentacao from "../components/movimentacoes/ImportarNFeMovimentacao";
-import { toValue, prepararLocaisParaSalvar } from "../components/movimentacoes/utils/movimentacaoUtils";
+import { toValue, prepararLocaisParaSalvar, getLabelOperacao, getLocalEstoque } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 
 const getNextSystemNumber = async () => {
