@@ -57,11 +57,11 @@ export default function RelatorioExtratoMovimentacoes() {
   });
 
   const tiposUnicos = ['Entrada', 'Saída', 'Transferência', 'Ajuste'];
-  const operacoesUnicas = [...new Set(movimentacoes.map(m => m.tipo_detalhado))].filter(Boolean).sort();
+  // Operações únicas: extrair values únicos das movimentações
+  const operacoesUnicasValues = [...new Set(movimentacoes.map(m => m.tipo_detalhado))].filter(Boolean).sort();
   const produtosUnicos = [...new Set(movimentacoes.map(m => m.produto_nome))].filter(Boolean).sort();
-  const locaisUnicos = [
-    ...new Set(movimentacoes.map(m => m.local_estoque_origem || m.local_estoque_destino))
-  ].filter(Boolean).sort();
+  // Locais usando função utilitária correta
+  const locaisUnicos = [...new Set(movimentacoes.map(m => getLocalEstoque(m)))].filter(Boolean).sort();
   const documentosUnicos = [...new Set(movimentacoes.map(m => m.numero_documento))].filter(Boolean).sort();
 
   const toggleFiltro = (lista, setLista, valor) => {
