@@ -472,22 +472,26 @@ export default function MovimentacaoEstoqueFormV2({
     }
   };
 
+  // Default para inputs com máscara (strings formatadas)
+  const defaultCurrentItem = {
+    produto_id: '',
+    produto_nome: '',
+    produto_codigo: '',
+    unidade: 'UN',
+    quantidade: '',
+    preco_unitario: '',
+    total: '',
+    desconto: '',
+    liquido: '',
+    lote_origem_id: '',
+    lote_origem_info: null,
+    rateio_lotes: [],
+    observacao_item: '',
+    modo_custo_saida: null,
+  };
+
   const resetCurrentItem = () => {
-    setCurrentItem({
-      produto_id: '',
-      produto_nome: '',
-      produto_codigo: '',
-      unidade: '',
-      quantidade: '',
-      preco_unitario: '',
-      total: '',
-      desconto: '',
-      liquido: '',
-      lote_origem_id: '',
-      lote_origem_info: null,
-      rateio_lotes: [],
-      observacao_item: ''
-    });
+    setCurrentItem({ ...defaultCurrentItem });
     setEditingIndex(null);
   };
 
