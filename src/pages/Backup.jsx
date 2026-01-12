@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Download, FileCode, Folder, Copy, Check, Database } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ARQUIVOS_SISTEMA = {
   "Layout": {
@@ -198,6 +201,13 @@ export default function Backup() {
   const inputJsonRef = useRef(null);
   const inputZipRef = useRef(null);
 
+  const [showImport, setShowImport] = useState(false);
+  const [importPercent, setImportPercent] = useState(0);
+  const [importStage, setImportStage] = useState("");
+  const [importLogs, setImportLogs] = useState([]);
+  const progressTimerRef = useRef(null);
+  const [replaceAll, setReplaceAll] = useState(false);
+
   const baixarBackupJSON = async () => {
     try {
       setExportando(true);
@@ -219,7 +229,7 @@ export default function Backup() {
     }
   };
 
-  const baixarBackupZIP = async () => {
+   const baixarBackupZIP = async () => {
     try {
       setExportandoZip(true);
       const res = await base44.functions.invoke('exportBackupZip');
@@ -238,6 +248,63 @@ export default function Backup() {
       toast.error('Falha ao exportar pacote .zip');
     } finally {
       setExportandoZip(false);
+    }
+  };
+
+  const handleImport = async (file, type) => {
+    try {
+      setShowImport(true);
+      setImportStage('Preparando arquivo...');
+      setImportPercent(5);
+      setImportLogs([]);
+
+      if (type === 'json') {
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const dataObj = parsed.data || parsed;
+          if (dataObj && typeof dataObj === 'object') {
+            const entities = Object.keys(dataObj).filter(k => Array.isArray(dataObj[k]));
+            const total = entities.reduce((s, k) => s + (dataObj[k]?.length || 0), 0);
+            setImportLogs(prev => [
+              ...prev,
+              `Encontradas ${entities.length} entidades, ${total} registros.`
+            ]);
+          }
+        } catch (_) {}
+      }
+
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      progressTimerRef.current = setInterval(() => {
+        setImportPercent((p) => (p < 90 ? p + 1 : p));
+      }, 500);
+
+      setImportStage('Enviando arquivo...');
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+
+      setImportStage('Importando registros no servidor...');
+      const payload = type === 'json'
+        ? { json_url: file_url, mode: replaceAll ? 'replace' : 'append' }
+        : { zip_url: file_url, mode: replaceAll ? 'replace' : 'append' };
+
+      const res = await base44.functions.invoke('importBackup', payload);
+      const summary = res.data?.summary || {};
+      const imported = summary.imported || {};
+      const errors = summary.errors || {};
+
+      const logs = [];
+      Object.keys(imported).forEach((e) => logs.push(`${e}: ${imported[e]} importados`));
+      Object.keys(errors).forEach((e) => logs.push(`${e}: erro - ${errors[e]}`));
+
+      if (progressTimerRef.current) { clearInterval(progressTimerRef.current); progressTimerRef.current = null; }
+      setImportStage('Finalizando...');
+      setImportPercent(100);
+      setImportLogs((prev) => [...prev, ...logs]);
+      toast.success('Importação concluída');
+    } catch (e) {
+      if (progressTimerRef.current) { clearInterval(progressTimerRef.current); progressTimerRef.current = null; }
+      setImportStage('Falha na importação');
+      toast.error('Falha ao importar');
     }
   };
 
@@ -305,35 +372,45 @@ export default function Backup() {
         </div>
       </div>
 
+      <Dialog open={showImport} onOpenChange={setShowImport}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Sincronização de Importação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-slate-600">{importStage || 'Preparando...'}</div>
+            <div className="flex items-center gap-2">
+              <Progress value={importPercent} className="h-2 w-full" />
+              <span className="text-xs w-10 text-right">{importPercent}%</span>
+            </div>
+            <div className="max-h-40 overflow-auto border rounded p-2 bg-white">
+              {importLogs.length === 0 ? (
+                <div className="text-xs text-slate-500">Aguarde...</div>
+              ) : (
+                importLogs.map((l, i) => (
+                  <div key={i} className="text-xs">{l}</div>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <input type="file" ref={inputJsonRef} accept="application/json" className="hidden" onChange={async (e) => {
-        try {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          setImportandoJson(true);
-          const { file_url } = await base44.integrations.Core.UploadFile({ file });
-          const res = await base44.functions.invoke('importBackup', { json_url: file_url, mode: 'append' });
-          toast.success('Importação (.json) concluída');
-        } catch (err) {
-          toast.error('Falha ao importar .json');
-        } finally {
-          setImportandoJson(false);
-          e.target.value = '';
-        }
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImportandoJson(true);
+        await handleImport(file, 'json');
+        setImportandoJson(false);
+        e.target.value = '';
       }} />
       <input type="file" ref={inputZipRef} accept="application/zip,.zip" className="hidden" onChange={async (e) => {
-        try {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          setImportandoZip(true);
-          const { file_url } = await base44.integrations.Core.UploadFile({ file });
-          const res = await base44.functions.invoke('importBackup', { zip_url: file_url, mode: 'append' });
-          toast.success('Importação (.zip) concluída');
-        } catch (err) {
-          toast.error('Falha ao importar .zip');
-        } finally {
-          setImportandoZip(false);
-          e.target.value = '';
-        }
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImportandoZip(true);
+        await handleImport(file, 'zip');
+        setImportandoZip(false);
+        e.target.value = '';
       }} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
