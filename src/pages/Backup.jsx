@@ -195,7 +195,6 @@ export default function Backup() {
   };
 
   const [exportando, setExportando] = useState(false);
-  const [exportandoZip, setExportandoZip] = useState(false);
   const [importandoJson, setImportandoJson] = useState(false);
   const inputJsonRef = useRef(null);
 
