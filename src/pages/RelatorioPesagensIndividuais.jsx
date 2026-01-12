@@ -1520,56 +1520,86 @@ export default function RelatorioPesagensIndividuais() {
                     </Table>
                   </div>
 
-                  {/* Detalhes das Vendas */}
-                  {mostrarDetalhesVendas && (
-                    <div>
-                      <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">DETALHES DAS VENDAS</span></div>
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              {colunasVendasOrdenadas.map(col => (
-                                <TableHead key={col.id} className={`border border-black text-xs font-bold py-1 ${['peso','quantidade_arrobas_calc','valor_arroba','valor_total_calc'].includes(col.id) ? 'text-right' : ''}`}>{col.label}</TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {vendas.map((v) => {
-                              const qtdAt = (Number(v.peso)||0)/30;
-                              const vTotal = !isNaN(Number(v.valor_venda_total)) && Number(v.valor_venda_total) > 0
-                                ? Number(v.valor_venda_total)
-                                : ((Number(v.peso)||0)/30) * (Number(v.valor_arroba)||0);
-                              const renderCell = (id) => {
-                                switch(id){
-                                  case 'data_pesagem': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>;
-                                  case 'numero_animal': return <TableCell key={id} className="border border-gray-300 text-xs font-medium py-1">{v.numero_animal}</TableCell>;
-                                  case 'peso': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(v.peso,0)}</TableCell>;
-                                  case 'quantidade_arrobas_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>;
-                                  case 'valor_arroba': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>;
-                                  case 'valor_total_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>;
-                                  case 'comprador': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>;
-                                  case 'destino_venda': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>;
-                                  case 'nome_lote': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>;
-                                  case 'nome_apartacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>;
-                                  case 'sexo': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.sexo || '-'}</TableCell>;
-                                  case 'raca': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.raca || '-'}</TableCell>;
-                                  case 'era': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.era || '-'}</TableCell>;
-                                  case 'marca': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.marca || '-'}</TableCell>;
-                                  case 'observacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1 max-w-[160px] truncate">{v.observacao || '-'}</TableCell>;
-                                  default: return <TableCell key={id} className="border border-gray-300 text-xs py-1">-</TableCell>;
-                                }
-                              };
-                              return (
-                                <TableRow key={v.id} className="hover:bg-gray-50">
-                                  {colunasVendasOrdenadas.map(col => renderCell(col.id))}
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  )}
+                  {/* Vendas agrupadas por Comprador, com cabeçalho e detalhes opcionais */}
+                  <div>
+                    <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">VENDAS POR COMPRADOR</span></div>
+                    {Object.entries(porComprador).sort((a,b)=>a[0].localeCompare(b[0])).map(([comprador, items]) => {
+                      const qtd = items.length;
+                      const pTot = items.reduce((s,i)=>s+(Number(i.peso)||0),0);
+                      const pMed = qtd ? pTot/qtd : 0;
+                      const atMed = pMed/30;
+                      const vTot = items.reduce((s,v)=>{
+                        const d = Number(v.valor_venda_total);
+                        if(!isNaN(d)&&d>0) return s+d;
+                        const calc = (Number(v.peso)||0)/30*(Number(v.valor_arroba)||0);
+                        return s+(isNaN(calc)?0:calc);
+                      },0);
+                      return (
+                        <div key={comprador} className="border-2 border-slate-300 rounded-lg overflow-hidden mb-2">
+                          <div className="bg-gray-200 px-3 py-2">
+                            <h3 className="font-bold text-sm">COMPRADOR: {comprador}</h3>
+                          </div>
+                          <div className="bg-gray-100 px-3 py-2 border-b">
+                            <div className="grid grid-cols-5 gap-4 text-xs">
+                              <div><strong>Total:</strong> {fmtInt(qtd)} animais</div>
+                              <div><strong>Peso Médio:</strong> {fmtNum(pMed)} kg</div>
+                              <div><strong>Peso Total:</strong> {fmtNum(pTot)} kg</div>
+                              <div><strong>Média (@):</strong> {fmtNum(atMed)}</div>
+                              <div><strong>Valor Total:</strong> {fmtBRL(vTot)}</div>
+                            </div>
+                          </div>
+                          {mostrarDetalhesVendas && (
+                            <div className="p-2">
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      {colunasVendasOrdenadas.map(col => (
+                                        <TableHead key={col.id} className={`border border-black text-xs font-bold py-1 ${['peso','quantidade_arrobas_calc','valor_arroba','valor_total_calc'].includes(col.id) ? 'text-right' : ''}`}>{col.label}</TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {items.map((v) => {
+                                      const qtdAt = (Number(v.peso)||0)/30;
+                                      const vTotal = !isNaN(Number(v.valor_venda_total)) && Number(v.valor_venda_total) > 0
+                                        ? Number(v.valor_venda_total)
+                                        : ((Number(v.peso)||0)/30) * (Number(v.valor_arroba)||0);
+                                      const renderCell = (id) => {
+                                        switch(id){
+                                          case 'data_pesagem': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>;
+                                          case 'numero_animal': return <TableCell key={id} className="border border-gray-300 text-xs font-medium py-1">{v.numero_animal}</TableCell>;
+                                          case 'peso': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(v.peso,0)}</TableCell>;
+                                          case 'quantidade_arrobas_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>;
+                                          case 'valor_arroba': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>;
+                                          case 'valor_total_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>;
+                                          case 'comprador': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>;
+                                          case 'destino_venda': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>;
+                                          case 'nome_lote': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>;
+                                          case 'nome_apartacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>;
+                                          case 'sexo': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.sexo || '-'}</TableCell>;
+                                          case 'raca': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.raca || '-'}</TableCell>;
+                                          case 'era': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.era || '-'}</TableCell>;
+                                          case 'marca': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.marca || '-'}</TableCell>;
+                                          case 'observacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1 max-w-[160px] truncate">{v.observacao || '-'}</TableCell>;
+                                          default: return <TableCell key={id} className="border border-gray-300 text-xs py-1">-</TableCell>;
+                                        }
+                                      };
+                                      return (
+                                        <TableRow key={v.id} className="hover:bg-gray-50">
+                                          {colunasVendasOrdenadas.map(col => renderCell(col.id))}
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   <div className="mt-2 text-xs text-right font-semibold">
                     TOTAL GERAL: {fmtInt(total)} animais | Peso Total: {fmtNum(pesoTotal)} kg | Peso Médio: {fmtNum(pesoMedio)} kg | Média (@): {fmtNum(mediaArrobasPeso)} | Valor Total: {fmtBRL(valorTotal)}
