@@ -366,9 +366,14 @@ export default function Backup() {
             Baixar Lista (.txt)
           </Button>
         </div>
-      </div>
+        </div>
 
-      <Dialog open={showImport} onOpenChange={setShowImport}>
+        <div className="flex items-center gap-2 ml-2">
+        <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
+        <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
+        </div>
+
+        <Dialog open={showImport} onOpenChange={setShowImport}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Sincronização de Importação</DialogTitle>
