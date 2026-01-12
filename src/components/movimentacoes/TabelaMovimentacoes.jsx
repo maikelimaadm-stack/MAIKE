@@ -316,7 +316,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
           </TableCell>
         );
       case 'tipo_detalhado':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.tipo_detalhado || '-'}</TableCell>;
+        return <TableCell className="text-xs border-r border-slate-200">{getLabelOperacao(mov.tipo_detalhado)}</TableCell>;
       case 'tipo_documento':
         return <TableCell className="text-xs border-r border-slate-200">{mov.tipo_documento || '-'}</TableCell>;
       case 'numero_documento':
