@@ -325,13 +325,12 @@ export default function Backup() {
             <Download className="w-3.5 h-3.5 mr-2" />
             {exportando ? 'Exportando...' : 'Exportar Dados (.json)'}
           </Button>
->
-          <Button 
-            onClick={() => inputJsonRef.current?.click()}
-            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
-            size="sm"
-            disabled={importandoJson}
-          >
+           <Button 
+             onClick={() => inputJsonRef.current?.click()}
+             className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+             size="sm"
+             disabled={importandoJson}
+           >
             <Download className="w-3.5 h-3.5 mr-2" />
             {importandoJson ? 'Importando...' : 'Importar Dados (.json)'}
           </Button>
