@@ -238,7 +238,7 @@ export default function MovimentacoesEstoque() {
        empresa_id: empresaSelecionadaId,
       numero_movimentacao: String(proximoNumero),
       tipo_movimentacao: dadosComuns.tipo_movimentacao,
-      tipo_detalhado: toValue(dadosComuns.tipo_detalhado),
+      tipo_detalhado: dadosComuns.tipo_detalhado,
       data_movimentacao: dadosComuns.data_movimentacao ? new Date(dadosComuns.data_movimentacao).toISOString() : new Date().toISOString(),
       produto_id: produto.produto_id,
       produto_nome: produto.produto_nome,
@@ -370,9 +370,10 @@ export default function MovimentacoesEstoque() {
         const vincId = produto.vinculo_id;
         const vincNome = produto.vinculo_nome;
 
+        // Usar campos de local que já vêm preparados do formulário
         await base44.entities.MovimentacaoEstoque.update(editingMovimentacao.id, {
           tipo_movimentacao: dadosComuns.tipo_movimentacao,
-          tipo_detalhado: toValue(dadosComuns.tipo_detalhado),
+          tipo_detalhado: toValue(dadosComuns.tipo_detalhado), // Sempre salvar como slug
           produto_id: produto.produto_id,
           produto_nome: produto.produto_nome,
           produto_codigo: produtoData.codigo_interno,
@@ -380,10 +381,13 @@ export default function MovimentacoesEstoque() {
           unidade_medida: produto.unidade || produtoData.unidade_medida,
           valor_unitario: valorUnitario,
           valor_total: valorLiquido,
-          local_estoque_origem_id: (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_origem_id : undefined,
-          local_estoque_origem: (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_origem_nome : undefined,
-          local_estoque_destino_id: (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_destino_id : undefined,
-          local_estoque_destino: (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_destino_nome : undefined,
+          // Usar campos de local já preparados pelo formulário
+          local_estoque_origem_id: dadosComuns.local_estoque_origem_id,
+          local_estoque_origem: dadosComuns.local_estoque_origem,
+          local_estoque_origem_nome: dadosComuns.local_estoque_origem_nome,
+          local_estoque_destino_id: dadosComuns.local_estoque_destino_id,
+          local_estoque_destino: dadosComuns.local_estoque_destino,
+          local_estoque_destino_nome: dadosComuns.local_estoque_destino_nome,
           tipo_documento: dadosComuns.tipo_documento || undefined,
           numero_documento: dadosComuns.numero_documento || undefined,
           serie_documento: dadosComuns.serie_documento || undefined,
