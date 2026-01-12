@@ -192,6 +192,8 @@ export default function Backup() {
   };
 
   const [exportando, setExportando] = useState(false);
+  const [exportandoZip, setExportandoZip] = useState(false);
+
   const baixarBackupJSON = async () => {
     try {
       setExportando(true);
@@ -213,6 +215,28 @@ export default function Backup() {
     }
   };
 
+  const baixarBackupZIP = async () => {
+    try {
+      setExportandoZip(true);
+      const res = await base44.functions.invoke('exportBackupZip');
+      const data = res.data; // arraybuffer/uint8
+      const blob = new Blob([data], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_pacote_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Pacote (.zip) exportado com sucesso');
+    } catch (e) {
+      toast.error('Falha ao exportar pacote .zip');
+    } finally {
+      setExportandoZip(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex justify-between items-start">
@@ -229,6 +253,15 @@ export default function Backup() {
           >
             <Download className="w-3.5 h-3.5 mr-2" />
             {exportando ? 'Exportando...' : 'Exportar Dados (.json)'}
+          </Button>
+          <Button 
+            onClick={baixarBackupZIP}
+            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+            size="sm"
+            disabled={exportandoZip}
+          >
+            <Download className="w-3.5 h-3.5 mr-2" />
+            {exportandoZip ? 'Compactando...' : 'Exportar Pacote (.zip)'}
           </Button>
           <Button 
             onClick={handleCopyAllPaths} 
