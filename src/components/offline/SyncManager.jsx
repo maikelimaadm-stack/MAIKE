@@ -77,6 +77,12 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
     const pesagem = pending[i];
     const offlineId = pesagem._offlineId;
     const itemName = `Animal: ${pesagem.numero_animal} - ${pesagem.peso}kg`;
+
+    // Se vier SN puro do offline, normalizar para evitar conflito local também
+    if (String(pesagem.numero_animal || '').trim().toUpperCase() === 'SN') {
+      snCounter += 1;
+      pesagem.numero_animal = `SN${snCounter}`;
+    }
     
     // Notificar progresso
     if (onProgress) {
