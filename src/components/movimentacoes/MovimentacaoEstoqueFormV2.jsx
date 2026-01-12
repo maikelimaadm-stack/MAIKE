@@ -201,6 +201,7 @@ export default function MovimentacaoEstoqueFormV2({
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
+  const [itensCarregados, setItensCarregados] = useState(false);
 
   // Dialog de confirmação ao trocar tipo
   const [showConfirmTipoChange, setShowConfirmTipoChange] = useState(false);
