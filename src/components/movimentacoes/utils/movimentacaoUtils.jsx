@@ -1,159 +1,214 @@
-// Utilitários para Movimentação de Estoque
+// ========== FUNÇÕES UTILITÁRIAS PARA MOVIMENTAÇÕES DE ESTOQUE ==========
 
 /**
- * Formata número para exibição em R$
+ * Converte valor interno (slug) para label amigável de exibição
+ * Ex: "ajuste_positivo" → "Ajuste Positivo"
  */
-export const formatarMoedaBR = (valor) => {
-  if (valor === null || valor === undefined || isNaN(valor)) return "R$ 0,00";
-  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export const toLabel = (value) => {
+  if (!value) return '';
+  return String(value)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 /**
- * Converte string de moeda BR para número
+ * Converte label para valor canônico (slug)
+ * Ex: "Ajuste Positivo" → "ajuste_positivo"
+ * Se já vier como slug, mantém
  */
-export const parseMoedaBR = (str) => {
-  if (!str && str !== 0) return 0;
-  if (typeof str === 'number') return str;
-  const cleaned = String(str)
-    .replace(/\s/g, '')
-    .replace(/R\$/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-  const val = parseFloat(cleaned);
-  return isNaN(val) ? 0 : val;
+export const toValue = (labelOrValue) => {
+  if (!labelOrValue) return '';
+  // Se já vier como slug (contém _), mantém em lowercase
+  if (String(labelOrValue).includes('_')) return String(labelOrValue).toLowerCase();
+  // Se vier como label, converte para slug
+  return String(labelOrValue)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
 };
 
 /**
- * Formata número para exibição (quantidade)
+ * Retorna o local de estoque principal de uma movimentação
+ * baseado no tipo de movimentação:
+ * - Entrada → destino
+ * - Saída → origem
+ * - Transferência → origem → destino
+ * - Ajuste → origem (padrão, ou destino se não houver origem)
  */
-export const formatarNumero = (num, decimais = 2) => {
-  if (num === null || num === undefined || isNaN(num)) return '0';
-  return Number(num).toLocaleString('pt-BR', { 
-    minimumFractionDigits: decimais, 
-    maximumFractionDigits: decimais 
-  });
-};
-
-/**
- * Parse de string de número BR para number
- */
-export const parseNumeroBR = (str) => {
-  if (!str && str !== 0) return 0;
-  if (typeof str === 'number') return str;
-  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
-};
-
-/**
- * Calcula os totais de um item
- */
-export const calcularTotaisItem = (quantidade, precoUnitario, desconto = 0) => {
-  const qtd = parseNumeroBR(quantidade) || 0;
-  const preco = parseMoedaBR(precoUnitario) || 0;
-  const desc = parseMoedaBR(desconto) || 0;
+export const getLocalEstoque = (m) => {
+  if (!m) return '';
   
-  const total = qtd * preco;
-  const liquido = Math.max(0, total - desc);
-  const unitarioLiquido = qtd > 0 ? liquido / qtd : 0;
+  const origem = m.local_estoque_origem || m.local_estoque_origem_nome || m.local_origem || '';
+  const destino = m.local_estoque_destino || m.local_estoque_destino_nome || m.local_destino || '';
   
-  return {
-    quantidade: qtd,
-    precoUnitario: preco,
-    total,
-    desconto: desc,
-    liquido,
-    unitarioLiquido
+  switch (m.tipo_movimentacao) {
+    case 'Entrada':
+      return destino || origem || '';
+    case 'Saída':
+      return origem || destino || '';
+    case 'Transferência':
+      if (origem && destino) {
+        return `${origem} → ${destino}`;
+      }
+      return origem || destino || '';
+    case 'Ajuste':
+      // Para ajuste, preferir origem (local onde o ajuste foi feito)
+      // Se não tiver origem, usar destino
+      return origem || destino || '';
+    default:
+      return origem || destino || '';
+  }
+};
+
+/**
+ * Retorna apenas o local origem de uma movimentação
+ */
+export const getLocalOrigem = (m) => {
+  if (!m) return '';
+  return m.local_estoque_origem || m.local_estoque_origem_nome || m.local_origem || '';
+};
+
+/**
+ * Retorna apenas o local destino de uma movimentação
+ */
+export const getLocalDestino = (m) => {
+  if (!m) return '';
+  return m.local_estoque_destino || m.local_estoque_destino_nome || m.local_destino || '';
+};
+
+/**
+ * Prepara os campos de local para salvamento baseado no tipo de movimentação
+ * @param {string} tipo - Tipo de movimentação (ENTRADA, SAIDA, TRANSFERENCIA, AJUSTE)
+ * @param {string} operacao - Operação específica (ajuste_positivo, ajuste_negativo, etc)
+ * @param {string} localOrigemId - ID do local de origem
+ * @param {string} localDestinoId - ID do local de destino
+ * @param {object} locais - Array de locais para buscar nomes
+ * @returns {object} - Objeto com campos formatados para salvamento
+ */
+export const prepararLocaisParaSalvar = (tipo, operacao, localOrigemId, localDestinoId, locais = []) => {
+  const localOrigem = locais.find(l => l.id === localOrigemId);
+  const localDestino = locais.find(l => l.id === localDestinoId);
+  
+  const resultado = {
+    local_estoque_origem_id: undefined,
+    local_estoque_origem: undefined,
+    local_estoque_origem_nome: undefined,
+    local_estoque_destino_id: undefined,
+    local_estoque_destino: undefined,
+    local_estoque_destino_nome: undefined,
   };
-};
-
-/**
- * Distribui quantidade de saída entre lotes disponíveis (FIFO)
- * @param {Array} lotes - Lista de lotes disponíveis ordenados por data
- * @param {number} quantidadeTotal - Quantidade total a ser baixada
- * @returns {Array} - Lista de baixas por lote [{lote, quantidade, custo}]
- */
-export const distribuirSaidaPorLotes = (lotes, quantidadeTotal) => {
-  const baixas = [];
-  let restante = quantidadeTotal;
   
-  // Ordenar por data do documento (mais antigo primeiro - FIFO)
-  const lotesOrdenados = [...lotes]
-    .filter(l => l.quantidade_disponivel > 0)
-    .sort((a, b) => new Date(a.data_documento || a.created_date || 0) - new Date(b.data_documento || b.created_date || 0));
-  
-  for (const lote of lotesOrdenados) {
-    if (restante <= 0) break;
-    
-    const qtdBaixa = Math.min(lote.quantidade_disponivel, restante);
-    if (qtdBaixa > 0) {
-      baixas.push({
-        lote_id: lote.id,
-        lote,
-        quantidade: qtdBaixa,
-        custo_unitario: lote.custo_unitario || 0,
-        valor_total: qtdBaixa * (lote.custo_unitario || 0)
-      });
-      restante -= qtdBaixa;
-    }
+  switch (tipo) {
+    case 'ENTRADA':
+      // Entrada → salva apenas destino
+      if (localDestinoId) {
+        resultado.local_estoque_destino_id = localDestinoId;
+        resultado.local_estoque_destino = localDestino?.nome;
+        resultado.local_estoque_destino_nome = localDestino?.nome;
+      }
+      break;
+      
+    case 'SAIDA':
+      // Saída → salva apenas origem
+      if (localOrigemId) {
+        resultado.local_estoque_origem_id = localOrigemId;
+        resultado.local_estoque_origem = localOrigem?.nome;
+        resultado.local_estoque_origem_nome = localOrigem?.nome;
+      }
+      break;
+      
+    case 'TRANSFERENCIA':
+      // Transferência → salva ambos
+      if (localOrigemId) {
+        resultado.local_estoque_origem_id = localOrigemId;
+        resultado.local_estoque_origem = localOrigem?.nome;
+        resultado.local_estoque_origem_nome = localOrigem?.nome;
+      }
+      if (localDestinoId) {
+        resultado.local_estoque_destino_id = localDestinoId;
+        resultado.local_estoque_destino = localDestino?.nome;
+        resultado.local_estoque_destino_nome = localDestino?.nome;
+      }
+      break;
+      
+    case 'AJUSTE':
+      // Ajuste positivo → entrada (destino), Ajuste negativo → saída (origem)
+      if (operacao === 'ajuste_positivo' || operacao === 'inventario' || operacao === 'correcao') {
+        if (localDestinoId) {
+          resultado.local_estoque_destino_id = localDestinoId;
+          resultado.local_estoque_destino = localDestino?.nome;
+          resultado.local_estoque_destino_nome = localDestino?.nome;
+        }
+      } else if (operacao === 'ajuste_negativo') {
+        if (localOrigemId) {
+          resultado.local_estoque_origem_id = localOrigemId;
+          resultado.local_estoque_origem = localOrigem?.nome;
+          resultado.local_estoque_origem_nome = localOrigem?.nome;
+        }
+      } else {
+        // Outros ajustes - usar origem como padrão
+        if (localOrigemId) {
+          resultado.local_estoque_origem_id = localOrigemId;
+          resultado.local_estoque_origem = localOrigem?.nome;
+          resultado.local_estoque_origem_nome = localOrigem?.nome;
+        } else if (localDestinoId) {
+          resultado.local_estoque_destino_id = localDestinoId;
+          resultado.local_estoque_destino = localDestino?.nome;
+          resultado.local_estoque_destino_nome = localDestino?.nome;
+        }
+      }
+      break;
+      
+    default:
+      break;
   }
   
-  return {
-    baixas,
-    quantidadeAtendida: quantidadeTotal - restante,
-    quantidadePendente: restante
-  };
+  return resultado;
 };
 
 /**
- * Calcula saldo total de um produto em um local
+ * Lista de todas as operações possíveis com seus valores e labels
  */
-export const calcularSaldoProdutoLocal = (lotes, produtoId, localId) => {
-  return lotes
-    .filter(l => l.produto_id === produtoId && l.local_estoque_id === localId && l.quantidade_disponivel > 0)
-    .reduce((sum, l) => sum + (l.quantidade_disponivel || 0), 0);
-};
-
-/**
- * Operações disponíveis por tipo
- */
-export const OPERACOES_POR_TIPO = {
-  ENTRADA: [
-    { value: 'compra', label: 'Compra', exigeFornecedor: true },
-    { value: 'devolucao_cliente', label: 'Devolução de Cliente', exigeFornecedor: false },
-    { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true },
-    { value: 'ajuste_positivo', label: 'Ajuste Positivo', exigeFornecedor: false },
-    { value: 'producao_entrada', label: 'Produção/Entrada Interna', exigeFornecedor: false },
-    { value: 'outros_entrada', label: 'Outros', exigeFornecedor: false }
-  ],
-  SAIDA: [
-    { value: 'venda', label: 'Venda', exigeDestino: true, precoEditavel: true },
-    { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: false },
-    { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: false },
-    { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: false },
-    { value: 'manutencao', label: 'Manutenção', exigeVinculo: true, precoEditavel: false },
-    { value: 'perda_quebra', label: 'Perda/Quebra', exigeVinculo: false, precoEditavel: false },
-    { value: 'ajuste_negativo', label: 'Ajuste Negativo', exigeVinculo: false, precoEditavel: false },
-    { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false }
-  ]
-};
-
-/**
- * Tipos de vínculo para saídas
- */
-export const TIPOS_VINCULO = [
-  { value: 'lote', label: 'Lote (Pecuária)' },
-  { value: 'area', label: 'Área / Pasto' },
-  { value: 'maquina', label: 'Máquina / Veículo' },
-  { value: 'centro_custo', label: 'Centro de Custo' },
-  { value: 'funcionario', label: 'Funcionário' },
-  { value: 'outro', label: 'Outro (texto livre)' }
+export const TODAS_OPERACOES = [
+  // Entradas
+  { value: 'compra', label: 'Compra', tipo: 'ENTRADA' },
+  { value: 'devolucao_cliente', label: 'Devolução de Cliente', tipo: 'ENTRADA' },
+  { value: 'devolucao_fornecedor', label: 'Devolução de Fornecedor', tipo: 'ENTRADA' },
+  { value: 'bonificacao', label: 'Bonificação', tipo: 'ENTRADA' },
+  { value: 'transferencia_recebida', label: 'Transferência Recebida', tipo: 'ENTRADA' },
+  { value: 'producao_entrada', label: 'Produção Interna', tipo: 'ENTRADA' },
+  { value: 'ajuste_positivo', label: 'Ajuste Positivo', tipo: 'ENTRADA' },
+  { value: 'outros_entrada', label: 'Outros', tipo: 'ENTRADA' },
+  // Saídas
+  { value: 'venda', label: 'Venda', tipo: 'SAIDA' },
+  { value: 'devolucao_fornecedor', label: 'Devolução ao Fornecedor', tipo: 'SAIDA' },
+  { value: 'consumo_interno', label: 'Consumo Interno', tipo: 'SAIDA' },
+  { value: 'suplementacao', label: 'Suplementação', tipo: 'SAIDA' },
+  { value: 'aplicacao_area', label: 'Aplicação em Área', tipo: 'SAIDA' },
+  { value: 'manutencao', label: 'Manutenção', tipo: 'SAIDA' },
+  { value: 'perda_quebra', label: 'Perda/Quebra', tipo: 'SAIDA' },
+  { value: 'transferencia_enviada', label: 'Transferência Enviada', tipo: 'SAIDA' },
+  { value: 'ajuste_negativo', label: 'Ajuste Negativo', tipo: 'SAIDA' },
+  { value: 'outros_saida', label: 'Outros', tipo: 'SAIDA' },
+  // Transferências
+  { value: 'entre_locais', label: 'Entre Locais', tipo: 'TRANSFERENCIA' },
+  { value: 'entre_empresas', label: 'Entre Empresas', tipo: 'TRANSFERENCIA' },
+  { value: 'outros_transferencia', label: 'Outros', tipo: 'TRANSFERENCIA' },
+  // Ajustes
+  { value: 'ajuste_positivo', label: 'Ajuste Positivo (Entrada)', tipo: 'AJUSTE' },
+  { value: 'ajuste_negativo', label: 'Ajuste Negativo (Saída)', tipo: 'AJUSTE' },
+  { value: 'inventario', label: 'Inventário', tipo: 'AJUSTE' },
+  { value: 'correcao', label: 'Correção de Estoque', tipo: 'AJUSTE' },
+  { value: 'outros_ajuste', label: 'Outros Ajustes', tipo: 'AJUSTE' },
 ];
 
 /**
- * Tipos de documento
+ * Busca a label de uma operação pelo seu valor
  */
-export const TIPOS_DOCUMENTO = [
-  { value: 'nfe', label: 'NF-e' },
-  { value: 'nota_fiscal', label: 'Nota Fiscal' },
-  { value: 'recibo', label: 'Recibo' },
-  { value: 'outros', label: 'Outros' }
-];
+export const getLabelOperacao = (value) => {
+  if (!value) return '-';
+  const op = TODAS_OPERACOES.find(o => o.value === value);
+  if (op) return op.label;
+  // Fallback: usar toLabel
+  return toLabel(value);
+};
