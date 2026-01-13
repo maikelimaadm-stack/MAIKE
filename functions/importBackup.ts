@@ -71,18 +71,20 @@ Deno.serve(async (req) => {
       try {
         const hasEmpresaField = records.some(r => r && typeof r === 'object' && Object.prototype.hasOwnProperty.call(r, 'empresa_id'));
 
-        if (mode === 'replace') {
+        if (mode === 'replace_all' || replace_all === true) {
+          await base44.asServiceRole.entities[entity].deleteMany({});
+          summary.replaced[entity] = 'all';
+        } else if (mode === 'replace') {
           if (hasEmpresaField && target_empresa_id) {
             await base44.asServiceRole.entities[entity].deleteMany({ empresa_id: target_empresa_id });
             summary.replaced[entity] = 'by_empresa_id';
           } else {
-            // Para segurança, não apagamos entidades globais (sem empresa_id)
-            // ou quando não foi informado target_empresa_id
             summary.replaced[entity] = hasEmpresaField ? 'skipped_no_target_empresa' : 'skipped_no_empresa_field';
           }
         }
 
-        const recordsForInsert = hasEmpresaField && target_empresa_id
+        const shouldOverrideEmpresa = (mode === 'replace') && hasEmpresaField && target_empresa_id;
+        const recordsForInsert = shouldOverrideEmpresa
           ? records.map(r => ({ ...r, empresa_id: target_empresa_id }))
           : records;
 

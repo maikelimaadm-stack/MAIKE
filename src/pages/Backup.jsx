@@ -263,10 +263,9 @@ export default function Backup() {
 
       setImportStage('Importando registros no servidor...');
       const empresaId = localStorage.getItem('empresa_selecionada_id') || null;
-      const targetEmpresaId = replaceAll ? null : empresaId;
       const payload = type === 'json'
-        ? { json_url: file_url, mode: 'replace', target_empresa_id: targetEmpresaId }
-        : { zip_url: file_url, mode: 'replace', target_empresa_id: targetEmpresaId };
+        ? { json_url: file_url, mode: replaceAll ? 'replace_all' : 'append', target_empresa_id: empresaId }
+        : { zip_url: file_url, mode: replaceAll ? 'replace_all' : 'append', target_empresa_id: empresaId };
 
       const res = await base44.functions.invoke('importBackup', payload);
       const summary = res.data?.summary || {};
