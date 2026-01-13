@@ -203,7 +203,7 @@ export default function Backup() {
   const [importStage, setImportStage] = useState("");
   const [importLogs, setImportLogs] = useState([]);
   const progressTimerRef = useRef(null);
-  const [replaceAll, setReplaceAll] = useState(false);
+  const [replaceAll, setReplaceAll] = useState(true);
 
   const baixarBackupJSON = async () => {
     try {
@@ -263,9 +263,10 @@ export default function Backup() {
 
       setImportStage('Importando registros no servidor...');
       const empresaId = localStorage.getItem('empresa_selecionada_id') || null;
+      const targetEmpresaId = replaceAll ? null : empresaId;
       const payload = type === 'json'
-        ? { json_url: file_url, mode: replaceAll ? 'replace' : 'append', target_empresa_id: empresaId }
-        : { zip_url: file_url, mode: replaceAll ? 'replace' : 'append', target_empresa_id: empresaId };
+        ? { json_url: file_url, mode: 'replace', target_empresa_id: targetEmpresaId }
+        : { zip_url: file_url, mode: 'replace', target_empresa_id: targetEmpresaId };
 
       const res = await base44.functions.invoke('importBackup', payload);
       const summary = res.data?.summary || {};
