@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const { json_url, zip_url, mode = 'append', only_entities, target_empresa_id } = body;
+    const { json_url, zip_url, mode = 'append', only_entities, target_empresa_id, replace_all } = body;
 
     if (!json_url && !zip_url) {
       return Response.json({ error: 'Provide json_url or zip_url' }, { status: 400 });
