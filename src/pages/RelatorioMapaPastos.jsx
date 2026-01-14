@@ -27,6 +27,16 @@ const loadGoogleMapsScript = () => {
   });
 };
 
+const MAP_STYLE_BLANK = [
+  { featureType: 'all', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', stylers: [{ visibility: 'off' }] },
+  { featureType: 'landscape', stylers: [{ color: '#ffffff' }] }
+];
+
 export default function RelatorioMapaPastos() {
   const empresaSelecionadaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
   const [mapReady, setMapReady] = useState(false);
@@ -54,7 +64,8 @@ export default function RelatorioMapaPastos() {
         const map = new google.maps.Map(mapRef.current, {
           center: { lat: -15.0067, lng: -59.9533 },
           zoom: 14,
-          mapTypeId: 'satellite',
+          mapTypeId: 'roadmap',
+          styles: MAP_STYLE_BLANK,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
