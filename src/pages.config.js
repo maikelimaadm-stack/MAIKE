@@ -77,6 +77,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
+import RelatorioMapaPastos from './pages/RelatorioMapaPastos';
 import __Layout from './Layout.jsx';
 
 
@@ -160,6 +161,7 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
+    "RelatorioMapaPastos": RelatorioMapaPastos,
 }
 
 export const pagesConfig = {

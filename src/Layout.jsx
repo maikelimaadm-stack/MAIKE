@@ -160,6 +160,7 @@ const DEFAULT_MENU = [
       { id: "rel-movimentacoes-pecuaria", title: "Movimentacoes Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
       { id: "rel-pesagens-ind", title: "Pesagens Individuais", url: "RelatorioPesagensIndividuais" },
       { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
+            { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" }
     ],
   },
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
