@@ -138,7 +138,6 @@ export default function MovimentacaoEstoqueFormV2({
     initialData?.tipo_movimentacao === 'Transferência' ? 'TRANSFERENCIA' :
     initialData?.tipo_movimentacao === 'Ajuste' ? 'AJUSTE' : 'ENTRADA'
   );
-  // Garantir que tipo_detalhado seja salvo/carregado como value (slug)
   const [operacao, setOperacao] = useState(initialData?.tipo_detalhado ? toValue(initialData.tipo_detalhado) : '');
   const [dataMovimentacao, setDataMovimentacao] = useState(
     initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10)
@@ -269,27 +268,90 @@ export default function MovimentacaoEstoqueFormV2({
     if (!initialData?.id || itensCarregados) return;
     if (!produtos || produtos.length === 0) return;
 
-    // Carregar item editado como primeiro item da lista
-    const prod = produtos.find(p => p.id === initialData.produto_id);
-    if (prod) {
-      const itemInicial = {
-        produto_id: initialData.produto_id,
-        produto_nome: prod.nome_produto,
-        produto_codigo: prod.codigo_interno || prod.codigo_barras || '',
-        unidade: initialData.unidade_medida || prod.unidade_medida || 'UN',
-        quantidade: initialData.quantidade || 0,
-        preco_unitario: initialData.valor_unitario || 0,
-        total: (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
-        desconto: 0,
-        liquido: initialData.valor_total || (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
-        lote_origem_id: '',
-        lote_origem_info: null,
-        modo_custo_saida: null,
-        rateio_lotes: null,
-        observacao_item: ''
-      };
-      setItens([itemInicial]);
+    const initialMovementProducts = initialData.produtos;
+
+    if (initialMovementProducts && Array.isArray(initialMovementProducts) && initialMovementProducts.length > 0) {
+      const loadedItems = initialMovementProducts.map(p => {
+        const prod = produtos.find(prod => prod.id === p.produto_id);
+        return {
+          produto_id: p.produto_id,
+          produto_nome: p.produto_nome || prod?.nome_produto || '',
+          produto_codigo: p.produto_codigo || prod?.codigo_interno || prod?.codigo_barras || '',
+          unidade: p.unidade_medida || prod?.unidade_medida || 'UN',
+          quantidade: p.quantidade || 0,
+          preco_unitario: p.valor_unitario || 0,
+          total: (p.quantidade || 0) * (p.valor_unitario || 0),
+          desconto: p.desconto || 0,
+          liquido: p.valor_total || ((p.quantidade || 0) * (p.valor_unitario || 0) - (p.desconto || 0)),
+          lote_origem_id: p.lote_origem_id || '',
+          lote_origem_info: p.lote_origem_info || null,
+          modo_custo_saida: p.modo_custo_saida || null,
+          rateio_lotes: p.rateio_lotes || null,
+          observacao_item: p.observacao_item || ''
+        };
+      });
+
+      setItens(loadedItems);
+      
+      if (loadedItems.length > 0) {
+        const firstItem = loadedItems[0];
+        setCurrentItem({
+          produto_id: firstItem.produto_id,
+          produto_nome: firstItem.produto_nome,
+          produto_codigo: firstItem.produto_codigo,
+          unidade: firstItem.unidade,
+          quantidade: formatarNumero(firstItem.quantidade),
+          preco_unitario: formatarMoedaBR(firstItem.preco_unitario),
+          total: formatarMoedaBR(firstItem.total),
+          desconto: formatarMoedaBR(firstItem.desconto),
+          liquido: formatarMoedaBR(firstItem.liquido),
+          lote_origem_id: firstItem.lote_origem_id,
+          lote_origem_info: firstItem.lote_origem_info,
+          rateio_lotes: firstItem.rateio_lotes,
+          observacao_item: firstItem.observacao_item
+        });
+        setEditingIndex(0);
+      }
+
       setItensCarregados(true);
+    } else if (initialData.produto_id && produtos.length > 0) {
+      const prod = produtos.find(p => p.id === initialData.produto_id);
+      if (prod) {
+        const itemInicial = {
+          produto_id: initialData.produto_id,
+          produto_nome: prod.nome_produto,
+          produto_codigo: prod.codigo_interno || prod.codigo_barras || '',
+          unidade: initialData.unidade_medida || prod.unidade_medida || 'UN',
+          quantidade: initialData.quantidade || 0,
+          preco_unitario: initialData.valor_unitario || 0,
+          total: (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
+          desconto: 0,
+          liquido: initialData.valor_total || (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
+          lote_origem_id: '',
+          lote_origem_info: null,
+          modo_custo_saida: null,
+          rateio_lotes: null,
+          observacao_item: ''
+        };
+        setItens([itemInicial]);
+        setCurrentItem({
+          produto_id: itemInicial.produto_id,
+          produto_nome: itemInicial.produto_nome,
+          produto_codigo: itemInicial.produto_codigo,
+          unidade: itemInicial.unidade,
+          quantidade: formatarNumero(itemInicial.quantidade),
+          preco_unitario: formatarMoedaBR(itemInicial.preco_unitario),
+          total: formatarMoedaBR(itemInicial.total),
+          desconto: formatarMoedaBR(itemInicial.desconto),
+          liquido: formatarMoedaBR(itemInicial.liquido),
+          lote_origem_id: itemInicial.lote_origem_id,
+          lote_origem_info: itemInicial.lote_origem_info,
+          rateio_lotes: itemInicial.rateio_lotes,
+          observacao_item: itemInicial.observacao_item
+        });
+        setEditingIndex(0);
+        setItensCarregados(true);
+      }
     }
   }, [initialData, produtos, itensCarregados]);
 
@@ -522,7 +584,12 @@ export default function MovimentacaoEstoqueFormV2({
   };
 
   const handleProdutoChange = (produtoId) => {
+    console.log('handleProdutoChange chamado com:', produtoId);
+    console.log('Produtos disponíveis:', produtos.length);
+    
     const prod = produtos.find(p => p.id === produtoId);
+    console.log('Produto encontrado:', prod);
+    
     if (!prod) {
       resetCurrentItem();
       return;
@@ -540,6 +607,14 @@ export default function MovimentacaoEstoqueFormV2({
     } else if (tipo === 'TRANSFERENCIA') {
       precoInicial = prod.preco_custo || 0;
     }
+
+    console.log('Atualizando currentItem com:', {
+      produto_id: produtoId,
+      produto_nome: prod.nome_produto,
+      produto_codigo: prod.codigo_interno || prod.codigo_barras || '',
+      unidade: prod.unidade_medida || 'UN',
+      preco_unitario: formatarMoedaBR(precoInicial),
+    });
 
     setCurrentItem(prev => ({
       ...prev,
@@ -882,7 +957,7 @@ export default function MovimentacaoEstoqueFormV2({
     const dadosMovimentacao = {
       empresa_id: empresaId,
       tipo_movimentacao: tipoMovimentacaoFinal,
-      tipo_detalhado: operacao, // valor já é slug
+      tipo_detalhado: operacao,
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
       
       // Locais (APENAS CAMPOS DO SCHEMA)
@@ -976,6 +1051,11 @@ export default function MovimentacaoEstoqueFormV2({
     const l = locais.find(x => x.id === novoLocalId);
     setLocalEstoqueDestinoNome(l?.nome || '');
   };
+
+  // Debug: log currentItem quando mudar
+  useEffect(() => {
+    console.log('currentItem atualizado:', currentItem);
+  }, [currentItem]);
 
   // ========== RENDER ==========
   return (
@@ -1637,33 +1717,42 @@ export default function MovimentacaoEstoqueFormV2({
           </Card>
 
           {/* ========== CARD 3: TABELA DE ITENS ========== */}
-          {itens.length > 0 && (
-            <Card className="shadow-sm">
-              <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-                <CardTitle className="text-sm font-semibold">
-                  Itens Lançados ({itens.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
+          <Card className="shadow-sm">
+            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
+              <CardTitle className="text-sm font-semibold">
+                Itens Lançados ({itens.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs font-bold py-1 border border-black w-12">Ações</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Preço Unit.</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
+                    {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
+                      <TableHead className="text-xs font-bold py-1 border border-black">Origem</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itens.length === 0 ? (
                     <TableRow>
-                      <TableHead className="text-xs font-bold py-1 border border-black w-12">Ações</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Preço Unit.</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
-                      {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
-                        <TableHead className="text-xs font-bold py-1 border border-black">Origem</TableHead>
-                      )}
+                      <TableCell
+                        className="text-xs py-2 text-center text-slate-500"
+                        colSpan={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? 10 : 9}
+                      >
+                        Nenhum item adicionado ainda.
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {itens.map((item, idx) => (
+                  ) : (
+                    itens.map((item, idx) => (
                       <TableRow key={idx} className="hover:bg-gray-50">
                         <TableCell className="text-xs py-1 px-2 border border-gray-300">
                           <DropdownMenu>
@@ -1702,28 +1791,28 @@ export default function MovimentacaoEstoqueFormV2({
                           </TableCell>
                         )}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
 
-                {/* Rodapé com totais */}
-                <div className="bg-slate-100 p-2 border-t flex justify-end gap-6">
-                  <div className="text-xs">
-                    <span className="text-slate-600">Total Bruto:</span>
-                    <span className="ml-2 font-mono font-semibold">{formatarMoedaBR(totaisGerais.totalBruto)}</span>
-                  </div>
-                  <div className="text-xs">
-                    <span className="text-slate-600">Descontos:</span>
-                    <span className="ml-2 font-mono font-semibold text-red-600">-{formatarMoedaBR(totaisGerais.totalDescontos)}</span>
-                  </div>
-                  <div className="text-xs">
-                    <span className="text-slate-600 font-semibold">Total Líquido:</span>
-                    <span className="ml-2 font-mono font-bold text-emerald-700">{formatarMoedaBR(totaisGerais.totalLiquido)}</span>
-                  </div>
+              {/* Rodapé com totais */}
+              <div className="bg-slate-100 p-2 border-t flex justify-end gap-6">
+                <div className="text-xs">
+                  <span className="text-slate-600">Total Bruto:</span>
+                  <span className="ml-2 font-mono font-semibold">{formatarMoedaBR(totaisGerais.totalBruto)}</span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="text-xs">
+                  <span className="text-slate-600">Descontos:</span>
+                  <span className="ml-2 font-mono font-semibold text-red-600">-{formatarMoedaBR(totaisGerais.totalDescontos)}</span>
+                </div>
+                <div className="text-xs">
+                  <span className="text-slate-600 font-semibold">Total Líquido:</span>
+                  <span className="ml-2 font-mono font-bold text-emerald-700">{formatarMoedaBR(totaisGerais.totalLiquido)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* ========== BOTÕES DE AÇÃO ========== */}
           <div className="flex justify-end gap-2 pt-1">
