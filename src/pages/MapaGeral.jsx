@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
-import DetalhesArea from "../components/mapa/DetalhesArea";
+import AreaPanel from "../components/mapa/AreaPanel";
 import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
@@ -1138,19 +1138,13 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Detalhes da Área</DialogTitle>
-          </DialogHeader>
+      <Sheet open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
+        <SheetContent side="right" className="w-[420px] md:w-[520px] lg:w-[640px] p-0">
           {selectedArea && (
-            <DetalhesArea
-              area={selectedArea}
-              onClose={() => setShowDetalhesArea(false)}
-            />
+            <AreaPanel area={selectedArea} onClose={() => setShowDetalhesArea(false)} />
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {
         setShowDetalhesPontoSupl(open);
