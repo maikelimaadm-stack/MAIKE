@@ -324,6 +324,7 @@ const EIXO_Y_OPCOES = [
                 <SelectContent>
                   <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
                   <SelectItem value="sintetico">Sintético (Matriz)</SelectItem>
+                  <SelectItem value="historico">Histórico (E/S/Saldo)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -811,6 +812,63 @@ const EIXO_Y_OPCOES = [
                     </TableBody>
                   </Table>
                 </div>
+              );
+            })()
+          ) : tipoRelatorio === 'historico' ? (
+            (() => {
+              const sorted = [...movimentacoesFiltradas].sort((a,b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
+              const inicio = dataInicio ? new Date(dataInicio) : null;
+              const matchesCommon = (m) => {
+                if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(m.tipo)) return false;
+                if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(m.categoria_animal)) return false;
+                if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(m.marca)) return false;
+                if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(m.motivo)) return false;
+                if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
+                return true;
+              };
+              const anteriores = inicio ? movimentacoes.filter(m => matchesCommon(m) && new Date(m.data_movimentacao || 0) < new Date(dataInicio)) : [];
+              const saldoInicial = anteriores.reduce((s, m) => s + ((m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0)), 0);
+              const linhas = [];
+              let saldo = saldoInicial;
+              if (inicio) {
+                linhas.push({ data: formatarData(dataInicio), entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
+              }
+              sorted.forEach(m => {
+                const qtd = m.quantidade_animais || 0;
+                if (m.tipo === 'Entrada') saldo += qtd; else saldo -= qtd;
+                const hist = [m.motivo, (m.motivo === 'Compra' ? m.fornecedor_origem : ''), ((m.motivo === 'Venda' || m.motivo === 'Abate') ? m.destino_venda : ''), m.observacoes]
+                  .filter(Boolean).join(' - ');
+                linhas.push({ data: formatarData(m.data_movimentacao), entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+              });
+              return (
+                <>
+                  <div className="text-xs mb-2">
+                    <span className="font-semibold">Setor:</span> {setoresSelecionados.length === 1 ? setoresSelecionados[0] : 'Todos'} &nbsp;&nbsp;
+                    <span className="font-semibold">Marca:</span> {marcasSelecionadas.length === 1 ? marcasSelecionadas[0] : 'Todas'}
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-black">
+                        <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                        <TableHead className="border border-black text-xs font-bold py-1">Histórico</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {linhas.map((l, i) => (
+                        <TableRow key={i} className="hover:bg-gray-50">
+                          <TableCell className="border border-gray-300 text-xs py-1">{l.data}</TableCell>
+                          <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
+                          <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
+                          <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
+                          <TableCell className="border border-gray-300 text-xs py-1">{l.historico}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
               );
             })()
           ) : (
