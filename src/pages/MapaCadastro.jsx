@@ -310,7 +310,7 @@ export default function MapaCadastro() {
       />
 
       {showSelecaoMapa && (
-        <SelecaoAreasMapa onClose={()=>{ setShowSelecaoMapa(false); queryClient.invalidateQueries({ queryKey: ['areas'] }); }} />
+        <SelecaoAreasMapa onClose={()=>{ setShowSelecaoMapa(false); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} />
       )}
 
       {/* Sheet Editar Detalhes Área */}
