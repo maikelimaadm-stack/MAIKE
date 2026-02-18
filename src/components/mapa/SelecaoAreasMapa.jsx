@@ -33,6 +33,7 @@ export default function SelecaoAreasMapa({ onClose }) {
   const [ready, setReady] = useState(false);
   const [batchType, setBatchType] = useState(null);
   const [batchValue, setBatchValue] = useState("");
+  const [startNumber, setStartNumber] = useState("");
   const queryClient = useQueryClient();
   const empresaId = localStorage.getItem('empresa_selecionada_id');
 
