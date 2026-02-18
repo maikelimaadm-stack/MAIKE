@@ -1,0 +1,212 @@
+import React, { useEffect, useRef, useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { X, CheckSquare, Palette, Layers, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
+
+const CORES_DISPONIVEIS = [
+  { nome: "Branco", cor: "#f8f9fa" },
+  { nome: "Cinza claro", cor: "#d8dee2" },
+  { nome: "Preto", cor: "#2c303e" },
+  { nome: "Azul escuro", cor: "#0d67ad" },
+  { nome: "Azul celeste", cor: "#61aad9" },
+  { nome: "Amarelo", cor: "#efcb19" },
+  { nome: "Verde claro", cor: "#92ca25" },
+  { nome: "Laranja", cor: "#f5a01b" },
+  { nome: "Roxo", cor: "#966fe1" }
+];
+const TIPOS_CULTURA_FIXAS = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
+const APROVEITAMENTO = ["Alta", "Média", "Baixa"]; 
+
+export default function SelecaoAreasMapa({ onClose }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const polygonsRef = useRef([]);
+  const selecionadosRef = useRef(new Set());
+  const [ready, setReady] = useState(false);
+  const [batchType, setBatchType] = useState(null);
+  const [batchValue, setBatchValue] = useState("");
+  const queryClient = useQueryClient();
+  const empresaId = localStorage.getItem('empresa_selecionada_id');
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas', empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter(a => a.empresa_id === empresaId && a.ativo !== false);
+    },
+    enabled: !!empresaId,
+  });
+
+  useEffect(() => {
+    const load = () => new Promise((resolve, reject) => {
+      if (window.google?.maps) return resolve();
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry`;
+      s.async = true; s.defer = true; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+    });
+    load().then(() => setReady(true)).catch(()=> toast.error('Erro ao carregar mapa'));
+  }, []);
+
+  useEffect(() => {
+    if (!ready || mapInstanceRef.current) return;
+    const map = new google.maps.Map(mapRef.current, {
+      center: { lat: -15.0067, lng: -59.9533 }, zoom: 14, mapTypeId: 'satellite',
+      mapTypeControl: false, streetViewControl: false, fullscreenControl: false
+    });
+    mapInstanceRef.current = map;
+  }, [ready]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    polygonsRef.current.forEach(p => p.setMap(null));
+    polygonsRef.current = [];
+
+    const bounds = new google.maps.LatLngBounds();
+    let has = false;
+
+    areas.forEach(area => {
+      const coords = area.coordenadas?.coords || [];
+      if (coords.length < 3) return;
+      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      paths.forEach(p => bounds.extend(p)); has = true;
+      const cor = area.coordenadas?.cor || area.cor || '#10b981';
+      const polygon = new google.maps.Polygon({
+        paths,
+        strokeColor: cor,
+        strokeOpacity: 0.8,
+        strokeWeight: 1.5,
+        fillColor: cor,
+        fillOpacity: selecionadosRef.current.has(area.id) ? 0.45 : 0.2,
+        clickable: true
+      });
+      polygon.setMap(mapInstanceRef.current);
+      polygon.addListener('click', () => {
+        const set = selecionadosRef.current;
+        if (set.has(area.id)) set.delete(area.id); else set.add(area.id);
+        polygon.setOptions({ fillOpacity: set.has(area.id) ? 0.45 : 0.2 });
+      });
+      polygonsRef.current.push(polygon);
+    });
+
+    if (has) { mapInstanceRef.current.fitBounds(bounds, { padding: 50 }); }
+  }, [areas, ready]);
+
+  const aplicarLote = async () => {
+    const ids = Array.from(selecionadosRef.current);
+    if (ids.length === 0) { toast.error('Selecione áreas no mapa'); return; }
+    try {
+      if (batchType === 'aproveitamento') {
+        await Promise.all(ids.map(id => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
+      } else if (batchType === 'cultura') {
+        await Promise.all(ids.map(id => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
+      } else if (batchType === 'cor') {
+        await Promise.all(ids.map(id => {
+          const area = areas.find(a => a.id === id);
+          const coords = area?.coordenadas?.coords || [];
+          return base44.entities.AreaPastagem.update(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
+        }));
+      }
+      toast.success('Atualizado');
+      setBatchType(null); setBatchValue("");
+      selecionadosRef.current.clear();
+      queryClient.invalidateQueries({ queryKey: ['areas'] });
+    } catch {
+      toast.error('Falha ao aplicar alterações');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white">
+      <div ref={mapRef} className="absolute inset-0" />
+
+      <Button onClick={onClose} variant="secondary" size="icon" className="absolute top-4 left-4 z-20 h-10 w-10 bg-white/90">
+        <X className="w-5 h-5 text-slate-700" />
+      </Button>
+
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 text-xs bg-white/90">
+              <Layers className="w-3.5 h-3.5 mr-2" /> Ações em Lote
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">
+              <CheckSquare className="w-3.5 h-3.5 mr-2" /> Definir Aproveitamento
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Pastagem'); }} className="text-xs">
+              <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Cultura
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
+              <Palette className="w-3.5 h-3.5 mr-2" /> Definir Cor
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Dialog open={!!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(""); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {batchType === 'aproveitamento' && 'Definir Aproveitamento'}
+              {batchType === 'cultura' && 'Definir Tipo de Cultura'}
+              {batchType === 'cor' && 'Definir Cor no Mapa'}
+            </DialogTitle>
+          </DialogHeader>
+          {batchType === 'aproveitamento' && (
+            <div className="space-y-2">
+              <Label className="text-xs">Aproveitamento</Label>
+              <Select value={batchValue} onValueChange={setBatchValue}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {APROVEITAMENTO.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
+              </div>
+            </div>
+          )}
+          {batchType === 'cultura' && (
+            <div className="space-y-2">
+              <Label className="text-xs">Tipo de Cultura</Label>
+              <Select value={batchValue} onValueChange={setBatchValue}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS_CULTURA_FIXAS.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
+              </div>
+            </div>
+          )}
+          {batchType === 'cor' && (
+            <div className="space-y-3">
+              <Label className="text-xs">Cor</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {CORES_DISPONIVEIS.map(c => (
+                  <button key={c.cor} onClick={() => setBatchValue(c.cor)} className={`h-8 rounded border ${batchValue===c.cor?'ring-2 ring-emerald-600':''}`} style={{ backgroundColor: c.cor }} title={c.nome} />
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue}>Aplicar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

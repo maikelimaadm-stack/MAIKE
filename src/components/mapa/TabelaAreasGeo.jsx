@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; import { Label } from "@/components/ui/label"; import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; import { base44 } from "@/api/base44Client"; import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,11 +17,30 @@ import { MoreVertical, Pencil, Trash2, Search, Map, ArrowUpDown, ArrowUp, ArrowD
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
+const CORES_DISPONIVEIS = [
+  { nome: "Branco", cor: "#f8f9fa" },
+  { nome: "Cinza claro", cor: "#d8dee2" },
+  { nome: "Preto", cor: "#2c303e" },
+  { nome: "Azul escuro", cor: "#0d67ad" },
+  { nome: "Azul celeste", cor: "#61aad9" },
+  { nome: "Amarelo", cor: "#efcb19" },
+  { nome: "Verde claro", cor: "#92ca25" },
+  { nome: "Laranja", cor: "#f5a01b" },
+  { nome: "Roxo", cor: "#966fe1" }
+];
+
+const TIPOS_CULTURA_FIXAS = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
+const APROVEITAMENTO = ["Alta", "Média", "Baixa"]; 
+
 export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("nome");
   const [sortDirection, setSortDirection] = useState("asc");
   const [selecionados, setSelecionados] = useState([]);
+  const [batchType, setBatchType] = useState(null); // 'aproveitamento' | 'cultura' | 'cor' | 'renumerar'
+  const [batchValue, setBatchValue] = useState("");
+  const [startNumber, setStartNumber] = useState("");
+  const queryClient = useQueryClient();
 
   const filteredAreas = areas.filter(area =>
     area.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -69,6 +88,32 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
     );
   };
 
+  const aplicarLote = async () => {
+    if (selecionados.length === 0) { toast.error('Selecione ao menos uma área!'); return; }
+    try {
+      if (batchType === 'aproveitamento') {
+        await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
+      } else if (batchType === 'cultura') {
+        await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
+      } else if (batchType === 'cor') {
+        await Promise.all(selecionados.map(id => {
+          const area = areas.find(a => a.id === id);
+          const coords = area?.coordenadas?.coords || [];
+          return base44.entities.AreaPastagem.update(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
+        }));
+      } else if (batchType === 'renumerar') {
+        const start = parseInt(startNumber || '1');
+        const selecionadas = areas.filter(a => selecionados.includes(a.id)).sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+        await Promise.all(selecionadas.map((a, idx) => base44.entities.AreaPastagem.update(a.id, { numero_area: String(start + idx) })));
+      }
+      toast.success('Atualizado com sucesso');
+      setBatchType(null); setBatchValue(""); setStartNumber(""); setSelecionados([]);
+      queryClient.invalidateQueries({ queryKey: ['areas'] });
+    } catch {
+      toast.error('Falha ao aplicar alterações');
+    }
+  };
+
   const handleExcluirEmMassa = async () => {
     if (selecionados.length === 0) {
       toast.error('Selecione ao menos uma área!');
@@ -105,6 +150,19 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">
+                      Definir Aproveitamento
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Pastagem'); }} className="text-xs">
+                      Definir Tipo de Cultura
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
+                      Definir Cor
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setBatchType('renumerar'); setStartNumber('1'); }} className="text-xs">
+                      Reatribuir Códigos
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
                       <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -230,5 +288,74 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
         </div>
       </CardContent>
     </Card>
+
+    {/* Dialogs de Ações em Lote */}
+    <Dialog open={!!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(""); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-sm">
+            {batchType === 'aproveitamento' && 'Definir Aproveitamento'}
+            {batchType === 'cultura' && 'Definir Tipo de Cultura'}
+            {batchType === 'cor' && 'Definir Cor no Mapa'}
+            {batchType === 'renumerar' && 'Reatribuir Códigos (numero_area)'}
+          </DialogTitle>
+        </DialogHeader>
+        {batchType === 'aproveitamento' && (
+          <div className="space-y-2">
+            <Label className="text-xs">Aproveitamento</Label>
+            <Select value={batchValue} onValueChange={setBatchValue}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {APROVEITAMENTO.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
+            </div>
+          </div>
+        )}
+        {batchType === 'cultura' && (
+          <div className="space-y-2">
+            <Label className="text-xs">Tipo de Cultura</Label>
+            <Select value={batchValue} onValueChange={setBatchValue}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {TIPOS_CULTURA_FIXAS.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
+            </div>
+          </div>
+        )}
+        {batchType === 'cor' && (
+          <div className="space-y-3">
+            <Label className="text-xs">Cor</Label>
+            <div className="grid grid-cols-5 gap-2">
+              {CORES_DISPONIVEIS.map(c => (
+                <button key={c.cor} onClick={() => setBatchValue(c.cor)} className={`h-8 rounded border ${batchValue===c.cor?'ring-2 ring-emerald-600':''}`} style={{ backgroundColor: c.cor }} title={c.nome} />
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue}>Aplicar</Button>
+            </div>
+          </div>
+        )}
+        {batchType === 'renumerar' && (
+          <div className="space-y-2">
+            <Label className="text-xs">Iniciar numeração a partir de</Label>
+            <Input value={startNumber} onChange={(e)=>setStartNumber(e.target.value.replace(/[^0-9]/g,''))} className="h-8 text-xs" placeholder="1" />
+            <p className="text-[11px] text-slate-500">As áreas selecionadas serão ordenadas por Nome (A→Z) e receberão códigos sequenciais.</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!startNumber}>Aplicar</Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

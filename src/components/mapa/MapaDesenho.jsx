@@ -418,7 +418,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         if (coords.length < 3) return;
 
         const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
-        const cor = area.coordenadas?.cor || '#10b981';
+        const cor = area.coordenadas?.cor || area.cor || '#10b981';
 
         const polygon = new google.maps.Polygon({
           paths,

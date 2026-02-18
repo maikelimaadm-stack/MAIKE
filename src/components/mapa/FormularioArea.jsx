@@ -16,13 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const TIPOS_USO = [
-  "Pastejo", "Lavoura", "Reserva Legal", "APP", 
-  "Curral", "Sede", "Retiro", "Módulo", "Talhão", "Outro"
-];
+const TIPOS_USO = ["Alta", "Média", "Baixa"];
 
-const TIPOS_CULTURA_PADRAO = [
-  "Aruana", "Mombaça", "Marandu", "Tifton", "Brachiaria", "Piatã", "Tanzânia"
+const TIPOS_CULTURA_FIXAS = [
+  "Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"
 ];
 
 const CORES_DISPONIVEIS = [
@@ -42,44 +39,24 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   const queryClient = useQueryClient();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
-  const [showAddCultura, setShowAddCultura] = useState(false);
-  const [novaCultura, setNovaCultura] = useState("");
-  
-  // Buscar tipos de cultura customizados
-  const { data: tiposCulturaCustom = [] } = useQuery({
-    queryKey: ['tipos-cultura', empresaSelecionadaId],
-    queryFn: async () => {
-      const saved = localStorage.getItem(`tipos_cultura_${empresaSelecionadaId}`);
-      return saved ? JSON.parse(saved) : [];
-    },
-  });
 
-  const tiposCultura = [...TIPOS_CULTURA_PADRAO, ...tiposCulturaCustom];
+  
+  // Tipos de cultura fixos definidos no sistema
+  const tiposCultura = TIPOS_CULTURA_FIXAS;
 
   const [formData, setFormData] = useState({
     nome: item?.nome || "",
     sigla: item?.sigla || "",
+    numero_area: item?.numero_area || "",
     area_total: item?.tamanho_hectares?.toString() || "",
     area_pastejada: item?.area_pastejada?.toString() || "",
-    aproveitamento: item?.tipo_pastagem || "Pastejo",
-    tipo_cultura: item?.tipo_cultura || "Aruana",
+    aproveitamento: item?.aproveitamento_classificacao || "Média",
+    tipo_cultura: item?.tipo_cultura || "Pastagem",
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || ""
   });
 
-  const handleAddCultura = () => {
-    if (!novaCultura.trim()) {
-      toast.error('Digite o nome do tipo de cultura');
-      return;
-    }
-    const updated = [...tiposCulturaCustom, novaCultura.trim()];
-    localStorage.setItem(`tipos_cultura_${empresaSelecionadaId}`, JSON.stringify(updated));
-    queryClient.invalidateQueries({ queryKey: ['tipos-cultura'] });
-    setFormData({ ...formData, tipo_cultura: novaCultura.trim() });
-    setNovaCultura("");
-    setShowAddCultura(false);
-    toast.success('Tipo de cultura adicionado!');
-  };
+
 
   const createAreaMutation = useMutation({
     mutationFn: async (data) => {
@@ -87,6 +64,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         // Modo edição
         return base44.entities.AreaPastagem.update(item.id, {
           ...data,
+          numero_area: data.numero_area || item.numero_area,
           coordenadas: {
             coords: (coordenadasGPS || coordenadas || item.coordenadas?.coords)?.map(p => [p.lat || p[0], p.lng || p[1]]),
             cor: data.cor
@@ -96,16 +74,17 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         // Modo criação
         const allAreas = await base44.entities.AreaPastagem.list();
         const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
+        const proximo = String(maxNum + 1);
         
         return base44.entities.AreaPastagem.create({
           ...data,
           empresa_id: empresaSelecionadaId,
-          numero_area: String(maxNum + 1),
+          numero_area: (data.numero_area && String(data.numero_area)) || proximo,
           quantidade_atual: 0,
           status_ocupacao: 'Disponível',
           ativo: true,
           coordenadas: {
-            coords: coordenadas.map(p => [p.lat, p.lng]),
+            coords: (coordenadasGPS || coordenadas)?.map(p => [p.lat, p.lng]),
             cor: data.cor
           }
         });
@@ -159,7 +138,8 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     createAreaMutation.mutate({
       nome: formData.nome,
       sigla: formData.sigla,
-      tipo_pastagem: formData.aproveitamento,
+      numero_area: formData.numero_area?.toString().trim() || undefined,
+      aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
       tamanho_hectares: parseFloat(formData.area_total?.replace(',', '.')) || tamanhoHectares,
       area_pastejada: parseFloat(formData.area_pastejada?.replace(',', '.')) || 0,
@@ -207,6 +187,18 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       </div>
 
       <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Número/Código</Label>
+        <Input
+          value={formData.numero_area}
+          onChange={(e) => setFormData({ ...formData, numero_area: e.target.value.replace(/[^0-9]/g, '') })}
+          placeholder="Automático se vazio"
+          className="h-10 text-sm bg-slate-50 border-slate-200"
+          inputMode="numeric"
+        />
+        <p className="text-xs text-slate-500">Deixe em branco para gerar automaticamente</p>
+      </div>
+
+      <div className="space-y-1">
         <Label className="text-sm text-slate-700">Área total *</Label>
         <div className="relative">
           <Input
@@ -236,10 +228,9 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
       <div className="space-y-1">
         <Label className="text-sm text-slate-700">Aproveitamento da área *</Label>
-        <p className="text-xs text-slate-500">O conjunto de terra como pastejo será incluído em sua taxa de lotação</p>
         <Select value={formData.aproveitamento} onValueChange={(v) => setFormData({ ...formData, aproveitamento: v })}>
           <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
-            <SelectValue />
+            <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
             {TIPOS_USO.map(tipo => (
@@ -250,21 +241,10 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       </div>
 
       <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm text-slate-700">Tipo de cultura *</Label>
-          <Button 
-            type="button" 
-            variant="outline"
-            size="sm" 
-            className="h-8 text-xs"
-            onClick={() => setShowAddCultura(true)}
-          >
-            Adicionar tipo de cultura
-          </Button>
-        </div>
+        <Label className="text-sm text-slate-700">Tipo de cultura *</Label>
         <Select value={formData.tipo_cultura} onValueChange={(v) => setFormData({ ...formData, tipo_cultura: v })}>
           <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
-            <SelectValue />
+            <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
             {tiposCultura.map(tipo => (
@@ -274,39 +254,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         </Select>
       </div>
 
-      <Dialog open={showAddCultura} onOpenChange={setShowAddCultura}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Adicionar Tipo de Cultura</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1">
-              <Label className="text-sm">Nome do tipo de cultura</Label>
-              <Input
-                value={novaCultura}
-                onChange={(e) => setNovaCultura(e.target.value)}
-                placeholder="Ex: Capim Elefante"
-                className="h-10"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCultura();
-                  }
-                }}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowAddCultura(false)}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={handleAddCultura} className="bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-4 h-4 mr-1" />
-                Adicionar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+
 
       <div className="space-y-1">
         <Label className="text-sm text-slate-700">Cor no mapa *</Label>

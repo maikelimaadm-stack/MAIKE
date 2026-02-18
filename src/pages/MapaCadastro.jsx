@@ -31,6 +31,7 @@ import FormularioLinha from "../components/mapa/FormularioLinha";
 
 import MapaDesenho from "../components/mapa/MapaDesenho";
 import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
+import SelecaoAreasMapa from "../components/mapa/SelecaoAreasMapa";
 
 export default function MapaCadastro() {
   const [modo, setModo] = useState('listagem');
@@ -43,6 +44,7 @@ export default function MapaCadastro() {
   const [showEditarDetalhesPonto, setShowEditarDetalhesPonto] = useState(false);
   const [showEditarDetalhesLinha, setShowEditarDetalhesLinha] = useState(false);
   const [itemDetalhes, setItemDetalhes] = useState(null);
+  const [showSelecaoMapa, setShowSelecaoMapa] = useState(false);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -200,16 +202,26 @@ export default function MapaCadastro() {
             <Button
               onClick={() => handleNovoItem('area', false)}
               variant="outline"
-              className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+              size="sm"
+              className="h-8 text-xs border-emerald-600 text-emerald-600 hover:bg-emerald-50"
             >
-              <Map className="w-4 h-4 mr-2" />
+              <Map className="w-3.5 h-3.5 mr-2" />
               Desenhar no Mapa
             </Button>
             <Button
-              onClick={() => handleNovoItem('area', true)}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => setShowSelecaoMapa(true)}
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
             >
-              <Navigation className="w-4 h-4 mr-2" />
+              Selecionar no Mapa (Lote)
+            </Button>
+            <Button
+              onClick={() => handleNovoItem('area', true)}
+              size="sm"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Navigation className="w-3.5 h-3.5 mr-2" />
               Usar GPS
             </Button>
           </div>
@@ -296,6 +308,10 @@ export default function MapaCadastro() {
         open={showImportarGeoJSON} 
         onOpenChange={setShowImportarGeoJSON} 
       />
+
+      {showSelecaoMapa && (
+        <SelecaoAreasMapa onClose={()=>{ setShowSelecaoMapa(false); queryClient.invalidateQueries({ queryKey: ['areas'] }); }} />
+      )}
 
       {/* Sheet Editar Detalhes Área */}
       <Sheet open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea}>
