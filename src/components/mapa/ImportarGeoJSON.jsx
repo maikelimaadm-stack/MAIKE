@@ -94,7 +94,11 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
       if (isKml) {
         // Processar KML
         const parser = new DOMParser();
-        const xml = parser.parseFromString(text, 'application/xml');
+        const xml = parser.parseFromString(text, 'text/xml');
+        const parseError = xml.getElementsByTagName('parsererror')[0];
+        if (parseError) {
+          throw new Error('KML inválido. Verifique o arquivo.');
+        }
         const placemarks = Array.from(xml.getElementsByTagName('Placemark'));
 
         // Obter proximo numero sequencial de area
