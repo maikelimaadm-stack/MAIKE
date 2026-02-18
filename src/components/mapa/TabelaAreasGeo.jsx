@@ -29,7 +29,7 @@ const CORES_DISPONIVEIS = [
   { nome: "Roxo", cor: "#966fe1" }
 ];
 
-const TIPOS_USO = ["Pastagem", "Lavoura", "Reserva", "APP", "Infraestrutura"]; 
+const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
 const APROVEITAMENTO = ["Alta", "Média", "Baixa"]; 
 const TIPOS_CULTURAS = [
   "Brachiaria","Mombaça","Tanzânia","Tifton","Piatã","Marandu","Panicum","Elefante",

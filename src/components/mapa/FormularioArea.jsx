@@ -19,7 +19,7 @@ import {
 const APROVEITAMENTO = ["Alta", "Média", "Baixa"];
 
 const TIPOS_USO = [
-  "Pastagem", "Lavoura", "Reserva", "APP", "Infraestrutura"
+  "Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"
 ];
 
 const TIPOS_CULTURAS = [
