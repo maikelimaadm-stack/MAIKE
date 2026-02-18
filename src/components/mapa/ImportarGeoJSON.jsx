@@ -293,7 +293,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
       }
     } catch (e) {
       setImporting(false);
-      toast.error('Erro ao processar arquivo.');
+      toast.error('Erro ao processar arquivo. Verifique se o conteúdo é um GeoJSON/KML válido.');
     }
   };
   const handleClose = () => {
