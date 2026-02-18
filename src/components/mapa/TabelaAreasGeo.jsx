@@ -29,8 +29,13 @@ const CORES_DISPONIVEIS = [
   { nome: "Roxo", cor: "#966fe1" }
 ];
 
-const TIPOS_CULTURA_FIXAS = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
+const TIPOS_USO = ["Pastagem", "Lavoura", "Reserva", "APP", "Infraestrutura"]; 
 const APROVEITAMENTO = ["Alta", "Média", "Baixa"]; 
+const TIPOS_CULTURAS = [
+  "Brachiaria","Mombaça","Tanzânia","Tifton","Piatã","Marandu","Panicum","Elefante",
+  "Milho","Soja","Sorgo","Arroz","Trigo","Cevada","Cana-de-açúcar","Algodão",
+  "Feijão","Girassol","Aveia","Café","Eucalipto","Floresta","Outros"
+];
 
 export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -94,9 +99,9 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
       if (batchType === 'aproveitamento') {
         await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
       } else if (batchType === 'cultura') {
-        await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
-      } else if (batchType === 'uso') {
         await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { tipo_pastagem: batchValue })));
+      } else if (batchType === 'uso') {
+        await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
       } else if (batchType === 'cor') {
         await Promise.all(selecionados.map(id => {
           const area = areas.find(a => a.id === id);
@@ -157,10 +162,10 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                     <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">
                       Definir Aproveitamento
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Pastagem'); }} className="text-xs">
+                    <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Brachiaria'); }} className="text-xs">
                       Definir Tipo de Cultura
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue(''); }} className="text-xs">
+                    <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue('Pastagem'); }} className="text-xs">
                       Definir Tipo de Uso
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
@@ -327,7 +332,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
             <Select value={batchValue} onValueChange={setBatchValue}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                {TIPOS_CULTURA_FIXAS.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+                {TIPOS_CULTURAS.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
               </SelectContent>
             </Select>
             <div className="flex justify-end gap-2 pt-2">
@@ -339,10 +344,15 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
         {batchType === 'uso' && (
           <div className="space-y-2">
             <Label className="text-xs">Tipo de Uso</Label>
-            <Input value={batchValue} onChange={(e)=>setBatchValue(e.target.value)} className="h-8 text-xs" placeholder="Ex: Brachiaria" />
+            <Select value={batchValue} onValueChange={setBatchValue}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {TIPOS_USO.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+              </SelectContent>
+            </Select>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue.trim()}>Aplicar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
             </div>
           </div>
         )}

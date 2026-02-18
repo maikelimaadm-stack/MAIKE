@@ -16,10 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const TIPOS_USO = ["Alta", "Média", "Baixa"];
+const APROVEITAMENTO = ["Alta", "Média", "Baixa"];
 
-const TIPOS_CULTURA_FIXAS = [
-  "Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"
+const TIPOS_USO = [
+  "Pastagem", "Lavoura", "Reserva", "APP", "Infraestrutura"
+];
+
+const TIPOS_CULTURAS = [
+  "Brachiaria","Mombaça","Tanzânia","Tifton","Piatã","Marandu","Panicum","Elefante",
+  "Milho","Soja","Sorgo","Arroz","Trigo","Cevada","Cana-de-açúcar","Algodão",
+  "Feijão","Girassol","Aveia","Café","Eucalipto","Floresta","Outros"
 ];
 
 const CORES_DISPONIVEIS = [
@@ -41,8 +47,8 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
 
   
-  // Tipos de cultura fixos definidos no sistema
-  const tiposCultura = TIPOS_CULTURA_FIXAS;
+  // Tipos de uso (classificação de uso da área)
+  const tiposUso = TIPOS_USO;
 
   const [formData, setFormData] = useState({
     nome: item?.nome || "",
@@ -235,7 +241,21 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            {TIPOS_USO.map(tipo => (
+            {APROVEITAMENTO.map(tipo => (
+              <SelectItem key={tipo} value={tipo} className="text-sm">{tipo}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Tipo de uso *</Label>
+        <Select value={formData.tipo_cultura} onValueChange={(v) => setFormData({ ...formData, tipo_cultura: v })}>
+          <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            {tiposUso.map(tipo => (
               <SelectItem key={tipo} value={tipo} className="text-sm">{tipo}</SelectItem>
             ))}
           </SelectContent>
@@ -244,26 +264,16 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
       <div className="space-y-1">
         <Label className="text-sm text-slate-700">Tipo de cultura *</Label>
-        <Select value={formData.tipo_cultura} onValueChange={(v) => setFormData({ ...formData, tipo_cultura: v })}>
+        <Select value={formData.tipo_pastagem} onValueChange={(v) => setFormData({ ...formData, tipo_pastagem: v })}>
           <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            {tiposCultura.map(tipo => (
+            {TIPOS_CULTURAS.map(tipo => (
               <SelectItem key={tipo} value={tipo} className="text-sm">{tipo}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="space-y-1">
-        <Label className="text-sm text-slate-700">Tipo de uso</Label>
-        <Input
-          value={formData.tipo_pastagem}
-          onChange={(e) => setFormData({ ...formData, tipo_pastagem: e.target.value })}
-          placeholder="Ex: Brachiaria, Tifton, Reserva"
-          className="h-10 text-sm bg-slate-50 border-slate-200"
-        />
       </div>
 
       <div className="space-y-1">
