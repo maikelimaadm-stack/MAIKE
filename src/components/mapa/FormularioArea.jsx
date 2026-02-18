@@ -52,6 +52,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     area_pastejada: item?.area_pastejada?.toString() || "",
     aproveitamento: item?.aproveitamento_classificacao || "Média",
     tipo_cultura: item?.tipo_cultura || "Pastagem",
+    tipo_pastagem: item?.tipo_pastagem || "",
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || ""
   });
@@ -141,6 +142,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       numero_area: formData.numero_area?.toString().trim() || undefined,
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
+      tipo_pastagem: formData.tipo_pastagem,
       tamanho_hectares: parseFloat(formData.area_total?.replace(',', '.')) || tamanhoHectares,
       area_pastejada: parseFloat(formData.area_pastejada?.replace(',', '.')) || 0,
       observacoes: formData.observacoes,
@@ -254,7 +256,15 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         </Select>
       </div>
 
-
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Tipo de uso</Label>
+        <Input
+          value={formData.tipo_pastagem}
+          onChange={(e) => setFormData({ ...formData, tipo_pastagem: e.target.value })}
+          placeholder="Ex: Brachiaria, Tifton, Reserva"
+          className="h-10 text-sm bg-slate-50 border-slate-200"
+        />
+      </div>
 
       <div className="space-y-1">
         <Label className="text-sm text-slate-700">Cor no mapa *</Label>

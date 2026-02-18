@@ -95,6 +95,8 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
         await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
       } else if (batchType === 'cultura') {
         await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
+      } else if (batchType === 'uso') {
+        await Promise.all(selecionados.map(id => base44.entities.AreaPastagem.update(id, { tipo_pastagem: batchValue })));
       } else if (batchType === 'cor') {
         await Promise.all(selecionados.map(id => {
           const area = areas.find(a => a.id === id);
@@ -108,7 +110,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
       }
       toast.success('Atualizado com sucesso');
       setBatchType(null); setBatchValue(""); setStartNumber(""); setSelecionados([]);
-      queryClient.invalidateQueries({ queryKey: ['areas'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });
     } catch {
       toast.error('Falha ao aplicar alterações');
     }
@@ -157,6 +159,9 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Pastagem'); }} className="text-xs">
                       Definir Tipo de Cultura
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue(''); }} className="text-xs">
+                      Definir Tipo de Uso
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
                       Definir Cor
@@ -328,6 +333,16 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
               <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
+            </div>
+          </div>
+        )}
+        {batchType === 'uso' && (
+          <div className="space-y-2">
+            <Label className="text-xs">Tipo de Uso</Label>
+            <Input value={batchValue} onChange={(e)=>setBatchValue(e.target.value)} className="h-8 text-xs" placeholder="Ex: Brachiaria" />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue.trim()}>Aplicar</Button>
             </div>
           </div>
         )}
