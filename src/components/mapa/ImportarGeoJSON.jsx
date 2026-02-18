@@ -128,7 +128,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
           try {
             if (polygon) {
               const coordsNode = polygon.getElementsByTagName('coordinates')[0];
-              const coordsLL = parseKmlCoordinates(coordsNode?.textContent || '');
+              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').replace(/\u0000/g, ''));
               if (coordsLL.length >= 3) {
                 const areaHa = Number(polygonAreaHa(coordsLL).toFixed(2));
                 await base44.entities.AreaPastagem.create({
