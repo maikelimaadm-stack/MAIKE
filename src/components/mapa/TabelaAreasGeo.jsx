@@ -288,9 +288,9 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
           </Table>
         </div>
       </CardContent>
-    </Card>
+      </Card>
 
-    {/* Dialogs de Ações em Lote */}
+      {/* Dialogs de Ações em Lote */}
     <Dialog open={!!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(""); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
