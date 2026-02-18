@@ -81,7 +81,7 @@ export default function MapaCadastro() {
   const deleteAreaMutation = useMutation({
     mutationFn: (id) => base44.entities.AreaPastagem.update(id, { ativo: false }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['areas'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });
       toast.success('Área excluída!');
       setItemExcluir(null);
     },
@@ -90,7 +90,7 @@ export default function MapaCadastro() {
   const deletePontoMutation = useMutation({
     mutationFn: (id) => base44.entities.PontoReferencia.update(id, { ativo: false }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pontos'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'pontos' });
       toast.success('Ponto excluído!');
       setItemExcluir(null);
     },
@@ -99,7 +99,7 @@ export default function MapaCadastro() {
   const deleteLinhaMutation = useMutation({
     mutationFn: (id) => base44.entities.LinhaGeografica.update(id, { ativo: false }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['linhas'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'linhas' });
       toast.success('Linha excluída!');
       setItemExcluir(null);
     },
@@ -326,7 +326,7 @@ export default function MapaCadastro() {
               onSave={() => {
                 setShowEditarDetalhesArea(false);
                 setItemDetalhes(null);
-                queryClient.invalidateQueries({ queryKey: ['areas'] });
+                queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });
               }}
               onCancel={() => {
                 setShowEditarDetalhesArea(false);
@@ -350,7 +350,7 @@ export default function MapaCadastro() {
               onSave={() => {
                 setShowEditarDetalhesPonto(false);
                 setItemDetalhes(null);
-                queryClient.invalidateQueries({ queryKey: ['pontos'] });
+                queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'pontos' });
               }}
               onCancel={() => {
                 setShowEditarDetalhesPonto(false);
@@ -374,7 +374,7 @@ export default function MapaCadastro() {
               onSave={() => {
                 setShowEditarDetalhesLinha(false);
                 setItemDetalhes(null);
-                queryClient.invalidateQueries({ queryKey: ['linhas'] });
+                queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'linhas' });
               }}
               onCancel={() => {
                 setShowEditarDetalhesLinha(false);
