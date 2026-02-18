@@ -358,5 +358,6 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }
