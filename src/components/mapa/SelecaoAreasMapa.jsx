@@ -206,6 +206,26 @@ export default function SelecaoAreasMapa({ onClose }) {
               </div>
             </div>
           )}
+          {batchType === 'renumerar' && (
+            <div className="space-y-2">
+              <Label className="text-xs">Iniciar numeração a partir de</Label>
+              <Input value={startNumber} onChange={(e)=>setStartNumber(e.target.value.replace(/[^0-9]/g,''))} className="h-8 text-xs" placeholder="1" />
+              <p className="text-[11px] text-slate-500">As áreas selecionadas serão ordenadas por Nome (A→Z) e receberão códigos sequenciais.</p>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async ()=>{
+                  const ids = Array.from(selecionadosRef.current);
+                  if (!ids.length) { toast.error('Selecione áreas no mapa'); return; }
+                  const start = parseInt(startNumber || '1');
+                  const selecionadas = areas.filter(a => ids.includes(a.id)).sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+                  await Promise.all(selecionadas.map((a, idx) => base44.entities.AreaPastagem.update(a.id, { numero_area: String(start + idx) })));
+                  toast.success('Códigos reatribuídos');
+                  setBatchType(null); setStartNumber(''); selecionadosRef.current.clear();
+                  queryClient.invalidateQueries({ queryKey: ['areas'] });
+                }} disabled={!startNumber}>Aplicar</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
