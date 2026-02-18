@@ -41,7 +41,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
       return;
     }
 
-    const text = geoJsonText.trim();
+    const text = geoJsonText.replace(/\u0000/g, '').replace(/\ufeff/g, '').trim();
     const isKml = text.startsWith('<') && text.toLowerCase().includes('<kml');
 
     setImporting(true);
