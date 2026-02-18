@@ -118,7 +118,8 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
         for (let i = 0; i < placemarks.length; i++) {
           const pm = placemarks[i];
           const nameNode = pm.getElementsByTagName('name')[0];
-          const nome = (nameNode?.textContent || `Item ${i + 1}`).trim();
+          const rawName = (nameNode?.textContent || `Item ${i + 1}`).trim();
+          const nome = rawName.replace(/\u0000/g, '').replace(/\ufeff/g, '').trim();
 
           const polygon = pm.getElementsByTagName('Polygon')[0];
           const line = pm.getElementsByTagName('LineString')[0];
