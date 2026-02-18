@@ -150,7 +150,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               }
             } else if (line) {
               const coordsNode = line.getElementsByTagName('coordinates')[0];
-              const coordsLL = parseKmlCoordinates(coordsNode?.textContent || '');
+              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').replace(/\u0000/g, ''));
               if (coordsLL.length >= 2) {
                 await base44.entities.LinhaGeografica.create({
                   empresa_id: empresaSelecionadaId,
