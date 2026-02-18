@@ -50,6 +50,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
   const filteredAreas = areas.filter(area =>
     area.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     area.tipo_pastagem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    area.tipo_cultura?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     area.numero_area?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -109,7 +110,8 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
           return base44.entities.AreaPastagem.update(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
         }));
       } else if (batchType === 'renumerar') {
-        const start = parseInt(startNumber || '1');
+        const start = parseInt(startNumber || '1', 10);
+        if (Number.isNaN(start)) { toast.error('Informe um número inicial válido'); return; }
         const selecionadas = areas.filter(a => selecionados.includes(a.id)).sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
         await Promise.all(selecionadas.map((a, idx) => base44.entities.AreaPastagem.update(a.id, { numero_area: String(start + idx) })));
       }
@@ -220,7 +222,8 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                 <TableHead className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('nome')}>
                   <div className="flex items-center">Nome {getSortIcon('nome')}</div>
                 </TableHead>
-                <TableHead className="text-xs border-r border-slate-200">Tipo</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Uso</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Cultura</TableHead>
                 <TableHead className="text-xs border-r border-slate-200 text-right">Tamanho (ha)</TableHead>
                 <TableHead className="text-xs border-r border-slate-200 text-right">Capacidade</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Ocupação</TableHead>
@@ -277,6 +280,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                       <TableCell className="text-xs font-mono border-r border-slate-200">{area.numero_area || '-'}</TableCell>
                       <TableCell className="text-xs font-semibold border-r border-slate-200 text-emerald-700">{area.sigla || '-'}</TableCell>
                       <TableCell className="text-xs font-medium border-r border-slate-200">{area.nome}</TableCell>
+                      <TableCell className="text-xs border-r border-slate-200">{area.tipo_cultura || '-'}</TableCell>
                       <TableCell className="text-xs border-r border-slate-200">{area.tipo_pastagem || '-'}</TableCell>
                       <TableCell className="text-xs text-right font-mono border-r border-slate-200">{area.tamanho_hectares?.toFixed(2) || '-'}</TableCell>
                       <TableCell className="text-xs text-right font-mono border-r border-slate-200">{area.capacidade_maxima || '-'}</TableCell>

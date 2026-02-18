@@ -23,8 +23,13 @@ const CORES_DISPONIVEIS = [
   { nome: "Laranja", cor: "#f5a01b" },
   { nome: "Roxo", cor: "#966fe1" }
 ];
-const TIPOS_CULTURA_FIXAS = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
+const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
 const APROVEITAMENTO = ["Alta", "Média", "Baixa"]; 
+const TIPOS_CULTURAS = [
+  "Brachiaria","Mombaça","Tanzânia","Tifton","Piatã","Marandu","Panicum","Elefante",
+  "Milho","Soja","Sorgo","Arroz","Trigo","Cevada","Cana-de-açúcar","Algodão",
+  "Feijão","Girassol","Aveia","Café","Eucalipto","Floresta","Outros"
+];
 
 export default function SelecaoAreasMapa({ onClose }) {
   const mapRef = useRef(null);
@@ -107,8 +112,10 @@ export default function SelecaoAreasMapa({ onClose }) {
     try {
       if (batchType === 'aproveitamento') {
         await Promise.all(ids.map(id => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
-      } else if (batchType === 'cultura') {
+      } else if (batchType === 'uso') {
         await Promise.all(ids.map(id => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
+      } else if (batchType === 'cultura') {
+        await Promise.all(ids.map(id => base44.entities.AreaPastagem.update(id, { tipo_pastagem: batchValue })));
       } else if (batchType === 'cor') {
         await Promise.all(ids.map(id => {
           const area = areas.find(a => a.id === id);
@@ -119,7 +126,7 @@ export default function SelecaoAreasMapa({ onClose }) {
       toast.success('Atualizado');
       setBatchType(null); setBatchValue("");
       selecionadosRef.current.clear();
-      queryClient.invalidateQueries({ queryKey: ['areas'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });
     } catch {
       toast.error('Falha ao aplicar alterações');
     }
@@ -144,11 +151,17 @@ export default function SelecaoAreasMapa({ onClose }) {
             <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">
               <CheckSquare className="w-3.5 h-3.5 mr-2" /> Definir Aproveitamento
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Pastagem'); }} className="text-xs">
+            <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue('Pastagem'); }} className="text-xs">
+              <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Uso
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Brachiaria'); }} className="text-xs">
               <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Cultura
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
               <Palette className="w-3.5 h-3.5 mr-2" /> Definir Cor
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setBatchType('renumerar'); setStartNumber('1'); }} className="text-xs">
+              <Layers className="w-3.5 h-3.5 mr-2" /> Reatribuir Códigos
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -159,6 +172,7 @@ export default function SelecaoAreasMapa({ onClose }) {
           <DialogHeader>
             <DialogTitle className="text-sm">
               {batchType === 'aproveitamento' && 'Definir Aproveitamento'}
+              {batchType === 'uso' && 'Definir Tipo de Uso'}
               {batchType === 'cultura' && 'Definir Tipo de Cultura'}
               {batchType === 'cor' && 'Definir Cor no Mapa'}
             </DialogTitle>
@@ -178,13 +192,28 @@ export default function SelecaoAreasMapa({ onClose }) {
               </div>
             </div>
           )}
+          {batchType === 'uso' && (
+            <div className="space-y-2">
+              <Label className="text-xs">Tipo de Uso</Label>
+              <Select value={batchValue} onValueChange={setBatchValue}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS_USO.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
+              </div>
+            </div>
+          )}
           {batchType === 'cultura' && (
             <div className="space-y-2">
               <Label className="text-xs">Tipo de Cultura</Label>
               <Select value={batchValue} onValueChange={setBatchValue}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {TIPOS_CULTURA_FIXAS.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
+                  {TIPOS_CULTURAS.map(v => (<SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>))}
                 </SelectContent>
               </Select>
               <div className="flex justify-end gap-2 pt-2">
@@ -198,7 +227,7 @@ export default function SelecaoAreasMapa({ onClose }) {
               <Label className="text-xs">Cor</Label>
               <div className="grid grid-cols-5 gap-2">
                 {CORES_DISPONIVEIS.map(c => (
-                  <button key={c.cor} onClick={() => setBatchValue(c.cor)} className={`h-8 rounded border ${batchValue===c.cor?'ring-2 ring-emerald-600':''}`} style={{ backgroundColor: c.cor }} title={c.nome} />
+                  <button key={c.cor} type="button" onClick={() => setBatchValue(c.cor)} className={`h-8 rounded border ${batchValue===c.cor?'ring-2 ring-emerald-600':''}`} style={{ backgroundColor: c.cor }} title={c.nome} />
                 ))}
               </div>
               <div className="flex justify-end gap-2 pt-2">
