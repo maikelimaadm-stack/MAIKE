@@ -169,7 +169,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               }
             } else if (point) {
               const coordsNode = point.getElementsByTagName('coordinates')[0];
-              const coordsLL = parseKmlCoordinates(coordsNode?.textContent || '');
+              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').replace(/\u0000/g, ''));
               if (coordsLL[0]) {
                 await base44.entities.PontoReferencia.create({
                   empresa_id: empresaSelecionadaId,
