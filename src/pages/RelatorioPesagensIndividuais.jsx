@@ -1607,7 +1607,6 @@ export default function RelatorioPesagensIndividuais() {
                                           case 'quantidade_arrobas_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>;
                                           case 'valor_arroba': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>;
                                           case 'valor_total_calc': return <TableCell key={id} className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>;
-                                          case 'comprador': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>;
                                           case 'destino_venda': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>;
                                           case 'nome_lote': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>;
                                           case 'nome_apartacao': return <TableCell key={id} className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>;
