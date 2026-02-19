@@ -89,6 +89,7 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   }
 
   return (
+    <>
     <Card>
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -209,5 +210,6 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }
