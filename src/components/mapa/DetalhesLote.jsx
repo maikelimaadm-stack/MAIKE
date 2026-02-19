@@ -277,7 +277,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       onSuccess: () => {
         toast.success('✅ Gado movido!');
         setShowMovimentacao(false);
-        onClose();
+        // Abrir pesagem automaticamente após movimentar
+        setShowPesagem(true);
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       },
     onError: (error) => {

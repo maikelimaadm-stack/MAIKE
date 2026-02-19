@@ -127,6 +127,19 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     enabled: !!empresaSelecionadaId,
   });
 
+  const areasOrdenadas = React.useMemo(() => {
+    const parseNum = (v) => {
+      const n = parseInt(String(v || '').replace(/\D/g, ''), 10);
+      return Number.isNaN(n) ? Infinity : n;
+    };
+    return [...areas].sort((a, b) => {
+      const na = parseNum(a.numero_area);
+      const nb = parseNum(b.numero_area);
+      if (na !== nb) return na - nb;
+      return (a.nome || '').localeCompare(b.nome || '');
+    });
+  }, [areas]);
+
   const { data: todosLotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
@@ -480,9 +493,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   <SelectValue placeholder="Selecione a área de saída" />
                 </SelectTrigger>
                 <SelectContent>
-                  {areas.map(area => (
+                  {areasOrdenadas.map(area => (
                     <SelectItem key={area.id} value={area.id} className="text-xs">
-                      {area.nome}
+                      {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -499,11 +512,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   <SelectValue placeholder="Selecione a área de entrada" />
                 </SelectTrigger>
                 <SelectContent>
-                  {areas
+                  {areasOrdenadas
                     .filter(a => a.id !== formData.area_saida_id)
                     .map(area => (
                       <SelectItem key={area.id} value={area.id} className="text-xs">
-                        {area.nome}
+                        {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
                       </SelectItem>
                     ))}
                 </SelectContent>
