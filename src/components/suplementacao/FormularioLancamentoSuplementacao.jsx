@@ -60,9 +60,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     queryKey: ['produtos-suplementacao', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
+      const norm = (s) => (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
       return all.filter(p => 
         p.empresa_id === empresaSelecionadaId && 
-        p.categoria?.toUpperCase() === 'SUPLEMENTAÇÃO'
+        norm(p.categoria).includes('SUPLEMENTAC')
       );
     },
     enabled: !!empresaSelecionadaId,
