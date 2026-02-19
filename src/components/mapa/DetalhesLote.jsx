@@ -235,7 +235,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             } else {
               await base44.entities.Lote.create({
                 empresa_id: empresaSelecionadaId,
-                nome: `${lote.nome} (MOVIDO)`,
+                nome: lote.nome,
                 quantidade_cabecas: quantidadeMover,
                 categoria: lote.categoria,
                 sexo: lote.sexo,

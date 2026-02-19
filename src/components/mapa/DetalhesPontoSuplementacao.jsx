@@ -60,9 +60,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['eventos-ponto'] });
-      queryClient.invalidateQueries({ queryKey: ['suplementacao-lote'] });
-      queryClient.invalidateQueries({ queryKey: ['eventos-suplementacao'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ['eventos-ponto','suplementacao-lote','eventos-suplementacao'].includes(q.queryKey[0]) });
       toast.success('Suplementação registrada com sucesso');
       setShowLancamento(false);
     },
