@@ -160,8 +160,9 @@ const DEFAULT_MENU = [
       { id: "rel-movimentacoes-pecuaria", title: "Movimentacoes Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
       { id: "rel-pesagens-ind", title: "Pesagens Individuais", url: "RelatorioPesagensIndividuais" },
       { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
-            { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" }
-    ],
+            { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" },
+            { id: "rel-gestao-tarefas", title: "Gestão de Tarefas", url: "RelatorioGestaoTarefas" }
+            ],
   },
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
   { id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" },
