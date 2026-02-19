@@ -471,7 +471,7 @@ export default function MapaGeral() {
           const position = projection.fromLatLngToDivPixel(center);
           areaLabelDiv.style.position = 'absolute';
           areaLabelDiv.style.left = position.x + 'px';
-          areaLabelDiv.style.top = position.y + 'px';
+          areaLabelDiv.style.top = (position.y + 48) + 'px';
           areaLabelDiv.style.transform = 'translate(-50%, -50%)';
           areaLabelDiv.style.zIndex = '9999';
         };
