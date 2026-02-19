@@ -445,7 +445,7 @@ export default function MapaGeral() {
           areaHa = areaM2 / 10000;
         }
 
-        // Label com nome do pasto (sem hectares), posicionado abaixo do ícone
+        // Label com nome do pasto e hectares no centro da área
         const areaLabelDiv = document.createElement('div');
         areaLabelDiv.innerHTML = `
           <div style="
@@ -455,9 +455,9 @@ export default function MapaGeral() {
             text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
             pointer-events: none;
             font-family: Arial, sans-serif;
-            font-size: 12px; font-weight: 600;
           ">
-            ${area.nome || 'Sem nome'}
+            <div style=\"font-size: 12px; font-weight: 500;\">${area.nome || 'Sem nome'}</div>
+            <div style=\"font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.9;\">${areaHa.toFixed(0)}ha</div>
           </div>
         `;
 
@@ -471,7 +471,7 @@ export default function MapaGeral() {
           const position = projection.fromLatLngToDivPixel(center);
           areaLabelDiv.style.position = 'absolute';
           areaLabelDiv.style.left = position.x + 'px';
-          areaLabelDiv.style.top = (position.y + 120) + 'px';
+          areaLabelDiv.style.top = (position.y + 70) + 'px';
           areaLabelDiv.style.transform = 'translate(-50%, -50%)';
           areaLabelDiv.style.zIndex = '100';
         };
