@@ -456,7 +456,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           // Mudança parcial - criar novo lote com nova categoria
           await base44.entities.Lote.create({
             empresa_id: empresaSelecionadaId,
-            nome: `${lote.nome} (${mudanca.categoria_nova.split(' ')[0].toUpperCase()})`,
+            nome: lote.nome,
             quantidade_cabecas: qtdMudar,
             categoria: mudanca.categoria_nova,
             sexo: lote.sexo,

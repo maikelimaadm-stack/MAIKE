@@ -2,8 +2,12 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, TrendingUp, X, Plus, ArrowRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const ICONES_TIPO = {
   "Transferência de Área": "⇄",
@@ -25,6 +29,19 @@ const CORES_TIPO = {
 
 export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const queryClient = useQueryClient();
+  const [editMov, setEditMov] = React.useState(null);
+  const [showEdit, setShowEdit] = React.useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.MovimentacaoPecuaria.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.MovimentacaoPecuaria.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
+  });
 
   const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', lotesIds, areaId],
@@ -97,9 +114,19 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right space-y-2">
                   <div className="text-lg font-bold text-emerald-600">
                     {mov.quantidade_animais} {mov.quantidade_animais === 1 ? 'animal' : 'animais'}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" className="h-8 text-xs"
+                      onClick={() => { setEditMov(mov); setShowEdit(true); }}>
+                      Editar
+                    </Button>
+                    <Button variant="destructive" size="sm" className="h-8 text-xs"
+                      onClick={async () => { if (confirm('Excluir este registro?')) { await deleteMutation.mutateAsync(mov.id); } }}>
+                      Excluir
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -153,5 +180,34 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
         </div>
       </CardContent>
     </Card>
+
+    <Dialog open={showEdit} onOpenChange={setShowEdit}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Editar Movimentação</DialogTitle>
+        </DialogHeader>
+        {editMov && (
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs text-slate-600">Quantidade</label>
+              <Input type="number" className="h-8 text-xs" value={editMov.quantidade_animais || 0}
+                onChange={(e) => setEditMov({ ...editMov, quantidade_animais: parseInt(e.target.value || '0', 10) })} />
+            </div>
+            <div>
+              <label className="text-xs text-slate-600">Observações</label>
+              <Textarea rows={3} className="text-xs" value={editMov.observacoes || ''}
+                onChange={(e) => setEditMov({ ...editMov, observacoes: e.target.value })} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                onClick={async () => { await updateMutation.mutateAsync({ id: editMov.id, data: { quantidade_animais: editMov.quantidade_animais, observacoes: editMov.observacoes } }); setShowEdit(false); }}>
+                Salvar
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
