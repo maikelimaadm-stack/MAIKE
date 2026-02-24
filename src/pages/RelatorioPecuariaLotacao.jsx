@@ -238,7 +238,7 @@ export default function RelatorioPecuariaLotacao() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {Object.keys(colsPastos).map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={(colsPastos as any)[k]} onCheckedChange={(v)=>setColsPastos({ ...(colsPastos as any), [k]: !!v })}>
+              <DropdownMenuCheckboxItem key={k} checked={colsPastos[k]} onCheckedChange={(v)=>setColsPastos({ ...colsPastos, [k]: !!v })}>
                 {({ nome: 'Nome', area: 'Área (ha)', ua_ha: 'Capacidade (UA/ha)', ua_total: 'Capacidade total (UA)' })[k]}
               </DropdownMenuCheckboxItem>
             ))}
@@ -251,7 +251,7 @@ export default function RelatorioPecuariaLotacao() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {Object.keys(colsLotes).map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={(colsLotes as any)[k]} onCheckedChange={(v)=>setColsLotes({ ...(colsLotes as any), [k]: !!v })}>
+              <DropdownMenuCheckboxItem key={k} checked={colsLotes[k]} onCheckedChange={(v)=>setColsLotes({ ...colsLotes, [k]: !!v })}>
                 {({ ident: 'Identificação', categoria: 'Categoria', cabecas: 'Cabeças', pesoMedio: 'Peso médio (kg)', pesoTotal: 'Peso vivo total (kg)', uaCabeca: 'UA/cabeça', uaTotal: 'UA total', diasPastejo: 'Dias de pastejo' })[k]}
               </DropdownMenuCheckboxItem>
             ))}
@@ -264,7 +264,7 @@ export default function RelatorioPecuariaLotacao() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {Object.keys(colsDistrib).map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={(colsDistrib as any)[k]} onCheckedChange={(v)=>setColsDistrib({ ...(colsDistrib as any), [k]: !!v })}>
+              <DropdownMenuCheckboxItem key={k} checked={colsDistrib[k]} onCheckedChange={(v)=>setColsDistrib({ ...colsDistrib, [k]: !!v })}>
                 {({ pasto: 'Pasto', lotes: 'Qtde de lotes', cabecas: 'Cabeças', uaTotal: 'UA total', uaHaReal: 'UA/ha (real)', ocupacao: '% Ocupação' })[k]}
               </DropdownMenuCheckboxItem>
             ))}
