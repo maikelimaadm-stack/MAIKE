@@ -455,15 +455,15 @@ export default function MapaGeral() {
             text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
             pointer-events: none;
             font-family: Arial, sans-serif;
+            font-size: 12px; font-weight: 600;
           ">
-            <div style=\"font-size: 12px; font-weight: 500;\">${area.nome || 'Sem nome'}</div>
-            <div style=\"font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.9;\">${areaHa.toFixed(0)}ha</div>
+            ${area.nome || 'Sem nome'}
           </div>
         `;
 
         const areaLabelOverlay = new google.maps.OverlayView();
         areaLabelOverlay.onAdd = function() {
-          const pane = this.getPanes().floatPane;
+          const pane = this.getPanes().markerLayer;
           pane.appendChild(areaLabelDiv);
         };
         areaLabelOverlay.draw = function() {
@@ -471,7 +471,7 @@ export default function MapaGeral() {
           const position = projection.fromLatLngToDivPixel(center);
           areaLabelDiv.style.position = 'absolute';
           areaLabelDiv.style.left = position.x + 'px';
-          areaLabelDiv.style.top = (position.y + 70) + 'px';
+          areaLabelDiv.style.top = position.y + 'px';
           areaLabelDiv.style.transform = 'translate(-50%, -50%)';
           areaLabelDiv.style.zIndex = '100';
         };

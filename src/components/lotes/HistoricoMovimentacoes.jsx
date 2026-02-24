@@ -43,6 +43,52 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
   });
 
+  const handleDelete = async (mov) => {
+    // Bloquear exclusão se existirem registros posteriores (filhos) do mesmo lote
+    const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
+    const sameLote = all.filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
+    const later = sameLote.filter(m => new Date(m.data_movimentacao) > new Date(mov.data_movimentacao));
+    if (later.length > 0) {
+      alert('Não é possível excluir: existem movimentações posteriores deste lote. Exclua primeiramente as mais recentes.');
+      return;
+    }
+
+    if (!confirm('Excluir este registro? O lote será ajustado automaticamente para a situação anterior.')) return;
+
+    await deleteMutation.mutateAsync(mov.id);
+
+    // Recalcular área atual do lote com base no histórico restante
+    const remaining = (await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao'))
+      .filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
+
+    // Último registro que definiu área_destino_id será a área atual
+    let currentAreaId = null;
+    remaining
+      .sort((a,b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao))
+      .forEach(m => { if (m.area_destino_id) currentAreaId = m.area_destino_id; });
+
+    // Atualizar lote se encontrado
+    try {
+      let loteRecord = null;
+      if (mov.lote_id) {
+        const res = await base44.entities.Lote.filter({ id: mov.lote_id });
+        loteRecord = Array.isArray(res) ? res[0] : null;
+      } else {
+        const lotesAll = await base44.entities.Lote.list();
+        loteRecord = lotesAll.find(l => l.nome === mov.lote || l.identificacao === mov.lote) || null;
+      }
+      if (loteRecord && currentAreaId && loteRecord.area_atual_id !== currentAreaId) {
+        await base44.entities.Lote.update(loteRecord.id, { area_atual_id: currentAreaId });
+      }
+    } catch (e) {
+      console.error('Falha ao ajustar área do lote após exclusão:', e);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    // Atualizar mapa em tempo real
+    try { window.dispatchEvent(new Event('atualizar-mapa')); } catch {}
+  };
+
   const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', lotesIds, areaId],
     queryFn: async () => {
@@ -125,7 +171,7 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
                       Editar
                     </Button>
                     <Button variant="destructive" size="sm" className="h-8 text-xs"
-                      onClick={async () => { if (confirm('Excluir este registro?')) { await deleteMutation.mutateAsync(mov.id); } }}>
+                      onClick={() => handleDelete(mov)}>
                       Excluir
                     </Button>
                   </div>

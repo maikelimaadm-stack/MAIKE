@@ -108,6 +108,7 @@ import RelatorioEstoque from './pages/RelatorioEstoque';
 import RelatorioExtratoMovimentacoes from './pages/RelatorioExtratoMovimentacoes';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
 import RelatorioFornecedores from './pages/RelatorioFornecedores';
+import RelatorioGestaoTarefas from './pages/RelatorioGestaoTarefas';
 import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
 import RelatorioKardex from './pages/RelatorioKardex';
 import RelatorioMapaPastos from './pages/RelatorioMapaPastos';
@@ -127,7 +128,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
-import RelatorioGestaoTarefas from './pages/RelatorioGestaoTarefas';
+import RelatorioPecuariaLotacao from './pages/RelatorioPecuariaLotacao';
 import __Layout from './Layout.jsx';
 
 
@@ -193,6 +194,7 @@ export const PAGES = {
     "RelatorioExtratoMovimentacoes": RelatorioExtratoMovimentacoes,
     "RelatorioFinanceiro": RelatorioFinanceiro,
     "RelatorioFornecedores": RelatorioFornecedores,
+    "RelatorioGestaoTarefas": RelatorioGestaoTarefas,
     "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
     "RelatorioKardex": RelatorioKardex,
     "RelatorioMapaPastos": RelatorioMapaPastos,
@@ -212,7 +214,7 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
-    "RelatorioGestaoTarefas": RelatorioGestaoTarefas,
+    "RelatorioPecuariaLotacao": RelatorioPecuariaLotacao,
 }
 
 export const pagesConfig = {
