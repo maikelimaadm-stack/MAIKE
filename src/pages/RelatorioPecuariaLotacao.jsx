@@ -44,7 +44,7 @@ export default function RelatorioPecuariaLotacao() {
     queryKey: ['areas-rel-lot', empresaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a: any) => a.empresa_id === empresaId && a.ativo !== false);
+      return all.filter((a) => a.empresa_id === empresaId && a.ativo !== false);
     },
     enabled: !!empresaId,
     staleTime: 0
@@ -54,7 +54,7 @@ export default function RelatorioPecuariaLotacao() {
     queryKey: ['lotes-rel-lot', empresaId, apenasAtivos],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter((l: any) => l.empresa_id === empresaId && (apenasAtivos ? l.status === 'Ativo' : true));
+      return all.filter((l) => l.empresa_id === empresaId && (apenasAtivos ? l.status === 'Ativo' : true));
     },
     enabled: !!empresaId,
     staleTime: 0
@@ -64,7 +64,7 @@ export default function RelatorioPecuariaLotacao() {
     queryKey: ['movpecuaria-rel-lot', empresaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
-      return all.filter((m: any) => m.empresa_id === empresaId);
+      return all.filter((m) => m.empresa_id === empresaId);
     },
     enabled: !!empresaId,
     staleTime: 0
@@ -72,7 +72,7 @@ export default function RelatorioPecuariaLotacao() {
 
   // Aplicar filtro de saldo (>0 cabeças)
   const lotes = useMemo(() => {
-    const arr = lotesRaw as any[];
+    const arr = lotesRaw || [];
     if (!apenasComSaldo) return arr;
     return arr.filter(l => Number(l.quantidade_cabecas || 0) > 0);
   }, [lotesRaw, apenasComSaldo]);
@@ -141,7 +141,7 @@ export default function RelatorioPecuariaLotacao() {
     (relLotes || []).forEach(l => {
       const key = l.areaId || 'sem_area';
       if (!byArea.has(key)) byArea.set(key, []);
-      byArea.get(key)!.push(l);
+      byArea.get(key).push(l);
     });
 
     const rows = [];
@@ -161,7 +161,7 @@ export default function RelatorioPecuariaLotacao() {
 
   // 5. Análise técnica
   const analise = useMemo(() => {
-    return (relDistrib as any[]).map(r => {
+    return (relDistrib || []).map(r => {
       let status = 'Equilibrado';
       if (r.capUaTotal > 0) {
         const p = (r.uaTotal / r.capUaTotal) * 100;
@@ -182,12 +182,12 @@ export default function RelatorioPecuariaLotacao() {
 
   // 6. Resumo final
   const resumo = useMemo(() => {
-    const totalCab = (relLotes as any[]).reduce((s, l) => s + l.cabecas, 0);
-    const totalUa = (relLotes as any[]).reduce((s, l) => s + l.uaTotal, 0);
-    const totPeso = (relLotes as any[]).reduce((s, l) => s + l.pesoTotal, 0);
+    const totalCab = (relLotes || []).reduce((s, l) => s + l.cabecas, 0);
+    const totalUa = (relLotes || []).reduce((s, l) => s + l.uaTotal, 0);
+    const totPeso = (relLotes || []).reduce((s, l) => s + l.pesoTotal, 0);
     const mediaPeso = totalCab > 0 ? (totPeso / totalCab) : 0;
-    const totalArea = (areas as any[]).reduce((s, a) => s + Number(a.tamanho_hectares || 0), 0);
-    const capTotalUa = (areas as any[]).reduce((s, a) => s + Number(a.capacidade_maxima || 0), 0);
+    const totalArea = (areas || []).reduce((s, a) => s + Number(a.tamanho_hectares || 0), 0);
+    const capTotalUa = (areas || []).reduce((s, a) => s + Number(a.capacidade_maxima || 0), 0);
     const uaHaFazenda = totalArea > 0 ? (totalUa / totalArea) : 0;
     const diferencaCap = capTotalUa - totalUa;
     return { totalCab, totalUa, mediaPeso, uaHaFazenda, capTotalUa, totalArea, diferencaCap };
@@ -198,7 +198,7 @@ export default function RelatorioPecuariaLotacao() {
     <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
       <div>
         <Label className="text-xs mb-1 block">Orientação</Label>
-        <Select value={orientacao} onValueChange={(v: any) => setOrientacao(v)}>
+        <Select value={orientacao} onValueChange={(v) => setOrientacao(v)}>
           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="retrato" className="text-xs">Retrato</SelectItem>
@@ -239,7 +239,7 @@ export default function RelatorioPecuariaLotacao() {
           <DropdownMenuContent align="start">
             {Object.keys(colsPastos).map((k) => (
               <DropdownMenuCheckboxItem key={k} checked={(colsPastos as any)[k]} onCheckedChange={(v)=>setColsPastos({ ...(colsPastos as any), [k]: !!v })}>
-                {({ nome: 'Nome', area: 'Área (ha)', ua_ha: 'Capacidade (UA/ha)', ua_total: 'Capacidade total (UA)' } as any)[k]}
+                {({ nome: 'Nome', area: 'Área (ha)', ua_ha: 'Capacidade (UA/ha)', ua_total: 'Capacidade total (UA)' })[k]}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -252,7 +252,7 @@ export default function RelatorioPecuariaLotacao() {
           <DropdownMenuContent align="start">
             {Object.keys(colsLotes).map((k) => (
               <DropdownMenuCheckboxItem key={k} checked={(colsLotes as any)[k]} onCheckedChange={(v)=>setColsLotes({ ...(colsLotes as any), [k]: !!v })}>
-                {({ ident: 'Identificação', categoria: 'Categoria', cabecas: 'Cabeças', pesoMedio: 'Peso médio (kg)', pesoTotal: 'Peso vivo total (kg)', uaCabeca: 'UA/cabeça', uaTotal: 'UA total', diasPastejo: 'Dias de pastejo' } as any)[k]}
+                {({ ident: 'Identificação', categoria: 'Categoria', cabecas: 'Cabeças', pesoMedio: 'Peso médio (kg)', pesoTotal: 'Peso vivo total (kg)', uaCabeca: 'UA/cabeça', uaTotal: 'UA total', diasPastejo: 'Dias de pastejo' })[k]}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -265,7 +265,7 @@ export default function RelatorioPecuariaLotacao() {
           <DropdownMenuContent align="start">
             {Object.keys(colsDistrib).map((k) => (
               <DropdownMenuCheckboxItem key={k} checked={(colsDistrib as any)[k]} onCheckedChange={(v)=>setColsDistrib({ ...(colsDistrib as any), [k]: !!v })}>
-                {({ pasto: 'Pasto', lotes: 'Qtde de lotes', cabecas: 'Cabeças', uaTotal: 'UA total', uaHaReal: 'UA/ha (real)', ocupacao: '% Ocupação' } as any)[k]}
+                {({ pasto: 'Pasto', lotes: 'Qtde de lotes', cabecas: 'Cabeças', uaTotal: 'UA total', uaHaReal: 'UA/ha (real)', ocupacao: '% Ocupação' })[k]}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -295,7 +295,7 @@ export default function RelatorioPecuariaLotacao() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {relPastos.map((p: any) => (
+                    {relPastos.map((p) => (
                       <TableRow key={p.id} className="hover:bg-gray-50">
                         {colsPastos.nome && <TableCell className="text-xs py-1 border border-gray-300">{p.nome}</TableCell>}
                         {colsPastos.area && <TableCell className="text-xs py-1 border border-gray-300">{p.area.toFixed(2)}</TableCell>}
@@ -332,7 +332,7 @@ export default function RelatorioPecuariaLotacao() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {relLotes.map((l: any) => (
+                    {relLotes.map((l) => (
                       <TableRow key={l.id} className="hover:bg-gray-50">
                         {colsLotes.ident && <TableCell className="text-xs py-1 border border-gray-300">{l.ident}</TableCell>}
                         {colsLotes.categoria && <TableCell className="text-xs py-1 border border-gray-300">{l.categoria}</TableCell>}
@@ -371,7 +371,7 @@ export default function RelatorioPecuariaLotacao() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {relDistrib.map((r: any) => (
+                    {relDistrib.map((r) => (
                       <TableRow key={r.key} className="hover:bg-gray-50">
                         {colsDistrib.pasto && <TableCell className="text-xs py-1 border border-gray-300">{r.pasto}</TableCell>}
                         {colsDistrib.lotes && <TableCell className="text-xs py-1 border border-gray-300">{r.lotes}</TableCell>}
@@ -408,7 +408,7 @@ export default function RelatorioPecuariaLotacao() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analise.map((a: any, idx: number) => (
+                    {analise.map((a, idx) => (
                       <TableRow key={idx} className="hover:bg-gray-50">
                         <TableCell className="text-xs py-1 border border-gray-300">{a.pasto}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{a.status}</TableCell>
