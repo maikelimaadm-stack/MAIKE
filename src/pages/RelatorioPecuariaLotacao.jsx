@@ -14,7 +14,7 @@ export default function RelatorioPecuariaLotacao() {
   const empresaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
 
   // Orientação conforme padrão dos outros relatórios ("paisagem" | "retrato")
-  const [orientacao, setOrientacao] = useState<'paisagem' | 'retrato'>('retrato');
+  const [orientacao, setOrientacao] = useState('retrato');
 
   // Filtros
   const [apenasAtivos, setApenasAtivos] = useState(true);
@@ -37,7 +37,7 @@ export default function RelatorioPecuariaLotacao() {
     queryKey: ['empresas-relatorio'],
     queryFn: () => base44.entities.Empresa.list(),
   });
-  const empresaAtual = useMemo(() => empresas.find((e: any) => e.id === empresaId), [empresas, empresaId]);
+  const empresaAtual = useMemo(() => empresas.find((e) => e.id === empresaId), [empresas, empresaId]);
 
   // Áreas, lotes e movimentações (para dias de pastejo)
   const { data: areas = [] } = useQuery({
@@ -79,15 +79,15 @@ export default function RelatorioPecuariaLotacao() {
 
   // Map de áreas por id
   const areaMap = useMemo(() => {
-    const m = new Map<string, any>();
-    (areas as any[]).forEach(a => m.set(a.id, a));
+    const m = new Map();
+    (areas || []).forEach(a => m.set(a.id, a));
     return m;
   }, [areas]);
 
   // Função util para dias de pastejo do lote na área atual
-  const getDiasPastejo = (lote: any) => {
+  const getDiasPastejo = (lote) => {
     try {
-      const historico = (movs as any[]).filter(m => (lote.id ? m.lote_id === lote.id : (m.lote && (m.lote === lote.nome || m.lote === lote.identificacao))));
+      const historico = (movs || []).filter(m => (lote.id ? m.lote_id === lote.id : (m.lote && (m.lote === lote.nome || m.lote === lote.identificacao))));
       if (historico.length === 0) return null;
       // último registro que posicionou o lote na área atual
       const ultimoNaArea = historico.find(m => m.area_destino_id && m.area_destino_id === lote.area_atual_id);
@@ -103,7 +103,7 @@ export default function RelatorioPecuariaLotacao() {
 
   // 2. Relação de Pastos
   const relPastos = useMemo(() => {
-    return (areas as any[]).map(a => {
+    return (areas || []).map(a => {
       const areaHa = Number(a.tamanho_hectares || 0);
       const uaTotalCap = Number(a.capacidade_maxima || 0); // UA totais informadas
       const uaHaCap = areaHa > 0 ? (uaTotalCap / areaHa) : 0; // UA/ha = capacidade_total ÷ área
@@ -113,13 +113,13 @@ export default function RelatorioPecuariaLotacao() {
 
   // 3. Relação de Lotes (com fórmulas UA)
   const relLotes = useMemo(() => {
-    return (lotes as any[]).map(l => {
+    return (lotes || []).map(l => {
       const cabecas = Number(l.quantidade_cabecas || 0);
       const pesoMedio = Number(l.peso_medio_kg || 0);
       const pesoTotal = cabecas * pesoMedio;
       const uaCabeca = pesoMedio > 0 ? (pesoMedio / 450) : 0;
       const uaTotal = uaCabeca * cabecas;
-      const diasPastejo = getDiasPastejo(l) as number | null;
+      const diasPastejo = getDiasPastejo(l);
       return {
         id: l.id,
         ident: l.nome || l.identificacao || '-',
@@ -137,14 +137,14 @@ export default function RelatorioPecuariaLotacao() {
 
   // 4. Distribuição dos Lotes nos Pastos
   const relDistrib = useMemo(() => {
-    const byArea = new Map<string, any[]>();
-    (relLotes as any[]).forEach(l => {
+    const byArea = new Map();
+    (relLotes || []).forEach(l => {
       const key = l.areaId || 'sem_area';
       if (!byArea.has(key)) byArea.set(key, []);
       byArea.get(key)!.push(l);
     });
 
-    const rows: any[] = [];
+    const rows = [];
     byArea.forEach((lotesArea, key) => {
       const area = areaMap.get(key);
       const nome = area?.nome || 'Sem área';
