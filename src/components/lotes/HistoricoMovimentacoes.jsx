@@ -61,11 +61,18 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
     const remaining = (await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao'))
       .filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
 
-    // Último registro que definiu área_destino_id será a área atual
-    let currentAreaId = null;
-    remaining
-      .sort((a,b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao))
-      .forEach(m => { if (m.area_destino_id) currentAreaId = m.area_destino_id; });
+    // Determinar nova área:
+    // 1) Se a movimentação excluída definiu área_destino_id (transferência), voltar para a área de origem dela
+    let newAreaId = mov.area_destino_id ? (mov.area_origem_id || null) : null;
+
+    // 2) Caso não seja transferência ou não haja origem, usar o último registro remanescente com área_destino_id
+    if (!newAreaId) {
+      const ultimoComDestino = [...remaining]
+        .sort((a,b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao))
+        .reverse()
+        .find(m => m.area_destino_id);
+      if (ultimoComDestino) newAreaId = ultimoComDestino.area_destino_id || null;
+    }
 
     // Atualizar lote se encontrado
     try {
@@ -77,12 +84,16 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
         const lotesAll = await base44.entities.Lote.list();
         loteRecord = lotesAll.find(l => l.nome === mov.lote || l.identificacao === mov.lote) || null;
       }
-      if (loteRecord && currentAreaId && loteRecord.area_atual_id !== currentAreaId) {
-        await base44.entities.Lote.update(loteRecord.id, { area_atual_id: currentAreaId });
+
+      if (loteRecord && newAreaId && loteRecord.area_atual_id !== newAreaId) {
+        await base44.entities.Lote.update(loteRecord.id, { area_atual_id: newAreaId });
       }
     } catch (e) {
       console.error('Falha ao ajustar área do lote após exclusão:', e);
     }
+
+    // Garantir atualização das listas e do mapa
+    queryClient.invalidateQueries({ queryKey: ['lotes'] });
 
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
     // Atualizar mapa em tempo real
