@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { base44 } from "@/api/base44Client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import DescontosPersonalizados from "./DescontosPersonalizados";
 
 const formatBRL = (n) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n||0));
@@ -98,16 +98,19 @@ export default function FichaFuncionario() {
   const liquido = proventos - descontos;
   const fgts = Number(cfg.fgts || 0) * proventos;
 
+  const queryClient = useQueryClient();
   const { data: fichaExistente } = useQuery({
-    queryKey: ['folha-ficha', empresaId, form.funcionarioId, form.mes, form.ano],
+    queryKey: ['folha-ficha', form.funcionarioId, form.mes, form.ano, empresaId || 'sem-empresa'],
     queryFn: async () => {
-      if (!empresaId || !form.funcionarioId) return null;
+      if (!form.funcionarioId) return null;
       try {
-        const res = await base44.entities.FolhaFicha.filter({ empresa_id: empresaId, funcionario_id: form.funcionarioId, mes: form.mes, ano: form.ano });
+        const where = { funcionario_id: form.funcionarioId, mes: form.mes, ano: form.ano };
+        if (empresaId) where.empresa_id = empresaId;
+        const res = await base44.entities.FolhaFicha.filter(where);
         return Array.isArray(res) && res.length ? res[0] : null;
       } catch { return null; }
     },
-    enabled: !!empresaId && !!form.funcionarioId,
+    enabled: !!form.funcionarioId,
   });
 
   React.useEffect(() => {
@@ -124,8 +127,9 @@ export default function FichaFuncionario() {
 
   const salvarMut = useMutation({
     mutationFn: async () => {
+      const empId = empresaId || funcionario?.empresa_id || null;
       const payload = {
-        empresa_id: empresaId,
+        empresa_id: empId,
         funcionario_id: form.funcionarioId,
         mes: form.mes,
         ano: form.ano,
@@ -146,6 +150,9 @@ export default function FichaFuncionario() {
       };
       if (fichaExistente?.id) return base44.entities.FolhaFicha.update(fichaExistente.id, payload);
       return base44.entities.FolhaFicha.create(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folha-ficha'] });
     }
   });
 
@@ -153,6 +160,9 @@ export default function FichaFuncionario() {
     mutationFn: async () => {
       if (!fichaExistente?.id) return;
       return base44.entities.FolhaFicha.update(fichaExistente.id, { status: 'Fechada' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folha-ficha'] });
     }
   });
 
