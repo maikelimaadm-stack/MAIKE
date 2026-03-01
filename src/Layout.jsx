@@ -388,8 +388,11 @@ export default function Layout({ children, currentPageName }) {
     return acc;
   }, {});
 
+  const isFolha = (currentPageName || '').toLowerCase().startsWith('folha');
+
   return (
     <div className="min-h-screen bg-slate-50" translate="no">
+      {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
@@ -635,7 +638,9 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </div>
+      )}
 
+      {!isFolha && (
       <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'h-0 overflow-hidden border-0 py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
@@ -741,6 +746,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </nav>
+      )}
 
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -806,7 +812,7 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      <main className="max-w-[1600px] mx-auto">
+      <main className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}>
         {children}
       </main>
 
