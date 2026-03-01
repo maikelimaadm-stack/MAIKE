@@ -45,10 +45,8 @@ export default function FuncionarioForm({ open, onClose, initialData, onSaved })
     onClose?.();
   };
 
-  const maskCPF = (v) => v.replace(/\D/g, '')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  // Exibir CPF sem máscara conforme solicitação
+  const maskCPF = (v) => v;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -63,7 +61,7 @@ export default function FuncionarioForm({ open, onClose, initialData, onSaved })
           </div>
           <div>
             <Label className="text-xs">CPF</Label>
-            <Input className="h-8 text-xs" value={maskCPF(form.cpf)} onChange={e=>setForm({...form, cpf: e.target.value})} />
+            <Input className="h-8 text-xs" placeholder="Somente números" value={form.cpf} onChange={e=>setForm({...form, cpf: e.target.value})} />
           </div>
           <div>
             <Label className="text-xs">Cargo</Label>

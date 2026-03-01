@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Calculator, Settings2 } from "lucide-react";
 import FuncionariosTable from "../components/folha/FuncionariosTable";
 import Simulador from "../components/folha/Simulador";
+import FichaFuncionario from "../components/folha/FichaFuncionario";
 
 export default function Folha() {
   return (
@@ -26,6 +27,7 @@ export default function Folha() {
 
         <div className="grid grid-cols-1 gap-4">
           <FuncionariosTable />
+          <FichaFuncionario />
           <Simulador />
         </div>
 

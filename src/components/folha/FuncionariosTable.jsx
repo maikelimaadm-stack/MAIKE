@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import FuncionarioForm from "./FuncionarioForm";
 
+const formatBRL = (n) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n||0));
+
 export default function FuncionariosTable() {
   const empresaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
   const { data: funcionarios = [], refetch } = useQuery({
@@ -20,7 +22,7 @@ export default function FuncionariosTable() {
   const [open, setOpen] = React.useState(false);
   const [edit, setEdit] = React.useState(null);
 
-  const maskCPF = (cpf) => (cpf||'').replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4').replace(/.(?=.{4})/g, '*');
+  const maskCPF = (cpf) => cpf || '';
 
   return (
     <Card>
@@ -51,9 +53,9 @@ export default function FuncionariosTable() {
               {funcionarios.map(f => (
                 <TableRow key={f.id} className="hover:bg-gray-50">
                   <TableCell className="text-xs py-1 border border-gray-300">{f.nome_completo}</TableCell>
-                  <TableCell className="text-xs py-1 border border-gray-300">{maskCPF(f.cpf)}</TableCell>
+                  <TableCell className="text-xs py-1 border border-gray-300">{f.cpf}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{f.cargo || '-'}</TableCell>
-                  <TableCell className="text-xs py-1 border border-gray-300">R$ {Number(f.salario_base||0).toFixed(2)}</TableCell>
+                  <TableCell className="text-xs py-1 border border-gray-300">{formatBRL(f.salario_base)}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{f.tipo_contrato}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{f.dependentes_irrf||0}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{f.status}</TableCell>
