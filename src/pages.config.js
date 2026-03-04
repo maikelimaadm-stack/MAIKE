@@ -73,6 +73,7 @@ import FichaOperador from './pages/FichaOperador';
 import FichaOperadorImpressao from './pages/FichaOperadorImpressao';
 import FichasPersonalizadas from './pages/FichasPersonalizadas';
 import FluxoCaixa from './pages/FluxoCaixa';
+import Folha from './pages/Folha';
 import FormasPagamento from './pages/FormasPagamento';
 import Fornecedores from './pages/Fornecedores';
 import GerenciarCidades from './pages/GerenciarCidades';
@@ -129,7 +130,6 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
-import Folha from './pages/Folha';
 import __Layout from './Layout.jsx';
 
 
@@ -160,6 +160,7 @@ export const PAGES = {
     "FichaOperadorImpressao": FichaOperadorImpressao,
     "FichasPersonalizadas": FichasPersonalizadas,
     "FluxoCaixa": FluxoCaixa,
+    "Folha": Folha,
     "FormasPagamento": FormasPagamento,
     "Fornecedores": Fornecedores,
     "GerenciarCidades": GerenciarCidades,
@@ -216,7 +217,6 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
-    "Folha": Folha,
 }
 
 export const pagesConfig = {

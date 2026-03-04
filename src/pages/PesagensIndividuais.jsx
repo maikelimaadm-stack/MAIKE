@@ -66,6 +66,8 @@ export default function PesagensIndividuais() {
   const [filtroLote, setFiltroLote] = useState("");
   const [filtroApartacao, setFiltroApartacao] = useState("");
   const [filtroSexo, setFiltroSexo] = useState("");
+  const [filtroTipoManejo, setFiltroTipoManejo] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [filtroPesoMin, setFiltroPesoMin] = useState("");
@@ -243,6 +245,9 @@ export default function PesagensIndividuais() {
       if (filtroApartacao && p.nome_apartacao !== filtroApartacao) return false;
       if (filtroDataEspecifica && p.data_pesagem !== filtroDataEspecifica) return false;
       if (filtroSexo && p.sexo !== filtroSexo) return false;
+      if (filtroTipoManejo && p.tipo_manejo !== filtroTipoManejo) return false;
+      const statusCalc = p.status_animal || (p.tipo_manejo === 'Saída' ? 'Inativo' : 'Ativo');
+      if (filtroStatus && statusCalc !== filtroStatus) return false;
       if (filtroDataInicio && p.data_pesagem < filtroDataInicio) return false;
       if (filtroDataFim && p.data_pesagem > filtroDataFim) return false;
       if (filtroPesoMin && parseFloat(p.peso) < parseFloat(filtroPesoMin)) return false;
@@ -679,6 +684,8 @@ export default function PesagensIndividuais() {
     setFiltroMarca("");
     setFiltroObservacao("");
     setFiltroDataEspecifica("");
+    setFiltroTipoManejo("");
+    setFiltroStatus("");
     setCurrentPage(1);
   };
 
@@ -825,6 +832,24 @@ export default function PesagensIndividuais() {
                 <SelectItem value={null}>Todos</SelectItem>
                 <SelectItem value="M">Macho</SelectItem>
                 <SelectItem value="F">Fêmea</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filtroTipoManejo} onValueChange={setFiltroTipoManejo}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Todos</SelectItem>
+                <SelectItem value="Cadastro">Cadastro</SelectItem>
+                <SelectItem value="Manejo">Manejo</SelectItem>
+                <SelectItem value="Entrada">Entrada</SelectItem>
+                <SelectItem value="Saída">Saída</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Todos</SelectItem>
+                <SelectItem value="Ativo">Ativo</SelectItem>
+                <SelectItem value="Inativo">Inativo</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filtroMarca} onValueChange={setFiltroMarca}>
