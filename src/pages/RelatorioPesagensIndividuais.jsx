@@ -1947,6 +1947,30 @@ export default function RelatorioPesagensIndividuais() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <RelatorioConfigDialogs
+        showConfigColunasDetalhes={showConfigColunasDetalhes}
+        setShowConfigColunasDetalhes={setShowConfigColunasDetalhes}
+        COLUNAS_DETALHES_APARTACAO={COLUNAS_DETALHES_APARTACAO}
+        colunasDetalhesVisiveis={colunasDetalhesVisiveis}
+        toggleColunaDetalhe={toggleColunaDetalhe}
+        colunasDetalhesOrdem={colunasDetalhesOrdem}
+        handleDragEndDetalhes={handleDragEndDetalhes}
+        showConfigColunasVendas={showConfigColunasVendas}
+        setShowConfigColunasVendas={setShowConfigColunasVendas}
+        COLUNAS_DETALHES_VENDAS={COLUNAS_DETALHES_VENDAS}
+        colunasVendasVisiveis={colunasVendasVisiveis}
+        toggleColunaDetalheVendas={toggleColunaDetalheVendas}
+        colunasVendasOrdem={colunasVendasOrdem}
+        handleDragEndDetalhesVendas={handleDragEndDetalhesVendas}
+        showConfigColunasPainel={showConfigColunasPainel}
+        setShowConfigColunasPainel={setShowConfigColunasPainel}
+        COLUNAS_PAINEL_APARTACAO={COLUNAS_PAINEL_APARTACAO}
+        colunasPainelVisiveis={colunasPainelVisiveis}
+        toggleColunaPainel={toggleColunaPainel}
+        colunasPainelOrdem={colunasPainelOrdem}
+        handleDragEndPainel={handleDragEndPainel}
+      />
     </div>
   );
 }
