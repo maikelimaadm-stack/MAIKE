@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+// NOTE: filtros adicionais (status, tipo, peso) movidos para popovers menores para não alterar estrutura
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
