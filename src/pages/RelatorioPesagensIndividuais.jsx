@@ -288,6 +288,7 @@ export default function RelatorioPesagensIndividuais() {
   const [racasSelecionadas, setRacasSelecionadas] = useState([]);
   const [erasSelecionadas, setErasSelecionadas] = useState([]);
   const [marcasSelecionadas, setMarcasSelecionadas] = useState([]);
+  const [statusSelecionados, setStatusSelecionados] = useState([]);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -325,6 +326,7 @@ export default function RelatorioPesagensIndividuais() {
   const racasUnicas = [...new Set(pesagens.map(p => p.raca))].filter(Boolean).sort();
   const erasUnicas = [...new Set(pesagens.map(p => p.era))].filter(Boolean).sort();
   const marcasUnicas = [...new Set(pesagens.map(p => p.marca))].filter(Boolean).sort();
+  const statusUnicos = [...new Set(pesagens.map(p => (p.status_animal || (p.tipo_manejo === 'Saída' ? 'Inativo' : 'Ativo'))))].filter(Boolean).sort();
 
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
@@ -494,8 +496,9 @@ export default function RelatorioPesagensIndividuais() {
     setMarcasSelecionadas([]);
     setAgrupamentosAtivos([]);
     setOrdenacao('data_desc');
+    setStatusSelecionados([]);
     // Mantém o tipo de relatório atual
-  };
+    };
 
   // Estatísticas gerais
   const totalAnimais = pesagensFiltradas.length;
@@ -707,6 +710,23 @@ export default function RelatorioPesagensIndividuais() {
                     <div key={m} className="flex items-center space-x-2">
                       <Checkbox checked={marcasSelecionadas.includes(m)} onCheckedChange={() => toggleFiltro(marcasSelecionadas, setMarcasSelecionadas, m)} />
                       <label className="text-sm cursor-pointer">{m}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Status {statusSelecionados.length > 0 && `(${statusSelecionados.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Status</h4>
+                  {statusUnicos.map(s => (
+                    <div key={s} className="flex items-center space-x-2">
+                      <Checkbox checked={statusSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(statusSelecionados, setStatusSelecionados, s)} />
+                      <label className="text-sm cursor-pointer">{s}</label>
                     </div>
                   ))}
                 </div>
