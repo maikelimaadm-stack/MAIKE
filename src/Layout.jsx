@@ -8,8 +8,6 @@ import {
   BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Sparkles
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 
 import {
   DropdownMenu,
@@ -235,7 +233,6 @@ export default function Layout({ children, currentPageName }) {
   const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
-  const [empresaDrawerOpen, setEmpresaDrawerOpen] = useState(false);
 
   // ATUALIZAR MENU - SEM LOOP!
   useEffect(() => {
@@ -395,14 +392,6 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50" translate="no">
-        <style>{`
-          body { overscroll-behavior: none; padding-bottom: env(safe-area-inset-bottom); padding-top: env(safe-area-inset-top); -webkit-text-size-adjust: 100%; }
-          * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-          button, [role="button"], a, label, nav { -webkit-user-select: none; user-select: none; }
-          @media (pointer: coarse) {
-            button, [role="button"], a, label { min-height: 44px; min-width: 44px; }
-          }
-        `}</style>
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
@@ -649,61 +638,9 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </div>
-
       )}
 
-      {/* Mobile header with back button and company selector (Drawer) */}
-      <div className="md:hidden border-t border-slate-200 bg-white">
-        <div className="max-w-[1600px] mx-auto px-3 py-2 flex items-center gap-2">
-          {location.pathname !== createPageUrl("Home") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-10 w-10"
-              onClick={() => window.history.back()}
-              aria-label="Voltar"
-            >
-              <ChevronRight className="w-4 h-4 rotate-180" />
-            </Button>
-          )}
-          <div className="text-sm font-semibold text-slate-900 flex-1 truncate">
-            {currentPageName || (empresaAtual?.apelido || 'MakGestão')}
-          </div>
-          {empresas.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEmpresaDrawerOpen(true)}
-              className="h-10 text-xs"
-            >
-              {empresaAtual?.apelido || 'Empresa'}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <Drawer open={empresaDrawerOpen} onOpenChange={setEmpresaDrawerOpen}>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Selecionar empresa</DrawerTitle>
-          </DrawerHeader>
-          <div className="p-3 space-y-2">
-            {empresas.map((empresa) => (
-              <Button
-                key={empresa.id}
-                variant={empresaSelecionada === empresa.id ? 'default' : 'outline'}
-                size="sm"
-                className="w-full justify-start h-11 text-sm"
-                onClick={() => { handleEmpresaChange(empresa.id); setEmpresaDrawerOpen(false); }}
-              >
-                {empresa.apelido || empresa.nome}
-              </Button>
-            ))}
-          </div>
-        </DrawerContent>
-      </Drawer>
-
-       {!isFolha && (
+      {!isFolha && (
       <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'h-0 overflow-hidden border-0 py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
@@ -875,46 +812,9 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      <AnimatePresence mode="wait">
-        <motion.main
-          key={location.pathname}
-          initial={{ x: 24, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -24, opacity: 0 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-          className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
-        >
-          {children}
-        </motion.main>
-      </AnimatePresence>
-
-{!isFolha && (
-  <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-    <div className="max-w-[1600px] mx-auto grid grid-cols-5">
-      <Link to={createPageUrl('Home')} className="flex flex-col items-center justify-center h-14 text-xs aria-[current=true]:text-emerald-600 text-slate-600" aria-current={location.pathname===createPageUrl('Home')} aria-label="Início">
-        <Home className="w-5 h-5" />
-        Início
-      </Link>
-      <Link to={createPageUrl('Pesagens')} className="flex flex-col items-center justify-center h-14 text-xs aria-[current=true]:text-emerald-600 text-slate-600" aria-current={location.pathname===createPageUrl('Pesagens')} aria-label="Pesagens">
-        <Scale className="w-5 h-5" />
-        Pesagens
-      </Link>
-      <Link to={createPageUrl('MovimentacoesEstoque')} className="flex flex-col items-center justify-center h-14 text-xs aria-[current=true]:text-emerald-600 text-slate-600" aria-current={location.pathname===createPageUrl('MovimentacoesEstoque')} aria-label="Movimentações">
-        <ArrowRightLeft className="w-5 h-5" />
-        Mov.
-      </Link>
-      <Link to={createPageUrl('LancamentoFinanceiro')} className="flex flex-col items-center justify-center h-14 text-xs aria-[current=true]:text-emerald-600 text-slate-600" aria-current={location.pathname===createPageUrl('LancamentoFinanceiro')} aria-label="Financeiro">
-        <DollarSign className="w-5 h-5" />
-        Financeiro
-      </Link>
-      <Link to={createPageUrl('ConfiguracoesGerais')} className="flex flex-col items-center justify-center h-14 text-xs aria-[current=true]:text-emerald-600 text-slate-600" aria-current={location.pathname===createPageUrl('ConfiguracoesGerais')} aria-label="Configurações">
-        <Settings className="w-5 h-5" />
-        Config.
-      </Link>
-    </div>
-  </nav>
-)}
+      <main className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}>
+        {children}
+      </main>
 
 
       </div>
