@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target } from "lucide-react";
+import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target, RotateCcw, RotateCw, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -53,8 +53,17 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const currentPolygonRef = useRef(null);
   const currentPolylineRef = useRef(null);
   const tempMarkerRef = useRef(null);
+const guideLineRef = useRef(null);
+const mouseMoveListenerRef = useRef(null);
+const currentPointsRef = useRef([]);
+const undoStackRef = useRef([]);
+const redoStackRef = useRef([]);
 
   const pointMarkersRef = useRef([]);
+
+  useEffect(() => {
+    currentPointsRef.current = currentPoints;
+  }, [currentPoints]);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -95,7 +104,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     enabled: !!empresaSelecionadaId,
   });
 
-  const SNAP_DISTANCE = 30;
+  const SNAP_DISTANCE = 6; // snap em pixels
 
   const findNearestPoint = (mouseLatLng, map) => {
     if (!snappingEnabled) return null;
@@ -153,9 +162,21 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       tempMarkerRef.current.setMap(null);
       tempMarkerRef.current = null;
     }
+    if (guideLineRef.current) {
+      guideLineRef.current.setMap(null);
+      guideLineRef.current = null;
+    }
+    if (mouseMoveListenerRef.current) {
+      google.maps.event.removeListener(mouseMoveListenerRef.current);
+      mouseMoveListenerRef.current = null;
+    }
 
     pointMarkersRef.current.forEach(m => m.setMap(null));
     pointMarkersRef.current = [];
+
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+
     setCurrentPoints([]);
     setCurrentMarker(null);
   };
@@ -315,6 +336,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
+          undoStackRef.current.push(prev);
+          redoStackRef.current = [];
           const updated = [...prev, newPoint];
           toast.success(`✅ Ponto ${updated.length} adicionado`, { duration: 800 });
           return updated;
@@ -325,6 +348,55 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     const listener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
     return () => google.maps.event.removeListener(listener);
   }, [tipoDesenho, mapReady, itemEditando]);
+
+  // Guia dinâmica do último ponto até o cursor (sem setState em mousemove)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady) return;
+    if (!(tipoDesenho === 'area' || tipoDesenho === 'linha') || itemEditando) return;
+
+    if (!guideLineRef.current) {
+      guideLineRef.current = new google.maps.Polyline({
+        strokeColor: '#0ea5e9', // sky-600
+        strokeOpacity: 0.9,
+        strokeWeight: 2,
+        zIndex: 9999,
+        icons: [{
+          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#0ea5e9' },
+          offset: '100%'
+        }]
+      });
+      guideLineRef.current.setMap(mapInstanceRef.current);
+    }
+
+    const handleMouseMove = (e) => {
+      const pts = currentPointsRef.current;
+      const last = pts[pts.length - 1];
+      if (!last) return;
+      let latLng = e.latLng;
+      const snapped = findNearestPoint(latLng, mapInstanceRef.current);
+      const target = snapped ? new google.maps.LatLng(snapped.lat, snapped.lng) : latLng;
+      guideLineRef.current.setPath([new google.maps.LatLng(last.lat, last.lng), target]);
+    };
+
+    const moveL = google.maps.event.addListener(mapInstanceRef.current, 'mousemove', handleMouseMove);
+    mouseMoveListenerRef.current = moveL;
+
+    const handleMouseOut = () => {
+      if (guideLineRef.current) guideLineRef.current.setPath([]);
+    };
+    const outL = google.maps.event.addListener(mapInstanceRef.current, 'mouseout', handleMouseOut);
+
+    return () => {
+      if (guideLineRef.current) {
+        guideLineRef.current.setPath([]);
+        guideLineRef.current.setMap(null);
+        guideLineRef.current = null;
+      }
+      if (moveL) google.maps.event.removeListener(moveL);
+      if (outL) google.maps.event.removeListener(outL);
+      mouseMoveListenerRef.current = null;
+    };
+  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled]);
 
   // Linha guia removida - não mostrar mais a linha azul durante desenho
 
@@ -411,69 +483,67 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     markersRef.current = [];
     polylinesRef.current = [];
 
-    // Mostrar apenas áreas/pontos/linhas existentes quando NÃO estiver editando
-    if (!itemEditando) {
-      areas.forEach(area => {
-        const coords = area.coordenadas?.coords || [];
-        if (coords.length < 3) return;
+    // Mostrar áreas/pontos/linhas existentes SEMPRE (inclusive durante edição)
+    areas.forEach(area => {
+      const coords = area.coordenadas?.coords || [];
+      if (coords.length < 3) return;
 
-        const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
-        const cor = area.coordenadas?.cor || area.cor || '#10b981';
+      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const cor = area.coordenadas?.cor || area.cor || '#10b981';
 
-        const polygon = new google.maps.Polygon({
-          paths,
-          strokeColor: cor,
-          strokeOpacity: 0.5,
-          strokeWeight: 1.5,
-          fillColor: cor,
-          fillOpacity: 0.15,
-          clickable: false,
-        });
-
-        polygon.setMap(mapInstanceRef.current);
-        polygonsRef.current.push(polygon);
+      const polygon = new google.maps.Polygon({
+        paths,
+        strokeColor: cor,
+        strokeOpacity: 0.5,
+        strokeWeight: 1.5,
+        fillColor: cor,
+        fillOpacity: 0.15,
+        clickable: false,
       });
 
-      pontos.forEach(ponto => {
-        const coords = ponto.coordenadas || {};
-        if (!coords.lat || !coords.lng) return;
+      polygon.setMap(mapInstanceRef.current);
+      polygonsRef.current.push(polygon);
+    });
 
-        const marker = new google.maps.Marker({
-          position: { lat: coords.lat, lng: coords.lng },
-          map: mapInstanceRef.current,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
-            fillColor: '#0066ff',
-            fillOpacity: 0.5,
-            strokeColor: '#ffffff',
-            strokeWeight: 2
-          },
-          clickable: false,
-        });
+    pontos.forEach(ponto => {
+      const coords = ponto.coordenadas || {};
+      if (!coords.lat || !coords.lng) return;
 
-        markersRef.current.push(marker);
+      const marker = new google.maps.Marker({
+        position: { lat: coords.lat, lng: coords.lng },
+        map: mapInstanceRef.current,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: '#0066ff',
+          fillOpacity: 0.5,
+          strokeColor: '#ffffff',
+          strokeWeight: 2
+        },
+        clickable: false,
       });
 
-      linhas.forEach(linha => {
-        const coords = linha.coordenadas?.coords || [];
-        if (coords.length < 2) return;
+      markersRef.current.push(marker);
+    });
 
-        const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
-        const cor = linha.coordenadas?.cor || linha.cor || '#f59e0b';
+    linhas.forEach(linha => {
+      const coords = linha.coordenadas?.coords || [];
+      if (coords.length < 2) return;
 
-        const polyline = new google.maps.Polyline({
-          path: paths,
-          strokeColor: cor,
-          strokeOpacity: 0.5,
-          strokeWeight: 2,
-          clickable: false,
-        });
+      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const cor = linha.coordenadas?.cor || linha.cor || '#f59e0b';
 
-        polyline.setMap(mapInstanceRef.current);
-        polylinesRef.current.push(polyline);
+      const polyline = new google.maps.Polyline({
+        path: paths,
+        strokeColor: cor,
+        strokeOpacity: 0.5,
+        strokeWeight: 2,
+        clickable: false,
       });
-    }
+
+      polyline.setMap(mapInstanceRef.current);
+      polylinesRef.current.push(polyline);
+    });
   };
 
   const finalizarDesenho = () => {
