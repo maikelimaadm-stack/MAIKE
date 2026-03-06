@@ -866,10 +866,19 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      <main className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}>
-        {children}
-      </motion.main>
-</AnimatePresence>
+      <AnimatePresence mode="wait">
+        <motion.main
+          key={location.pathname}
+          initial={{ x: 24, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -24, opacity: 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
+        >
+          {children}
+        </motion.main>
+      </AnimatePresence>
 
 {!isFolha && (
   <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>

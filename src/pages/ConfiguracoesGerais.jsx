@@ -9,6 +9,8 @@ import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Ed
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { base44 } from "@/api/base44Client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GerenciadorIcones from "../components/configuracoes/GerenciadorIcones";
 
@@ -300,6 +302,26 @@ export default function ConfiguracoesGerais() {
 
   const handleReloadPage = () => {
     window.location.reload();
+  };
+
+  const handleRequestDeletion = async () => {
+    try {
+      const user = await base44.auth.me();
+      await base44.analytics.track({
+        eventName: 'account_deletion_requested',
+        properties: { email: user?.email || '', user_id: user?.id || '' }
+      });
+      if (user?.email) {
+        await base44.integrations.Core.SendEmail({
+          to: user.email,
+          subject: 'Confirmação de solicitação de exclusão de conta',
+          body: `Olá ${user.full_name || ''},\n\nRecebemos sua solicitação para excluir sua conta no MAK GESTÃO. Nossa equipe irá processar e entrar em contato se precisarmos de algo. Caso tenha solicitado por engano, desconsidere este e-mail.\n\nAtenciosamente,\nEquipe MAK GESTÃO`
+        });
+      }
+      toast.success('Solicitação enviada. Verifique seu e-mail.');
+    } catch (e) {
+      toast.error('Não foi possível enviar a solicitação. Tente novamente.');
+    }
   };
 
   const openEditDialog = (item) => {
