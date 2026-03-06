@@ -312,7 +312,7 @@ const redoStackRef = useRef([]);
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
     const handleMapClick = (e) => {
-      e.stop();
+
       
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
