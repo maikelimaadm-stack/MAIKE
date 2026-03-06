@@ -398,6 +398,7 @@ export default function Layout({ children, currentPageName }) {
         <style>{`
           body { overscroll-behavior: none; padding-bottom: env(safe-area-inset-bottom); padding-top: env(safe-area-inset-top); -webkit-text-size-adjust: 100%; }
           * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+          button, [role="button"], a, label, nav { -webkit-user-select: none; user-select: none; }
           @media (pointer: coarse) {
             button, [role="button"], a, label { min-height: 44px; min-width: 44px; }
           }
