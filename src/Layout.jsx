@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Sparkles, RefreshCw, Trash2
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Sparkles
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -41,16 +41,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
@@ -213,31 +203,14 @@ export default function Layout({ children, currentPageName }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
   const isChangingEmpresa = useRef(false);
-  const isPullingRef = useRef(false);
-  const startYRef = useRef(0);
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
   });
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Prevenir tradução automática do navegador
   React.useEffect(() => {
     document.documentElement.setAttribute('translate', 'no');
     document.documentElement.setAttribute('lang', 'pt-BR');
-  }, []);
-
-  // Dark mode automático conforme sistema
-  useEffect(() => {
-    const mm = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => {
-      if (mm.matches) document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
-    };
-    apply();
-    mm.addEventListener('change', apply);
-    return () => mm.removeEventListener('change', apply);
   }, []);
   
   const [menuItems, setMenuItems] = useState(() => {
@@ -355,50 +328,7 @@ export default function Layout({ children, currentPageName }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Pull-to-refresh para mobile
-  useEffect(() => {
-    const onStart = (e) => {
-      if (window.scrollY === 0 && !isRefreshing) {
-        isPullingRef.current = true;
-        startYRef.current = e.touches ? e.touches[0].clientY : e.clientY;
-      }
-    };
-    const onMove = (e) => {
-      if (!isPullingRef.current) return;
-      const y = e.touches ? e.touches[0].clientY : e.clientY;
-      const delta = y - startYRef.current;
-      if (delta > 0) {
-        e.preventDefault();
-        setPullDistance(Math.min(80, delta / 1.5));
-      } else {
-        setPullDistance(0);
-      }
-    };
-    const onEnd = () => {
-      if (!isPullingRef.current) return;
-      const shouldRefresh = pullDistance > 60;
-      isPullingRef.current = false;
-      if (shouldRefresh) {
-        setIsRefreshing(true);
-        setPullDistance(60);
-        setTimeout(() => {
-          window.location.reload();
-        }, 150);
-      } else {
-        setPullDistance(0);
-      }
-    };
-    window.addEventListener('touchstart', onStart, { passive: false });
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-    return () => {
-      window.removeEventListener('touchstart', onStart);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onEnd);
-    };
-  }, [pullDistance, isRefreshing]);
-
-   const handleLogout = () => {
+  const handleLogout = () => {
     base44.auth.logout();
   };
 
@@ -472,18 +402,7 @@ export default function Layout({ children, currentPageName }) {
           @media (pointer: coarse) {
             button, [role="button"], a, label { min-height: 44px; min-width: 44px; }
           }
-          @media (max-width: 640px) {
-            .recharts-wrapper, .recharts-responsive-container { width: 100% !important; }
-            table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          }
         `}</style>
-      {/* Pull-to-refresh indicator */}
-      <div className="pointer-events-none fixed top-0 left-0 right-0 flex justify-center z-[60]" style={{ transform: `translateY(${pullDistance}px)`, transition: isRefreshing ? 'transform 0.2s ease' : 'none' }}>
-        <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 px-3 py-1 shadow-sm">
-          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : (pullDistance>0?'':'opacity-0')}`} />
-          <span className="text-xs text-slate-700 dark:text-slate-200">{isRefreshing ? 'Atualizando...' : (pullDistance>40 ? 'Solte para atualizar' : 'Puxe para atualizar')}</span>
-        </div>
-      </div>
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
@@ -613,11 +532,7 @@ export default function Layout({ children, currentPageName }) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-xs text-red-600" onClick={() => setDeleteDialogOpen(true)}>
-                    <Trash2 className="w-3 h-3 mr-2" />
-                    Excluir conta
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout} className="text-xs">
+                  <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
                     <LogOut className="w-3 h-3 mr-2" />
                     Sair
                   </DropdownMenuItem>
@@ -960,34 +875,14 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir conta</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação é irreversível. Confirma a solicitação de exclusão da sua conta?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="h-8 text-xs bg-red-600 hover:bg-red-700"
-              onClick={() => { base44.analytics.track({ eventName: 'account_delete_requested', properties: { from: 'layout_menu' } }); setDeleteDialogOpen(false); }}
-            >
-              Confirmar exclusão
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-       <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait">
         <motion.main
           key={location.pathname}
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -24, opacity: 0 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " overflow-x-hidden"}
+          className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
         >
           {children}
