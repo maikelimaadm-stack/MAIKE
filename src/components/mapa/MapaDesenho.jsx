@@ -648,7 +648,7 @@ const redoStackRef = useRef([]);
             variant="outline"
             size="sm"
             onClick={() => setSnappingEnabled(!snappingEnabled)}
-            className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white hidden md:flex justify-center" : "h-8 w-8 hidden md:flex justify-center"}
+            className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white flex justify-center" : "h-8 w-8 flex justify-center"}
             title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}
             aria-label="Alternar ímã"
           >
