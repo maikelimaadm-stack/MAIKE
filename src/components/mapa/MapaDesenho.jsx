@@ -371,7 +371,7 @@ const redoStackRef = useRef([]);
         strokeWeight: 2,
         zIndex: 9999,
         icons: [{
-          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#facc15' },
+          icon: { path: 'M -3,-3 L 3,3 M -3,3 L 3,-3', strokeColor: '#facc15', strokeWeight: 2 },
           offset: '100%'
         }]
       });
@@ -648,11 +648,11 @@ const redoStackRef = useRef([]);
             variant="outline"
             size="sm"
             onClick={() => setSnappingEnabled(!snappingEnabled)}
-            className={snappingEnabled ? "h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white hidden md:flex" : "h-8 text-xs hidden md:flex"}
-            title={snappingEnabled ? "Ímã: Ativo" : "Ímã: Inativo"}
+            className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white hidden md:flex justify-center" : "h-8 w-8 hidden md:flex justify-center"}
+            title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}
+            aria-label="Alternar ímã"
           >
-            <span className="w-3.5 h-3.5 mr-1.5">🧲</span>
-            {snappingEnabled ? 'Ímã Ativo' : 'Ímã Inativo'}
+            <span className="text-base leading-none">🧲</span>
           </Button>
         </div>
 
