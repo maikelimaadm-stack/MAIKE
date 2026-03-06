@@ -395,6 +395,13 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50" translate="no">
+        <style>{`
+          body { overscroll-behavior: none; padding-bottom: env(safe-area-inset-bottom); padding-top: env(safe-area-inset-top); -webkit-text-size-adjust: 100%; }
+          * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+          @media (pointer: coarse) {
+            button, [role="button"], a, label { min-height: 44px; min-width: 44px; }
+          }
+        `}</style>
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
