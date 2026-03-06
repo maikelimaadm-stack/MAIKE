@@ -221,7 +221,12 @@ const redoStackRef = useRef([]);
             draggable: true
           });
           tempMarkerRef.current.addListener('dragend', (e) => {
-            setCurrentMarker({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+            let latLng = e.latLng;
+            const snap = findNearestPoint(latLng, mapInstanceRef.current);
+            const newLat = snap ? snap.lat : latLng.lat();
+            const newLng = snap ? snap.lng : latLng.lng();
+            setCurrentMarker({ lat: newLat, lng: newLng });
+            if (snap) toast.success('🧲 Encaixado!', { duration: 600 });
           });
         }
       }, 500);
@@ -330,7 +335,12 @@ const redoStackRef = useRef([]);
           draggable: true
         });
         tempMarkerRef.current.addListener('dragend', (e) => {
-          setCurrentMarker({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+          let latLng = e.latLng;
+          const snap = findNearestPoint(latLng, mapInstanceRef.current);
+          const newLat = snap ? snap.lat : latLng.lat();
+          const newLng = snap ? snap.lng : latLng.lng();
+          setCurrentMarker({ lat: newLat, lng: newLng });
+          if (snap) toast.success('🧲 Encaixado!', { duration: 600 });
         });
         setShowFormularioPonto(true);
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
@@ -356,12 +366,12 @@ const redoStackRef = useRef([]);
 
     if (!guideLineRef.current) {
       guideLineRef.current = new google.maps.Polyline({
-        strokeColor: '#0ea5e9', // sky-600
+        strokeColor: '#facc15', // sky-600
         strokeOpacity: 0.9,
         strokeWeight: 2,
         zIndex: 9999,
         icons: [{
-          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#0ea5e9' },
+          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#facc15' },
           offset: '100%'
         }]
       });
@@ -423,14 +433,17 @@ const redoStackRef = useRef([]);
       });
 
       marker.addListener('dragend', (e) => {
-        const newLat = e.latLng.lat();
-        const newLng = e.latLng.lng();
+        let latLng = e.latLng;
+        const snap = findNearestPoint(latLng, mapInstanceRef.current);
+        const newLat = snap ? snap.lat : latLng.lat();
+        const newLng = snap ? snap.lng : latLng.lng();
         setCurrentPoints(prev => {
           const updated = [...prev];
           updated[index] = { lat: newLat, lng: newLng };
           return updated;
         });
-        toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
+        if (snap) toast.success('🧲 Encaixado!', { duration: 600 });
+        else toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
       });
 
       pointMarkersRef.current.push(marker);
@@ -632,13 +645,14 @@ const redoStackRef = useRef([]);
             <Target className="w-4 h-4" />
           </Button>
           <Button
-            variant={snappingEnabled ? 'default' : 'secondary'}
+            variant="outline"
             size="sm"
             onClick={() => setSnappingEnabled(!snappingEnabled)}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg hidden md:flex"
-            title="Snap nos pontos"
+            className={snappingEnabled ? "h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white hidden md:flex" : "h-8 text-xs hidden md:flex"}
+            title={snappingEnabled ? "Ímã: Ativo" : "Ímã: Inativo"}
           >
-            🧲
+            <span className="w-3.5 h-3.5 mr-1.5">🧲</span>
+            {snappingEnabled ? 'Ímã Ativo' : 'Ímã Inativo'}
           </Button>
         </div>
 
