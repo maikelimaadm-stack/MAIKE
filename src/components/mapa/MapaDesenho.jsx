@@ -652,28 +652,7 @@ const redoStackRef = useRef([]);
         )}
         {tipoDesenho && mapReady && (
           <>
-            {/* Botão TERMINAR/SALVAR no topo */}
-            {((tipoDesenho === 'area' && currentPoints.length >= 3) || (tipoDesenho === 'linha' && currentPoints.length >= 2) || (tipoDesenho === 'ponto' && currentMarker)) && (
-              <Button
-                onClick={() => {
-                  if (itemEditando) {
-                    // Modo edição - abrir formulário para salvar
-                    if (tipoDesenho === 'area') {
-                      setShowFormularioArea(true);
-                    } else if (tipoDesenho === 'linha') {
-                      setShowFormularioLinha(true);
-                    } else if (tipoDesenho === 'ponto') {
-                      setShowFormularioPonto(true);
-                    }
-                  } else {
-                    finalizarDesenho();
-                  }
-                }}
-                className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-2xl h-10 px-6 text-sm border-2 border-white"
-              >
-                {itemEditando ? 'SALVAR ALTERAÇÕES' : 'TERMINAR'}
-              </Button>
-            )}
+
 
             {/* Indicador de área/comprimento no centro do polígono */}
             {tipoDesenho === 'area' && currentPoints.length >= 3 && (
@@ -706,35 +685,84 @@ const redoStackRef = useRef([]);
               </div>
             )}
 
-            {/* Botão DESFAZER na parte inferior */}
+            {/* Toolbar central: Desfazer / Refazer / Terminar */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+              {/* Dicas contextuais */}
               {tipoDesenho === 'ponto' && !currentMarker && !itemEditando && (
-                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   📍 Toque no mapa para marcar
                 </div>
               )}
-              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length > 0 && !itemEditando && (
-                <Button
-                  onClick={() => {
-                    setCurrentPoints(prev => prev.slice(0, -1));
-                    toast.success('Último ponto removido');
-                  }}
-                  variant="secondary"
-                  className="bg-slate-800/90 hover:bg-slate-700 text-white font-bold shadow-2xl h-10 px-6 text-sm border-2 border-white"
-                >
-                  DESFAZER
-                </Button>
-              )}
               {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length === 0 && !itemEditando && (
-                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   {tipoDesenho === 'area' ? '🎯 Toque para desenhar a área' : '➡️ Toque para desenhar a linha'}
                 </div>
               )}
               {itemEditando && (
-                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   ✏️ Arraste os pontos para ajustar
                 </div>
               )}
+
+              <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    if (undoStackRef.current.length > 0) {
+                      const prevPts = undoStackRef.current.pop();
+                      redoStackRef.current.push(currentPoints);
+                      setCurrentPoints(prevPts);
+                      toast.success('Desfeito');
+                    }
+                  }}
+                  disabled={undoStackRef.current.length === 0}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Desfazer
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    if (redoStackRef.current.length > 0) {
+                      const nextPts = redoStackRef.current.pop();
+                      undoStackRef.current.push(currentPoints);
+                      setCurrentPoints(nextPts);
+                      toast.success('Refeito');
+                    }
+                  }}
+                  disabled={redoStackRef.current.length === 0}
+                >
+                  <RotateCw className="w-3.5 h-3.5 mr-1.5" /> Refazer
+                </Button>
+
+                <Button
+                  size="sm"
+                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={
+                    !(
+                      (tipoDesenho === 'area' && currentPoints.length >= 3) ||
+                      (tipoDesenho === 'linha' && currentPoints.length >= 2) ||
+                      (tipoDesenho === 'ponto' && !!currentMarker)
+                    )
+                  }
+                  onClick={() => {
+                    if (itemEditando) {
+                      if (tipoDesenho === 'area') setShowFormularioArea(true);
+                      else if (tipoDesenho === 'linha') setShowFormularioLinha(true);
+                      else if (tipoDesenho === 'ponto') setShowFormularioPonto(true);
+                    } else {
+                      if (tipoDesenho === 'ponto') setShowFormularioPonto(true);
+                      else finalizarDesenho();
+                    }
+                  }}
+                >
+                  <Check className="w-3.5 h-3.5 mr-1.5" /> {itemEditando ? 'Salvar' : 'Terminar'}
+                </Button>
+              </div>
             </div>
           </>
         )}
