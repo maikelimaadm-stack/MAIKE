@@ -543,6 +543,37 @@ export default function ConfiguracoesGerais() {
               <p className="text-xs text-slate-500">Configure na aba <strong>Usuários</strong> do menu.</p>
             </CardContent>
           </Card>
+
+          <Card className="shadow-sm border-red-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-red-600">Privacidade e Conta</CardTitle>
+              <CardDescription className="text-xs">Exclusão permanente da conta</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-[11px] text-slate-600">Esta ação é irreversível. Enviaremos um e-mail de confirmação e processaremos sua solicitação.</p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="h-8 text-xs gap-1">
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir minha conta
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                    <AlertDialogDescription className="text-xs">
+                      Esta ação é irreversível. Confirma a solicitação de exclusão da sua conta?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRequestDeletion} className="bg-red-600 hover:bg-red-700 h-8 text-xs">
+                      Confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
