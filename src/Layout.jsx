@@ -472,12 +472,11 @@ export default function Layout({ children, currentPageName }) {
           @media (pointer: coarse) {
             button, [role="button"], a, label { min-height: 44px; min-width: 44px; }
           }
-        `}
           @media (max-width: 640px) {
             .recharts-wrapper, .recharts-responsive-container { width: 100% !important; }
             table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
           }
-        </style>
+        `}</style>
       {/* Pull-to-refresh indicator */}
       <div className="pointer-events-none fixed top-0 left-0 right-0 flex justify-center z-[60]" style={{ transform: `translateY(${pullDistance}px)`, transition: isRefreshing ? 'transform 0.2s ease' : 'none' }}>
         <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 px-3 py-1 shadow-sm">
