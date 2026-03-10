@@ -215,11 +215,17 @@ export default function Layout({ children, currentPageName }) {
     document.documentElement.setAttribute('lang', 'pt-BR');
   }, []);
 
-  // Splash: exibir sempre por 3s em cada abertura/reload
+  // Splash: mínimo 5s; só esconder quando o app estiver pronto
+  const [minTimePassed, setMinTimePassed] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 3000);
+    const t = setTimeout(() => setMinTimePassed(true), 5000);
     return () => clearTimeout(t);
   }, []);
+  useEffect(() => {
+    if (minTimePassed && !authLoading && !empresasLoading) {
+      setShowSplash(false);
+    }
+  }, [minTimePassed, authLoading, empresasLoading]);
   
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
