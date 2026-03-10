@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Sparkles
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -39,6 +39,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+import SplashScreen from "@/components/common/SplashScreen";
 
 const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
@@ -195,6 +197,8 @@ const getAllPages = (menuItems) => {
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [weather, setWeather] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -254,12 +258,26 @@ export default function Layout({ children, currentPageName }) {
     };
   }, []);
 
-  const { data: empresas = [] } = useQuery({
+  // Esconder splash quando auth e empresas estiverem carregados
+  useEffect(() => {
+    if (!authLoading && !empresasLoading) {
+      setShowSplash(false);
+    }
+  }, [authLoading, empresasLoading]);
+
+  const { data: empresas = [], isLoading: empresasLoading } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  // Esconder splash quando auth e empresas estiverem carregados
+  useEffect(() => {
+    if (!authLoading && !empresasLoading) {
+      setShowSplash(false);
+    }
+  }, [authLoading, empresasLoading]);
 
   const empresaAtual = React.useMemo(() => {
     if (!empresaSelecionada || !empresas.length) return null;
@@ -300,6 +318,8 @@ export default function Layout({ children, currentPageName }) {
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);
         setUser(null);
+      } finally {
+        setAuthLoading(false);
       }
     };
     loadUser();
@@ -392,6 +412,7 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50" translate="no">
+      <SplashScreen visible={showSplash} logoUrl={empresaAtual?.logotipo_url} brandName={empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'} />
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
