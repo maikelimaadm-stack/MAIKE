@@ -7,7 +7,7 @@ import {
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
   BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   DropdownMenu,
@@ -41,6 +41,9 @@ import {
 } from "@/components/ui/dialog";
 
 import SplashScreen from "@/components/common/SplashScreen";
+import BackButton from "@/components/common/BackButton";
+import PullToRefresh from "@/components/common/PullToRefresh";
+import { AnimatePresence, motion } from "framer-motion";
 
 const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
@@ -196,6 +199,7 @@ const getAllPages = (menuItems) => {
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
@@ -346,6 +350,8 @@ export default function Layout({ children, currentPageName }) {
     return () => clearInterval(interval);
   }, []);
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   const handleLogout = () => {
     base44.auth.logout();
   };
@@ -412,13 +418,15 @@ export default function Layout({ children, currentPageName }) {
   const isFolha = (currentPageName || '').toLowerCase().startsWith('folha');
 
   return (
-    <div className="min-h-screen bg-slate-50" translate="no">
+    <div className="min-h-screen bg-slate-50 safe-area-top" translate="no">
       <SplashScreen visible={showSplash} logoUrl="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/9d03282ce_IMG_8919.png" />
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {/* Mobile Back Button replaces logo on child routes */}
+              <BackButton className="mr-1" />
               <div>
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'}
@@ -529,6 +537,10 @@ export default function Layout({ children, currentPageName }) {
                   <DropdownMenuItem className="text-xs">
                     <User className="w-3 h-3 mr-2" />
                     Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs text-red-600" onClick={() => setDeleteOpen(true)}>
+                    <LogOut className="w-3 h-3 mr-2" />
+                    Excluir conta
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="text-xs">
                     <Link to={createPageUrl("ConfiguracoesGerais")}>
@@ -834,9 +846,52 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
+      {/* Pull to refresh for mobile */}
+      <div className="md:hidden">
+        <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries(); }} />
+      </div>
+
       <main className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}>
-        {children}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -20, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
+
+      {/* Mobile bottom navigation */}
+      {!isFolha && (
+        <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
+          <div className="max-w-[1600px] mx-auto px-4 py-1 grid grid-cols-5 gap-1 text-xs">
+            <Link to={createPageUrl("Home")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Home")?"text-emerald-700":"text-slate-600"}`}>
+              <Home className="w-5 h-5" />
+              <span>Início</span>
+            </Link>
+            <Link to={createPageUrl("Pesagens")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Pesagens")?"text-emerald-700":"text-slate-600"}`}>
+              <Scale className="w-5 h-5" />
+              <span>Pesagens</span>
+            </Link>
+            <Link to={createPageUrl("LancamentoFinanceiro")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("LancamentoFinanceiro")?"text-emerald-700":"text-slate-600"}`}>
+              <DollarSign className="w-5 h-5" />
+              <span>Financeiro</span>
+            </Link>
+            <Link to={createPageUrl("RelatoriosEstoque")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("RelatoriosEstoque")?"text-emerald-700":"text-slate-600"}`}>
+              <FileText className="w-5 h-5" />
+              <span>Relatórios</span>
+            </Link>
+            <button onClick={() => setMobileMenuOpen(true)} className="flex flex-col items-center py-1 rounded text-slate-600">
+              <Menu className="w-5 h-5" />
+              <span>Menu</span>
+            </button>
+          </div>
+        </nav>
+      )}
 
 
       </div>
