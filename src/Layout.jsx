@@ -416,9 +416,16 @@ export default function Layout({ children, currentPageName }) {
   }, {});
 
   const isFolha = (currentPageName || '').toLowerCase().startsWith('folha');
+  const isRoot = location.pathname === createPageUrl("Home");
 
   return (
     <div className="min-h-screen bg-slate-50 safe-area-top" translate="no">
+      <style>{`
+        html, body { overscroll-behavior: none; }
+        button, [role="button"], a { -webkit-user-select: none; user-select: none; }
+        .safe-area-top { padding-top: env(safe-area-inset-top); }
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+      `}</style>
       <SplashScreen visible={showSplash} logoUrl="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/9d03282ce_IMG_8919.png" />
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
@@ -426,7 +433,7 @@ export default function Layout({ children, currentPageName }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {/* Mobile Back Button replaces logo on child routes */}
-              <BackButton className="mr-1" />
+              {!isRoot && <BackButton className="mr-1" />}
               <div>
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'}
@@ -851,7 +858,7 @@ export default function Layout({ children, currentPageName }) {
         <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries(); }} />
       </div>
 
-      <main className={isFolha ? "max-w-none" : "max-w-[1600px] mx-auto"}>
+      <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " pb-16 md:pb-0"}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
