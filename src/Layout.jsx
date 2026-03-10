@@ -214,6 +214,12 @@ export default function Layout({ children, currentPageName }) {
     document.documentElement.setAttribute('translate', 'no');
     document.documentElement.setAttribute('lang', 'pt-BR');
   }, []);
+
+  // Splash: exibir sempre por 3s em cada abertura/reload
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 3000);
+    return () => clearTimeout(t);
+  }, []);
   
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
@@ -265,12 +271,7 @@ export default function Layout({ children, currentPageName }) {
     refetchOnWindowFocus: false,
   });
 
-  // Esconder splash quando auth e empresas estiverem carregados
-  useEffect(() => {
-    if (!authLoading && !empresasLoading) {
-      setShowSplash(false);
-    }
-  }, [authLoading, empresasLoading]);
+
 
   const empresaAtual = React.useMemo(() => {
     if (!empresaSelecionada || !empresas.length) return null;
@@ -405,7 +406,7 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50" translate="no">
-      <SplashScreen visible={showSplash} logoUrl={empresaAtual?.logotipo_url} brandName={empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'} />
+      <SplashScreen visible={showSplash} logoUrl="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/9d03282ce_IMG_8919.png" />
       {!isFolha && (
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
