@@ -258,13 +258,6 @@ export default function Layout({ children, currentPageName }) {
     };
   }, []);
 
-  // Esconder splash quando auth e empresas estiverem carregados
-  useEffect(() => {
-    if (!authLoading && !empresasLoading) {
-      setShowSplash(false);
-    }
-  }, [authLoading, empresasLoading]);
-
   const { data: empresas = [], isLoading: empresasLoading } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
