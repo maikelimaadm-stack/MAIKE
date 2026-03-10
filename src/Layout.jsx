@@ -221,11 +221,7 @@ export default function Layout({ children, currentPageName }) {
     const t = setTimeout(() => setMinTimePassed(true), 5000);
     return () => clearTimeout(t);
   }, []);
-  useEffect(() => {
-    if (minTimePassed && !authLoading && !empresasLoading) {
-      setShowSplash(false);
-    }
-  }, [minTimePassed, authLoading, empresasLoading]);
+
   
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
@@ -277,7 +273,12 @@ export default function Layout({ children, currentPageName }) {
     refetchOnWindowFocus: false,
   });
 
-
+  // Ocultar splash somente após 5s mínimos + dados prontos
+  useEffect(() => {
+    if (minTimePassed && !authLoading && !empresasLoading) {
+      setShowSplash(false);
+    }
+  }, [minTimePassed, authLoading, empresasLoading]);
 
   const empresaAtual = React.useMemo(() => {
     if (!empresaSelecionada || !empresas.length) return null;
