@@ -340,7 +340,7 @@ export default function MapaGeral() {
     if (modoColoracao === 'ua_ha') {
       const info = uaPorAreaMap[area.id];
       if (!info || info.ua === 0) return null;
-      const ha = area.tamanho_hectares || 0;
+      const ha = getAreaEfetiva(area); // Usa área efetiva!
       const uaStr = info.ua.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
       if (ha > 0) {
         const uaHa = (info.ua / ha).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -348,17 +348,15 @@ export default function MapaGeral() {
       }
       return `${uaStr} UA`;
     }
-    if (modoColoracao === 'dias_pastejo') {
-      const info = diasPastejoMap[area.id];
+    if (modoColoracao === 'situacao_pasto') {
+      const info = situacaoPastoMap[area.id];
       if (!info) return null;
-      if (info.tipo === 'vazia') {
-        if (info.dias !== null) return `Vazia ${info.dias}d`;
-        return 'Sem gado';
-      }
-      return `${info.dias}d pastejo`;
+      if (info.tipo === 'vazia') return 'Sem gado';
+      if (info.tipo === 'descanso') return `Descanso ${info.dias}d`;
+      return `Ocupado ${info.dias}d`;
     }
     return null;
-  }, [modoColoracao, uaPorAreaMap, diasPastejoMap]);
+  }, [modoColoracao, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
   // Quando o modo muda, forçar recriar labels para atualizar texto extra
   useEffect(() => {
