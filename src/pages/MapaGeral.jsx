@@ -127,6 +127,14 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId, staleTime: ST,
   });
 
+  // Movimentações para calcular dias sem gado (apenas quando modo dias_pastejo ativo)
+  const { data: movimentacoes = [] } = useQuery({
+    queryKey: ['mapa-movimentacoes', empresaSelecionadaId],
+    queryFn: async () => { const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao', 500); return all.filter(m => m.empresa_id === empresaSelecionadaId); },
+    enabled: !!empresaSelecionadaId && modoColoracao === 'dias_pastejo',
+    staleTime: ST,
+  });
+
   // ─── Dados derivados ───
   const lotesComAlerta = useMemo(() => lotes.map(lote => {
     const alertas = [];
