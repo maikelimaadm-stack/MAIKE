@@ -693,6 +693,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showMorte} onOpenChange={setShowMorte}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Registrar Morte</DialogTitle></DialogHeader>
           {showMorte && (
             <FormularioMorte
               lote={lotes}
@@ -705,6 +706,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showNascimento} onOpenChange={setShowNascimento}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Registrar Nascimento</DialogTitle></DialogHeader>
           {showNascimento && (
             <FormularioNascimento
               lote={lotes}
@@ -717,6 +719,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showAbate} onOpenChange={setShowAbate}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Registrar Abate</DialogTitle></DialogHeader>
           {showAbate && (
             <FormularioAbate
               lote={lotes}
@@ -729,6 +732,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Mudança de Categoria</DialogTitle></DialogHeader>
           <FormularioMudancaCategoria
             lote={lotes}
             onSubmit={handleMudancaCategoria}
@@ -739,6 +743,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showPesagem} onOpenChange={setShowPesagem}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
           {showPesagem && (
             <FormularioPesagem
               lote={lotes}
@@ -751,12 +756,14 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico de Movimentações</DialogTitle></DialogHeader>
           <HistoricoMovimentacoes lotesIds={lotes.map(l => l.nome)} areaId={areaAtual?.id} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showHistoricoSupl} onOpenChange={setShowHistoricoSupl}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico de Suplementação</DialogTitle></DialogHeader>
           {lotes.length === 1 ? (
             <HistoricoSuplementacaoLote
               loteId={lotes[0].id}

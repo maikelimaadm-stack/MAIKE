@@ -304,7 +304,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
   const renderCell = (coluna, mov) => {
     switch (coluna.id) {
       case 'numero':
-        return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.numero_movimentacao || '-'}</TableCell>;
+        return <TableCell key="numero" className="text-xs font-semibold border-r border-slate-200">{mov.numero_movimentacao || '-'}</TableCell>;
       case 'data':
         return <TableCell className="text-xs border-r border-slate-200">{formatarData(mov.data_movimentacao)}</TableCell>;
       case 'tipo':
@@ -584,11 +584,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                        {colunasOrdenadas.map(coluna => (
-                          <React.Fragment key={coluna.id}>
-                            {renderCell(coluna, mov)}
-                          </React.Fragment>
-                        ))}
+                        {colunasOrdenadas.map(coluna => renderCell(coluna, mov))}
                       </motion.tr>
                     ))
                   )}
