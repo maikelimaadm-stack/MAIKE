@@ -39,7 +39,8 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
     Object.entries(lotesPorArea).forEach(([areaId, lotesArea]) => {
       const area = areas.find(a => a.id === areaId);
       if (!area) return;
-      const ha = area.tamanho_hectares || 0;
+      // Usa área efetiva (pastejada) se disponível, senão área total
+      const ha = (area.area_pastejada && area.area_pastejada > 0) ? area.area_pastejada : (area.tamanho_hectares || 0);
       const cabecas = lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
       if (ha > 0) {
         lotacoes.push({ nome: area.nome, cabecas, ha, lotacao: fmtNum(cabecas / ha, 2) });
@@ -162,7 +163,9 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
     Object.entries(lotesPorArea).forEach(([areaId, lotesArea]) => {
       const area = areas.find(a => a.id === areaId);
       if (!area) return;
-      const ha = area.tamanho_hectares || 0;
+      // Usa área efetiva (pastejada) para cálculo de UA/ha
+      const haEfetiva = (area.area_pastejada && area.area_pastejada > 0) ? area.area_pastejada : (area.tamanho_hectares || 0);
+      const haTotal = area.tamanho_hectares || 0;
       let uaArea = 0;
       lotesArea.forEach(l => {
         const peso = l.peso_medio_kg || 0;
@@ -171,8 +174,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       });
       totalUA += uaArea;
       const cabTotal = lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-      // Incluir mesmo sem ha para mostrar UA do pasto
-      uaPorArea.push({ nome: area.nome, ua: uaArea, ha, uaHa: ha > 0 ? uaArea / ha : 0, cabecas: cabTotal, categorias: [...new Set(lotesArea.map(l => l.categoria).filter(Boolean))] });
+      uaPorArea.push({ nome: area.nome, ua: uaArea, ha: haEfetiva, haTotal, uaHa: haEfetiva > 0 ? uaArea / haEfetiva : 0, cabecas: cabTotal, categorias: [...new Set(lotesArea.map(l => l.categoria).filter(Boolean))] });
     });
 
     if (uaPorArea.length > 0) {
@@ -186,12 +188,12 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         icone: Scale,
         cor: 'text-violet-700 bg-violet-50 border-violet-200',
         titulo: `Unidade Animal - UA (Total: ${fmtNum(totalUA, 1)})`,
-        texto: `Média: ${fmtNum(uaHaMedia, 2)} UA/ha  •  1 UA = 450 kg`,
+        texto: `Média: ${fmtNum(uaHaMedia, 2)} UA/ha (área efetiva)  •  1 UA = 450 kg PV`,
         valores: [
           { label: 'Total UA', valor: fmtNum(totalUA, 1) },
           { label: 'Média UA/ha', valor: fmtNum(uaHaMedia, 2) },
           { label: 'Áreas com Gado', valor: uaPorArea.length },
-          { label: 'Total Hectares', valor: fmtNum(comHa.reduce((s, a) => s + a.ha, 0), 0) },
+          { label: 'Ha Efetivos', valor: fmtNum(comHa.reduce((s, a) => s + a.ha, 0), 0) },
         ]
       });
 
@@ -202,7 +204,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         icone: Scale,
         cor: 'text-violet-700 bg-violet-50 border-violet-200',
         titulo: `UA por Pasto (${todosOrdenados.length} áreas)`,
-        lista: todosOrdenados.map(a => `${a.nome}: ${fmtNum(a.ua, 1)} UA${a.ha > 0 ? ` (${fmtNum(a.uaHa, 2)} UA/ha, ${fmtNum(a.ha, 2)} ha)` : ''} — ${fmtNum(a.cabecas)} cab`)
+        lista: todosOrdenados.map(a => `${a.nome}: ${fmtNum(a.ua, 1)} UA${a.ha > 0 ? ` (${fmtNum(a.uaHa, 2)} UA/ha, ${fmtNum(a.ha, 2)} ha ef.)` : ''} — ${fmtNum(a.cabecas)} cab`)
       });
 
       result.push({
