@@ -360,7 +360,7 @@ export default function MapaGeral() {
 
   // Quando o modo muda, forçar recriar labels para atualizar texto extra
   useEffect(() => {
-    if (mapReady && (modoColoracao === 'ua_ha' || modoColoracao === 'dias_pastejo')) {
+    if (mapReady && (modoColoracao === 'ua_ha' || modoColoracao === 'situacao_pasto')) {
       // Limpar labels existentes para forçar recriação com texto extra
       renderer.syncLabels([], false);
       setTimeout(() => {
