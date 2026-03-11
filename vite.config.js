@@ -11,5 +11,10 @@ export default defineConfig({
       legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true'
     }),
     react(),
-  ]
+  ],
+  server: {
+    allowedHosts: [
+      'ta-01kkeewmsrvk843098c0m1a7yq-5173-bh58hauower12crpa0npmwl3w.w.modal.host',
+    ],
+  },
 });
