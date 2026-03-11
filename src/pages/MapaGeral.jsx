@@ -311,7 +311,7 @@ export default function MapaGeral() {
   }, []);
 
   // ─── Renderização incremental ───
-  useEffect(() => { if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor); }, [areasFiltradas, showAreas, mapReady, modoColoracao, getAreaColor]);
+  useEffect(() => { if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor); }, [areasFiltradas, showAreas, mapReady, getAreaColor]);
   // Função de texto extra para labels (UA/ha ou dias de pastejo)
   const getLabelExtraText = useCallback((area) => {
     if (modoColoracao === 'ua_ha') {
