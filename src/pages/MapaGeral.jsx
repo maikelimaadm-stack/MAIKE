@@ -211,13 +211,19 @@ export default function MapaGeral() {
         const dias = Math.max(0, Math.floor((agora - maisAntiga) / 86400000));
         m[a.id] = { tipo: 'pastejo', dias };
       } else {
-        // Área SEM animais: verificar última movimentação de saída
-        // Usar data_updated ou criação como referência (sem movimentação, consideramos como sem dados)
-        m[a.id] = { tipo: 'vazia', dias: null }; // Será calculado via movimentações se disponível
+        // Área SEM animais: verificar última movimentação de saída desta área
+        const movsSaida = movimentacoes.filter(mv => mv.area_origem_id === a.id && mv.tipo === 'Transferência de Área');
+        if (movsSaida.length > 0) {
+          const ultimaSaida = new Date(movsSaida[0].data_movimentacao);
+          const diasSem = Math.max(0, Math.floor((agora - ultimaSaida) / 86400000));
+          m[a.id] = { tipo: 'vazia', dias: diasSem };
+        } else {
+          m[a.id] = { tipo: 'vazia', dias: null };
+        }
       }
     });
     return m;
-  }, [areas, lotes]);
+  }, [areas, lotes, movimentacoes]);
 
   // Função de cor para áreas baseada no modo de coloração
   const getAreaColor = useCallback((area) => {
