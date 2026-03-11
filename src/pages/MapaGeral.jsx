@@ -75,8 +75,10 @@ export default function MapaGeral() {
   const markersRef = useRef([]);
   const polylinesRef = useRef([]);
   const userMarkerRef = useRef(null);
+  const firstFitDoneRef = useRef(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  useEffect(() => { firstFitDoneRef.current = false; }, [empresaSelecionadaId]);
 
   const { data: areas = [], refetch: refetchAreas } = useQuery({
     queryKey: ['areas', empresaSelecionadaId, forceUpdate],
@@ -303,6 +305,31 @@ export default function MapaGeral() {
       mapInstanceRef.current.setMapTypeId(mapType);
     }
   }, [mapType]);
+
+  // Centralizar automaticamente nas áreas quando carregarem
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady) return;
+    if (!areas || areas.length === 0) return;
+    if (firstFitDoneRef.current) return;
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasValid = false;
+    areas.forEach(area => {
+      const coords = area.coordenadas?.coords || [];
+      coords.forEach(c => {
+        const lat = c[0] || c.lat;
+        const lng = c[1] || c.lng;
+        if (typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)) {
+          bounds.extend({ lat, lng });
+          hasValid = true;
+        }
+      });
+    });
+    if (hasValid) {
+      mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
+      firstFitDoneRef.current = true;
+    }
+  }, [areas, mapReady]);
 
   useEffect(() => {
     if (mapInstanceRef.current && mapReady) {
