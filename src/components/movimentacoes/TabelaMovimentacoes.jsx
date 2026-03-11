@@ -302,86 +302,86 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
   };
 
   const renderCell = (coluna, mov) => {
-    switch (coluna.id) {
+    const k = coluna.id;
+    switch (k) {
       case 'numero':
-        return <TableCell key="numero" className="text-xs font-semibold border-r border-slate-200">{mov.numero_movimentacao || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs font-semibold border-r border-slate-200">{mov.numero_movimentacao || '-'}</TableCell>;
       case 'data':
-        return <TableCell className="text-xs border-r border-slate-200">{formatarData(mov.data_movimentacao)}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{formatarData(mov.data_movimentacao)}</TableCell>;
       case 'tipo':
         return (
-          <TableCell className="border-r border-slate-200">
+          <TableCell key={k} className="border-r border-slate-200">
             <Badge variant="outline" className={`${getBadgeTipo(mov.tipo_movimentacao)} text-xs`}>
               {mov.tipo_movimentacao}
             </Badge>
           </TableCell>
         );
       case 'tipo_detalhado':
-        return <TableCell className="text-xs border-r border-slate-200">{getLabelOperacao(mov.tipo_detalhado)}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{getLabelOperacao(mov.tipo_detalhado)}</TableCell>;
       case 'tipo_documento':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.tipo_documento || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{mov.tipo_documento || '-'}</TableCell>;
       case 'numero_documento':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.numero_documento || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs font-mono border-r border-slate-200">{mov.numero_documento || '-'}</TableCell>;
       case 'serie_documento':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.serie_documento || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs font-mono border-r border-slate-200">{mov.serie_documento || '-'}</TableCell>;
       case 'chave_documento':
-        return <TableCell className="text-xs font-mono max-w-[200px] truncate border-r border-slate-200" title={mov.chave_documento}>{mov.chave_documento || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs font-mono max-w-[200px] truncate border-r border-slate-200" title={mov.chave_documento}>{mov.chave_documento || '-'}</TableCell>;
       case 'data_documento':
-        return <TableCell className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_documento)}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_documento)}</TableCell>;
       case 'cfop':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.cfop || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs font-mono border-r border-slate-200">{mov.cfop || '-'}</TableCell>;
       case 'natureza_operacao':
-        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.natureza_operacao}>{mov.natureza_operacao || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.natureza_operacao}>{mov.natureza_operacao || '-'}</TableCell>;
       case 'produto':
-        return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.produto_nome}</TableCell>;
+        return <TableCell key={k} className="text-xs font-semibold border-r border-slate-200">{mov.produto_nome}</TableCell>;
       case 'produto_codigo':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.produto_codigo || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs font-mono border-r border-slate-200">{mov.produto_codigo || '-'}</TableCell>;
       case 'produto_categoria':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.produto_categoria || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{mov.produto_categoria || '-'}</TableCell>;
       case 'quantidade':
-        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarNumero(mov.quantidade)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarNumero(mov.quantidade)}</TableCell>;
       case 'unidade':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.unidade_medida || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{mov.unidade_medida || '-'}</TableCell>;
       case 'valor_unitario':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.valor_unitario)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.valor_unitario)}</TableCell>;
       case 'valor_total':
-        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarMoeda(mov.valor_total)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarMoeda(mov.valor_total)}</TableCell>;
       case 'custo_medio_antes':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.custo_medio_antes)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.custo_medio_antes)}</TableCell>;
       case 'custo_medio_depois':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.custo_medio_depois)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.custo_medio_depois)}</TableCell>;
       case 'saldo_antes':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_antes)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_antes)}</TableCell>;
       case 'saldo_depois':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_depois)}</TableCell>;
+        return <TableCell key={k} className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_depois)}</TableCell>;
       case 'fornecedor':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
       case 'local_estoque':
-        // Usar função utilitária para pegar local correto
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{getLocalEstoque(mov) || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs max-w-[120px] truncate border-r border-slate-200">{getLocalEstoque(mov) || '-'}</TableCell>;
       case 'local_origem':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_origem || mov.local_origem || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_origem || mov.local_origem || '-'}</TableCell>;
       case 'local_destino':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || mov.local_destino || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || mov.local_destino || '-'}</TableCell>;
       case 'centro_custo':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.centro_custo_nome || '-'}</TableCell>;
-      case 'motivo':
-        // Mostrar motivo apenas para ajustes
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{mov.centro_custo_nome || '-'}</TableCell>;
+      case 'motivo': {
         const motivo = mov.tipo_movimentacao === 'Ajuste' ? (mov.motivo_movimentacao || '-') : '-';
-        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.tipo_movimentacao === 'Ajuste' ? mov.motivo_movimentacao : ''}>{motivo}</TableCell>;
+        return <TableCell key={k} className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.tipo_movimentacao === 'Ajuste' ? mov.motivo_movimentacao : ''}>{motivo}</TableCell>;
+      }
       case 'observacoes':
-        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.usuario_responsavel || '-'}</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">{mov.usuario_responsavel || '-'}</TableCell>;
       case 'status':
         return (
-          <TableCell className="border-r border-slate-200">
+          <TableCell key={k} className="border-r border-slate-200">
             <Badge variant="outline" className={`text-xs ${mov.status === 'Ativa' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
               {mov.status}
             </Badge>
           </TableCell>
         );
       default:
-        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+        return <TableCell key={k} className="text-xs border-r border-slate-200">-</TableCell>;
     }
   };
 
