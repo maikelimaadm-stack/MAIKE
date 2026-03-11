@@ -816,16 +816,7 @@ const EIXO_Y_OPCOES = [
             })()
           ) : tipoRelatorio === 'historico' ? (
             (() => {
-              // Agrupar por Setor > Marca
-              const grupos = {};
-              movimentacoesFiltradas.forEach(m => {
-                const setor = m.setor_nome || 'Sem setor';
-                const marca = m.marca || 'Sem marca';
-                if (!grupos[setor]) grupos[setor] = {};
-                if (!grupos[setor][marca]) grupos[setor][marca] = [];
-                grupos[setor][marca].push(m);
-              });
-
+              const sorted = [...movimentacoesFiltradas].sort((a,b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
               const inicio = dataInicio ? new Date(dataInicio) : null;
 
               const matchesCommon = (m) => {
@@ -837,33 +828,40 @@ const EIXO_Y_OPCOES = [
                 return true;
               };
 
-              // Função para montar o histórico de um grupo (Setor+Marca)
-              const montarLinhasGrupo = (registros, setor, marca) => {
-                const sorted = [...registros].sort((a,b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
-                // saldo inicial do grupo (antes da dataInicio) respeitando filtros comuns
-                const anteriores = inicio
-                  ? movimentacoes.filter(m =>
+              // Montar estrutura Setor > Marca
+              const grupos = {};
+              sorted.forEach(m => {
+                const setor = m.setor_nome || 'Sem setor';
+                const marca = m.marca || 'Sem marca';
+                if (!grupos[setor]) grupos[setor] = {};
+                if (!grupos[setor][marca]) grupos[setor][marca] = [];
+                grupos[setor][marca].push(m);
+              });
+
+              const renderGrupo = (setor, marca, registros) => {
+                // Saldo inicial do grupo (antes da data de início), respeitando os mesmos filtros comuns
+                const anterioresGrupo = inicio
+                  ? movimentacoes.filter(m => (
                       matchesCommon(m) &&
                       (m.setor_nome || 'Sem setor') === setor &&
                       (m.marca || 'Sem marca') === marca &&
                       new Date(m.data_movimentacao || 0) < new Date(dataInicio)
-                    )
+                    ))
                   : [];
-                const saldoInicial = anteriores.reduce((s, m) => s + ((m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0)), 0);
+                const saldoInicial = anterioresGrupo.reduce((s, m) => s + ((m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0)), 0);
 
                 const linhas = [];
                 let saldo = saldoInicial;
-                let totalEntradas = 0;
-                let totalSaidas = 0;
+                let totalEnt = 0; let totalSai = 0;
 
                 if (inicio) {
                   linhas.push({ data: formatarData(dataInicio), entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
                 }
 
-                sorted.forEach(m => {
+                const regsOrdenados = [...registros].sort((a,b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
+                regsOrdenados.forEach(m => {
                   const qtd = m.quantidade_animais || 0;
-                  if (m.tipo === 'Entrada') { saldo += qtd; totalEntradas += qtd; }
-                  else { saldo -= qtd; totalSaidas += qtd; }
+                  if (m.tipo === 'Entrada') { saldo += qtd; totalEnt += qtd; } else { saldo -= qtd; totalSai += qtd; }
 
                   let transfInfo = '';
                   if (m.motivo === 'Transferência entre Setores') {
@@ -871,6 +869,7 @@ const EIXO_Y_OPCOES = [
                     const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
                     transfInfo = `de ${origem} → ${destino}`;
                   }
+
                   const hist = [
                     m.motivo,
                     transfInfo,
@@ -889,129 +888,139 @@ const EIXO_Y_OPCOES = [
                   });
                 });
 
-                return { linhas, totalEntradas, totalSaidas, saldoFinal: saldo, saldoInicial };
+                const saldoFinal = saldoInicial + totalEnt - totalSai;
+
+                return (
+                  <>
+                    <Table className="mt-1">
+                      <TableHeader>
+                        <TableRow className="border-black">
+                          <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                          <TableHead className="border border-black text-xs font-bold py-1">Histórico</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {linhas.map((l, i) => (
+                          <TableRow key={i} className="hover:bg-gray-50">
+                            <TableCell className="border border-gray-300 text-xs py-1">{l.data}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1">{l.historico}</TableCell>
+                          </TableRow>
+                        ))}
+                        {/* Subtotal do Grupo */}
+                        <TableRow className="bg-gray-100 font-bold">
+                          <TableCell className="border border-black text-xs py-1">Subtotal</TableCell>
+                          <TableCell className="border border-black text-xs text-right py-1">{totalEnt ? formatarNumero(totalEnt) : ''}</TableCell>
+                          <TableCell className="border border-black text-xs text-right py-1">{totalSai ? formatarNumero(totalSai) : ''}</TableCell>
+                          <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(saldoFinal)}</TableCell>
+                          <TableCell className="border border-black text-xs py-1"></TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </>
+                );
               };
 
-              // Resumos finais
-              const resumoPorSetor = {};
-              const resumoPorMarca = {};
-              movimentacoesFiltradas.forEach(m => {
-                const setor = m.setor_nome || 'Sem setor';
-                const marca = m.marca || 'Sem marca';
-                const qtd = m.quantidade_animais || 0;
+              const setores = Object.keys(grupos).sort();
 
-                if (!resumoPorSetor[setor]) resumoPorSetor[setor] = { entradas: 0, saidas: 0, saldo: 0 };
-                if (!resumoPorMarca[marca]) resumoPorMarca[marca] = { entradas: 0, saidas: 0, saldo: 0 };
-
-                if (m.tipo === 'Entrada') { resumoPorSetor[setor].entradas += qtd; resumoPorMarca[marca].entradas += qtd; }
-                else if (m.tipo === 'Saída') { resumoPorSetor[setor].saidas += qtd; resumoPorMarca[marca].saidas += qtd; }
+              // Resumos consolidados
+              const resumoPorSetor = setores.map(setor => {
+                let ent = 0, sai = 0;
+                Object.values(grupos[setor]).forEach(regs => {
+                  regs.forEach(m => {
+                    const q = m.quantidade_animais || 0;
+                    if (m.tipo === 'Entrada') ent += q; else if (m.tipo === 'Saída') sai += q;
+                  });
+                });
+                return { setor, entradas: ent, saidas: sai, saldo: ent - sai };
               });
-              Object.keys(resumoPorSetor).forEach(k => resumoPorSetor[k].saldo = resumoPorSetor[k].entradas - resumoPorSetor[k].saidas);
-              Object.keys(resumoPorMarca).forEach(k => resumoPorMarca[k].saldo = resumoPorMarca[k].entradas - resumoPorMarca[k].saidas);
+
+              const marcasSet = new Set();
+              setores.forEach(s => Object.keys(grupos[s]).forEach(m => marcasSet.add(m)));
+              const marcas = Array.from(marcasSet).sort();
+              const resumoPorMarca = marcas.map(marca => {
+                let ent = 0, sai = 0;
+                setores.forEach(setor => {
+                  const regs = grupos[setor][marca];
+                  if (regs) regs.forEach(m => {
+                    const q = m.quantidade_animais || 0;
+                    if (m.tipo === 'Entrada') ent += q; else if (m.tipo === 'Saída') sai += q;
+                  });
+                });
+                return { marca, entradas: ent, saidas: sai, saldo: ent - sai };
+              });
 
               return (
                 <>
-                  {Object.keys(grupos).sort().map((setor) => (
+                  {/* Grupos Setor > Marca */}
+                  {setores.map((setor) => (
                     <div key={setor} className="mb-4">
                       <div className="bg-gray-200 px-2 py-1 mb-1">
                         <h3 className="font-bold text-xs">Setor: {setor}</h3>
                       </div>
-
-                      {Object.keys(grupos[setor]).sort().map((marca) => {
-                        const { linhas, totalEntradas, totalSaidas, saldoFinal } = montarLinhasGrupo(grupos[setor][marca], setor, marca);
-                        return (
-                          <div key={marca} className="mb-3">
-                            <div className="px-2 py-1">
-                              <h4 className="font-semibold text-xs">Marca: {marca}</h4>
-                            </div>
-
-                            <Table>
-                              <TableHeader>
-                                <TableRow className="border-black">
-                                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
-                                  <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
-                                  <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
-                                  <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
-                                  <TableHead className="border border-black text-xs font-bold py-1">Histórico</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {linhas.map((l, i) => (
-                                  <TableRow key={i} className="hover:bg-gray-50">
-                                    <TableCell className="border border-gray-300 text-xs py-1">{l.data}</TableCell>
-                                    <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
-                                    <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
-                                    <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
-                                    <TableCell className="border border-gray-300 text-xs py-1">{l.historico}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-
-                            <Table className="mt-1">
-                              <TableBody>
-                                <TableRow className="bg-gray-100 font-bold">
-                                  <TableCell colSpan={5} className="border border-black text-xs py-1">
-                                    Subtotal (Marca): Entradas: {formatarNumero(totalEntradas)} | Saídas: {formatarNumero(totalSaidas)} | Saldo Final: {formatarNumero(saldoFinal)} cab
-                                  </TableCell>
-                                </TableRow>
-                              </TableBody>
-                            </Table>
+                      {Object.keys(grupos[setor]).sort().map((marca) => (
+                        <div key={marca} className="mb-3">
+                          <div className="bg-gray-100 px-2 py-1">
+                            <h4 className="font-semibold text-[11px]">Marca: {marca}</h4>
                           </div>
-                        );
-                      })}
+                          {renderGrupo(setor, marca, grupos[setor][marca])}
+                        </div>
+                      ))}
                     </div>
                   ))}
 
-                  {/* Resumos finais */}
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-xs font-bold mb-1">Resumo por Setor</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-black">
-                            <TableHead className="border border-black text-xs font-bold py-1">Setor</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                  {/* Resumos Consolidados */}
+                  <div className="mt-4 border-t-2 border-black pt-2">
+                    <h3 className="text-xs font-bold mb-1">Resumo por Setor</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-black">
+                          <TableHead className="border border-black text-xs font-bold py-1">Setor</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {resumoPorSetor.map((r) => (
+                          <TableRow key={r.setor} className="hover:bg-gray-50">
+                            <TableCell className="border border-gray-300 text-xs py-1">{r.setor}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1">{r.entradas ? formatarNumero(r.entradas) : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1">{r.saidas ? formatarNumero(r.saidas) : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(r.saldo)}</TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.keys(resumoPorSetor).sort().map((setor) => (
-                            <TableRow key={setor} className="hover:bg-gray-50">
-                              <TableCell className="border border-gray-300 text-xs py-1">{setor}</TableCell>
-                              <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(resumoPorSetor[setor].entradas)}</TableCell>
-                              <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(resumoPorSetor[setor].saidas)}</TableCell>
-                              <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(resumoPorSetor[setor].saldo)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
 
-                    <div>
-                      <h3 className="text-xs font-bold mb-1">Resumo por Marca</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-black">
-                            <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
-                            <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                  <div className="mt-3">
+                    <h3 className="text-xs font-bold mb-1">Resumo por Marca</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-black">
+                          <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {resumoPorMarca.map((r) => (
+                          <TableRow key={r.marca} className="hover:bg-gray-50">
+                            <TableCell className="border border-gray-300 text-xs py-1">{r.marca}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1">{r.entradas ? formatarNumero(r.entradas) : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1">{r.saidas ? formatarNumero(r.saidas) : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(r.saldo)}</TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.keys(resumoPorMarca).sort().map((marca) => (
-                            <TableRow key={marca} className="hover:bg-gray-50">
-                              <TableCell className="border border-gray-300 text-xs py-1">{marca}</TableCell>
-                              <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(resumoPorMarca[marca].entradas)}</TableCell>
-                              <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(resumoPorMarca[marca].saidas)}</TableCell>
-                              <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(resumoPorMarca[marca].saldo)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </>
               );
