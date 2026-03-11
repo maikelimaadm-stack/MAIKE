@@ -199,7 +199,9 @@ export default function MapaGeral() {
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 }, zoom: 15, mapTypeId: mapType,
         mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
-        gestureHandling: 'greedy', zoomControl: false, disableDefaultUI: mobile, clickableIcons: false
+        gestureHandling: mobile ? 'cooperative' : 'greedy',
+        zoomControl: !mobile, disableDefaultUI: mobile, clickableIcons: false,
+        minZoom: 3, maxZoom: 22
       });
       mapInstanceRef.current = map;
       google.maps.event.addListenerOnce(map, 'tilesloaded', () => setMapReady(true));
@@ -253,7 +255,16 @@ export default function MapaGeral() {
   // ─── Renderização incremental ───
   useEffect(() => { if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor); }, [areasFiltradas, showAreas, mapReady, modoColoracao, getAreaColor]);
   useEffect(() => { if (mapReady) renderer.syncLabels(areasFiltradas, showNomesAreas && showAreas); }, [areasFiltradas, showNomesAreas, showAreas, mapReady]);
-  useEffect(() => { if (mapReady) renderer.syncPontos(pontos, showPontos, iconesConfig); }, [pontos, showPontos, iconesConfig, mapReady]);
+  // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
+  const pontosFiltrados = useMemo(() => {
+    if (showPontosSuplementacao) return pontos;
+    return pontos.filter(p => {
+      const tipo = (p.tipo || '').toUpperCase().trim();
+      return tipo !== 'COCHO' && tipo !== 'COCHOS';
+    });
+  }, [pontos, showPontosSuplementacao]);
+
+  useEffect(() => { if (mapReady) renderer.syncPontos(pontosFiltrados, showPontos, iconesConfig); }, [pontosFiltrados, showPontos, iconesConfig, mapReady]);
   useEffect(() => { if (mapReady) renderer.syncLinhas(linhas, showLinhas); }, [linhas, showLinhas, mapReady]);
   useEffect(() => { if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacao, showPontosSuplementacao, iconesConfig, handleClickPontoSupl); }, [pontosSuplementacao, showPontosSuplementacao, iconesConfig, mapReady]);
   useEffect(() => { if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes); }, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
@@ -274,7 +285,7 @@ export default function MapaGeral() {
   return (
     <div className="fixed inset-0 z-50 bg-white" translate="no">
       <div className="w-full h-full relative">
-        <div ref={mapRef} style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'manipulation' }} />
+        <div ref={mapRef} style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'pan-x pan-y', WebkitOverflowScrolling: 'touch' }} />
 
         {/* Controles Mobile */}
         <MapaControlesMobile

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3 } from "lucide-react";
+import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3, Scale } from "lucide-react";
 
 export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplementacao, pontosReferencia = [] }) {
   const insights = useMemo(() => {
@@ -152,6 +152,62 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         cor: 'text-purple-700 bg-purple-50 border-purple-200',
         titulo: 'Peso Médio por Categoria',
         lista: pesosOrdenados.map(p => `${p.cat}: ${p.pesoMedio} kg (${p.cabecas} cab)`)
+      });
+    }
+
+    // ─── UA por Área (1 UA = 450kg) ───
+    const uaPorArea = [];
+    let totalUA = 0;
+    Object.entries(lotesPorArea).forEach(([areaId, lotesArea]) => {
+      const area = areas.find(a => a.id === areaId);
+      if (!area) return;
+      const ha = area.tamanho_hectares || 0;
+      let uaArea = 0;
+      lotesArea.forEach(l => {
+        const peso = l.peso_medio_kg || 0;
+        const cab = l.quantidade_cabecas || 0;
+        // UA = (peso médio × cabeças) / 450
+        uaArea += (peso * cab) / 450;
+      });
+      totalUA += uaArea;
+      if (ha > 0) {
+        uaPorArea.push({ nome: area.nome, ua: uaArea.toFixed(1), ha, uaHa: (uaArea / ha).toFixed(2), cabecas: lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0) });
+      }
+    });
+
+    if (uaPorArea.length > 0) {
+      const uaHaMedia = uaPorArea.reduce((s, a) => s + parseFloat(a.uaHa), 0) / uaPorArea.length;
+      const maisCargaUA = [...uaPorArea].sort((a, b) => parseFloat(b.uaHa) - parseFloat(a.uaHa));
+      const menosCargaUA = [...uaPorArea].sort((a, b) => parseFloat(a.uaHa) - parseFloat(b.uaHa));
+
+      result.push({
+        tipo: 'ua_total',
+        icone: Scale,
+        cor: 'text-violet-700 bg-violet-50 border-violet-200',
+        titulo: `Unidade Animal - UA (Total: ${totalUA.toFixed(1)})`,
+        texto: `Média: ${uaHaMedia.toFixed(2)} UA/ha  •  1 UA = 450 kg`,
+        valores: [
+          { label: 'Total UA', valor: totalUA.toFixed(1) },
+          { label: 'Média UA/ha', valor: uaHaMedia.toFixed(2) },
+          { label: 'Áreas com Gado', valor: uaPorArea.length },
+          { label: 'Total Hectares', valor: uaPorArea.reduce((s, a) => s + a.ha, 0).toFixed(0) },
+        ]
+      });
+
+      result.push({
+        tipo: 'ua_mais',
+        icone: Scale,
+        cor: 'text-red-700 bg-red-50 border-red-200',
+        titulo: `Maior Carga UA/ha (Top ${Math.min(5, maisCargaUA.length)})`,
+        lista: maisCargaUA.slice(0, 5).map(a => `${a.nome}: ${a.uaHa} UA/ha (${a.ua} UA, ${a.cabecas} cab, ${a.ha} ha)`)
+      });
+
+      result.push({
+        tipo: 'ua_menos',
+        icone: Scale,
+        cor: 'text-green-700 bg-green-50 border-green-200',
+        titulo: `Menor Carga UA/ha (Top ${Math.min(5, menosCargaUA.length)})`,
+        lista: menosCargaUA.slice(0, 5).map(a => `${a.nome}: ${a.uaHa} UA/ha (${a.ua} UA, ${a.cabecas} cab, ${a.ha} ha)`)
       });
     }
 

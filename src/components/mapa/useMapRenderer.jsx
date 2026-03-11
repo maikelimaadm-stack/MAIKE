@@ -207,8 +207,6 @@ export default function useMapRenderer(mapInstanceRef) {
     });
   }, [mapInstanceRef]);
 
-  const infoWindowRef = useRef(null);
-
   // ─── Lotes (agrupados por área) ───
   const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes) => {
     const map = mapInstanceRef.current;
@@ -267,33 +265,6 @@ export default function useMapRenderer(mapInstanceRef) {
       marker._areaId = areaId;
       marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
       marker.addListener('dragend', (e) => { marker.setPosition(marker._center); onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
-
-      // Tooltip ao passar mouse
-      marker.addListener('mouseover', () => {
-        if (infoWindowRef.current) infoWindowRef.current.close();
-        const lotesInfo = marker._lotesNaArea || [];
-        const total = lotesInfo.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-        const pesoMedio = lotesInfo.filter(l => l.peso_medio_kg).length > 0
-          ? (lotesInfo.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 1), 0) / lotesInfo.reduce((s, l) => s + (l.peso_medio_kg ? (l.quantidade_cabecas || 1) : 0), 0)).toFixed(1)
-          : '-';
-        const cats = [...new Set(lotesInfo.map(l => l.categoria).filter(Boolean))];
-        const racas = [...new Set(lotesInfo.map(l => l.raca_predominante).filter(Boolean))];
-        const html = `<div style="padding:8px;font-family:Arial,sans-serif;min-width:180px;">
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${area.nome}</div>
-          <div style="font-size:11px;color:#555;line-height:1.6;">
-            <b>${total}</b> cabeças • <b>${lotesInfo.length}</b> lote${lotesInfo.length > 1 ? 's' : ''}<br/>
-            Peso médio: <b>${pesoMedio} kg</b><br/>
-            ${cats.length > 0 ? `Cat: ${cats.join(', ')}<br/>` : ''}
-            ${racas.length > 0 ? `Raça: ${racas.join(', ')}<br/>` : ''}
-            ${lotesInfo.map(l => `• ${l.nome}: ${l.quantidade_cabecas || 0} cab${l.peso_medio_kg ? ' (' + l.peso_medio_kg + ' kg)' : ''}`).slice(0, 5).join('<br/>')}
-            ${lotesInfo.length > 5 ? `<br/><i>+${lotesInfo.length - 5} lotes...</i>` : ''}
-          </div>
-        </div>`;
-        const iw = new google.maps.InfoWindow({ content: html, disableAutoPan: true });
-        iw.open(map, marker);
-        infoWindowRef.current = iw;
-      });
-      marker.addListener('mouseout', () => { if (infoWindowRef.current) { infoWindowRef.current.close(); infoWindowRef.current = null; } });
 
       markersRef.current.set(key, marker);
     });
