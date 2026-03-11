@@ -42,7 +42,7 @@ import {
 
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
-import PullToRefresh from "@/components/common/PullToRefresh";
+
 import { AnimatePresence, motion } from "framer-motion";
 
 const iconsMap = {
@@ -853,10 +853,6 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      {/* Pull to refresh for mobile */}
-      <div className="md:hidden">
-        <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries(); }} />
-      </div>
 
       <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " pb-16 md:pb-0"}>
         <AnimatePresence mode="wait">
