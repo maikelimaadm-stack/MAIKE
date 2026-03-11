@@ -18,7 +18,7 @@ import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
-  CORES_UA_HA, CORES_DIAS_PASTEJO
+  CORES_UA_HA, CORES_SITUACAO_PASTO
 } from "../components/mapa/MapaFiltrosAvancados";
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
@@ -127,11 +127,11 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId, staleTime: ST,
   });
 
-  // Movimentações para calcular dias sem gado (apenas quando modo dias_pastejo ativo)
+  // Movimentações para calcular situação do pasto
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ['mapa-movimentacoes', empresaSelecionadaId],
     queryFn: async () => { const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao', 500); return all.filter(m => m.empresa_id === empresaSelecionadaId); },
-    enabled: !!empresaSelecionadaId && modoColoracao === 'dias_pastejo',
+    enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto',
     staleTime: ST,
   });
 
@@ -184,7 +184,8 @@ export default function MapaGeral() {
     return m;
   }, [tiposPastagem]);
 
-  // Calcular UA por área (usado nos modos ua_ha e labels)
+  // Calcular UA por área (1 UA = 450 kg PV - padrão Embrapa)
+  // Usa ÁREA EFETIVA (area_pastejada) para cálculo de UA/ha, não área total
   const uaPorAreaMap = useMemo(() => {
     const m = {};
     lotes.forEach(l => {
@@ -198,8 +199,15 @@ export default function MapaGeral() {
     return m;
   }, [lotes]);
 
-  // Calcular dias de pastejo (dias desde a entrada dos animais na área, ou dias sem animais)
-  const diasPastejoMap = useMemo(() => {
+  // Helper: retorna área efetiva (pastejada) se disponível, senão área total
+  const getAreaEfetiva = useCallback((area) => {
+    const pastejada = area.area_pastejada;
+    if (pastejada && pastejada > 0) return pastejada;
+    return area.tamanho_hectares || 0;
+  }, []);
+
+  // Calcular situação do pasto (ocupado com dias, ou vazio em descanso)
+  const situacaoPastoMap = useMemo(() => {
     const m = {};
     const agora = new Date();
     areas.forEach(a => {
@@ -209,14 +217,14 @@ export default function MapaGeral() {
         const datasEntrada = lotesNaArea.map(l => l.data_entrada ? new Date(l.data_entrada) : agora).filter(d => !isNaN(d));
         const maisAntiga = datasEntrada.length > 0 ? new Date(Math.min(...datasEntrada)) : agora;
         const dias = Math.max(0, Math.floor((agora - maisAntiga) / 86400000));
-        m[a.id] = { tipo: 'pastejo', dias };
+        m[a.id] = { tipo: 'ocupado', dias };
       } else {
         // Área SEM animais: verificar última movimentação de saída desta área
         const movsSaida = movimentacoes.filter(mv => mv.area_origem_id === a.id && mv.tipo === 'Transferência de Área');
         if (movsSaida.length > 0) {
           const ultimaSaida = new Date(movsSaida[0].data_movimentacao);
           const diasSem = Math.max(0, Math.floor((agora - ultimaSaida) / 86400000));
-          m[a.id] = { tipo: 'vazia', dias: diasSem };
+          m[a.id] = { tipo: 'descanso', dias: diasSem };
         } else {
           m[a.id] = { tipo: 'vazia', dias: null };
         }
