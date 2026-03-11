@@ -90,12 +90,14 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Labels dos nomes das áreas (separado para mostrar/esconder) ───
-  const syncLabels = useCallback((areas, show) => {
+  // extraTextFn(area) => string | null — texto extra embaixo do nome
+  const syncLabels = useCallback((areas, show, extraTextFn) => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
     const currentIds = new Set(show ? areas.map(a => a.id) : []);
 
+    // Remover labels que não existem mais
     labelsRef.current.forEach((overlay, id) => {
       if (!currentIds.has(id)) {
         overlay.setMap(null);
@@ -106,7 +108,22 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!show) return;
 
     areas.forEach(area => {
-      if (labelsRef.current.has(area.id)) return;
+      const extraText = extraTextFn ? extraTextFn(area) : null;
+
+      // Se já existe, atualizar apenas o texto extra
+      if (labelsRef.current.has(area.id)) {
+        const existing = labelsRef.current.get(area.id);
+        if (existing._labelDiv) {
+          const subLine = existing._labelDiv.querySelector('.label-extra');
+          if (subLine && extraText) {
+            subLine.textContent = extraText;
+            subLine.style.display = 'block';
+          } else if (subLine && !extraText) {
+            subLine.style.display = 'none';
+          }
+        }
+        return;
+      }
 
       const coords = area.coordenadas?.coords || [];
       if (coords.length < 3) return;
@@ -115,9 +132,14 @@ export default function useMapRenderer(mapInstanceRef) {
       const center = calcCentroid(paths);
 
       const labelDiv = document.createElement('div');
-      labelDiv.innerHTML = `<div style="color:white;text-align:center;white-space:nowrap;text-shadow:1px 1px 3px rgba(0,0,0,0.8);pointer-events:none;font-family:Arial,sans-serif;font-size:11px;font-weight:700;">${area.nome || ''}</div>`;
+      labelDiv.innerHTML = `
+        <div style="color:white;text-align:center;white-space:nowrap;text-shadow:1px 1px 3px rgba(0,0,0,0.8);pointer-events:none;font-family:Arial,sans-serif;">
+          <div style="font-size:11px;font-weight:700;">${area.nome || ''}</div>
+          <div class="label-extra" style="font-size:10px;font-weight:600;color:#fef08a;${extraText ? '' : 'display:none;'}">${extraText || ''}</div>
+        </div>`;
 
       const overlay = new google.maps.OverlayView();
+      overlay._labelDiv = labelDiv;
       overlay.onAdd = function () { this.getPanes().markerLayer.appendChild(labelDiv); };
       overlay.draw = function () {
         const proj = this.getProjection();
