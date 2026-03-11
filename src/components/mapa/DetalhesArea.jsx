@@ -133,20 +133,27 @@ export default function DetalhesArea({ area, onClose }) {
       {/* Resumo Geral */}
       <div className="grid grid-cols-4 gap-2">
         <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">{area.tamanho_hectares || 0}</div>
-          <div className="text-[10px] text-slate-600">Hectares</div>
+          <div className="text-lg font-bold text-slate-700">{area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0)}</div>
+          <div className="text-[10px] text-slate-600">{area.area_pastejada > 0 ? 'ha Efetivos' : 'Hectares'}</div>
         </div>
         <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
           <div className="text-lg font-bold text-slate-700">{totalCabecas}</div>
           <div className="text-[10px] text-slate-600">Cabeças</div>
         </div>
         <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">{totalOperacoes}</div>
-          <div className="text-[10px] text-slate-600">Operações</div>
+          <div className="text-lg font-bold text-slate-700">
+            {(() => {
+              let ua = 0;
+              lotes.forEach(l => { ua += ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)) / 450; });
+              const ha = area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0);
+              return ha > 0 ? (ua / ha).toFixed(2) : '0';
+            })()}
+          </div>
+          <div className="text-[10px] text-slate-600">UA/ha</div>
         </div>
         <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">{totalHectaresTrabalhados.toFixed(0)}</div>
-          <div className="text-[10px] text-slate-600">ha Trab.</div>
+          <div className="text-lg font-bold text-slate-700">{totalOperacoes}</div>
+          <div className="text-[10px] text-slate-600">Operações</div>
         </div>
       </div>
 
