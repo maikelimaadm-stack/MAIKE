@@ -252,7 +252,14 @@ export default function MapaGeral() {
     if (modoColoracao === 'dias_pastejo') {
       const info = diasPastejoMap[area.id];
       if (!info) return '#d1d5db';
-      if (info.tipo === 'vazia') return '#d1d5db'; // sem gado
+      if (info.tipo === 'vazia') {
+        // Sem gado - quantos dias está sem
+        if (info.dias === null) return '#d1d5db';
+        if (info.dias > 60) return '#d1d5db';   // sem gado > 60 dias
+        if (info.dias > 30) return '#86efac';    // descansando 30-60 dias
+        if (info.dias > 15) return '#22c55e';    // descansando 15-30 dias
+        return '#60a5fa';                         // saiu recente < 15 dias
+      }
       // Área com gado - dias de pastejo
       const d = info.dias;
       if (d <= 30) return '#3b82f6';  // pastejo 1-30
