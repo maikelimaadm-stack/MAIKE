@@ -279,7 +279,7 @@ export default function MapaGeral() {
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 }, zoom: 15, mapTypeId: mapType,
         mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
-        gestureHandling: mobile ? 'cooperative' : 'greedy',
+        gestureHandling: 'greedy',
         zoomControl: !mobile, disableDefaultUI: mobile, clickableIcons: false,
         minZoom: 3, maxZoom: 22
       });
