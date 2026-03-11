@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Filter, Eye, Palette, MapPin, Beef, Droplets, Trees } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Filter, Eye, Palette, MapPin, Beef, Droplets, Trees, Weight } from "lucide-react";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -60,6 +61,8 @@ export default function MapaFiltrosAvancados({
   filtroCategoria, setFiltroCategoria,
   filtroStatus, setFiltroStatus,
   filtroSistema, setFiltroSistema,
+  filtroPesoMin, setFiltroPesoMin,
+  filtroPesoMax, setFiltroPesoMax,
   // Filtros de área
   filtroTipoCultura, setFiltroTipoCultura,
   filtroTipoPastagem, setFiltroTipoPastagem,
@@ -231,6 +234,20 @@ export default function MapaFiltrosAvancados({
                 <SelectItem value="sem_alerta" className="text-xs">Sem Alerta</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label className="text-[10px] text-slate-600 flex items-center gap-1"><Weight className="w-3 h-3" /> Peso Mínimo (kg)</Label>
+            <Input
+              type="number" placeholder="Ex: 200" className="h-8 text-xs"
+              value={filtroPesoMin || ''} onChange={e => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)}
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-slate-600 flex items-center gap-1"><Weight className="w-3 h-3" /> Peso Máximo (kg)</Label>
+            <Input
+              type="number" placeholder="Ex: 500" className="h-8 text-xs"
+              value={filtroPesoMax || ''} onChange={e => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)}
+            />
           </div>
         </div>
       </div>
