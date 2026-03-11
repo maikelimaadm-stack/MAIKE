@@ -269,7 +269,7 @@ export default function MapaGeral() {
       return '#ef4444';                                    // crítico
     }
     return null; // padrao: usar cor da área
-  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, diasPastejoMap]);
+  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
   // ─── Inicializar Mapa ───
   useEffect(() => {
