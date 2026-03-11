@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Calendar, User as UserIcon, Paperclip, Save, Plus, History } from "lucide-react";
+import { MapPin, Calendar, User as UserIcon, Paperclip, Save, Plus, History, ClipboardList } from "lucide-react";
+import { fmtNum, fmtHa } from "../common/formatNumber";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import FormularioOperacao from "../operacoes/FormularioOperacao";
@@ -122,9 +123,10 @@ export default function AreaPanel({ area, onClose }) {
               <span className="text-sm font-bold text-slate-900">{area.nome}</span>
             </div>
             <div className="text-xs text-slate-600 mt-1 flex gap-2">
-              <span>{area.tamanho_hectares || 0} ha</span>
+              <span>{fmtHa(area.tamanho_hectares || 0)}</span>
               <span>•</span>
               <span>{area.tipo_pastagem || 'Sem tipo'}</span>
+              {area.tipo_cultura && <><span>•</span><span>{area.tipo_cultura}</span></>}
             </div>
           </div>
         </div>
