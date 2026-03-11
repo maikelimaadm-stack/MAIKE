@@ -17,7 +17,8 @@ import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
 import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
-  CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO
+  CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
+  CORES_UA_HA, CORES_DIAS_PASTEJO
 } from "../components/mapa/MapaFiltrosAvancados";
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
@@ -175,6 +176,41 @@ export default function MapaGeral() {
     return m;
   }, [tiposPastagem]);
 
+  // Calcular UA por área (usado nos modos ua_ha e labels)
+  const uaPorAreaMap = useMemo(() => {
+    const m = {};
+    lotes.forEach(l => {
+      if (!l.area_atual_id) return;
+      if (!m[l.area_atual_id]) m[l.area_atual_id] = { ua: 0, cabecas: 0 };
+      const peso = l.peso_medio_kg || 0;
+      const cab = l.quantidade_cabecas || 0;
+      m[l.area_atual_id].ua += (peso * cab) / 450;
+      m[l.area_atual_id].cabecas += cab;
+    });
+    return m;
+  }, [lotes]);
+
+  // Calcular dias de pastejo (dias desde a entrada dos animais na área, ou dias sem animais)
+  const diasPastejoMap = useMemo(() => {
+    const m = {};
+    const agora = new Date();
+    areas.forEach(a => {
+      const lotesNaArea = lotes.filter(l => l.area_atual_id === a.id);
+      if (lotesNaArea.length > 0) {
+        // Área COM animais: calcular dias desde a data_entrada mais antiga
+        const datasEntrada = lotesNaArea.map(l => l.data_entrada ? new Date(l.data_entrada) : agora).filter(d => !isNaN(d));
+        const maisAntiga = datasEntrada.length > 0 ? new Date(Math.min(...datasEntrada)) : agora;
+        const dias = Math.max(0, Math.floor((agora - maisAntiga) / 86400000));
+        m[a.id] = { tipo: 'pastejo', dias };
+      } else {
+        // Área SEM animais: verificar última movimentação de saída
+        // Usar data_updated ou criação como referência (sem movimentação, consideramos como sem dados)
+        m[a.id] = { tipo: 'vazia', dias: null }; // Será calculado via movimentações se disponível
+      }
+    });
+    return m;
+  }, [areas, lotes]);
+
   // Função de cor para áreas baseada no modo de coloração
   const getAreaColor = useCallback((area) => {
     if (modoColoracao === 'tipo_cultura') return CORES_TIPO_CULTURA[area.tipo_cultura] || '#94a3b8';
@@ -182,14 +218,35 @@ export default function MapaGeral() {
     if (modoColoracao === 'ocupacao') return CORES_OCUPACAO[area.status_ocupacao] || '#94a3b8';
     if (modoColoracao === 'tipo_pastagem') return tiposPastagemCores[area.tipo_pastagem] || '#94a3b8';
     if (modoColoracao === 'categoria_gado') {
-      // Cor baseada na categoria do gado que está na área
       const lotesNaArea = lotes.filter(l => l.area_atual_id === area.id);
       if (lotesNaArea.length === 0) return '#d1d5db';
       const cat = lotesNaArea[0].categoria;
       return categoriasGadoCores[cat] || '#94a3b8';
     }
+    if (modoColoracao === 'ua_ha') {
+      const info = uaPorAreaMap[area.id];
+      const ha = area.tamanho_hectares || 0;
+      if (!info || info.ua === 0) return '#d1d5db'; // sem gado
+      if (ha <= 0) return '#94a3b8';
+      const uaHa = info.ua / ha;
+      if (uaHa < 0.5) return '#86efac';  // muito baixa
+      if (uaHa < 1.0) return '#22c55e';  // baixa
+      if (uaHa < 1.5) return '#3b82f6';  // ideal
+      if (uaHa < 2.0) return '#f59e0b';  // alta
+      return '#ef4444';                    // superlotação
+    }
+    if (modoColoracao === 'dias_pastejo') {
+      const info = diasPastejoMap[area.id];
+      if (!info) return '#d1d5db';
+      if (info.tipo === 'vazia') return '#d1d5db'; // sem gado
+      // Área com gado - dias de pastejo
+      const d = info.dias;
+      if (d <= 30) return '#3b82f6';  // pastejo 1-30
+      if (d <= 60) return '#f59e0b';  // pastejo 30-60
+      return '#ef4444';                // pastejo > 60 dias
+    }
     return null; // padrao: usar cor da área
-  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores]);
+  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, diasPastejoMap]);
 
   // ─── Inicializar Mapa ───
   useEffect(() => {
