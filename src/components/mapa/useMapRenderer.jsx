@@ -278,7 +278,9 @@ export default function useMapRenderer(mapInstanceRef) {
         const existing = markersRef.current.get(key);
         const lbl = existing.getLabel();
         if (lbl?.text !== String(totalCabecas)) existing.setLabel({ text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' });
+        existing.setPosition(offsetCenter);
         existing._lotesNaArea = lotesNaArea;
+        existing._center = offsetCenter;
         return;
       }
 
