@@ -254,6 +254,11 @@ export default function useMapRenderer(mapInstanceRef) {
       const bounds = new google.maps.LatLngBounds();
       paths.forEach(p => bounds.extend(p));
       const center = bounds.getCenter();
+      // Deslocar ícone do lote para cima do centróide (não sobrepor nome)
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const latSpan = ne.lat() - sw.lat();
+      const offsetCenter = new google.maps.LatLng(center.lat() + latSpan * 0.15, center.lng());
       const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
       const cats = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase().trim()).filter(Boolean))].sort();
       let cfg;
@@ -278,12 +283,12 @@ export default function useMapRenderer(mapInstanceRef) {
       }
 
       const marker = new google.maps.Marker({
-        position: center, map, icon,
+        position: offsetCenter, map, icon,
         label: { text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' },
         title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: true
       });
       marker._lotesNaArea = lotesNaArea;
-      marker._center = center;
+      marker._center = offsetCenter;
       marker._areaId = areaId;
       marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
       marker.addListener('dragend', (e) => { marker.setPosition(marker._center); onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
