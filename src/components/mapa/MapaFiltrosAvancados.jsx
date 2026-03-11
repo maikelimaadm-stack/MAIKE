@@ -32,25 +32,25 @@ export const CORES_OCUPACAO = {
   'Sobrepastoreado': '#991b1b',
 };
 
-// Cores por faixa de UA/ha
+// Cores por faixa de UA/ha (baseado em dados Embrapa/Scot Consultoria)
+// 1 UA = 450 kg PV. Usa ÁREA EFETIVA (pastejada), não área total.
+// Faixas consideram pastagem tropical com margem de ~20% acima do ideal.
 export const CORES_UA_HA = {
   'Sem gado': '#d1d5db',
-  'Muito baixa (< 0.5 UA/ha)': '#86efac',
-  'Baixa (0.5 - 1.0 UA/ha)': '#22c55e',
-  'Ideal (1.0 - 1.5 UA/ha)': '#3b82f6',
-  'Alta (1.5 - 2.0 UA/ha)': '#f59e0b',
-  'Superlotação (> 2.0 UA/ha)': '#ef4444',
+  'Sublotação (< 0,8 UA/ha)': '#86efac',
+  'Moderada (0,8 - 1,2 UA/ha)': '#22c55e',
+  'Ideal (1,2 - 1,8 UA/ha)': '#3b82f6',
+  'Alta (1,8 - 2,4 UA/ha)': '#f59e0b',
+  'Superlotação (> 2,4 UA/ha)': '#ef4444',
 };
 
-// Cores por dias de pastejo
-export const CORES_DIAS_PASTEJO = {
-  'Sem gado (> 60 dias)': '#d1d5db',
-  'Descansando (30-60 dias)': '#86efac',
-  'Descansando (15-30 dias)': '#22c55e',
-  'Recente (< 15 dias)': '#60a5fa',
-  'Pastejo (1-30 dias)': '#3b82f6',
-  'Pastejo (30-60 dias)': '#f59e0b',
-  'Pastejo (> 60 dias)': '#ef4444',
+// Cores por situação do pasto (Ocupado vs Vazio)
+export const CORES_SITUACAO_PASTO = {
+  'Vazio - Sem histórico': '#d1d5db',
+  'Vazio - Em descanso': '#86efac',
+  'Ocupado - Normal': '#3b82f6',
+  'Ocupado - Atenção (> 45d)': '#f59e0b',
+  'Ocupado - Crítico (> 90d)': '#ef4444',
 };
 
 // Cores por categoria de gado (genérico)
@@ -67,7 +67,7 @@ export const MODOS_COLORACAO = [
   { id: 'categoria_gado', label: 'Categoria do Gado', icon: Beef },
   { id: 'tipo_pastagem', label: 'Tipo de Pastagem', icon: Droplets },
   { id: 'ua_ha', label: 'UA por Hectare', icon: Scale },
-  { id: 'dias_pastejo', label: 'Dias de Pastejo', icon: Calendar },
+  { id: 'situacao_pasto', label: 'Situação do Pasto', icon: Calendar },
 ];
 
 export default function MapaFiltrosAvancados({
@@ -172,10 +172,15 @@ export default function MapaFiltrosAvancados({
             {modoColoracao === 'tipo_pastagem' && (
               <div className="text-[10px] text-slate-500">Cada tipo de pastagem terá uma cor distinta</div>
             )}
-            {modoColoracao === 'ua_ha' && Object.entries(CORES_UA_HA).map(([k, c]) => (
-              <LegendaItem key={k} cor={c} label={k} />
-            ))}
-            {modoColoracao === 'dias_pastejo' && Object.entries(CORES_DIAS_PASTEJO).map(([k, c]) => (
+            {modoColoracao === 'ua_ha' && (
+              <>
+                {Object.entries(CORES_UA_HA).map(([k, c]) => (
+                  <LegendaItem key={k} cor={c} label={k} />
+                ))}
+                <div className="text-[9px] text-slate-500 mt-1 italic">* Usa área efetiva (pastejada). 1 UA = 450 kg PV</div>
+              </>
+            )}
+            {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) => (
               <LegendaItem key={k} cor={c} label={k} />
             ))}
           </div>
