@@ -5,6 +5,8 @@ import {
   CORES_TIPO_CULTURA,
   CORES_APROVEITAMENTO,
   CORES_OCUPACAO,
+  CORES_UA_HA,
+  CORES_DIAS_PASTEJO,
   MODOS_COLORACAO,
 } from "./MapaFiltrosAvancados";
 
@@ -26,6 +28,10 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
     items = Object.entries(categoriasGadoCores);
   } else if (modoColoracao === 'tipo_pastagem' && tiposPastagemCores) {
     items = Object.entries(tiposPastagemCores);
+  } else if (modoColoracao === 'ua_ha') {
+    items = Object.entries(CORES_UA_HA);
+  } else if (modoColoracao === 'dias_pastejo') {
+    items = Object.entries(CORES_DIAS_PASTEJO);
   }
 
   if (items.length === 0) return null;
