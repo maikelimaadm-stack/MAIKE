@@ -312,7 +312,43 @@ export default function MapaGeral() {
 
   // ─── Renderização incremental ───
   useEffect(() => { if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor); }, [areasFiltradas, showAreas, mapReady, modoColoracao, getAreaColor]);
-  useEffect(() => { if (mapReady) renderer.syncLabels(areasFiltradas, showNomesAreas && showAreas); }, [areasFiltradas, showNomesAreas, showAreas, mapReady]);
+  // Função de texto extra para labels (UA/ha ou dias de pastejo)
+  const getLabelExtraText = useCallback((area) => {
+    if (modoColoracao === 'ua_ha') {
+      const info = uaPorAreaMap[area.id];
+      if (!info || info.ua === 0) return null;
+      const ha = area.tamanho_hectares || 0;
+      const uaStr = info.ua.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+      if (ha > 0) {
+        const uaHa = (info.ua / ha).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `${uaStr} UA (${uaHa}/ha)`;
+      }
+      return `${uaStr} UA`;
+    }
+    if (modoColoracao === 'dias_pastejo') {
+      const info = diasPastejoMap[area.id];
+      if (!info) return null;
+      if (info.tipo === 'vazia') return 'Sem gado';
+      return `${info.dias}d pastejo`;
+    }
+    return null;
+  }, [modoColoracao, uaPorAreaMap, diasPastejoMap]);
+
+  // Quando o modo muda, forçar recriar labels para atualizar texto extra
+  useEffect(() => {
+    if (mapReady && (modoColoracao === 'ua_ha' || modoColoracao === 'dias_pastejo')) {
+      // Limpar labels existentes para forçar recriação com texto extra
+      renderer.syncLabels([], false);
+      setTimeout(() => {
+        renderer.syncLabels(areasFiltradas, showNomesAreas && showAreas, getLabelExtraText);
+      }, 50);
+    } else if (mapReady) {
+      renderer.syncLabels([], false);
+      setTimeout(() => {
+        renderer.syncLabels(areasFiltradas, showNomesAreas && showAreas, null);
+      }, 50);
+    }
+  }, [areasFiltradas, showNomesAreas, showAreas, mapReady, modoColoracao, getLabelExtraText]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
     if (showPontosSuplementacao) return pontos;
