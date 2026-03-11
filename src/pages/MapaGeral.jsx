@@ -371,6 +371,8 @@ export default function MapaGeral() {
         if (coords.length < 3) return;
 
         const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+        const boundsForArea = new google.maps.LatLngBounds();
+        paths.forEach(p => boundsForArea.extend(p));
         const cor = area.coordenadas?.cor || area.cor || '#61aad9';
 
         const polygon = new google.maps.Polygon({
@@ -436,7 +438,10 @@ export default function MapaGeral() {
         centroidLat /= (6 * signedArea);
         centroidLng /= (6 * signedArea);
         
-        const center = new google.maps.LatLng(centroidLat, centroidLng);
+        let center = new google.maps.LatLng(centroidLat, centroidLng);
+        if (!isFinite(centroidLat) || !isFinite(centroidLng) || !signedArea) {
+          center = boundsForArea.getCenter();
+        }
 
         let areaHa = area.tamanho_hectares || 0;
         if (!areaHa && window.google?.maps?.geometry?.spherical) {
@@ -786,8 +791,7 @@ export default function MapaGeral() {
 
         markersRef.current.push(marker);
 
-        marker.addListener('click', (e) => {
-          e.stop();
+        marker.addListener('click', () => {
           setSelectedLote(lotesNaArea);
           setShowDetalhesLote(true);
         });
