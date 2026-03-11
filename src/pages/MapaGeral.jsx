@@ -247,32 +247,26 @@ export default function MapaGeral() {
     }
     if (modoColoracao === 'ua_ha') {
       const info = uaPorAreaMap[area.id];
-      const ha = area.tamanho_hectares || 0;
+      const ha = getAreaEfetiva(area); // Usa área efetiva!
       if (!info || info.ua === 0) return '#d1d5db'; // sem gado
       if (ha <= 0) return '#94a3b8';
       const uaHa = info.ua / ha;
-      if (uaHa < 0.5) return '#86efac';  // muito baixa
-      if (uaHa < 1.0) return '#22c55e';  // baixa
-      if (uaHa < 1.5) return '#3b82f6';  // ideal
-      if (uaHa < 2.0) return '#f59e0b';  // alta
+      // Faixas baseadas em Embrapa/Scot (pastagem tropical, ~20% margem)
+      if (uaHa < 0.8) return '#86efac';  // sublotação
+      if (uaHa < 1.2) return '#22c55e';  // moderada
+      if (uaHa < 1.8) return '#3b82f6';  // ideal
+      if (uaHa < 2.4) return '#f59e0b';  // alta (até 20% acima)
       return '#ef4444';                    // superlotação
     }
-    if (modoColoracao === 'dias_pastejo') {
-      const info = diasPastejoMap[area.id];
+    if (modoColoracao === 'situacao_pasto') {
+      const info = situacaoPastoMap[area.id];
       if (!info) return '#d1d5db';
-      if (info.tipo === 'vazia') {
-        // Sem gado - quantos dias está sem
-        if (info.dias === null) return '#d1d5db';
-        if (info.dias > 60) return '#d1d5db';   // sem gado > 60 dias
-        if (info.dias > 30) return '#86efac';    // descansando 30-60 dias
-        if (info.dias > 15) return '#22c55e';    // descansando 15-30 dias
-        return '#60a5fa';                         // saiu recente < 15 dias
-      }
-      // Área com gado - dias de pastejo
-      const d = info.dias;
-      if (d <= 30) return '#3b82f6';  // pastejo 1-30
-      if (d <= 60) return '#f59e0b';  // pastejo 30-60
-      return '#ef4444';                // pastejo > 60 dias
+      if (info.tipo === 'vazia') return '#d1d5db';       // sem histórico
+      if (info.tipo === 'descanso') return '#86efac';     // em descanso
+      // Ocupado
+      if (info.dias <= 45) return '#3b82f6';              // normal
+      if (info.dias <= 90) return '#f59e0b';              // atenção
+      return '#ef4444';                                    // crítico
     }
     return null; // padrao: usar cor da área
   }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, diasPastejoMap]);
