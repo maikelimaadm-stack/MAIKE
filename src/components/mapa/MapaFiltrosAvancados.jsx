@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { Filter, Eye, Palette, MapPin, Beef, Droplets, Trees, Weight } from "lucide-react";
+import { Filter, Eye, Palette, MapPin, Beef, Droplets, Trees, Weight, Scale, Calendar } from "lucide-react";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -32,6 +32,27 @@ export const CORES_OCUPACAO = {
   'Sobrepastoreado': '#991b1b',
 };
 
+// Cores por faixa de UA/ha
+export const CORES_UA_HA = {
+  'Sem gado': '#d1d5db',
+  'Muito baixa (< 0.5 UA/ha)': '#86efac',
+  'Baixa (0.5 - 1.0 UA/ha)': '#22c55e',
+  'Ideal (1.0 - 1.5 UA/ha)': '#3b82f6',
+  'Alta (1.5 - 2.0 UA/ha)': '#f59e0b',
+  'Superlotação (> 2.0 UA/ha)': '#ef4444',
+};
+
+// Cores por dias de pastejo
+export const CORES_DIAS_PASTEJO = {
+  'Sem gado (> 60 dias)': '#d1d5db',
+  'Descansando (30-60 dias)': '#86efac',
+  'Descansando (15-30 dias)': '#22c55e',
+  'Recente (< 15 dias)': '#60a5fa',
+  'Pastejo (1-30 dias)': '#3b82f6',
+  'Pastejo (30-60 dias)': '#f59e0b',
+  'Pastejo (> 60 dias)': '#ef4444',
+};
+
 // Cores por categoria de gado (genérico)
 export const CORES_CATEGORIA_GADO = [
   '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#6366f1',
@@ -45,6 +66,8 @@ export const MODOS_COLORACAO = [
   { id: 'ocupacao', label: 'Ocupação', icon: Beef },
   { id: 'categoria_gado', label: 'Categoria do Gado', icon: Beef },
   { id: 'tipo_pastagem', label: 'Tipo de Pastagem', icon: Droplets },
+  { id: 'ua_ha', label: 'UA por Hectare', icon: Scale },
+  { id: 'dias_pastejo', label: 'Dias de Pastejo', icon: Calendar },
 ];
 
 export default function MapaFiltrosAvancados({
@@ -149,6 +172,12 @@ export default function MapaFiltrosAvancados({
             {modoColoracao === 'tipo_pastagem' && (
               <div className="text-[10px] text-slate-500">Cada tipo de pastagem terá uma cor distinta</div>
             )}
+            {modoColoracao === 'ua_ha' && Object.entries(CORES_UA_HA).map(([k, c]) => (
+              <LegendaItem key={k} cor={c} label={k} />
+            ))}
+            {modoColoracao === 'dias_pastejo' && Object.entries(CORES_DIAS_PASTEJO).map(([k, c]) => (
+              <LegendaItem key={k} cor={c} label={k} />
+            ))}
           </div>
         )}
       </div>
