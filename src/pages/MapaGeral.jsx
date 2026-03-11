@@ -224,8 +224,9 @@ export default function MapaGeral() {
   }, [areas, mapReady]);
 
   // ─── Handlers ───
+  // Clique na área agora abre Dialog (igual ao lote) em vez de Sheet lateral
   const handleClickArea = useCallback((area) => { setSelectedArea(area); setShowDetalhesArea(true); }, []);
-  const handleRightClickArea = useCallback((area) => { setTarefasContext({ areaId: area.id, areaNome: area.nome }); setShowTarefas(true); }, []);
+  const handleRightClickArea = useCallback((area) => { setSelectedArea(area); setShowDetalhesArea(true); }, []);
   const handleClickPontoSupl = useCallback((p) => { setSelectedPontoSupl(p); setShowDetalhesPontoSupl(true); }, []);
   const handleClickLotes = useCallback((l) => { setSelectedLote(l); setShowDetalhesLote(true); }, []);
   const handleClickTarefa = useCallback((t) => { setTarefasContext({ areaId: t.area_id, areaNome: t.area_nome }); setShowTarefas(true); }, []);
@@ -383,11 +384,12 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-      <Sheet open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
-        <SheetContent side="right" className="w-[420px] md:w-[520px] lg:w-[640px] p-0">
+      <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
+        <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="sr-only"><DialogTitle>Detalhes da Área</DialogTitle></DialogHeader>
           {selectedArea && <AreaPanel area={selectedArea} onClose={() => setShowDetalhesArea(false)} />}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => { setShowDetalhesPontoSupl(open); if (!open) setTimeout(() => { refetchEventosSupl(); refetchLotes(); refetchPontosSupl(); }, 300); }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">

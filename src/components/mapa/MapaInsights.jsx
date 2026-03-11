@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3, Scale } from "lucide-react";
+import { fmtNum, fmtHa, fmtKg } from "../common/formatNumber";
 
 export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplementacao, pontosReferencia = [] }) {
   const insights = useMemo(() => {
@@ -41,20 +42,20 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       const ha = area.tamanho_hectares || 0;
       const cabecas = lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
       if (ha > 0) {
-        lotacoes.push({ nome: area.nome, cabecas, ha, lotacao: (cabecas / ha).toFixed(2) });
+        lotacoes.push({ nome: area.nome, cabecas, ha, lotacao: fmtNum(cabecas / ha, 2) });
       }
     });
 
     if (lotacoes.length > 0) {
-      const lotacaoMedia = lotacoes.reduce((s, l) => s + parseFloat(l.lotacao), 0) / lotacoes.length;
-      const areasMaisLotadas = lotacoes.sort((a, b) => parseFloat(b.lotacao) - parseFloat(a.lotacao)).slice(0, 3);
+      const lotacaoMediaRaw = lotacoes.reduce((s, l) => s + (l.cabecas / l.ha), 0) / lotacoes.length;
+      const areasMaisLotadas = [...lotacoes].sort((a, b) => (b.cabecas / b.ha) - (a.cabecas / a.ha)).slice(0, 3);
 
       result.push({
         tipo: 'lotacao',
         icone: Beef,
         cor: 'text-orange-700 bg-orange-50 border-orange-200',
         titulo: 'Lotação (cab/ha)',
-        texto: `Média: ${lotacaoMedia.toFixed(2)} cab/ha`,
+        texto: `Média: ${fmtNum(lotacaoMediaRaw, 2)} cab/ha`,
         lista: areasMaisLotadas.map(a => `${a.nome}: ${a.lotacao} cab/ha (${a.cabecas} cab)`)
       });
     }
@@ -143,15 +144,15 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       pesosPorCategoria[cat].count++;
     });
     const pesosOrdenados = Object.entries(pesosPorCategoria).map(([cat, d]) => ({
-      cat, pesoMedio: (d.total / d.cabecas).toFixed(1), cabecas: d.cabecas
-    })).sort((a, b) => parseFloat(b.pesoMedio) - parseFloat(a.pesoMedio));
+      cat, pesoMedio: d.total / d.cabecas, cabecas: d.cabecas
+    })).sort((a, b) => b.pesoMedio - a.pesoMedio);
     if (pesosOrdenados.length > 0) {
       result.push({
         tipo: 'pesos',
         icone: TrendingUp,
         cor: 'text-purple-700 bg-purple-50 border-purple-200',
         titulo: 'Peso Médio por Categoria',
-        lista: pesosOrdenados.map(p => `${p.cat}: ${p.pesoMedio} kg (${p.cabecas} cab)`)
+        lista: pesosOrdenados.map(p => `${p.cat}: ${fmtNum(p.pesoMedio, 1)} kg (${fmtNum(p.cabecas)} cab)`)
       });
     }
 
@@ -166,32 +167,42 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       lotesArea.forEach(l => {
         const peso = l.peso_medio_kg || 0;
         const cab = l.quantidade_cabecas || 0;
-        // UA = (peso médio × cabeças) / 450
         uaArea += (peso * cab) / 450;
       });
       totalUA += uaArea;
-      if (ha > 0) {
-        uaPorArea.push({ nome: area.nome, ua: uaArea.toFixed(1), ha, uaHa: (uaArea / ha).toFixed(2), cabecas: lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0) });
-      }
+      const cabTotal = lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+      // Incluir mesmo sem ha para mostrar UA do pasto
+      uaPorArea.push({ nome: area.nome, ua: uaArea, ha, uaHa: ha > 0 ? uaArea / ha : 0, cabecas: cabTotal, categorias: [...new Set(lotesArea.map(l => l.categoria).filter(Boolean))] });
     });
 
     if (uaPorArea.length > 0) {
-      const uaHaMedia = uaPorArea.reduce((s, a) => s + parseFloat(a.uaHa), 0) / uaPorArea.length;
-      const maisCargaUA = [...uaPorArea].sort((a, b) => parseFloat(b.uaHa) - parseFloat(a.uaHa));
-      const menosCargaUA = [...uaPorArea].sort((a, b) => parseFloat(a.uaHa) - parseFloat(b.uaHa));
+      const comHa = uaPorArea.filter(a => a.ha > 0);
+      const uaHaMedia = comHa.length > 0 ? comHa.reduce((s, a) => s + a.uaHa, 0) / comHa.length : 0;
+      const maisCargaUA = [...comHa].sort((a, b) => b.uaHa - a.uaHa);
+      const menosCargaUA = [...comHa].sort((a, b) => a.uaHa - b.uaHa);
 
       result.push({
         tipo: 'ua_total',
         icone: Scale,
         cor: 'text-violet-700 bg-violet-50 border-violet-200',
-        titulo: `Unidade Animal - UA (Total: ${totalUA.toFixed(1)})`,
-        texto: `Média: ${uaHaMedia.toFixed(2)} UA/ha  •  1 UA = 450 kg`,
+        titulo: `Unidade Animal - UA (Total: ${fmtNum(totalUA, 1)})`,
+        texto: `Média: ${fmtNum(uaHaMedia, 2)} UA/ha  •  1 UA = 450 kg`,
         valores: [
-          { label: 'Total UA', valor: totalUA.toFixed(1) },
-          { label: 'Média UA/ha', valor: uaHaMedia.toFixed(2) },
+          { label: 'Total UA', valor: fmtNum(totalUA, 1) },
+          { label: 'Média UA/ha', valor: fmtNum(uaHaMedia, 2) },
           { label: 'Áreas com Gado', valor: uaPorArea.length },
-          { label: 'Total Hectares', valor: uaPorArea.reduce((s, a) => s + a.ha, 0).toFixed(0) },
+          { label: 'Total Hectares', valor: fmtNum(comHa.reduce((s, a) => s + a.ha, 0), 0) },
         ]
+      });
+
+      // Lista completa de UA por pasto
+      const todosOrdenados = [...uaPorArea].sort((a, b) => b.ua - a.ua);
+      result.push({
+        tipo: 'ua_por_pasto',
+        icone: Scale,
+        cor: 'text-violet-700 bg-violet-50 border-violet-200',
+        titulo: `UA por Pasto (${todosOrdenados.length} áreas)`,
+        lista: todosOrdenados.map(a => `${a.nome}: ${fmtNum(a.ua, 1)} UA${a.ha > 0 ? ` (${fmtNum(a.uaHa, 2)} UA/ha, ${fmtNum(a.ha, 2)} ha)` : ''} — ${fmtNum(a.cabecas)} cab`)
       });
 
       result.push({
@@ -199,7 +210,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         icone: Scale,
         cor: 'text-red-700 bg-red-50 border-red-200',
         titulo: `Maior Carga UA/ha (Top ${Math.min(5, maisCargaUA.length)})`,
-        lista: maisCargaUA.slice(0, 5).map(a => `${a.nome}: ${a.uaHa} UA/ha (${a.ua} UA, ${a.cabecas} cab, ${a.ha} ha)`)
+        lista: maisCargaUA.slice(0, 5).map(a => `${a.nome}: ${fmtNum(a.uaHa, 2)} UA/ha (${fmtNum(a.ua, 1)} UA, ${fmtNum(a.cabecas)} cab, ${fmtNum(a.ha, 2)} ha)`)
       });
 
       result.push({
@@ -207,7 +218,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         icone: Scale,
         cor: 'text-green-700 bg-green-50 border-green-200',
         titulo: `Menor Carga UA/ha (Top ${Math.min(5, menosCargaUA.length)})`,
-        lista: menosCargaUA.slice(0, 5).map(a => `${a.nome}: ${a.uaHa} UA/ha (${a.ua} UA, ${a.cabecas} cab, ${a.ha} ha)`)
+        lista: menosCargaUA.slice(0, 5).map(a => `${a.nome}: ${fmtNum(a.uaHa, 2)} UA/ha (${fmtNum(a.ua, 1)} UA, ${fmtNum(a.cabecas)} cab, ${fmtNum(a.ha, 2)} ha)`)
       });
     }
 

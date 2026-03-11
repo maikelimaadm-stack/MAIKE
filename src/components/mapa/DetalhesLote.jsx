@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowRightLeft, Scale, RefreshCw, Star, XCircle, Package } from "lucide-react";
+import { Check, ArrowRightLeft, Scale, RefreshCw, Star, XCircle, Package, Pencil, Merge } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ import FormularioAbate from "../lotes/FormularioAbate";
 import FormularioMudancaCategoria from "../lotes/FormularioMudancaCategoria";
 import FormularioPesagem from "../lotes/FormularioPesagem";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 import { Progress } from "@/components/ui/progress";
 
@@ -134,6 +136,10 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showPesagem, setShowPesagem] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [showHistoricoSupl, setShowHistoricoSupl] = useState(false);
+  const [showRenomear, setShowRenomear] = useState(false);
+  const [novoNomeLote, setNovoNomeLote] = useState('');
+  const [loteParaRenomear, setLoteParaRenomear] = useState(null);
+  const [showConfirmPesagem, setShowConfirmPesagem] = useState(false);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
@@ -277,8 +283,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       onSuccess: () => {
         toast.success('✅ Gado movido!');
         setShowMovimentacao(false);
-        // Abrir pesagem automaticamente após movimentar
-        setShowPesagem(true);
+        // Perguntar se quer registrar pesagem
+        setShowConfirmPesagem(true);
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       },
     onError: (error) => {
@@ -677,6 +683,54 @@ export default function DetalhesLote({ lotes, onClose }) {
         </Button>
       </div>
 
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <Button 
+          onClick={() => {
+            if (lotes.length === 1) {
+              setLoteParaRenomear(lotes[0]);
+              setNovoNomeLote(lotes[0].nome);
+              setShowRenomear(true);
+            } else {
+              // Mostrar lista para escolher qual renomear
+              setLoteParaRenomear(null);
+              setShowRenomear(true);
+            }
+          }}
+          variant="outline"
+          className="h-9 text-[11px] font-semibold border-slate-300 gap-1"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Renomear Lote
+        </Button>
+        {lotes.length > 1 && (
+          <Button 
+            onClick={async () => {
+              if (!confirm(`Deseja juntar todos os ${lotes.length} lotes desta área em um único lote?`)) return;
+              const principal = lotes[0];
+              const totalCab = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+              const pesoTotal = lotes.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
+              const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
+              
+              for (let i = 1; i < lotes.length; i++) {
+                await base44.entities.Lote.update(lotes[i].id, { status: 'Inativo', quantidade_cabecas: 0 });
+              }
+              await base44.entities.Lote.update(principal.id, { 
+                quantidade_cabecas: totalCab,
+                peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
+              });
+              toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
+              onClose();
+              window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+            }}
+            variant="outline"
+            className="h-9 text-[11px] font-semibold border-slate-300 gap-1"
+          >
+            <Merge className="w-3.5 h-3.5" />
+            Juntar Lotes
+          </Button>
+        )}
+      </div>
+
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -782,6 +836,60 @@ export default function DetalhesLote({ lotes, onClose }) {
               ))}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Renomear Lote */}
+      <Dialog open={showRenomear} onOpenChange={setShowRenomear}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-sm">Renomear Lote</DialogTitle></DialogHeader>
+          {!loteParaRenomear && lotes.length > 1 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-600">Selecione o lote para renomear:</p>
+              {lotes.map(l => (
+                <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => {
+                  setLoteParaRenomear(l);
+                  setNovoNomeLote(l.nome);
+                }}>
+                  {l.nome} ({l.quantidade_cabecas} cab - {l.categoria})
+                </Button>
+              ))}
+            </div>
+          ) : loteParaRenomear ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">Lote atual: <strong>{loteParaRenomear.nome}</strong></p>
+              <div>
+                <Label className="text-xs">Novo nome</Label>
+                <Input value={novoNomeLote} onChange={e => setNovoNomeLote(e.target.value)} className="h-8 text-xs" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowRenomear(false)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
+                  if (!novoNomeLote.trim()) return;
+                  await base44.entities.Lote.update(loteParaRenomear.id, { nome: novoNomeLote.trim() });
+                  toast.success('Lote renomeado!');
+                  setShowRenomear(false);
+                  onClose();
+                  window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+                }}>Salvar</Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog confirmar pesagem após movimentação */}
+      <Dialog open={showConfirmPesagem} onOpenChange={setShowConfirmPesagem}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="text-sm">Registrar Pesagem?</DialogTitle></DialogHeader>
+          <p className="text-xs text-slate-600">Deseja registrar pesagem dos animais movidos agora?</p>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfirmPesagem(false)}>Não</Button>
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+              setShowConfirmPesagem(false);
+              setShowPesagem(true);
+            }}>Sim, Pesar</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
