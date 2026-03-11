@@ -51,6 +51,8 @@ export default function MapaGeral() {
   const [filtroSistema, setFiltroSistema] = useState('todos');
   const [filtroTipoCultura, setFiltroTipoCultura] = useState('todas');
   const [filtroTipoPastagem, setFiltroTipoPastagem] = useState('todas');
+  const [filtroPesoMin, setFiltroPesoMin] = useState(null);
+  const [filtroPesoMax, setFiltroPesoMax] = useState(null);
   const [modoColoracao, setModoColoracao] = useState('padrao');
 
   // Painéis
@@ -155,8 +157,10 @@ export default function MapaGeral() {
     if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
     if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
     if (filtroSistema !== 'todos' && lote.sistema_produtivo !== filtroSistema) return false;
+    if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
+    if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroCategoria, filtroStatus, filtroSistema]);
+  }), [lotesComAlerta, filtroCategoria, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
 
   // Mapa de cores para categorias de gado e pastagem
   const categoriasGadoCores = useMemo(() => {
@@ -349,6 +353,8 @@ export default function MapaGeral() {
               filtroSistema={filtroSistema} setFiltroSistema={setFiltroSistema}
               filtroTipoCultura={filtroTipoCultura} setFiltroTipoCultura={setFiltroTipoCultura}
               filtroTipoPastagem={filtroTipoPastagem} setFiltroTipoPastagem={setFiltroTipoPastagem}
+              filtroPesoMin={filtroPesoMin} setFiltroPesoMin={setFiltroPesoMin}
+              filtroPesoMax={filtroPesoMax} setFiltroPesoMax={setFiltroPesoMax}
               modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
               categorias={categorias}
               tiposPastagem={tiposPastagem}
@@ -389,7 +395,7 @@ export default function MapaGeral() {
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-emerald-600" /> Insights do Mapa</DialogTitle></DialogHeader>
-          <MapaInsights lotes={lotesComAlerta} areas={areas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacao} />
+          <MapaInsights lotes={lotesComAlerta} areas={areas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacao} pontosReferencia={pontos} />
         </DialogContent>
       </Dialog>
     </div>
