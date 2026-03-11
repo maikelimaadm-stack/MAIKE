@@ -349,7 +349,10 @@ export default function MapaGeral() {
     if (modoColoracao === 'dias_pastejo') {
       const info = diasPastejoMap[area.id];
       if (!info) return null;
-      if (info.tipo === 'vazia') return 'Sem gado';
+      if (info.tipo === 'vazia') {
+        if (info.dias !== null) return `Vazia ${info.dias}d`;
+        return 'Sem gado';
+      }
       return `${info.dias}d pastejo`;
     }
     return null;
