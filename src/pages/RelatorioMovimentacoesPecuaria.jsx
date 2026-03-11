@@ -16,13 +16,13 @@ import {
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger } from
-"@/components/ui/dropdown-menu";
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger } from
-"@/components/ui/popover";
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formatarNumero = (numero) => {
@@ -31,57 +31,57 @@ const formatarNumero = (numero) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-{ id: 'data', label: 'Data', default: true },
-{ id: 'tipo', label: 'Tipo', default: true },
-{ id: 'motivo', label: 'Motivo', default: true },
-{ id: 'quantidade', label: 'Quantidade', default: true },
-{ id: 'categoria', label: 'Categoria', default: true },
-{ id: 'categoria_nova', label: 'Categoria Nova', default: false },
-{ id: 'marca', label: 'Marca', default: true },
-{ id: 'sexo', label: 'Sexo', default: false },
-{ id: 'setor', label: 'Setor', default: false },
-{ id: 'area', label: 'Área', default: false },
-{ id: 'peso_medio', label: 'Peso Médio', default: false },
-{ id: 'peso_total', label: 'Peso Total', default: false },
-{ id: 'valor_unitario', label: 'Valor Unit.', default: false },
-{ id: 'valor_total', label: 'Valor Total', default: false },
-{ id: 'fornecedor', label: 'Fornecedor', default: false },
-{ id: 'comprador', label: 'Comprador', default: false },
-{ id: 'nota_fiscal', label: 'Nota Fiscal', default: false },
-{ id: 'gta', label: 'GTA', default: false },
-{ id: 'causa_morte', label: 'Causa Morte', default: false },
-{ id: 'transferencia_origem', label: 'Transf. Origem', default: false },
-{ id: 'transferencia_destino', label: 'Transf. Destino', default: false },
-{ id: 'observacoes', label: 'Observações', default: false },
-{ id: 'responsavel', label: 'Responsável', default: false }];
-
+  { id: 'data', label: 'Data', default: true },
+  { id: 'tipo', label: 'Tipo', default: true },
+  { id: 'motivo', label: 'Motivo', default: true },
+  { id: 'quantidade', label: 'Quantidade', default: true },
+  { id: 'categoria', label: 'Categoria', default: true },
+  { id: 'categoria_nova', label: 'Categoria Nova', default: false },
+  { id: 'marca', label: 'Marca', default: true },
+  { id: 'sexo', label: 'Sexo', default: false },
+  { id: 'setor', label: 'Setor', default: false },
+  { id: 'area', label: 'Área', default: false },
+  { id: 'peso_medio', label: 'Peso Médio', default: false },
+  { id: 'peso_total', label: 'Peso Total', default: false },
+  { id: 'valor_unitario', label: 'Valor Unit.', default: false },
+  { id: 'valor_total', label: 'Valor Total', default: false },
+  { id: 'fornecedor', label: 'Fornecedor', default: false },
+  { id: 'comprador', label: 'Comprador', default: false },
+  { id: 'nota_fiscal', label: 'Nota Fiscal', default: false },
+  { id: 'gta', label: 'GTA', default: false },
+  { id: 'causa_morte', label: 'Causa Morte', default: false },
+  { id: 'transferencia_origem', label: 'Transf. Origem', default: false },
+  { id: 'transferencia_destino', label: 'Transf. Destino', default: false },
+  { id: 'observacoes', label: 'Observações', default: false },
+  { id: 'responsavel', label: 'Responsável', default: false },
+];
 
 // Opções de coluna para o eixo X do relatório sintético (matriz)
 const EIXO_X_OPCOES = [
-{ value: 'setor', label: 'Setor/Fazenda' },
-{ value: 'marca', label: 'Marca' },
-{ value: 'motivo', label: 'Motivo' },
-{ value: 'sexo', label: 'Sexo' },
-{ value: 'tipo', label: 'Tipo (Entrada/Saída)' },
-{ value: 'causa_morte', label: 'Causa Morte' },
-{ value: 'fornecedor', label: 'Fornecedor' },
-{ value: 'comprador', label: 'Comprador/Destino' },
-{ value: 'area', label: 'Área' },
-{ value: 'nota_fiscal', label: 'Nota Fiscal' },
-{ value: 'gta', label: 'GTA' },
-{ value: 'categoria_nova', label: 'Categoria Nova' },
-{ value: 'transferencia_origem', label: 'Transferência Origem' },
-{ value: 'transferencia_destino', label: 'Transferência Destino' }];
-
+  { value: 'setor', label: 'Setor/Fazenda' },
+  { value: 'marca', label: 'Marca' },
+  { value: 'motivo', label: 'Motivo' },
+  { value: 'sexo', label: 'Sexo' },
+  { value: 'tipo', label: 'Tipo (Entrada/Saída)' },
+  { value: 'causa_morte', label: 'Causa Morte' },
+  { value: 'fornecedor', label: 'Fornecedor' },
+  { value: 'comprador', label: 'Comprador/Destino' },
+  { value: 'area', label: 'Área' },
+  { value: 'nota_fiscal', label: 'Nota Fiscal' },
+  { value: 'gta', label: 'GTA' },
+  { value: 'categoria_nova', label: 'Categoria Nova' },
+  { value: 'transferencia_origem', label: 'Transferência Origem' },
+  { value: 'transferencia_destino', label: 'Transferência Destino' },
+];
 
 const ORDENACAO_OPCOES = [
-{ value: 'data_desc', label: 'Data (Mais Recente)' },
-{ value: 'data_asc', label: 'Data (Mais Antiga)' },
-{ value: 'quantidade_desc', label: 'Quantidade (Maior)' },
-{ value: 'quantidade_asc', label: 'Quantidade (Menor)' },
-{ value: 'categoria_asc', label: 'Categoria (A-Z)' },
-{ value: 'marca_asc', label: 'Marca (A-Z)' }];
-
+  { value: 'data_desc', label: 'Data (Mais Recente)' },
+  { value: 'data_asc', label: 'Data (Mais Antiga)' },
+  { value: 'quantidade_desc', label: 'Quantidade (Maior)' },
+  { value: 'quantidade_asc', label: 'Quantidade (Menor)' },
+  { value: 'categoria_asc', label: 'Categoria (A-Z)' },
+  { value: 'marca_asc', label: 'Marca (A-Z)' },
+];
 
 export default function RelatorioMovimentacoesPecuaria() {
   const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
@@ -94,8 +94,8 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [eixosYSintetico, setEixosYSintetico] = useState(['categoria']); // Múltiplas linhas do eixo Y
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false); // Mostrar Entradas/Saídas/Saldo nas células
 
-  // Opções de linha para o eixo Y do relatório sintético (matriz)
-  const EIXO_Y_OPCOES = [
+// Opções de linha para o eixo Y do relatório sintético (matriz)
+const EIXO_Y_OPCOES = [
   { value: 'categoria', label: 'Categoria de Manejo' },
   { value: 'marca', label: 'Marca' },
   { value: 'setor', label: 'Setor/Fazenda' },
@@ -110,32 +110,32 @@ export default function RelatorioMovimentacoesPecuaria() {
   { value: 'gta', label: 'GTA' },
   { value: 'categoria_nova', label: 'Categoria Nova' },
   { value: 'transferencia_origem', label: 'Transferência Origem' },
-  { value: 'transferencia_destino', label: 'Transferência Destino' }];
-
+  { value: 'transferencia_destino', label: 'Transferência Destino' },
+];
 
   // Toggle eixos
   const toggleEixoX = (valor) => {
-    setEixosXSintetico((prev) =>
-    prev.includes(valor) ?
-    prev.filter((v) => v !== valor) :
-    [...prev, valor]
+    setEixosXSintetico(prev => 
+      prev.includes(valor) 
+        ? prev.filter(v => v !== valor) 
+        : [...prev, valor]
     );
   };
 
   const toggleEixoY = (valor) => {
-    setEixosYSintetico((prev) =>
-    prev.includes(valor) ?
-    prev.filter((v) => v !== valor) :
-    [...prev, valor]
+    setEixosYSintetico(prev => 
+      prev.includes(valor) 
+        ? prev.filter(v => v !== valor) 
+        : [...prev, valor]
     );
   };
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_mov_pecuaria');
     if (saved) {
-      try {return JSON.parse(saved);} catch {}
+      try { return JSON.parse(saved); } catch { }
     }
-    return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
 
   const [tiposSelecionados, setTiposSelecionados] = useState([]);
@@ -150,9 +150,9 @@ export default function RelatorioMovimentacoesPecuaria() {
     queryKey: ['movimentacoes-pecuaria-relatorio', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
-      return all.filter((m) => m.empresa_id === empresaSelecionadaId && !m.lote_id);
+      return all.filter(m => m.empresa_id === empresaSelecionadaId && !m.lote_id);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
   });
 
   const { data: empresaAtual } = useQuery({
@@ -160,16 +160,16 @@ export default function RelatorioMovimentacoesPecuaria() {
     queryFn: async () => {
       if (!empresaSelecionadaId) return null;
       const empresas = await base44.entities.Empresa.list();
-      return empresas.find((e) => e.id === empresaSelecionadaId) || null;
+      return empresas.find(e => e.id === empresaSelecionadaId) || null;
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
   });
 
   const tiposUnicos = ['Entrada', 'Saída'];
-  const categoriasUnicas = [...new Set(movimentacoes.map((m) => m.categoria_animal))].filter(Boolean).sort();
-  const marcasUnicas = [...new Set(movimentacoes.map((m) => m.marca))].filter(Boolean).sort();
-  const motivosUnicos = [...new Set(movimentacoes.map((m) => m.motivo))].filter(Boolean).sort();
-  const setoresUnicos = [...new Set(movimentacoes.map((m) => m.setor_nome))].filter(Boolean).sort();
+  const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal))].filter(Boolean).sort();
+  const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca))].filter(Boolean).sort();
+  const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo))].filter(Boolean).sort();
+  const setoresUnicos = [...new Set(movimentacoes.map(m => m.setor_nome))].filter(Boolean).sort();
 
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
@@ -177,11 +177,11 @@ export default function RelatorioMovimentacoesPecuaria() {
       const date = new Date(dataString);
       if (isNaN(date.getTime())) return '--/--/----';
       return format(date, "dd/MM/yyyy", { locale: ptBR });
-    } catch {return '--/--/----';}
+    } catch { return '--/--/----'; }
   };
 
   const movimentacoesFiltradas = useMemo(() => {
-    let filtered = movimentacoes.filter((m) => {
+    let filtered = movimentacoes.filter(m => {
       if (dataInicio && m.data_movimentacao) {
         const mDate = new Date(m.data_movimentacao);
         const iDate = new Date(dataInicio);
@@ -204,13 +204,13 @@ export default function RelatorioMovimentacoesPecuaria() {
 
     filtered.sort((a, b) => {
       switch (ordenacao) {
-        case 'data_desc':return new Date(b.data_movimentacao || 0) - new Date(a.data_movimentacao || 0);
-        case 'data_asc':return new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0);
-        case 'quantidade_desc':return (b.quantidade_animais || 0) - (a.quantidade_animais || 0);
-        case 'quantidade_asc':return (a.quantidade_animais || 0) - (b.quantidade_animais || 0);
-        case 'categoria_asc':return (a.categoria_animal || '').localeCompare(b.categoria_animal || '');
-        case 'marca_asc':return (a.marca || '').localeCompare(b.marca || '');
-        default:return 0;
+        case 'data_desc': return new Date(b.data_movimentacao || 0) - new Date(a.data_movimentacao || 0);
+        case 'data_asc': return new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0);
+        case 'quantidade_desc': return (b.quantidade_animais || 0) - (a.quantidade_animais || 0);
+        case 'quantidade_asc': return (a.quantidade_animais || 0) - (b.quantidade_animais || 0);
+        case 'categoria_asc': return (a.categoria_animal || '').localeCompare(b.categoria_animal || '');
+        case 'marca_asc': return (a.marca || '').localeCompare(b.marca || '');
+        default: return 0;
       }
     });
 
@@ -223,18 +223,18 @@ export default function RelatorioMovimentacoesPecuaria() {
     }
 
     const grupos = {};
-    movimentacoesFiltradas.forEach((m) => {
+    movimentacoesFiltradas.forEach(m => {
       let chaveArray = [];
-      agrupamentosAtivos.forEach((tipo) => {
+      agrupamentosAtivos.forEach(tipo => {
         let valor;
         switch (tipo) {
-          case "tipo":valor = m.tipo || "Sem tipo";break;
-          case "categoria":valor = m.categoria_animal || "Sem categoria";break;
-          case "marca":valor = m.marca || "Sem marca";break;
-          case "motivo":valor = m.motivo || "Sem motivo";break;
-          case "setor":valor = m.setor_nome || "Sem setor";break;
-          case "sexo":valor = m.sexo || "Sem sexo";break;
-          default:valor = "Sem classificação";
+          case "tipo": valor = m.tipo || "Sem tipo"; break;
+          case "categoria": valor = m.categoria_animal || "Sem categoria"; break;
+          case "marca": valor = m.marca || "Sem marca"; break;
+          case "motivo": valor = m.motivo || "Sem motivo"; break;
+          case "setor": valor = m.setor_nome || "Sem setor"; break;
+          case "sexo": valor = m.sexo || "Sem sexo"; break;
+          default: valor = "Sem classificação";
         }
         chaveArray.push(valor);
       });
@@ -247,19 +247,19 @@ export default function RelatorioMovimentacoesPecuaria() {
   }, [movimentacoesFiltradas, agrupamentosAtivos]);
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis((prev) => {
-      const novas = prev.includes(colunaId) ? prev.filter((id) => id !== colunaId) : [...prev, colunaId];
+    setColunasVisiveis(prev => {
+      const novas = prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId];
       localStorage.setItem('colunas_relatorio_mov_pecuaria', JSON.stringify(novas));
       return novas;
     });
   };
 
   const toggleFiltro = (lista, setLista, valor) => {
-    setLista((prev) => prev.includes(valor) ? prev.filter((v) => v !== valor) : [...prev, valor]);
+    setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
   };
 
   const toggleAgrupamento = (tipo) => {
-    setAgrupamentosAtivos((prev) => prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo]);
+    setAgrupamentosAtivos(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]);
   };
 
   const limparFiltros = () => {
@@ -278,8 +278,8 @@ export default function RelatorioMovimentacoesPecuaria() {
     setMostrarDetalhes(false);
   };
 
-  const totalEntradas = movimentacoesFiltradas.filter((m) => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-  const totalSaidas = movimentacoesFiltradas.filter((m) => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+  const totalEntradas = movimentacoesFiltradas.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+  const totalSaidas = movimentacoesFiltradas.filter(m => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
   const saldoPeriodo = totalEntradas - totalSaidas;
 
   return (
@@ -328,30 +328,30 @@ export default function RelatorioMovimentacoesPecuaria() {
                 </SelectContent>
               </Select>
             </div>
-            {tipoRelatorio === 'sintetico' &&
-            <>
+            {tipoRelatorio === 'sintetico' && (
+              <>
                 <div className="space-y-1">
                   <Label className="text-xs">Linhas (Eixo Y)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
-                        {eixosYSintetico.length > 0 ?
-                      `${eixosYSintetico.length} selecionado(s)` :
-                      'Selecionar'}
+                        {eixosYSintetico.length > 0 
+                          ? `${eixosYSintetico.length} selecionado(s)` 
+                          : 'Selecionar'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64 max-h-80 overflow-auto">
                       <div className="space-y-2">
                         <h4 className="font-semibold text-sm mb-2">Eixos Y (Linhas)</h4>
-                        {EIXO_Y_OPCOES.map((opt) =>
-                      <div key={opt.value} className="flex items-center space-x-2">
-                            <Checkbox
-                          checked={eixosYSintetico.includes(opt.value)}
-                          onCheckedChange={() => toggleEixoY(opt.value)} />
-
+                        {EIXO_Y_OPCOES.map(opt => (
+                          <div key={opt.value} className="flex items-center space-x-2">
+                            <Checkbox 
+                              checked={eixosYSintetico.includes(opt.value)} 
+                              onCheckedChange={() => toggleEixoY(opt.value)} 
+                            />
                             <label className="text-sm cursor-pointer">{opt.label}</label>
                           </div>
-                      )}
+                        ))}
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -361,70 +361,70 @@ export default function RelatorioMovimentacoesPecuaria() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
-                        {eixosXSintetico.length > 0 ?
-                      `${eixosXSintetico.length} selecionado(s)` :
-                      'Selecionar'}
+                        {eixosXSintetico.length > 0 
+                          ? `${eixosXSintetico.length} selecionado(s)` 
+                          : 'Selecionar'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64 max-h-80 overflow-auto">
                       <div className="space-y-2">
                         <h4 className="font-semibold text-sm mb-2">Eixos X (Colunas)</h4>
-                        {EIXO_X_OPCOES.map((opt) =>
-                      <div key={opt.value} className="flex items-center space-x-2">
-                            <Checkbox
-                          checked={eixosXSintetico.includes(opt.value)}
-                          onCheckedChange={() => toggleEixoX(opt.value)} />
-
+                        {EIXO_X_OPCOES.map(opt => (
+                          <div key={opt.value} className="flex items-center space-x-2">
+                            <Checkbox 
+                              checked={eixosXSintetico.includes(opt.value)} 
+                              onCheckedChange={() => toggleEixoX(opt.value)} 
+                            />
                             <label className="text-sm cursor-pointer">{opt.label}</label>
                           </div>
-                      )}
+                        ))}
                       </div>
                     </PopoverContent>
                   </Popover>
                 </div>
                 <div className="space-y-1 flex items-end">
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                    id="mostrarDetalhes"
-                    checked={mostrarDetalhes}
-                    onCheckedChange={setMostrarDetalhes} />
-
+                    <Checkbox 
+                      id="mostrarDetalhes"
+                      checked={mostrarDetalhes} 
+                      onCheckedChange={setMostrarDetalhes} 
+                    />
                     <label htmlFor="mostrarDetalhes" className="text-xs cursor-pointer">Mostrar E/S/Saldo</label>
                   </div>
                 </div>
               </>
-            }
+            )}
             <div className="space-y-1">
               <Label className="text-xs">Ordenar Por</Label>
               <Select value={ordenacao} onValueChange={setOrdenacao}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ORDENACAO_OPCOES.map((opt) =>
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  )}
+                  {ORDENACAO_OPCOES.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {tipoRelatorio === 'analitico' &&
-          <div className="space-y-1">
+          {tipoRelatorio === 'analitico' && (
+            <div className="space-y-1">
               <Label className="text-xs">Agrupar Por</Label>
               <div className="flex flex-wrap gap-1">
-                {['tipo', 'categoria', 'marca', 'motivo', 'setor', 'sexo'].map((tipo) =>
-              <Button
-                key={tipo}
-                variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleAgrupamento(tipo)}
-                className={`h-7 text-xs ${agrupamentosAtivos.includes(tipo) ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}>
-
+                {['tipo', 'categoria', 'marca', 'motivo', 'setor', 'sexo'].map((tipo) => (
+                  <Button
+                    key={tipo}
+                    variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleAgrupamento(tipo)}
+                    className={`h-7 text-xs ${agrupamentosAtivos.includes(tipo) ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                  >
                     {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
                   </Button>
-              )}
+                ))}
               </div>
             </div>
-          }
+          )}
 
           <div className="flex gap-2 flex-wrap">
             <Popover>
@@ -434,12 +434,12 @@ export default function RelatorioMovimentacoesPecuaria() {
               <PopoverContent className="w-48">
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm mb-2">Tipos</h4>
-                  {tiposUnicos.map((t) =>
-                  <div key={t} className="flex items-center space-x-2">
+                  {tiposUnicos.map(t => (
+                    <div key={t} className="flex items-center space-x-2">
                       <Checkbox checked={tiposSelecionados.includes(t)} onCheckedChange={() => toggleFiltro(tiposSelecionados, setTiposSelecionados, t)} />
                       <label className="text-sm cursor-pointer">{t}</label>
                     </div>
-                  )}
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
@@ -451,12 +451,12 @@ export default function RelatorioMovimentacoesPecuaria() {
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm mb-2">Categorias</h4>
-                  {categoriasUnicas.map((c) =>
-                  <div key={c} className="flex items-center space-x-2">
+                  {categoriasUnicas.map(c => (
+                    <div key={c} className="flex items-center space-x-2">
                       <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
                       <label className="text-sm cursor-pointer">{c}</label>
                     </div>
-                  )}
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
@@ -468,12 +468,12 @@ export default function RelatorioMovimentacoesPecuaria() {
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm mb-2">Marcas</h4>
-                  {marcasUnicas.map((m) =>
-                  <div key={m} className="flex items-center space-x-2">
+                  {marcasUnicas.map(m => (
+                    <div key={m} className="flex items-center space-x-2">
                       <Checkbox checked={marcasSelecionadas.includes(m)} onCheckedChange={() => toggleFiltro(marcasSelecionadas, setMarcasSelecionadas, m)} />
                       <label className="text-sm cursor-pointer">{m}</label>
                     </div>
-                  )}
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
@@ -485,12 +485,12 @@ export default function RelatorioMovimentacoesPecuaria() {
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm mb-2">Motivos</h4>
-                  {motivosUnicos.map((m) =>
-                  <div key={m} className="flex items-center space-x-2">
+                  {motivosUnicos.map(m => (
+                    <div key={m} className="flex items-center space-x-2">
                       <Checkbox checked={motivosSelecionados.includes(m)} onCheckedChange={() => toggleFiltro(motivosSelecionados, setMotivosSelecionados, m)} />
                       <label className="text-sm cursor-pointer">{m}</label>
                     </div>
-                  )}
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
@@ -502,18 +502,18 @@ export default function RelatorioMovimentacoesPecuaria() {
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm mb-2">Setores</h4>
-                  {setoresUnicos.map((s) =>
-                  <div key={s} className="flex items-center space-x-2">
+                  {setoresUnicos.map(s => (
+                    <div key={s} className="flex items-center space-x-2">
                       <Checkbox checked={setoresSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(setoresSelecionados, setSetoresSelecionados, s)} />
                       <label className="text-sm cursor-pointer">{s}</label>
                     </div>
-                  )}
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
 
-            {tipoRelatorio === 'analitico' &&
-            <DropdownMenu>
+            {tipoRelatorio === 'analitico' && (
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
                     <Settings className="w-3.5 h-3.5" />
@@ -523,18 +523,18 @@ export default function RelatorioMovimentacoesPecuaria() {
                 <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {COLUNAS_DISPONIVEIS.map((coluna) =>
-                <DropdownMenuCheckboxItem
-                  key={coluna.id}
-                  checked={colunasVisiveis.includes(coluna.id)}
-                  onCheckedChange={() => toggleColuna(coluna.id)}>
-
+                  {COLUNAS_DISPONIVEIS.map((coluna) => (
+                    <DropdownMenuCheckboxItem
+                      key={coluna.id}
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onCheckedChange={() => toggleColuna(coluna.id)}
+                    >
                       {coluna.label}
                     </DropdownMenuCheckboxItem>
-                )}
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-            }
+            )}
 
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar Filtros</Button>
           </div>
@@ -543,7 +543,7 @@ export default function RelatorioMovimentacoesPecuaria() {
 
       {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{__html: `
           @media print {
             @page { size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'}; margin: 1.5cm 1cm 2cm 1cm; }
             body * { visibility: hidden; }
@@ -551,169 +551,169 @@ export default function RelatorioMovimentacoesPecuaria() {
             .print-area { position: absolute; left: 0; top: 0; width: 100%; }
             header, nav, .no-print, .print\\:hidden { display: none !important; }
           }
-        ` }} />
+        `}} />
 
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-1 mb-2">
             <div className="flex items-center justify-between gap-3">
-              {empresaAtual?.logotipo_url &&
-              <img src={empresaAtual.logotipo_url} alt={empresaAtual.apelido || "Logo"} className="h-24 w-24 object-contain" />
-              }
+              {empresaAtual?.logotipo_url && (
+                <img src={empresaAtual.logotipo_url} alt={empresaAtual.apelido || "Logo"} className="h-24 w-24 object-contain" />
+              )}
               <div className="flex-1 text-center">
                 <h1 className="text-base font-bold leading-tight uppercase">{empresaAtual?.nome || 'Empresa'}</h1>
-                {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome &&
-                <p className="text-xs leading-tight">{empresaAtual.apelido}</p>
-                }
-                {empresaAtual?.endereco &&
-                <p className="text-xs leading-tight">
+                {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
+                  <p className="text-xs leading-tight">{empresaAtual.apelido}</p>
+                )}
+                {empresaAtual?.endereco && (
+                  <p className="text-xs leading-tight">
                     {empresaAtual.endereco}
                     {empresaAtual?.cidade && empresaAtual?.estado && `, ${empresaAtual.cidade}-${empresaAtual.estado}`}
                   </p>
-                }
+                )}
               </div>
             </div>
             <div>
               <h2 className="text-base font-bold">Relatório de Movimentações Pecuárias {tipoRelatorio === 'analitico' ? '(Analítico)' : '(Sintético)'}</h2>
-              {(dataInicio || dataFim) &&
-              <p className="text-xs text-gray-600">
+              {(dataInicio || dataFim) && (
+                <p className="text-xs text-gray-600">
                   Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
                 </p>
-              }
-              
-
-
+              )}
+              <p className="text-xs text-gray-600">
+                {movimentacoesFiltradas.length} registros | Entradas: {formatarNumero(totalEntradas)} | Saídas: {formatarNumero(totalSaidas)} | Saldo: {formatarNumero(saldoPeriodo)} cab
+              </p>
             </div>
           </div>
 
-          {movimentacoesFiltradas.length === 0 ?
-          <div className="text-center py-12 text-slate-400">
+          {movimentacoesFiltradas.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
               <p>Nenhuma movimentação encontrada com os filtros aplicados.</p>
-            </div> :
-          tipoRelatorio === 'sintetico' ? (
-          /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA COM MÚLTIPLOS EIXOS */
-          (() => {
-            // Função para obter valor do eixo - retorna null se não aplicável
-            const getValorEixo = (m, eixo) => {
-              switch (eixo) {
-                case 'categoria':return m.categoria_animal || null;
-                case 'setor':return m.setor_nome || null;
-                case 'marca':return m.marca || null;
-                case 'motivo':return m.motivo || null;
-                case 'sexo':return m.sexo || null;
-                case 'tipo':return m.tipo || null;
-                case 'causa_morte':
-                  if (m.motivo !== 'Morte') return null;
-                  return m.causa_morte || 'Não Informada';
-                case 'fornecedor':
-                  if (m.motivo !== 'Compra') return null;
-                  return m.fornecedor_origem || 'Não Informado';
-                case 'comprador':
-                  if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
-                  return m.destino_venda || 'Não Informado';
-                case 'area':return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
-                case 'nota_fiscal':return m.nota_fiscal || null;
-                case 'gta':return m.gta || null;
-                case 'categoria_nova':
-                  if (m.motivo !== 'Mudança de Categoria') return null;
-                  return m.categoria_nova || 'Não Informada';
-                case 'transferencia_origem':
-                  if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
-                  return m.transferencia_origem || 'Não Informada';
-                case 'transferencia_destino':
-                  if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
-                  return m.transferencia_destino || 'Não Informada';
-                default:return null;
-              }
-            };
-
-            // Função para criar chave composta dos eixos selecionados
-            const getChaveComposta = (m, eixos) => {
-              const valores = eixos.map((eixo) => getValorEixo(m, eixo)).filter((v) => v !== null);
-              if (valores.length !== eixos.length) return null; // Se algum eixo não tem valor, excluir
-              return valores.join(' | ');
-            };
-
-            // Filtrar movimentações válidas
-            const movimentacoesValidas = movimentacoesFiltradas.filter((m) => {
-              const linhaKey = getChaveComposta(m, eixosYSintetico);
-              const colunaKey = getChaveComposta(m, eixosXSintetico);
-              return linhaKey !== null && colunaKey !== null;
-            });
-
-            // Obter linhas e colunas únicas
-            const linhasYValidas = [...new Set(movimentacoesValidas.map((m) => getChaveComposta(m, eixosYSintetico)))].filter(Boolean).sort();
-            const colunasXValidas = [...new Set(movimentacoesValidas.map((m) => getChaveComposta(m, eixosXSintetico)))].filter(Boolean).sort();
-
-            // Inicializar matriz
-            const matrizFinal = {};
-            const totaisLinhaFinal = {};
-            const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
-
-            linhasYValidas.forEach((linha) => {
-              matrizFinal[linha] = {};
-              totaisLinhaFinal[linha] = { entradas: 0, saidas: 0, saldo: 0 };
-              colunasXValidas.forEach((col) => {
-                matrizFinal[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
-              });
-            });
-            colunasXValidas.forEach((col) => {
-              totaisColunaFinal.entradas[col] = 0;
-              totaisColunaFinal.saidas[col] = 0;
-              totaisColunaFinal.saldo[col] = 0;
-            });
-
-            // Preencher matriz
-            movimentacoesValidas.forEach((m) => {
-              const linha = getChaveComposta(m, eixosYSintetico);
-              const col = getChaveComposta(m, eixosXSintetico);
-              const qtd = m.quantidade_animais || 0;
-
-              if (matrizFinal[linha] && matrizFinal[linha][col]) {
-                if (m.tipo === 'Entrada') {
-                  matrizFinal[linha][col].entradas += qtd;
-                  totaisColunaFinal.entradas[col] = (totaisColunaFinal.entradas[col] || 0) + qtd;
-                  totaisLinhaFinal[linha].entradas += qtd;
-                } else if (m.tipo === 'Saída') {
-                  matrizFinal[linha][col].saidas += qtd;
-                  totaisColunaFinal.saidas[col] = (totaisColunaFinal.saidas[col] || 0) + qtd;
-                  totaisLinhaFinal[linha].saidas += qtd;
+            </div>
+          ) : tipoRelatorio === 'sintetico' ? (
+            /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA COM MÚLTIPLOS EIXOS */
+            (() => {
+              // Função para obter valor do eixo - retorna null se não aplicável
+              const getValorEixo = (m, eixo) => {
+                switch (eixo) {
+                  case 'categoria': return m.categoria_animal || null;
+                  case 'setor': return m.setor_nome || null;
+                  case 'marca': return m.marca || null;
+                  case 'motivo': return m.motivo || null;
+                  case 'sexo': return m.sexo || null;
+                  case 'tipo': return m.tipo || null;
+                  case 'causa_morte': 
+                    if (m.motivo !== 'Morte') return null;
+                    return m.causa_morte || 'Não Informada';
+                  case 'fornecedor': 
+                    if (m.motivo !== 'Compra') return null;
+                    return m.fornecedor_origem || 'Não Informado';
+                  case 'comprador': 
+                    if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
+                    return m.destino_venda || 'Não Informado';
+                  case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
+                  case 'nota_fiscal': return m.nota_fiscal || null;
+                  case 'gta': return m.gta || null;
+                  case 'categoria_nova': 
+                    if (m.motivo !== 'Mudança de Categoria') return null;
+                    return m.categoria_nova || 'Não Informada';
+                  case 'transferencia_origem': 
+                    if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
+                    return m.transferencia_origem || 'Não Informada';
+                  case 'transferencia_destino': 
+                    if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
+                    return m.transferencia_destino || 'Não Informada';
+                  default: return null;
                 }
-              }
-            });
+              };
 
-            // Calcular saldos
-            linhasYValidas.forEach((linha) => {
-              totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
-              colunasXValidas.forEach((col) => {
-                matrizFinal[linha][col].saldo = matrizFinal[linha][col].entradas - matrizFinal[linha][col].saidas;
+              // Função para criar chave composta dos eixos selecionados
+              const getChaveComposta = (m, eixos) => {
+                const valores = eixos.map(eixo => getValorEixo(m, eixo)).filter(v => v !== null);
+                if (valores.length !== eixos.length) return null; // Se algum eixo não tem valor, excluir
+                return valores.join(' | ');
+              };
+
+              // Filtrar movimentações válidas
+              const movimentacoesValidas = movimentacoesFiltradas.filter(m => {
+                const linhaKey = getChaveComposta(m, eixosYSintetico);
+                const colunaKey = getChaveComposta(m, eixosXSintetico);
+                return linhaKey !== null && colunaKey !== null;
               });
-            });
-            colunasXValidas.forEach((col) => {
-              totaisColunaFinal.saldo[col] = (totaisColunaFinal.entradas[col] || 0) - (totaisColunaFinal.saidas[col] || 0);
-            });
 
-            const totalGeral = {
-              entradas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.entradas, 0),
-              saidas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saidas, 0),
-              saldo: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saldo, 0)
-            };
+              // Obter linhas e colunas únicas
+              const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getChaveComposta(m, eixosYSintetico)))].filter(Boolean).sort();
+              const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getChaveComposta(m, eixosXSintetico)))].filter(Boolean).sort();
 
-            const eixoYLabels = eixosYSintetico.map((e) => EIXO_Y_OPCOES.find((o) => o.value === e)?.label || e).join(' + ');
-            const eixoXLabels = eixosXSintetico.map((e) => EIXO_X_OPCOES.find((o) => o.value === e)?.label || e).join(' + ');
+              // Inicializar matriz
+              const matrizFinal = {};
+              const totaisLinhaFinal = {};
+              const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
 
-            // Se não há dados válidos
-            if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
-              return (
-                <div className="text-center py-8 text-slate-500">
+              linhasYValidas.forEach(linha => {
+                matrizFinal[linha] = {};
+                totaisLinhaFinal[linha] = { entradas: 0, saidas: 0, saldo: 0 };
+                colunasXValidas.forEach(col => {
+                  matrizFinal[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
+                });
+              });
+              colunasXValidas.forEach(col => {
+                totaisColunaFinal.entradas[col] = 0;
+                totaisColunaFinal.saidas[col] = 0;
+                totaisColunaFinal.saldo[col] = 0;
+              });
+
+              // Preencher matriz
+              movimentacoesValidas.forEach(m => {
+                const linha = getChaveComposta(m, eixosYSintetico);
+                const col = getChaveComposta(m, eixosXSintetico);
+                const qtd = m.quantidade_animais || 0;
+
+                if (matrizFinal[linha] && matrizFinal[linha][col]) {
+                  if (m.tipo === 'Entrada') {
+                    matrizFinal[linha][col].entradas += qtd;
+                    totaisColunaFinal.entradas[col] = (totaisColunaFinal.entradas[col] || 0) + qtd;
+                    totaisLinhaFinal[linha].entradas += qtd;
+                  } else if (m.tipo === 'Saída') {
+                    matrizFinal[linha][col].saidas += qtd;
+                    totaisColunaFinal.saidas[col] = (totaisColunaFinal.saidas[col] || 0) + qtd;
+                    totaisLinhaFinal[linha].saidas += qtd;
+                  }
+                }
+              });
+
+              // Calcular saldos
+              linhasYValidas.forEach(linha => {
+                totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
+                colunasXValidas.forEach(col => {
+                  matrizFinal[linha][col].saldo = matrizFinal[linha][col].entradas - matrizFinal[linha][col].saidas;
+                });
+              });
+              colunasXValidas.forEach(col => {
+                totaisColunaFinal.saldo[col] = (totaisColunaFinal.entradas[col] || 0) - (totaisColunaFinal.saidas[col] || 0);
+              });
+
+              const totalGeral = {
+                entradas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.entradas, 0),
+                saidas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saidas, 0),
+                saldo: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saldo, 0),
+              };
+
+              const eixoYLabels = eixosYSintetico.map(e => EIXO_Y_OPCOES.find(o => o.value === e)?.label || e).join(' + ');
+              const eixoXLabels = eixosXSintetico.map(e => EIXO_X_OPCOES.find(o => o.value === e)?.label || e).join(' + ');
+
+              // Se não há dados válidos
+              if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
+                return (
+                  <div className="text-center py-8 text-slate-500">
                     <p>Nenhum dado encontrado para os eixos selecionados.</p>
                     <p className="text-xs mt-1">Tente selecionar outras opções de Linhas/Colunas.</p>
-                  </div>);
+                  </div>
+                );
+              }
 
-            }
-
-            return (
-              <div className="overflow-x-auto">
+              return (
+                <div className="overflow-x-auto">
                   <div className="text-xs mb-1">
                     <strong>Linhas:</strong> {eixoYLabels} | <strong>Colunas:</strong> {eixoXLabels}
                   </div>
@@ -724,136 +724,136 @@ export default function RelatorioMovimentacoesPecuaria() {
                         <TableHead className="border border-black text-xs font-bold py-1 min-w-[160px]">
                           {eixoYLabels}
                         </TableHead>
-                        {colunasXValidas.map((col) =>
-                      <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
+                        {colunasXValidas.map(col => (
+                          <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
                             {col}
                           </TableHead>
-                      )}
-                        
-
-
-                        
-
-
+                        ))}
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
+                          Entradas
+                        </TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
+                          Saídas
+                        </TableHead>
                         <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
                           Saldo
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {linhasYValidas.map((linha) =>
-                    <TableRow key={linha}>
+                      {linhasYValidas.map((linha) => (
+                        <TableRow key={linha}>
                           <TableCell className="border border-gray-300 text-xs py-1 font-medium">
                             {linha}
                           </TableCell>
-                          {colunasXValidas.map((col) => {
-                        const celula = matrizFinal[linha][col];
-                        if (mostrarDetalhes) {
-                          return (
-                            <TableCell key={col} className="border border-gray-300 text-[10px] text-center py-0.5 px-1">
+                          {colunasXValidas.map(col => {
+                            const celula = matrizFinal[linha][col];
+                            if (mostrarDetalhes) {
+                              return (
+                                <TableCell key={col} className="border border-gray-300 text-[10px] text-center py-0.5 px-1">
                                   <div className="flex flex-col gap-0">
                                     {celula.entradas > 0 && <span className="text-green-700">+{formatarNumero(celula.entradas)}</span>}
                                     {celula.saidas > 0 && <span className="text-red-700">-{formatarNumero(celula.saidas)}</span>}
                                     {celula.saldo !== 0 && <span className="font-bold border-t border-gray-300">{formatarNumero(celula.saldo)}</span>}
                                   </div>
-                                </TableCell>);
-
-                        }
-                        return (
-                          <TableCell key={col} className="border border-gray-300 text-xs text-center py-1">
+                                </TableCell>
+                              );
+                            }
+                            return (
+                              <TableCell key={col} className="border border-gray-300 text-xs text-center py-1">
                                 {celula.saldo !== 0 ? formatarNumero(celula.saldo) : ''}
-                              </TableCell>);
-
-                      })}
-                          
-
-
-                          
-
-
-                          
-
-
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="border border-gray-300 text-xs text-center py-1 bg-green-50">
+                            {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
+                          </TableCell>
+                          <TableCell className="border border-gray-300 text-xs text-center py-1 bg-red-50">
+                            {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
+                          </TableCell>
+                          <TableCell className="border border-gray-300 text-xs text-center py-1 font-bold bg-blue-50">
+                            {formatarNumero(totaisLinhaFinal[linha].saldo)}
+                          </TableCell>
                         </TableRow>
-                    )}
+                      ))}
                       {/* Linha de Total */}
                       <TableRow className="bg-gray-100">
                         <TableCell className="border border-gray-300 text-xs font-bold py-1">
                           TOTAL
                         </TableCell>
-                        {colunasXValidas.map((col) => {
-                        if (mostrarDetalhes) {
-                          return (
-                            <TableCell key={col} className="border border-gray-300 text-[10px] text-center font-bold py-0.5 px-1">
+                        {colunasXValidas.map(col => {
+                          if (mostrarDetalhes) {
+                            return (
+                              <TableCell key={col} className="border border-gray-300 text-[10px] text-center font-bold py-0.5 px-1">
                                 <div className="flex flex-col gap-0">
                                   {totaisColunaFinal.entradas[col] > 0 && <span className="text-green-700">+{formatarNumero(totaisColunaFinal.entradas[col])}</span>}
                                   {totaisColunaFinal.saidas[col] > 0 && <span className="text-red-700">-{formatarNumero(totaisColunaFinal.saidas[col])}</span>}
                                   {totaisColunaFinal.saldo[col] !== 0 && <span className="border-t border-gray-300">{formatarNumero(totaisColunaFinal.saldo[col])}</span>}
                                 </div>
-                              </TableCell>);
-
-                        }
-                        return (
-                          <TableCell key={col} className="border border-gray-300 text-xs text-center font-bold py-1">
+                              </TableCell>
+                            );
+                          }
+                          return (
+                            <TableCell key={col} className="border border-gray-300 text-xs text-center font-bold py-1">
                               {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
-                            </TableCell>);
-
-                      })}
-                        
-
-
-                        
-
-
-                        
-
-
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-green-100">
+                          {formatarNumero(totalGeral.entradas)}
+                        </TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-red-100">
+                          {formatarNumero(totalGeral.saidas)}
+                        </TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-blue-100">
+                          {formatarNumero(totalGeral.saldo)}
+                        </TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
-                </div>);
-
-          })()) :
-          tipoRelatorio === 'historico' ?
-          (() => {
-            const sorted = [...movimentacoesFiltradas].sort((a, b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
-            const inicio = dataInicio ? new Date(dataInicio) : null;
-            const matchesCommon = (m) => {
-              if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(m.tipo)) return false;
-              if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(m.categoria_animal)) return false;
-              if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(m.marca)) return false;
-              if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(m.motivo)) return false;
-              if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
-              return true;
-            };
-            const anteriores = inicio ? movimentacoes.filter((m) => matchesCommon(m) && new Date(m.data_movimentacao || 0) < new Date(dataInicio)) : [];
-            const saldoInicial = anteriores.reduce((s, m) => s + (m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0), 0);
-            const linhas = [];
-            let saldo = saldoInicial;
-            if (inicio) {
-              linhas.push({ data: formatarData(dataInicio), entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
-            }
-            sorted.forEach((m) => {
-              const qtd = m.quantidade_animais || 0;
-              if (m.tipo === 'Entrada') saldo += qtd;else saldo -= qtd;
-              let transfInfo = '';
-              if (m.motivo === 'Transferência entre Setores') {
-                const origem = m.setor_origem_nome || m.transferencia_origem || m.area_origem_nome || 'Origem não informada';
-                const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
-                transfInfo = `de ${origem} → ${destino}`;
+                </div>
+              );
+            })()
+          ) : tipoRelatorio === 'historico' ? (
+            (() => {
+              const sorted = [...movimentacoesFiltradas].sort((a,b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
+              const inicio = dataInicio ? new Date(dataInicio) : null;
+              const matchesCommon = (m) => {
+                if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(m.tipo)) return false;
+                if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(m.categoria_animal)) return false;
+                if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(m.marca)) return false;
+                if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(m.motivo)) return false;
+                if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
+                return true;
+              };
+              const anteriores = inicio ? movimentacoes.filter(m => matchesCommon(m) && new Date(m.data_movimentacao || 0) < new Date(dataInicio)) : [];
+              const saldoInicial = anteriores.reduce((s, m) => s + ((m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0)), 0);
+              const linhas = [];
+              let saldo = saldoInicial;
+              if (inicio) {
+                linhas.push({ data: formatarData(dataInicio), entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
               }
-              const hist = [
-              m.motivo,
-              transfInfo,
-              m.motivo === 'Compra' ? `Fornecedor: ${m.fornecedor_origem}` : '',
-              m.motivo === 'Venda' || m.motivo === 'Abate' ? `Destino: ${m.destino_venda}` : '',
-              m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
-              m.observacoes].
-              filter(Boolean).join(' - ');
-              linhas.push({ data: formatarData(m.data_movimentacao), entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
-            });
-            return (
-              <>
+              sorted.forEach(m => {
+                const qtd = m.quantidade_animais || 0;
+                if (m.tipo === 'Entrada') saldo += qtd; else saldo -= qtd;
+                let transfInfo = '';
+                if (m.motivo === 'Transferência entre Setores') {
+                  const origem = m.setor_origem_nome || m.transferencia_origem || m.area_origem_nome || 'Origem não informada';
+                  const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
+                  transfInfo = `de ${origem} → ${destino}`;
+                }
+                const hist = [
+                  m.motivo,
+                  transfInfo,
+                  (m.motivo === 'Compra' ? `Fornecedor: ${m.fornecedor_origem}` : ''),
+                  ((m.motivo === 'Venda' || m.motivo === 'Abate') ? `Destino: ${m.destino_venda}` : ''),
+                  (m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : ''),
+                  m.observacoes
+                ].filter(Boolean).join(' - ');
+                linhas.push({ data: formatarData(m.data_movimentacao), entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+              });
+              return (
+                <>
                   <div className="text-xs mb-2">
                     <span className="font-semibold">Setor:</span> {setoresSelecionados.length === 1 ? setoresSelecionados[0] : 'Todos'} &nbsp;&nbsp;
                     <span className="font-semibold">Marca:</span> {marcasSelecionadas.length === 1 ? marcasSelecionadas[0] : 'Todas'}
@@ -869,34 +869,34 @@ export default function RelatorioMovimentacoesPecuaria() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {linhas.map((l, i) =>
-                    <TableRow key={i} className="hover:bg-gray-50">
+                      {linhas.map((l, i) => (
+                        <TableRow key={i} className="hover:bg-gray-50">
                           <TableCell className="border border-gray-300 text-xs py-1">{l.data}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
                           <TableCell className="border border-gray-300 text-xs py-1">{l.historico}</TableCell>
                         </TableRow>
-                    )}
+                      ))}
                     </TableBody>
                   </Table>
-                </>);
-
-          })() :
-
-          <>
+                </>
+              );
+            })()
+          ) : (
+            <>
               {Object.entries(movimentacoesAgrupadas).map(([grupo, registros], idx) => {
-              const totalGrupoEnt = registros.filter((r) => r.tipo === 'Entrada').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
-              const totalGrupoSai = registros.filter((r) => r.tipo === 'Saída').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
-              const saldoGrupo = totalGrupoEnt - totalGrupoSai;
+                const totalGrupoEnt = registros.filter(r => r.tipo === 'Entrada').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
+                const totalGrupoSai = registros.filter(r => r.tipo === 'Saída').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
+                const saldoGrupo = totalGrupoEnt - totalGrupoSai;
 
-              return (
-                <div key={idx} className="mb-4">
-                    {agrupamentosAtivos.length > 0 &&
-                  <div className="bg-gray-200 px-2 py-1 mb-1">
+                return (
+                  <div key={idx} className="mb-4">
+                    {agrupamentosAtivos.length > 0 && (
+                      <div className="bg-gray-200 px-2 py-1 mb-1">
                         <h3 className="font-bold text-xs">{grupo}</h3>
                       </div>
-                  }
+                    )}
 
                     <Table>
                         <TableHeader>
@@ -928,9 +928,9 @@ export default function RelatorioMovimentacoesPecuaria() {
                         </TableHeader>
                         <TableBody>
                           {registros.map((m) => {
-                        const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
-                        return (
-                          <TableRow key={m.id}>
+                            const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
+                            return (
+                              <TableRow key={m.id}>
                                 {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>}
                                 {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{m.tipo}</TableCell>}
                                 {colunasVisiveis.includes('motivo') && <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || ''}</TableCell>}
@@ -954,9 +954,9 @@ export default function RelatorioMovimentacoesPecuaria() {
                                 {colunasVisiveis.includes('transferencia_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>}
                                 {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[100px] truncate">{m.observacoes || ''}</TableCell>}
                                 {colunasVisiveis.includes('responsavel') && <TableCell className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>}
-                              </TableRow>);
-
-                      })}
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
 
@@ -969,9 +969,9 @@ export default function RelatorioMovimentacoesPecuaria() {
                         </TableRow>
                       </TableBody>
                     </Table>
-                  </div>);
-
-            })}
+                  </div>
+                );
+              })}
 
               {/* Total Geral */}
               <div className="mt-4 border-t-2 border-black pt-2">
@@ -984,9 +984,9 @@ export default function RelatorioMovimentacoesPecuaria() {
                 <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
               </div>
             </>
-          }
+          )}
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
