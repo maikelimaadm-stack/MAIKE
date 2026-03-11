@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3 } from "lucide-react";
 
-export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplementacao }) {
+export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplementacao, pontosReferencia = [] }) {
   const insights = useMemo(() => {
     const result = [];
 
@@ -96,6 +96,62 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         cor: 'text-slate-600 bg-slate-50 border-slate-200',
         titulo: `Áreas Vazias (${areasVazias})`,
         lista: areasVaziasList.slice(0, 5).map(a => a.nome)
+      });
+    }
+
+    // Pontos de referência
+    if (pontosReferencia.length > 0) {
+      const tiposPontos = {};
+      pontosReferencia.forEach(p => {
+        const tipo = p.tipo || 'Sem tipo';
+        tiposPontos[tipo] = (tiposPontos[tipo] || 0) + 1;
+      });
+      result.push({
+        tipo: 'pontos_ref',
+        icone: MapPin,
+        cor: 'text-indigo-700 bg-indigo-50 border-indigo-200',
+        titulo: `Pontos de Referência (${pontosReferencia.length})`,
+        lista: Object.entries(tiposPontos).sort((a, b) => b[1] - a[1]).map(([t, q]) => `${t}: ${q}`)
+      });
+    }
+
+    // Cochos / Pontos de suplementação - resumo
+    if (pontosAtivos.length > 0) {
+      const cochosPorArea = {};
+      pontosAtivos.forEach(p => {
+        const nome = p.area_nome || 'Sem área';
+        cochosPorArea[nome] = (cochosPorArea[nome] || 0) + 1;
+      });
+      result.push({
+        tipo: 'cochos',
+        icone: Droplets,
+        cor: 'text-teal-700 bg-teal-50 border-teal-200',
+        titulo: `Cochos Ativos (${pontosAtivos.length})`,
+        texto: `${pontosComAlerta.length} com alertas`,
+        lista: Object.entries(cochosPorArea).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([a, q]) => `${a}: ${q} cochos`)
+      });
+    }
+
+    // Peso médio por categoria
+    const pesosPorCategoria = {};
+    lotes.forEach(l => {
+      if (!l.peso_medio_kg) return;
+      const cat = l.categoria || 'Sem categoria';
+      if (!pesosPorCategoria[cat]) pesosPorCategoria[cat] = { total: 0, count: 0, cabecas: 0 };
+      pesosPorCategoria[cat].total += l.peso_medio_kg * (l.quantidade_cabecas || 1);
+      pesosPorCategoria[cat].cabecas += (l.quantidade_cabecas || 1);
+      pesosPorCategoria[cat].count++;
+    });
+    const pesosOrdenados = Object.entries(pesosPorCategoria).map(([cat, d]) => ({
+      cat, pesoMedio: (d.total / d.cabecas).toFixed(1), cabecas: d.cabecas
+    })).sort((a, b) => parseFloat(b.pesoMedio) - parseFloat(a.pesoMedio));
+    if (pesosOrdenados.length > 0) {
+      result.push({
+        tipo: 'pesos',
+        icone: TrendingUp,
+        cor: 'text-purple-700 bg-purple-50 border-purple-200',
+        titulo: 'Peso Médio por Categoria',
+        lista: pesosOrdenados.map(p => `${p.cat}: ${p.pesoMedio} kg (${p.cabecas} cab)`)
       });
     }
 

@@ -151,8 +151,8 @@ export default function useMapRenderer(mapInstanceRef) {
       if (!coords.lat || !coords.lng) return;
       const cfg = iconesConfig.find(ic => ic.tipo_entidade === 'Ponto' && ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim());
       let icon;
-      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(70, 70), anchor: new google.maps.Point(35, 35) }; }
-      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 30, fillColor: cfg?.cor_padrao || ponto.cor || '#0066ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 4 }; }
+      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(44, 44), anchor: new google.maps.Point(22, 22) }; }
+      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || ponto.cor || '#0066ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 }; }
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome });
       marker.addListener('click', () => { new google.maps.InfoWindow({ content: `<div style="padding:10px;"><strong>${ponto.nome}</strong><br/><span style="color:#666;">${ponto.tipo}</span></div>` }).open(map, marker); });
       markersRef.current.set(key, marker);
@@ -199,8 +199,8 @@ export default function useMapRenderer(mapInstanceRef) {
       if (!coords.lat || !coords.lng) return;
       const cfg = iconesConfig.find(ic => ic.categoria?.toUpperCase().trim() === 'COCHO' || ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim());
       let icon;
-      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(70, 70), anchor: new google.maps.Point(35, 35) }; }
-      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 30, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 4 }; }
+      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(44, 44), anchor: new google.maps.Point(22, 22) }; }
+      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 }; }
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome_ponto, zIndex: 500 });
       marker.addListener('click', () => onClick(ponto));
       markersRef.current.set(key, marker);
@@ -243,8 +243,8 @@ export default function useMapRenderer(mapInstanceRef) {
         if (validos.length > 0) cfg = validos[0];
       }
       let icon;
-      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(70, 70), anchor: new google.maps.Point(35, 35), labelOrigin: new google.maps.Point(35, 25) }; }
-      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 30, fillColor: '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 4, labelOrigin: new google.maps.Point(0, 0) }; }
+      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(50, 50), anchor: new google.maps.Point(25, 25), labelOrigin: new google.maps.Point(25, 18) }; }
+      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 22, fillColor: '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3, labelOrigin: new google.maps.Point(0, 0) }; }
       const totalAlertas = lotesNaArea.reduce((sum, l) => sum + (l.alertas?.length || 0), 0);
 
       if (markersRef.current.has(key)) {
