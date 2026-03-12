@@ -24,13 +24,22 @@ import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
-const loadGoogleMapsScript = () => new Promise((resolve, reject) => {
-  if (window.google?.maps) { resolve(); return; }
-  const s = document.createElement('script');
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
-  s.async = true; s.defer = true; s.onload = resolve; s.onerror = reject;
-  document.head.appendChild(s);
-});
+let _gmapsPromise = null;
+const loadGoogleMapsScript = () => {
+  if (window.google?.maps?.Map) return Promise.resolve();
+  if (_gmapsPromise) return _gmapsPromise;
+  _gmapsPromise = new Promise((resolve, reject) => {
+    // Check if script tag already exists
+    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existing) { existing.addEventListener('load', resolve); existing.addEventListener('error', reject); return; }
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
+    s.async = true; s.defer = true;
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _gmapsPromise;
+};
 
 export default function MapaGeral() {
   // ─── State ───
