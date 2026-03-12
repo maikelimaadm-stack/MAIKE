@@ -22,8 +22,7 @@ import {
 "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-
+window.__toast = toast;
 // IndexedDB imports
 import {
   initDB,
