@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fmtNum } from "@/components/common/formatNumber";
 
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
@@ -28,11 +29,12 @@ export default function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApa
       ];
     }
     return lotesApartacaoAtual.map((lote) => {
-      const animaisLote = todasPesagensApartacao.filter((p) => p.lote_id === lote.id);
-      const qtd = animaisLote.length;
-      const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
-      const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
-      return { ...lote, quantidade_atual: qtd, peso_medio: pesoMedio };
+    const animaisLote = todasPesagensApartacao.filter((p) => p.lote_id === lote.id);
+    const qtd = animaisLote.length;
+    const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
+    const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
+    const arrobasTotal = pesoTotal / 30;
+    return { ...lote, quantidade_atual: qtd, peso_total: pesoTotal, peso_medio: pesoMedio, arrobas_total: arrobasTotal };
     }).sort((a, b) => (a.nome_lote || '').localeCompare(b.nome_lote || ''));
   }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, modoVisualizacao]);
 
@@ -60,7 +62,7 @@ export default function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApa
                 </div>
               </div>
               <Table>
-                <TableHeader><TableRow><TableHead className="text-[10px]">Lote</TableHead><TableHead className="text-[10px] text-right">Qtd.</TableHead><TableHead className="text-[10px] text-right">Média</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead className="text-[10px]">Lote</TableHead><TableHead className="text-[10px] text-right">Qtd.</TableHead><TableHead className="text-[10px] text-right">Peso Médio</TableHead><TableHead className="text-[10px] text-right">@ Total</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {resumoLotes.map((lote) => {
                     const cheio = lote.fechado || lote.quantidade_atual >= (lote.quantidade_maxima || 999999);
@@ -68,14 +70,15 @@ export default function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApa
                       <TableRow key={lote.id} className={cheio ? "bg-red-50" : ""}>
                         <TableCell className={`text-xs font-medium ${cheio ? "text-red-700" : ""}`}>{lote.nome_lote} {cheio && "[FECHADO]"}</TableCell>
                         <TableCell className={`text-xs text-right ${cheio ? "text-red-700 font-bold" : ""}`}>{lote.quantidade_atual}/{lote.quantidade_maxima || 0}</TableCell>
-                        <TableCell className="text-xs text-right font-mono">{lote.peso_medio?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell className="text-xs text-right font-mono">{fmtNum(lote.peso_medio, 2)}</TableCell>
+                        <TableCell className="text-xs text-right font-mono">{fmtNum(lote.arrobas_total, 2)}</TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
               <div className="mt-2 pt-2 border-t text-xs text-center text-slate-500">
-                Qtd. Lançada: {resumoLotes.reduce((s, l) => s + (l.quantidade_atual || 0), 0)}
+                Qtd. Lançada: {resumoLotes.reduce((s, l) => s + (l.quantidade_atual || 0), 0)} | @ Total: {fmtNum(resumoLotes.reduce((s, l) => s + (l.arrobas_total || 0), 0), 2)}
               </div>
             </>
           ) : (

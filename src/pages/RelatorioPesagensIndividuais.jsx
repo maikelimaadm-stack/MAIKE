@@ -36,7 +36,15 @@ import RelatorioConfigDialogs from "../components/relatorios/RelatorioConfigDial
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "";
-  return numero.toLocaleString('pt-BR');
+  return Number(numero).toLocaleString('pt-BR');
+};
+const formatarDecimal = (numero, casas = 2) => {
+  if (numero === null || numero === undefined || numero === "" || isNaN(numero)) return "-";
+  return Number(numero).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+};
+const formatarMoeda = (numero) => {
+  if (numero === null || numero === undefined || numero === "" || isNaN(numero)) return "-";
+  return Number(numero).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
 const COLUNAS_DISPONIVEIS = [
@@ -1132,7 +1140,7 @@ export default function RelatorioPesagensIndividuais() {
               // Renderizar célula de detalhe
                 const renderCelulaDetalhe = (animal, colunaId) => {
                   const fmtNum = (n, casas = 0) => (typeof n === 'number' ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) : '-');
-                  const fmtMoney = (n) => (typeof n === 'number' ? `R$ ${n.toFixed(2)}` : '-');
+                  const fmtMoney = (n) => (typeof n === 'number' ? formatarMoeda(n) : '-');
                   switch (colunaId) {
                     case 'numero_animal': return <TableCell className="text-xs font-medium py-1 border border-gray-200">{animal.numero_animal}</TableCell>;
                     case 'data_pesagem': return <TableCell className="text-xs py-1 border border-gray-200">{formatarData(animal.data_pesagem)}</TableCell>;
@@ -1159,7 +1167,7 @@ export default function RelatorioPesagensIndividuais() {
                     case 'destino_venda': return <TableCell className="text-xs py-1 border border-gray-200">{animal.destino_venda || '-'}</TableCell>;
                     case 'valor_arroba': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.valor_arroba != null ? fmtMoney(animal.valor_arroba) : '-'}</TableCell>;
                     case 'valor_venda_total': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.valor_venda_total != null ? fmtMoney(animal.valor_venda_total) : '-'}</TableCell>;
-                    case 'quantidade_arrobas': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.quantidade_arrobas != null ? `${animal.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
+                    case 'quantidade_arrobas': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.quantidade_arrobas != null ? `${formatarDecimal(animal.quantidade_arrobas, 2)} @` : '-'}</TableCell>;
                     case 'origem_animal': return <TableCell className="text-xs py-1 border border-gray-200">{animal.origem_animal || '-'}</TableCell>;
                     case 'valor_pago_cabeca': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.valor_pago_cabeca != null ? fmtMoney(animal.valor_pago_cabeca) : '-'}</TableCell>;
                     case 'observacao': return <TableCell className="text-xs py-1 border border-gray-200 max-w-[120px] truncate">{animal.observacao || '-'}</TableCell>;
@@ -1859,14 +1867,14 @@ export default function RelatorioPesagensIndividuais() {
                             {colunasVisiveis.includes('numero_animal') && <TableCell className="border border-gray-300 text-xs font-medium py-1">{p.numero_animal}</TableCell>}
                             {colunasVisiveis.includes('sexo') && <TableCell className="border border-gray-300 text-xs py-1">{p.sexo === 'M' ? 'M' : p.sexo === 'F' ? 'F' : '-'}</TableCell>}
                             {colunasVisiveis.includes('raca') && <TableCell className="border border-gray-300 text-xs py-1">{p.raca || '-'}</TableCell>}
-                            {colunasVisiveis.includes('peso') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{p.peso?.toLocaleString('pt-BR')}</TableCell>}
+                            {colunasVisiveis.includes('peso') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{formatarDecimal(p.peso, 2)}</TableCell>}
                             {colunasVisiveis.includes('nome_lote') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_lote || '-'}</TableCell>}
                             {colunasVisiveis.includes('nome_apartacao') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_apartacao || '-'}</TableCell>}
                             {colunasVisiveis.includes('data_anterior') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(p.data_anterior)}</TableCell>}
-                            {colunasVisiveis.includes('peso_anterior') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{p.peso_anterior?.toLocaleString('pt-BR') || '-'}</TableCell>}
+                            {colunasVisiveis.includes('peso_anterior') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{p.peso_anterior != null ? formatarDecimal(p.peso_anterior, 2) : '-'}</TableCell>}
                             {colunasVisiveis.includes('dias') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{p.dias || '-'}</TableCell>}
-                            {colunasVisiveis.includes('ganho') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{p.ganho?.toLocaleString('pt-BR') || '-'}</TableCell>}
-                            {colunasVisiveis.includes('gmd') && <TableCell className={`border border-gray-300 text-xs text-right font-mono py-1 ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>{p.gmd?.toFixed(3) || '-'}</TableCell>}
+                            {colunasVisiveis.includes('ganho') && <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{p.ganho != null ? formatarDecimal(p.ganho, 2) : '-'}</TableCell>}
+                            {colunasVisiveis.includes('gmd') && <TableCell className={`border border-gray-300 text-xs text-right font-mono py-1 ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>{p.gmd != null ? formatarDecimal(p.gmd, 3) : '-'}</TableCell>}
                             {colunasVisiveis.includes('observacao') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[80px] truncate">{p.observacao || '-'}</TableCell>}
                           </TableRow>
                         ))}

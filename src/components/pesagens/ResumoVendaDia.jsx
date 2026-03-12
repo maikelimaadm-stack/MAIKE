@@ -30,8 +30,9 @@ export default function ResumoVendaDia({ pesagens = [], pendingPesagensDB = [], 
     }, 0);
 
     const mediaArrobasPeso = pesoMedio / 30;
+    const arrobasTotal = pesoTotal / 30;
 
-    return { total, pesoTotal, pesoMedio, mediaArroba, mediaArrobasPeso, valorTotal };
+    return { total, pesoTotal, pesoMedio, mediaArroba, mediaArrobasPeso, arrobasTotal, valorTotal };
   }, [vendasDia]);
 
   const fmtNum = (n, d = 2) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -68,6 +69,10 @@ export default function ResumoVendaDia({ pesagens = [], pendingPesagensDB = [], 
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Peso médio (kg)</TableCell>
                   <TableCell className="text-xs text-right font-mono">{fmtNum(stats.pesoMedio)}</TableCell>
+                </TableRow>
+                <TableRow className="hover:bg-gray-50">
+                  <TableCell className="text-xs">Arrobas totais (@)</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{fmtNum(stats.arrobasTotal)}</TableCell>
                 </TableRow>
                 <TableRow className="hover:bg-gray-50">
                   <TableCell className="text-xs">Média (@)</TableCell>

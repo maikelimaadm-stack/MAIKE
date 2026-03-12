@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fmtNum } from "@/components/common/formatNumber";
 
 export default function ResumoEmbarque({ embarques, documentos, embarqueSelecionado, pesagens, pendingPesagens }) {
   const docs = useMemo(() => documentos.filter(d => d.embarque_id === embarqueSelecionado), [documentos, embarqueSelecionado]);
@@ -63,8 +64,8 @@ export default function ResumoEmbarque({ embarques, documentos, embarqueSelecion
                       <TableCell className="text-xs py-1">{l.gta}</TableCell>
                       <TableCell className="text-xs py-1">{l.nfe}</TableCell>
                       <TableCell className="text-xs py-1 text-center">{l.prevM}/{l.prevF}</TableCell>
-                      <TableCell className="text-xs py-1 text-right font-mono">{l.pesoTotal.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 text-right font-mono">{l.pesoMedio.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 text-right font-mono">{fmtNum(l.pesoTotal, 2)}</TableCell>
+                      <TableCell className="text-xs py-1 text-right font-mono">{fmtNum(l.pesoMedio, 2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
