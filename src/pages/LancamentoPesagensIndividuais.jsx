@@ -166,8 +166,6 @@ export default function LancamentoPesagensIndividuais() {
     return localStorage.getItem('sanidade_em_uso') || "";
   });
 
-  const [sequenciaBrincoAtiva, setSequenciaBrincoAtiva] = useState(false);
-  const [brincoAtual, setBrincoAtual] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [avisoTela, setAvisoTela] = useState(null);
 
