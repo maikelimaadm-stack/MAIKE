@@ -632,28 +632,7 @@ export default function LancamentoPesagensIndividuais() {
     return lotesApartacao.filter((l) => l.apartacao_id === apartacaoSelecionada);
   }, [apartacaoSelecionada, lotesApartacao]);
 
-  // ========== RESUMO DE LOTES COM CONTAGEM ==========
-  const resumoLotes = useMemo(() => {
-    if (!apartacaoSelecionada) return [];
-
-    const todasPesagensApartacao = [
-    ...pesagens.filter((p) => p.apartacao_id === apartacaoSelecionada),
-    ...pendingPesagensDB.filter((p) => p.apartacao_id === apartacaoSelecionada)];
-
-
-    return lotesApartacaoAtual.map((lote) => {
-      const animaisLote = todasPesagensApartacao.filter((p) => p.lote_id === lote.id);
-      const qtd = animaisLote.length;
-      const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
-      const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
-
-      return {
-        ...lote,
-        quantidade_atual: qtd,
-        peso_medio: pesoMedio
-      };
-    }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
-  }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pendingPesagensDB]);
+  // ResumoLotes extraído para componente separado
 
   // ========== ESTATÍSTICAS DO DIA ==========
   const estatisticas = useMemo(() => {
