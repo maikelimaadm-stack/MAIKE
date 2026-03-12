@@ -2715,7 +2715,7 @@ export default function LancamentoPesagensIndividuais() {
 
 }
 
-// GerenciarApartacoesDialog extraído para components/pesagens/GerenciarApartacoesDialog.jsx, [lotes, apartacaoIdLote]);
+, [lotes, apartacaoIdLote]);
 
   const [progressoAtualizacao, setProgressoAtualizacao] = useState({ show: false, current: 0, total: 0, texto: "" });
 
