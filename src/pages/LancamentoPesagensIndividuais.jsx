@@ -52,8 +52,10 @@ import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
 import GerenciarEmbarquesDialog from "../components/embarque/GerenciarEmbarquesDialog";
 import ResumoEmbarque from "../components/embarque/ResumoEmbarque";
-import ResumoVendaDia from "../components/pesagens/ResumoVendaDia"; import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
-import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog"; import ResumoLotes from "../components/pesagens/ResumoLotes"; import LancamentoPesagensMobile from "./LancamentoPesagensMobile";
+import ResumoVendaDia from "../components/pesagens/ResumoVendaDia";
+import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
+import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog";
+import ResumoLotes from "../components/pesagens/ResumoLotes";
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
@@ -68,7 +70,6 @@ const m = (v) => `R$ ${n(v, 2)}`;
 const criarConfiguracaoPadraoMovimentacao = () => ({ sexo: "M", raca: "Nelore", era: "", marca: "", apartacaoSelecionada: "", loteTransferencia: "", mostrarSanidade: false, mostrarSequenciaBrinco: false, mostrarDadosCompra: false, valorPagoCabeca: "", origemAnimal: "", numeroGTA: "", numeroNFeCompra: "", valorFreteCompra: "", observacoesCompra: "", motivoSaida: "", mostrarDadosVenda: false, comprador: "", valorVendaTotal: "", valorArroba: "", destinoVenda: "", numeroGTAVenda: "", numeroNFeVenda: "", valorFreteVenda: "", observacoesVenda: "", mostrarDadosAbate: false, frigorifico: "", valorArrobaAbate: "", valorTotalAbate: "", numeroGTAAbate: "", observacoesAbate: "", embarqueSelecionadoDoc: "", documentoSelecionado: "" });
 
 export default function LancamentoPesagensIndividuais() {
-  if (window.innerWidth < 768) return <LancamentoPesagensMobile />;
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
 
@@ -2298,12 +2299,12 @@ export default function LancamentoPesagensIndividuais() {
                           return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
                         }
                         if (coluna.id === 'ganho') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho != null ? n(p.ganho, 2) : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? p.ganho.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'gmd') {
                           return (
                             <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
-                                  {p.gmd != null ? n(p.gmd, 3) : '-'}
+                                  {p.gmd ? p.gmd.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
                                 </TableCell>);
 
                         }
@@ -2444,8 +2445,8 @@ export default function LancamentoPesagensIndividuais() {
                       <h4 className="text-sm font-bold text-emerald-700">{sanidade.nome}</h4>
                       <div className="text-right">
                         <div className="text-xs text-slate-600">{qtdAnimais} animais</div>
-                        <div className="text-sm font-bold text-emerald-700">{m(sanidade.custoTotal)}</div>
-                        <div className="text-[10px] text-slate-500">{m(custoPorAnimal)}/animal</div>
+                        <div className="text-sm font-bold text-emerald-700">R$ {sanidade.custoTotal.toFixed(2)}</div>
+                        <div className="text-[10px] text-slate-500">R$ {custoPorAnimal.toFixed(2)}/animal</div>
                       </div>
                     </div>
                     
