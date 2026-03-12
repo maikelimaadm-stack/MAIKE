@@ -42,6 +42,7 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
         setSyncing(true);
         setSyncStatus('syncing');
         setSyncLog([]);
+        setShowLogDialog(true);
         setLastSyncMessage("Iniciando sincronização...");
       } else if (event.type === 'progress') {
         setLastSyncMessage(event.phaseLabel || `Sincronizando ${event.entity}...`);
@@ -174,18 +175,6 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
             </div>
             
             <div className="flex gap-1">
-              {syncLog.length > 0 && (
-                <Button 
-                  onClick={() => setShowLogDialog(true)} 
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs gap-1"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  Log
-                </Button>
-              )}
-              
               {isOnline && pendingCounts.total > 0 && (
                 <Button 
                   onClick={handleSync} 
@@ -202,7 +191,7 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
         </Card>
       </div>
 
-      <Dialog open={showLogDialog} onOpenChange={setShowLogDialog}>
+      <Dialog open={showLogDialog} onOpenChange={(open) => { if (!syncing) setShowLogDialog(open); }}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-sm flex items-center gap-2">
