@@ -1104,7 +1104,7 @@ export default function LancamentoPesagensIndividuais() {
       if (!(tipoManejo === 'Saída' && motivoSaida === 'Venda')) setMostrarDadosVenda(false);
       if (!(tipoManejo === 'Saída' && motivoSaida === 'Abate')) setMostrarDadosAbate(false);
       setAvisoTela(null);
-      numeroInputRef.current?.focus();
+      if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') setTimeout(() => pesoInputRef.current?.focus(), 100); else numeroInputRef.current?.focus();
     } catch (error) {
       toast.error('Erro: ' + error.message);
     } finally {
