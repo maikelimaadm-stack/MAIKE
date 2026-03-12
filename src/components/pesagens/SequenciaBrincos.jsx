@@ -30,7 +30,7 @@ const formatarBrinco = (prefixo, numero, digitos) => {
   return prefixo + String(numero).padStart(digitos, '0');
 };
 
-export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, onBrincoAtualChange, onSetNumeroAnimal, numerosUsados }) {
+export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, onBrincoAtualChange, onSetNumeroAnimal, numerosUsados, onFocusPeso }) {
   const [brincoInicial, setBrincoInicial] = useState("");
   const [brincoFinal, setBrincoFinal] = useState("");
   const [pulados, setPulados] = useState(0);
@@ -108,6 +108,7 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
     onBrincoAtualChange(livre.formatado);
     onSetNumeroAnimal(livre.formatado);
     onAtivoChange(true);
+    if (onFocusPeso) onFocusPeso();
 
     if (livre.pulos > 0) {
       const toast = window.__toast;
@@ -162,6 +163,7 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
 
           onBrincoAtualChange(livre.formatado);
           onSetNumeroAnimal(livre.formatado);
+          if (onFocusPeso) onFocusPeso();
           return { ok: true, formatado: livre.formatado, pulos: livre.pulos };
         },
         getState: () => sequenciaRef.current,
