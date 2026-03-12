@@ -86,15 +86,7 @@ export default function LancamentoPesagensIndividuais() {
 
   // Estado do dialog de sincronização
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-  const [syncState, setSyncState] = useState({
-    isRunning: false,
-    currentStep: 0,
-    totalSteps: 0,
-    currentItem: '',
-    items: [],
-    completed: false,
-    errors: 0
-  });
+  const [syncState, setSyncState] = useState({ isRunning: false, currentStep: 0, totalSteps: 0, currentPhase: '', currentItem: '', items: [], completed: false, errors: 0 });
 
   // Refs para navegação rápida
   const numeroInputRef = useRef(null);
@@ -450,33 +442,14 @@ export default function LancamentoPesagensIndividuais() {
 
     setIsSyncing(true);
     setSyncDialogOpen(true);
-    setSyncState({
-      isRunning: true,
-      currentStep: 0,
-      totalSteps: 0,
-      currentItem: 'Preparando sincronização...',
-      items: [],
-      completed: false,
-      errors: 0
-    });
+    setSyncState({ isRunning: true, currentStep: 0, totalSteps: 0, currentPhase: 'Preparando sincronização', currentItem: 'Preparando sincronização...', items: [], completed: false, errors: 0 });
 
     try {
       const result = await syncAll(empresaSelecionadaId, (progress) => {
-        setSyncState((prev) => ({
-          ...prev,
-          currentStep: progress.current || prev.currentStep,
-          totalSteps: progress.total || prev.totalSteps,
-          currentItem: progress.currentItem || prev.currentItem
-        }));
+        setSyncState((prev) => ({ ...prev, currentStep: progress.current || prev.currentStep, totalSteps: progress.total || prev.totalSteps, currentPhase: progress.phaseLabel || prev.currentPhase, currentItem: progress.currentItem || prev.currentItem, items: progress.item ? [...prev.items, progress.item] : prev.items }));
       });
 
-      setSyncState((prev) => ({
-        ...prev,
-        isRunning: false,
-        completed: true,
-        items: result.items || [],
-        errors: result.totalErrors || 0
-      }));
+      setSyncState((prev) => ({ ...prev, isRunning: false, completed: true, items: prev.items.length ? prev.items : (result.items || []), errors: result.totalErrors || 0 }));
 
       if (result.success) {
         await loadAllData();
@@ -2581,10 +2554,8 @@ export default function LancamentoPesagensIndividuais() {
         </DialogContent>
       </Dialog>
 
-      {/* INDICADOR DE SINCRONIZAÇÃO OFFLINE */}
-      <OfflineSyncIndicator
-        empresaId={empresaSelecionadaId}
-        onSyncComplete={loadAllData} />
+      <SyncProgressDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} syncState={syncState} />
+      <OfflineSyncIndicator empresaId={empresaSelecionadaId} onSyncComplete={loadAllData} />
 
       <GerenciarEmbarquesDialog
         open={dialogEmbarqueOpen}
