@@ -56,18 +56,17 @@ import ResumoVendaDia from "../components/pesagens/ResumoVendaDia";
 import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
 import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog";
 import ResumoLotes from "../components/pesagens/ResumoLotes";
-
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
-    // Evitar problema de fuso horário: usar apenas a parte da data
     const dataStr = dataString.split('T')[0];
     const [ano, mes, dia] = dataStr.split('-');
     if (!ano || !mes || !dia) return '--/--/----';
     return `${dia}/${mes}/${ano}`;
   } catch {return '--/--/----';}
 };
-
+const n = (v, d = 2) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const m = (v) => `R$ ${n(v, 2)}`;
 const criarConfiguracaoPadraoMovimentacao = () => ({ sexo: "M", raca: "Nelore", era: "", marca: "", apartacaoSelecionada: "", loteTransferencia: "", mostrarSanidade: false, mostrarSequenciaBrinco: false, mostrarDadosCompra: false, valorPagoCabeca: "", origemAnimal: "", numeroGTA: "", numeroNFeCompra: "", valorFreteCompra: "", observacoesCompra: "", motivoSaida: "", mostrarDadosVenda: false, comprador: "", valorVendaTotal: "", valorArroba: "", destinoVenda: "", numeroGTAVenda: "", numeroNFeVenda: "", valorFreteVenda: "", observacoesVenda: "", mostrarDadosAbate: false, frigorifico: "", valorArrobaAbate: "", valorTotalAbate: "", numeroGTAAbate: "", observacoesAbate: "", embarqueSelecionadoDoc: "", documentoSelecionado: "" });
 
 export default function LancamentoPesagensIndividuais() {
