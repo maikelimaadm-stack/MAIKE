@@ -1698,7 +1698,7 @@ export default function LancamentoPesagensIndividuais() {
             </div>
 
             {/* Botões Salvar e Cancelar */}
-            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-primary-foreground shadow rounded-md px-4 h-9 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-9 text-xs px-4 bg-emerald-600 hover:bg-emerald-700">
               {isSaving ? 'Salvando...' : editingId ? 'Atualizar' : 'Salvar'}
             </Button>
             {editingId &&
