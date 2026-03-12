@@ -1495,7 +1495,7 @@ export default function LancamentoPesagensIndividuais() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setMostrarSanidade(true)} className="[&_svg]:size- [&_svg]:size- [&_svg]:size- [&_svg]:size- inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-8 text-xs gap-1"
+              onClick={() => setMostrarSanidade(true)} className="h-8 text-xs gap-1 px-2"
 
               title="Gerenciar Sanidades">
 
