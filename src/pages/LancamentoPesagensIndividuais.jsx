@@ -124,8 +124,8 @@ export default function LancamentoPesagensIndividuais() {
 
 
 
-  // Campos de Cadastro (Compra)
   const [mostrarDadosCompra, setMostrarDadosCompra] = useState(false);
+  const [mostrarSequenciaBrinco, setMostrarSequenciaBrinco] = useState(false);
   const [valorPagoCabeca, setValorPagoCabeca] = useState("");
   const [origemAnimal, setOrigemAnimal] = useState("");
   const [documentacao, setDocumentacao] = useState("");
