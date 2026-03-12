@@ -1530,7 +1530,6 @@ export default function LancamentoPesagensIndividuais() {
             }
           </div>
 
-          {tipoManejo === 'Cadastro' && <div className="mb-1"><SequenciaBrincos ativo={!!window.__sequenciaBrincos} onAtivoChange={(v) => { if(!v) { window.__sequenciaBrincos = null; setNumeroAnimal(""); } }} brincoAtual={numeroAnimal} onBrincoAtualChange={setNumeroAnimal} onSetNumeroAnimal={setNumeroAnimal} /></div>}
           <div className="flex flex-wrap items-end gap-1">
             <div className="space-y-1"><Label className="text-xs font-medium">Data <span className="text-red-500">*</span></Label><Input type="date" value={dataPesagem} onChange={(e) => setDataPesagem(e.target.value)} className="h-9 text-sm w-40" /></div>
             {tipoManejo === 'Cadastro' && <>
