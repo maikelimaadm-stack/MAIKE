@@ -52,10 +52,8 @@ import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
 import GerenciarEmbarquesDialog from "../components/embarque/GerenciarEmbarquesDialog";
 import ResumoEmbarque from "../components/embarque/ResumoEmbarque";
-import ResumoVendaDia from "../components/pesagens/ResumoVendaDia";
-import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
-import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog";
-import ResumoLotes from "../components/pesagens/ResumoLotes";
+import ResumoVendaDia from "../components/pesagens/ResumoVendaDia"; import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
+import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog"; import ResumoLotes from "../components/pesagens/ResumoLotes"; import LancamentoPesagensMobile from "./LancamentoPesagensMobile";
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
@@ -70,6 +68,7 @@ const m = (v) => `R$ ${n(v, 2)}`;
 const criarConfiguracaoPadraoMovimentacao = () => ({ sexo: "M", raca: "Nelore", era: "", marca: "", apartacaoSelecionada: "", loteTransferencia: "", mostrarSanidade: false, mostrarSequenciaBrinco: false, mostrarDadosCompra: false, valorPagoCabeca: "", origemAnimal: "", numeroGTA: "", numeroNFeCompra: "", valorFreteCompra: "", observacoesCompra: "", motivoSaida: "", mostrarDadosVenda: false, comprador: "", valorVendaTotal: "", valorArroba: "", destinoVenda: "", numeroGTAVenda: "", numeroNFeVenda: "", valorFreteVenda: "", observacoesVenda: "", mostrarDadosAbate: false, frigorifico: "", valorArrobaAbate: "", valorTotalAbate: "", numeroGTAAbate: "", observacoesAbate: "", embarqueSelecionadoDoc: "", documentoSelecionado: "" });
 
 export default function LancamentoPesagensIndividuais() {
+  if (window.innerWidth < 768) return <LancamentoPesagensMobile />;
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
 
