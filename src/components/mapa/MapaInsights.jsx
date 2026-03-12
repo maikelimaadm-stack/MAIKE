@@ -157,71 +157,179 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       });
     }
 
-    // ─── UA por Área (1 UA = 450kg) ───
-    const uaPorArea = [];
+    // ─── Análise de Lotação e Manejo da Pastagem ───
+    // 1 UA = 450 kg PV (padrão Embrapa)
+    // UA do animal = peso médio / 450
+    // UA total do lote = UA individual × quantidade de animais
+    // UA total do pasto = soma de todas as UA dos lotes no pasto
+    // Taxa de lotação = UA total do pasto / área efetiva (ha)
+    // Capacidade do pasto = área (ha) × capacidade de suporte (UA/ha) → campo capacidade_maxima
+    // Percentual de utilização = (UA atual / capacidade máxima) × 100
+
+    const analiseAreas = [];
     let totalUA = 0;
-    Object.entries(lotesPorArea).forEach(([areaId, lotesArea]) => {
-      const area = areas.find(a => a.id === areaId);
-      if (!area) return;
-      // Usa área efetiva (pastejada) para cálculo de UA/ha
+    let totalCapacidade = 0;
+    let areasSuperlotadas = 0;
+    let areasBaixaLotacao = 0;
+    let areasIdeais = 0;
+
+    // Incluir TODAS as áreas (com e sem lotes) para análise completa
+    areas.forEach(area => {
       const haEfetiva = (area.area_pastejada && area.area_pastejada > 0) ? area.area_pastejada : (area.tamanho_hectares || 0);
-      const haTotal = area.tamanho_hectares || 0;
+      const lotesArea = lotesPorArea[area.id] || [];
+      
+      // Calcular UA total do pasto
       let uaArea = 0;
       lotesArea.forEach(l => {
-        const peso = l.peso_medio_kg || 0;
-        const cab = l.quantidade_cabecas || 0;
-        uaArea += (peso * cab) / 450;
+        const pesoMedio = l.peso_medio_kg || 0;
+        const qtd = l.quantidade_cabecas || 0;
+        const uaIndividual = pesoMedio / 450;
+        uaArea += uaIndividual * qtd;
       });
       totalUA += uaArea;
+
       const cabTotal = lotesArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-      uaPorArea.push({ nome: area.nome, ua: uaArea, ha: haEfetiva, haTotal, uaHa: haEfetiva > 0 ? uaArea / haEfetiva : 0, cabecas: cabTotal, categorias: [...new Set(lotesArea.map(l => l.categoria).filter(Boolean))] });
+      const taxaLotacao = haEfetiva > 0 ? uaArea / haEfetiva : 0;
+      
+      // Capacidade de suporte: campo capacidade_maxima (em UA)
+      const capacidadeMaxUA = area.capacidade_maxima || 0;
+      totalCapacidade += capacidadeMaxUA;
+
+      // Percentual de utilização
+      const percentUtil = capacidadeMaxUA > 0 ? (uaArea / capacidadeMaxUA) * 100 : null;
+      const uaDisponivel = capacidadeMaxUA > 0 ? capacidadeMaxUA - uaArea : null;
+
+      // Classificação de manejo
+      let classificacao = 'sem_dados';
+      if (capacidadeMaxUA > 0) {
+        if (percentUtil <= 70) { classificacao = 'baixa'; areasBaixaLotacao++; }
+        else if (percentUtil <= 110) { classificacao = 'ideal'; areasIdeais++; }
+        else { classificacao = 'superlotacao'; areasSuperlotadas++; }
+      } else if (lotesArea.length > 0) {
+        classificacao = 'sem_capacidade';
+      }
+
+      analiseAreas.push({
+        nome: area.nome,
+        ua: uaArea,
+        ha: haEfetiva,
+        taxaLotacao,
+        cabecas: cabTotal,
+        capacidadeMaxUA,
+        percentUtil,
+        uaDisponivel,
+        classificacao,
+      });
     });
 
-    if (uaPorArea.length > 0) {
-      const comHa = uaPorArea.filter(a => a.ha > 0);
-      const uaHaMedia = comHa.length > 0 ? comHa.reduce((s, a) => s + a.uaHa, 0) / comHa.length : 0;
-      const maisCargaUA = [...comHa].sort((a, b) => b.uaHa - a.uaHa);
-      const menosCargaUA = [...comHa].sort((a, b) => a.uaHa - b.uaHa);
+    if (analiseAreas.some(a => a.ua > 0 || a.capacidadeMaxUA > 0)) {
+      const comGado = analiseAreas.filter(a => a.ua > 0);
+      const comHa = comGado.filter(a => a.ha > 0);
+      const uaHaMedia = comHa.length > 0 ? comHa.reduce((s, a) => s + a.taxaLotacao, 0) / comHa.length : 0;
+      const percentGeral = totalCapacidade > 0 ? (totalUA / totalCapacidade) * 100 : null;
 
       result.push({
         tipo: 'ua_total',
         icone: Scale,
         cor: 'text-violet-700 bg-violet-50 border-violet-200',
-        titulo: `Unidade Animal - UA (Total: ${fmtNum(totalUA, 1)})`,
-        texto: `Média: ${fmtNum(uaHaMedia, 2)} UA/ha (área efetiva)  •  1 UA = 450 kg PV`,
+        titulo: `Unidade Animal (1 UA = 450 kg PV)`,
+        texto: `Taxa média: ${fmtNum(uaHaMedia, 2)} UA/ha${percentGeral !== null ? `  •  Utilização geral: ${fmtNum(percentGeral, 0)}%` : ''}`,
         valores: [
-          { label: 'Total UA', valor: fmtNum(totalUA, 1) },
-          { label: 'Média UA/ha', valor: fmtNum(uaHaMedia, 2) },
-          { label: 'Áreas com Gado', valor: uaPorArea.length },
+          { label: 'UA Total', valor: fmtNum(totalUA, 1) },
+          { label: 'Taxa Média UA/ha', valor: fmtNum(uaHaMedia, 2) },
+          { label: 'Capacidade Total', valor: totalCapacidade > 0 ? fmtNum(totalCapacidade, 1) + ' UA' : 'N/I' },
           { label: 'Ha Efetivos', valor: fmtNum(comHa.reduce((s, a) => s + a.ha, 0), 0) },
         ]
       });
 
-      // Lista completa de UA por pasto
-      const todosOrdenados = [...uaPorArea].sort((a, b) => b.ua - a.ua);
+      // Card de análise de manejo
+      const comCapacidade = analiseAreas.filter(a => a.capacidadeMaxUA > 0);
+      if (comCapacidade.length > 0) {
+        result.push({
+          tipo: 'analise_manejo',
+          icone: Target,
+          cor: 'text-blue-700 bg-blue-50 border-blue-200',
+          titulo: `Análise de Manejo (${comCapacidade.length} áreas)`,
+          valores: [
+            { label: '🟢 Lotação Ideal', valor: areasIdeais },
+            { label: '🔵 Baixa Lotação', valor: areasBaixaLotacao },
+            { label: '🔴 Superlotação', valor: areasSuperlotadas },
+            { label: 'Utiliz. Geral', valor: percentGeral !== null ? fmtNum(percentGeral, 0) + '%' : '-' },
+          ]
+        });
+      }
+
+      // Áreas superlotadas (prioridade)
+      const superlotadas = analiseAreas.filter(a => a.classificacao === 'superlotacao').sort((a, b) => b.percentUtil - a.percentUtil);
+      if (superlotadas.length > 0) {
+        result.push({
+          tipo: 'superlotacao',
+          icone: ArrowUp,
+          cor: 'text-red-700 bg-red-50 border-red-200',
+          titulo: `⚠ Superlotação (${superlotadas.length} áreas)`,
+          texto: 'Risco de degradação! Reduzir animais ou aumentar área.',
+          lista: superlotadas.map(a => 
+            `${a.nome}: ${fmtNum(a.ua, 1)} / ${fmtNum(a.capacidadeMaxUA, 1)} UA (${fmtNum(a.percentUtil, 0)}%) — Excede ${fmtNum(Math.abs(a.uaDisponivel), 1)} UA`
+          )
+        });
+      }
+
+      // Áreas com baixa lotação
+      const baixaLot = analiseAreas.filter(a => a.classificacao === 'baixa').sort((a, b) => a.percentUtil - b.percentUtil);
+      if (baixaLot.length > 0) {
+        result.push({
+          tipo: 'baixa_lotacao',
+          icone: ArrowDown,
+          cor: 'text-sky-700 bg-sky-50 border-sky-200',
+          titulo: `Baixa Lotação (${baixaLot.length} áreas)`,
+          texto: 'Pastagem subutilizada. Pode receber mais animais.',
+          lista: baixaLot.map(a => 
+            `${a.nome}: ${fmtNum(a.ua, 1)} / ${fmtNum(a.capacidadeMaxUA, 1)} UA (${fmtNum(a.percentUtil, 0)}%) — Cabe mais ${fmtNum(a.uaDisponivel, 1)} UA`
+          )
+        });
+      }
+
+      // Áreas com lotação ideal
+      const ideais = analiseAreas.filter(a => a.classificacao === 'ideal').sort((a, b) => b.percentUtil - a.percentUtil);
+      if (ideais.length > 0) {
+        result.push({
+          tipo: 'lotacao_ideal',
+          icone: Target,
+          cor: 'text-green-700 bg-green-50 border-green-200',
+          titulo: `✓ Lotação Ideal (${ideais.length} áreas)`,
+          texto: 'Manejo equilibrado, pastagem bem aproveitada.',
+          lista: ideais.map(a => 
+            `${a.nome}: ${fmtNum(a.ua, 1)} / ${fmtNum(a.capacidadeMaxUA, 1)} UA (${fmtNum(a.percentUtil, 0)}%) — ${fmtNum(a.taxaLotacao, 2)} UA/ha`
+          )
+        });
+      }
+
+      // Lista completa de UA por pasto (todas com gado)
+      const todosOrdenados = [...comGado].sort((a, b) => b.ua - a.ua);
       result.push({
         tipo: 'ua_por_pasto',
         icone: Scale,
         cor: 'text-violet-700 bg-violet-50 border-violet-200',
         titulo: `UA por Pasto (${todosOrdenados.length} áreas)`,
-        lista: todosOrdenados.map(a => `${a.nome}: ${fmtNum(a.ua, 1)} UA${a.ha > 0 ? ` (${fmtNum(a.uaHa, 2)} UA/ha, ${fmtNum(a.ha, 2)} ha ef.)` : ''} — ${fmtNum(a.cabecas)} cab`)
+        lista: todosOrdenados.map(a => {
+          const capStr = a.capacidadeMaxUA > 0 ? ` cap. ${fmtNum(a.capacidadeMaxUA, 0)} UA` : '';
+          const percStr = a.percentUtil !== null ? ` ${fmtNum(a.percentUtil, 0)}%` : '';
+          return `${a.nome}: ${fmtNum(a.ua, 1)} UA (${fmtNum(a.taxaLotacao, 2)} UA/ha)${capStr}${percStr} — ${fmtNum(a.cabecas)} cab`;
+        })
       });
 
-      result.push({
-        tipo: 'ua_mais',
-        icone: Scale,
-        cor: 'text-red-700 bg-red-50 border-red-200',
-        titulo: `Maior Carga UA/ha (Top ${Math.min(5, maisCargaUA.length)})`,
-        lista: maisCargaUA.slice(0, 5).map(a => `${a.nome}: ${fmtNum(a.uaHa, 2)} UA/ha (${fmtNum(a.ua, 1)} UA, ${fmtNum(a.cabecas)} cab, ${fmtNum(a.ha, 2)} ha)`)
-      });
-
-      result.push({
-        tipo: 'ua_menos',
-        icone: Scale,
-        cor: 'text-green-700 bg-green-50 border-green-200',
-        titulo: `Menor Carga UA/ha (Top ${Math.min(5, menosCargaUA.length)})`,
-        lista: menosCargaUA.slice(0, 5).map(a => `${a.nome}: ${fmtNum(a.uaHa, 2)} UA/ha (${fmtNum(a.ua, 1)} UA, ${fmtNum(a.cabecas)} cab, ${fmtNum(a.ha, 2)} ha)`)
-      });
+      // Áreas sem capacidade de suporte definida (aviso)
+      const semCapacidade = analiseAreas.filter(a => a.ua > 0 && a.capacidadeMaxUA === 0);
+      if (semCapacidade.length > 0) {
+        result.push({
+          tipo: 'sem_capacidade',
+          icone: AlertTriangle,
+          cor: 'text-amber-700 bg-amber-50 border-amber-200',
+          titulo: `Sem Capacidade Definida (${semCapacidade.length})`,
+          texto: 'Defina a capacidade máxima (UA) no cadastro da área para análise de manejo.',
+          lista: semCapacidade.slice(0, 8).map(a => `${a.nome}: ${fmtNum(a.ua, 1)} UA, ${fmtNum(a.taxaLotacao, 2)} UA/ha`)
+        });
+      }
     }
 
     // Categorias em campo
