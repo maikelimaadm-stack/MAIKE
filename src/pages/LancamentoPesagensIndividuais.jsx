@@ -1059,7 +1059,7 @@ export default function LancamentoPesagensIndividuais() {
       }
 
       setEditingId(null); setEditingOfflineId(null); setPeso("");
-      if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') { const r = window.__sequenciaBrincos.avancar(numerosUsados); if (!r.ok) { toast.info("✅ Sequência finalizada!"); setNumeroAnimal(""); setMostrarSequenciaBrinco(false); } else if (r.pulos > 0) toast.info(`⏭️ ${r.pulos} pulado(s)`); } else { setNumeroAnimal(""); }
+      if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') { const usadosAtualizados = new Set(numerosUsados); usadosAtualizados.add(numeroAnimal.trim()); const r = window.__sequenciaBrincos.avancar(usadosAtualizados); if (!r.ok) { toast.info("✅ Sequência finalizada!"); setNumeroAnimal(""); setMostrarSequenciaBrinco(false); } else if (r.pulos > 0) toast.info(`⏭️ ${r.pulos} pulado(s)`); } else { setNumeroAnimal(""); }
       setObservacao("");
       setLoteTransferencia("");
       if (tipoManejo !== 'Saída') setMotivoSaida("");

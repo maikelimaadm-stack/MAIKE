@@ -34,6 +34,7 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
   const [brincoInicial, setBrincoInicial] = useState("");
   const [brincoFinal, setBrincoFinal] = useState("");
   const [pulados, setPulados] = useState(0);
+  const [ativoInterno, setAtivoInterno] = useState(false);
 
   // Refs para manter estado interno atualizado (evita stale closures)
   const sequenciaRef = useRef(null); // { prefixo, numeroAtual, digitos, numeroInicial, numeroFinal }
@@ -75,7 +76,8 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
 
     const partes = extrairPartes(brincoInicial);
     if (!partes) {
-      onAtivoChange(true);
+      setAtivoInterno(true);
+      onAtivoChange?.(true);
       onBrincoAtualChange(brincoInicial.trim());
       onSetNumeroAnimal(brincoInicial.trim());
       sequenciaRef.current = null;
@@ -105,9 +107,10 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
     };
 
     setPulados(livre.pulos);
+    setAtivoInterno(true);
     onBrincoAtualChange(livre.formatado);
     onSetNumeroAnimal(livre.formatado);
-    onAtivoChange(true);
+    onAtivoChange?.(true);
     if (onFocusPeso) onFocusPeso();
 
     if (livre.pulos > 0) {
@@ -118,7 +121,8 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
 
   const pararSequencia = () => {
     sequenciaRef.current = null;
-    onAtivoChange(false);
+    setAtivoInterno(false);
+    onAtivoChange?.(false);
     onBrincoAtualChange("");
     setBrincoInicial("");
     setBrincoFinal("");
@@ -127,7 +131,7 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
 
   // Registrar/atualizar window.__sequenciaBrincos sempre que ativo muda
   useEffect(() => {
-    if (ativo) {
+    if (ativoInterno) {
       window.__sequenciaBrincos = {
         /**
          * Avança para o próximo número livre na sequência.
@@ -151,7 +155,8 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
           if (!livre) {
             // Sequência terminou
             sequenciaRef.current = null;
-            onAtivoChange(false);
+            setAtivoInterno(false);
+            onAtivoChange?.(false);
             onBrincoAtualChange("");
             setPulados(0);
             return { ok: false };
@@ -172,7 +177,7 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
       delete window.__sequenciaBrincos;
     }
     return () => { delete window.__sequenciaBrincos; };
-  }, [ativo, encontrarProximoLivre]);
+  }, [ativoInterno, encontrarProximoLivre]);
 
   // Calcular progresso
   const getProgresso = () => {
@@ -196,11 +201,11 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
     return { atual, total: null, disponiveis: null, percentual: null };
   };
 
-  const progresso = ativo ? getProgresso() : null;
+  const progresso = ativoInterno ? getProgresso() : null;
 
   return (
     <div className="flex items-end gap-1.5 flex-wrap">
-      {!ativo ? (
+      {!ativoInterno ? (
         <>
           <div className="space-y-1">
             <Label className="text-xs font-medium flex items-center gap-1">
