@@ -2704,12 +2704,6 @@ export default function LancamentoPesagensIndividuais() {
         }} />
 
 
-      {/* Dialog de progresso oculto
-                      <SyncProgressDialog 
-                        open={syncDialogOpen}
-                        syncState={syncState}
-                      />
-                 */}
     </div>);
 
 }
