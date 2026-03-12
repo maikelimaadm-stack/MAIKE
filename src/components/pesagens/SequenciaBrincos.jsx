@@ -3,13 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Hash, ChevronRight, RotateCcw } from "lucide-react";
+import { Hash, ChevronRight, RotateCcw, SkipForward } from "lucide-react";
 
 /**
- * Sequência automática de brincos.
- * Mantém um "contador interno" via useRef para evitar problemas de closure/stale state.
- * Quando ativo, cada chamada a window.__sequenciaBrincos.avancar() incrementa o número
- * e chama onBrincoAtualChange com o próximo valor.
+ * Sequência Inteligente de Brincos.
+ * Pula automaticamente números já cadastrados no banco de dados.
+ * Props:
+ *  - ativo: boolean
+ *  - onAtivoChange: (boolean) => void
+ *  - brincoAtual: string
+ *  - onBrincoAtualChange: (string) => void
+ *  - onSetNumeroAnimal: (string) => void
+ *  - numerosUsados: Set<string> — números de animal já registrados (sincronizados + pendentes)
  */
 
 const extrairPartes = (valor) => {
@@ -25,12 +30,45 @@ const formatarBrinco = (prefixo, numero, digitos) => {
   return prefixo + String(numero).padStart(digitos, '0');
 };
 
-export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, onBrincoAtualChange, onSetNumeroAnimal }) {
+export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, onBrincoAtualChange, onSetNumeroAnimal, numerosUsados }) {
   const [brincoInicial, setBrincoInicial] = useState("");
   const [brincoFinal, setBrincoFinal] = useState("");
+  const [pulados, setPulados] = useState(0);
 
   // Refs para manter estado interno atualizado (evita stale closures)
-  const sequenciaRef = useRef(null); // { prefixo, numeroAtual, digitos, numeroFinal }
+  const sequenciaRef = useRef(null); // { prefixo, numeroAtual, digitos, numeroInicial, numeroFinal }
+  const numerosUsadosRef = useRef(numerosUsados || new Set());
+
+  // Manter ref sincronizada com a prop
+  useEffect(() => {
+    numerosUsadosRef.current = numerosUsados || new Set();
+  }, [numerosUsados]);
+
+  // Encontra o próximo número livre a partir de 'inicio', respeitando 'limite'
+  const encontrarProximoLivre = useCallback((prefixo, inicio, limite, digitos, usados) => {
+    let atual = inicio;
+    let pulosCount = 0;
+    while (limite !== null && atual <= limite) {
+      const formatado = formatarBrinco(prefixo, atual, digitos);
+      if (!usados.has(formatado)) {
+        return { numero: atual, formatado, pulos: pulosCount };
+      }
+      pulosCount++;
+      atual++;
+    }
+    // Se não tem limite definido, avança até 10 pulos
+    if (limite === null) {
+      while (pulosCount < 10) {
+        const formatado = formatarBrinco(prefixo, atual, digitos);
+        if (!usados.has(formatado)) {
+          return { numero: atual, formatado, pulos: pulosCount };
+        }
+        pulosCount++;
+        atual++;
+      }
+    }
+    return null; // Nenhum número livre encontrado
+  }, []);
 
   const iniciarSequencia = () => {
     if (!brincoInicial.trim()) return;
@@ -45,18 +83,36 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
     }
 
     const partesFinal = brincoFinal.trim() ? extrairPartes(brincoFinal) : null;
+    const limite = partesFinal ? partesFinal.numero : null;
+    const usados = numerosUsadosRef.current;
+
+    // Buscar o primeiro número livre dentro do intervalo
+    const livre = encontrarProximoLivre(partes.prefixo, partes.numero, limite, partes.digitos, usados);
+
+    if (!livre) {
+      // Todos os números já estão cadastrados
+      const toast = window.__toast;
+      if (toast) toast.info("Todos os números do intervalo já estão cadastrados!");
+      return;
+    }
 
     sequenciaRef.current = {
       prefixo: partes.prefixo,
-      numeroAtual: partes.numero,
+      numeroAtual: livre.numero,
+      numeroInicial: partes.numero,
       digitos: partes.digitos,
-      numeroFinal: partesFinal ? partesFinal.numero : null,
+      numeroFinal: limite,
     };
 
-    const formatado = formatarBrinco(partes.prefixo, partes.numero, partes.digitos);
-    onBrincoAtualChange(formatado);
-    onSetNumeroAnimal(formatado);
+    setPulados(livre.pulos);
+    onBrincoAtualChange(livre.formatado);
+    onSetNumeroAnimal(livre.formatado);
     onAtivoChange(true);
+
+    if (livre.pulos > 0) {
+      const toast = window.__toast;
+      if (toast) toast.info(`${livre.pulos} número(s) pulado(s) (já cadastrados). Iniciando em ${livre.formatado}`);
+    }
   };
 
   const pararSequencia = () => {
@@ -65,58 +121,77 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
     onBrincoAtualChange("");
     setBrincoInicial("");
     setBrincoFinal("");
+    setPulados(0);
   };
 
   // Registrar/atualizar window.__sequenciaBrincos sempre que ativo muda
   useEffect(() => {
     if (ativo) {
       window.__sequenciaBrincos = {
-        avancar: () => {
+        /**
+         * Avança para o próximo número livre na sequência.
+         * Recebe opcionalmente um Set atualizado de números usados.
+         * Retorna: { ok: true, formatado, pulos } ou { ok: false } se acabou.
+         */
+        avancar: (usadosAtualizado) => {
           const seq = sequenciaRef.current;
-          if (!seq) return false;
+          if (!seq) return { ok: false };
+
+          const usados = usadosAtualizado || numerosUsadosRef.current;
+
+          // Adicionar o número que acabou de ser salvo ao Set local
+          const atualFormatado = formatarBrinco(seq.prefixo, seq.numeroAtual, seq.digitos);
+          usados.add(atualFormatado);
+          numerosUsadosRef.current = usados;
 
           const proximo = seq.numeroAtual + 1;
+          const livre = encontrarProximoLivre(seq.prefixo, proximo, seq.numeroFinal, seq.digitos, usados);
 
-          // Verificar se ultrapassou o final
-          if (seq.numeroFinal !== null && proximo > seq.numeroFinal) {
+          if (!livre) {
             // Sequência terminou
             sequenciaRef.current = null;
             onAtivoChange(false);
             onBrincoAtualChange("");
-            return false;
+            setPulados(0);
+            return { ok: false };
           }
 
           // Atualizar ref interna
-          seq.numeroAtual = proximo;
+          seq.numeroAtual = livre.numero;
+          setPulados((prev) => prev + livre.pulos);
 
-          const proximoFormatado = formatarBrinco(seq.prefixo, proximo, seq.digitos);
-          onBrincoAtualChange(proximoFormatado);
-          onSetNumeroAnimal(proximoFormatado);
-          return true;
-        }
+          onBrincoAtualChange(livre.formatado);
+          onSetNumeroAnimal(livre.formatado);
+          return { ok: true, formatado: livre.formatado, pulos: livre.pulos };
+        },
+        getState: () => sequenciaRef.current,
       };
     } else {
       delete window.__sequenciaBrincos;
     }
     return () => { delete window.__sequenciaBrincos; };
-  }, [ativo]); // Só depende de "ativo" — o resto usa refs mutáveis
+  }, [ativo, encontrarProximoLivre]);
 
   // Calcular progresso
   const getProgresso = () => {
     const seq = sequenciaRef.current;
     if (!seq) return null;
 
-    const partesInicial = extrairPartes(brincoInicial.trim());
-    if (!partesInicial) return null;
-
-    const atual = seq.numeroAtual - partesInicial.numero + 1;
+    const atual = seq.numeroAtual - seq.numeroInicial + 1;
 
     if (seq.numeroFinal !== null) {
-      const total = seq.numeroFinal - partesInicial.numero + 1;
-      return { atual, total, percentual: Math.round((atual / total) * 100) };
+      const total = seq.numeroFinal - seq.numeroInicial + 1;
+      // Contar quantos do intervalo já estão usados
+      const usados = numerosUsadosRef.current;
+      let disponiveis = 0;
+      for (let i = seq.numeroInicial; i <= seq.numeroFinal; i++) {
+        const fmt = formatarBrinco(seq.prefixo, i, seq.digitos);
+        if (!usados.has(fmt)) disponiveis++;
+      }
+      return { atual, total, disponiveis, percentual: Math.round(((total - disponiveis) / total) * 100) };
     }
 
-    return { atual, total: null, percentual: null };
+    return { atual, total: null, disponiveis: null, percentual: null };
   };
 
   const progresso = ativo ? getProgresso() : null;
@@ -164,9 +239,20 @@ export default function SequenciaBrincos({ ativo, onAtivoChange, brincoAtual, on
             {progresso && (
               <Badge variant="outline" className="text-[10px] bg-amber-100 border-amber-300">
                 {progresso.total
-                  ? `${progresso.atual}/${progresso.total} (${progresso.percentual}%)`
+                  ? `${progresso.percentual}% usado`
                   : `#${progresso.atual}`
                 }
+              </Badge>
+            )}
+            {progresso?.disponiveis !== null && (
+              <Badge variant="outline" className="text-[10px] bg-emerald-100 border-emerald-300 text-emerald-700">
+                {progresso.disponiveis} livres
+              </Badge>
+            )}
+            {pulados > 0 && (
+              <Badge variant="outline" className="text-[10px] bg-blue-100 border-blue-300 text-blue-700">
+                <SkipForward className="w-2.5 h-2.5 mr-0.5" />
+                {pulados} pulados
               </Badge>
             )}
           </div>
