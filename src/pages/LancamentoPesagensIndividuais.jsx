@@ -166,11 +166,10 @@ export default function LancamentoPesagensIndividuais() {
     return localStorage.getItem('sanidade_em_uso') || "";
   });
 
-  // Campo de pesquisa
+  const [sequenciaBrincoAtiva, setSequenciaBrincoAtiva] = useState(false);
+  const [brincoAtual, setBrincoAtual] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Avisos na tela
-  const [avisoTela, setAvisoTela] = useState(null); // {tipo: 'erro'|'alerta'|'info', mensagem: string}
+  const [avisoTela, setAvisoTela] = useState(null);
 
   // Ordenação
   const [sortColumn, setSortColumn] = useState("created_date");
