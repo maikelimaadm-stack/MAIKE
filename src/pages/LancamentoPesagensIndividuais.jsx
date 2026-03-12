@@ -1069,11 +1069,8 @@ export default function LancamentoPesagensIndividuais() {
         toast.success('💾 Salvo offline (persistente)');
       }
 
-      // Limpar formulário (manter sexo, raça, era, marca para facilitar lançamento em lote)
-      setEditingId(null);
-      setEditingOfflineId(null);
-      setNumeroAnimal("");
-      setPeso("");
+      setEditingId(null); setEditingOfflineId(null); setPeso("");
+      if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') { if (!window.__sequenciaBrincos.avancar()) { toast.info("Sequência de brincos finalizada!"); setNumeroAnimal(""); } } else { setNumeroAnimal(""); }
       setObservacao("");
       setLoteTransferencia("");
       if (tipoManejo !== 'Saída') setMotivoSaida("");
