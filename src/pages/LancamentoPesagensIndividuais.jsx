@@ -68,6 +68,8 @@ const formatarData = (dataString) => {
   } catch {return '--/--/----';}
 };
 
+const criarConfiguracaoPadraoMovimentacao = () => ({ sexo: "M", raca: "Nelore", era: "", marca: "", apartacaoSelecionada: "", loteTransferencia: "", mostrarSanidade: false, mostrarSequenciaBrinco: false, mostrarDadosCompra: false, valorPagoCabeca: "", origemAnimal: "", numeroGTA: "", numeroNFeCompra: "", valorFreteCompra: "", observacoesCompra: "", motivoSaida: "", mostrarDadosVenda: false, comprador: "", valorVendaTotal: "", valorArroba: "", destinoVenda: "", numeroGTAVenda: "", numeroNFeVenda: "", valorFreteVenda: "", observacoesVenda: "", mostrarDadosAbate: false, frigorifico: "", valorArrobaAbate: "", valorTotalAbate: "", numeroGTAAbate: "", observacoesAbate: "", embarqueSelecionadoDoc: "", documentoSelecionado: "" });
+
 export default function LancamentoPesagensIndividuais() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -178,6 +180,21 @@ export default function LancamentoPesagensIndividuais() {
 
   // Painel direito: modo de visualização (apartacao | venda | abate)
   const [painelResumoTipo, setPainelResumoTipo] = useState('apartacao');
+  const configuracoesPorTipoRef = useRef({ Cadastro: criarConfiguracaoPadraoMovimentacao(), Manejo: criarConfiguracaoPadraoMovimentacao(), Saída: criarConfiguracaoPadraoMovimentacao() });
+  const salvarConfiguracaoTipoAtual = () => {
+    configuracoesPorTipoRef.current[tipoManejo] = { sexo, raca, era, marca, apartacaoSelecionada, loteTransferencia, mostrarSanidade, mostrarSequenciaBrinco, mostrarDadosCompra, valorPagoCabeca, origemAnimal, numeroGTA, numeroNFeCompra, valorFreteCompra, observacoesCompra, motivoSaida, mostrarDadosVenda, comprador, valorVendaTotal, valorArroba, destinoVenda, numeroGTAVenda, numeroNFeVenda, valorFreteVenda, observacoesVenda, mostrarDadosAbate, frigorifico, valorArrobaAbate, valorTotalAbate, numeroGTAAbate, observacoesAbate, embarqueSelecionadoDoc, documentoSelecionado };
+  };
+  const aplicarConfiguracaoTipo = (novoTipo) => {
+    const config = configuracoesPorTipoRef.current[novoTipo] || criarConfiguracaoPadraoMovimentacao();
+    setSexo(config.sexo ?? "M"); setRaca(config.raca ?? "Nelore"); setEra(config.era ?? ""); setMarca(config.marca ?? ""); setApartacaoSelecionada(config.apartacaoSelecionada ?? ""); setLoteTransferencia(config.loteTransferencia ?? ""); setMostrarSanidade(config.mostrarSanidade ?? false); setMostrarSequenciaBrinco(config.mostrarSequenciaBrinco ?? false); setMostrarDadosCompra(config.mostrarDadosCompra ?? false); setValorPagoCabeca(config.valorPagoCabeca ?? ""); setOrigemAnimal(config.origemAnimal ?? ""); setNumeroGTA(config.numeroGTA ?? ""); setNumeroNFeCompra(config.numeroNFeCompra ?? ""); setValorFreteCompra(config.valorFreteCompra ?? ""); setObservacoesCompra(config.observacoesCompra ?? ""); setMotivoSaida(config.motivoSaida ?? ""); setMostrarDadosVenda(config.mostrarDadosVenda ?? false); setComprador(config.comprador ?? ""); setValorVendaTotal(config.valorVendaTotal ?? ""); setValorArroba(config.valorArroba ?? ""); setDestinoVenda(config.destinoVenda ?? ""); setNumeroGTAVenda(config.numeroGTAVenda ?? ""); setNumeroNFeVenda(config.numeroNFeVenda ?? ""); setValorFreteVenda(config.valorFreteVenda ?? ""); setObservacoesVenda(config.observacoesVenda ?? ""); setMostrarDadosAbate(config.mostrarDadosAbate ?? false); setFrigorifico(config.frigorifico ?? ""); setValorArrobaAbate(config.valorArrobaAbate ?? ""); setValorTotalAbate(config.valorTotalAbate ?? ""); setNumeroGTAAbate(config.numeroGTAAbate ?? ""); setObservacoesAbate(config.observacoesAbate ?? ""); setEmbarqueSelecionadoDoc(config.embarqueSelecionadoDoc ?? ""); setDocumentoSelecionado(config.documentoSelecionado ?? "");
+  };
+  const handleTipoManejoChange = (novoTipo) => {
+    if (novoTipo === tipoManejo) return;
+    salvarConfiguracaoTipoAtual();
+    setTipoManejo(novoTipo);
+    aplicarConfiguracaoTipo(novoTipo);
+    setEditingId(null); setEditingOfflineId(null); setNumeroAnimal(""); setPeso(""); setObservacao(""); setAvisoTela(null);
+  };
 
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
@@ -1061,35 +1078,9 @@ export default function LancamentoPesagensIndividuais() {
       setEditingId(null); setEditingOfflineId(null); setPeso("");
       if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') { const usadosAtualizados = new Set(numerosUsados); usadosAtualizados.add(numeroAnimal.trim()); const r = window.__sequenciaBrincos.avancar(usadosAtualizados); if (!r.ok) { toast.info("✅ Sequência finalizada!"); setNumeroAnimal(""); } else if (r.pulos > 0) toast.info(`⏭️ ${r.pulos} pulado(s)`); } else { setNumeroAnimal(""); }
       setObservacao("");
-      setLoteTransferencia("");
-      if (tipoManejo !== 'Saída') setMotivoSaida("");
-      setValorPagoCabeca("");
-      setOrigemAnimal("");
       setDocumentacao("");
-      setNumeroGTA("");
-      setNumeroNFeCompra("");
-      setValorFreteCompra("");
-      setObservacoesCompra("");
-      if (!(tipoManejo === 'Saída' && motivoSaida === 'Venda')) {
-        setComprador("");
-        setValorVendaTotal("");
-        setValorArroba("");
-        setDestinoVenda("");
-        setNumeroGTAVenda("");
-        setNumeroNFeVenda("");
-        setValorFreteVenda("");
-        setObservacoesVenda("");
-      }
-      setFrigorifico("");
-      setValorArrobaAbate("");
-      setValorTotalAbate("");
-      setNumeroGTAAbate("");
-      setObservacoesAbate("");
-      setEmbarqueSelecionadoDoc("");
-      setDocumentoSelecionado("");
-      if (!(tipoManejo === 'Saída' && motivoSaida === 'Venda')) setMostrarDadosVenda(false);
-      if (!(tipoManejo === 'Saída' && motivoSaida === 'Abate')) setMostrarDadosAbate(false);
       setAvisoTela(null);
+      salvarConfiguracaoTipoAtual();
       if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') setTimeout(() => pesoInputRef.current?.focus(), 100); else numeroInputRef.current?.focus();
     } catch (error) {
       toast.error('Erro: ' + error.message);
@@ -1381,7 +1372,7 @@ export default function LancamentoPesagensIndividuais() {
           {/* SELEÇÃO DO TIPO DE MANEJO + BOTÃO APARTAÇÕES */}
           <div className="flex items-center gap-1 mb-1 pb-1 border-b flex-wrap">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Movimentação:</Label>
-            <Select value={tipoManejo} onValueChange={(v) => {setTipoManejo(v);setMotivoSaida("");setMostrarDadosVenda(false);setMostrarDadosAbate(false);}}>
+            <Select value={tipoManejo} onValueChange={handleTipoManejoChange}>
               <SelectTrigger className="h-8 text-xs w-56">
                 <SelectValue />
               </SelectTrigger>
@@ -1672,7 +1663,7 @@ export default function LancamentoPesagensIndividuais() {
             })()}
           </div>
 
-          {tipoManejo === 'Cadastro' && <SequenciaBrincos visivel={mostrarSequenciaBrinco} brincoAtual={numeroAnimal} onSetNumeroAnimal={setNumeroAnimal} numerosUsados={numerosUsados} onFocusPeso={() => setTimeout(() => pesoInputRef.current?.focus(), 100)} />}
+          <SequenciaBrincos visivel={tipoManejo === 'Cadastro' && mostrarSequenciaBrinco} brincoAtual={numeroAnimal} onSetNumeroAnimal={setNumeroAnimal} numerosUsados={numerosUsados} onFocusPeso={() => setTimeout(() => pesoInputRef.current?.focus(), 100)} />
           {tipoManejo === 'Cadastro' && mostrarDadosCompra &&
           <div className="mt-3 p-3 border-t bg-slate-50 rounded">
               <h3 className="text-xs font-semibold text-slate-700 mb-3 flex items-center gap-2">
