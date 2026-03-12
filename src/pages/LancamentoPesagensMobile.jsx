@@ -36,6 +36,7 @@ const formatarData = (dataString) => {
     return `${dia}/${mes}/${ano}`;
   } catch {return '--/--/----';}
 };
+const n = (v, d = 2) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 export default function LancamentoPesagensMobile() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -834,11 +835,11 @@ export default function LancamentoPesagensMobile() {
                 </div>
                 <div>
                   <div className="text-xs text-emerald-600">Ganho</div>
-                  <div className="text-2xl font-bold text-emerald-800">{ganho.toFixed(1)}</div>
+                  <div className="text-2xl font-bold text-emerald-800">{n(ganho, 1)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-emerald-600">GMD</div>
-                  <div className="text-2xl font-bold text-emerald-800">{gmd.toFixed(3)}</div>
+                  <div className="text-2xl font-bold text-emerald-800">{n(gmd, 3)}</div>
                 </div>
               </div>
             </div>
@@ -877,7 +878,7 @@ export default function LancamentoPesagensMobile() {
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-600">Peso Médio</div>
-                <div className="text-2xl font-bold text-amber-600">{stats.pesoMedio.toFixed(0)} kg</div>
+                <div className="text-2xl font-bold text-amber-600">{n(stats.pesoMedio, 2)} kg</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-600">Machos</div>
@@ -928,10 +929,10 @@ export default function LancamentoPesagensMobile() {
                         )}
                       </div>
                       <div className="text-right ml-3">
-                        <div className="text-2xl font-bold text-amber-600">{p.peso} kg</div>
+                        <div className="text-2xl font-bold text-amber-600">{n(p.peso, 2)} kg</div>
                         {p.gmd && (
                           <div className={`text-sm font-semibold mt-1 ${p.gmd > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                            GMD: {p.gmd.toFixed(3)}
+                            GMD: {n(p.gmd, 3)}
                           </div>
                         )}
                       </div>
