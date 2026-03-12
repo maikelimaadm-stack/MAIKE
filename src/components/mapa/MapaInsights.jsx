@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3, Scale, Target, ArrowDown, ArrowUp } from "lucide-react";
+import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3, Scale, Target, ArrowDown, ArrowUp, Leaf, Clock, Sprout, Flame } from "lucide-react";
 import { fmtNum, fmtHa, fmtKg } from "../common/formatNumber";
 
 export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplementacao, pontosReferencia = [] }) {
