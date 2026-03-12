@@ -1069,7 +1069,7 @@ export default function LancamentoPesagensIndividuais() {
       }
 
       setEditingId(null); setEditingOfflineId(null); setPeso("");
-      if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') { if (!window.__sequenciaBrincos.avancar()) { toast.info("Sequência de brincos finalizada!"); setNumeroAnimal(""); } } else { setNumeroAnimal(""); }
+      if (window.__sequenciaBrincos && tipoManejo === 'Cadastro') { const r = window.__sequenciaBrincos.avancar(numerosUsados); if (!r.ok) { toast.info("✅ Sequência finalizada!"); setNumeroAnimal(""); setMostrarSequenciaBrinco(false); } else if (r.pulos > 0) toast.info(`⏭️ ${r.pulos} pulado(s)`); } else { setNumeroAnimal(""); }
       setObservacao("");
       setLoteTransferencia("");
       if (tipoManejo !== 'Saída') setMotivoSaida("");
@@ -1682,7 +1682,7 @@ export default function LancamentoPesagensIndividuais() {
             })()}
           </div>
 
-          {tipoManejo === 'Cadastro' && mostrarSequenciaBrinco && <div className="mt-2 p-3 border-t bg-amber-50 rounded"><SequenciaBrincos ativo={!!window.__sequenciaBrincos} onAtivoChange={(v) => { if(!v) { window.__sequenciaBrincos = null; setNumeroAnimal(""); } }} brincoAtual={numeroAnimal} onBrincoAtualChange={setNumeroAnimal} onSetNumeroAnimal={setNumeroAnimal} /></div>}
+          {tipoManejo === 'Cadastro' && mostrarSequenciaBrinco && <div className="mt-2 p-3 border-t bg-amber-50 rounded"><SequenciaBrincos ativo={!!window.__sequenciaBrincos} onAtivoChange={(v) => { if(!v) { window.__sequenciaBrincos = null; setNumeroAnimal(""); } }} brincoAtual={numeroAnimal} onBrincoAtualChange={setNumeroAnimal} onSetNumeroAnimal={setNumeroAnimal} numerosUsados={numerosUsados} onFocusPeso={() => setTimeout(() => pesoInputRef.current?.focus(), 100)} /></div>}
           {tipoManejo === 'Cadastro' && mostrarDadosCompra &&
           <div className="mt-3 p-3 border-t bg-slate-50 rounded">
               <h3 className="text-xs font-semibold text-slate-700 mb-3 flex items-center gap-2">
