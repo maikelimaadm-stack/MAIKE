@@ -332,6 +332,190 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       }
     }
 
+    // ─── Análise de Forragem e Dias de Pastejo ───
+    // Consumo diário por UA = 2,5% de 450 kg = 11,25 kg MS/dia
+    const CONSUMO_DIARIO_UA = 11.25; // kg MS/dia
+
+    // Estimativas padrão de forragem por classificação de aproveitamento
+    const FORRAGEM_ESTIMADA = { 'Baixa': 1500, 'Média': 2500, 'Alta': 3500 };
+    // Taxa de crescimento por período (kg MS/ha/dia)
+    const CRESC_ESTIMADO = { 'Seco': 12, 'Intermediário': 30, 'Chuvoso': 55 };
+
+    const analiseForragem = [];
+    let totalConsumo = 0;
+    let totalProducao = 0;
+
+    areas.forEach(area => {
+      if (area.tipo_cultura !== 'Pastagem') return;
+      const lotesArea = lotesPorArea[area.id] || [];
+      const haEfetiva = (area.area_pastejada > 0 ? area.area_pastejada : area.tamanho_hectares) || 0;
+      if (haEfetiva <= 0) return;
+
+      // UA do pasto
+      let uaArea = 0;
+      lotesArea.forEach(l => {
+        uaArea += ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)) / 450;
+      });
+      if (uaArea === 0) return; // Sem gado, não calcula
+
+      // Consumo diário do rebanho
+      const consumoDiario = uaArea * CONSUMO_DIARIO_UA;
+      totalConsumo += consumoDiario;
+
+      // Forragem disponível (kg MS/ha) — campo do usuário ou estimativa
+      const forragemKgHa = area.forragem_kg_ha || FORRAGEM_ESTIMADA[area.aproveitamento_classificacao] || 2500;
+      const forragemTotal = haEfetiva * forragemKgHa;
+
+      // Taxa de aproveitamento (padrão 50%)
+      const taxaAprov = (area.taxa_aproveitamento > 0 ? area.taxa_aproveitamento : 50) / 100;
+      const forragemUtil = forragemTotal * taxaAprov;
+
+      // Dias de pastejo = forragem utilizável / consumo diário
+      const diasPastejo = consumoDiario > 0 ? forragemUtil / consumoDiario : 0;
+
+      // Taxa de crescimento (kg MS/ha/dia)
+      const crescKgHaDia = area.taxa_crescimento_kg_ha_dia || CRESC_ESTIMADO[area.periodo_estacao] || CRESC_ESTIMADO['Intermediário'];
+      const producaoDiaria = haEfetiva * crescKgHaDia;
+      totalProducao += producaoDiaria;
+
+      // Balanço de forragem = produção - consumo
+      const balanco = producaoDiaria - consumoDiario;
+      const balancoPercent = consumoDiario > 0 ? (producaoDiaria / consumoDiario) * 100 : 0;
+
+      // Classificação
+      let situacao = 'equilibrado';
+      if (balancoPercent >= 130) situacao = 'abundante';
+      else if (balancoPercent >= 90) situacao = 'equilibrado';
+      else if (balancoPercent >= 60) situacao = 'risco';
+      else situacao = 'degradacao';
+
+      // Data estimada de esgotamento (quando balanço negativo)
+      let dataEsgotamento = null;
+      if (balanco < 0 && forragemUtil > 0) {
+        const diasRestantes = forragemUtil / Math.abs(balanco);
+        const dt = new Date();
+        dt.setDate(dt.getDate() + Math.floor(diasRestantes));
+        dataEsgotamento = dt.toLocaleDateString('pt-BR');
+      }
+
+      const usaEstimativa = !area.forragem_kg_ha;
+
+      analiseForragem.push({
+        nome: area.nome,
+        uaArea,
+        ha: haEfetiva,
+        consumoDiario,
+        forragemKgHa,
+        forragemTotal,
+        forragemUtil,
+        diasPastejo,
+        producaoDiaria,
+        crescKgHaDia,
+        balanco,
+        balancoPercent,
+        situacao,
+        dataEsgotamento,
+        usaEstimativa,
+        taxaAprov: taxaAprov * 100,
+      });
+    });
+
+    if (analiseForragem.length > 0) {
+      const balancoGeral = totalProducao - totalConsumo;
+
+      // Card resumo geral de forragem
+      result.push({
+        tipo: 'forragem_resumo',
+        icone: Leaf,
+        cor: 'text-lime-700 bg-lime-50 border-lime-200',
+        titulo: 'Forragem — Resumo Geral',
+        texto: `Consumo: ${fmtNum(totalConsumo, 0)} kg MS/dia  •  Produção: ${fmtNum(totalProducao, 0)} kg MS/dia`,
+        valores: [
+          { label: 'Consumo/dia', valor: fmtNum(totalConsumo, 0) + ' kg' },
+          { label: 'Produção/dia', valor: fmtNum(totalProducao, 0) + ' kg' },
+          { label: 'Balanço/dia', valor: (balancoGeral >= 0 ? '+' : '') + fmtNum(balancoGeral, 0) + ' kg' },
+          { label: 'Pastos Analisados', valor: analiseForragem.length },
+        ]
+      });
+
+      // Dias de pastejo por pasto
+      const ordenadosDias = [...analiseForragem].sort((a, b) => a.diasPastejo - b.diasPastejo);
+      result.push({
+        tipo: 'dias_pastejo',
+        icone: Clock,
+        cor: 'text-cyan-700 bg-cyan-50 border-cyan-200',
+        titulo: `Dias de Pastejo Estimados`,
+        texto: 'Quantos dias o pasto sustenta o rebanho atual (forragem utilizável ÷ consumo diário).',
+        lista: ordenadosDias.map(a => {
+          const badge = a.diasPastejo < 20 ? '🔴' : a.diasPastejo < 45 ? '🟡' : '🟢';
+          const est = a.usaEstimativa ? ' *' : '';
+          return `${badge} ${a.nome}: ${fmtNum(a.diasPastejo, 0)} dias (${fmtNum(a.consumoDiario, 0)} kg/dia, ${fmtNum(a.forragemKgHa, 0)} kg/ha${est})`;
+        })
+      });
+
+      // Balanço de forragem por pasto (produção vs consumo)
+      const abundantes = analiseForragem.filter(a => a.situacao === 'abundante');
+      const equilibrados = analiseForragem.filter(a => a.situacao === 'equilibrado');
+      const emRisco = analiseForragem.filter(a => a.situacao === 'risco');
+      const emDegradacao = analiseForragem.filter(a => a.situacao === 'degradacao');
+
+      result.push({
+        tipo: 'balanco_forragem',
+        icone: Sprout,
+        cor: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+        titulo: `Balanço Forragem (${analiseForragem.length} pastos)`,
+        valores: [
+          { label: '🟢 Abundante', valor: abundantes.length },
+          { label: '🟡 Equilibrado', valor: equilibrados.length },
+          { label: '🟠 Risco', valor: emRisco.length },
+          { label: '🔴 Degradação', valor: emDegradacao.length },
+        ]
+      });
+
+      // Alertas: pastos em risco ou degradação
+      const pastosAlerta = [...emDegradacao, ...emRisco].sort((a, b) => a.balancoPercent - b.balancoPercent);
+      if (pastosAlerta.length > 0) {
+        result.push({
+          tipo: 'alerta_forragem',
+          icone: Flame,
+          cor: 'text-red-700 bg-red-50 border-red-200',
+          titulo: `⚠ Atenção — Forragem Insuficiente (${pastosAlerta.length})`,
+          texto: 'Consumo acima da produção de capim. Considerar rotação ou redução de lotação.',
+          lista: pastosAlerta.map(a => {
+            const defStr = fmtNum(Math.abs(a.balanco), 0);
+            const dtStr = a.dataEsgotamento ? ` — Esgota em ${a.dataEsgotamento}` : '';
+            return `${a.situacao === 'degradacao' ? '🔴' : '🟠'} ${a.nome}: déficit ${defStr} kg/dia (${fmtNum(a.balancoPercent, 0)}% da necessidade)${dtStr}`;
+          })
+        });
+      }
+
+      // Pastos com abundância (podem receber mais animais)
+      if (abundantes.length > 0) {
+        result.push({
+          tipo: 'forragem_abundante',
+          icone: Sprout,
+          cor: 'text-green-700 bg-green-50 border-green-200',
+          titulo: `✓ Forragem Abundante (${abundantes.length} pastos)`,
+          texto: 'Produção de capim acima do consumo. Podem receber mais animais.',
+          lista: abundantes.sort((a, b) => b.balancoPercent - a.balancoPercent).map(a =>
+            `${a.nome}: +${fmtNum(a.balanco, 0)} kg/dia (produção ${fmtNum(a.balancoPercent, 0)}% do consumo)`
+          )
+        });
+      }
+
+      // Nota sobre estimativas
+      const comEstimativa = analiseForragem.filter(a => a.usaEstimativa);
+      if (comEstimativa.length > 0) {
+        result.push({
+          tipo: 'nota_forragem',
+          icone: AlertTriangle,
+          cor: 'text-slate-600 bg-slate-50 border-slate-200',
+          titulo: `ℹ Estimativas de Forragem`,
+          texto: `${comEstimativa.length} pasto(s) usam estimativas padrão. Para maior precisão, informe forragem (kg MS/ha), taxa de crescimento e período no cadastro da área.`,
+        });
+      }
+    }
+
     // Categorias em campo
     const categoriasCounts = {};
     lotes.forEach(l => {
