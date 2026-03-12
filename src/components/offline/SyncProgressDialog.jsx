@@ -5,16 +5,17 @@ import { CheckCircle2, XCircle, Loader2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function SyncProgressDialog({ 
-  open, 
-  syncState // { isRunning, currentStep, totalSteps, currentItem, items: [{name, status, message}], completed, errors }
+  open,
+  onOpenChange,
+  syncState // { isRunning, currentStep, totalSteps, currentItem, currentPhase, items: [{name, status, message}], completed, errors }
 }) {
-  const { isRunning, currentStep, totalSteps, currentItem, items = [], completed, errors } = syncState || {};
+  const { isRunning, currentStep, totalSteps, currentItem, currentPhase, items = [], completed, errors } = syncState || {};
   
   const progressPercent = totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0;
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!isRunning) onOpenChange?.(nextOpen); }}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => { if (isRunning) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             {isRunning ? (
@@ -40,7 +41,7 @@ export default function SyncProgressDialog({
           {/* Barra de Progresso */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-slate-500">
-              <span>Progresso</span>
+              <span>{currentPhase || 'Sincronização'}</span>
               <span>{currentStep || 0} de {totalSteps || 0}</span>
             </div>
             <Progress value={progressPercent} className="h-2" />

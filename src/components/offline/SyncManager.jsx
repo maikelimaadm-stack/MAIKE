@@ -39,6 +39,16 @@ const notifyListeners = (event) => {
   });
 };
 
+const PHASE_LABELS = {
+  entities: 'Apartações e lotes',
+  embarques_docs: 'Embarques e documentos',
+  updates: 'Atualizações pendentes',
+  pesagens: 'Pesagens individuais',
+  sanidade: 'Sanidade',
+  cache: 'Atualização do cache',
+  duplicados: 'Verificação de duplicados',
+};
+
 export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
   const allPending = await getAllItems(STORES_NAMES.PENDING_PESAGENS);
   const pending = allPending.filter(p => p.empresa_id === empresaId);
@@ -117,6 +127,7 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
       
       if (duplicado) {
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Já existe' } });
         await deletePendingPesagem(offlineId);
         continue;
       }
@@ -124,9 +135,11 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
       if (_action === 'update' && _editId) {
         await base44.entities.PesagemIndividual.update(_editId, data);
         items.push({ name: itemName, status: 'success', message: 'Atualizado' });
+        onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Atualizado' } });
       } else {
         await base44.entities.PesagemIndividual.create(data);
         items.push({ name: itemName, status: 'success', message: 'Criado' });
+        onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Criado' } });
       }
       
       successCount++;
@@ -136,6 +149,7 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
       console.error('Erro sync pesagem:', error);
       errors.push({ error: error.message });
       items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
+      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: error.message?.substring(0, 30) } });
     }
     
     // Em caso de erro, manter na fila para tentar novamente depois
@@ -182,17 +196,20 @@ export const syncEmbarquesDocumentos = async (empresaId, onProgress) => {
       if (dup) {
         idMap[id] = dup.id;
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Já existe' } });
         await deleteItem(STORES_NAMES.EMBARQUES, id);
         continue;
       }
       const created = await base44.entities.Embarque.create(data);
       idMap[id] = created.id;
       items.push({ name: itemName, status: 'success', message: 'Criado' });
+      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Criado' } });
       successCount++;
       await deleteItem(STORES_NAMES.EMBARQUES, id);
     } catch (e) {
       console.error('Erro sync embarque:', e);
       items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
+      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
     }
   }
 
@@ -210,17 +227,20 @@ export const syncEmbarquesDocumentos = async (empresaId, onProgress) => {
       if (dup) {
         idMap[id] = dup.id;
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Já existe' } });
         await deleteItem(STORES_NAMES.DOCUMENTOS_EMBARQUE, id);
         continue;
       }
       const created = await base44.entities.DocumentoEmbarque.create(data);
       idMap[id] = created.id;
       items.push({ name: itemName, status: 'success', message: 'Criado' });
+      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Criado' } });
       successCount++;
       await deleteItem(STORES_NAMES.DOCUMENTOS_EMBARQUE, id);
     } catch (e) {
       console.error('Erro sync documento:', e);
       items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
+      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
     }
   }
 
@@ -278,6 +298,7 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       if (duplicado) {
         idMap[id] = duplicado.id;
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Já existe' } });
         await deleteItem(STORES_NAMES.APARTACOES, id);
         continue;
       }
@@ -286,12 +307,13 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       idMap[id] = created.id;
       successCount++;
       items.push({ name: itemName, status: 'success', message: 'Criado' });
+      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Criado' } });
       
       await deleteItem(STORES_NAMES.APARTACOES, id);
     } catch (e) {
       console.error('Erro ao sincronizar apartação:', e);
       items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
-      await deleteItem(STORES_NAMES.APARTACOES, apt.id);
+      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
     }
   }
 
@@ -322,6 +344,7 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       if (duplicado) {
         idMap[oldLoteId] = duplicado.id;
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Já existe' } });
         await deleteItem(STORES_NAMES.LOTES, id);
         continue;
       }
@@ -330,12 +353,13 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       idMap[oldLoteId] = created.id;
       successCount++;
       items.push({ name: itemName, status: 'success', message: 'Criado' });
+      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Criado' } });
       
       await deleteItem(STORES_NAMES.LOTES, id);
     } catch (e) {
       console.error('Erro ao sincronizar lote:', e);
       items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
-      await deleteItem(STORES_NAMES.LOTES, lote.id);
+      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
     }
   }
 
@@ -358,62 +382,67 @@ export const syncAll = async (empresaId, onProgress) => {
 
   try {
     // 1. Sincronizar apartações e lotes offline
-    notifyListeners({ type: 'progress', entity: 'apartacoes_lotes' });
+    notifyListeners({ type: 'progress', entity: 'apartacoes_lotes', phaseLabel: PHASE_LABELS.entities });
     const entitiesResult = await syncOfflineEntities(empresaId, (progress) => {
       if (onProgress) {
-        onProgress({ phase: 'entities', ...progress });
+        onProgress({ phase: 'entities', phaseLabel: PHASE_LABELS.entities, ...progress });
       }
+      if (progress?.item) notifyListeners({ type: 'progress', entity: 'apartacoes_lotes', phaseLabel: PHASE_LABELS.entities, currentItem: progress.currentItem, item: progress.item });
     });
     allItems.push(...(entitiesResult.items || []));
 
     // 2. Sincronizar Embarques e Documentos
-    notifyListeners({ type: 'progress', entity: 'embarques_docs' });
+    notifyListeners({ type: 'progress', entity: 'embarques_docs', phaseLabel: PHASE_LABELS.embarques_docs });
     const embDocsResult = await syncEmbarquesDocumentos(empresaId, (progress) => {
       if (onProgress) {
-        onProgress({ phase: 'embarques_docs', ...progress });
+        onProgress({ phase: 'embarques_docs', phaseLabel: PHASE_LABELS.embarques_docs, ...progress });
       }
+      if (progress?.item) notifyListeners({ type: 'progress', entity: 'embarques_docs', phaseLabel: PHASE_LABELS.embarques_docs, currentItem: progress.currentItem, item: progress.item });
     });
     allItems.push(...(embDocsResult.items || []));
 
     // 3. Sincronizar updates pendentes (edições)
-    notifyListeners({ type: 'progress', entity: 'updates' });
+    notifyListeners({ type: 'progress', entity: 'updates', phaseLabel: PHASE_LABELS.updates });
     const updatesResult = await syncUpdates(empresaId, (progress) => {
       if (onProgress) {
-        onProgress({ phase: 'updates', ...progress });
+        onProgress({ phase: 'updates', phaseLabel: PHASE_LABELS.updates, ...progress });
       }
+      if (progress?.item) notifyListeners({ type: 'progress', entity: 'updates', phaseLabel: PHASE_LABELS.updates, currentItem: progress.currentItem, item: progress.item });
     });
     allItems.push(...(updatesResult.items || []));
 
     // 4. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
-    notifyListeners({ type: 'progress', entity: 'pesagens' });
+    notifyListeners({ type: 'progress', entity: 'pesagens', phaseLabel: PHASE_LABELS.pesagens });
     const mergedIdMap = { ...(entitiesResult.idMap || {}), ...(embDocsResult.idMap || {}) };
     const pesagensResult = await syncPesagens(empresaId, (progress) => {
       if (onProgress) {
-        onProgress({ phase: 'pesagens', ...progress });
+        onProgress({ phase: 'pesagens', phaseLabel: PHASE_LABELS.pesagens, ...progress });
       }
+      if (progress?.item) notifyListeners({ type: 'progress', entity: 'pesagens', phaseLabel: PHASE_LABELS.pesagens, currentItem: progress.currentItem, item: progress.item });
     }, mergedIdMap);
     allItems.push(...(pesagensResult.items || []));
 
     // 5. Sincronizar sanidade pendente
-    notifyListeners({ type: 'progress', entity: 'sanidade' });
+    notifyListeners({ type: 'progress', entity: 'sanidade', phaseLabel: PHASE_LABELS.sanidade });
     const sanidadeResult = await syncSanidade(empresaId, (progress) => {
       if (onProgress) {
-        onProgress({ phase: 'sanidade', ...progress });
+        onProgress({ phase: 'sanidade', phaseLabel: PHASE_LABELS.sanidade, ...progress });
       }
+      if (progress?.item) notifyListeners({ type: 'progress', entity: 'sanidade', phaseLabel: PHASE_LABELS.sanidade, currentItem: progress.currentItem, item: progress.item });
     });
     allItems.push(...(sanidadeResult.items || []));
 
     // 6. Atualizar cache com dados do servidor
-    notifyListeners({ type: 'progress', entity: 'cache' });
+    notifyListeners({ type: 'progress', entity: 'cache', phaseLabel: PHASE_LABELS.cache });
     if (onProgress) {
-      onProgress({ phase: 'cache', currentItem: 'Atualizando cache...' });
+      onProgress({ phase: 'cache', phaseLabel: PHASE_LABELS.cache, current: 1, total: 1, currentItem: 'Atualizando cache...' });
     }
     await refreshCache(empresaId);
 
     // 7. Remover duplicados automaticamente
-    notifyListeners({ type: 'progress', entity: 'duplicados' });
+    notifyListeners({ type: 'progress', entity: 'duplicados', phaseLabel: PHASE_LABELS.duplicados });
     if (onProgress) {
-      onProgress({ phase: 'duplicados', currentItem: 'Verificando duplicados...' });
+      onProgress({ phase: 'duplicados', phaseLabel: PHASE_LABELS.duplicados, current: 1, total: 1, currentItem: 'Verificando duplicados...' });
     }
     const duplicadosRemovidos = await removerDuplicados(empresaId);
     if (duplicadosRemovidos > 0) {
@@ -421,7 +450,7 @@ export const syncAll = async (empresaId, onProgress) => {
     }
 
     const totalSuccess = (pesagensResult.successCount || 0) + (entitiesResult.successCount || 0) + (sanidadeResult.successCount || 0) + (updatesResult.successCount || 0) + (embDocsResult.successCount || 0);
-    const totalErrors = (pesagensResult.errors?.length || 0);
+    const totalErrors = allItems.filter((item) => item.status === 'error').length;
 
     notifyListeners({ 
       type: 'complete', 
@@ -492,18 +521,21 @@ const syncSanidade = async (empresaId, onProgress) => {
       
       if (duplicado) {
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Já existe' } });
+        await deletePendingSanidade(offlineId);
       } else {
         await base44.entities.SanidadeAnimal.create(data);
         items.push({ name: itemName, status: 'success', message: 'Criado' });
+        onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Criado' } });
         successCount++;
+        await deletePendingSanidade(offlineId);
       }
     } catch (error) {
       console.error('Erro sync sanidade:', error);
       errors.push({ error: error.message });
       items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
+      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: error.message?.substring(0, 30) } });
     }
-    
-    await deletePendingSanidade(offlineId);
   }
 
   return { successCount, errors, total: pending.length, items };
@@ -541,14 +573,15 @@ const syncUpdates = async (empresaId, onProgress) => {
         await base44.entities.LoteApartacao.update(update.entity_id, update.data);
       }
       items.push({ name: itemName, status: 'success', message: 'Atualizado' });
+      onProgress?.({ current: i + 1, total: filtered.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Atualizado' } });
       successCount++;
+      await deletePendingUpdate(update._offlineId);
     } catch (error) {
       console.error('Erro sync update:', error);
       errors.push({ error: error.message });
       items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
+      onProgress?.({ current: i + 1, total: filtered.length, currentItem: itemName, item: { name: itemName, status: 'error', message: error.message?.substring(0, 30) } });
     }
-    
-    await deletePendingUpdate(update._offlineId);
   }
 
   return { successCount, errors, total: filtered.length, items };

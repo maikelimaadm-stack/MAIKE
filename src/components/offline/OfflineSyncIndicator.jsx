@@ -44,14 +44,14 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
         setSyncLog([]);
         setLastSyncMessage("Iniciando sincronização...");
       } else if (event.type === 'progress') {
-        setLastSyncMessage(`Sincronizando ${event.entity}...`);
+        setLastSyncMessage(event.phaseLabel || `Sincronizando ${event.entity}...`);
         if (event.item) {
           setSyncLog(prev => [...prev, {
             timestamp: new Date().toISOString(),
-            type: event.entity || 'info',
-            message: event.currentItem || '',
+            type: event.phaseLabel || event.entity || 'info',
+            message: event.currentItem || event.item.name || '',
             status: event.item.status || 'pending',
-            details: event.item.details
+            details: event.item.message || event.item.details
           }]);
         }
       } else if (event.type === 'complete') {
@@ -63,9 +63,11 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
           onSyncComplete();
         }
         if (event.results) {
-          const total = event.results.pesagens.successCount + 
-                        event.results.apartacoes.successCount + 
-                        event.results.lotes.successCount;
+          const total = (event.results.pesagens?.successCount || 0) + 
+                        (event.results.apartacoes?.successCount || 0) + 
+                        (event.results.embarques_docs?.successCount || 0) +
+                        (event.results.sanidade?.successCount || 0) +
+                        (event.results.updates?.successCount || 0);
           if (total > 0) {
             toast.success(`✅ ${total} registro(s) sincronizado(s)!`);
           }
