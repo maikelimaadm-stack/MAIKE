@@ -2299,12 +2299,12 @@ export default function LancamentoPesagensIndividuais() {
                           return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
                         }
                         if (coluna.id === 'ganho') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? p.ganho.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho != null ? n(p.ganho, 2) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'gmd') {
                           return (
                             <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
-                                  {p.gmd ? p.gmd.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
+                                  {p.gmd != null ? n(p.gmd, 3) : '-'}
                                 </TableCell>);
 
                         }
@@ -2445,8 +2445,8 @@ export default function LancamentoPesagensIndividuais() {
                       <h4 className="text-sm font-bold text-emerald-700">{sanidade.nome}</h4>
                       <div className="text-right">
                         <div className="text-xs text-slate-600">{qtdAnimais} animais</div>
-                        <div className="text-sm font-bold text-emerald-700">R$ {sanidade.custoTotal.toFixed(2)}</div>
-                        <div className="text-[10px] text-slate-500">R$ {custoPorAnimal.toFixed(2)}/animal</div>
+                        <div className="text-sm font-bold text-emerald-700">{m(sanidade.custoTotal)}</div>
+                        <div className="text-[10px] text-slate-500">{m(custoPorAnimal)}/animal</div>
                       </div>
                     </div>
                     
