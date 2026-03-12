@@ -5,6 +5,7 @@ import { Download, Smartphone, X } from "lucide-react";
 
 const DISMISS_KEY = "pwa_install_dismissed_at";
 const DISMISS_WINDOW_MS = 1000 * 60 * 60 * 24 * 7;
+const APP_ICON = "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/9d03282ce_IMG_8919.png";
 
 const isStandalone = () => {
   return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -15,6 +16,44 @@ export default function PWAInstaller() {
   const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
+    document.documentElement.lang = "pt-BR";
+    document.title = "MakGestão";
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]') || document.createElement("meta");
+    themeMeta.setAttribute("name", "theme-color");
+    themeMeta.setAttribute("content", "#059669");
+    document.head.appendChild(themeMeta);
+
+    const appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]') || document.createElement("meta");
+    appleMeta.setAttribute("name", "apple-mobile-web-app-capable");
+    appleMeta.setAttribute("content", "yes");
+    document.head.appendChild(appleMeta);
+
+    const iconLink = document.querySelector('link[rel="apple-touch-icon"]') || document.createElement("link");
+    iconLink.setAttribute("rel", "apple-touch-icon");
+    iconLink.setAttribute("href", APP_ICON);
+    document.head.appendChild(iconLink);
+
+    const manifest = {
+      name: "MakGestão",
+      short_name: "MakGestão",
+      description: "Sistema de gestão com suporte offline e sincronização automática.",
+      start_url: "/",
+      scope: "/",
+      display: "standalone",
+      background_color: "#ffffff",
+      theme_color: "#059669",
+      icons: [
+        { src: APP_ICON, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+        { src: APP_ICON, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+      ]
+    };
+
+    const manifestLink = document.querySelector('link[rel="manifest"]') || document.createElement("link");
+    manifestLink.setAttribute("rel", "manifest");
+    manifestLink.setAttribute("href", `data:application/manifest+json;charset=utf-8,${encodeURIComponent(JSON.stringify(manifest))}`);
+    document.head.appendChild(manifestLink);
+
     if (isStandalone()) {
       return undefined;
     }
@@ -24,7 +63,7 @@ export default function PWAInstaller() {
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register("/functions/pwaServiceWorker", { scope: "/" })
         .then((registration) => {
           if (registration.waiting) {
             registration.waiting.postMessage({ type: "SKIP_WAITING" });
