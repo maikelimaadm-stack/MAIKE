@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronRight, RotateCcw } from "lucide-react";
 
 const extrairPartes = (valor) => {
@@ -22,6 +23,7 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
   const [usarSequencia, setUsarSequencia] = useState(false);
   const [brincoInicial, setBrincoInicial] = useState("");
   const [brincoFinal, setBrincoFinal] = useState("");
+  const [direcao, setDirecao] = useState("crescente");
   const [pulados, setPulados] = useState(0);
   const [ativoInterno, setAtivoInterno] = useState(false);
 
@@ -32,17 +34,19 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
     numerosUsadosRef.current = numerosUsados || new Set();
   }, [numerosUsados]);
 
-  const encontrarProximoLivre = useCallback((prefixo, inicio, limite, digitos, usados) => {
+  const encontrarProximoLivre = useCallback((prefixo, inicio, limite, digitos, usados, direcaoAtual) => {
     let atual = inicio;
     let pulosCount = 0;
+    const passo = direcaoAtual === "decrescente" ? -1 : 1;
+    const dentroDoLimite = (numero) => limite === null ? true : direcaoAtual === "decrescente" ? numero >= limite : numero <= limite;
 
-    while (limite !== null && atual <= limite) {
+    while (dentroDoLimite(atual)) {
       const formatado = formatarBrinco(prefixo, atual, digitos);
       if (!usados.has(formatado)) {
         return { numero: atual, formatado, pulos: pulosCount };
       }
       pulosCount++;
-      atual++;
+      atual += passo;
     }
 
     if (limite === null) {
@@ -52,7 +56,7 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
           return { numero: atual, formatado, pulos: pulosCount };
         }
         pulosCount++;
-        atual++;
+        atual += passo;
       }
     }
 
@@ -88,7 +92,7 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
 
     const partesFinal = brincoFinal.trim() ? extrairPartes(brincoFinal) : null;
     const limite = partesFinal ? partesFinal.numero : null;
-    const livre = encontrarProximoLivre(partes.prefixo, partes.numero, limite, partes.digitos, numerosUsadosRef.current);
+    const livre = encontrarProximoLivre(partes.prefixo, partes.numero, limite, partes.digitos, numerosUsadosRef.current, direcao);
 
     if (!livre) {
       window.__toast?.info("Todos os números do intervalo já estão cadastrados!");
@@ -101,6 +105,7 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
       numeroInicial: partes.numero,
       digitos: partes.digitos,
       numeroFinal: limite,
+      direcao,
     };
 
     setPulados(livre.pulos);
@@ -122,7 +127,8 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
           usados.add(atualFormatado);
           numerosUsadosRef.current = usados;
 
-          const livre = encontrarProximoLivre(seq.prefixo, seq.numeroAtual + 1, seq.numeroFinal, seq.digitos, usados);
+          const proximoNumero = seq.numeroAtual + (seq.direcao === "decrescente" ? -1 : 1);
+          const livre = encontrarProximoLivre(seq.prefixo, proximoNumero, seq.numeroFinal, seq.digitos, usados, seq.direcao);
 
           if (!livre) {
             sequenciaRef.current = null;
@@ -180,6 +186,19 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
             placeholder="Ex: 7500"
             disabled={!usarSequencia}
           />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Direção</Label>
+          <Select value={direcao} onValueChange={setDirecao} disabled={!usarSequencia}>
+            <SelectTrigger className="h-8 text-xs w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="crescente">Frente para trás</SelectItem>
+              <SelectItem value="decrescente">Trás para frente</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <Button
