@@ -1627,9 +1627,9 @@ export default function LancamentoPesagensIndividuais() {
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs font-semibold">
                   <span>{dias}d</span>
                   <span>|</span>
-                  <span>{ganho.toFixed(1)}kg</span>
+                  <span>{n(ganho, 1)}kg</span>
                   <span>|</span>
-                  <span>GMD: {gmd.toFixed(3)}</span>
+                  <span>GMD: {n(gmd, 3)}</span>
                 </div>);
 
             })()}
@@ -1770,7 +1770,7 @@ export default function LancamentoPesagensIndividuais() {
               <div className="space-y-1 col-span-4">
                     <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
                     <div className="h-8 flex items-center text-xs font-semibold text-blue-700">
-                      R$ {(parseFloat(peso) / 30 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
+                      {m(parseFloat(peso) / 30 * parseFloat(valorArroba || 0))} ({n(parseFloat(peso) / 30, 2)} @)
                     </div>
                   </div>
               }
@@ -1868,8 +1868,8 @@ export default function LancamentoPesagensIndividuais() {
                           <TableCell className="text-xs py-1">{r.gta}</TableCell>
                           <TableCell className="text-xs py-1">{r.nfe}</TableCell>
                           <TableCell className="text-xs py-1 text-center">{r.prevM}/{r.prevF}</TableCell>
-                          <TableCell className="text-xs py-1 text-right font-mono">{r.pesoTotal.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs py-1 text-right font-mono">{r.pesoMedio.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs py-1 text-right font-mono">{n(r.pesoTotal, 2)}</TableCell>
+                          <TableCell className="text-xs py-1 text-right font-mono">{n(r.pesoMedio, 2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1910,7 +1910,7 @@ export default function LancamentoPesagensIndividuais() {
               <div className="space-y-1">
                     <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
                     <div className="h-8 flex items-center text-xs font-semibold text-purple-700">
-                      R$ {(parseFloat(peso) / 30 * parseFloat(valorArrobaAbate || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
+                      {m(parseFloat(peso) / 30 * parseFloat(valorArrobaAbate || 0))} ({n(parseFloat(peso) / 30, 2)} @)
                     </div>
                   </div>
               }
@@ -2177,7 +2177,7 @@ export default function LancamentoPesagensIndividuais() {
                           return <TableCell key={coluna.id} className="text-xs">{p.motivo_saida || '-'}</TableCell>;
                         }
                         if (coluna.id === 'valor_pago_cabeca') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_pago_cabeca ? `R$ ${p.valor_pago_cabeca.toFixed(2)}` : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_pago_cabeca ? m(p.valor_pago_cabeca) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'origem_animal') {
                           return <TableCell key={coluna.id} className="text-xs">{p.origem_animal || '-'}</TableCell>;
@@ -2189,13 +2189,13 @@ export default function LancamentoPesagensIndividuais() {
                           return <TableCell key={coluna.id} className="text-xs">{p.destino_venda || '-'}</TableCell>;
                         }
                         if (coluna.id === 'valor_venda_total') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_venda_total ? `R$ ${p.valor_venda_total.toFixed(2)}` : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_venda_total ? m(p.valor_venda_total) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'valor_arroba') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_arroba ? `R$ ${p.valor_arroba.toFixed(2)}` : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_arroba ? m(p.valor_arroba) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'quantidade_arrobas') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.quantidade_arrobas ? `${p.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.quantidade_arrobas ? `${n(p.quantidade_arrobas, 2)} @` : '-'}</TableCell>;
                         }
                         if (coluna.id === 'frigorifico') {
                           return <TableCell key={coluna.id} className="text-xs">{p.frigorifico || '-'}</TableCell>;
@@ -2227,7 +2227,7 @@ export default function LancamentoPesagensIndividuais() {
 
                         }
                         if (coluna.id === 'peso') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{n(p.peso, 2)}</TableCell>;
                         }
                         if (coluna.id === 'sanidade') {
                           const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
@@ -2255,7 +2255,7 @@ export default function LancamentoPesagensIndividuais() {
                                         )}
                                              </div>
                                              <div className="text-xs text-emerald-700 font-semibold mt-1">
-                                               Total: R$ {sanidade.custoTotal.toFixed(2)}
+                                               Total: {m(sanidade.custoTotal)}
                                              </div>
                                            </div>
                                     )}
@@ -2293,7 +2293,7 @@ export default function LancamentoPesagensIndividuais() {
                           return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_anterior) || '-'}</TableCell>;
                         }
                         if (coluna.id === 'peso_anterior') {
-                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso_anterior || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso_anterior != null ? n(p.peso_anterior, 2) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'dias') {
                           return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
@@ -2339,7 +2339,7 @@ export default function LancamentoPesagensIndividuais() {
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">Peso Médio</span>
-                <span className="font-bold text-lg">{estatisticas.pesoMedio.toFixed(2)}</span>
+                <span className="font-bold text-lg">{n(estatisticas.pesoMedio, 2)}</span>
               </div>
             {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
               <div className="flex items-center gap-1 ml-4">
@@ -2353,7 +2353,7 @@ export default function LancamentoPesagensIndividuais() {
                 <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.femeas : resumoEmbarque.femeas}</span>
                 <span className="text-slate-400">•</span>
                 <span className="text-slate-500">Média</span>
-                <span className="font-bold text-lg text-amber-500">{(documentoSelecionado ? resumoDoc.pesoMedio : resumoEmbarque.pesoMedio).toFixed(2)}</span>
+                <span className="font-bold text-lg text-amber-500">{n(documentoSelecionado ? resumoDoc.pesoMedio : resumoEmbarque.pesoMedio, 2)}</span>
               </div>
             )}
             </div>
@@ -2458,7 +2458,7 @@ export default function LancamentoPesagensIndividuais() {
                             {med.finalidade && <span className="text-slate-500"> - {med.finalidade}</span>}
                           </div>
                           <div className="text-slate-600">
-                            {med.quantidade} {med.unidade} {med.custo > 0 && `(R$ ${med.custo.toFixed(2)})`}
+                            {med.quantidade} {med.unidade} {med.custo > 0 && `(${m(med.custo)})`}
                           </div>
                         </div>
                     )}
