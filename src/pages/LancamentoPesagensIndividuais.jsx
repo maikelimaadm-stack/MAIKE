@@ -1795,11 +1795,11 @@ export default function LancamentoPesagensIndividuais() {
                 <div className="space-y-1">
                   <Label className="text-xs">Valor do Frete (R$)</Label>
                   <Input
-                  type="number"
+                  type="number" step="0.01"
                   value={valorFreteVenda}
                   onChange={(e) => setValorFreteVenda(e.target.value)}
                   className="h-8 text-xs"
-                  placeholder="0.00" />
+                  placeholder="0,00" />
 
                 </div>
                 <div className="space-y-1 col-span-4">
@@ -1935,11 +1935,11 @@ export default function LancamentoPesagensIndividuais() {
                 <div className="space-y-1">
                   <Label className="text-xs">Valor do Frete (R$)</Label>
                   <Input
-                  type="number"
+                  type="number" step="0.01"
                   value={valorFreteVenda}
                   onChange={(e) => setValorFreteVenda(e.target.value)}
                   className="h-8 text-xs"
-                  placeholder="0.00" />
+                  placeholder="0,00" />
 
                 </div>
                 <div className="space-y-1 col-span-4">
