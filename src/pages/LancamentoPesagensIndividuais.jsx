@@ -616,19 +616,9 @@ export default function LancamentoPesagensIndividuais() {
   [...new Set(pesagens.map((p) => p.raca).filter(Boolean))].sort(),
   [pesagens]
   );
-  const erasExistentes = useMemo(() =>
-  [...new Set(pesagens.map((p) => p.era).filter(Boolean))].sort(),
-  [pesagens]
-  );
-
-  // ========== LOTES DA APARTAÇÃO SELECIONADA (inclui lotes offline) ==========
-  const lotesApartacaoAtual = useMemo(() => {
-    if (!apartacaoSelecionada) return [];
-    // Combina lotes sincronizados + lotes criados offline (do cache)
-    return lotesApartacao.filter((l) => l.apartacao_id === apartacaoSelecionada);
-  }, [apartacaoSelecionada, lotesApartacao]);
-
-  // ResumoLotes extraído para componente separado
+  const erasExistentes = useMemo(() => [...new Set(pesagens.map((p) => p.era).filter(Boolean))].sort(), [pesagens]);
+  const numerosUsados = useMemo(() => { const s = new Set(); pesagens.forEach((p) => { if (p.numero_animal) s.add(p.numero_animal); }); pendingPesagensDB.forEach((p) => { if (p.numero_animal) s.add(p.numero_animal); }); return s; }, [pesagens, pendingPesagensDB]);
+  const lotesApartacaoAtual = useMemo(() => { if (!apartacaoSelecionada) return []; return lotesApartacao.filter((l) => l.apartacao_id === apartacaoSelecionada); }, [apartacaoSelecionada, lotesApartacao]);
 
   // ========== ESTATÍSTICAS DO DIA ==========
   const estatisticas = useMemo(() => {
