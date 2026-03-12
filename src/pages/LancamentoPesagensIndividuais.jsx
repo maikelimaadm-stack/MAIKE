@@ -2848,28 +2848,7 @@ export default function LancamentoPesagensIndividuais() {
 
 }
 
-// ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
-function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
-  const [tab, setTab] = useState('apartacoes');
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Formulário apartação
-  const [nomeApartacao, setNomeApartacao] = useState("");
-  const [editingApartacaoId, setEditingApartacaoId] = useState(null);
-
-  // Formulário lote
-  const [apartacaoIdLote, setApartacaoIdLote] = useState("");
-  const [nomeLote, setNomeLote] = useState("");
-  const [qtdMaxima, setQtdMaxima] = useState("500");
-  const [pesoMinimo, setPesoMinimo] = useState("");
-  const [pesoMaximo, setPesoMaximo] = useState("");
-  const [editingLoteId, setEditingLoteId] = useState(null);
-
-  // Lotes filtrados pela apartação selecionada
-  const lotesFiltrados = useMemo(() => {
-    if (!apartacaoIdLote) return lotes;
-    return lotes.filter((l) => l.apartacao_id === apartacaoIdLote);
-  }, [lotes, apartacaoIdLote]);
+// GerenciarApartacoesDialog extraído para components/pesagens/GerenciarApartacoesDialog.jsx, [lotes, apartacaoIdLote]);
 
   const [progressoAtualizacao, setProgressoAtualizacao] = useState({ show: false, current: 0, total: 0, texto: "" });
 
