@@ -152,19 +152,16 @@ export default function SequenciaBrincos({ visivel = true, brincoAtual, onSetNum
   return (
     <div className={visivel ? "mt-2 p-3 border-t bg-slate-50 rounded" : "hidden"}>
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex items-center gap-2 pb-1">
-          <Checkbox
-            id="usar-sequencia-brincos"
-            checked={usarSequencia}
-            onCheckedChange={(checked) => setUsarSequencia(checked === true)}
-          />
-          <Label htmlFor="usar-sequencia-brincos" className="text-xs font-medium">
-            Usar sequência de brincos
-          </Label>
-        </div>
-
         <div className="space-y-1">
-          <Label className="text-xs">Brinco inicial</Label>
+          <Label htmlFor="usar-sequencia-brincos" className="text-xs flex items-center gap-2">
+            <Checkbox
+              id="usar-sequencia-brincos"
+              checked={usarSequencia}
+              onCheckedChange={(checked) => setUsarSequencia(checked === true)}
+              aria-label="Ativar sequência"
+            />
+            <span>Brinco inicial</span>
+          </Label>
           <Input
             value={brincoInicial}
             onChange={(e) => setBrincoInicial(e.target.value)}
