@@ -984,20 +984,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog confirmar pesagem após movimentação */}
-      <Dialog open={showConfirmPesagem} onOpenChange={setShowConfirmPesagem}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="text-sm">Registrar Pesagem?</DialogTitle></DialogHeader>
-          <p className="text-xs text-slate-600">Deseja registrar pesagem dos animais movidos agora?</p>
-          <div className="flex justify-end gap-2 mt-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfirmPesagem(false)}>Não</Button>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
-              setShowConfirmPesagem(false);
-              setShowPesagem(true);
-            }}>Sim, Pesar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Dialog confirmar pesagem removido — usar botão Pesar após mover */}
     </div>
 
     <Dialog open={progresso.show} onOpenChange={() => {}}>
