@@ -139,7 +139,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showRenomear, setShowRenomear] = useState(false);
   const [novoNomeLote, setNovoNomeLote] = useState('');
   const [loteParaRenomear, setLoteParaRenomear] = useState(null);
-  const [showConfirmPesagem, setShowConfirmPesagem] = useState(false);
+  // showConfirmPesagem removido — pesagem é feita separadamente após mover
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
