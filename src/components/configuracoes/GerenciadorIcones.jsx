@@ -53,12 +53,11 @@ export default function GerenciadorIcones() {
   const queryClient = useQueryClient();
 
   const { data: icones = [] } = useQuery({
-    queryKey: ['configuracao-icones-global', empresaSelecionadaId],
+    queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      return all.filter(i => i.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
   });
 
   const createIconeMutation = useMutation({
