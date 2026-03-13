@@ -236,7 +236,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {ultimoEvento && diasPeriodo && (
               <div className="pt-2 border-t border-slate-200">
                 <div className="text-xs text-blue-700">
-                  ⏱️ Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString()}
+                   Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString()}
                   <span className="font-bold ml-2">→ Período: {diasPeriodo} dia(s)</span>
                 </div>
               </div>
