@@ -227,34 +227,93 @@ export default function DetalhesLote({ lotes, onClose }) {
           const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
           let quantidadeRestante = mov.quantidade;
           
+          // Verificar se deve unir ao lote existente na área destino
+          const deveUnir = formData.unir_lotes[mov.categoria] === 'sim';
+          
           for (const lote of lotesCategoria) {
             if (quantidadeRestante <= 0) break;
             
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
             
             if (quantidadeMover === lote.quantidade_cabecas) {
-              await base44.entities.Lote.update(lote.id, {
-                area_atual_id: formData.area_entrada_id,
-                area_atual_nome: areaEntrada?.nome || '',
-                peso_medio_kg: mov.peso_medio
-              });
+              if (deveUnir) {
+                // Unir ao lote existente na área destino
+                const lotesDestino = await base44.entities.Lote.list();
+                const loteExistente = lotesDestino.find(l => 
+                  l.empresa_id === empresaSelecionadaId && 
+                  l.area_atual_id === formData.area_entrada_id && 
+                  l.categoria?.toUpperCase() === mov.categoria &&
+                  l.status === 'Ativo'
+                );
+                if (loteExistente) {
+                  await base44.entities.Lote.update(loteExistente.id, {
+                    quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
+                  });
+                  // Inativar lote original
+                  await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                } else {
+                  // Fallback: mover o lote inteiro
+                  await base44.entities.Lote.update(lote.id, {
+                    area_atual_id: formData.area_entrada_id,
+                    area_atual_nome: areaEntrada?.nome || ''
+                  });
+                }
+              } else {
+                await base44.entities.Lote.update(lote.id, {
+                  area_atual_id: formData.area_entrada_id,
+                  area_atual_nome: areaEntrada?.nome || ''
+                });
+              }
             } else {
-              await base44.entities.Lote.create({
-                empresa_id: empresaSelecionadaId,
-                nome: lote.nome,
-                quantidade_cabecas: quantidadeMover,
-                categoria: lote.categoria,
-                sexo: lote.sexo,
-                peso_medio_kg: mov.peso_medio,
-                idade_media_meses: lote.idade_media_meses,
-                area_atual_id: formData.area_entrada_id,
-                area_atual_nome: areaEntrada?.nome || '',
-                raca_predominante: lote.raca_predominante,
-                sistema_produtivo: lote.sistema_produtivo,
-                data_entrada: formData.data_movimentacao,
-                origem: 'MOVIMENTAÇÃO',
-                status: 'Ativo'
-              });
+              // Movimentação parcial
+              if (deveUnir) {
+                const lotesDestino = await base44.entities.Lote.list();
+                const loteExistente = lotesDestino.find(l => 
+                  l.empresa_id === empresaSelecionadaId && 
+                  l.area_atual_id === formData.area_entrada_id && 
+                  l.categoria?.toUpperCase() === mov.categoria &&
+                  l.status === 'Ativo'
+                );
+                if (loteExistente) {
+                  await base44.entities.Lote.update(loteExistente.id, {
+                    quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
+                  });
+                } else {
+                  await base44.entities.Lote.create({
+                    empresa_id: empresaSelecionadaId,
+                    nome: lote.nome,
+                    quantidade_cabecas: quantidadeMover,
+                    categoria: lote.categoria,
+                    sexo: lote.sexo,
+                    peso_medio_kg: lote.peso_medio_kg,
+                    idade_media_meses: lote.idade_media_meses,
+                    area_atual_id: formData.area_entrada_id,
+                    area_atual_nome: areaEntrada?.nome || '',
+                    raca_predominante: lote.raca_predominante,
+                    sistema_produtivo: lote.sistema_produtivo,
+                    data_entrada: formData.data_movimentacao,
+                    origem: 'MOVIMENTAÇÃO',
+                    status: 'Ativo'
+                  });
+                }
+              } else {
+                await base44.entities.Lote.create({
+                  empresa_id: empresaSelecionadaId,
+                  nome: lote.nome,
+                  quantidade_cabecas: quantidadeMover,
+                  categoria: lote.categoria,
+                  sexo: lote.sexo,
+                  peso_medio_kg: lote.peso_medio_kg,
+                  idade_media_meses: lote.idade_media_meses,
+                  area_atual_id: formData.area_entrada_id,
+                  area_atual_nome: areaEntrada?.nome || '',
+                  raca_predominante: lote.raca_predominante,
+                  sistema_produtivo: lote.sistema_produtivo,
+                  data_entrada: formData.data_movimentacao,
+                  origem: 'MOVIMENTAÇÃO',
+                  status: 'Ativo'
+                });
+              }
 
               await base44.entities.Lote.update(lote.id, {
                 quantidade_cabecas: lote.quantidade_cabecas - quantidadeMover
@@ -271,7 +330,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               area_origem_nome: areaSaida?.nome || '',
               area_destino_id: formData.area_entrada_id,
               area_destino_nome: areaEntrada?.nome || '',
-              observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria} - Peso médio: ${mov.peso_medio}kg`
+              observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`
             });
 
             quantidadeRestante -= quantidadeMover;
