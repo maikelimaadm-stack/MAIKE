@@ -44,13 +44,14 @@ const getLinkedMovementIds = (observacoes) => {
   return match ? match[1].split(',').map((item) => item.trim()).filter(Boolean) : [];
 };
 
-export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
+export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
   const [editMov, setEditMov] = React.useState(null);
   const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
-  const loteNomes = React.useMemo(() => lotesIds.filter(Boolean), [lotesIds]);
+  const loteIds = React.useMemo(() => lotes.map(item => item?.id).filter(Boolean), [lotes]);
+  const loteNomes = React.useMemo(() => lotes.map(item => item?.nome).filter(Boolean), [lotes]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.MovimentacaoMapa.update(id, data),
@@ -58,7 +59,7 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
   });
 
   const { data: historico = [], isLoading } = useQuery({
-    queryKey: ['historico-movimentacoes', loteNomes, areaId],
+    queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId],
     queryFn: async () => {
       const [movimentacoesRaw, suplementacoesRaw, medicamentosRaw, sanidadesRaw] = await Promise.all([
         base44.entities.MovimentacaoMapa.list('-data_movimentacao'),
@@ -67,12 +68,21 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
         base44.entities.EventoSanitario.list('-data_evento'),
       ]);
 
-      const matchLote = (nome) => loteNomes.length === 0 || loteNomes.some((item) => normalize(item) === normalize(nome));
+      const matchLote = (nome, id) => {
+        const matchById = !!id && loteIds.includes(id);
+        const matchByName = loteNomes.some((item) => normalize(item) === normalize(nome));
+        return matchById || matchByName;
+      };
       const matchAreaMov = (mov) => !areaId || mov.area_origem_id === areaId || mov.area_destino_id === areaId;
 
       const movimentacoes = movimentacoesRaw
         .filter((mov) => mov.empresa_id === empresaSelecionadaId)
-        .filter((mov) => (areaId ? matchAreaMov(mov) : matchLote(mov.lote)))
+        .filter((mov) => {
+          if (loteIds.length > 0 || loteNomes.length > 0) {
+            return matchLote(mov.lote, mov.lote_id);
+          }
+          return matchAreaMov(mov);
+        })
         .map((mov) => ({
           uniqueId: `mov-${mov.id}`,
           source: 'movimentacao',
@@ -158,7 +168,7 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
           return getTime(b.created_at) - getTime(a.created_at);
         });
     },
-    enabled: !!empresaSelecionadaId && (loteNomes.length > 0 || !!areaId),
+    enabled: !!empresaSelecionadaId && (loteIds.length > 0 || loteNomes.length > 0 || !!areaId),
   });
 
   const hasLaterRelatedRecord = React.useCallback((entry) => {
