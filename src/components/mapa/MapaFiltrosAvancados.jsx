@@ -13,14 +13,14 @@ export const CORES_TIPO_CULTURA = {
   'Agricultura': '#eab308',
   'Reserva': '#0ea5e9',
   'APP': '#06b6d4',
-  'Infraestrutura': '#94a3b8',
+  'Infraestrutura': '#94a3b8'
 };
 
 // Cores por aproveitamento
 export const CORES_APROVEITAMENTO = {
   'Alta': '#22c55e',
   'Média': '#f59e0b',
-  'Baixa': '#ef4444',
+  'Baixa': '#ef4444'
 };
 
 // Cores por status de ocupação
@@ -28,7 +28,7 @@ export const CORES_OCUPACAO = {
   'Disponível': '#94a3b8',
   'Médio': '#f59e0b',
   'Alto': '#ef4444',
-  'Sobrepastoreado': '#991b1b',
+  'Sobrepastoreado': '#991b1b'
 };
 
 // Cores por faixa de UA/ha (baseado em dados Embrapa/Scot Consultoria)
@@ -40,7 +40,7 @@ export const CORES_UA_HA = {
   'Moderada (0,8 - 1,2 UA/ha)': '#22c55e',
   'Ideal (1,2 - 1,8 UA/ha)': '#3b82f6',
   'Alta (1,8 - 2,4 UA/ha)': '#f59e0b',
-  'Superlotação (> 2,4 UA/ha)': '#ef4444',
+  'Superlotação (> 2,4 UA/ha)': '#ef4444'
 };
 
 // Cores por situação do pasto (Ocupado vs Vazio)
@@ -49,25 +49,25 @@ export const CORES_SITUACAO_PASTO = {
   'Vazio - Em descanso': '#86efac',
   'Ocupado - Normal': '#3b82f6',
   'Ocupado - Atenção (> 45d)': '#f59e0b',
-  'Ocupado - Crítico (> 90d)': '#ef4444',
+  'Ocupado - Crítico (> 90d)': '#ef4444'
 };
 
 // Cores por categoria de gado (genérico)
 export const CORES_CATEGORIA_GADO = [
-  '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#6366f1',
-  '#d946ef', '#0ea5e9', '#84cc16', '#f43f5e', '#a855f7',
-];
+'#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#6366f1',
+'#d946ef', '#0ea5e9', '#84cc16', '#f43f5e', '#a855f7'];
+
 
 export const MODOS_COLORACAO = [
-  { id: 'padrao', label: 'Padrão (cor da área)' },
-  { id: 'tipo_cultura', label: 'Tipo de Cultura' },
-  { id: 'aproveitamento', label: 'Aproveitamento' },
-  { id: 'ocupacao', label: 'Ocupação' },
-  { id: 'categoria_gado', label: 'Categoria de Manejo' },
-  { id: 'tipo_pastagem', label: 'Tipo de Pastagem' },
-  { id: 'ua_ha', label: 'UA por Hectare' },
-  { id: 'situacao_pasto', label: 'Situação do Pasto' },
-];
+{ id: 'padrao', label: 'Padrão (cor da área)' },
+{ id: 'tipo_cultura', label: 'Tipo de Cultura' },
+{ id: 'aproveitamento', label: 'Aproveitamento' },
+{ id: 'ocupacao', label: 'Ocupação' },
+{ id: 'categoria_gado', label: 'Categoria de Manejo' },
+{ id: 'tipo_pastagem', label: 'Tipo de Pastagem' },
+{ id: 'ua_ha', label: 'UA por Hectare' },
+{ id: 'situacao_pasto', label: 'Situação do Pasto' }];
+
 
 export default function MapaFiltrosAvancados({
   // Visibilidade
@@ -93,10 +93,10 @@ export default function MapaFiltrosAvancados({
   // Dados para opções
   categorias = [],
   tiposPastagem = [],
-  sistemasProdutivos = [],
+  sistemasProdutivos = []
 }) {
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4">
       {/* ─── Camadas Visíveis ─── */}
       <div>
         <div className="mb-3">
@@ -104,23 +104,23 @@ export default function MapaFiltrosAvancados({
         </div>
         <div className="space-y-2">
           {[
-            { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas(v => !v), color: 'bg-black' },
-            { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas(v => !v), color: 'bg-black' },
-            { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes(v => !v), color: 'bg-black' },
-            { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos(v => !v), color: 'bg-black' },
-            { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas(v => !v), color: 'bg-black' },
-            { label: 'Cochos / Suplementação', checked: showPontosSuplementacao, onChange: () => setShowPontosSuplementacao(v => !v), color: 'bg-black' },
-            { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas(v => !v), color: 'bg-black' },
-            { label: 'Minha Localização', checked: showUserLocation, onChange: () => setShowUserLocation(v => !v), color: 'bg-black' },
-          ].map(item => (
-            <label key={item.label} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
+          { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas((v) => !v), color: 'bg-black' },
+          { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v), color: 'bg-black' },
+          { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes((v) => !v), color: 'bg-black' },
+          { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v), color: 'bg-black' },
+          { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v), color: 'bg-black' },
+          { label: 'Cochos / Suplementação', checked: showPontosSuplementacao, onChange: () => setShowPontosSuplementacao((v) => !v), color: 'bg-black' },
+          { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v), color: 'bg-black' },
+          { label: 'Minha Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v), color: 'bg-black' }].
+          map((item) =>
+          <label key={item.label} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
               <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                <div className="bg-green-600 text-zinc-50 rounded-full w-2.5 h-2.5" />
                 <span className="text-xs font-medium text-slate-700">{item.label}</span>
               </div>
               <Switch checked={item.checked} onCheckedChange={item.onChange} className="scale-75" />
             </label>
-          ))}
+          )}
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export default function MapaFiltrosAvancados({
           <span className="text-xs font-bold text-slate-800 uppercase">Colorir Áreas por</span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
-          {MODOS_COLORACAO.map(modo => {
+          {MODOS_COLORACAO.map((modo) => {
             const ativo = modoColoracao === modo.id;
             return (
               <Button
@@ -140,46 +140,46 @@ export default function MapaFiltrosAvancados({
                 variant={ativo ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setModoColoracao(modo.id)}
-                className={`h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-              >
+                className={`h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
+
                 <span className="truncate">{modo.label}</span>
-              </Button>
-            );
+              </Button>);
+
           })}
         </div>
 
         {/* Legenda do modo ativo */}
-        {modoColoracao !== 'padrao' && (
-          <div className="mt-3 bg-slate-50 rounded-lg p-2.5 space-y-1">
+        {modoColoracao !== 'padrao' &&
+        <div className="mt-3 bg-slate-50 rounded-lg p-2.5 space-y-1">
             <div className="text-[10px] font-bold text-slate-600 uppercase mb-1">Legenda</div>
-            {modoColoracao === 'tipo_cultura' && Object.entries(CORES_TIPO_CULTURA).map(([k, c]) => (
-              <LegendaItem key={k} cor={c} label={k} />
-            ))}
-            {modoColoracao === 'aproveitamento' && Object.entries(CORES_APROVEITAMENTO).map(([k, c]) => (
-              <LegendaItem key={k} cor={c} label={k} />
-            ))}
-            {modoColoracao === 'ocupacao' && Object.entries(CORES_OCUPACAO).map(([k, c]) => (
-              <LegendaItem key={k} cor={c} label={k} />
-            ))}
-            {modoColoracao === 'categoria_gado' && (
-              <div className="text-[10px] text-slate-500">Cada categoria de manejo terá uma cor distinta</div>
+            {modoColoracao === 'tipo_cultura' && Object.entries(CORES_TIPO_CULTURA).map(([k, c]) =>
+          <LegendaItem key={k} cor={c} label={k} />
+          )}
+            {modoColoracao === 'aproveitamento' && Object.entries(CORES_APROVEITAMENTO).map(([k, c]) =>
+          <LegendaItem key={k} cor={c} label={k} />
+          )}
+            {modoColoracao === 'ocupacao' && Object.entries(CORES_OCUPACAO).map(([k, c]) =>
+          <LegendaItem key={k} cor={c} label={k} />
+          )}
+            {modoColoracao === 'categoria_gado' &&
+          <div className="text-[10px] text-slate-500">Cada categoria de manejo terá uma cor distinta</div>
+          }
+            {modoColoracao === 'tipo_pastagem' &&
+          <div className="text-[10px] text-slate-500">Cada tipo de pastagem terá uma cor distinta</div>
+          }
+            {modoColoracao === 'ua_ha' &&
+          <>
+                {Object.entries(CORES_UA_HA).map(([k, c]) =>
+            <LegendaItem key={k} cor={c} label={k} />
             )}
-            {modoColoracao === 'tipo_pastagem' && (
-              <div className="text-[10px] text-slate-500">Cada tipo de pastagem terá uma cor distinta</div>
-            )}
-            {modoColoracao === 'ua_ha' && (
-              <>
-                {Object.entries(CORES_UA_HA).map(([k, c]) => (
-                  <LegendaItem key={k} cor={c} label={k} />
-                ))}
                 <div className="text-[9px] text-slate-500 mt-1 italic">* Usa área efetiva (pastejada). 1 UA = 450 kg PV</div>
               </>
-            )}
-            {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) => (
-              <LegendaItem key={k} cor={c} label={k} />
-            ))}
+          }
+            {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) =>
+          <LegendaItem key={k} cor={c} label={k} />
+          )}
           </div>
-        )}
+        }
       </div>
 
       <Separator />
@@ -210,9 +210,9 @@ export default function MapaFiltrosAvancados({
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas" className="text-xs">Todas</SelectItem>
-                {tiposPastagem.map(tp => (
-                  <SelectItem key={tp} value={tp} className="text-xs">{tp}</SelectItem>
-                ))}
+                {tiposPastagem.map((tp) =>
+                <SelectItem key={tp} value={tp} className="text-xs">{tp}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -233,9 +233,9 @@ export default function MapaFiltrosAvancados({
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas" className="text-xs">Todas</SelectItem>
-                {categorias.map(cat => (
-                  <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                ))}
+                {categorias.map((cat) =>
+                <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -245,9 +245,9 @@ export default function MapaFiltrosAvancados({
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                {sistemasProdutivos.map(sp => (
-                  <SelectItem key={sp} value={sp} className="text-xs">{sp}</SelectItem>
-                ))}
+                {sistemasProdutivos.map((sp) =>
+                <SelectItem key={sp} value={sp} className="text-xs">{sp}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -266,20 +266,20 @@ export default function MapaFiltrosAvancados({
             <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
             <Input
               type="number" placeholder="Ex: 200" className="h-8 text-xs"
-              value={filtroPesoMin || ''} onChange={e => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)}
-            />
+              value={filtroPesoMin || ''} onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
+
           </div>
           <div>
             <Label className="text-[10px] text-slate-600">Peso Máximo (kg)</Label>
             <Input
               type="number" placeholder="Ex: 500" className="h-8 text-xs"
-              value={filtroPesoMax || ''} onChange={e => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)}
-            />
+              value={filtroPesoMax || ''} onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)} />
+
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 function LegendaItem({ cor, label }) {
@@ -287,6 +287,6 @@ function LegendaItem({ cor, label }) {
     <div className="flex items-center gap-2">
       <div className="w-3 h-3 rounded-sm border border-white/50" style={{ backgroundColor: cor }} />
       <span className="text-[11px] text-slate-700">{label}</span>
-    </div>
-  );
+    </div>);
+
 }
