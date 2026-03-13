@@ -57,6 +57,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     nome: "",
     sigla: "",
     tipo: "",
+    configuracao_icone_id: "",
     observacoes: "",
     // Campos específicos para cocho
     produto_padrao: "",
@@ -131,12 +132,15 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       const allPontos = await base44.entities.PontoReferencia.list();
       const maxNum = allPontos.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
       
-      const configIcone = iconesConfig.find(ic => ic.categoria === data.tipo);
+      const configIcone = iconesConfig.find(ic => ic.id === data.configuracao_icone_id) || iconesConfig.find(ic => ic.categoria === data.tipo);
       
       const pontoReferencia = await base44.entities.PontoReferencia.create({
         nome: data.nome,
         sigla: data.sigla,
         tipo: data.tipo,
+        configuracao_icone_id: data.configuracao_icone_id || null,
+        icone_url: configIcone?.icone_url || null,
+        sub_icone_url: configIcone?.sub_icone_url || null,
         observacoes: data.observacoes,
         empresa_id: empresaSelecionadaId,
         numero_ponto: String(maxNum + 1),
@@ -219,6 +223,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       nome: formData.nome.toUpperCase(),
       sigla: formData.sigla.toUpperCase(),
       tipo: formData.tipo,
+      configuracao_icone_id: formData.configuracao_icone_id,
       observacoes: formData.observacoes?.toUpperCase(),
       produto_padrao: ehCocho ? formData.produto_padrao : null,
       capacidade_cocho_kg: ehCocho ? formData.capacidade_cocho_kg : null,
@@ -231,6 +236,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     });
   };
 
+  const pontosReferenciaCadastrados = iconesConfig.filter(ic => ic.tipo_entidade === 'Ponto');
   const tiposDisponiveis = [...new Set(iconesConfig.map(ic => ic.categoria))];
 
   if (mostrarCapturaGPS) {
@@ -270,6 +276,27 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             maxLength={10}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Ponto de Referência Cadastrado</Label>
+        <Select value={formData.configuracao_icone_id} onValueChange={(value) => {
+          const configuracao = pontosReferenciaCadastrados.find(item => item.id === value);
+          setFormData({
+            ...formData,
+            configuracao_icone_id: value,
+            tipo: configuracao?.categoria || formData.tipo
+          });
+        }}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Selecione um ponto cadastrado" />
+          </SelectTrigger>
+          <SelectContent>
+            {pontosReferenciaCadastrados.map((item) => (
+              <SelectItem key={item.id} value={item.id} className="text-xs">{item.categoria}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">

@@ -11,6 +11,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GerenciadorIcones from "../components/configuracoes/GerenciadorIcones";
+import GerenciadorPontosReferencia from "../components/configuracoes/GerenciadorPontosReferencia";
 
 const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
@@ -466,6 +467,7 @@ export default function ConfiguracoesGerais() {
         </TabsContent>
 
         <TabsContent value="parametros" className="space-y-3 mt-3">
+          <GerenciadorPontosReferencia />
           <GerenciadorIcones />
           
           <Card className="shadow-sm mt-4">
