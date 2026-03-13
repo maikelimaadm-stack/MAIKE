@@ -529,7 +529,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         tipo: 'categorias',
         icone: TrendingUp,
         cor: 'text-blue-700 bg-blue-50 border-blue-200',
-        titulo: 'Categorias em Campo',
+        titulo: 'Categorias de Manejo em Campo',
         lista: categoriasOrdenadas.map(([cat, qtd]) => `${cat}: ${qtd} cab`)
       });
     }

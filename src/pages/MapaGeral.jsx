@@ -180,7 +180,7 @@ export default function MapaGeral() {
     return true;
   }), [lotesComAlerta, filtroCategoria, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
 
-  // Mapa de cores para categorias de gado e pastagem
+  // Mapa de cores para categorias de manejo e pastagem
   const categoriasGadoCores = useMemo(() => {
     const m = {};
     categorias.forEach((c, i) => { m[c] = CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length]; });
@@ -436,7 +436,7 @@ export default function MapaGeral() {
             <div className="flex items-center gap-3 text-[10px]">
               <div className="text-center">
                 <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
-                <div className="text-slate-500">Cabeças</div>
+                <div className="text-slate-500">Animais</div>
               </div>
               <div className="w-px h-5 bg-slate-200" />
               <div className="text-center">
