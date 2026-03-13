@@ -252,6 +252,8 @@ export default function DetalhesLote({ lotes, onClose }) {
               area_atual_id: formData.area_entrada_id,
               area_atual_nome: areaEntrada?.nome || ''
             });
+            loteExistenteDestino.quantidade_cabecas = qtdDestino;
+            loteExistenteDestino.peso_medio_kg = pesoDestino;
             await base44.entities.Lote.update(lote.id, {
               quantidade_cabecas: 0,
               status: 'Inativo'
@@ -316,6 +318,8 @@ export default function DetalhesLote({ lotes, onClose }) {
                 area_atual_id: formData.area_entrada_id,
                 area_atual_nome: areaEntrada?.nome || ''
               });
+              loteExistenteDestino.quantidade_cabecas = novaQtdDestino;
+              loteExistenteDestino.peso_medio_kg = novoPesoDestino;
 
               await registrarTransferencia({
                 loteOrigem: lote,
