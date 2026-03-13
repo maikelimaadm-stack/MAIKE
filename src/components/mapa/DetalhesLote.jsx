@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 import { Progress } from "@/components/ui/progress";
+import { criarSnapshotLote, aplicarSnapshotsLote, movimentacaoAfetaIds, getIdsAfetados, calcularPesoMedioPonderado } from "../lotes/movimentacaoLoteUtils";
 
 function ResumoSuplementacaoLote({ lotesIds }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -140,6 +141,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [novoNomeLote, setNovoNomeLote] = useState('');
   const [loteParaRenomear, setLoteParaRenomear] = useState(null);
   const [showConfirmPesagem, setShowConfirmPesagem] = useState(false);
+  const [lotesParaPesagem, setLotesParaPesagem] = useState([]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
@@ -192,6 +194,14 @@ export default function DetalhesLote({ lotes, onClose }) {
   });
 
   const areaAtual = areas.find(a => a.id === lotes[0]?.area_atual_id);
+  const podeUnirLotes = React.useMemo(() => Object.values(lotesPorCategoria).some((grupo) => grupo.length > 1), [lotesPorCategoria]);
+
+  const registrarMovimentacaoMapa = async (payload) => {
+    return await base44.entities.MovimentacaoMapa.create({
+      empresa_id: empresaSelecionadaId,
+      ...payload,
+    });
+  };
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
