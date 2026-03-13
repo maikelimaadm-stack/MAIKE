@@ -207,7 +207,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             area_atual_nome: areaEntrada?.nome || ''
           });
 
-          await base44.entities.MovimentacaoPecuaria.create({
+          await base44.entities.MovimentacaoMapa.create({
             empresa_id: empresaSelecionadaId,
             data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
             tipo: 'Transferência de Área',
@@ -261,7 +261,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               });
             }
 
-            await base44.entities.MovimentacaoPecuaria.create({
+            await base44.entities.MovimentacaoMapa.create({
               empresa_id: empresaSelecionadaId,
               data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
               tipo: 'Transferência de Área',
@@ -308,7 +308,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     for (const lote of lotesCategoria) {
       const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
 
-      await base44.entities.MovimentacaoPecuaria.create({
+      await base44.entities.MovimentacaoMapa.create({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
         tipo: 'Morte',
@@ -378,7 +378,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     const areaNascimento = areas.find(a => a.id === areaAtualId);
 
     // Registrar movimentação
-    await base44.entities.MovimentacaoPecuaria.create({
+    await base44.entities.MovimentacaoMapa.create({
       empresa_id: empresaSelecionadaId,
       data_movimentacao: new Date(formData.data_nascimento).toISOString(),
       tipo: 'Nascimento',
@@ -404,7 +404,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     for (const lote of lotesCategoria) {
       const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
 
-      await base44.entities.MovimentacaoPecuaria.create({
+      await base44.entities.MovimentacaoMapa.create({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: new Date(formData.data_abate).toISOString(),
         tipo: 'Abate',
@@ -442,7 +442,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
 
-        await base44.entities.MovimentacaoPecuaria.create({
+        await base44.entities.MovimentacaoMapa.create({
           empresa_id: empresaSelecionadaId,
           data_movimentacao: new Date(formData.data_mudanca).toISOString(),
           tipo: 'Mudança de Categoria',
@@ -505,7 +505,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         const pesoAnterior = lote.peso_medio_kg || 0;
         const ganho = pesoNovo - pesoAnterior;
 
-        await base44.entities.MovimentacaoPecuaria.create({
+        await base44.entities.MovimentacaoMapa.create({
           empresa_id: empresaSelecionadaId,
           data_movimentacao: new Date(formData.data_pesagem).toISOString(),
           tipo: 'Pesagem',

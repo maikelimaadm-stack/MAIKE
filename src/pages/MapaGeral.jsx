@@ -139,7 +139,7 @@ export default function MapaGeral() {
   // Movimentações para calcular situação do pasto
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ['mapa-movimentacoes', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao', 500); return all.filter(m => m.empresa_id === empresaSelecionadaId); },
+    queryFn: async () => { const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao', 500); return all.filter(m => m.empresa_id === empresaSelecionadaId); },
     enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto',
     staleTime: ST,
   });

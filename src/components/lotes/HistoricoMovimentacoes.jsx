@@ -34,18 +34,18 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   const [showEdit, setShowEdit] = React.useState(false);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.MovimentacaoPecuaria.update(id, data),
+    mutationFn: ({ id, data }) => base44.entities.MovimentacaoMapa.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.MovimentacaoPecuaria.delete(id),
+    mutationFn: (id) => base44.entities.MovimentacaoMapa.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
   });
 
   const handleDelete = async (mov) => {
     // Bloquear exclusão se existirem registros posteriores (filhos) do mesmo lote
-    const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
+    const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
     const sameLote = all.filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
     const later = sameLote.filter(m => new Date(m.data_movimentacao) > new Date(mov.data_movimentacao));
     if (later.length > 0) {
@@ -58,7 +58,7 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
     await deleteMutation.mutateAsync(mov.id);
 
     // Recalcular área atual do lote com base no histórico restante
-    const remaining = (await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao'))
+    const remaining = (await base44.entities.MovimentacaoMapa.list('-data_movimentacao'))
       .filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
 
     // Determinar nova área:
@@ -103,7 +103,7 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', lotesIds, areaId],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
+      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
       return all.filter(m => {
         if (m.empresa_id !== empresaSelecionadaId) return false;
         
