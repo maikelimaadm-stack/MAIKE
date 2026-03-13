@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 export default function GerenciadorPontosReferencia() {
   const queryClient = useQueryClient();
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -24,11 +25,12 @@ export default function GerenciadorPontosReferencia() {
   });
 
   const { data: pontos = [] } = useQuery({
-    queryKey: ['configuracao-pontos-referencia'],
+    queryKey: ['configuracao-pontos-referencia', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.tipo_entidade === 'Ponto' && item.ativo !== false);
-    }
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.tipo_entidade === 'Ponto' && item.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId
   });
 
   const saveMutation = useMutation({
@@ -36,7 +38,7 @@ export default function GerenciadorPontosReferencia() {
       if (editing) {
         return base44.entities.ConfiguracaoIcone.update(editing.id, payload);
       }
-      return base44.entities.ConfiguracaoIcone.create({ ...payload, tipo_entidade: 'Ponto', ativo: true });
+      return base44.entities.ConfiguracaoIcone.create({ ...payload, empresa_id: empresaSelecionadaId, tipo_entidade: 'Ponto', ativo: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['configuracao-pontos-referencia'] });
@@ -46,6 +48,9 @@ export default function GerenciadorPontosReferencia() {
       setEditing(null);
       setForm({ categoria: "", descricao: "", icone_url: "", sub_icone_url: "", cor_padrao: "#10b981" });
       toast.success('Ponto de referência salvo!');
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Erro ao salvar ponto de referência');
     }
   });
 
