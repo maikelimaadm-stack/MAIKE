@@ -809,9 +809,11 @@ export default function DetalhesLote({ lotes, onClose }) {
           Renomear Lote
         </Button>
         {lotes.length > 1 && (() => {
-          // Só pode juntar lotes da mesma categoria
           const categoriasUnicas = [...new Set(lotes.map(l => (l.categoria || '').toUpperCase()))];
+          const categoriasManejoUnicas = [...new Set(lotes.map(l => l.categoria_manejo_id || l.categoria_manejo_nome || 'SEM_CATEGORIA_MANEJO'))];
           const mesmaCat = categoriasUnicas.length === 1;
+          const mesmaCategoriaManejo = categoriasManejoUnicas.length === 1;
+          const podeJuntar = mesmaCat && mesmaCategoriaManejo;
           return (
             <Button 
               onClick={async () => {
@@ -819,11 +821,27 @@ export default function DetalhesLote({ lotes, onClose }) {
                   alert('Não é possível juntar lotes de categorias diferentes. Selecione apenas lotes da mesma categoria.');
                   return;
                 }
+                if (!mesmaCategoriaManejo) {
+                  alert('Não é possível juntar lotes com categoria de manejo diferente.');
+                  return;
+                }
                 if (!confirm(`Deseja juntar todos os ${lotes.length} lotes desta área em um único lote?`)) return;
                 const principal = lotes[0];
                 const totalCab = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
                 const pesoTotal = lotes.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
                 const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
+                const snapshotLotes = lotes.map(l => ({
+                  id: l.id,
+                  nome: l.nome,
+                  quantidade_cabecas: l.quantidade_cabecas || 0,
+                  peso_medio_kg: l.peso_medio_kg || 0,
+                  status: l.status || 'Ativo',
+                  categoria: l.categoria || '',
+                  categoria_manejo_id: l.categoria_manejo_id || '',
+                  categoria_manejo_nome: l.categoria_manejo_nome || '',
+                  area_atual_id: l.area_atual_id || '',
+                  area_atual_nome: l.area_atual_nome || ''
+                }));
                 
                 const nomesLotes = lotes.map(l => l.nome).join(', ');
                 for (let i = 1; i < lotes.length; i++) {
@@ -834,7 +852,6 @@ export default function DetalhesLote({ lotes, onClose }) {
                   peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
                 });
 
-                // Registrar no histórico
                 const areaAtualId = principal.area_atual_id;
                 const areaJuncao = areas.find(a => a.id === areaAtualId);
                 await base44.entities.MovimentacaoMapa.create({
@@ -847,7 +864,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                   quantidade_animais: totalCab,
                   area_origem_id: areaAtualId,
                   area_origem_nome: areaJuncao?.nome || '',
-                  observacoes: `Junção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
+                  observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
                 });
 
                 toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
@@ -855,9 +872,9 @@ export default function DetalhesLote({ lotes, onClose }) {
                 window.dispatchEvent(new CustomEvent('atualizar-mapa'));
               }}
               variant="outline"
-              className={`h-9 text-[11px] font-semibold border-slate-300 gap-1 ${!mesmaCat ? 'opacity-50' : ''}`}
-              disabled={!mesmaCat}
-              title={!mesmaCat ? 'Só é possível juntar lotes da mesma categoria' : ''}
+              className={`h-9 text-[11px] font-semibold border-slate-300 gap-1 ${!podeJuntar ? 'opacity-50' : ''}`}
+              disabled={!podeJuntar}
+              title={!mesmaCat ? 'Só é possível juntar lotes da mesma categoria' : !mesmaCategoriaManejo ? 'Não é possível juntar lotes com categoria de manejo diferente' : ''}
             >
               <Merge className="w-3.5 h-3.5" />
               Juntar Lotes

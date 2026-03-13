@@ -44,6 +44,16 @@ const getLinkedMovementIds = (observacoes) => {
   return match ? match[1].split(',').map((item) => item.trim()).filter(Boolean) : [];
 };
 
+const getJuncaoLotesSnapshot = (observacoes) => {
+  const firstLine = String(observacoes || '').split('\n')[0] || '';
+  if (!firstLine.startsWith('[JUNCAO_LOTES]')) return null;
+  try {
+    return JSON.parse(firstLine.replace('[JUNCAO_LOTES]', ''));
+  } catch {
+    return null;
+  }
+};
+
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -117,7 +127,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           area_destino_nome: mov.area_destino_nome,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
           canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
-          canDelete: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
+          canDelete: ((TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) || mov.motivo === 'Junção de Lotes'),
           raw: mov,
         }));
 
@@ -286,6 +296,27 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
             }
           }
           await base44.entities.MovimentacaoMapa.delete(pesagemFilha.id);
+        }
+      }
+
+      if (mov.motivo === 'Junção de Lotes') {
+        const snapshotLotes = getJuncaoLotesSnapshot(mov.observacoes);
+        if (!snapshotLotes || snapshotLotes.length === 0) {
+          throw new Error('Não foi possível desfazer a junção: dados originais não encontrados.');
+        }
+
+        for (const loteOriginal of snapshotLotes) {
+          await base44.entities.Lote.update(loteOriginal.id, {
+            nome: loteOriginal.nome,
+            quantidade_cabecas: loteOriginal.quantidade_cabecas,
+            peso_medio_kg: loteOriginal.peso_medio_kg,
+            status: loteOriginal.status,
+            categoria: loteOriginal.categoria,
+            categoria_manejo_id: loteOriginal.categoria_manejo_id || null,
+            categoria_manejo_nome: loteOriginal.categoria_manejo_nome || null,
+            area_atual_id: loteOriginal.area_atual_id,
+            area_atual_nome: loteOriginal.area_atual_nome
+          });
         }
       }
 
