@@ -262,32 +262,18 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold text-slate-700">Ícone / Ponto de Referência</Label>
-          <Select value={formData.configuracao_icone_id} onValueChange={(value) => {
-            const configuracao = pontosReferenciaCadastrados.find((itemConfig) => itemConfig.id === value);
-            setFormData({ ...formData, configuracao_icone_id: value, tipo: configuracao?.categoria || formData.tipo });
-          }}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue placeholder="Selecione no gerenciamento de ícones" />
-            </SelectTrigger>
-            <SelectContent>
-              {pontosReferenciaCadastrados.map((itemConfig) => (
-                <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold text-slate-700">Tipo *</Label>
-          {tiposDisponiveis.length > 0 ? (
-            <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
+          <Label className="text-xs font-semibold text-slate-700">Ponto de Referência *</Label>
+          {pontosReferenciaCadastrados.length > 0 ? (
+            <Select value={formData.configuracao_icone_id} onValueChange={(value) => {
+              const configuracao = pontosReferenciaCadastrados.find((itemConfig) => itemConfig.id === value);
+              setFormData({ ...formData, configuracao_icone_id: value, tipo: configuracao?.categoria || formData.tipo });
+            }}>
               <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Selecione o tipo" />
+                <SelectValue placeholder="Selecione o ponto de referência" />
               </SelectTrigger>
               <SelectContent>
-                {tiposDisponiveis.map((tipo) => (
-                  <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
+                {pontosReferenciaCadastrados.map((itemConfig) => (
+                  <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -296,9 +282,6 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
               Cadastre o tipo no Gerenciamento de Ícones em Configurações → Parâmetros
             </div>
           )}
-          <div className="pt-1">
-            <Input value={formData.tipo} onChange={(e) => setFormData({ ...formData, tipo: e.target.value })} placeholder="OU DIGITE UM NOVO TIPO" className="h-9 text-xs uppercase" />
-          </div>
         </div>
 
         <div className="space-y-2">
