@@ -564,11 +564,12 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handlePesagem = async (formData) => {
-    const areaAtualId = lotes[0]?.area_atual_id;
+    const lotesParaPesar = lotesAtualizados || lotes;
+    const areaAtualId = lotesParaPesar[0]?.area_atual_id;
     const areaPesagem = areas.find(a => a.id === areaAtualId);
 
     for (const categoria of formData.categorias_selecionadas) {
-      const lotesCategoria = lotes.filter(l => l.categoria === categoria);
+      const lotesCategoria = lotesParaPesar.filter(l => l.categoria === categoria);
       const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
 
       for (const lote of lotesCategoria) {
