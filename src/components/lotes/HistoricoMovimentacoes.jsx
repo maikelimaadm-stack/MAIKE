@@ -44,14 +44,17 @@ const getLinkedMovementIds = (observacoes) => {
   return match ? match[1].split(',').map((item) => item.trim()).filter(Boolean) : [];
 };
 
-export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
+export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
   const [editMov, setEditMov] = React.useState(null);
   const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
-  const loteIds = React.useMemo(() => lotes.map(item => item?.id).filter(Boolean), [lotes]);
-  const loteNomes = React.useMemo(() => lotes.map(item => item?.nome).filter(Boolean), [lotes]);
+  const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
+  const loteNomes = React.useMemo(() => {
+    const nomesDosLotes = lotes.map((item) => item?.nome).filter(Boolean);
+    return nomesDosLotes.length > 0 ? nomesDosLotes : lotesIds.filter(Boolean);
+  }, [lotes, lotesIds]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.MovimentacaoMapa.update(id, data),
@@ -61,11 +64,12 @@ export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId],
     queryFn: async () => {
-      const [movimentacoesRaw, suplementacoesRaw, medicamentosRaw, sanidadesRaw] = await Promise.all([
+      const [movimentacoesRaw, suplementacoesRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw] = await Promise.all([
         base44.entities.MovimentacaoMapa.list('-data_movimentacao'),
         base44.entities.SuplementacaoLote.list('-data_lancamento'),
         base44.entities.AplicacaoMedicamento.list('-data_aplicacao'),
         base44.entities.EventoSanitario.list('-data_evento'),
+        base44.entities.ManejoTecnicoRebanho.list('-data_evento')
       ]);
 
       const matchLote = (nome, id) => {
@@ -176,7 +180,27 @@ export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
           canDelete: false,
         }));
 
-      return [...movimentacoes, ...suplementacoes, ...medicamentos, ...sanidades]
+      const manejosTecnicos = manejosTecnicosRaw
+        .filter((item) => item.empresa_id === empresaSelecionadaId)
+        .filter((item) => matchLote(item.nome_lote, item.lote_id))
+        .filter((item) => dentroDoHistoricoAtual(item.data_evento))
+        .map((item) => ({
+          uniqueId: `mt-${item.id}`,
+          source: 'manejo_tecnico',
+          sourceLabel: 'Manejo Técnico',
+          lote: item.nome_lote,
+          lote_key: item.lote_id || normalize(item.nome_lote),
+          data_evento: item.data_evento,
+          created_at: item.created_date || item.data_evento,
+          tipo: item.tipo_evento,
+          tipo_exibicao: item.subtipo_manejo || item.tipo_evento,
+          quantidade: item.quantidade_animais,
+          observacoes: item.observacoes,
+          canEdit: false,
+          canDelete: false,
+        }));
+
+      return [...movimentacoes, ...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos]
         .sort((a, b) => {
           const dataDiff = getTime(b.data_evento) - getTime(a.data_evento);
           if (dataDiff !== 0) return dataDiff;
