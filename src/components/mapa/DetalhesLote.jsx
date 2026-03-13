@@ -283,9 +283,12 @@ export default function DetalhesLote({ lotes, onClose }) {
       onSuccess: () => {
         toast.success('✅ Gado movido!');
         setShowMovimentacao(false);
+        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+        // Invalidar queries para recarregar lotes antes de pesar
+        queryClient.invalidateQueries({ queryKey: ['lotes'] });
+        queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
         // Perguntar se quer registrar pesagem
         setShowConfirmPesagem(true);
-        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       },
     onError: (error) => {
       console.error('❌ Erro:', error);
