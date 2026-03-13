@@ -96,7 +96,7 @@ export default function MapaFiltrosAvancados({
   sistemasProdutivos = []
 }) {
   return (
-    <div className="space-y-4">
+    <div className="rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}
       <div>
         <div className="mb-3">
@@ -129,7 +129,7 @@ export default function MapaFiltrosAvancados({
       {/* ─── Modo de Coloração das Áreas ─── */}
       <div>
         <div className="mb-3">
-          <span className="text-xs font-bold text-slate-800 uppercase">Colorir Áreas por</span>
+          <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           {MODOS_COLORACAO.map((modo) => {
