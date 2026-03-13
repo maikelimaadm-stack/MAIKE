@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { aplicarSnapshotsLote, movimentacaoAfetaIds, getIdsAfetados } from "./movimentacaoLoteUtils";
 
 const ICONES_TIPO = {
   "Transferência de Área": "⇄",
@@ -25,9 +24,7 @@ const CORES_TIPO = {
   "Nascimento": "bg-green-100 text-green-800",
   "Abate": "bg-orange-100 text-orange-800",
   "Mudança de Categoria": "bg-purple-100 text-purple-800",
-  "Pesagem": "bg-emerald-100 text-emerald-800",
-  "Renomeação de Lote": "bg-slate-100 text-slate-800",
-  "União de Lotes": "bg-amber-100 text-amber-800"
+  "Pesagem": "bg-emerald-100 text-emerald-800"
 };
 
 export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
@@ -46,69 +43,57 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   });
 
   const handleDelete = async (mov) => {
-    if (!confirm('Excluir este registro? O lote será ajustado automaticamente.')) return;
-
-    const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-    const snapshotsAntes = Array.isArray(mov.lotes_antes) ? mov.lotes_antes : [];
-    const snapshotsDepois = Array.isArray(mov.lotes_depois) ? mov.lotes_depois : [];
-    const idsAfetados = getIdsAfetados(mov);
-
-    if (snapshotsAntes.length > 0 && snapshotsDepois.length > 0 && idsAfetados.length > 0) {
-      const posteriores = all
-        .filter(item => item.id !== mov.id && new Date(item.data_movimentacao) > new Date(mov.data_movimentacao))
-        .filter(item => movimentacaoAfetaIds(item, idsAfetados))
-        .sort((a, b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao));
-
-      await aplicarSnapshotsLote(snapshotsAntes);
-      for (const item of posteriores) {
-        if (Array.isArray(item.lotes_depois) && item.lotes_depois.length > 0) {
-          await aplicarSnapshotsLote(item.lotes_depois);
-        }
-      }
-    } else {
-      const lotesAll = await base44.entities.Lote.list();
-      const loteAtual = mov.lote_id
-        ? lotesAll.find(l => l.id === mov.lote_id)
-        : lotesAll.find(l => l.nome === mov.lote || l.identificacao === mov.lote);
-
-      if (loteAtual) {
-        if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {
-          await base44.entities.Lote.update(loteAtual.id, {
-            quantidade_cabecas: (loteAtual.quantidade_cabecas || 0) + (mov.quantidade_animais || 0),
-            status: 'Ativo'
-          });
-        } else if (mov.tipo === 'Nascimento') {
-          const novaQuantidade = Math.max(0, (loteAtual.quantidade_cabecas || 0) - (mov.quantidade_animais || 0));
-          await base44.entities.Lote.update(loteAtual.id, {
-            quantidade_cabecas: novaQuantidade,
-            status: novaQuantidade > 0 ? 'Ativo' : 'Inativo'
-          });
-        } else if (mov.tipo === 'Pesagem') {
-          const matchPeso = (mov.observacoes || '').match(/Peso anterior:\s*([0-9.,]+)/i);
-          if (matchPeso) {
-            await base44.entities.Lote.update(loteAtual.id, {
-              peso_medio_kg: Number(matchPeso[1].replace(',', '.')) || loteAtual.peso_medio_kg
-            });
-          }
-        } else if (mov.tipo === 'Mudança de Categoria') {
-          const matchCategoria = (mov.observacoes || '').match(/de\s+(.+?)\s+para\s+(.+?)(\.|$)/i);
-          if (matchCategoria) {
-            await base44.entities.Lote.update(loteAtual.id, {
-              categoria: matchCategoria[1].trim()
-            });
-          }
-        } else if (mov.tipo === 'Transferência de Área' && mov.area_origem_id) {
-          await base44.entities.Lote.update(loteAtual.id, {
-            area_atual_id: mov.area_origem_id,
-            area_atual_nome: mov.area_origem_nome || loteAtual.area_atual_nome
-          });
-        }
-      }
+    // Bloquear exclusão se existirem registros posteriores (filhos) do mesmo lote
+    const sameLote = movimentacoes.filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
+    const later = sameLote.filter(m => m.id !== mov.id && new Date(m.data_movimentacao) > new Date(mov.data_movimentacao));
+    if (later.length > 0) {
+      alert('Não é possível excluir: existem movimentações posteriores deste lote. Exclua primeiramente as mais recentes.');
+      return;
     }
 
+    if (!confirm('Excluir este registro? O lote será ajustado automaticamente para a situação anterior.')) return;
+
     await deleteMutation.mutateAsync(mov.id);
+
+    // Recalcular área atual do lote com base no histórico restante
+    const remaining = sameLote.filter(m => m.id !== mov.id);
+
+    // Determinar nova área:
+    // 1) Se a movimentação excluída definiu área_destino_id (transferência), voltar para a área de origem dela
+    let newAreaId = mov.area_destino_id ? (mov.area_origem_id || null) : null;
+
+    // 2) Caso não seja transferência ou não haja origem, usar o último registro remanescente com área_destino_id
+    if (!newAreaId) {
+      const ultimoComDestino = [...remaining]
+        .sort((a,b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao))
+        .reverse()
+        .find(m => m.area_destino_id);
+      if (ultimoComDestino) newAreaId = ultimoComDestino.area_destino_id || null;
+    }
+
+    // Atualizar lote se encontrado
+    try {
+      let loteRecord = null;
+      if (mov.lote_id) {
+        const res = await base44.entities.Lote.filter({ id: mov.lote_id });
+        loteRecord = Array.isArray(res) ? res[0] : null;
+      } else {
+        const lotesAll = await base44.entities.Lote.list();
+        loteRecord = lotesAll.find(l => l.nome === mov.lote || l.identificacao === mov.lote) || null;
+      }
+
+      if (loteRecord && newAreaId && loteRecord.area_atual_id !== newAreaId) {
+        await base44.entities.Lote.update(loteRecord.id, { area_atual_id: newAreaId });
+      }
+    } catch (e) {
+      console.error('Falha ao ajustar área do lote após exclusão:', e);
+    }
+
+    // Garantir atualização das listas e do mapa
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
+
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    // Atualizar mapa em tempo real
     try { window.dispatchEvent(new Event('atualizar-mapa')); } catch {}
   };
 
@@ -169,39 +154,82 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
       <CardContent className="p-4">
         <div className="max-h-[500px] overflow-y-auto pr-2 space-y-3">
           {movimentacoes.map((mov) => (
-            <div key={mov.id} className="bg-white border border-slate-300 rounded-lg p-3 hover:bg-slate-50 transition-colors">
-              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
+            <div key={mov.id} className="bg-white border border-slate-300 rounded-lg p-4 hover:shadow-md transition-all">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xl">
+                    {ICONES_TIPO[mov.tipo] || "📋"}
+                  </div>
+                  <div>
                     <Badge className={`text-xs font-semibold ${CORES_TIPO[mov.tipo] || 'bg-slate-100 text-slate-800'}`}>
                       {mov.tipo}
                     </Badge>
-                    <span className="text-xs text-slate-600">{new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}</span>
-                    <span className="text-xs font-semibold text-emerald-700">{mov.quantidade_animais} {mov.quantidade_animais === 1 ? 'animal' : 'animais'}</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                    <div><span className="font-semibold text-slate-700">Lote:</span> <span className="text-slate-900">{mov.lote || '-'}</span></div>
-                    <div><span className="font-semibold text-slate-700">Área:</span> <span className="text-slate-900">{mov.area_destino_nome || mov.area_origem_nome || '-'}</span></div>
-                    {mov.peso_medio && <div><span className="font-semibold text-slate-700">Peso médio:</span> <span className="text-slate-900">{mov.peso_medio} kg</span></div>}
-                    {mov.categoria_animal && <div><span className="font-semibold text-slate-700">Categoria:</span> <span className="text-slate-900">{mov.categoria_animal}</span></div>}
-                  </div>
-                  {mov.observacoes && (
-                    <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-2 leading-relaxed">
-                      {mov.observacoes}
+                    <div className="text-xs text-slate-600 mt-1 font-medium">
+                      {new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className="flex gap-2 md:pl-4">
-                  <Button variant="outline" size="sm" className="h-8 text-xs"
-                    onClick={() => { setEditMov(mov); setShowEdit(true); }}>
-                    Editar
-                  </Button>
-                  <Button variant="destructive" size="sm" className="h-8 text-xs"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => handleDelete(mov)}>
-                    Excluir
-                  </Button>
+                <div className="text-right space-y-2">
+                  <div className="text-lg font-bold text-emerald-600">
+                    {mov.quantidade_animais} {mov.quantidade_animais === 1 ? 'animal' : 'animais'}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" className="h-8 text-xs"
+                      onClick={() => { setEditMov(mov); setShowEdit(true); }}>
+                      Editar
+                    </Button>
+                    <Button variant="destructive" size="sm" className="h-8 text-xs"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => handleDelete(mov)}>
+                      Excluir
+                    </Button>
+                  </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-semibold text-slate-700 min-w-[60px]">Lote:</span>
+                  <span className="text-xs text-slate-900 font-medium">{mov.lote}</span>
+                </div>
+                
+                {mov.tipo === 'Transferência de Área' && (
+                  <div className="flex items-center gap-2 text-xs bg-blue-50 border border-blue-200 rounded p-2">
+                    <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-blue-700 font-medium">{mov.area_origem_nome}</span>
+                    <ArrowRight className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-blue-900 font-bold">{mov.area_destino_nome}</span>
+                  </div>
+                )}
+
+                {mov.tipo === 'Nascimento' && mov.area_destino_nome && (
+                  <div className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 rounded p-2">
+                    <MapPin className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <span className="text-green-700 font-medium">Área: </span>
+                    <span className="text-green-900 font-bold">{mov.area_destino_nome}</span>
+                  </div>
+                )}
+
+                {['Morte', 'Abate', 'Mudança de Categoria', 'Pesagem'].includes(mov.tipo) && mov.area_origem_nome && (
+                  <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 rounded p-2">
+                    <MapPin className="w-4 h-4 text-slate-600 flex-shrink-0" />
+                    <span className="text-slate-700 font-medium">Área: </span>
+                    <span className="text-slate-900 font-bold">{mov.area_origem_nome}</span>
+                  </div>
+                )}
+
+                {mov.peso_medio && (
+                  <div className="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 rounded p-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold">Peso médio: {mov.peso_medio} kg</span>
+                  </div>
+                )}
+
+                {mov.observacoes && (
+                  <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 leading-relaxed">
+                    {mov.observacoes}
+                  </div>
+                )}
               </div>
             </div>
           ))}
