@@ -474,7 +474,7 @@ export default function MapaGeral() {
       <Sheet open={showFiltros} onOpenChange={setShowFiltros}>
         <SheetContent side="left" className="w-[300px] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-sm">Filtros & Camadas</SheetTitle>
+            <SheetTitle className="text-sm">Filtros e Camadas</SheetTitle>
           </SheetHeader>
           <div className="mt-4">
             <MapaFiltrosAvancados
