@@ -346,6 +346,21 @@ export const saveUpdateOffline = async (entity, entityId, data) => {
   return addItem(STORES.PENDING_UPDATES, item);
 };
 
+export const upsertPendingUpdate = async (entity, entityId, data) => {
+  const pending = await getAllItems(STORES.PENDING_UPDATES);
+  const existing = pending.find((item) => item.entity === entity && item.entity_id === entityId);
+
+  if (existing) {
+    return putItem(STORES.PENDING_UPDATES, {
+      ...existing,
+      data: { ...existing.data, ...data },
+      _offlineTimestamp: new Date().toISOString(),
+    });
+  }
+
+  return saveUpdateOffline(entity, entityId, data);
+};
+
 export const getPendingUpdates = async () => {
   return getAllItems(STORES.PENDING_UPDATES);
 };
@@ -428,6 +443,7 @@ export default {
   getPendingSanidade,
   deletePendingSanidade,
   saveUpdateOffline,
+  upsertPendingUpdate,
   getPendingUpdates,
   deletePendingUpdate,
   getPendingCounts,

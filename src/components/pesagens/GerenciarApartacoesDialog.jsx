@@ -12,7 +12,9 @@ import { toast } from "sonner";
 import {
   putItem,
   deleteItem,
-  saveUpdateOffline,
+  getAllItems,
+  bulkPut,
+  upsertPendingUpdate,
   STORES_NAMES,
 } from "../offline/IndexedDBManager";
 
