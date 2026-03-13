@@ -39,15 +39,13 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.MovimentacaoMapa.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
+    mutationFn: (id) => base44.entities.MovimentacaoMapa.delete(id)
   });
 
   const handleDelete = async (mov) => {
     // Bloquear exclusão se existirem registros posteriores (filhos) do mesmo lote
-    const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-    const sameLote = all.filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
-    const later = sameLote.filter(m => new Date(m.data_movimentacao) > new Date(mov.data_movimentacao));
+    const sameLote = movimentacoes.filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
+    const later = sameLote.filter(m => m.id !== mov.id && new Date(m.data_movimentacao) > new Date(mov.data_movimentacao));
     if (later.length > 0) {
       alert('Não é possível excluir: existem movimentações posteriores deste lote. Exclua primeiramente as mais recentes.');
       return;
@@ -58,8 +56,7 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
     await deleteMutation.mutateAsync(mov.id);
 
     // Recalcular área atual do lote com base no histórico restante
-    const remaining = (await base44.entities.MovimentacaoMapa.list('-data_movimentacao'))
-      .filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
+    const remaining = sameLote.filter(m => m.id !== mov.id);
 
     // Determinar nova área:
     // 1) Se a movimentação excluída definiu área_destino_id (transferência), voltar para a área de origem dela
@@ -182,6 +179,7 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
                       Editar
                     </Button>
                     <Button variant="destructive" size="sm" className="h-8 text-xs"
+                      disabled={deleteMutation.isPending}
                       onClick={() => handleDelete(mov)}>
                       Excluir
                     </Button>
