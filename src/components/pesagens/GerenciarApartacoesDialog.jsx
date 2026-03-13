@@ -36,6 +36,53 @@ export default function GerenciarApartacoesDialog({ open, onOpenChange, empresaI
     return lotes.filter((l) => l.apartacao_id === apartacaoIdLote);
   }, [lotes, apartacaoIdLote]);
 
+  const propagateApartacaoRenameOffline = async (apartacaoId, novoNome) => {
+    if (!dbReady) return;
+
+    const [cachedLotes, cachedPesagens, pendingPesagens, pendingUpdates] = await Promise.all([
+      getAllItems(STORES_NAMES.LOTES),
+      getAllItems(STORES_NAMES.PESAGENS),
+      getAllItems(STORES_NAMES.PENDING_PESAGENS),
+      getAllItems(STORES_NAMES.PENDING_UPDATES),
+    ]);
+
+    await Promise.all([
+      bulkPut(STORES_NAMES.LOTES, cachedLotes.map((item) => item.apartacao_id === apartacaoId ? { ...item, nome_apartacao: novoNome } : item)),
+      bulkPut(STORES_NAMES.PESAGENS, cachedPesagens.map((item) => item.apartacao_id === apartacaoId ? { ...item, nome_apartacao: novoNome } : item)),
+      bulkPut(STORES_NAMES.PENDING_PESAGENS, pendingPesagens.map((item) => item.apartacao_id === apartacaoId ? { ...item, nome_apartacao: novoNome } : item)),
+      bulkPut(STORES_NAMES.PENDING_UPDATES, pendingUpdates.map((item) => {
+        if (item.entity === 'Apartacao' && item.entity_id === apartacaoId) {
+          return { ...item, data: { ...item.data, nome_apartacao: novoNome } };
+        }
+        if (item.entity === 'LoteApartacao' && item.data?.apartacao_id === apartacaoId) {
+          return { ...item, data: { ...item.data, nome_apartacao: novoNome } };
+        }
+        return item;
+      })),
+    ]);
+  };
+
+  const propagateLoteRenameOffline = async (loteId, novoNome) => {
+    if (!dbReady) return;
+
+    const [cachedPesagens, pendingPesagens, pendingUpdates] = await Promise.all([
+      getAllItems(STORES_NAMES.PESAGENS),
+      getAllItems(STORES_NAMES.PENDING_PESAGENS),
+      getAllItems(STORES_NAMES.PENDING_UPDATES),
+    ]);
+
+    await Promise.all([
+      bulkPut(STORES_NAMES.PESAGENS, cachedPesagens.map((item) => item.lote_id === loteId ? { ...item, nome_lote: novoNome } : item)),
+      bulkPut(STORES_NAMES.PENDING_PESAGENS, pendingPesagens.map((item) => item.lote_id === loteId ? { ...item, nome_lote: novoNome } : item)),
+      bulkPut(STORES_NAMES.PENDING_UPDATES, pendingUpdates.map((item) => {
+        if (item.entity === 'LoteApartacao' && item.entity_id === loteId) {
+          return { ...item, data: { ...item.data, nome_lote: novoNome } };
+        }
+        return item;
+      })),
+    ]);
+  };
+
   const salvarApartacao = async () => {
     if (isSaving) return;
     if (!nomeApartacao.trim()) { toast.error("Nome obrigatório"); return; }
@@ -69,8 +116,12 @@ export default function GerenciarApartacoesDialog({ open, onOpenChange, empresaI
       } else {
         if (editingApartacaoId) {
           if (dbReady) {
-            await saveUpdateOffline('Apartacao', editingApartacaoId, data);
-            await putItem(STORES_NAMES.APARTACOES, { ...apartacoes.find(a => a.id === editingApartacaoId), ...data });
+            const apartacaoAtual = apartacoes.find((a) => a.id === editingApartacaoId);
+            await putItem(STORES_NAMES.APARTACOES, { ...apartacaoAtual, ...data, id: editingApartacaoId });
+            await propagateApartacaoRenameOffline(editingApartacaoId, data.nome_apartacao);
+            if (!String(editingApartacaoId).startsWith('offline_')) {
+              await upsertPendingUpdate('Apartacao', editingApartacaoId, data);
+            }
             toast.success("💾 Edição salva offline!");
           } else { toast.error("IndexedDB não disponível"); setIsSaving(false); return; }
           setNomeApartacao(""); setEditingApartacaoId(null); onRefresh(); setIsSaving(false); return;
@@ -104,7 +155,15 @@ export default function GerenciarApartacoesDialog({ open, onOpenChange, empresaI
         else { await base44.entities.LoteApartacao.create(data); toast.success("Lote criado!"); }
       } else {
         if (editingLoteId) {
-          if (dbReady) { await saveUpdateOffline('LoteApartacao', editingLoteId, data); await putItem(STORES_NAMES.LOTES, { ...lotes.find(l => l.id === editingLoteId), ...data }); toast.success("💾 Edição salva offline!"); }
+          if (dbReady) {
+            const loteAtual = lotes.find((l) => l.id === editingLoteId);
+            await putItem(STORES_NAMES.LOTES, { ...loteAtual, ...data, id: editingLoteId });
+            await propagateLoteRenameOffline(editingLoteId, data.nome_lote);
+            if (!String(editingLoteId).startsWith('offline_')) {
+              await upsertPendingUpdate('LoteApartacao', editingLoteId, data);
+            }
+            toast.success("💾 Edição salva offline!");
+          }
           else { toast.error("IndexedDB não disponível"); setIsSaving(false); return; }
           setNomeLote(""); setQtdMaxima("500"); setPesoMinimo(""); setPesoMaximo(""); setEditingLoteId(null); onRefresh(); setIsSaving(false); return;
         }
