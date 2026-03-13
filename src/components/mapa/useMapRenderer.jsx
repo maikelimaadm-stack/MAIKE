@@ -13,7 +13,7 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, wi
       url: iconUrl,
       scaledSize: new google.maps.Size(width, height),
       anchor: new google.maps.Point(width / 2, height / 2),
-      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(12, height / 2)) } : {})
+      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(10, height * 0.38)) } : {})
     });
   };
   image.src = iconUrl;
