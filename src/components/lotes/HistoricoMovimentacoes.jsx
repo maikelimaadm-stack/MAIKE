@@ -39,6 +39,10 @@ const TIPOS_EDITAVEIS = new Set([
 
 const getTime = (value) => new Date(value).getTime() || 0;
 const normalize = (value) => String(value || "").trim().toUpperCase();
+const getLinkedMovementIds = (observacoes) => {
+  const match = String(observacoes || '').match(/\[PESAGEM_VINCULADA:([^\]]+)\]/);
+  return match ? match[1].split(',').map((item) => item.trim()).filter(Boolean) : [];
+};
 
 export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -85,8 +89,9 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
           observacoes: mov.observacoes,
           area_origem_nome: mov.area_origem_nome,
           area_destino_nome: mov.area_destino_nome,
-          canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo,
-          canDelete: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo,
+          linked_movement_ids: getLinkedMovementIds(mov.observacoes),
+          canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
+          canDelete: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
           raw: mov,
         }));
 
@@ -164,16 +169,20 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
       const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual;
-      if (!sameLote) return false;
+      const childLinked = (item.linked_movement_ids || []).includes(entry.id);
+      if (!sameLote && !childLinked) return false;
 
       const dataItem = getTime(item.data_evento);
       const createdItem = getTime(item.created_at);
-      return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
+      return childLinked || dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
     });
   }, [historico]);
 
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
+      if (entry?.tipo === 'Pesagem' && (entry?.linked_movement_ids || []).length > 0) {
+        return 'Esta pesagem está vinculada à movimentação e só pode ser excluída junto com ela.';
+      }
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
@@ -206,6 +215,29 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
 
       if (hasLaterRelatedRecord(entry)) {
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
+      }
+
+      if (mov.tipo === 'Transferência de Área') {
+        const todasMovimentacoes = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+        const pesagensFilhas = todasMovimentacoes.filter((item) =>
+          item.empresa_id === empresaSelecionadaId &&
+          item.tipo === 'Pesagem' &&
+          getLinkedMovementIds(item.observacoes).includes(mov.id)
+        );
+
+        for (const pesagemFilha of pesagensFilhas) {
+          if (pesagemFilha.lote_id) {
+            const lotePesagem = lotesEmpresa.find((l) => l.id === pesagemFilha.lote_id);
+            const obsMatch = String(pesagemFilha.observacoes || '').match(/Peso anterior:\s*([\d.]+)\s*kg/i);
+            const pesoAnterior = obsMatch ? parseFloat(obsMatch[1]) : null;
+            if (lotePesagem && pesoAnterior !== null && !Number.isNaN(pesoAnterior)) {
+              await base44.entities.Lote.update(lotePesagem.id, {
+                peso_medio_kg: pesoAnterior
+              });
+            }
+          }
+          await base44.entities.MovimentacaoMapa.delete(pesagemFilha.id);
+        }
       }
 
       if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {

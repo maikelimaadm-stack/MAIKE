@@ -143,6 +143,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [lotesAtualizados, setLotesAtualizados] = useState(null);
   const [movimentacaoPendente, setMovimentacaoPendente] = useState(null);
   const [registrarPesagemAposMovimentacao, setRegistrarPesagemAposMovimentacao] = useState(false);
+  const [movimentacoesCriadasIds, setMovimentacoesCriadasIds] = useState([]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
@@ -201,6 +202,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       console.log('🔄 INICIANDO MOVIMENTAÇÃO');
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
+      const movimentacoesCriadas = [];
       
       // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
       if (formData.mover_todos === 'sim') {
@@ -210,12 +212,12 @@ export default function DetalhesLote({ lotes, onClose }) {
             area_atual_nome: areaEntrada?.nome || ''
           });
 
-          await base44.entities.MovimentacaoMapa.create({
+          const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
             empresa_id: empresaSelecionadaId,
             data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
             tipo: 'Transferência de Área',
             lote: lote.nome,
-          lote_id: lote.id,
+            lote_id: lote.id,
             quantidade_animais: lote.quantidade_cabecas,
             area_origem_id: formData.area_saida_id,
             area_origem_nome: areaSaida?.nome || '',
@@ -223,6 +225,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             area_destino_nome: areaEntrada?.nome || '',
             observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
           });
+          movimentacoesCriadas.push(movimentacaoCriada);
         }
       } else {
         for (const mov of formData.movimentacoes) {
@@ -324,12 +327,12 @@ export default function DetalhesLote({ lotes, onClose }) {
               });
             }
 
-            await base44.entities.MovimentacaoMapa.create({
+            const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
               empresa_id: empresaSelecionadaId,
               data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
               tipo: 'Transferência de Área',
               lote: lote.nome,
-          lote_id: lote.id,
+              lote_id: lote.id,
               quantidade_animais: quantidadeMover,
               area_origem_id: formData.area_saida_id,
               area_origem_nome: areaSaida?.nome || '',
@@ -337,14 +340,17 @@ export default function DetalhesLote({ lotes, onClose }) {
               area_destino_nome: areaEntrada?.nome || '',
               observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`
             });
+            movimentacoesCriadas.push(movimentacaoCriada);
 
             quantidadeRestante -= quantidadeMover;
           }
         }
       }
+
+      return movimentacoesCriadas;
       
       },
-      onSuccess: async (_, variables) => {
+      onSuccess: async (movimentacoesCriadas, variables) => {
         toast.success('Gado movido com sucesso!');
         setShowMovimentacao(false);
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
@@ -364,6 +370,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         );
 
         setMovimentacaoPendente(null);
+        setMovimentacoesCriadasIds((movimentacoesCriadas || []).map(item => item.id).filter(Boolean));
 
         if (registrarPesagemAposMovimentacao) {
           setLotesAtualizados(lotesDestino.length > 0 ? lotesDestino : lotes);
@@ -372,11 +379,13 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
 
         setLotesAtualizados(null);
+        setMovimentacoesCriadasIds([]);
         onClose();
       },
     onError: (error) => {
       console.error('❌ Erro:', error);
       setMovimentacaoPendente(null);
+      setMovimentacoesCriadasIds([]);
       toast.error('❌ Erro ao mover gado');
     }
   });
@@ -590,30 +599,29 @@ export default function DetalhesLote({ lotes, onClose }) {
     const lotesParaPesar = lotesAtualizados || lotes;
     const areaAtualId = lotesParaPesar[0]?.area_atual_id;
     const areaPesagem = areas.find(a => a.id === areaAtualId);
+    const vinculoPesagem = movimentacoesCriadasIds.length > 0 ? `[PESAGEM_VINCULADA:${movimentacoesCriadasIds.join(',')}] ` : '';
 
     for (const categoria of formData.categorias_selecionadas) {
       const lotesCategoria = lotesParaPesar.filter(l => l.categoria === categoria);
       const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
-      const quantidadeTotal = lotesCategoria.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
-      const pesoAnteriorMedio = lotesCategoria.length > 0
-        ? lotesCategoria.reduce((sum, lote) => sum + (lote.peso_medio_kg || 0), 0) / lotesCategoria.length
-        : 0;
-      const ganho = pesoNovo - pesoAnteriorMedio;
-      const nomesLotes = lotesCategoria.map(lote => lote.nome).join(', ');
-
-      await base44.entities.MovimentacaoMapa.create({
-        empresa_id: empresaSelecionadaId,
-        data_movimentacao: new Date(formData.data_pesagem).toISOString(),
-        tipo: 'Pesagem',
-        lote: nomesLotes || categoria,
-        quantidade_animais: quantidadeTotal,
-        peso_medio: pesoNovo,
-        area_origem_id: areaAtualId,
-        area_origem_nome: areaPesagem?.nome || '',
-        observacoes: `Categoria: ${categoria}. Lotes: ${nomesLotes}. Peso anterior médio: ${pesoAnteriorMedio.toFixed(1)}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
-      });
 
       for (const lote of lotesCategoria) {
+        const pesoAnterior = lote.peso_medio_kg || 0;
+        const ganho = pesoNovo - pesoAnterior;
+
+        await base44.entities.MovimentacaoMapa.create({
+          empresa_id: empresaSelecionadaId,
+          data_movimentacao: new Date(formData.data_pesagem).toISOString(),
+          tipo: 'Pesagem',
+          lote: lote.nome,
+          lote_id: lote.id,
+          quantidade_animais: lote.quantidade_cabecas,
+          peso_medio: pesoNovo,
+          area_origem_id: areaAtualId,
+          area_origem_nome: areaPesagem?.nome || '',
+          observacoes: `${vinculoPesagem}Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
+        });
+
         await base44.entities.Lote.update(lote.id, {
           peso_medio_kg: pesoNovo
         });
@@ -622,6 +630,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
     toast.success('Pesagens registradas');
     setShowPesagem(false);
+    setMovimentacoesCriadasIds([]);
     onClose();
     window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
@@ -921,14 +930,14 @@ export default function DetalhesLote({ lotes, onClose }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showPesagem} onOpenChange={(open) => { setShowPesagem(open); if (!open) setLotesAtualizados(null); }}>
+      <Dialog open={showPesagem} onOpenChange={(open) => { setShowPesagem(open); if (!open) { setLotesAtualizados(null); setMovimentacoesCriadasIds([]); } }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
           {showPesagem && (
             <FormularioPesagem
               lote={lotesAtualizados || lotes}
               onSubmit={handlePesagem}
-              onCancel={() => { setShowPesagem(false); setLotesAtualizados(null); }}
+              onCancel={() => { setShowPesagem(false); setLotesAtualizados(null); setMovimentacoesCriadasIds([]); }}
             />
           )}
         </DialogContent>
