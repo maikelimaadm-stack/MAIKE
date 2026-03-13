@@ -869,23 +869,50 @@ export default function DetalhesLote({ lotes, onClose }) {
           <Pencil className="w-3.5 h-3.5" />
           Renomear Lote
         </Button>
-        {lotes.length > 1 && (
+        {podeUnirLotes && (
           <Button 
             onClick={async () => {
-              if (!confirm(`Deseja juntar todos os ${lotes.length} lotes desta área em um único lote?`)) return;
-              const principal = lotes[0];
-              const totalCab = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-              const pesoTotal = lotes.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
-              const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
-              
-              for (let i = 1; i < lotes.length; i++) {
-                await base44.entities.Lote.update(lotes[i].id, { status: 'Inativo', quantidade_cabecas: 0 });
+              const gruposUnificaveis = Object.values(lotesPorCategoria).filter((grupo) => grupo.length > 1);
+              if (gruposUnificaveis.length === 0) return;
+              if (!confirm(`Deseja juntar apenas os lotes com a mesma categoria nesta área?`)) return;
+
+              for (const grupo of gruposUnificaveis) {
+                const principal = grupo[0];
+                const secundarios = grupo.slice(1);
+                const totalCab = grupo.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+                const pesoTotal = grupo.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
+                const pesoMedio = totalCab > 0 ? Math.round((pesoTotal / totalCab) * 100) / 100 : principal.peso_medio_kg;
+                const snapshotsAntes = grupo.map((l) => criarSnapshotLote(l));
+
+                for (const loteSecundario of secundarios) {
+                  await base44.entities.Lote.update(loteSecundario.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                }
+                await base44.entities.Lote.update(principal.id, { 
+                  quantidade_cabecas: totalCab,
+                  peso_medio_kg: pesoMedio
+                });
+
+                await registrarMovimentacaoMapa({
+                  data_movimentacao: new Date().toISOString(),
+                  tipo: 'União de Lotes',
+                  operacao_lote: 'uniao_lotes',
+                  lote_id: principal.id,
+                  lote: principal.nome,
+                  lote_origem_id: principal.id,
+                  categoria_animal: principal.categoria,
+                  quantidade_animais: totalCab,
+                  area_origem_id: principal.area_atual_id,
+                  area_origem_nome: principal.area_atual_nome,
+                  lotes_antes: snapshotsAntes,
+                  lotes_depois: [
+                    criarSnapshotLote(principal, { quantidade_cabecas: totalCab, peso_medio_kg: pesoMedio }),
+                    ...secundarios.map((l) => criarSnapshotLote(l, { quantidade_cabecas: 0, status: 'Inativo' }))
+                  ],
+                  observacoes: `União automática dos lotes da categoria ${principal.categoria}`
+                });
               }
-              await base44.entities.Lote.update(principal.id, { 
-                quantidade_cabecas: totalCab,
-                peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
-              });
-              toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
+
+              toast.success('Lotes de mesma categoria unidos com sucesso!');
               onClose();
               window.dispatchEvent(new CustomEvent('atualizar-mapa'));
             }}
@@ -893,7 +920,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             className="h-9 text-[11px] font-semibold border-slate-300 gap-1"
           >
             <Merge className="w-3.5 h-3.5" />
-            Juntar Lotes
+            Juntar Iguais
           </Button>
         )}
       </div>
@@ -967,9 +994,12 @@ export default function DetalhesLote({ lotes, onClose }) {
           <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
           {showPesagem && (
             <FormularioPesagem
-              lote={lotes}
+              lote={lotesParaPesagem.length > 0 ? lotesParaPesagem : lotes}
               onSubmit={handlePesagem}
-              onCancel={() => setShowPesagem(false)}
+              onCancel={() => {
+                setShowPesagem(false);
+                setLotesParaPesagem([]);
+              }}
             />
           )}
         </DialogContent>
@@ -1033,7 +1063,24 @@ export default function DetalhesLote({ lotes, onClose }) {
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowRenomear(false)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
                   if (!novoNomeLote.trim()) return;
+                  const nomeAnterior = loteParaRenomear.nome;
+                  const snapshotAntes = criarSnapshotLote(loteParaRenomear);
                   await base44.entities.Lote.update(loteParaRenomear.id, { nome: novoNomeLote.trim() });
+                  await registrarMovimentacaoMapa({
+                    data_movimentacao: new Date().toISOString(),
+                    tipo: 'Renomeação de Lote',
+                    operacao_lote: 'renomeacao_lote',
+                    lote_id: loteParaRenomear.id,
+                    lote: novoNomeLote.trim(),
+                    lote_origem_id: loteParaRenomear.id,
+                    categoria_animal: loteParaRenomear.categoria,
+                    quantidade_animais: loteParaRenomear.quantidade_cabecas || 0,
+                    area_origem_id: loteParaRenomear.area_atual_id,
+                    area_origem_nome: loteParaRenomear.area_atual_nome,
+                    lotes_antes: [snapshotAntes],
+                    lotes_depois: [criarSnapshotLote(loteParaRenomear, { nome: novoNomeLote.trim() })],
+                    observacoes: `Renomeação do lote de ${nomeAnterior} para ${novoNomeLote.trim()}`
+                  });
                   toast.success('Lote renomeado!');
                   setShowRenomear(false);
                   onClose();
