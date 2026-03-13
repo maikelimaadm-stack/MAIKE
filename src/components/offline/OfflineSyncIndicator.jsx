@@ -204,33 +204,35 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
     };
   }, [isOnline, lastSyncMessage, pendingCounts.total, syncStatus, syncing]);
 
+  if (isOnline && pendingCounts.total === 0 && syncStatus === "idle") {
+    return null;
+  }
+
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm">
+      <div className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-xs">
         <Card className={`border-2 p-3 shadow-lg ${statusMeta.cardClass}`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <div className="mt-0.5">{statusMeta.icon}</div>
-              <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="mt-0.5 shrink-0">{statusMeta.icon}</div>
+              <div className="min-w-0">
                 <div className="text-xs font-semibold text-slate-900">{statusMeta.label}</div>
-                <div className="text-[10px] text-slate-600">{statusMeta.description}</div>
-                <div className="mt-1 text-[10px] text-slate-500">
-                  {pendingCounts.pesagens} pesagens • {pendingCounts.sanidade} sanidade • {pendingCounts.updates} edições
+                <div className="text-[10px] text-slate-600 truncate">
+                  {syncing || syncStatus === "syncing"
+                    ? (lastSyncMessage || "Sincronizando dados")
+                    : !isOnline
+                      ? "Modo offline ativo"
+                      : `${pendingCounts.total} pendente(s)`}
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-1">
-              {isOnline && pendingCounts.total > 0 && (
-                <Button onClick={() => handleSync()} disabled={syncing} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                  Sincronizar
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLogDialog(true)}>
-                Ver log
+            {isOnline && pendingCounts.total > 0 && (
+              <Button onClick={() => handleSync()} disabled={syncing} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 shrink-0">
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+                Sincronizar
               </Button>
-            </div>
+            )}
           </div>
         </Card>
       </div>
