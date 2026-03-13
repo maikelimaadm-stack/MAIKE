@@ -141,6 +141,8 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [loteParaRenomear, setLoteParaRenomear] = useState(null);
   const [showConfirmPesagem, setShowConfirmPesagem] = useState(false);
   const [lotesAtualizados, setLotesAtualizados] = useState(null);
+  const [movimentacaoPendente, setMovimentacaoPendente] = useState(null);
+  const [registrarPesagemAposMovimentacao, setRegistrarPesagemAposMovimentacao] = useState(false);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
@@ -213,6 +215,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
             tipo: 'Transferência de Área',
             lote: lote.nome,
+          lote_id: lote.id,
             quantidade_animais: lote.quantidade_cabecas,
             area_origem_id: formData.area_saida_id,
             area_origem_nome: areaSaida?.nome || '',
@@ -326,6 +329,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
               tipo: 'Transferência de Área',
               lote: lote.nome,
+          lote_id: lote.id,
               quantidade_animais: quantidadeMover,
               area_origem_id: formData.area_saida_id,
               area_origem_nome: areaSaida?.nome || '',
@@ -340,31 +344,46 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
       
       },
-      onSuccess: async () => {
+      onSuccess: async (_, variables) => {
         toast.success('Gado movido com sucesso!');
         setShowMovimentacao(false);
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
         queryClient.invalidateQueries({ queryKey: ['lotes'] });
         queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
-        // Buscar lotes atualizados antes de perguntar sobre pesagem
+
         const lotesNovos = await base44.entities.Lote.list();
-        const areaId = lotes[0]?.area_atual_id;
-        const lotesNaArea = lotesNovos.filter(l => 
-          l.empresa_id === empresaSelecionadaId && 
-          l.area_atual_id === areaId && 
-          l.status === 'Ativo'
+        const categoriasMovidas = variables.mover_todos === 'sim'
+          ? [...new Set(lotes.map(l => (l.categoria || '').toUpperCase()))]
+          : [...new Set((variables.movimentacoes || []).filter(m => Number(m.quantidade) > 0).map(m => (m.categoria || '').toUpperCase()))];
+        const nomesOrigem = new Set(lotes.map(l => l.nome));
+        const lotesDestino = lotesNovos.filter(l =>
+          l.empresa_id === empresaSelecionadaId &&
+          l.area_atual_id === variables.area_entrada_id &&
+          l.status === 'Ativo' &&
+          (nomesOrigem.has(l.nome) || categoriasMovidas.includes((l.categoria || '').toUpperCase()))
         );
-        setLotesAtualizados(lotesNaArea.length > 0 ? lotesNaArea : lotes);
-        setShowConfirmPesagem(true);
+
+        setMovimentacaoPendente(null);
+
+        if (registrarPesagemAposMovimentacao) {
+          setLotesAtualizados(lotesDestino.length > 0 ? lotesDestino : lotes);
+          setShowPesagem(true);
+          return;
+        }
+
+        setLotesAtualizados(null);
+        onClose();
       },
     onError: (error) => {
       console.error('❌ Erro:', error);
+      setMovimentacaoPendente(null);
       toast.error('❌ Erro ao mover gado');
     }
   });
 
   const handleMovimentacao = async (formData) => {
-    return movimentacaoMutation.mutateAsync(formData);
+    setMovimentacaoPendente(formData);
+    setShowConfirmPesagem(true);
   };
 
   const handleMorte = async (formData) => {
@@ -383,6 +402,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
         tipo: 'Morte',
         lote: lote.nome,
+          lote_id: lote.id,
         quantidade_animais: qtdRemover,
         area_origem_id: areaAtualId,
         area_origem_nome: areaMorte?.nome || '',
@@ -453,6 +473,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       data_movimentacao: new Date(formData.data_nascimento).toISOString(),
       tipo: 'Nascimento',
       lote: loteFilhote.nome,
+      lote_id: loteFilhote.id,
       quantidade_animais: formData.quantidade,
       peso_medio: parseFloat(formData.peso_medio) || null,
       area_destino_id: areaAtualId,
@@ -479,6 +500,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         data_movimentacao: new Date(formData.data_abate).toISOString(),
         tipo: 'Abate',
         lote: lote.nome,
+          lote_id: lote.id,
         quantidade_animais: qtdRemover,
         area_origem_id: areaAtualId,
         area_origem_nome: areaAbate?.nome || '',
@@ -517,6 +539,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           data_movimentacao: new Date(formData.data_mudanca).toISOString(),
           tipo: 'Mudança de Categoria',
           lote: lote.nome,
+          lote_id: lote.id,
           quantidade_animais: qtdMudar,
           area_origem_id: areaAtualId,
           area_origem_nome: areaMudanca?.nome || '',
@@ -581,6 +604,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           data_movimentacao: new Date(formData.data_pesagem).toISOString(),
           tipo: 'Pesagem',
           lote: lote.nome,
+          lote_id: lote.id,
           quantidade_animais: lote.quantidade_cabecas,
           peso_medio: pesoNovo,
           area_origem_id: areaAtualId,
@@ -808,6 +832,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                   tipo: 'Entrada',
                   motivo: 'Junção de Lotes',
                   lote: principal.nome,
+                  lote_id: principal.id,
                   quantidade_animais: totalCab,
                   area_origem_id: areaAtualId,
                   area_origem_nome: areaJuncao?.nome || '',
@@ -977,6 +1002,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     tipo: 'Entrada',
                     motivo: 'Renomear Lote',
                     lote: novoNomeLote.trim(),
+                    lote_id: loteParaRenomear.id,
                     quantidade_animais: loteParaRenomear.quantidade_cabecas || 0,
                     area_origem_id: areaAtualId,
                     area_origem_nome: areaRen?.nome || '',
@@ -994,17 +1020,37 @@ export default function DetalhesLote({ lotes, onClose }) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog confirmar pesagem após movimentação */}
+      {/* Dialog confirmar pesagem antes da movimentação */}
       <Dialog open={showConfirmPesagem} onOpenChange={setShowConfirmPesagem}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="text-sm">Registrar Pesagem?</DialogTitle></DialogHeader>
-          <p className="text-xs text-slate-600">Deseja registrar pesagem dos animais que ficaram na área?</p>
+          <DialogHeader><DialogTitle className="text-sm">Abrir pesagem depois da movimentação?</DialogTitle></DialogHeader>
+          <p className="text-xs text-slate-600">Depois de confirmar a movimentação, deseja abrir a pesagem dos lotes movimentados?</p>
           <div className="flex justify-end gap-2 mt-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setShowConfirmPesagem(false); onClose(); }}>Não</Button>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
-              setShowConfirmPesagem(false);
-              setShowPesagem(true);
-            }}>Sim, Pesar</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
+              onClick={() => {
+                setRegistrarPesagemAposMovimentacao(false);
+                setShowConfirmPesagem(false);
+                movimentacaoMutation.mutate(movimentacaoPendente);
+              }}
+            >
+              Não
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+              disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
+              onClick={() => {
+                setRegistrarPesagemAposMovimentacao(true);
+                setShowConfirmPesagem(false);
+                movimentacaoMutation.mutate(movimentacaoPendente);
+              }}
+            >
+              Sim, Pesar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
