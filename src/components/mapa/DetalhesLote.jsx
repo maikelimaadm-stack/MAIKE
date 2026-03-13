@@ -459,60 +459,58 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleNascimento = async (formData) => {
-    // Determinar categoria baseada no sexo
-    const categoriaFilhote = formData.sexo === "Macho" 
-      ? "Bezerro 0 a 12 meses" 
-      : "Bezerra 0 a 12 meses";
-
-    // Buscar lote da categoria correta na mesma área
+    const categoriaFilhote = formData.sexo === "Macho" ? "Bezerro 0 a 12 meses" : "Bezerra 0 a 12 meses";
     const areaAtualId = lotes[0]?.area_atual_id;
     const todosLotes = await base44.entities.Lote.list();
-    let loteFilhote = todosLotes.find(l => 
-      l.empresa_id === empresaSelecionadaId && 
-      l.categoria === categoriaFilhote && 
-      l.area_atual_id === areaAtualId &&
-      l.status === 'Ativo'
-    );
+    const areaNascimento = areas.find(a => a.id === areaAtualId);
+    let loteFilhote = todosLotes.find(l => l.empresa_id === empresaSelecionadaId && l.categoria === categoriaFilhote && l.area_atual_id === areaAtualId && l.status === 'Ativo');
+    let snapshotsAntes = [];
+    let snapshotsDepois = [];
 
     if (loteFilhote) {
-      // Adicionar ao lote existente
+      snapshotsAntes = [criarSnapshotLote(loteFilhote)];
+      const novaQuantidade = (loteFilhote.quantidade_cabecas || 0) + formData.quantidade;
+      const novoPeso = formData.peso_medio ? parseFloat(formData.peso_medio) : loteFilhote.peso_medio_kg;
       await base44.entities.Lote.update(loteFilhote.id, {
-        quantidade_cabecas: loteFilhote.quantidade_cabecas + formData.quantidade,
-        peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : loteFilhote.peso_medio_kg
+        quantidade_cabecas: novaQuantidade,
+        peso_medio_kg: novoPeso
       });
+      snapshotsDepois = [criarSnapshotLote(loteFilhote, { quantidade_cabecas: novaQuantidade, peso_medio_kg: novoPeso })];
     } else {
-      // Criar novo lote
-      const areaAtual = areas.find(a => a.id === areaAtualId);
       loteFilhote = await base44.entities.Lote.create({
         empresa_id: empresaSelecionadaId,
-        nome: `${categoriaFilhote.split(' ')[0].toUpperCase()} - ${areaAtual?.nome || 'AREA'}`,
+        nome: `${categoriaFilhote.split(' ')[0].toUpperCase()} - ${areaNascimento?.nome || 'AREA'}`,
         quantidade_cabecas: formData.quantidade,
         categoria: categoriaFilhote,
         sexo: formData.sexo,
         peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : null,
         idade_media_meses: 0,
         area_atual_id: areaAtualId,
-        area_atual_nome: areaAtual?.nome || '',
+        area_atual_nome: areaNascimento?.nome || '',
         data_entrada: formData.data_nascimento,
         origem: 'Nascimento',
         status: 'Ativo',
         sistema_produtivo: lotes[0]?.sistema_produtivo
       });
+      snapshotsAntes = [criarSnapshotLote(loteFilhote, { quantidade_cabecas: 0, status: 'Inativo' })];
+      snapshotsDepois = [criarSnapshotLote(loteFilhote)];
     }
 
-    const areaNascimento = areas.find(a => a.id === areaAtualId);
-
-    // Registrar movimentação
-    await base44.entities.MovimentacaoMapa.create({
-      empresa_id: empresaSelecionadaId,
+    await registrarMovimentacaoMapa({
       data_movimentacao: new Date(formData.data_nascimento).toISOString(),
       tipo: 'Nascimento',
+      operacao_lote: 'nascimento',
+      lote_id: loteFilhote.id,
       lote: loteFilhote.nome,
+      lote_destino_id: loteFilhote.id,
+      categoria_animal: categoriaFilhote,
       quantidade_animais: formData.quantidade,
       peso_medio: parseFloat(formData.peso_medio) || null,
       area_destino_id: areaAtualId,
       area_destino_nome: areaNascimento?.nome || '',
-      observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
+      lotes_antes: snapshotsAntes,
+      lotes_depois: snapshotsDepois,
+      observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes || ''}`.trim()
     });
 
     toast.success('Nascimento registrado');
@@ -574,34 +572,39 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       for (const lote of lotesCategoria) {
         if (quantidadeRestante <= 0) break;
-
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
-
-        await base44.entities.MovimentacaoMapa.create({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: new Date(formData.data_mudanca).toISOString(),
-          tipo: 'Mudança de Categoria',
-          lote: lote.nome,
-          quantidade_animais: qtdMudar,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaMudanca?.nome || '',
-          observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
-        });
+        const beforeOrigem = criarSnapshotLote(lote);
 
         if (qtdMudar === lote.quantidade_cabecas) {
-          // Mudar categoria do lote todo
           await base44.entities.Lote.update(lote.id, {
-            categoria: mudanca.categoria_nova
+            categoria: mudanca.categoria_nova,
+            peso_medio_kg: mudanca.peso_medio || lote.peso_medio_kg
+          });
+
+          await registrarMovimentacaoMapa({
+            data_movimentacao: new Date(formData.data_mudanca).toISOString(),
+            tipo: 'Mudança de Categoria',
+            operacao_lote: 'mudanca_categoria',
+            lote_id: lote.id,
+            lote: lote.nome,
+            lote_origem_id: lote.id,
+            categoria_animal: mudanca.categoria_atual,
+            categoria_nova: mudanca.categoria_nova,
+            quantidade_animais: qtdMudar,
+            area_origem_id: areaAtualId,
+            area_origem_nome: areaMudanca?.nome || '',
+            lotes_antes: [beforeOrigem],
+            lotes_depois: [criarSnapshotLote(lote, { categoria: mudanca.categoria_nova, peso_medio_kg: mudanca.peso_medio || lote.peso_medio_kg })],
+            observacoes: `Mudança de ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. ${formData.observacoes || ''}`.trim()
           });
         } else {
-          // Mudança parcial - criar novo lote com nova categoria
-          await base44.entities.Lote.create({
+          const novoLote = await base44.entities.Lote.create({
             empresa_id: empresaSelecionadaId,
             nome: lote.nome,
             quantidade_cabecas: qtdMudar,
             categoria: mudanca.categoria_nova,
             sexo: lote.sexo,
-            peso_medio_kg: lote.peso_medio_kg,
+            peso_medio_kg: mudanca.peso_medio || lote.peso_medio_kg,
             idade_media_meses: lote.idade_media_meses,
             area_atual_id: areaAtualId,
             area_atual_nome: areaMudanca?.nome || '',
@@ -611,10 +614,31 @@ export default function DetalhesLote({ lotes, onClose }) {
             origem: 'Mudança de Categoria',
             status: 'Ativo'
           });
-
-          // Diminuir quantidade do lote original
+          const novaQuantidadeOrigem = (lote.quantidade_cabecas || 0) - qtdMudar;
           await base44.entities.Lote.update(lote.id, {
-            quantidade_cabecas: lote.quantidade_cabecas - qtdMudar
+            quantidade_cabecas: novaQuantidadeOrigem,
+            status: novaQuantidadeOrigem > 0 ? 'Ativo' : 'Inativo'
+          });
+
+          await registrarMovimentacaoMapa({
+            data_movimentacao: new Date(formData.data_mudanca).toISOString(),
+            tipo: 'Mudança de Categoria',
+            operacao_lote: 'mudanca_categoria_parcial',
+            lote_id: lote.id,
+            lote: lote.nome,
+            lote_origem_id: lote.id,
+            lote_destino_id: novoLote.id,
+            categoria_animal: mudanca.categoria_atual,
+            categoria_nova: mudanca.categoria_nova,
+            quantidade_animais: qtdMudar,
+            area_origem_id: areaAtualId,
+            area_origem_nome: areaMudanca?.nome || '',
+            lotes_antes: [beforeOrigem, criarSnapshotLote(novoLote, { quantidade_cabecas: 0, status: 'Inativo' })],
+            lotes_depois: [
+              criarSnapshotLote(lote, { quantidade_cabecas: novaQuantidadeOrigem, status: novaQuantidadeOrigem > 0 ? 'Ativo' : 'Inativo' }),
+              criarSnapshotLote(novoLote)
+            ],
+            observacoes: `Mudança parcial de ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. ${formData.observacoes || ''}`.trim()
           });
         }
 
