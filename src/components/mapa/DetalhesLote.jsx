@@ -416,33 +416,40 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMorte = async (formData) => {
-    console.log('🔍 DETALHES - Lotes passados para formulário:', lotes);
-    console.log('🔍 DETALHES - Categorias nos lotes:', lotes.map(l => l.categoria));
-
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaMorte = areas.find(a => a.id === areaAtualId);
+    let quantidadeRestante = formData.quantidade;
 
     for (const lote of lotesCategoria) {
-      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
-
-      await base44.entities.MovimentacaoMapa.create({
-        empresa_id: empresaSelecionadaId,
-        data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
-        tipo: 'Morte',
-        lote: lote.nome,
-        quantidade_animais: qtdRemover,
-        area_origem_id: areaAtualId,
-        area_origem_nome: areaMorte?.nome || '',
-        observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
-      });
+      if (quantidadeRestante <= 0) break;
+      const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
+      const beforeLote = criarSnapshotLote(lote);
+      const novaQuantidade = (lote.quantidade_cabecas || 0) - qtdRemover;
 
       await base44.entities.Lote.update(lote.id, {
-        quantidade_cabecas: lote.quantidade_cabecas - qtdRemover
+        quantidade_cabecas: novaQuantidade,
+        status: novaQuantidade > 0 ? 'Ativo' : 'Inativo'
       });
 
-      formData.quantidade -= qtdRemover;
-      if (formData.quantidade <= 0) break;
+      await registrarMovimentacaoMapa({
+        data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
+        tipo: 'Morte',
+        operacao_lote: 'morte',
+        lote_id: lote.id,
+        lote: lote.nome,
+        lote_origem_id: lote.id,
+        categoria_animal: lote.categoria,
+        quantidade_animais: qtdRemover,
+        causa_morte: formData.causa_morte,
+        area_origem_id: areaAtualId,
+        area_origem_nome: areaMorte?.nome || '',
+        lotes_antes: [beforeLote],
+        lotes_depois: [criarSnapshotLote(lote, { quantidade_cabecas: novaQuantidade, status: novaQuantidade > 0 ? 'Ativo' : 'Inativo' })],
+        observacoes: `Saída por morte. Causa: ${formData.causa_morte}. ${formData.observacoes || ''}`.trim()
+      });
+
+      quantidadeRestante -= qtdRemover;
     }
 
     toast.success('Morte registrada');
@@ -518,27 +525,37 @@ export default function DetalhesLote({ lotes, onClose }) {
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaAbate = areas.find(a => a.id === areaAtualId);
+    let quantidadeRestante = formData.quantidade;
 
     for (const lote of lotesCategoria) {
-      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
-
-      await base44.entities.MovimentacaoMapa.create({
-        empresa_id: empresaSelecionadaId,
-        data_movimentacao: new Date(formData.data_abate).toISOString(),
-        tipo: 'Abate',
-        lote: lote.nome,
-        quantidade_animais: qtdRemover,
-        area_origem_id: areaAtualId,
-        area_origem_nome: areaAbate?.nome || '',
-        observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
-      });
+      if (quantidadeRestante <= 0) break;
+      const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
+      const beforeLote = criarSnapshotLote(lote);
+      const novaQuantidade = (lote.quantidade_cabecas || 0) - qtdRemover;
 
       await base44.entities.Lote.update(lote.id, {
-        quantidade_cabecas: lote.quantidade_cabecas - qtdRemover
+        quantidade_cabecas: novaQuantidade,
+        status: novaQuantidade > 0 ? 'Ativo' : 'Inativo'
       });
 
-      formData.quantidade -= qtdRemover;
-      if (formData.quantidade <= 0) break;
+      await registrarMovimentacaoMapa({
+        data_movimentacao: new Date(formData.data_abate).toISOString(),
+        tipo: 'Abate',
+        operacao_lote: 'abate',
+        lote_id: lote.id,
+        lote: lote.nome,
+        lote_origem_id: lote.id,
+        categoria_animal: lote.categoria,
+        quantidade_animais: qtdRemover,
+        destino_venda: formData.destino || null,
+        area_origem_id: areaAtualId,
+        area_origem_nome: areaAbate?.nome || '',
+        lotes_antes: [beforeLote],
+        lotes_depois: [criarSnapshotLote(lote, { quantidade_cabecas: novaQuantidade, status: novaQuantidade > 0 ? 'Ativo' : 'Inativo' })],
+        observacoes: `Saída por abate. Destino: ${formData.destino || '-'}. Peso vivo: ${formData.peso_vivo_total || '-'}. Peso carcaça: ${formData.peso_carcaca_total || '-'}. ${formData.observacoes || ''}`.trim()
+      });
+
+      quantidadeRestante -= qtdRemover;
     }
 
     toast.success('Abate registrado');
@@ -612,35 +629,43 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handlePesagem = async (formData) => {
-    const areaAtualId = lotes[0]?.area_atual_id;
+    const lotesBase = lotesParaPesagem.length > 0 ? lotesParaPesagem : lotes;
+    const areaAtualId = lotesBase[0]?.area_atual_id;
     const areaPesagem = areas.find(a => a.id === areaAtualId);
 
     for (const categoria of formData.categorias_selecionadas) {
-      const lotesCategoria = lotes.filter(l => l.categoria === categoria);
+      const lotesCategoria = lotesBase.filter(l => l.categoria === categoria);
       const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
 
       for (const lote of lotesCategoria) {
         const pesoAnterior = lote.peso_medio_kg || 0;
         const ganho = pesoNovo - pesoAnterior;
-
-        await base44.entities.MovimentacaoMapa.create({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: new Date(formData.data_pesagem).toISOString(),
-          tipo: 'Pesagem',
-          lote: lote.nome,
-          quantidade_animais: lote.quantidade_cabecas,
-          peso_medio: pesoNovo,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaPesagem?.nome || '',
-          observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
-        });
+        const beforeLote = criarSnapshotLote(lote);
 
         await base44.entities.Lote.update(lote.id, {
           peso_medio_kg: pesoNovo
         });
+
+        await registrarMovimentacaoMapa({
+          data_movimentacao: new Date(formData.data_pesagem).toISOString(),
+          tipo: 'Pesagem',
+          operacao_lote: 'pesagem',
+          lote_id: lote.id,
+          lote: lote.nome,
+          lote_origem_id: lote.id,
+          categoria_animal: categoria,
+          quantidade_animais: lote.quantidade_cabecas,
+          peso_medio: pesoNovo,
+          area_origem_id: areaAtualId,
+          area_origem_nome: areaPesagem?.nome || '',
+          lotes_antes: [beforeLote],
+          lotes_depois: [criarSnapshotLote(lote, { peso_medio_kg: pesoNovo })],
+          observacoes: `Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes || ''}`.trim()
+        });
       }
     }
 
+    setLotesParaPesagem([]);
     toast.success('Pesagens registradas');
     setShowPesagem(false);
     onClose();
