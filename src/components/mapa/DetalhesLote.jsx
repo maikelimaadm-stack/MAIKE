@@ -594,24 +594,26 @@ export default function DetalhesLote({ lotes, onClose }) {
     for (const categoria of formData.categorias_selecionadas) {
       const lotesCategoria = lotesParaPesar.filter(l => l.categoria === categoria);
       const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
+      const quantidadeTotal = lotesCategoria.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
+      const pesoAnteriorMedio = lotesCategoria.length > 0
+        ? lotesCategoria.reduce((sum, lote) => sum + (lote.peso_medio_kg || 0), 0) / lotesCategoria.length
+        : 0;
+      const ganho = pesoNovo - pesoAnteriorMedio;
+      const nomesLotes = lotesCategoria.map(lote => lote.nome).join(', ');
+
+      await base44.entities.MovimentacaoMapa.create({
+        empresa_id: empresaSelecionadaId,
+        data_movimentacao: new Date(formData.data_pesagem).toISOString(),
+        tipo: 'Pesagem',
+        lote: nomesLotes || categoria,
+        quantidade_animais: quantidadeTotal,
+        peso_medio: pesoNovo,
+        area_origem_id: areaAtualId,
+        area_origem_nome: areaPesagem?.nome || '',
+        observacoes: `Categoria: ${categoria}. Lotes: ${nomesLotes}. Peso anterior médio: ${pesoAnteriorMedio.toFixed(1)}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
+      });
 
       for (const lote of lotesCategoria) {
-        const pesoAnterior = lote.peso_medio_kg || 0;
-        const ganho = pesoNovo - pesoAnterior;
-
-        await base44.entities.MovimentacaoMapa.create({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: new Date(formData.data_pesagem).toISOString(),
-          tipo: 'Pesagem',
-          lote: lote.nome,
-          lote_id: lote.id,
-          quantidade_animais: lote.quantidade_cabecas,
-          peso_medio: pesoNovo,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaPesagem?.nome || '',
-          observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
-        });
-
         await base44.entities.Lote.update(lote.id, {
           peso_medio_kg: pesoNovo
         });

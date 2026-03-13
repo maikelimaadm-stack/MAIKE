@@ -358,7 +358,7 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
                           {item.sourceLabel}
                         </Badge>
                         <span className="text-[10px] text-slate-500">
-                          {new Date(item.data_evento).toLocaleString('pt-BR')}
+                          {new Date(item.data_evento).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
 
@@ -366,7 +366,7 @@ export default function HistoricoMovimentacoes({ lotesIds = [], areaId }) {
 
                       <div className="space-y-0.5 text-[10px] text-slate-600">
                         {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
-                        <div><strong>Data:</strong> {new Date(item.data_evento).toLocaleString('pt-BR')}</div>
+                        <div><strong>Data:</strong> {new Date(item.data_evento).toLocaleDateString('pt-BR')}</div>
                         {item.tipo === 'Transferência de Área' && (
                           <div><strong>Trajeto:</strong> {item.area_origem_nome || '-'} → {item.area_destino_nome || '-'}</div>
                         )}

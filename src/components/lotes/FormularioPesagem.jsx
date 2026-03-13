@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 
 export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const [saving, setSaving] = useState(false);
   const lotesArray = Array.isArray(lote) ? lote : [lote];
 
   const { data: iconesConfig = [] } = useQuery({
@@ -43,40 +44,51 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
     observacoes: ""
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     
     if (modoPesagem === "todos") {
       if (!pesoGeral || parseFloat(pesoGeral) <= 0) {
         alert("Informe o peso para todos os animais");
         return;
       }
-      
-      onSubmit({
-        data_pesagem: formData.data_pesagem,
-        categorias_selecionadas: categoriasDisponiveis,
-        pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => {
-          acc[cat] = parseFloat(pesoGeral);
-          return acc;
-        }, {}),
-        observacoes: formData.observacoes
-      });
+
+      setSaving(true);
+      try {
+        await onSubmit({
+          data_pesagem: formData.data_pesagem,
+          categorias_selecionadas: categoriasDisponiveis,
+          pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => {
+            acc[cat] = parseFloat(pesoGeral);
+            return acc;
+          }, {}),
+          observacoes: formData.observacoes
+        });
+      } finally {
+        setSaving(false);
+      }
     } else {
       const pesagensValidas = formData.pesagens.filter(p => p.peso && parseFloat(p.peso) > 0);
       if (pesagensValidas.length === 0) {
         alert("Preencha o peso de pelo menos uma categoria");
         return;
       }
-      
-      onSubmit({
-        data_pesagem: formData.data_pesagem,
-        categorias_selecionadas: pesagensValidas.map(p => p.categoria),
-        pesos_por_categoria: pesagensValidas.reduce((acc, p) => {
-          acc[p.categoria] = parseFloat(p.peso);
-          return acc;
-        }, {}),
-        observacoes: formData.observacoes
-      });
+
+      setSaving(true);
+      try {
+        await onSubmit({
+          data_pesagem: formData.data_pesagem,
+          categorias_selecionadas: pesagensValidas.map(p => p.categoria),
+          pesos_por_categoria: pesagensValidas.reduce((acc, p) => {
+            acc[p.categoria] = parseFloat(p.peso);
+            return acc;
+          }, {}),
+          observacoes: formData.observacoes
+        });
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -247,11 +259,11 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              Registrar Pesagens
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={saving}>
+              {saving ? 'Salvando...' : 'Registrar Pesagens'}
             </Button>
           </div>
         </form>
