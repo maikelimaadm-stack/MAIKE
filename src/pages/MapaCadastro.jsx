@@ -88,11 +88,30 @@ export default function MapaCadastro() {
   });
 
   const deletePontoMutation = useMutation({
-    mutationFn: (id) => base44.entities.PontoReferencia.update(id, { ativo: false }),
+    mutationFn: async (id) => {
+      const ponto = pontos.find((item) => item.id === id);
+      await base44.entities.PontoReferencia.update(id, { ativo: false });
+
+      if (ponto?.tipo?.toUpperCase().includes('COCHO')) {
+        const pontosSuplementacao = await base44.entities.PontoSuplementacao.list();
+        const vinculados = pontosSuplementacao.filter((item) =>
+          item.empresa_id === empresaSelecionadaId &&
+          item.status === 'Ativo' &&
+          item.nome_ponto === ponto.nome
+        );
+
+        for (const item of vinculados) {
+          await base44.entities.PontoSuplementacao.update(item.id, { status: 'Inativo' });
+        }
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'pontos' });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'pontos-suplementacao' });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'pontos-supl' });
       toast.success('Ponto excluído!');
       setItemExcluir(null);
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
     },
   });
 
