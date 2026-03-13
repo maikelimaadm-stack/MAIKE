@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+  Dialog, DialogContent, DialogHeader, DialogTitle } from
+"@/components/ui/dialog";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
+  Sheet, SheetContent, SheetHeader, SheetTitle } from
+"@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
 import AreaPanel from "../components/mapa/AreaPanel";
@@ -18,8 +18,8 @@ import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
-  CORES_UA_HA, CORES_SITUACAO_PASTO
-} from "../components/mapa/MapaFiltrosAvancados";
+  CORES_UA_HA, CORES_SITUACAO_PASTO } from
+"../components/mapa/MapaFiltrosAvancados";
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
 
@@ -31,11 +31,11 @@ const loadGoogleMapsScript = () => {
   _gmapsPromise = new Promise((resolve, reject) => {
     // Check if script tag already exists
     const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
-    if (existing) { existing.addEventListener('load', resolve); existing.addEventListener('error', reject); return; }
+    if (existing) {existing.addEventListener('load', resolve);existing.addEventListener('error', reject);return;}
     const s = document.createElement('script');
     s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
-    s.async = true; s.defer = true;
-    s.onload = resolve; s.onerror = reject;
+    s.async = true;s.defer = true;
+    s.onload = resolve;s.onerror = reject;
     document.head.appendChild(s);
   });
   return _gmapsPromise;
@@ -83,94 +83,94 @@ export default function MapaGeral() {
   const renderer = useMapRenderer(mapInstanceRef);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-  useEffect(() => { firstFitDoneRef.current = false; }, [empresaSelecionadaId]);
+  useEffect(() => {firstFitDoneRef.current = false;}, [empresaSelecionadaId]);
 
   // ─── Queries ───
   const ST = 2 * 60 * 1000;
 
   const { data: areas = [], refetch: refetchAreas } = useQuery({
     queryKey: ['mapa-areas', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.AreaPastagem.list(); return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.AreaPastagem.list();return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   const { data: pontos = [], refetch: refetchPontosRef } = useQuery({
     queryKey: ['mapa-pontos', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.PontoReferencia.list(); return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.PontoReferencia.list();return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery({
     queryKey: ['mapa-pontos-supl', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.PontoSuplementacao.list(); return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo'); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.PontoSuplementacao.list();return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   const { data: linhas = [] } = useQuery({
     queryKey: ['mapa-linhas', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.LinhaGeografica.list(); return all.filter(l => l.empresa_id === empresaSelecionadaId && l.ativo !== false); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.LinhaGeografica.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   const { data: lotes = [], refetch: refetchLotes } = useQuery({
     queryKey: ['mapa-lotes', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.Lote.list(); return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo'); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.Lote.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['mapa-icones'],
-    queryFn: async () => { const all = await base44.entities.ConfiguracaoIcone.list(); return all.filter(i => i.ativo !== false); },
-    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {const all = await base44.entities.ConfiguracaoIcone.list();return all.filter((i) => i.ativo !== false);},
+    staleTime: 10 * 60 * 1000
   });
 
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery({
     queryKey: ['mapa-eventos-supl', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.SuplementacaoEvento.list(); return all.filter(e => e.empresa_id === empresaSelecionadaId); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.SuplementacaoEvento.list();return all.filter((e) => e.empresa_id === empresaSelecionadaId);},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery({
     queryKey: ['mapa-tarefas', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.TarefaMapa.list(); return all.filter(t => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')); },
-    enabled: !!empresaSelecionadaId, staleTime: ST,
+    queryFn: async () => {const all = await base44.entities.TarefaMapa.list();return all.filter((t) => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento'));},
+    enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
   // Movimentações para calcular situação do pasto
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ['mapa-movimentacoes', empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao', 500); return all.filter(m => m.empresa_id === empresaSelecionadaId); },
+    queryFn: async () => {const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao', 500);return all.filter((m) => m.empresa_id === empresaSelecionadaId);},
     enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto',
-    staleTime: ST,
+    staleTime: ST
   });
 
   // ─── Dados derivados ───
-  const lotesComAlerta = useMemo(() => lotes.map(lote => {
+  const lotesComAlerta = useMemo(() => lotes.map((lote) => {
     const alertas = [];
-    const ev = eventosSupl.filter(e => e.area_id === lote.area_atual_id);
+    const ev = eventosSupl.filter((e) => e.area_id === lote.area_atual_id);
     if (ev.length > 0) {
       const ultimo = ev.sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
       const d = Math.floor((new Date() - new Date(ultimo.data_lancamento)) / 86400000);
       if (d > 10) alertas.push({ tipo: 'suplementacao', dias: d });
     }
     if (lote.peso_medio_kg && lote.peso_medio_kg < 50 && (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12')))
-      alertas.push({ tipo: 'peso_baixo', peso: lote.peso_medio_kg });
+    alertas.push({ tipo: 'peso_baixo', peso: lote.peso_medio_kg });
     return { ...lote, alertas };
   }), [lotes, eventosSupl]);
 
-  const categorias = useMemo(() => [...new Set(lotes.map(l => l.categoria).filter(Boolean))].sort(), [lotes]);
-  const tiposPastagem = useMemo(() => [...new Set(areas.map(a => a.tipo_pastagem).filter(Boolean))].sort(), [areas]);
-  const sistemasProdutivos = useMemo(() => [...new Set(lotes.map(l => l.sistema_produtivo).filter(Boolean))].sort(), [lotes]);
+  const categorias = useMemo(() => [...new Set(lotes.map((l) => l.categoria).filter(Boolean))].sort(), [lotes]);
+  const tiposPastagem = useMemo(() => [...new Set(areas.map((a) => a.tipo_pastagem).filter(Boolean))].sort(), [areas]);
+  const sistemasProdutivos = useMemo(() => [...new Set(lotes.map((l) => l.sistema_produtivo).filter(Boolean))].sort(), [lotes]);
 
   // Filtrar áreas
-  const areasFiltradas = useMemo(() => areas.filter(a => {
+  const areasFiltradas = useMemo(() => areas.filter((a) => {
     if (filtroTipoCultura !== 'todas' && a.tipo_cultura !== filtroTipoCultura) return false;
     if (filtroTipoPastagem !== 'todas' && a.tipo_pastagem !== filtroTipoPastagem) return false;
     return true;
   }), [areas, filtroTipoCultura, filtroTipoPastagem]);
 
   // Filtrar lotes
-  const lotesFiltrados = useMemo(() => lotesComAlerta.filter(lote => {
+  const lotesFiltrados = useMemo(() => lotesComAlerta.filter((lote) => {
     if (filtroCategoria !== 'todas' && lote.categoria !== filtroCategoria) return false;
     if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
     if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
@@ -183,13 +183,13 @@ export default function MapaGeral() {
   // Mapa de cores para categorias de manejo e pastagem
   const categoriasGadoCores = useMemo(() => {
     const m = {};
-    categorias.forEach((c, i) => { m[c] = CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length]; });
+    categorias.forEach((c, i) => {m[c] = CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length];});
     return m;
   }, [categorias]);
 
   const tiposPastagemCores = useMemo(() => {
     const m = {};
-    tiposPastagem.forEach((t, i) => { m[t] = CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length]; });
+    tiposPastagem.forEach((t, i) => {m[t] = CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length];});
     return m;
   }, [tiposPastagem]);
 
@@ -197,12 +197,12 @@ export default function MapaGeral() {
   // Usa ÁREA EFETIVA (area_pastejada) para cálculo de UA/ha, não área total
   const uaPorAreaMap = useMemo(() => {
     const m = {};
-    lotes.forEach(l => {
+    lotes.forEach((l) => {
       if (!l.area_atual_id) return;
       if (!m[l.area_atual_id]) m[l.area_atual_id] = { ua: 0, cabecas: 0 };
       const peso = l.peso_medio_kg || 0;
       const cab = l.quantidade_cabecas || 0;
-      m[l.area_atual_id].ua += (peso * cab) / 450;
+      m[l.area_atual_id].ua += peso * cab / 450;
       m[l.area_atual_id].cabecas += cab;
     });
     return m;
@@ -219,17 +219,17 @@ export default function MapaGeral() {
   const situacaoPastoMap = useMemo(() => {
     const m = {};
     const agora = new Date();
-    areas.forEach(a => {
-      const lotesNaArea = lotes.filter(l => l.area_atual_id === a.id);
+    areas.forEach((a) => {
+      const lotesNaArea = lotes.filter((l) => l.area_atual_id === a.id);
       if (lotesNaArea.length > 0) {
         // Área COM animais: calcular dias desde a data_entrada mais antiga
-        const datasEntrada = lotesNaArea.map(l => l.data_entrada ? new Date(l.data_entrada) : agora).filter(d => !isNaN(d));
+        const datasEntrada = lotesNaArea.map((l) => l.data_entrada ? new Date(l.data_entrada) : agora).filter((d) => !isNaN(d));
         const maisAntiga = datasEntrada.length > 0 ? new Date(Math.min(...datasEntrada)) : agora;
         const dias = Math.max(0, Math.floor((agora - maisAntiga) / 86400000));
         m[a.id] = { tipo: 'ocupado', dias };
       } else {
         // Área SEM animais: verificar última movimentação de saída desta área
-        const movsSaida = movimentacoes.filter(mv => mv.area_origem_id === a.id && mv.tipo === 'Transferência de Área');
+        const movsSaida = movimentacoes.filter((mv) => mv.area_origem_id === a.id && mv.tipo === 'Transferência de Área');
         if (movsSaida.length > 0) {
           const ultimaSaida = new Date(movsSaida[0].data_movimentacao);
           const diasSem = Math.max(0, Math.floor((agora - ultimaSaida) / 86400000));
@@ -249,7 +249,7 @@ export default function MapaGeral() {
     if (modoColoracao === 'ocupacao') return CORES_OCUPACAO[area.status_ocupacao] || '#94a3b8';
     if (modoColoracao === 'tipo_pastagem') return tiposPastagemCores[area.tipo_pastagem] || '#94a3b8';
     if (modoColoracao === 'categoria_gado') {
-      const lotesNaArea = lotes.filter(l => l.area_atual_id === area.id);
+      const lotesNaArea = lotes.filter((l) => l.area_atual_id === area.id);
       if (lotesNaArea.length === 0) return '#d1d5db';
       const cat = lotesNaArea[0].categoria;
       return categoriasGadoCores[cat] || '#94a3b8';
@@ -261,21 +261,21 @@ export default function MapaGeral() {
       if (ha <= 0) return '#94a3b8';
       const uaHa = info.ua / ha;
       // Faixas baseadas em Embrapa/Scot (pastagem tropical, ~20% margem)
-      if (uaHa < 0.8) return '#86efac';  // sublotação
-      if (uaHa < 1.2) return '#22c55e';  // moderada
-      if (uaHa < 1.8) return '#3b82f6';  // ideal
-      if (uaHa < 2.4) return '#f59e0b';  // alta (até 20% acima)
-      return '#ef4444';                    // superlotação
+      if (uaHa < 0.8) return '#86efac'; // sublotação
+      if (uaHa < 1.2) return '#22c55e'; // moderada
+      if (uaHa < 1.8) return '#3b82f6'; // ideal
+      if (uaHa < 2.4) return '#f59e0b'; // alta (até 20% acima)
+      return '#ef4444'; // superlotação
     }
     if (modoColoracao === 'situacao_pasto') {
       const info = situacaoPastoMap[area.id];
       if (!info) return '#d1d5db';
-      if (info.tipo === 'vazia') return '#d1d5db';       // sem histórico
-      if (info.tipo === 'descanso') return '#86efac';     // em descanso
+      if (info.tipo === 'vazia') return '#d1d5db'; // sem histórico
+      if (info.tipo === 'descanso') return '#86efac'; // em descanso
       // Ocupado
-      if (info.dias <= 45) return '#3b82f6';              // normal
-      if (info.dias <= 90) return '#f59e0b';              // atenção
-      return '#ef4444';                                    // crítico
+      if (info.dias <= 45) return '#3b82f6'; // normal
+      if (info.dias <= 90) return '#f59e0b'; // atenção
+      return '#ef4444'; // crítico
     }
     return null; // padrao: usar cor da área
   }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
@@ -298,52 +298,52 @@ export default function MapaGeral() {
     return () => renderer.clearAll();
   }, []);
 
-  useEffect(() => { if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType); }, [mapType]);
+  useEffect(() => {if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType);}, [mapType]);
 
   // Fit bounds 1x
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady || !areas.length || firstFitDoneRef.current) return;
     const b = new google.maps.LatLngBounds();
     let ok = false;
-    areas.forEach(a => (a.coordenadas?.coords || []).forEach(c => {
-      const lat = c[0] || c.lat, lng = c[1] || c.lng;
-      if (typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)) { b.extend({ lat, lng }); ok = true; }
+    areas.forEach((a) => (a.coordenadas?.coords || []).forEach((c) => {
+      const lat = c[0] || c.lat,lng = c[1] || c.lng;
+      if (typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)) {b.extend({ lat, lng });ok = true;}
     }));
-    if (ok) { mapInstanceRef.current.fitBounds(b, { padding: 50 }); firstFitDoneRef.current = true; }
+    if (ok) {mapInstanceRef.current.fitBounds(b, { padding: 50 });firstFitDoneRef.current = true;}
   }, [areas, mapReady]);
 
   // ─── Handlers ───
   // Clique na área agora abre Dialog (igual ao lote) em vez de Sheet lateral
-  const handleClickArea = useCallback((area) => { setSelectedArea(area); setShowDetalhesArea(true); }, []);
-  const handleRightClickArea = useCallback((area) => { setSelectedArea(area); setShowDetalhesArea(true); }, []);
-  const handleClickPontoSupl = useCallback((p) => { setSelectedPontoSupl(p); setShowDetalhesPontoSupl(true); }, []);
-  const handleClickLotes = useCallback((l) => { setSelectedLote(l); setShowDetalhesLote(true); }, []);
-  const handleClickTarefa = useCallback((t) => { setTarefasContext({ areaId: t.area_id, areaNome: t.area_nome }); setShowTarefas(true); }, []);
+  const handleClickArea = useCallback((area) => {setSelectedArea(area);setShowDetalhesArea(true);}, []);
+  const handleRightClickArea = useCallback((area) => {setSelectedArea(area);setShowDetalhesArea(true);}, []);
+  const handleClickPontoSupl = useCallback((p) => {setSelectedPontoSupl(p);setShowDetalhesPontoSupl(true);}, []);
+  const handleClickLotes = useCallback((l) => {setSelectedLote(l);setShowDetalhesLote(true);}, []);
+  const handleClickTarefa = useCallback((t) => {setTarefasContext({ areaId: t.area_id, areaNome: t.area_nome });setShowTarefas(true);}, []);
 
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
-    const orig = allAreas.find(a => a.id === areaId);
-    if (orig) { const ps = orig.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })); if (ptInPoly(newPos, ps)) { toast.error('Arraste para outra área'); return; } }
+    const orig = allAreas.find((a) => a.id === areaId);
+    if (orig) {const ps = orig.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));if (ptInPoly(newPos, ps)) {toast.error('Arraste para outra área');return;}}
     let dest = null;
-    for (const a of allAreas) { if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue; if (ptInPoly(newPos, a.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })))) { dest = a; break; } }
-    if (dest) { window.areaDestinoArrastada = dest.id; setSelectedLote(lotesNaArea); setShowDetalhesLote(true); setTimeout(() => window.dispatchEvent(new CustomEvent('open-movimentacao')), 100); }
-    else toast.error('Solte sobre outra área');
+    for (const a of allAreas) {if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue;if (ptInPoly(newPos, a.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })))) {dest = a;break;}}
+    if (dest) {window.areaDestinoArrastada = dest.id;setSelectedLote(lotesNaArea);setShowDetalhesLote(true);setTimeout(() => window.dispatchEvent(new CustomEvent('open-movimentacao')), 100);} else
+    toast.error('Solte sobre outra área');
   }, []);
 
   const handleRefresh = useCallback(() => {
-    refetchLotes(); refetchAreas(); refetchEventosSupl(); refetchPontosSupl(); refetchPontosRef(); refetchTarefas();
+    refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchTarefas();
     toast.success('Mapa atualizado');
   }, []);
 
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (pos) => { const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }; setUserLocation(loc); setShowUserLocation(true); if (mapInstanceRef.current) { mapInstanceRef.current.setCenter(loc); mapInstanceRef.current.setZoom(18); } },
+      (pos) => {const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };setUserLocation(loc);setShowUserLocation(true);if (mapInstanceRef.current) {mapInstanceRef.current.setCenter(loc);mapInstanceRef.current.setZoom(18);}},
       () => toast.error('Erro ao obter localização')
     );
   }, []);
 
   // ─── Renderização incremental ───
-  useEffect(() => { if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor); }, [areasFiltradas, showAreas, mapReady, getAreaColor]);
+  useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor]);
   // Função de texto extra para labels (UA/ha ou situação do pasto)
   const getLabelExtraText = useCallback((area) => {
     if (modoColoracao === 'ua_ha') {
@@ -385,29 +385,29 @@ export default function MapaGeral() {
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
     if (showPontosSuplementacao) return pontos;
-    return pontos.filter(p => {
+    return pontos.filter((p) => {
       const tipo = (p.tipo || '').toUpperCase().trim();
       return tipo !== 'COCHO' && tipo !== 'COCHOS';
     });
   }, [pontos, showPontosSuplementacao]);
 
-  useEffect(() => { if (mapReady) renderer.syncPontos(pontosFiltrados, showPontos, iconesConfig); }, [pontosFiltrados, showPontos, iconesConfig, mapReady]);
-  useEffect(() => { if (mapReady) renderer.syncLinhas(linhas, showLinhas); }, [linhas, showLinhas, mapReady]);
-  useEffect(() => { if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacao, showPontosSuplementacao, iconesConfig, handleClickPontoSupl); }, [pontosSuplementacao, showPontosSuplementacao, iconesConfig, mapReady]);
-  useEffect(() => { if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes); }, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
-  useEffect(() => { if (mapReady) renderer.syncTarefas(tarefasMapa, handleClickTarefa); }, [tarefasMapa, mapReady]);
-  useEffect(() => { if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation); }, [userLocation, showUserLocation, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, showLinhas);}, [linhas, showLinhas, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacao, showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacao, showPontosSuplementacao, iconesConfig, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(tarefasMapa, handleClickTarefa);}, [tarefasMapa, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
 
   useEffect(() => {
-    const h = () => { refetchLotes(); refetchAreas(); refetchEventosSupl(); };
+    const h = () => {refetchLotes();refetchAreas();refetchEventosSupl();};
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
   }, []);
 
   // ─── Render ───
   const totalCabecas = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-  const areasOcupadas = new Set(lotes.map(l => l.area_atual_id).filter(Boolean)).size;
-  const totalAlertas = lotesComAlerta.filter(l => l.alertas.length > 0).length;
+  const areasOcupadas = new Set(lotes.map((l) => l.area_atual_id).filter(Boolean)).size;
+  const totalAlertas = lotesComAlerta.filter((l) => l.alertas.length > 0).length;
 
   return (
     <div className="fixed inset-0 z-50 bg-white" translate="no">
@@ -418,17 +418,17 @@ export default function MapaGeral() {
         <MapaControlesMobile
           mapType={mapType} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
-          onOpenTarefas={() => { setTarefasContext({}); setShowTarefas(true); }}
+          onOpenTarefas={() => {setTarefasContext({});setShowTarefas(true);}}
           onOpenInsights={() => setShowInsights(true)}
-          onOpenFiltros={() => setShowFiltros(true)}
-        />
+          onOpenFiltros={() => setShowFiltros(true)} />
+
 
         {/* Legenda */}
         <MapaLegenda
           modoColoracao={modoColoracao}
           categoriasGadoCores={categoriasGadoCores}
-          tiposPastagemCores={tiposPastagemCores}
-        />
+          tiposPastagemCores={tiposPastagemCores} />
+
 
         {/* Barra resumo inferior */}
         <div className="absolute bottom-2 left-2 right-2 z-10">
@@ -460,19 +460,19 @@ export default function MapaGeral() {
           </div>
         </div>
 
-        {!mapReady && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+        {!mapReady &&
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full" />
               <span className="font-semibold text-slate-700 text-sm">Carregando mapa...</span>
             </div>
           </div>
-        )}
+        }
       </div>
 
       {/* ─── Sheet Filtros Avançados ─── */}
       <Sheet open={showFiltros} onOpenChange={setShowFiltros}>
-        <SheetContent side="left" className="w-[300px] overflow-y-auto">
+        <SheetContent side="left" className="bg-background py-6 fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 left-0 h-full border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm w-[300px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="text-sm">Filtros e Camadas</SheetTitle>
           </SheetHeader>
@@ -496,17 +496,17 @@ export default function MapaGeral() {
               modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
               categorias={categorias}
               tiposPastagem={tiposPastagem}
-              sistemasProdutivos={sistemasProdutivos}
-            />
+              sistemasProdutivos={sistemasProdutivos} />
+
           </div>
         </SheetContent>
       </Sheet>
 
       {/* ─── Dialogs ─── */}
-      <Dialog open={showDetalhesLote} onOpenChange={(open) => { setShowDetalhesLote(open); if (!open) setTimeout(() => refetchLotes(), 300); }}>
+      <Dialog open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) setTimeout(() => refetchLotes(), 300);}}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle translate="no">Detalhes do Lote</DialogTitle></DialogHeader>
-          {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} onClose={() => { setShowDetalhesLote(false); setTimeout(() => refetchLotes(), 300); }} />}
+          {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} onClose={() => {setShowDetalhesLote(false);setTimeout(() => refetchLotes(), 300);}} />}
         </DialogContent>
       </Dialog>
 
@@ -517,17 +517,17 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => { setShowDetalhesPontoSupl(open); if (!open) setTimeout(() => { refetchEventosSupl(); refetchLotes(); refetchPontosSupl(); }, 300); }}>
+      <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Ponto de Suplementação</DialogTitle></DialogHeader>
-          {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} onClose={() => { setShowDetalhesPontoSupl(false); setTimeout(() => { refetchEventosSupl(); refetchLotes(); refetchPontosSupl(); }, 300); }} />}
+          {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} onClose={() => {setShowDetalhesPontoSupl(false);setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}} />}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showTarefas} onOpenChange={(open) => { setShowTarefas(open); if (!open) refetchTarefas(); }}>
+      <Dialog open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open) refetchTarefas();}}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Tarefas do Mapa</DialogTitle></DialogHeader>
-          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} onClose={() => { setShowTarefas(false); refetchTarefas(); }} />
+          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} onClose={() => {setShowTarefas(false);refetchTarefas();}} />
         </DialogContent>
       </Dialog>
 
@@ -537,8 +537,8 @@ export default function MapaGeral() {
           <MapaInsights lotes={lotesComAlerta} areas={areas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacao} pontosReferencia={pontos} />
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
 
 function ptInPoly(latLng, paths) {
@@ -546,8 +546,8 @@ function ptInPoly(latLng, paths) {
   const lat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
   const lng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
   for (let i = 0, j = paths.length - 1; i < paths.length; j = i++) {
-    const xi = paths[i].lat, yi = paths[i].lng, xj = paths[j].lat, yj = paths[j].lng;
-    if (((yi > lng) !== (yj > lng)) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi)) inside = !inside;
+    const xi = paths[i].lat,yi = paths[i].lng,xj = paths[j].lat,yj = paths[j].lng;
+    if (yi > lng !== yj > lng && lat < (xj - xi) * (lng - yi) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
 }
