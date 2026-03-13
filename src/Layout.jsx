@@ -42,7 +42,6 @@ import {
 
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
-import OfflineSyncIndicator from "@/components/offline/OfflineSyncIndicator";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -896,8 +895,6 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </nav>
       )}
-
-      <OfflineSyncIndicator empresaId={empresaSelecionada} />
 
       </div>
       );

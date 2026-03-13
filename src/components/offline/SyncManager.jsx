@@ -49,6 +49,13 @@ const PHASE_LABELS = {
   duplicados: 'Verificação de duplicados',
 };
 
+const getErrorMessage = (error) => {
+  if (error?.response?.data?.error) return String(error.response.data.error);
+  if (error?.response?.data?.message) return String(error.response.data.message);
+  if (error?.message) return String(error.message);
+  return String(error || 'Erro desconhecido');
+};
+
 export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
   const allPending = await getAllItems(STORES_NAMES.PENDING_PESAGENS);
   const pending = allPending.filter(p => p.empresa_id === empresaId);
@@ -148,8 +155,8 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
     } catch (error) {
       console.error('Erro sync pesagem:', error);
       errors.push({ error: error.message });
-      items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
-      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: error.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(error) });
+      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(error) } });
     }
     
     // Em caso de erro, manter na fila para tentar novamente depois
@@ -208,8 +215,8 @@ export const syncEmbarquesDocumentos = async (empresaId, onProgress) => {
       await deleteItem(STORES_NAMES.EMBARQUES, id);
     } catch (e) {
       console.error('Erro sync embarque:', e);
-      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
-      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(e) });
+      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(e) } });
     }
   }
 
@@ -239,8 +246,8 @@ export const syncEmbarquesDocumentos = async (empresaId, onProgress) => {
       await deleteItem(STORES_NAMES.DOCUMENTOS_EMBARQUE, id);
     } catch (e) {
       console.error('Erro sync documento:', e);
-      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
-      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(e) });
+      onProgress?.({ current, total, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(e) } });
     }
   }
 
@@ -312,8 +319,8 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       await deleteItem(STORES_NAMES.APARTACOES, id);
     } catch (e) {
       console.error('Erro ao sincronizar apartação:', e);
-      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
-      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(e) });
+      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(e) } });
     }
   }
 
@@ -358,8 +365,8 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       await deleteItem(STORES_NAMES.LOTES, id);
     } catch (e) {
       console.error('Erro ao sincronizar lote:', e);
-      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
-      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'error', message: e.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(e) });
+      onProgress?.({ current, total: totalEntities, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(e) } });
     }
   }
 
@@ -533,8 +540,8 @@ const syncSanidade = async (empresaId, onProgress) => {
     } catch (error) {
       console.error('Erro sync sanidade:', error);
       errors.push({ error: error.message });
-      items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
-      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: error.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(error) });
+      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(error) } });
     }
   }
 
@@ -579,8 +586,8 @@ const syncUpdates = async (empresaId, onProgress) => {
     } catch (error) {
       console.error('Erro sync update:', error);
       errors.push({ error: error.message });
-      items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
-      onProgress?.({ current: i + 1, total: filtered.length, currentItem: itemName, item: { name: itemName, status: 'error', message: error.message?.substring(0, 30) } });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(error) });
+      onProgress?.({ current: i + 1, total: filtered.length, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(error) } });
     }
   }
 
