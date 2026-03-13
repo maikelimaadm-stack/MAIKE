@@ -139,7 +139,8 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showRenomear, setShowRenomear] = useState(false);
   const [novoNomeLote, setNovoNomeLote] = useState('');
   const [loteParaRenomear, setLoteParaRenomear] = useState(null);
-  // showConfirmPesagem removido — pesagem é feita separadamente após mover
+  const [showConfirmPesagem, setShowConfirmPesagem] = useState(false);
+  const [lotesAtualizados, setLotesAtualizados] = useState(null);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
@@ -339,14 +340,22 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
       
       },
-      onSuccess: () => {
+      onSuccess: async () => {
         toast.success('Gado movido com sucesso!');
         setShowMovimentacao(false);
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
         queryClient.invalidateQueries({ queryKey: ['lotes'] });
         queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
-        // Fechar e voltar ao mapa — pesagem deve ser feita depois com dados atualizados
-        onClose();
+        // Buscar lotes atualizados antes de perguntar sobre pesagem
+        const lotesNovos = await base44.entities.Lote.list();
+        const areaId = lotes[0]?.area_atual_id;
+        const lotesNaArea = lotesNovos.filter(l => 
+          l.empresa_id === empresaSelecionadaId && 
+          l.area_atual_id === areaId && 
+          l.status === 'Ativo'
+        );
+        setLotesAtualizados(lotesNaArea.length > 0 ? lotesNaArea : lotes);
+        setShowConfirmPesagem(true);
       },
     onError: (error) => {
       console.error('❌ Erro:', error);
@@ -984,7 +993,20 @@ export default function DetalhesLote({ lotes, onClose }) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog confirmar pesagem removido — usar botão Pesar após mover */}
+      {/* Dialog confirmar pesagem após movimentação */}
+      <Dialog open={showConfirmPesagem} onOpenChange={setShowConfirmPesagem}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="text-sm">Registrar Pesagem?</DialogTitle></DialogHeader>
+          <p className="text-xs text-slate-600">Deseja registrar pesagem dos animais que ficaram na área?</p>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setShowConfirmPesagem(false); onClose(); }}>Não</Button>
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+              setShowConfirmPesagem(false);
+              setShowPesagem(true);
+            }}>Sim, Pesar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
 
     <Dialog open={progresso.show} onOpenChange={() => {}}>
