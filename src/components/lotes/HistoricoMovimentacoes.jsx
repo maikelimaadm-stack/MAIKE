@@ -130,82 +130,39 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
       <CardContent className="p-4">
         <div className="max-h-[500px] overflow-y-auto pr-2 space-y-3">
           {movimentacoes.map((mov) => (
-            <div key={mov.id} className="bg-white border border-slate-300 rounded-lg p-4 hover:shadow-md transition-all">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xl">
-                    {ICONES_TIPO[mov.tipo] || "📋"}
-                  </div>
-                  <div>
+            <div key={mov.id} className="bg-white border border-slate-300 rounded-lg p-3 hover:bg-slate-50 transition-colors">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge className={`text-xs font-semibold ${CORES_TIPO[mov.tipo] || 'bg-slate-100 text-slate-800'}`}>
                       {mov.tipo}
                     </Badge>
-                    <div className="text-xs text-slate-600 mt-1 font-medium">
-                      {new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}
+                    <span className="text-xs text-slate-600">{new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-xs font-semibold text-emerald-700">{mov.quantidade_animais} {mov.quantidade_animais === 1 ? 'animal' : 'animais'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                    <div><span className="font-semibold text-slate-700">Lote:</span> <span className="text-slate-900">{mov.lote || '-'}</span></div>
+                    <div><span className="font-semibold text-slate-700">Área:</span> <span className="text-slate-900">{mov.area_destino_nome || mov.area_origem_nome || '-'}</span></div>
+                    {mov.peso_medio && <div><span className="font-semibold text-slate-700">Peso médio:</span> <span className="text-slate-900">{mov.peso_medio} kg</span></div>}
+                    {mov.categoria_animal && <div><span className="font-semibold text-slate-700">Categoria:</span> <span className="text-slate-900">{mov.categoria_animal}</span></div>}
+                  </div>
+                  {mov.observacoes && (
+                    <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-2 leading-relaxed">
+                      {mov.observacoes}
                     </div>
-                  </div>
+                  )}
                 </div>
-                <div className="text-right space-y-2">
-                  <div className="text-lg font-bold text-emerald-600">
-                    {mov.quantidade_animais} {mov.quantidade_animais === 1 ? 'animal' : 'animais'}
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" className="h-8 text-xs"
-                      onClick={() => { setEditMov(mov); setShowEdit(true); }}>
-                      Editar
-                    </Button>
-                    <Button variant="destructive" size="sm" className="h-8 text-xs"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => handleDelete(mov)}>
-                      Excluir
-                    </Button>
-                  </div>
+                <div className="flex gap-2 md:pl-4">
+                  <Button variant="outline" size="sm" className="h-8 text-xs"
+                    onClick={() => { setEditMov(mov); setShowEdit(true); }}>
+                    Editar
+                  </Button>
+                  <Button variant="destructive" size="sm" className="h-8 text-xs"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => handleDelete(mov)}>
+                    Excluir
+                  </Button>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-xs font-semibold text-slate-700 min-w-[60px]">Lote:</span>
-                  <span className="text-xs text-slate-900 font-medium">{mov.lote}</span>
-                </div>
-                
-                {mov.tipo === 'Transferência de Área' && (
-                  <div className="flex items-center gap-2 text-xs bg-blue-50 border border-blue-200 rounded p-2">
-                    <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-blue-700 font-medium">{mov.area_origem_nome}</span>
-                    <ArrowRight className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-blue-900 font-bold">{mov.area_destino_nome}</span>
-                  </div>
-                )}
-
-                {mov.tipo === 'Nascimento' && mov.area_destino_nome && (
-                  <div className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 rounded p-2">
-                    <MapPin className="w-4 h-4 text-green-600 flex-shrink-0" />
-                    <span className="text-green-700 font-medium">Área: </span>
-                    <span className="text-green-900 font-bold">{mov.area_destino_nome}</span>
-                  </div>
-                )}
-
-                {['Morte', 'Abate', 'Mudança de Categoria', 'Pesagem'].includes(mov.tipo) && mov.area_origem_nome && (
-                  <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 rounded p-2">
-                    <MapPin className="w-4 h-4 text-slate-600 flex-shrink-0" />
-                    <span className="text-slate-700 font-medium">Área: </span>
-                    <span className="text-slate-900 font-bold">{mov.area_origem_nome}</span>
-                  </div>
-                )}
-
-                {mov.peso_medio && (
-                  <div className="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 rounded p-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    <span className="text-emerald-700 font-semibold">Peso médio: {mov.peso_medio} kg</span>
-                  </div>
-                )}
-
-                {mov.observacoes && (
-                  <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 leading-relaxed">
-                    {mov.observacoes}
-                  </div>
-                )}
               </div>
             </div>
           ))}
