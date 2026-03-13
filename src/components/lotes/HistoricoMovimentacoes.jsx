@@ -75,13 +75,25 @@ export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
       };
       const matchAreaMov = (mov) => !areaId || mov.area_origem_id === areaId || mov.area_destino_id === areaId;
 
+      const transferenciasParaAreaAtual = movimentacoesRaw
+        .filter((mov) => mov.empresa_id === empresaSelecionadaId)
+        .filter((mov) => mov.tipo === 'Transferência de Área')
+        .filter((mov) => mov.area_destino_id === areaId)
+        .filter((mov) => matchLote(mov.lote, mov.lote_id));
+
+      const inicioNovoHistorico = transferenciasParaAreaAtual.length > 0
+        ? Math.max(...transferenciasParaAreaAtual.map((mov) => getTime(mov.data_movimentacao)))
+        : null;
+
+      const dentroDoHistoricoAtual = (dataEvento) => !inicioNovoHistorico || getTime(dataEvento) >= inicioNovoHistorico;
+
       const movimentacoes = movimentacoesRaw
         .filter((mov) => mov.empresa_id === empresaSelecionadaId)
         .filter((mov) => {
           if (loteIds.length > 0 || loteNomes.length > 0) {
-            return matchLote(mov.lote, mov.lote_id);
+            return matchLote(mov.lote, mov.lote_id) && dentroDoHistoricoAtual(mov.data_movimentacao);
           }
-          return matchAreaMov(mov);
+          return matchAreaMov(mov) && dentroDoHistoricoAtual(mov.data_movimentacao);
         })
         .map((mov) => ({
           uniqueId: `mov-${mov.id}`,
@@ -146,6 +158,7 @@ export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
       const sanidades = sanidadesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
         .filter((item) => matchLote(item.lote))
+        .filter((item) => dentroDoHistoricoAtual(item.data_evento))
         .map((item) => ({
           uniqueId: `san-${item.id}`,
           source: 'sanidade',
