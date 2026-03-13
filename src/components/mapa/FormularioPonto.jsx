@@ -74,7 +74,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && (i.tipo_entidade === 'Ponto' || i.tipo_entidade === 'Cocho') && i.ativo !== false);
+      return all.filter(i => i.tipo_entidade === 'Ponto' && i.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -236,7 +236,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     });
   };
 
-  const pontosReferenciaCadastrados = iconesConfig.filter(ic => ic.tipo_entidade === 'Ponto');
+  const pontosReferenciaCadastrados = iconesConfig;
   const tiposDisponiveis = [...new Set(iconesConfig.map(ic => ic.categoria))];
 
   if (mostrarCapturaGPS) {
@@ -279,7 +279,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Ponto de Referência Cadastrado</Label>
+        <Label className="text-xs font-semibold text-slate-700">Ícone / Ponto de Referência</Label>
         <Select value={formData.configuracao_icone_id} onValueChange={(value) => {
           const configuracao = pontosReferenciaCadastrados.find(item => item.id === value);
           setFormData({
@@ -289,7 +289,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           });
         }}>
           <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Selecione um ponto cadastrado" />
+            <SelectValue placeholder="Selecione no gerenciamento de ícones" />
           </SelectTrigger>
           <SelectContent>
             {pontosReferenciaCadastrados.map((item) => (
@@ -314,7 +314,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           </Select>
         ) : (
           <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg">
-            Configure ícones de pontos em Configurações → Parâmetros
+            Cadastre o tipo no Gerenciamento de Ícones em Configurações → Parâmetros
           </div>
         )}
         <div className="pt-1">
