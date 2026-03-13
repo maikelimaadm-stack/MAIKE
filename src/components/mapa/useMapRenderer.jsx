@@ -1,5 +1,24 @@
 import { useRef, useCallback } from "react";
 
+const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
+  if (!marker || !iconUrl || !window.google?.maps) return;
+  const image = new Image();
+  image.onload = () => {
+    const widthRatio = image.naturalWidth || baseSize;
+    const heightRatio = image.naturalHeight || baseSize;
+    const ratio = widthRatio / heightRatio;
+    const width = ratio >= 1 ? baseSize : Math.max(20, Math.round(baseSize * ratio));
+    const height = ratio >= 1 ? Math.max(20, Math.round(baseSize / ratio)) : baseSize;
+    marker.setIcon({
+      url: iconUrl,
+      scaledSize: new google.maps.Size(width, height),
+      anchor: new google.maps.Point(width / 2, height / 2),
+      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(12, height / 2)) } : {})
+    });
+  };
+  image.src = iconUrl;
+};
+
 /**
  * Hook de renderização incremental do mapa Google.
  * Suporta coloração dinâmica por modo, bordas grossas, visibilidade de nomes.
@@ -172,10 +191,11 @@ export default function useMapRenderer(mapInstanceRef) {
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
       const cfg = iconesConfig.find(ic => ic.tipo_entidade === 'Ponto' && ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim());
-      let icon;
-      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(44, 44), anchor: new google.maps.Point(22, 22) }; }
-      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || ponto.cor || '#0066ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 }; }
+      const icon = cfg?.icone_url
+        ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
+        : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || ponto.cor || '#0066ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome });
+      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 44);
       marker.addListener('click', () => { new google.maps.InfoWindow({ content: `<div style="padding:10px;"><strong>${ponto.nome}</strong><br/><span style="color:#666;">${ponto.tipo}</span></div>` }).open(map, marker); });
       markersRef.current.set(key, marker);
     });
@@ -220,10 +240,11 @@ export default function useMapRenderer(mapInstanceRef) {
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
       const cfg = iconesConfig.find(ic => ic.categoria?.toUpperCase().trim() === 'COCHO' || ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim());
-      let icon;
-      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(44, 44), anchor: new google.maps.Point(22, 22) }; }
-      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 }; }
+      const icon = cfg?.icone_url
+        ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
+        : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome_ponto, zIndex: 500 });
+      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 44);
       marker.addListener('click', () => onClick(ponto));
       markersRef.current.set(key, marker);
     });
@@ -269,9 +290,9 @@ export default function useMapRenderer(mapInstanceRef) {
         const validos = mistos.filter(c => cats.every(cat => (c.categorias_misto || []).map(x => x.toUpperCase().trim()).includes(cat))).sort((a, b) => a.categorias_misto.length - b.categorias_misto.length);
         if (validos.length > 0) cfg = validos[0];
       }
-      let icon;
-      if (cfg?.icone_url) { icon = { url: cfg.icone_url, scaledSize: new google.maps.Size(50, 50), anchor: new google.maps.Point(25, 25), labelOrigin: new google.maps.Point(25, 18) }; }
-      else { icon = { path: google.maps.SymbolPath.CIRCLE, scale: 22, fillColor: '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3, labelOrigin: new google.maps.Point(0, 0) }; }
+      const icon = cfg?.icone_url
+        ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0, labelOrigin: new google.maps.Point(0, 0) }
+        : { path: google.maps.SymbolPath.CIRCLE, scale: 22, fillColor: '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3, labelOrigin: new google.maps.Point(0, 0) };
       const totalAlertas = lotesNaArea.reduce((sum, l) => sum + (l.alertas?.length || 0), 0);
 
       if (markersRef.current.has(key)) {
@@ -289,6 +310,7 @@ export default function useMapRenderer(mapInstanceRef) {
         label: { text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' },
         title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: true
       });
+      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
       marker._lotesNaArea = lotesNaArea;
       marker._center = offsetCenter;
       marker._areaId = areaId;

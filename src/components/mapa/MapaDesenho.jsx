@@ -33,6 +33,24 @@ const loadGoogleMapsScript = () => {
   });
 };
 
+const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) => {
+  if (!marker || !iconUrl || !window.google?.maps) return;
+  const image = new Image();
+  image.onload = () => {
+    const widthRatio = image.naturalWidth || baseSize;
+    const heightRatio = image.naturalHeight || baseSize;
+    const ratio = widthRatio / heightRatio;
+    const width = ratio >= 1 ? baseSize : Math.max(20, Math.round(baseSize * ratio));
+    const height = ratio >= 1 ? Math.max(20, Math.round(baseSize / ratio)) : baseSize;
+    marker.setIcon({
+      url: iconUrl,
+      scaledSize: new google.maps.Size(width, height),
+      anchor: new google.maps.Point(width / 2, height / 2)
+    });
+  };
+  image.src = iconUrl;
+};
+
 export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando, onSalvar, onCancelar }) {
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('satellite');
@@ -535,6 +553,10 @@ const redoStackRef = useRef([]);
         },
         clickable: false,
       });
+
+      if (ponto.icone_url) {
+        applyMarkerIconPreservingAspectRatio(marker, ponto.icone_url, 44);
+      }
 
       markersRef.current.push(marker);
     });
