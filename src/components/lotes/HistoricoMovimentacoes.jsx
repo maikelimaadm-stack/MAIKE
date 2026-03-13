@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { aplicarSnapshotsLote, movimentacaoAfetaIds, getIdsAfetados } from "./movimentacaoLoteUtils";
 
 const ICONES_TIPO = {
   "Transferência de Área": "⇄",
@@ -24,7 +25,9 @@ const CORES_TIPO = {
   "Nascimento": "bg-green-100 text-green-800",
   "Abate": "bg-orange-100 text-orange-800",
   "Mudança de Categoria": "bg-purple-100 text-purple-800",
-  "Pesagem": "bg-emerald-100 text-emerald-800"
+  "Pesagem": "bg-emerald-100 text-emerald-800",
+  "Renomeação de Lote": "bg-slate-100 text-slate-800",
+  "União de Lotes": "bg-amber-100 text-amber-800"
 };
 
 export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
@@ -43,57 +46,30 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   });
 
   const handleDelete = async (mov) => {
-    // Bloquear exclusão se existirem registros posteriores (filhos) do mesmo lote
-    const sameLote = movimentacoes.filter(m => (mov.lote_id ? m.lote_id === mov.lote_id : m.lote === mov.lote));
-    const later = sameLote.filter(m => m.id !== mov.id && new Date(m.data_movimentacao) > new Date(mov.data_movimentacao));
-    if (later.length > 0) {
-      alert('Não é possível excluir: existem movimentações posteriores deste lote. Exclua primeiramente as mais recentes.');
-      return;
-    }
+    if (!confirm('Excluir este registro? O lote será ajustado automaticamente.')) return;
 
-    if (!confirm('Excluir este registro? O lote será ajustado automaticamente para a situação anterior.')) return;
+    const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+    const snapshotsAntes = Array.isArray(mov.lotes_antes) ? mov.lotes_antes : [];
+    const snapshotsDepois = Array.isArray(mov.lotes_depois) ? mov.lotes_depois : [];
+    const idsAfetados = getIdsAfetados(mov);
+
+    if (snapshotsAntes.length > 0 && snapshotsDepois.length > 0 && idsAfetados.length > 0) {
+      const posteriores = all
+        .filter(item => item.id !== mov.id && new Date(item.data_movimentacao) > new Date(mov.data_movimentacao))
+        .filter(item => movimentacaoAfetaIds(item, idsAfetados))
+        .sort((a, b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao));
+
+      await aplicarSnapshotsLote(snapshotsAntes);
+      for (const item of posteriores) {
+        if (Array.isArray(item.lotes_depois) && item.lotes_depois.length > 0) {
+          await aplicarSnapshotsLote(item.lotes_depois);
+        }
+      }
+    }
 
     await deleteMutation.mutateAsync(mov.id);
-
-    // Recalcular área atual do lote com base no histórico restante
-    const remaining = sameLote.filter(m => m.id !== mov.id);
-
-    // Determinar nova área:
-    // 1) Se a movimentação excluída definiu área_destino_id (transferência), voltar para a área de origem dela
-    let newAreaId = mov.area_destino_id ? (mov.area_origem_id || null) : null;
-
-    // 2) Caso não seja transferência ou não haja origem, usar o último registro remanescente com área_destino_id
-    if (!newAreaId) {
-      const ultimoComDestino = [...remaining]
-        .sort((a,b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao))
-        .reverse()
-        .find(m => m.area_destino_id);
-      if (ultimoComDestino) newAreaId = ultimoComDestino.area_destino_id || null;
-    }
-
-    // Atualizar lote se encontrado
-    try {
-      let loteRecord = null;
-      if (mov.lote_id) {
-        const res = await base44.entities.Lote.filter({ id: mov.lote_id });
-        loteRecord = Array.isArray(res) ? res[0] : null;
-      } else {
-        const lotesAll = await base44.entities.Lote.list();
-        loteRecord = lotesAll.find(l => l.nome === mov.lote || l.identificacao === mov.lote) || null;
-      }
-
-      if (loteRecord && newAreaId && loteRecord.area_atual_id !== newAreaId) {
-        await base44.entities.Lote.update(loteRecord.id, { area_atual_id: newAreaId });
-      }
-    } catch (e) {
-      console.error('Falha ao ajustar área do lote após exclusão:', e);
-    }
-
-    // Garantir atualização das listas e do mapa
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
-
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
-    // Atualizar mapa em tempo real
     try { window.dispatchEvent(new Event('atualizar-mapa')); } catch {}
   };
 
