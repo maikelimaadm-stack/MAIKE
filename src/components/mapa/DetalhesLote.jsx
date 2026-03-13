@@ -893,14 +893,14 @@ export default function DetalhesLote({ lotes, onClose }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showPesagem} onOpenChange={setShowPesagem}>
+      <Dialog open={showPesagem} onOpenChange={(open) => { setShowPesagem(open); if (!open) setLotesAtualizados(null); }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
           {showPesagem && (
             <FormularioPesagem
-              lote={lotes}
+              lote={lotesAtualizados || lotes}
               onSubmit={handlePesagem}
-              onCancel={() => setShowPesagem(false)}
+              onCancel={() => { setShowPesagem(false); setLotesAtualizados(null); }}
             />
           )}
         </DialogContent>
