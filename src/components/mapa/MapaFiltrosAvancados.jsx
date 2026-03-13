@@ -67,7 +67,7 @@ export const MODOS_COLORACAO = [
   { id: 'categoria_gado', label: 'Categoria do Gado', icon: Beef },
   { id: 'tipo_pastagem', label: 'Tipo de Pastagem', icon: Droplets },
   { id: 'ua_ha', label: 'UA por Hectare', icon: Scale },
-  { id: 'situacao_pasto', label: 'Situação do Pasto', iconUrl: 'https://br.freepik.com/fotos/logo-capim/2' },
+  { id: 'situacao_pasto', label: 'Situação do Pasto', icon: Calendar },
 ];
 
 export default function MapaFiltrosAvancados({
