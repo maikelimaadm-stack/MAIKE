@@ -1,8 +1,10 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, Loader2, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Clock, Download, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function SyncProgressDialog({ 
   open,
@@ -12,6 +14,26 @@ export default function SyncProgressDialog({
   const { isRunning, currentStep, totalSteps, currentItem, currentPhase, items = [], completed, errors } = syncState || {};
   
   const progressPercent = totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0;
+  const errorItems = items.filter((item) => item.status === 'error');
+  const errorReport = errorItems.map((item, index) => `${index + 1}. ${item.name}\nMotivo: ${item.message || 'Erro sem detalhe'}`).join('\n\n');
+
+  const handleCopyErrors = async () => {
+    if (!errorReport) return;
+    await navigator.clipboard.writeText(errorReport);
+    toast.success('Erros copiados');
+  };
+
+  const handleExportErrors = () => {
+    if (!errorReport) return;
+    const blob = new Blob([errorReport], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'erros_sincronizacao_pesagens.txt';
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Erros exportados');
+  };
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!isRunning) onOpenChange?.(nextOpen); }}>
@@ -79,11 +101,30 @@ export default function SyncProgressDialog({
 
           {/* Resumo final */}
           {completed && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-emerald-700">{items.filter(i => i.status === 'success').length}</div>
-              <div className="text-xs text-emerald-600">registros sincronizados</div>
-              {errors > 0 && (
-                <div className="text-xs text-red-600 mt-1">{errors} erro(s)</div>
+            <div className="space-y-2">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-emerald-700">{items.filter(i => i.status === 'success').length}</div>
+                <div className="text-xs text-emerald-600">registros sincronizados</div>
+                {errors > 0 && (
+                  <div className="text-xs text-red-600 mt-1">{errors} erro(s)</div>
+                )}
+              </div>
+
+              {errorItems.length > 0 && (
+                <div className="border border-red-200 bg-red-50 rounded-lg p-3 space-y-2">
+                  <div className="text-xs font-semibold text-red-700">Motivos exatos dos erros</div>
+                  <div className="max-h-32 overflow-auto text-xs text-red-700 whitespace-pre-wrap">{errorReport}</div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={handleCopyErrors}>
+                      <Copy className="w-3.5 h-3.5" />
+                      Copiar erros
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={handleExportErrors}>
+                      <Download className="w-3.5 h-3.5" />
+                      Exportar erros
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           )}

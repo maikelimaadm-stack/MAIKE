@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CheckCircle2, Clock, FileText, RefreshCw, Wifi, WifiOff, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Copy, Download, FileText, RefreshCw, Wifi, WifiOff, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { getPendingCounts, initDB } from "./IndexedDBManager";
 import { addSyncListener, isSyncing, syncAll } from "./SyncManager";
@@ -155,6 +155,30 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
     };
   }, [empresaId, onSyncComplete]);
 
+  const errorLogItems = useMemo(() => syncLog.filter((item) => item.status === "error"), [syncLog]);
+  const errorLogReport = useMemo(
+    () => errorLogItems.map((item, index) => `${index + 1}. ${item.message || item.type || "Erro"}\nMotivo: ${item.details || item.message || "Sem detalhe"}`).join("\n\n"),
+    [errorLogItems]
+  );
+
+  const handleCopyErrors = async () => {
+    if (!errorLogReport) return;
+    await navigator.clipboard.writeText(errorLogReport);
+    toast.success("Erros copiados");
+  };
+
+  const handleExportErrors = () => {
+    if (!errorLogReport) return;
+    const blob = new Blob([errorLogReport], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "erros_sincronizacao_pesagens.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Erros exportados");
+  };
+
   const statusMeta = useMemo(() => {
     if (syncing || syncStatus === "syncing") {
       return {
@@ -286,7 +310,19 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
             <div className="text-xs text-slate-600">
               <span className="font-semibold">Total:</span> {syncLog.length} evento(s)
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
+              {errorLogItems.length > 0 && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleCopyErrors} className="h-8 text-xs gap-1">
+                    <Copy className="w-3.5 h-3.5" />
+                    Copiar erros
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleExportErrors} className="h-8 text-xs gap-1">
+                    <Download className="w-3.5 h-3.5" />
+                    Exportar erros
+                  </Button>
+                </>
+              )}
               <Button variant="outline" size="sm" onClick={() => setSyncLog([])} className="h-8 text-xs">
                 Limpar log
               </Button>
