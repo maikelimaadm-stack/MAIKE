@@ -119,7 +119,8 @@ export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
 
       const suplementacoes = suplementacoesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLote(item.lote_nome))
+        .filter((item) => matchLote(item.lote_nome, item.lote_id))
+        .filter((item) => dentroDoHistoricoAtual(item.data_lancamento))
         .map((item) => ({
           uniqueId: `supl-${item.id}`,
           source: 'suplementacao',
@@ -138,7 +139,8 @@ export default function HistoricoMovimentacoes({ lotes = [], areaId }) {
 
       const medicamentos = medicamentosRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLote(item.lote_nome))
+        .filter((item) => matchLote(item.lote_nome, item.lote_id))
+        .filter((item) => dentroDoHistoricoAtual(item.data_aplicacao))
         .map((item) => ({
           uniqueId: `med-${item.id}`,
           source: 'medicamento',
