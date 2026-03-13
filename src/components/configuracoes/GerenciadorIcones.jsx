@@ -37,6 +37,7 @@ const CORES_PADRAO = [
 ];
 
 export default function GerenciadorIcones() {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showDialog, setShowDialog] = useState(false);
   const [editingIcone, setEditingIcone] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -52,20 +53,19 @@ export default function GerenciadorIcones() {
   const queryClient = useQueryClient();
 
   const { data: icones = [] } = useQuery({
-    queryKey: ['configuracao-icones-global'],
+    queryKey: ['configuracao-icones-global', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      // Ícones são globais - não filtrar por empresa
-      return all.filter(i => i.ativo !== false);
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
     },
+    enabled: !!empresaSelecionadaId,
   });
 
   const createIconeMutation = useMutation({
     mutationFn: (data) => {
-      // Remover empresa_id para tornar ícone global
-      const { empresa_id, ...dataWithoutEmpresa } = data;
       return base44.entities.ConfiguracaoIcone.create({
-        ...dataWithoutEmpresa,
+        ...data,
+        empresa_id: empresaSelecionadaId,
         ativo: true
       });
     },
