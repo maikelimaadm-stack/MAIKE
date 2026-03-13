@@ -326,8 +326,17 @@ export default function LancamentoPesagensIndividuais() {
 
     // Listener para sincronização automática
     const unsubscribe = addSyncListener((event) => {
+      if (event.type === 'start') {
+        setIsSyncing(true); setSyncDialogOpen(true); setSyncState({ isRunning: true, currentStep: 0, totalSteps: 0, currentPhase: 'Preparando sincronização', currentItem: 'Preparando sincronização...', items: [], completed: false, errors: 0 });
+      }
+      if (event.type === 'progress') {
+        setSyncDialogOpen(true); setSyncState((prev) => ({ ...prev, isRunning: true, currentPhase: event.phaseLabel || prev.currentPhase, currentItem: event.currentItem || prev.currentItem, items: event.item ? [...prev.items, event.item] : prev.items }));
+      }
       if (event.type === 'complete') {
-        loadAllData();
+        setIsSyncing(false); setSyncState((prev) => ({ ...prev, isRunning: false, completed: true, errors: prev.items.filter((item) => item.status === 'error').length })); loadAllData(); setTimeout(() => setSyncDialogOpen(false), 2000);
+      }
+      if (event.type === 'error') {
+        setIsSyncing(false); setSyncDialogOpen(true); setSyncState((prev) => ({ ...prev, isRunning: false, completed: true, errors: (prev.errors || 0) + 1, items: [...(prev.items || []), { name: 'Sincronização', status: 'error', message: event.error || 'Erro desconhecido' }] }));
       }
     });
 
@@ -433,43 +442,15 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== SINCRONIZAÇÃO ==========
   const handleSyncAll = async () => {
-    if (!navigator.onLine) {
-      toast.error("Sem conexão");
-      return;
-    }
-
-    setIsSyncing(true);
-    setSyncDialogOpen(true);
-    setSyncState({ isRunning: true, currentStep: 0, totalSteps: 0, currentPhase: 'Preparando sincronização', currentItem: 'Preparando sincronização...', items: [], completed: false, errors: 0 });
-
+    if (!navigator.onLine) { toast.error("Sem conexão"); return; }
+    if (isSyncing) return;
     try {
       const result = await syncAll(empresaSelecionadaId, (progress) => {
-        setSyncState((prev) => ({ ...prev, currentStep: progress.current || prev.currentStep, totalSteps: progress.total || prev.totalSteps, currentPhase: progress.phaseLabel || prev.currentPhase, currentItem: progress.currentItem || prev.currentItem, items: progress.item ? [...prev.items, progress.item] : prev.items }));
+        setSyncState((prev) => ({ ...prev, currentStep: progress.current || prev.currentStep, totalSteps: progress.total || prev.totalSteps, currentPhase: progress.phaseLabel || prev.currentPhase, currentItem: progress.currentItem || prev.currentItem }));
       });
-
-      setSyncState((prev) => ({ ...prev, isRunning: false, completed: true, items: prev.items.length ? prev.items : (result.items || []), errors: result.totalErrors || 0 }));
-
-      if (result.success) {
-        await loadAllData();
-        // Fechar dialog após 2 segundos
-        setTimeout(() => {
-          setSyncDialogOpen(false);
-          toast.success(`${result.totalSuccess || 0} registro(s) sincronizado(s)`);
-        }, 2000);
-      } else if (result.message) {
-        toast.error(result.message);
-      }
+      if (!result.success && result.message) toast.error(result.message);
     } catch (error) {
-      console.error('Erro na sincronização:', error);
-      setSyncState((prev) => ({
-        ...prev,
-        isRunning: false,
-        completed: true,
-        errors: 1
-      }));
-      toast.error('Erro na sincronização');
-    } finally {
-      setIsSyncing(false);
+      console.error('Erro na sincronização:', error); toast.error('Erro na sincronização');
     }
   };
 
