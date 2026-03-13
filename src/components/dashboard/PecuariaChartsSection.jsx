@@ -14,7 +14,7 @@ function EmptyState({ title }) {
   );
 }
 
-export default function PecuariaChartsSection({ charts, visibleCharts = [] }) {
+export default function PecuariaChartsSection({ charts, visibleCharts = null }) {
   const chartCards = [
     {
       key: "pesoLotes",
@@ -103,9 +103,13 @@ export default function PecuariaChartsSection({ charts, visibleCharts = [] }) {
     },
   ];
 
-  const filteredCharts = visibleCharts.length > 0
+  const filteredCharts = Array.isArray(visibleCharts)
     ? chartCards.filter((chart) => visibleCharts.includes(chart.key))
     : chartCards;
+
+  if (filteredCharts.length === 0) {
+    return null;
+  }
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">

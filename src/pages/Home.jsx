@@ -464,7 +464,7 @@ export default function Home() {
       <Dialog open={showConfigGraficos} onOpenChange={setShowConfigGraficos}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm">Configurar Gráficos</DialogTitle>
+            <DialogTitle className="text-sm">Configurar Painel</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
