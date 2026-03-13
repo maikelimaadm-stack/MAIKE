@@ -14,7 +14,7 @@ function EmptyState({ title }) {
   );
 }
 
-export default function PecuariaChartsSection({ charts }) {
+export default function PecuariaChartsSection({ charts, visibleCharts = [] }) {
   const chartCards = [
     {
       key: "pesoLotes",
@@ -85,11 +85,31 @@ export default function PecuariaChartsSection({ charts }) {
         </ResponsiveContainer>
       ),
     },
+    {
+      key: "marcaAnimais",
+      title: "Estoque por marca",
+      data: charts.marcaAnimais,
+      content: (
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={charts.marcaAnimais}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} />
+            <Tooltip contentStyle={{ fontSize: 11 }} />
+            <Bar dataKey="quantidade" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      ),
+    },
   ];
+
+  const filteredCharts = visibleCharts.length > 0
+    ? chartCards.filter((chart) => visibleCharts.includes(chart.key))
+    : chartCards;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-      {chartCards.map((chart) => (
+      {filteredCharts.map((chart) => (
         <Card key={chart.key} className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-slate-900">{chart.title}</CardTitle>

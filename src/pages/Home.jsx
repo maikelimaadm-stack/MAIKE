@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import PecuariaResumoCards from "@/components/dashboard/PecuariaResumoCards";
 import PecuariaChartsSection from "@/components/dashboard/PecuariaChartsSection";
 import PecuariaRecentes from "@/components/dashboard/PecuariaRecentes";
+import PecuariaInsightsPanel from "@/components/dashboard/PecuariaInsightsPanel";
 
 const CORES = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
 
@@ -36,6 +37,18 @@ export default function Home() {
       }
     }
     return ["movimentacoes_mes", "estoque_categoria"];
+  });
+
+  const [secoesVisiveis, setSecoesVisiveis] = useState(() => {
+    const saved = localStorage.getItem("secoes_dashboard_pecuaria");
+    const defaults = ["resumo_pecuaria", "graficos_pecuaria", "insights_mapa", "recentes_pecuaria", "suplementacao", "movimentacoes_mes", "estoque_categoria", "pesoLotes", "movimentosMes", "ocupacaoAreas", "categoriaLotes", "marcaAnimais"];
+    if (!saved) return defaults;
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.length ? parsed : defaults;
+    } catch {
+      return defaults;
+    }
   });
 
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -217,6 +230,63 @@ export default function Home() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
 
+    const ultimasPesagensPorAnimal = Object.values(
+      pesagensIndividuais.reduce((acc, item) => {
+        const chave = item.numero_animal || item.id;
+        if (!acc[chave] || new Date(item.data_pesagem || 0) > new Date(acc[chave].data_pesagem || 0)) {
+          acc[chave] = item;
+        }
+        return acc;
+      }, {})
+    ).filter((item) => item.status_animal !== "Inativo");
+
+    const marcasMap = {};
+    ultimasPesagensPorAnimal.forEach((item) => {
+      const marca = item.marca || "Sem marca";
+      marcasMap[marca] = (marcasMap[marca] || 0) + 1;
+    });
+
+    const marcaAnimais = Object.entries(marcasMap)
+      .map(([name, quantidade]) => ({ name, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 8);
+
+    const areasCriticas = areasAtivas
+      .map((item) => {
+        const ua = lotesAtivos
+          .filter((lote) => lote.area_atual_id === item.id)
+          .reduce((sum, lote) => sum + ((Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0)) / 450), 0);
+        const capacidade = Number(item.capacidade_maxima || 0);
+        const percentual = capacidade > 0 ? (ua / capacidade) * 100 : 0;
+        return { nome: item.nome, ua, percentual, capacidade };
+      })
+      .filter((item) => item.percentual > 110)
+      .sort((a, b) => b.percentual - a.percentual);
+
+    const areasBaixaLotacao = areasAtivas
+      .map((item) => {
+        const ua = lotesAtivos
+          .filter((lote) => lote.area_atual_id === item.id)
+          .reduce((sum, lote) => sum + ((Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0)) / 450), 0);
+        const capacidade = Number(item.capacidade_maxima || 0);
+        const percentual = capacidade > 0 ? (ua / capacidade) * 100 : 0;
+        return { nome: item.nome, percentual, capacidade, ua };
+      })
+      .filter((item) => item.capacidade > 0 && item.percentual > 0 && item.percentual < 70)
+      .sort((a, b) => a.percentual - b.percentual);
+
+    const areasVaziasList = areasAtivas
+      .filter((item) => !lotesAtivos.some((lote) => lote.area_atual_id === item.id))
+      .map((item) => ({ nome: item.nome, value: `${Number(item.area_pastejada || item.tamanho_hectares || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ha livres` }));
+
+    const oportunidades = [
+      ...areasBaixaLotacao.map((item) => ({ nome: item.nome, value: `${Number(item.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% da capacidade utilizada` })),
+      ...areasVaziasList,
+    ];
+
+    const uaTotal = lotesAtivos.reduce((sum, item) => sum + ((Number(item.peso_medio_kg || 0) * Number(item.quantidade_cabecas || 0)) / 450), 0);
+    const uaHaMedia = hectaresPastagem > 0 ? uaTotal / hectaresPastagem : 0;
+
     return {
       summary: {
         totalCabecasAtivas,
@@ -236,10 +306,20 @@ export default function Home() {
         movimentacaoMensal,
         ocupacaoAreas,
         categoriaLotes,
+        marcaAnimais,
       },
       recentes: {
         pesagens: [...pesagensIndividuais].slice(0, 6),
         movimentacoes: [...movimentacoesPecuaria].slice(0, 6),
+      },
+      insights: {
+        uaTotal,
+        uaHaMedia,
+        areasVazias: areasVaziasList.length,
+        areasCriticas,
+        oportunidades,
+        marcas: marcaAnimais.map((item) => ({ nome: item.name, quantidade: item.quantidade })),
+        categorias: categoriaLotes.map((item) => ({ nome: item.name, quantidade: item.value })),
       },
     };
   }, [areasPastagem, lotes, movimentacoesPecuaria, pesagensIndividuais]);
@@ -248,6 +328,14 @@ export default function Home() {
     setGraficosVisiveis((prev) => {
       const novos = prev.includes(graficoId) ? prev.filter((id) => id !== graficoId) : [...prev, graficoId];
       localStorage.setItem("graficos_dashboard", JSON.stringify(novos));
+      return novos;
+    });
+  };
+
+  const toggleSecao = (secaoId) => {
+    setSecoesVisiveis((prev) => {
+      const novos = prev.includes(secaoId) ? prev.filter((id) => id !== secaoId) : [...prev, secaoId];
+      localStorage.setItem("secoes_dashboard_pecuaria", JSON.stringify(novos));
       return novos;
     });
   };
@@ -266,11 +354,17 @@ export default function Home() {
         </div>
       </div>
 
-      <PecuariaResumoCards summary={dadosPecuaria.summary} />
-      <PecuariaChartsSection charts={dadosPecuaria.charts} />
-      <PecuariaRecentes pesagens={dadosPecuaria.recentes.pesagens} movimentacoes={dadosPecuaria.recentes.movimentacoes} />
+      {secoesVisiveis.includes("resumo_pecuaria") && <PecuariaResumoCards summary={dadosPecuaria.summary} />}
+      {secoesVisiveis.includes("graficos_pecuaria") && (
+        <PecuariaChartsSection
+          charts={dadosPecuaria.charts}
+          visibleCharts={secoesVisiveis.filter((item) => ["pesoLotes", "movimentosMes", "ocupacaoAreas", "categoriaLotes", "marcaAnimais"].includes(item))}
+        />
+      )}
+      {secoesVisiveis.includes("insights_mapa") && <PecuariaInsightsPanel insights={dadosPecuaria.insights} />}
+      {secoesVisiveis.includes("recentes_pecuaria") && <PecuariaRecentes pesagens={dadosPecuaria.recentes.pesagens} movimentacoes={dadosPecuaria.recentes.movimentacoes} />}
 
-      {dadosSuplementacao.pontosAtivos > 0 && (
+      {secoesVisiveis.includes("suplementacao") && dadosSuplementacao.pontosAtivos > 0 && (
         <Card className="shadow-sm border-l-4 border-l-emerald-500">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -372,18 +466,59 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle className="text-sm">Configurar Gráficos</DialogTitle>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <div className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded">
-              <Checkbox checked={graficosVisiveis.includes("movimentacoes_mes")} onCheckedChange={() => toggleGrafico("movimentacoes_mes")} />
-              <label className="cursor-pointer flex-1 text-xs" onClick={() => toggleGrafico("movimentacoes_mes")}>
-                Movimentações de Estoque
-              </label>
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-700 mb-1">Seções do painel</div>
+              <div className="space-y-1.5">
+                {[
+                  ["resumo_pecuaria", "Resumo executivo da pecuária"],
+                  ["graficos_pecuaria", "Gráficos da pecuária"],
+                  ["insights_mapa", "Insights do mapa e manejo"],
+                  ["recentes_pecuaria", "Tabelas recentes"],
+                  ["suplementacao", "Card de suplementação"],
+                ].map(([id, label]) => (
+                  <div key={id} className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded">
+                    <Checkbox checked={secoesVisiveis.includes(id)} onCheckedChange={() => toggleSecao(id)} />
+                    <label className="cursor-pointer flex-1 text-xs" onClick={() => toggleSecao(id)}>{label}</label>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded">
-              <Checkbox checked={graficosVisiveis.includes("estoque_categoria")} onCheckedChange={() => toggleGrafico("estoque_categoria")} />
-              <label className="cursor-pointer flex-1 text-xs" onClick={() => toggleGrafico("estoque_categoria")}>
-                Estoque por Categoria
-              </label>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-700 mb-1">Gráficos de estoque</div>
+              <div className="space-y-1.5">
+                <div className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded">
+                  <Checkbox checked={graficosVisiveis.includes("movimentacoes_mes")} onCheckedChange={() => toggleGrafico("movimentacoes_mes")} />
+                  <label className="cursor-pointer flex-1 text-xs" onClick={() => toggleGrafico("movimentacoes_mes")}>
+                    Movimentações de Estoque
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded">
+                  <Checkbox checked={graficosVisiveis.includes("estoque_categoria")} onCheckedChange={() => toggleGrafico("estoque_categoria")} />
+                  <label className="cursor-pointer flex-1 text-xs" onClick={() => toggleGrafico("estoque_categoria")}>
+                    Estoque por Categoria
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-700 mb-1">Gráficos da pecuária</div>
+              <div className="space-y-1.5">
+                {[
+                  ["pesoLotes", "Peso médio por lote"],
+                  ["movimentosMes", "Movimentação pecuária por mês"],
+                  ["ocupacaoAreas", "Ocupação das áreas"],
+                  ["categoriaLotes", "Composição do rebanho"],
+                  ["marcaAnimais", "Estoque por marca"],
+                ].map(([id, label]) => (
+                  <div key={id} className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded">
+                    <Checkbox checked={secoesVisiveis.includes(id)} onCheckedChange={() => toggleSecao(id)} />
+                    <label className="cursor-pointer flex-1 text-xs" onClick={() => toggleSecao(id)}>{label}</label>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </DialogContent>
