@@ -65,6 +65,45 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
           await aplicarSnapshotsLote(item.lotes_depois);
         }
       }
+    } else {
+      const lotesAll = await base44.entities.Lote.list();
+      const loteAtual = mov.lote_id
+        ? lotesAll.find(l => l.id === mov.lote_id)
+        : lotesAll.find(l => l.nome === mov.lote || l.identificacao === mov.lote);
+
+      if (loteAtual) {
+        if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {
+          await base44.entities.Lote.update(loteAtual.id, {
+            quantidade_cabecas: (loteAtual.quantidade_cabecas || 0) + (mov.quantidade_animais || 0),
+            status: 'Ativo'
+          });
+        } else if (mov.tipo === 'Nascimento') {
+          const novaQuantidade = Math.max(0, (loteAtual.quantidade_cabecas || 0) - (mov.quantidade_animais || 0));
+          await base44.entities.Lote.update(loteAtual.id, {
+            quantidade_cabecas: novaQuantidade,
+            status: novaQuantidade > 0 ? 'Ativo' : 'Inativo'
+          });
+        } else if (mov.tipo === 'Pesagem') {
+          const matchPeso = (mov.observacoes || '').match(/Peso anterior:\s*([0-9.,]+)/i);
+          if (matchPeso) {
+            await base44.entities.Lote.update(loteAtual.id, {
+              peso_medio_kg: Number(matchPeso[1].replace(',', '.')) || loteAtual.peso_medio_kg
+            });
+          }
+        } else if (mov.tipo === 'Mudança de Categoria') {
+          const matchCategoria = (mov.observacoes || '').match(/de\s+(.+?)\s+para\s+(.+?)(\.|$)/i);
+          if (matchCategoria) {
+            await base44.entities.Lote.update(loteAtual.id, {
+              categoria: matchCategoria[1].trim()
+            });
+          }
+        } else if (mov.tipo === 'Transferência de Área' && mov.area_origem_id) {
+          await base44.entities.Lote.update(loteAtual.id, {
+            area_atual_id: mov.area_origem_id,
+            area_atual_nome: mov.area_origem_nome || loteAtual.area_atual_nome
+          });
+        }
+      }
     }
 
     await deleteMutation.mutateAsync(mov.id);
