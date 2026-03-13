@@ -56,6 +56,8 @@ const getErrorMessage = (error) => {
   return String(error || 'Erro desconhecido');
 };
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
   const allPending = await getAllItems(STORES_NAMES.PENDING_PESAGENS);
   const pending = allPending.filter(p => p.empresa_id === empresaId);
@@ -415,7 +417,7 @@ export const syncAll = async (empresaId, onProgress) => {
         onProgress({ phase: 'updates', phaseLabel: PHASE_LABELS.updates, ...progress });
       }
       if (progress?.item) notifyListeners({ type: 'progress', entity: 'updates', phaseLabel: PHASE_LABELS.updates, currentItem: progress.currentItem, item: progress.item });
-    });
+    }, entitiesResult.idMap || {});
     allItems.push(...(updatesResult.items || []));
 
     // 4. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
@@ -549,28 +551,56 @@ const syncSanidade = async (empresaId, onProgress) => {
 };
 
 // Sincronizar updates offline (edições de lotes/apartações)
-const syncUpdates = async (empresaId, onProgress) => {
+const syncUpdates = async (empresaId, onProgress, idMap = {}) => {
   const pending = await getPendingUpdates();
   const filtered = pending.filter(u => u.data?.empresa_id === empresaId);
   
   if (filtered.length === 0) {
     return { successCount: 0, errors: [], total: 0, items: [] };
   }
+
+  const grouped = Object.values(filtered.reduce((acc, update) => {
+    const resolvedId = idMap[update.entity_id] || update.entity_id;
+    const key = `${update.entity}:${resolvedId}`;
+
+    if (!acc[key]) {
+      acc[key] = {
+        ...update,
+        entity_id: resolvedId,
+        data: { ...update.data },
+        mergedOfflineIds: [update._offlineId],
+      };
+    } else {
+      acc[key].data = { ...acc[key].data, ...update.data };
+      acc[key].mergedOfflineIds.push(update._offlineId);
+    }
+
+    return acc;
+  }, {}));
   
   let successCount = 0;
   const errors = [];
   const items = [];
 
-  for (let i = 0; i < filtered.length; i++) {
-    const update = filtered[i];
+  for (let i = 0; i < grouped.length; i++) {
+    const update = grouped[i];
     const itemName = `${update.entity} - ${update.entity_id}`;
     
     if (onProgress) {
       onProgress({
         current: i + 1,
-        total: filtered.length,
+        total: grouped.length,
         currentItem: itemName
       });
+    }
+
+    if (String(update.entity_id || '').startsWith('offline_')) {
+      items.push({ name: itemName, status: 'skip', message: 'Atualização incorporada ao cadastro offline' });
+      onProgress?.({ current: i + 1, total: grouped.length, currentItem: itemName, item: { name: itemName, status: 'skip', message: 'Atualização incorporada ao cadastro offline' } });
+      for (const offlineId of update.mergedOfflineIds || []) {
+        await deletePendingUpdate(offlineId);
+      }
+      continue;
     }
     
     try {
@@ -580,18 +610,21 @@ const syncUpdates = async (empresaId, onProgress) => {
         await base44.entities.LoteApartacao.update(update.entity_id, update.data);
       }
       items.push({ name: itemName, status: 'success', message: 'Atualizado' });
-      onProgress?.({ current: i + 1, total: filtered.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Atualizado' } });
+      onProgress?.({ current: i + 1, total: grouped.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Atualizado' } });
       successCount++;
-      await deletePendingUpdate(update._offlineId);
+      for (const offlineId of update.mergedOfflineIds || []) {
+        await deletePendingUpdate(offlineId);
+      }
+      await wait(120);
     } catch (error) {
       console.error('Erro sync update:', error);
       errors.push({ error: error.message });
       items.push({ name: itemName, status: 'error', message: getErrorMessage(error) });
-      onProgress?.({ current: i + 1, total: filtered.length, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(error) } });
+      onProgress?.({ current: i + 1, total: grouped.length, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(error) } });
     }
   }
 
-  return { successCount, errors, total: filtered.length, items };
+  return { successCount, errors, total: grouped.length, items };
 };
 
 // Função para remover duplicados automaticamente
