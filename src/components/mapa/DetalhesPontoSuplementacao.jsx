@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
-import PontoStatusIcon from "./PontoStatusIcon";
+import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import { getCochoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
@@ -60,12 +60,12 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     <div className="space-y-4" translate="no">
       <div className="flex items-start justify-between gap-3 pb-2 border-b">
         <div className="flex items-start gap-3">
-          <PontoStatusIcon
-            iconUrl={referencia?.icone_url}
-            subIconUrl={referencia?.sub_icone_url}
+          <IndicadorCopoNivel
+            titulo="Nível do cocho"
+            valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
+            subtitulo={indicador.helperLabel}
             percent={indicador.percent}
-            title={ponto.nome_ponto}
-            helperLabel={indicador.helperLabel}
+            cor="#10b981"
           />
           <div>
             <div className="text-sm font-bold text-slate-900 mb-1">{ponto.nome_ponto}</div>

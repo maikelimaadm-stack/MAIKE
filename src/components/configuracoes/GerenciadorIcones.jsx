@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -201,7 +202,11 @@ export default function GerenciadorIcones() {
                       <div key={icone.id} className="border rounded p-3 bg-white hover:bg-slate-50 transition-colors">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {icone.icone_url ? (
+                            {icone.tipo_entidade === 'Ponto' ? (
+                              <div className="w-16">
+                                <IndicadorCopoNivel titulo="" valor="" percent={0.6} cor={icone.cor_padrao || '#10b981'} />
+                              </div>
+                            ) : icone.icone_url ? (
                               <img src={icone.icone_url} alt={icone.categoria} className="w-8 h-8 object-contain" />
                             ) : (
                               <div 
