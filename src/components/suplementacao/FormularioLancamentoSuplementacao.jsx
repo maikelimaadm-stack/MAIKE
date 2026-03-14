@@ -28,13 +28,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => base44.auth.me() });
 
+  const areaIdsVinculados = useMemo(() => {
+    const ids = Array.isArray(ponto?.area_vinculada_ids) ? ponto.area_vinculada_ids.filter(Boolean) : [];
+    return ids.length ? ids : (ponto?.area_vinculada_id ? [ponto.area_vinculada_id] : []);
+  }, [ponto]);
+
+  const areaNomesVinculados = useMemo(() => {
+    const nomes = Array.isArray(ponto?.area_vinculada_nomes) ? ponto.area_vinculada_nomes.filter(Boolean) : [];
+    return nomes.length ? nomes : (ponto?.area_vinculada_nome ? [ponto.area_vinculada_nome] : []);
+  }, [ponto]);
+
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
-    queryKey: ["lotes-area", ponto?.area_vinculada_id],
+    queryKey: ["lotes-area", areaIdsVinculados.join("|")],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.area_atual_id === ponto?.area_vinculada_id && lote.status === "Ativo");
+      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && areaIdsVinculados.includes(lote.area_atual_id) && lote.status === "Ativo");
     },
-    enabled: !!empresaSelecionadaId && !!ponto?.area_vinculada_id,
+    enabled: !!empresaSelecionadaId && areaIdsVinculados.length > 0,
   });
 
   const { data: fatores = [] } = useQuery({
@@ -110,7 +120,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
     if (!formData.produto) return toast.error("Selecione um produto.");
     if (quantidadeTotal <= 0) return toast.error("Informe a quantidade fornecida.");
-    if (totalCabecas === 0) return toast.error("Não há lotes ativos na área.");
+    if (totalCabecas === 0) return toast.error("Não há lotes ativos nas áreas vinculadas.");
     if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
     if (depositoVinculado?.local_estoque_id && quantidadeTotal > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
 
@@ -152,8 +162,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           quantidade: quantidadeTotal,
           localOrigemId: depositoVinculado.local_estoque_id,
           localOrigemNome: depositoVinculado.local_estoque_nome,
-          areaId: ponto.area_vinculada_id,
-          areaNome: ponto.area_vinculada_nome,
+          areaId: areaIdsVinculados[0] || ponto.area_vinculada_id,
+          areaNome: areaNomesVinculados.join(", ") || ponto.area_vinculada_nome,
           observacoes: `Saída automática para o cocho ${ponto.nome_ponto}${formData.observacoes ? ` - ${formData.observacoes}` : ""}`,
           lotesNota,
           depositoId: depositoVinculado.id,
@@ -167,8 +177,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         empresa_id: empresaSelecionadaId,
         ponto_suplementacao_id: ponto.id,
         ponto_nome: ponto.nome_ponto,
-        area_id: ponto.area_vinculada_id,
-        area_nome: ponto.area_vinculada_nome,
+        area_id: areaIdsVinculados[0] || ponto.area_vinculada_id,
+        area_nome: areaNomesVinculados.join(", ") || ponto.area_vinculada_nome,
+        area_ids: areaIdsVinculados,
+        area_nomes: areaNomesVinculados,
         data_lancamento: formData.data_lancamento,
         produto: formData.produto,
         quantidade_total_kg: quantidadeTotal,
@@ -226,11 +238,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           <div className="space-y-4">
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs">
-                <div><span className="text-slate-600">Área:</span><span className="font-semibold text-slate-900 ml-2">{ponto?.area_vinculada_nome || "-"}</span></div>
+                <div><span className="text-slate-600">Áreas:</span><span className="font-semibold text-slate-900 ml-2">{areaNomesVinculados.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
                 <div><span className="text-slate-600">Depósito:</span><span className="font-semibold text-slate-900 ml-2">{depositoVinculado?.nome_ponto || "Não vinculado"}</span></div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-slate-600">Lotes na área:</span>
+                <span className="text-xs text-slate-600">Lotes nas áreas:</span>
                 {loadingLotes ? <Badge variant="outline" className="text-xs">Carregando...</Badge> : <Badge variant="outline" className="text-xs">{formatDecimal(lotes.length, 0, true)} lote(s) - {formatDecimal(totalCabecas, 0, true)} cabeças</Badge>}
                 {depositoVinculado?.local_estoque_nome && <Badge variant="outline" className="text-xs">Local: {depositoVinculado.local_estoque_nome}</Badge>}
               </div>

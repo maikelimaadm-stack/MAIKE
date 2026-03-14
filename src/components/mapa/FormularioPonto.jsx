@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -49,7 +50,10 @@ const createEmptyForm = () => ({
   produto_padrao: "",
   capacidade_cocho_kg: "",
   area_vinculada_id: "",
+  area_vinculada_ids: [],
   deposito_origem_id: "",
+  metragem_cocho_m: "",
+  cobertura_cocho: "",
   consumo_ideal_por_cabeca_kg: "",
   limite_minimo_consumo: "",
   limite_maximo_consumo: "",
@@ -120,7 +124,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       produto_padrao: pontoSuplementacaoExistente?.produto_padrao || "",
       capacidade_cocho_kg: pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
       area_vinculada_id: pontoSuplementacaoExistente?.area_vinculada_id || "",
+      area_vinculada_ids: Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length
+        ? pontoSuplementacaoExistente.area_vinculada_ids
+        : pontoSuplementacaoExistente?.area_vinculada_id
+          ? [pontoSuplementacaoExistente.area_vinculada_id]
+          : [],
       deposito_origem_id: pontoSuplementacaoExistente?.deposito_origem_id || "",
+      metragem_cocho_m: pontoSuplementacaoExistente?.metragem_cocho_m || "",
+      cobertura_cocho: pontoSuplementacaoExistente?.cobertura_cocho || "",
       consumo_ideal_por_cabeca_kg: pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg || "",
       limite_minimo_consumo: pontoSuplementacaoExistente?.limite_minimo_consumo || "",
       limite_maximo_consumo: pontoSuplementacaoExistente?.limite_maximo_consumo || "",
@@ -133,6 +144,18 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     setCoordenadasGPS(localizacao);
     setMostrarCapturaGPS(false);
     toast.success("Localização GPS capturada!");
+  };
+
+  const toggleAreaVinculada = (areaId, checked) => {
+    setFormData((prev) => {
+      const atuais = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
+      const proximas = checked ? Array.from(new Set([...atuais, areaId])) : atuais.filter((id) => id !== areaId);
+      return {
+        ...prev,
+        area_vinculada_ids: proximas,
+        area_vinculada_id: proximas[0] || "",
+      };
+    });
   };
 
   useEffect(() => {
@@ -156,7 +179,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
       if (inside) {
         setAreaDetectada(area);
-        setFormData((prev) => ({ ...prev, area_vinculada_id: prev.area_vinculada_id || area.id }));
+        setFormData((prev) => {
+          const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
+          if (areaIds.length > 0) return prev;
+          return { ...prev, area_vinculada_id: area.id, area_vinculada_ids: [area.id] };
+        });
         break;
       }
     }
@@ -207,7 +234,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
       const maiorNumero = pontosAtivosEmpresa.reduce((maximo, ponto) => Math.max(maximo, parseInt(String(ponto.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
       const prefixo = data.tipo_categoria === "DEPOSITO" ? "DEP" : "COCHO";
-      const areaVinculada = areas.find((area) => area.id === data.area_vinculada_id);
+      const areasVinculadas = data.tipo_categoria === "COCHO"
+        ? areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id))
+        : [];
+      const areaVinculadaPrincipal = areasVinculadas[0] || null;
       let localEstoqueId = pontoSuplementacaoExistente?.local_estoque_id || null;
       let localEstoqueNome = pontoSuplementacaoExistente?.local_estoque_nome || null;
 
@@ -232,9 +262,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         categoria_ponto: data.tipo_categoria,
         tipo: data.tipo,
         produto_padrao: data.tipo_categoria === "COCHO" ? data.produto_padrao || null : null,
-        capacidade_cocho_kg: data.tipo_categoria === "COCHO" && data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
-        area_vinculada_id: data.tipo_categoria === "COCHO" ? data.area_vinculada_id : null,
-        area_vinculada_nome: data.tipo_categoria === "COCHO" ? areaVinculada?.nome || "" : null,
+        capacidade_cocho_kg: data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
+        metragem_cocho_m: data.tipo_categoria === "COCHO" && data.metragem_cocho_m ? parseFloat(data.metragem_cocho_m) : null,
+        cobertura_cocho: data.tipo_categoria === "COCHO" ? data.cobertura_cocho || null : null,
+        area_vinculada_id: data.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.id || null : null,
+        area_vinculada_nome: data.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.nome || "" : null,
+        area_vinculada_ids: data.tipo_categoria === "COCHO" ? (data.area_vinculada_ids || []) : [],
+        area_vinculada_nomes: data.tipo_categoria === "COCHO" ? areasVinculadas.map((area) => area.nome) : [],
         deposito_origem_id: data.tipo_categoria === "COCHO" ? data.deposito_origem_id || null : null,
         deposito_origem_nome: data.tipo_categoria === "COCHO" ? depositoSelecionado?.nome_ponto || null : null,
         local_estoque_id: data.tipo_categoria === "DEPOSITO" ? localEstoqueId : null,
@@ -289,13 +323,33 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
 
-    if (ehCocho && !formData.area_vinculada_id) {
-      toast.error("Selecione a área do cocho.");
+    if (ehCocho && !(formData.area_vinculada_ids || []).length) {
+      toast.error("Selecione pelo menos uma área do cocho.");
       return;
     }
 
     if (ehCocho && !formData.deposito_origem_id) {
       toast.error("Selecione o depósito vinculado ao cocho.");
+      return;
+    }
+
+    if (ehCocho && !formData.capacidade_cocho_kg) {
+      toast.error("Informe a capacidade do cocho em kg.");
+      return;
+    }
+
+    if (ehCocho && !formData.metragem_cocho_m) {
+      toast.error("Informe a metragem do cocho.");
+      return;
+    }
+
+    if (ehCocho && !formData.cobertura_cocho) {
+      toast.error("Selecione se o cocho é coberto ou não coberto.");
+      return;
+    }
+
+    if (ehDeposito && !formData.capacidade_cocho_kg) {
+      toast.error("Informe a capacidade do depósito em kg.");
       return;
     }
 
@@ -306,9 +360,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       configuracao_icone_id: formData.configuracao_icone_id,
       observacoes: formData.observacoes?.toUpperCase(),
       produto_padrao: ehCocho ? formData.produto_padrao : null,
-      capacidade_cocho_kg: ehCocho ? formData.capacidade_cocho_kg : null,
-      area_vinculada_id: ehCocho ? formData.area_vinculada_id : null,
+      capacidade_cocho_kg: formData.capacidade_cocho_kg,
+      area_vinculada_id: ehCocho ? (formData.area_vinculada_ids?.[0] || "") : null,
+      area_vinculada_ids: ehCocho ? formData.area_vinculada_ids : [],
       deposito_origem_id: ehCocho ? formData.deposito_origem_id : null,
+      metragem_cocho_m: ehCocho ? formData.metragem_cocho_m : null,
+      cobertura_cocho: ehCocho ? formData.cobertura_cocho : null,
       consumo_ideal_por_cabeca_kg: ehCocho ? formData.consumo_ideal_por_cabeca_kg : null,
       limite_minimo_consumo: ehCocho ? formData.limite_minimo_consumo : null,
       limite_maximo_consumo: ehCocho ? formData.limite_maximo_consumo : null,
@@ -368,14 +425,22 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">Área vinculada *</Label>
-                <Select value={formData.area_vinculada_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, area_vinculada_id: value }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione a área" /></SelectTrigger>
-                  <SelectContent>
-                    {areas.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-1 lg:col-span-2">
+                <Label className="text-xs">Áreas vinculadas *</Label>
+                <div className="rounded-lg border border-slate-200 p-3 space-y-2">
+                  <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {areas.map((area) => {
+                      const checked = formData.area_vinculada_ids?.includes(area.id);
+                      return (
+                        <label key={area.id} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:bg-slate-50">
+                          <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} />
+                          <span>{area.nome}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -394,8 +459,24 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Capacidade do cocho (kg)</Label>
+                <Label className="text-xs">Capacidade do cocho (kg) *</Label>
                 <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Metragem do cocho (m) *</Label>
+                <Input type="number" step="0.01" value={formData.metragem_cocho_m} onChange={(e) => setFormData((prev) => ({ ...prev, metragem_cocho_m: e.target.value }))} className="h-8 text-xs" />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Cobertura *</Label>
+                <Select value={formData.cobertura_cocho} onValueChange={(value) => setFormData((prev) => ({ ...prev, cobertura_cocho: value }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Coberto" className="text-xs">Coberto</SelectItem>
+                    <SelectItem value="Não Coberto" className="text-xs">Não Coberto</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -407,6 +488,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           <div className="space-y-4 border-t pt-4">
             <div className="text-sm font-semibold text-slate-700">Depósito de Suplementação</div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Capacidade do depósito (kg) *</Label>
+                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
           </div>
         )}
