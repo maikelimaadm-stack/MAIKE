@@ -161,6 +161,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                   <div className="text-xs font-semibold text-slate-900">{cocho.area_vinculada_nome || "Sem pasto vinculado"}</div>
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
+                  <div className="text-[10px] text-slate-500">Saída do estoque para: {cocho.area_vinculada_nome || "Pasto não informado"}</div>
                 </div>
               ))}
             </div>
