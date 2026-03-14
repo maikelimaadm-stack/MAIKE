@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
-import FormularioPonto from "./FormularioPonto";
 import PontoStatusIcon from "./PontoStatusIcon";
 import { getCochoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -18,7 +17,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const queryClient = useQueryClient();
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
-  const [showEdicao, setShowEdicao] = useState(false);
   const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
 
   const { data: eventos = [] } = useQuery({
@@ -81,10 +79,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowLancamento(true)}>Lançar</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdicao(true)}>Editar</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-[10px]">
@@ -130,19 +127,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Cocho</DialogTitle></DialogHeader>
-          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showEdicao} onOpenChange={setShowEdicao}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-sm">Editar Cocho</DialogTitle></DialogHeader>
-          <FormularioPonto
-            coordenadas={ponto.coordenadas}
-            item={{ nome: ponto.nome_ponto, sigla: ponto.sigla, tipo: ponto.tipo, coordenadas: ponto.coordenadas, observacoes: ponto.observacoes, configuracao_icone_id: referencia?.configuracao_icone_id }}
-            onSave={() => { setShowEdicao(false); handleSaved(); }}
-            onCancel={() => setShowEdicao(false)}
-          />
+          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} />
         </DialogContent>
       </Dialog>
     </div>

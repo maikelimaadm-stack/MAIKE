@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
-import FormularioPonto from "./FormularioPonto";
 import PontoStatusIcon from "./PontoStatusIcon";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import { getDepositoIndicator } from "./pontoStatusUtils";
@@ -17,7 +16,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
-  const [showEdicao, setShowEdicao] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
 
   const { data: lotesNota = [] } = useQuery({
@@ -116,11 +114,10 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdicao(true)}>Editar</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-[10px]">
@@ -208,17 +205,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showEdicao} onOpenChange={setShowEdicao}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-sm">Editar Depósito</DialogTitle></DialogHeader>
-          <FormularioPonto
-            coordenadas={deposito.coordenadas}
-            item={{ nome: deposito.nome_ponto, sigla: deposito.sigla, tipo: deposito.tipo, coordenadas: deposito.coordenadas, observacoes: deposito.observacoes, configuracao_icone_id: referencia?.configuracao_icone_id }}
-            onSave={() => { setShowEdicao(false); handleSaved(); }}
-            onCancel={() => setShowEdicao(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

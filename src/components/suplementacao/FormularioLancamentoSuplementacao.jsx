@@ -141,9 +141,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         }
       }
 
+      let movimentoEstoque = null;
       if (depositoVinculado?.local_estoque_id && produtoSelecionado) {
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Baixando saldo do depósito..." });
-        await registrarSaidaSuplementacao({
+        const saidaRegistrada = await registrarSaidaSuplementacao({
           empresaId: empresaSelecionadaId,
           userEmail: user?.email,
           produto: produtoSelecionado,
@@ -155,6 +156,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           observacoes: `Saída automática para o cocho ${ponto.nome_ponto}${formData.observacoes ? ` - ${formData.observacoes}` : ""}`,
           lotesNota,
         });
+        movimentoEstoque = saidaRegistrada.movimentacao;
       }
 
       setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Criando evento de suplementação..." });
@@ -172,6 +174,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_diario_grupo_kg: null,
         total_cabecas_afetadas: totalCabecas,
         peso_total_consumo: pesoTotalConsumo,
+        movimentacao_estoque_id: movimentoEstoque?.id || null,
         observacoes: formData.observacoes || null,
       });
 
