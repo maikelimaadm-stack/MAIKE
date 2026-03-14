@@ -19,6 +19,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [showEdicao, setShowEdicao] = useState(false);
+  const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
 
   const { data: eventos = [] } = useQuery({
     queryKey: ["eventos-ponto", ponto.id],
