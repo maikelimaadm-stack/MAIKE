@@ -2,6 +2,7 @@ import React from "react";
 
 export default function IndicadorCopoNivel({ titulo, subtitulo, percent = 0, valor, cor = "#10b981" }) {
   const nivel = Math.max(0, Math.min(100, Math.round((percent || 0) * 100)));
+  const clipId = `copo-${String(titulo || 'nivel').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
