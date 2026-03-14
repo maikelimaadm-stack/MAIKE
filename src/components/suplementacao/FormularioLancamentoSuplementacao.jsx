@@ -155,6 +155,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           areaNome: ponto.area_vinculada_nome,
           observacoes: `Saída automática para o cocho ${ponto.nome_ponto}${formData.observacoes ? ` - ${formData.observacoes}` : ""}`,
           lotesNota,
+          depositoId: depositoVinculado.id,
+          pontoSuplementacaoId: ponto.id,
         });
         movimentoEstoque = saidaRegistrada.movimentacao;
       }

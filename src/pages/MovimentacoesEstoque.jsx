@@ -453,6 +453,10 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleEdit = (movimentacao) => {
+    if (movimentacao.bloqueado_exclusao_estoque || (movimentacao.exclusao_somente_em && movimentacao.exclusao_somente_em !== 'estoque')) {
+      toast.error(movimentacao.exclusao_somente_em === 'cocho' ? 'Esse lançamento só pode ser alterado no histórico do cocho.' : 'Esse lançamento só pode ser alterado no histórico do depósito.');
+      return;
+    }
     // Transformar registro para initialData compatível com o formulário
     const prodSel = [{
       produto_id: movimentacao.produto_id,
@@ -497,9 +501,13 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleCancel = async (id) => {
+    const mov = movimentacoes.find(m => m.id === id);
+    if (mov?.bloqueado_exclusao_estoque || (mov?.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque')) {
+      toast.error(mov.exclusao_somente_em === 'cocho' ? 'Esse lançamento só pode ser excluído no histórico do cocho.' : 'Esse lançamento só pode ser excluído no histórico do depósito.');
+      return;
+    }
     if (window.confirm('⚠️ Cancelar movimentação e reverter estoque?')) {
       try {
-        const mov = movimentacoes.find(m => m.id === id);
         const produto = produtos.find(p => p.id === mov.produto_id);
         
         let novoEstoque = produto.estoque_atual || 0;

@@ -139,6 +139,8 @@ export async function registrarSaidaSuplementacao({
   areaNome,
   observacoes,
   lotesNota,
+  depositoId,
+  pontoSuplementacaoId,
 }) {
   const resultado = calcularRateioFIFO({
     lotesNota,
@@ -180,6 +182,11 @@ export async function registrarSaidaSuplementacao({
     centro_custo_nome: areaNome || undefined,
     motivo_movimentacao: "Baixa automática de suplementação",
     observacoes,
+    origem_sistema: "suplementacao",
+    deposito_id: depositoId || undefined,
+    ponto_suplementacao_id: pontoSuplementacaoId || undefined,
+    bloqueado_exclusao_estoque: true,
+    exclusao_somente_em: "cocho",
     saldo_antes: estoqueAtual,
     saldo_depois: Math.max(0, estoqueAtual - quantidadeFinal),
     custo_medio_antes: produto.preco_custo || 0,
@@ -276,12 +283,20 @@ export async function registrarTransferenciaEntreLocais({
     local_destino: localDestinoNome,
     motivo_movimentacao: "Transferência entre locais de estoque",
     observacoes,
+    origem_sistema: "deposito",
+    bloqueado_exclusao_estoque: true,
+    exclusao_somente_em: "deposito",
+    movimento_pai_id: movimentacaoSaida.id,
     saldo_antes: estoqueAtual,
     saldo_depois: estoqueAtual,
     custo_medio_antes: produto.preco_custo || 0,
     custo_medio_depois: produto.preco_custo || 0,
     usuario_responsavel: userEmail || "Sistema",
     status: "Ativa",
+  });
+
+  await base44.entities.MovimentacaoEstoque.update(movimentacaoSaida.id, {
+    movimento_filho_id: movimentacaoEntrada.id,
   });
 
   await criarLotesDestinoTransferencia({

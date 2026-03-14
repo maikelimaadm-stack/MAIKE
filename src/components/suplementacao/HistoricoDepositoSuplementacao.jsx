@@ -83,9 +83,10 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
             <div className="max-h-[60vh] overflow-y-auto space-y-2">
               {movimentacoes.map((movimentacao, index) => {
                 const bloqueado = index !== 0;
-                const permiteExcluir = ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
-                const permiteEditar = permiteExcluir;
-                const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.motivo_movimentacao === "Baixa automática de suplementação";
+                const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.motivo_movimentacao === "Baixa automática de suplementação" || movimentacao.exclusao_somente_em === "cocho";
+                const ehMovimentoDeposito = movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
+                const permiteExcluir = ehMovimentoDeposito;
+                const permiteEditar = ehMovimentoDeposito;
                 return (
                   <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
                     <div className="flex items-start justify-between gap-3">

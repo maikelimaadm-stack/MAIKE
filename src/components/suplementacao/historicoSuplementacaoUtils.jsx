@@ -97,18 +97,24 @@ export async function excluirEventoSuplementacaoComReversao({ evento, ponto, use
 
 export async function excluirTransferenciaDeposito({ movimentacao }) {
   const todasMovimentacoes = await base44.entities.MovimentacaoEstoque.list();
-  const numeroAtual = parseInt(movimentacao.numero_movimentacao || 0, 10);
-  const pareada = todasMovimentacoes.find((item) => {
-    const numeroItem = parseInt(item.numero_movimentacao || 0, 10);
-    return item.id !== movimentacao.id
-      && item.produto_id === movimentacao.produto_id
-      && Math.abs(numeroItem - numeroAtual) === 1
-      && item.local_estoque_origem === movimentacao.local_estoque_origem
-      && item.local_estoque_destino === movimentacao.local_estoque_destino;
-  });
+  const pareada = movimentacao.movimento_pai_id
+    ? todasMovimentacoes.find((item) => item.id === movimentacao.movimento_pai_id)
+    : movimentacao.movimento_filho_id
+      ? todasMovimentacoes.find((item) => item.id === movimentacao.movimento_filho_id)
+      : todasMovimentacoes.find((item) => {
+          const numeroAtual = parseInt(movimentacao.numero_movimentacao || 0, 10);
+          const numeroItem = parseInt(item.numero_movimentacao || 0, 10);
+          return item.id !== movimentacao.id
+            && item.produto_id === movimentacao.produto_id
+            && Math.abs(numeroItem - numeroAtual) === 1
+            && item.local_estoque_origem === movimentacao.local_estoque_origem
+            && item.local_estoque_destino === movimentacao.local_estoque_destino;
+        });
 
   const movimentacaoEntrada = movimentacao.tipo_movimentacao === "Entrada" ? movimentacao : pareada;
-  if (!movimentacaoEntrada) return;
+  if (!movimentacaoEntrada) {
+    throw new Error("Não foi possível localizar o registro filho da transferência.");
+  }
 
   const lotesDestino = await base44.entities.EstoqueLoteNota.list();
   const lotesRelacionados = lotesDestino.filter((item) => item.movimentacao_entrada_id === movimentacaoEntrada.id);
