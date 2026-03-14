@@ -39,10 +39,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     enabled: !!empresaSelecionadaId,
   });
 
-  if (normalizeText(ponto?.categoria_ponto) === "DEPOSITO") {
-    return <DetalhesDepositoSuplementacao deposito={ponto} onClose={onClose} />;
-  }
-
   const referencia = useMemo(() => {
     return pontosReferencia.find((item) => normalizeText(item.nome) === normalizeText(ponto.nome_ponto)) || null;
   }, [pontosReferencia, ponto.nome_ponto]);
