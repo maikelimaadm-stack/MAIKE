@@ -31,7 +31,7 @@ const TIPOS_CULTURAS = [
   "Feijão","Girassol","Aveia","Café","Eucalipto","Floresta","Outros"
 ];
 
-export default function SelecaoAreasMapa({ onClose }) {
+export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionMode = false, onConfirmSelection = null }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polygonsRef = useRef([]);
@@ -42,6 +42,10 @@ export default function SelecaoAreasMapa({ onClose }) {
   const [startNumber, setStartNumber] = useState("");
   const queryClient = useQueryClient();
   const empresaId = localStorage.getItem('empresa_selecionada_id');
+
+  useEffect(() => {
+    selecionadosRef.current = new Set(selectedIds || []);
+  }, [selectedIds]);
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaId],
@@ -140,34 +144,61 @@ export default function SelecaoAreasMapa({ onClose }) {
         <X className="w-5 h-5 text-slate-700" />
       </Button>
 
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs bg-white/90">
-              <Layers className="w-3.5 h-3.5 mr-2" /> Ações em Lote
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">
-              <CheckSquare className="w-3.5 h-3.5 mr-2" /> Definir Aproveitamento
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue('Pastagem'); }} className="text-xs">
-              <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Uso
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Brachiaria'); }} className="text-xs">
-              <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Cultura
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
-              <Palette className="w-3.5 h-3.5 mr-2" /> Definir Cor
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setBatchType('renumerar'); setStartNumber('1'); }} className="text-xs">
-              <Layers className="w-3.5 h-3.5 mr-2" /> Reatribuir Códigos
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {selectionMode ? (
+        <div className="absolute top-4 right-4 z-20 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs text-slate-700 shadow-sm">
+          Clique nas áreas do mapa para vincular ao cocho
+        </div>
+      ) : (
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs bg-white/90">
+                <Layers className="w-3.5 h-3.5 mr-2" /> Ações em Lote
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">
+                <CheckSquare className="w-3.5 h-3.5 mr-2" /> Definir Aproveitamento
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue('Pastagem'); }} className="text-xs">
+                <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Uso
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Brachiaria'); }} className="text-xs">
+                <Flag className="w-3.5 h-3.5 mr-2" /> Definir Tipo de Cultura
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setBatchType('cor'); setBatchValue(CORES_DISPONIVEIS[4].cor); }} className="text-xs">
+                <Palette className="w-3.5 h-3.5 mr-2" /> Definir Cor
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setBatchType('renumerar'); setStartNumber('1'); }} className="text-xs">
+                <Layers className="w-3.5 h-3.5 mr-2" /> Reatribuir Códigos
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
-      <Dialog open={!!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(""); }}>
+      {selectionMode && (
+        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="h-8 text-xs bg-white/95" onClick={onClose}>Cancelar</Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => {
+              const ids = Array.from(selecionadosRef.current);
+              if (ids.length === 0) {
+                toast.error('Selecione áreas no mapa');
+                return;
+              }
+              onConfirmSelection?.(ids);
+            }}
+          >
+            Usar áreas selecionadas
+          </Button>
+        </div>
+      )}
+
+      <Dialog open={!selectionMode && !!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(""); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">

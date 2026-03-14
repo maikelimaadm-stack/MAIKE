@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPonto from "./CapturaGPSPonto";
+import SelecaoAreasMapa from "./SelecaoAreasMapa";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -66,6 +67,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const queryClient = useQueryClient();
   const [areaDetectada, setAreaDetectada] = useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
+  const [mostrarSelecaoAreasMapa, setMostrarSelecaoAreasMapa] = useState(false);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas || item?.coordenadas || null);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
   const [formData, setFormData] = useState(createEmptyForm());
@@ -387,6 +389,20 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     );
   }
 
+  if (mostrarSelecaoAreasMapa) {
+    return (
+      <SelecaoAreasMapa
+        selectionMode
+        selectedIds={formData.area_vinculada_ids}
+        onClose={() => setMostrarSelecaoAreasMapa(false)}
+        onConfirmSelection={(ids) => {
+          setFormData((prev) => ({ ...prev, area_vinculada_ids: ids, area_vinculada_id: ids[0] || "" }));
+          setMostrarSelecaoAreasMapa(false);
+        }}
+      />
+    );
+  }
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -428,7 +444,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
               <div className="space-y-1 lg:col-span-2">
                 <Label className="text-xs">Áreas vinculadas *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
-                  <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
+                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {areas.map((area) => {
                       const checked = formData.area_vinculada_ids?.includes(area.id);
