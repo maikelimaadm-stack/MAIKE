@@ -44,7 +44,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
       return toast.error("Exclua primeiro o último lançamento.");
     }
     if (!["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado)) {
-      return toast.error("Este lançamento deve ser ajustado pelo histórico do cocho ou pelo módulo de estoque.");
+      return toast.error("No depósito você só pode excluir movimentações próprias do depósito; nutrição deve ser excluída no histórico do cocho.");
     }
     if (!confirm("Excluir este lançamento e reverter a transferência?")) return;
 
@@ -84,6 +84,8 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
               {movimentacoes.map((movimentacao, index) => {
                 const bloqueado = index !== 0;
                 const permiteExcluir = ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
+                const permiteEditar = permiteExcluir;
+                const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.motivo_movimentacao === "Baixa automática de suplementação";
                 return (
                   <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
                     <div className="flex items-start justify-between gap-3">
@@ -101,11 +103,12 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                           <div><strong>Destino:</strong> {movimentacao.local_destino || "-"}</div>
                           {movimentacao.observacoes && <div className="break-words"><strong>Detalhes:</strong> {movimentacao.observacoes}</div>}
                           {bloqueado && <div className="text-amber-700 font-medium"><strong>Bloqueio:</strong> somente o último lançamento pode ser editado ou excluído.</div>}
-                          {!permiteExcluir && !bloqueado && <div className="text-slate-500 font-medium"><strong>Aviso:</strong> lançamentos de suplementação devem ser excluídos pelo histórico do cocho.</div>}
+                          {ehNutricao && <div className="text-slate-500 font-medium"><strong>Regra:</strong> lançamentos de nutrição só podem ser editados ou excluídos no histórico do cocho.</div>}
+                          {!ehNutricao && !permiteExcluir && !bloqueado && <div className="text-slate-500 font-medium"><strong>Aviso:</strong> este lançamento não pode ser excluído por aqui.</div>}
                         </div>
                       </div>
                       <div className="flex gap-1 shrink-0 flex-col sm:flex-row">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" disabled={bloqueado} onClick={() => { setEditMov(movimentacao); setShowEdit(true); }}>Editar</Button>
+                        <Button variant="outline" size="sm" className="h-8 text-xs" disabled={bloqueado || !permiteEditar} onClick={() => { setEditMov(movimentacao); setShowEdit(true); }}>Editar</Button>
                         <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={bloqueado || deletingId === movimentacao.id || !permiteExcluir} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
                       </div>
                     </div>
