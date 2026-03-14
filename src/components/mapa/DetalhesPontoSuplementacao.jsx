@@ -9,6 +9,7 @@ import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancam
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
 import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
+import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { getCochoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
@@ -27,19 +28,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     },
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
-
-  const { data: pontosReferencia = [] } = useQuery({
-    queryKey: ["pontos-referencia-cocho-detalhe", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PontoReferencia.list();
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const referencia = useMemo(() => {
-    return pontosReferencia.find((item) => normalizeText(item.nome) === normalizeText(ponto.nome_ponto)) || null;
-  }, [pontosReferencia, ponto.nome_ponto]);
 
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
   const ultimoEvento = indicador.latestRecord;
@@ -60,13 +48,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     <div className="space-y-4" translate="no">
       <div className="flex items-start justify-between gap-3 pb-2 border-b">
         <div className="flex items-start gap-3">
-          <IndicadorCopoNivel
-            titulo="Nível do cocho"
-            valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
-            subtitulo={indicador.helperLabel}
-            percent={indicador.percent}
-            cor="#10b981"
-          />
+          <IndicadorCopoNivel titulo="Nível" valor={`${Math.round((indicador?.percent || 0) * 100)}%`} subtitulo={indicador.helperLabel} percent={indicador.percent} cor="#10b981" compact />
           <div>
             <div className="text-sm font-bold text-slate-900 mb-1">{ponto.nome_ponto}</div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -80,15 +62,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowLancamento(true)}>Lançar</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-[10px]">
         <CardInfo label="Área vinculada" value={ponto.area_vinculada_nome || "-"} />
-        <CardInfo label="Capacidade" value={ponto.capacidade_cocho_kg ? `${ponto.capacidade_cocho_kg} kg` : "-"} />
+        <CardInfo label="Capacidade" value={ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : "-"} />
         <CardInfo label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
-        <CardInfo label="Total fornecido" value={`${totalFornecido.toFixed(1)} kg`} />
+        <CardInfo label="Total fornecido" value={formatKg(totalFornecido)} />
       </div>
 
       <CardSection title="Último Registro">
@@ -96,13 +78,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-slate-900">{ultimoEvento.produto}</span>
-              <Badge variant="outline" className="text-xs">{ultimoEvento.quantidade_total_kg?.toFixed?.(2) || ultimoEvento.quantidade_total_kg} kg</Badge>
+              <Badge variant="outline" className="text-xs">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-2 text-slate-600">
               <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
               <div>Cabeças: <span className="font-semibold text-slate-900">{ultimoEvento.total_cabecas_afetadas || 0}</span></div>
-              <div>Sobra: <span className="font-semibold text-slate-900">{ultimoEvento.sobra_kg || 0} kg</span></div>
-              <div>Peso consumo: <span className="font-semibold text-slate-900">{ultimoEvento.peso_total_consumo?.toFixed?.(2) || 0}</span></div>
+              <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
+              <div>Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
+              <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${ultimoEvento.dias_periodo} dia(s)` : "Em aberto"}</span></div>
+              <div>Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + (ultimoEvento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</span></div>
             </div>
             {ultimoEvento.observacoes && <div className="text-slate-500 italic">{ultimoEvento.observacoes}</div>}
           </div>
@@ -127,7 +111,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Cocho</DialogTitle></DialogHeader>
-          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} indicador={indicador} />
+          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} />
         </DialogContent>
       </Dialog>
     </div>

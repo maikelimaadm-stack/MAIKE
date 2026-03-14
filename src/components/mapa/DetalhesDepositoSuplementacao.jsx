@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
+import { formatKg } from "../suplementacao/formatters";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
@@ -54,19 +55,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
   });
 
-  const { data: pontosReferencia = [] } = useQuery({
-    queryKey: ["pontos-referencia-deposito-detalhe", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PontoReferencia.list();
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const referencia = useMemo(() => {
-    return pontosReferencia.find((item) => normalizeText(item.nome) === normalizeText(deposito.nome_ponto)) || null;
-  }, [pontosReferencia, deposito.nome_ponto]);
-
   const cochosVinculados = useMemo(() => {
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
   }, [pontosSuplementacao, deposito.id]);
@@ -96,13 +84,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     <div className="space-y-4" translate="no">
       <div className="flex items-start justify-between gap-3 pb-2 border-b">
         <div className="flex items-start gap-3">
-          <IndicadorCopoNivel
-            titulo="Nível do depósito"
-            valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
-            subtitulo={indicador.helperLabel}
-            percent={indicador.percent}
-            cor="#0ea5e9"
-          />
+          <IndicadorCopoNivel titulo="Nível" valor={`${Math.round((indicador?.percent || 0) * 100)}%`} subtitulo={indicador.helperLabel} percent={indicador.percent} cor="#0ea5e9" compact />
           <div>
             <div className="text-sm font-bold text-slate-900 mb-1">{deposito.nome_ponto}</div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -115,7 +97,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
@@ -123,8 +105,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       <div className="grid grid-cols-2 gap-2 text-[10px]">
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{indicador.saldoAtual.toFixed(1)} kg</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cobertura estimada</div><div className="text-sm font-bold text-slate-900">{indicador.necessidadeEstimada.toFixed(1)} kg</div></CardContent></Card>
+        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
+        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cobertura estimada</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div></CardContent></Card>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
@@ -134,7 +116,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-slate-900">{ultimoRegistro.produto_nome}</span>
-                <Badge variant="outline" className="text-xs">{ultimoRegistro.quantidade?.toFixed?.(2) || ultimoRegistro.quantidade}</Badge>
+                <Badge variant="outline" className="text-xs">{formatKg(ultimoRegistro.quantidade || 0)}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-2 text-slate-600">
                 <div>Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
@@ -160,7 +142,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
               {saldosAgrupados.map((item) => (
                 <div key={item.produto_id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                   <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
-                  <Badge variant="outline" className="text-xs">{item.saldo.toFixed(2)} kg</Badge>
+                  <Badge variant="outline" className="text-xs">{formatKg(item.saldo)}</Badge>
                 </div>
               ))}
             </div>
@@ -170,15 +152,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-3 space-y-2">
-          <div className="text-[11px] font-bold text-slate-900">Cochos Vinculados</div>
+          <div className="text-[11px] font-bold text-slate-900">Pastos atendidos pela saída do estoque</div>
           {cochosVinculados.length === 0 ? (
             <div className="text-xs text-slate-500">Nenhum cocho vinculado a este depósito.</div>
           ) : (
             <div className="space-y-2">
               {cochosVinculados.map((cocho) => (
                 <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <div className="text-xs font-semibold text-slate-900">{cocho.nome_ponto}</div>
-                  <div className="text-[10px] text-slate-500">{cocho.area_vinculada_nome || "Sem área vinculada"}</div>
+                  <div className="text-xs font-semibold text-slate-900">{cocho.area_vinculada_nome || "Sem pasto vinculado"}</div>
+                  <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
                 </div>
               ))}
             </div>
@@ -189,22 +171,16 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle className="text-sm">Transferência do Depósito</DialogTitle></DialogHeader>
-          <FormularioTransferenciaDeposito
-            deposito={deposito}
-            initialDirection={transferDirection}
-            onSuccess={() => { setShowTransferencia(false); handleSaved(); }}
-            onCancel={() => setShowTransferencia(false)}
-          />
+          <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => { setShowTransferencia(false); handleSaved(); }} onCancel={() => setShowTransferencia(false)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Depósito</DialogTitle></DialogHeader>
-          <HistoricoDepositoSuplementacao deposito={deposito} indicador={indicador} />
+          <HistoricoDepositoSuplementacao deposito={deposito} />
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
