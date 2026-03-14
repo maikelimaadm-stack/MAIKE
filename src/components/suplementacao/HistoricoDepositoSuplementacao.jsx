@@ -86,7 +86,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
           ) : movimentacoes.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-500">Nenhum registro encontrado.</div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto space-y-1.5">
+            <div className="max-h-[60vh] overflow-y-auto space-y-1">
               {movimentacoes.map((movimentacao, index) => {
                 const bloqueado = index !== 0;
                 const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.motivo_movimentacao === "Baixa automática de suplementação" || movimentacao.exclusao_somente_em === "cocho";

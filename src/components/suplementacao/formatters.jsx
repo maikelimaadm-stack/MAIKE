@@ -1,5 +1,8 @@
-export function formatDecimal(value, digits = 2) {
+export function formatDecimal(value, digits = 2, keepIntegers = false) {
   const number = Number(value || 0);
+  if (keepIntegers && Number.isInteger(number)) {
+    return number.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  }
   return number.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 

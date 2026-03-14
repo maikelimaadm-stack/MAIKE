@@ -84,7 +84,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
           {eventos.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto space-y-1.5">
+            <div className="max-h-[60vh] overflow-y-auto space-y-1">
               {eventos.map((evento, index) => (
                 <div key={evento.id} className="border border-slate-200 rounded-lg p-2 hover:bg-gray-50">
                   <div className="flex items-start justify-between gap-2">
@@ -98,7 +98,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                       <div className="space-y-0.5 text-[10px] text-slate-600">
                         <div><strong>Quantidade:</strong> {formatKg(evento.quantidade_total_kg || 0)}</div>
                         <div><strong>Sobra:</strong> {formatKg(evento.sobra_kg || 0)}</div>
-                        <div><strong>Cabeças:</strong> {evento.total_cabecas_afetadas || 0}</div>
+                        <div><strong>Cabeças:</strong> {formatDecimal(evento.total_cabecas_afetadas || 0, 0, true)}</div>
                         <div><strong>Peso de consumo:</strong> {formatDecimal(evento.peso_total_consumo || 0)}</div>
                         <div><strong>Fechamento:</strong> {evento.dias_periodo ? `${evento.dias_periodo} dia(s)` : "Em aberto"}</div>
                         <div><strong>Novo fechamento:</strong> {evento.dias_periodo ? new Date(new Date(evento.data_lancamento).getTime() + (evento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</div>

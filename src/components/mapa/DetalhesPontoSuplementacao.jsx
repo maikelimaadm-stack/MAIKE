@@ -82,10 +82,10 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
             </div>
             <div className="grid grid-cols-2 gap-2 text-slate-600">
               <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
-              <div>Cabeças: <span className="font-semibold text-slate-900">{ultimoEvento.total_cabecas_afetadas || 0}</span></div>
+              <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
               <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
               <div>Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
-              <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${ultimoEvento.dias_periodo} dia(s)` : "Em aberto"}</span></div>
+              <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
               <div>Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + (ultimoEvento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</span></div>
             </div>
             {ultimoEvento.observacoes && <div className="text-slate-500 italic">{ultimoEvento.observacoes}</div>}
@@ -99,8 +99,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <div className="space-y-1.5 text-[10px]">
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência esperada:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias || 0} dia(s)</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{ponto.alerta_sem_lancamento_dias || 0} dia(s)</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência esperada:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.frequencia_esperada_dias || 0, 0, true)} dia(s)</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.alerta_sem_lancamento_dias || 0, 0, true)} dia(s)</span></div>
         </div>
       </CardSection>
 
