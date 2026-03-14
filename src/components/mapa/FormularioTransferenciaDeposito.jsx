@@ -124,6 +124,9 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && [
         "estoque-lotes-transferencia",
+        "saldo-deposito",
+        "cochos-vinculados-deposito",
+        "lotes-nota-suplementacao",
         "mapa-pontos-supl",
         "movimentacoes",
         "produtos",
