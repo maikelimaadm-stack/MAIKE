@@ -836,7 +836,8 @@ const redoStackRef = useRef([]);
             onSave={() => {
               setShowFormularioPonto(false);
               cancelarDesenho();
-              queryClient.invalidateQueries({ queryKey: ['pontos'] });
+              queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ['pontos', 'pontos-suplementacao', 'mapa-pontos', 'mapa-pontos-supl'].includes(query.queryKey[0]) });
+              window.dispatchEvent(new CustomEvent('atualizar-mapa'));
               onSalvar();
             }}
             onCancel={() => {

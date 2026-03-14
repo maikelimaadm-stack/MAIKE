@@ -385,7 +385,8 @@ export default function MapaCadastro() {
               onSave={() => {
                 setShowEditarDetalhesPonto(false);
                 setItemDetalhes(null);
-                queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'pontos' });
+                queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ['pontos', 'pontos-suplementacao', 'mapa-pontos', 'mapa-pontos-supl'].includes(q.queryKey[0]) });
+                window.dispatchEvent(new CustomEvent('atualizar-mapa'));
               }}
               onCancel={() => {
                 setShowEditarDetalhesPonto(false);

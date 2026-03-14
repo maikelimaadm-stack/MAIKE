@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +59,7 @@ const createEmptyForm = () => ({
 
 export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const queryClient = useQueryClient();
   const [areaDetectada, setAreaDetectada] = useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas || item?.coordenadas || null);
@@ -264,6 +265,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     },
     onSuccess: () => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao"].includes(query.queryKey[0]) });
+      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success(item ? "Ponto atualizado com sucesso." : "Ponto cadastrado com sucesso.");
       onSave();
     },
