@@ -9,8 +9,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
+import IndicadorCopoNivel from "./IndicadorCopoNivel";
 
-export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
+export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto, indicador }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [editEvento, setEditEvento] = useState(null);
@@ -68,7 +69,14 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <IndicadorCopoNivel
+          titulo="Nível do cocho"
+          valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
+          subtitulo={indicador?.helperLabel}
+          percent={indicador?.percent || 0}
+          cor="#10b981"
+        />
         <InfoCard label="Lançamentos" value={String(eventos.length)} />
         <InfoCard label="Total fornecido" value={`${resumo.totalFornecido.toFixed(1)} kg`} />
         <InfoCard label="Última data" value={resumo.ultimaData} />

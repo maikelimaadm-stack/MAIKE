@@ -127,7 +127,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Cocho</DialogTitle></DialogHeader>
-          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} />
+          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} indicador={indicador} />
         </DialogContent>
       </Dialog>
     </div>

@@ -1,18 +1,16 @@
 import React from "react";
-import { buildProgressIconUrl } from "./pontoStatusUtils";
 
-function IconPreview({ src, percent, size, alt }) {
+function IconPreview({ src, size, alt }) {
   if (!src) return null;
-  const finalSrc = buildProgressIconUrl(src, percent, size);
 
   return (
     <div className="relative flex items-center justify-center rounded-full bg-white shadow-sm border border-slate-200" style={{ width: size, height: size }}>
-      <img src={finalSrc} alt={alt} className="object-contain" style={{ width: size - 8, height: size - 8 }} />
+      <img src={src} alt={alt} className="object-contain" style={{ width: size - 8, height: size - 8 }} />
     </div>
   );
 }
 
-export default function PontoStatusIcon({ iconUrl, subIconUrl, percent = 0, title, helperLabel }) {
+export default function PontoStatusIcon({ iconUrl, subIconUrl, title, helperLabel }) {
   return (
     <div className="flex items-center gap-3">
       <IconPreview src={iconUrl} percent={percent} size={56} alt={title || "Ícone"} />

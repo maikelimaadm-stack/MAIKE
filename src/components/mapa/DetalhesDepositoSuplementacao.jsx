@@ -201,7 +201,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Depósito</DialogTitle></DialogHeader>
-          <HistoricoDepositoSuplementacao deposito={deposito} />
+          <HistoricoDepositoSuplementacao deposito={deposito} indicador={indicador} />
         </DialogContent>
       </Dialog>
 

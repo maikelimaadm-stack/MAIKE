@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { excluirTransferenciaDeposito } from "./historicoSuplementacaoUtils";
+import IndicadorCopoNivel from "./IndicadorCopoNivel";
 
-export default function HistoricoDepositoSuplementacao({ deposito }) {
+export default function HistoricoDepositoSuplementacao({ deposito, indicador }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [editMov, setEditMov] = useState(null);
@@ -20,7 +21,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     queryKey: ["historico-deposito", deposito.id],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list("-data_movimentacao");
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId && (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id)).sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId && (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id) && item.origem_sistema !== "reversao" && !(item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho"))).sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
   });
@@ -63,7 +64,14 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <IndicadorCopoNivel
+          titulo="Nível do depósito"
+          valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
+          subtitulo={indicador?.helperLabel}
+          percent={indicador?.percent || 0}
+          cor="#0ea5e9"
+        />
         <InfoCard label="Registros" value={String(resumo.total)} />
         <InfoCard label="Último registro" value={resumo.ultimaData} />
         <InfoCard label="Local" value={deposito.local_estoque_nome || "-"} />

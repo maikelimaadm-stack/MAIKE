@@ -40,27 +40,7 @@ export async function restaurarEstoqueNoLocal({
     });
   }
 
-  return base44.entities.MovimentacaoEstoque.create({
-    empresa_id: empresaId,
-    tipo_movimentacao: "Entrada",
-    tipo_detalhado: "ajuste_positivo",
-    data_movimentacao: new Date().toISOString(),
-    produto_id: produtoId,
-    produto_nome: produtoNome,
-    produto_codigo: produtoCodigo || "",
-    produto_categoria: produtoCategoria,
-    quantidade,
-    unidade_medida: unidadeMedida,
-    valor_unitario: custoUnitario || 0,
-    valor_total: (custoUnitario || 0) * quantidade,
-    local_estoque_destino: localEstoqueId,
-    local_destino: localEstoqueNome,
-    motivo_movimentacao: "Reversão de lançamento",
-    observacoes,
-    saldo_antes: estoqueAtual,
-    saldo_depois: estoqueAtual + quantidade,
-    status: "Ativa",
-  });
+  return null;
 }
 
 export async function excluirEventoSuplementacaoComReversao({ evento, ponto, userEmail }) {
