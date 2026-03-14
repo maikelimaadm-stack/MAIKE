@@ -3,6 +3,10 @@ import { formatKg } from "../suplementacao/formatters";
 
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value || 0));
 
+export function buildProgressIconUrl(baseIconUrl) {
+  return baseIconUrl;
+}
+
 export function getCochoIndicator(ponto, eventos = []) {
   const ultimoEvento = eventos
     .filter((evento) => evento.ponto_suplementacao_id === ponto.id)
