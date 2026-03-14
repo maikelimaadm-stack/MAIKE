@@ -54,6 +54,10 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
+  if (isDeposito) {
+    return <DetalhesDepositoSuplementacao deposito={ponto} onClose={onClose} />;
+  }
+
   return (
     <div className="space-y-4" translate="no">
       <div className="flex items-start justify-between gap-3 pb-2 border-b">
