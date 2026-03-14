@@ -9,9 +9,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
-import IndicadorCopoNivel from "./IndicadorCopoNivel";
+import { formatDecimal, formatKg } from "./formatters";
 
-export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto, indicador }) {
+export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [editEvento, setEditEvento] = useState(null);
@@ -68,17 +68,10 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-        <IndicadorCopoNivel
-          titulo="Nível do cocho"
-          valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
-          subtitulo={indicador?.helperLabel}
-          percent={indicador?.percent || 0}
-          cor="#10b981"
-        />
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <InfoCard label="Lançamentos" value={String(eventos.length)} />
-        <InfoCard label="Total fornecido" value={`${resumo.totalFornecido.toFixed(1)} kg`} />
+        <InfoCard label="Total fornecido" value={formatKg(resumo.totalFornecido)} />
         <InfoCard label="Última data" value={resumo.ultimaData} />
         <InfoCard label="Ponto" value={pontoNome} />
       </div>
@@ -91,10 +84,10 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
           {eventos.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto space-y-2">
+            <div className="max-h-[60vh] overflow-y-auto space-y-1.5">
               {eventos.map((evento, index) => (
-                <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
-                  <div className="flex items-start justify-between gap-3">
+                <div key={evento.id} className="border border-slate-200 rounded-lg p-2 hover:bg-gray-50">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold">Nutrição</Badge>
@@ -103,10 +96,12 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
                       </div>
                       <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
                       <div className="space-y-0.5 text-[10px] text-slate-600">
-                        <div><strong>Quantidade:</strong> {(evento.quantidade_total_kg || 0).toFixed(2)} kg</div>
-                        <div><strong>Sobra:</strong> {(evento.sobra_kg || 0).toFixed(2)} kg</div>
+                        <div><strong>Quantidade:</strong> {formatKg(evento.quantidade_total_kg || 0)}</div>
+                        <div><strong>Sobra:</strong> {formatKg(evento.sobra_kg || 0)}</div>
                         <div><strong>Cabeças:</strong> {evento.total_cabecas_afetadas || 0}</div>
-                        <div><strong>Peso de consumo:</strong> {(evento.peso_total_consumo || 0).toFixed(2)}</div>
+                        <div><strong>Peso de consumo:</strong> {formatDecimal(evento.peso_total_consumo || 0)}</div>
+                        <div><strong>Fechamento:</strong> {evento.dias_periodo ? `${evento.dias_periodo} dia(s)` : "Em aberto"}</div>
+                        <div><strong>Novo fechamento:</strong> {evento.dias_periodo ? new Date(new Date(evento.data_lancamento).getTime() + (evento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</div>
                         {evento.observacoes && <div className="break-words"><strong>Detalhes:</strong> {evento.observacoes}</div>}
                         {index !== 0 && <div className="text-amber-700 font-medium"><strong>Bloqueio:</strong> somente o último lançamento pode ser editado ou excluído.</div>}
                       </div>

@@ -1,42 +1,7 @@
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
+import { formatKg } from "../suplementacao/formatters";
 
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value || 0));
-
-const polarToCartesian = (cx, cy, radius, angleInDegrees) => {
-  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
-  return {
-    x: cx + (radius * Math.cos(angleInRadians)),
-    y: cy + (radius * Math.sin(angleInRadians)),
-  };
-};
-
-const describeArc = (cx, cy, radius, startAngle, endAngle) => {
-  const start = polarToCartesian(cx, cy, radius, endAngle);
-  const end = polarToCartesian(cx, cy, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return ["M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(" ");
-};
-
-export function buildProgressIconUrl(baseIconUrl, percent = 0, size = 64) {
-  const progress = clamp(percent);
-  const startAngle = 0;
-  const endAngle = Math.max(3.6, progress * 360);
-  const arcPath = describeArc(32, 32, 12, startAngle, endAngle);
-  const color = progress > 0.66 ? "#10b981" : progress > 0.33 ? "#f59e0b" : "#ef4444";
-  const percentageText = `${Math.round(progress * 100)}`;
-
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64">
-      <image href="${baseIconUrl}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid meet" />
-      <circle cx="32" cy="32" r="13" fill="rgba(255,255,255,0.92)" />
-      <circle cx="32" cy="32" r="11" fill="none" stroke="rgba(15,23,42,0.16)" stroke-width="4" />
-      <path d="${arcPath}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" />
-      <text x="32" y="35" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">${percentageText}</text>
-    </svg>
-  `;
-
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-}
 
 export function getCochoIndicator(ponto, eventos = []) {
   const ultimoEvento = eventos
@@ -90,8 +55,8 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
     necessidadeEstimada,
     badgeLabel: `${Math.round(percent * 100)}%`,
     helperLabel: necessidadeEstimada > 0
-      ? `${saldoAtual.toFixed(1)} kg de ${necessidadeEstimada.toFixed(1)} kg estimados`
-      : `${saldoAtual.toFixed(1)} kg disponíveis`,
+      ? `${formatKg(saldoAtual)} de ${formatKg(necessidadeEstimada)} estimados`
+      : `${formatKg(saldoAtual)} disponíveis`,
     latestRecord: ultimoRegistro,
   };
 }

@@ -43,12 +43,32 @@ export async function restaurarEstoqueNoLocal({
   return null;
 }
 
-export async function excluirEventoSuplementacaoComReversao({ evento, ponto, userEmail }) {
+export async function excluirEventoSuplementacaoComReversao({ evento, ponto }) {
   const lotesEvento = await base44.entities.SuplementacaoLote.list();
   const lotesRelacionados = lotesEvento.filter((item) => item.suplementacao_evento_id === evento.id);
+  const todosEventos = await base44.entities.SuplementacaoEvento.list();
+  const eventoAnterior = todosEventos
+    .filter((item) => item.id !== evento.id && item.empresa_id === evento.empresa_id && item.ponto_suplementacao_id === evento.ponto_suplementacao_id)
+    .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
 
   for (const item of lotesRelacionados) {
     await base44.entities.SuplementacaoLote.delete(item.id);
+  }
+
+  if (eventoAnterior) {
+    await base44.entities.SuplementacaoEvento.update(eventoAnterior.id, {
+      dias_periodo: null,
+      consumo_diario_grupo_kg: null,
+    });
+    const lotesAnteriores = lotesEvento.filter((item) => item.suplementacao_evento_id === eventoAnterior.id);
+    for (const lote of lotesAnteriores) {
+      await base44.entities.SuplementacaoLote.update(lote.id, {
+        dias_periodo: null,
+        consumo_unitario_dia: null,
+        consumo_por_cabeca_dia_kg: null,
+        consumo_total_lote_periodo_kg: null,
+      });
+    }
   }
 
   if (evento.movimentacao_estoque_id && ponto?.deposito_origem_id) {
