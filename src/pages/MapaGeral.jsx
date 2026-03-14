@@ -22,6 +22,8 @@ import MapaFiltrosAvancados, {
 "../components/mapa/MapaFiltrosAvancados";
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
+import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
+import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 let _gmapsPromise = null;
@@ -130,6 +132,12 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
+  const { data: estoqueLotes = [] } = useQuery({
+    queryKey: ['mapa-estoque-lotes', empresaSelecionadaId],
+    queryFn: async () => {const all = await base44.entities.EstoqueLoteNota.list();return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.status === 'Disponivel');},
+    enabled: !!empresaSelecionadaId, staleTime: ST
+  });
+
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery({
     queryKey: ['mapa-tarefas', empresaSelecionadaId],
     queryFn: async () => {const all = await base44.entities.TarefaMapa.list();return all.filter((t) => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento'));},
@@ -161,6 +169,24 @@ export default function MapaGeral() {
   const categorias = useMemo(() => [...new Set(lotes.map((l) => l.categoria).filter(Boolean))].sort(), [lotes]);
   const tiposPastagem = useMemo(() => [...new Set(areas.map((a) => a.tipo_pastagem).filter(Boolean))].sort(), [areas]);
   const sistemasProdutivos = useMemo(() => [...new Set(lotes.map((l) => l.sistema_produtivo).filter(Boolean))].sort(), [lotes]);
+
+  const pontosSuplementacaoDecorados = useMemo(() => {
+    return pontosSuplementacao.map((ponto) => {
+      const referencia = pontos.find((item) => normalizeText(item.nome) === normalizeText(ponto.nome_ponto)) || null;
+      const indicador = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO'
+        ? getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, [])
+        : getCochoIndicator(ponto, eventosSupl);
+
+      return {
+        ...ponto,
+        indicador_percentual: indicador.percent,
+        indicador_helper: indicador.helperLabel,
+        ultimo_registro: indicador.latestRecord,
+        icone_status_url: referencia?.icone_url ? buildProgressIconUrl(referencia.icone_url, indicador.percent) : null,
+        sub_icone_status_url: referencia?.sub_icone_url ? buildProgressIconUrl(referencia.sub_icone_url, indicador.percent, 40) : null,
+      };
+    });
+  }, [pontosSuplementacao, pontos, lotes, estoqueLotes, eventosSupl]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {
@@ -393,7 +419,7 @@ export default function MapaGeral() {
 
   useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, showLinhas);}, [linhas, showLinhas, mapReady]);
-  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacao, showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacao, showPontosSuplementacao, iconesConfig, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(tarefasMapa, handleClickTarefa);}, [tarefasMapa, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
@@ -534,7 +560,7 @@ export default function MapaGeral() {
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-emerald-600" /> Insights do Mapa</DialogTitle></DialogHeader>
-          <MapaInsights lotes={lotesComAlerta} areas={areas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacao} pontosReferencia={pontos} />
+          <MapaInsights lotes={lotesComAlerta} areas={areas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
         </DialogContent>
       </Dialog>
     </div>);

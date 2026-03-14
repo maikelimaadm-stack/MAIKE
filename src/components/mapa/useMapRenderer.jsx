@@ -244,11 +244,12 @@ export default function useMapRenderer(mapInstanceRef) {
       const cfg = iconesConfig.find((ic) => ic.categoria?.toUpperCase().trim() === categoriaPonto)
         || iconesConfig.find((ic) => ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim())
         || iconesConfig.find((ic) => ic.categoria?.toUpperCase().trim() === 'COCHO');
-      const icon = cfg?.icone_url
+      const iconUrl = ponto.icone_status_url || cfg?.icone_url;
+      const icon = iconUrl
         ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
         : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome_ponto, zIndex: 500 });
-      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 44);
+      if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 44);
       marker.addListener('click', () => onClick(ponto));
       markersRef.current.set(key, marker);
     });

@@ -153,6 +153,9 @@ export async function registrarSaidaSuplementacao({
 
   const quantidadeFinal = parseNumber(quantidade);
   const estoqueAtual = produto.estoque_atual || 0;
+  if (estoqueAtual - quantidadeFinal < 0) {
+    throw new Error("Não é permitido saldo negativo de estoque.");
+  }
   const numeroMovimentacao = await getNextSystemNumber();
 
   const movimentacao = await base44.entities.MovimentacaoEstoque.create({
@@ -218,6 +221,9 @@ export async function registrarTransferenciaEntreLocais({
 
   const quantidadeFinal = parseNumber(quantidade);
   const estoqueAtual = produto.estoque_atual || 0;
+  if (estoqueAtual - quantidadeFinal < 0) {
+    throw new Error("Não é permitido saldo negativo de estoque.");
+  }
   const numeroBase = await getNextSystemNumber();
 
   const movimentacaoSaida = await base44.entities.MovimentacaoEstoque.create({
