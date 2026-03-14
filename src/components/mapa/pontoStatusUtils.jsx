@@ -3,15 +3,8 @@ import { formatKg } from "../suplementacao/formatters";
 
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value || 0));
 
-export function buildProgressIconUrl(percent = 0, color = "#10b981") {
-  const nivel = Math.max(0, Math.min(100, Math.round((percent || 0) * 100)));
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-      <rect x="6" y="6" width="52" height="52" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" />
-      <rect x="12" y="${58 - (nivel * 0.4)}" width="40" height="${Math.max(8, nivel * 0.4)}" rx="10" fill="${color}" opacity="0.28" />
-      <text x="32" y="37" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">${nivel}%</text>
-    </svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+export function buildProgressIconUrl(baseIconUrl) {
+  return baseIconUrl;
 }
 
 export function getCochoIndicator(ponto, eventos = []) {
@@ -34,7 +27,6 @@ export function getCochoIndicator(ponto, eventos = []) {
 
   return {
     percent,
-    indicatorColor: percent <= 0.33 ? "#ef4444" : percent <= 0.66 ? "#f59e0b" : "#10b981",
     badgeLabel: `${Math.round(percent * 100)}%`,
     helperLabel: `${diasDesdeUltimo} dia(s) desde o último lançamento`,
     latestRecord: ultimoEvento,
@@ -59,19 +51,12 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
     .filter((item) => item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id)
     .sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao))[0] || null;
 
-  const capacidade = deposito.capacidade_kg || deposito.capacidade_cocho_kg || necessidadeEstimada || 0;
-  const estoqueMinimo = deposito.estoque_minimo_kg || 0;
-  const percent = capacidade > 0 ? clamp(saldoAtual / capacidade) : clamp(saldoAtual > 0 ? 1 : 0);
-  const indicadorCritico = estoqueMinimo > 0 && saldoAtual <= estoqueMinimo;
-  const indicadorAtencao = !indicadorCritico && estoqueMinimo > 0 && saldoAtual <= (estoqueMinimo * 1.3);
+  const percent = necessidadeEstimada > 0 ? clamp(saldoAtual / necessidadeEstimada) : clamp(saldoAtual > 0 ? 1 : 0);
 
   return {
     percent,
-    indicatorColor: indicadorCritico ? "#ef4444" : indicadorAtencao ? "#f59e0b" : "#10b981",
     saldoAtual,
     necessidadeEstimada,
-    capacidade,
-    estoqueMinimo,
     badgeLabel: `${Math.round(percent * 100)}%`,
     helperLabel: necessidadeEstimada > 0
       ? `${formatKg(saldoAtual)} de ${formatKg(necessidadeEstimada)} estimados`

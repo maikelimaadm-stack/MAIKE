@@ -91,7 +91,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
               <Badge variant="outline" className="text-xs">Depósito</Badge>
               <Badge variant="outline" className="text-xs">{deposito.local_estoque_nome || "Sem local"}</Badge>
               <Badge variant="outline" className="text-xs">{indicador.badgeLabel}</Badge>
-              <Badge variant="outline" className="text-xs">Mínimo: {formatKg(indicador.estoqueMinimo || 0)}</Badge>
             </div>
           </div>
         </div>
@@ -107,7 +106,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Capacidade</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.capacidade || 0)}</div></CardContent></Card>
+        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cobertura estimada</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div></CardContent></Card>
       </div>
 
       <Card className="border-slate-200 shadow-sm">

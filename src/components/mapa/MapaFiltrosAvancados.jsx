@@ -52,13 +52,6 @@ export const CORES_SITUACAO_PASTO = {
   'Ocupado - Crítico (> 90d)': '#ef4444'
 };
 
-export const CORES_SUPLEMENTACAO_AREA = {
-  'Sem vínculo': '#d1d5db',
-  'Baixo (0% - 33%)': '#ef4444',
-  'Atenção (34% - 66%)': '#f59e0b',
-  'Bom (67% - 100%)': '#22c55e'
-};
-
 // Cores por categoria de gado (genérico)
 export const CORES_CATEGORIA_GADO = [
 '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#6366f1',
@@ -73,8 +66,7 @@ export const MODOS_COLORACAO = [
 { id: 'categoria_gado', label: 'Categoria de Manejo' },
 { id: 'tipo_pastagem', label: 'Tipo de Pastagem' },
 { id: 'ua_ha', label: 'UA por Hectare' },
-{ id: 'situacao_pasto', label: 'Situação do Pasto' },
-{ id: 'suplementacao_area', label: 'Suplementação por Área' }];
+{ id: 'situacao_pasto', label: 'Situação do Pasto' }];
 
 
 export default function MapaFiltrosAvancados({
@@ -184,9 +176,6 @@ export default function MapaFiltrosAvancados({
               </>
           }
             {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) =>
-          <LegendaItem key={k} cor={c} label={k} />
-          )}
-            {modoColoracao === 'suplementacao_area' && Object.entries(CORES_SUPLEMENTACAO_AREA).map(([k, c]) =>
           <LegendaItem key={k} cor={c} label={k} />
           )}
           </div>

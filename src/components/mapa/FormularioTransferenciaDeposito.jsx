@@ -15,7 +15,6 @@ import {
   parseNumber,
   registrarTransferenciaEntreLocais,
 } from "../suplementacao/estoqueSuplementacaoUtils";
-import { formatDecimal } from "../suplementacao/formatters";
 
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -221,7 +220,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="text-xs text-slate-500">Saldo disponível</div>
               <div className="flex items-center gap-2 pt-1">
-                <Badge variant="outline" className="text-xs">{formatDecimal(saldoDisponivel)}</Badge>
+                <Badge variant="outline" className="text-xs">{saldoDisponivel.toFixed(2)}</Badge>
                 <span className="text-xs text-slate-500">{produtoSelecionado?.unidade_medida || "KG"}</span>
               </div>
             </div>

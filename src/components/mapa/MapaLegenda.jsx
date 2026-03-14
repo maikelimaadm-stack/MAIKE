@@ -7,7 +7,6 @@ import {
   CORES_OCUPACAO,
   CORES_UA_HA,
   CORES_SITUACAO_PASTO,
-  CORES_SUPLEMENTACAO_AREA,
   MODOS_COLORACAO,
 } from "./MapaFiltrosAvancados";
 
@@ -33,8 +32,6 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
     items = Object.entries(CORES_UA_HA);
   } else if (modoColoracao === 'situacao_pasto') {
     items = Object.entries(CORES_SITUACAO_PASTO);
-  } else if (modoColoracao === 'suplementacao_area') {
-    items = Object.entries(CORES_SUPLEMENTACAO_AREA);
   }
 
   if (items.length === 0) return null;
