@@ -181,9 +181,10 @@ export default function MapaGeral() {
         ...ponto,
         indicador_percentual: indicador.percent,
         indicador_helper: indicador.helperLabel,
+        indicador_cor: indicador.indicatorColor || '#10b981',
         ultimo_registro: indicador.latestRecord,
-        icone_status_url: buildProgressIconUrl(indicador.percent, indicador.indicatorColor || '#10b981'),
-        sub_icone_status_url: null,
+        icone_status_url: referencia?.icone_url || null,
+        sub_icone_status_url: referencia?.sub_icone_url || null,
       };
     });
   }, [pontosSuplementacao, pontos, lotes, estoqueLotes, eventosSupl]);
@@ -205,6 +206,32 @@ export default function MapaGeral() {
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
   }), [lotesComAlerta, filtroCategoria, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
+
+  const suplementoAreaMap = useMemo(() => {
+    const depositoMap = Object.fromEntries(
+      pontosSuplementacaoDecorados
+        .filter((p) => normalizeText(p.categoria_ponto || 'COCHO') === 'DEPOSITO')
+        .map((p) => [p.id, p.indicador_percentual ?? 0])
+    );
+
+    const mapa = {};
+    areas.forEach((area) => {
+      const cochosArea = pontosSuplementacaoDecorados.filter((p) => normalizeText(p.categoria_ponto || 'COCHO') === 'COCHO' && p.area_vinculada_id === area.id);
+      if (cochosArea.length === 0) {
+        mapa[area.id] = { percent: null, color: '#d1d5db', label: 'Sem vínculo' };
+        return;
+      }
+      const percentuais = cochosArea.map((cocho) => {
+        const percentualCocho = cocho.indicador_percentual ?? 0;
+        const percentualDeposito = cocho.deposito_origem_id ? (depositoMap[cocho.deposito_origem_id] ?? 1) : 1;
+        return Math.min(percentualCocho, percentualDeposito);
+      });
+      const menor = Math.min(...percentuais);
+      const color = menor <= 0.33 ? '#ef4444' : menor <= 0.66 ? '#f59e0b' : '#22c55e';
+      mapa[area.id] = { percent: menor, color, label: `${Math.round(menor * 100)}%` };
+    });
+    return mapa;
+  }, [areas, pontosSuplementacaoDecorados]);
 
   // Mapa de cores para categorias de manejo e pastagem
   const categoriasGadoCores = useMemo(() => {
@@ -303,6 +330,9 @@ export default function MapaGeral() {
       if (info.dias <= 90) return '#f59e0b'; // atenção
       return '#ef4444'; // crítico
     }
+    if (modoColoracao === 'suplementacao_area') {
+      return suplementoAreaMap[area.id]?.color || '#d1d5db';
+    }
     return null; // padrao: usar cor da área
   }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
@@ -390,8 +420,12 @@ export default function MapaGeral() {
       if (info.tipo === 'descanso') return `Descanso ${info.dias}d`;
       return `Ocupado ${info.dias}d`;
     }
+    if (modoColoracao === 'suplementacao_area') {
+      const info = suplementoAreaMap[area.id];
+      return info?.label || 'Sem vínculo';
+    }
     return null;
-  }, [modoColoracao, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
+  }, [modoColoracao, uaPorAreaMap, situacaoPastoMap, suplementoAreaMap, getAreaEfetiva]);
 
   // Quando o modo muda, forçar recriar labels para atualizar texto extra
   useEffect(() => {
