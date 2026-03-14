@@ -132,7 +132,7 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId, staleTime: ST
   });
 
-  const { data: estoqueLotes = [] } = useQuery({
+  const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery({
     queryKey: ['mapa-estoque-lotes', empresaSelecionadaId],
     queryFn: async () => {const all = await base44.entities.EstoqueLoteNota.list();return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.status === 'Disponivel');},
     enabled: !!empresaSelecionadaId, staleTime: ST
@@ -356,7 +356,7 @@ export default function MapaGeral() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchTarefas();
+    refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchTarefas();refetchEstoqueLotes();
     toast.success('Mapa atualizado');
   }, []);
 
@@ -425,7 +425,7 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
 
   useEffect(() => {
-    const h = () => {refetchLotes();refetchAreas();refetchEventosSupl();};
+    const h = () => {refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();};
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
   }, []);
