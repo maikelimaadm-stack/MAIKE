@@ -576,13 +576,21 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
-                              <DropdownMenuItem onClick={() => onEdit && onEdit(mov)} disabled={mov.status === 'Cancelada'} className="text-xs">
+                              <DropdownMenuItem onClick={() => onEdit && onEdit(mov)} disabled={mov.status === 'Cancelada' || bloqueadoDireto} className="text-xs">
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => onCancel && onCancel(mov.id)} disabled={mov.status === 'Cancelada'} className="text-xs text-red-600">
+                              <DropdownMenuItem onClick={() => onCancel && onCancel(mov.id)} disabled={mov.status === 'Cancelada' || bloqueadoDireto} className="text-xs text-red-600">
                                 Cancelar
                               </DropdownMenuItem>
+                              {bloqueadoDireto && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem disabled className="text-xs">
+                                    Excluir pelo histórico vinculado
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
