@@ -453,8 +453,11 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleEdit = (movimentacao) => {
-    if (movimentacao.bloqueado_exclusao_estoque || (movimentacao.exclusao_somente_em && movimentacao.exclusao_somente_em !== 'estoque')) {
-      toast.error(movimentacao.exclusao_somente_em === 'cocho' ? 'Esse lançamento só pode ser alterado no histórico do cocho.' : 'Esse lançamento só pode ser alterado no histórico do depósito.');
+    const bloqueadoDireto = movimentacao.bloqueado_exclusao_estoque
+      || (movimentacao.exclusao_somente_em && movimentacao.exclusao_somente_em !== 'estoque')
+      || ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(movimentacao.tipo_detalhado);
+    if (bloqueadoDireto) {
+      toast.error(movimentacao.tipo_detalhado === 'suplementacao' || movimentacao.exclusao_somente_em === 'cocho' ? 'Esse lançamento só pode ser alterado no histórico do cocho.' : 'Esse lançamento só pode ser alterado no histórico do depósito.');
       return;
     }
     // Transformar registro para initialData compatível com o formulário
@@ -502,8 +505,11 @@ export default function MovimentacoesEstoque() {
 
   const handleCancel = async (id) => {
     const mov = movimentacoes.find(m => m.id === id);
-    if (mov?.bloqueado_exclusao_estoque || (mov?.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque')) {
-      toast.error(mov.exclusao_somente_em === 'cocho' ? 'Esse lançamento só pode ser excluído no histórico do cocho.' : 'Esse lançamento só pode ser excluído no histórico do depósito.');
+    const bloqueadoDireto = mov?.bloqueado_exclusao_estoque
+      || (mov?.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque')
+      || ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(mov?.tipo_detalhado);
+    if (bloqueadoDireto) {
+      toast.error(mov?.tipo_detalhado === 'suplementacao' || mov?.exclusao_somente_em === 'cocho' ? 'Esse lançamento só pode ser excluído no histórico do cocho.' : 'Esse lançamento só pode ser excluído no histórico do depósito.');
       return;
     }
     if (window.confirm('⚠️ Cancelar movimentação e reverter estoque?')) {

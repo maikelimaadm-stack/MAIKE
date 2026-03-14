@@ -551,7 +551,9 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                       <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhuma movimentação</TableCell>
                     </TableRow>
                   ) : (
-                    paginatedMovimentacoes.map((mov) => (
+                    paginatedMovimentacoes.map((mov) => {
+                      const bloqueadoDireto = mov.bloqueado_exclusao_estoque || (mov.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque') || ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(mov.tipo_detalhado);
+                      return (
                       <motion.tr 
                         key={mov.id}
                         initial={{ opacity: 0 }} 
@@ -586,7 +588,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                         </TableCell>
                         {colunasOrdenadas.map(coluna => renderCell(coluna, mov))}
                       </motion.tr>
-                    ))
+                    )})
                   )}
                 </AnimatePresence>
               </TableBody>
