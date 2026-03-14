@@ -48,6 +48,8 @@ const createEmptyForm = () => ({
   observacoes: "",
   produto_padrao: "",
   capacidade_cocho_kg: "",
+  capacidade_kg: "",
+  estoque_minimo_kg: "",
   area_vinculada_id: "",
   deposito_origem_id: "",
   consumo_ideal_por_cabeca_kg: "",
@@ -119,6 +121,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       observacoes: item.observacoes || pontoSuplementacaoExistente?.observacoes || "",
       produto_padrao: pontoSuplementacaoExistente?.produto_padrao || "",
       capacidade_cocho_kg: pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
+      capacidade_kg: pontoSuplementacaoExistente?.capacidade_kg || pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
+      estoque_minimo_kg: pontoSuplementacaoExistente?.estoque_minimo_kg || "",
       area_vinculada_id: pontoSuplementacaoExistente?.area_vinculada_id || "",
       deposito_origem_id: pontoSuplementacaoExistente?.deposito_origem_id || "",
       consumo_ideal_por_cabeca_kg: pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg || "",
@@ -232,7 +236,9 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         categoria_ponto: data.tipo_categoria,
         tipo: data.tipo,
         produto_padrao: data.tipo_categoria === "COCHO" ? data.produto_padrao || null : null,
-        capacidade_cocho_kg: data.tipo_categoria === "COCHO" && data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
+        capacidade_cocho_kg: data.tipo_categoria === "COCHO" && data.capacidade_kg ? parseFloat(data.capacidade_kg) : null,
+        capacidade_kg: data.capacidade_kg ? parseFloat(data.capacidade_kg) : null,
+        estoque_minimo_kg: data.estoque_minimo_kg ? parseFloat(data.estoque_minimo_kg) : null,
         area_vinculada_id: data.tipo_categoria === "COCHO" ? data.area_vinculada_id : null,
         area_vinculada_nome: data.tipo_categoria === "COCHO" ? areaVinculada?.nome || "" : null,
         deposito_origem_id: data.tipo_categoria === "COCHO" ? data.deposito_origem_id || null : null,
@@ -306,7 +312,9 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       configuracao_icone_id: formData.configuracao_icone_id,
       observacoes: formData.observacoes?.toUpperCase(),
       produto_padrao: ehCocho ? formData.produto_padrao : null,
-      capacidade_cocho_kg: ehCocho ? formData.capacidade_cocho_kg : null,
+      capacidade_cocho_kg: ehCocho ? formData.capacidade_kg : null,
+      capacidade_kg: formData.capacidade_kg,
+      estoque_minimo_kg: formData.estoque_minimo_kg,
       area_vinculada_id: ehCocho ? formData.area_vinculada_id : null,
       deposito_origem_id: ehCocho ? formData.deposito_origem_id : null,
       consumo_ideal_por_cabeca_kg: ehCocho ? formData.consumo_ideal_por_cabeca_kg : null,
@@ -394,8 +402,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Capacidade do cocho (kg)</Label>
-                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
+                <Label className="text-xs">Capacidade (kg)</Label>
+                <Input type="number" step="0.01" value={formData.capacidade_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_kg: e.target.value }))} className="h-8 text-xs" />
               </div>
             </div>
 
@@ -408,6 +416,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             <div className="text-sm font-semibold text-slate-700">Depósito de Suplementação</div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Capacidade (kg)</Label>
+                <Input type="number" step="0.01" value={formData.capacidade_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_kg: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Estoque mínimo (kg)</Label>
+                <Input type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
           </div>
         )}
 

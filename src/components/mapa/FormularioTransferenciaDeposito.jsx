@@ -15,6 +15,7 @@ import {
   parseNumber,
   registrarTransferenciaEntreLocais,
 } from "../suplementacao/estoqueSuplementacaoUtils";
+import { formatDecimal } from "../suplementacao/formatters";
 
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");

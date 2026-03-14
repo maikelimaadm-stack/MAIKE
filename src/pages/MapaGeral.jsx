@@ -182,8 +182,8 @@ export default function MapaGeral() {
         indicador_percentual: indicador.percent,
         indicador_helper: indicador.helperLabel,
         ultimo_registro: indicador.latestRecord,
-        icone_status_url: referencia?.icone_url ? buildProgressIconUrl(referencia.icone_url, indicador.percent) : null,
-        sub_icone_status_url: referencia?.sub_icone_url ? buildProgressIconUrl(referencia.sub_icone_url, indicador.percent, 40) : null,
+        icone_status_url: buildProgressIconUrl(indicador.percent, indicador.indicatorColor || '#10b981'),
+        sub_icone_status_url: null,
       };
     });
   }, [pontosSuplementacao, pontos, lotes, estoqueLotes, eventosSupl]);

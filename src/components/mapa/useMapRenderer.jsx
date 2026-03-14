@@ -249,7 +249,7 @@ export default function useMapRenderer(mapInstanceRef) {
         ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
         : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome_ponto, zIndex: 500 });
-      if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 40);
+      if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 54);
       marker.addListener('click', () => onClick(ponto));
       markersRef.current.set(key, marker);
     });
