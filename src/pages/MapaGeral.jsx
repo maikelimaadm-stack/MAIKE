@@ -519,7 +519,7 @@ export default function MapaGeral() {
 
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Ponto de Suplementação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'}</DialogTitle></DialogHeader>
           {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} onClose={() => {setShowDetalhesPontoSupl(false);setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}} />}
         </DialogContent>
       </Dialog>

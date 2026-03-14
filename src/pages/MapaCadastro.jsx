@@ -90,18 +90,34 @@ export default function MapaCadastro() {
   const deletePontoMutation = useMutation({
     mutationFn: async (id) => {
       const ponto = pontos.find((item) => item.id === id);
+      const normalizar = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+
       await base44.entities.PontoReferencia.update(id, { ativo: false });
 
-      if (ponto?.tipo?.toUpperCase().includes('COCHO')) {
-        const pontosSuplementacao = await base44.entities.PontoSuplementacao.list();
-        const vinculados = pontosSuplementacao.filter((item) =>
+      const pontosSuplementacao = await base44.entities.PontoSuplementacao.list();
+      const vinculados = pontosSuplementacao.filter((item) =>
+        item.empresa_id === empresaSelecionadaId &&
+        item.status === 'Ativo' &&
+        normalizar(item.nome_ponto) === normalizar(ponto?.nome)
+      );
+
+      for (const item of vinculados) {
+        await base44.entities.PontoSuplementacao.update(item.id, { status: 'Inativo' });
+      }
+
+      const deposito = vinculados.find((item) => normalizar(item.categoria_ponto) === 'DEPOSITO');
+      if (deposito) {
+        const cochosRelacionados = pontosSuplementacao.filter((item) =>
           item.empresa_id === empresaSelecionadaId &&
           item.status === 'Ativo' &&
-          item.nome_ponto === ponto.nome
+          item.deposito_origem_id === deposito.id
         );
 
-        for (const item of vinculados) {
-          await base44.entities.PontoSuplementacao.update(item.id, { status: 'Inativo' });
+        for (const cocho of cochosRelacionados) {
+          await base44.entities.PontoSuplementacao.update(cocho.id, {
+            deposito_origem_id: null,
+            deposito_origem_nome: null,
+          });
         }
       }
     },
