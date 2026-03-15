@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
-import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
+import PontoPercentIcon from "./PontoPercentIcon";
 import { formatKg } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
@@ -133,15 +133,11 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5">
           <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-3 items-center">
             <div className="flex items-center gap-3">
-              <IndicadorCopoNivel
-                titulo="Depósito"
-                subtitulo={formatKg(indicador.saldoAtual)}
+              <PontoPercentIcon
+                imageUrl={subIconePonto}
+                label={deposito.categoria_ponto || "Depósito"}
                 percent={indicador?.percent || 0}
-                cor="#64748b"
               />
-              {subIconePonto && (
-                <img src={subIconePonto} alt={deposito.categoria_ponto || "Depósito"} className="w-10 h-10 object-contain" />
-              )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">

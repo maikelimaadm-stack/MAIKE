@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
-import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
+import PontoPercentIcon from "./PontoPercentIcon";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { getCochoIndicator } from "./pontoStatusUtils";
@@ -103,15 +103,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           <CardSection title="Saldo estimado no cocho">
             <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-3 items-center">
               <div className="flex items-center gap-3">
-                <IndicadorCopoNivel
-                  titulo="Cocho"
-                  subtitulo={formatKg(saldoEstimado)}
+                <PontoPercentIcon
+                  imageUrl={subIconePonto}
+                  label={ponto.categoria_ponto || "Cocho"}
                   percent={percentual}
-                  cor="#64748b"
                 />
-                {subIconePonto && (
-                  <img src={subIconePonto} alt={ponto.categoria_ponto || "Cocho"} className="w-10 h-10 object-contain" />
-                )}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
