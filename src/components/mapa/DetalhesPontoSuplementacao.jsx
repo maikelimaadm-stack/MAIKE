@@ -38,6 +38,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: produtos = [] } = useQuery({
+    queryKey: ["produtos-ponto-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
   const iconePonto = useMemo(() => {
     const categoriaPonto = normalizeText(ponto?.categoria_ponto || "");
@@ -58,6 +67,26 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
+  const ultimoProduto = useMemo(() => {
+    if (!ultimoEvento?.produto) return null;
+    return produtos.find((produto) => normalizeText(produto.nome_produto || "") === normalizeText(ultimoEvento.produto || "")) || null;
+  }, [produtos, ultimoEvento]);
+  const ultimoEventoSacos = useMemo(() => {
+    const pesoPorSaco = Number(ultimoProduto?.peso_por_saco_kg || 0);
+    if (!ultimoEvento || pesoPorSaco <= 0) return null;
+    return (ultimoEvento.quantidade_total_kg || 0) / pesoPorSaco;
+  }, [ultimoProduto, ultimoEvento]);
+  const baseDiasEstimados = useMemo(() => {
+    if (!ultimoEvento) return null;
+    const sobra = ultimoEvento.sobra_kg || 0;
+    const fornecido = ultimoEvento.quantidade_total_kg || 0;
+    const totalDisponivel = fornecido + sobra;
+    const consumoEstimado = (ultimoEvento.consumo_diario_grupo_kg || 0) > 0
+      ? (ultimoEvento.consumo_diario_grupo_kg || 0)
+      : totalDisponivel / (ponto.frequencia_esperada_dias || 7);
+    if (consumoEstimado <= 0) return null;
+    return totalDisponivel / consumoEstimado;
+  }, [ultimoEvento, ponto.frequencia_esperada_dias]);
   const temAlerta = ponto.status === "Ativo" && (diasSemLancamento === null || diasSemLancamento > (ponto.alerta_sem_lancamento_dias || 10));
 
   const handleSaved = () => {
@@ -91,7 +120,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         ponto.area_vinculada_nomes.join(", ") :
         ponto.area_vinculada_nome || "-"
         } />
-        <CardInfo label="Capacidade" value={ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : "-"} />
+        <CardInfo label="Base em dias" value={baseDiasEstimados ? `${formatDecimal(baseDiasEstimados, 1)} dia(s)` : "-"} />
         <CardInfo label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
         <CardInfo label="Total fornecido" value={formatKg(totalFornecido)} />
       </div>
@@ -131,8 +160,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
 
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Base</div>
-                  <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
+                  <div className="text-slate-500">Base em dias</div>
+                  <div className="text-sm font-bold text-slate-900">{baseDiasEstimados ? `${formatDecimal(baseDiasEstimados, 1)} dia(s)` : '-'}</div>
                 </div>
               </div>
             </div>
@@ -166,6 +195,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <div className="space-y-1 text-[10px]">
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Capacidade:</span><span className="font-semibold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</span></div>
           {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
           {ponto.cobertura_cocho && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cobertura:</span><span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência esperada:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.frequencia_esperada_dias || 0, 0, true)} dia(s)</span></div>

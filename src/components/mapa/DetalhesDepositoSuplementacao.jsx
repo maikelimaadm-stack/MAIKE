@@ -111,6 +111,16 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   }, [iconesConfig, deposito?.categoria_ponto, deposito?.nome_ponto]);
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
 
+  const totalSaldoSacos = useMemo(() => saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
+  const ultimoProduto = useMemo(() => {
+    if (!ultimoRegistro?.produto_id) return null;
+    return produtos.find((produto) => produto.id === ultimoRegistro.produto_id) || null;
+  }, [produtos, ultimoRegistro]);
+  const ultimoRegistroSacos = useMemo(() => {
+    const pesoPorSaco = Number(ultimoProduto?.peso_por_saco_kg || 0);
+    if (!ultimoRegistro || pesoPorSaco <= 0) return null;
+    return (ultimoRegistro.quantidade || 0) / pesoPorSaco;
+  }, [ultimoProduto, ultimoRegistro]);
   const ultimoRegistro = indicador.latestRecord;
 
   const handleSaved = () => {
@@ -139,7 +149,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">% uso</div><div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Saldo em sacos</div><div className="text-sm font-bold text-slate-900">{formatKg ? totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}</div></CardContent></Card>
         </div>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
           <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
@@ -153,7 +163,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
-                <div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
+                <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Necessidade estimada</div>
