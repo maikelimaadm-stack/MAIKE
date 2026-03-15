@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowRightLeft, Scale, RefreshCw, Star, XCircle, Package, Pencil, Merge } from "lucide-react";
+
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -570,7 +570,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
                   )}
                 </div>
-                <ResumoSuplementacao lotesIds={lotesCategoria.map(l => l.id)} modo="compacto" />
+
               </div>
             </div>
           );
@@ -602,66 +602,13 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
 
-      <div className="grid grid-cols-3 gap-2">
-        <Button 
-          onClick={() => setShowMovimentacao(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-          translate="no"
-        >
-          <ArrowRightLeft className="w-4 h-4 text-slate-600" />
-          <span translate="no">Mover</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowPesagem(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-          translate="no"
-        >
-          <Scale className="w-4 h-4 text-slate-600" />
-          <span translate="no">Pesar</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowMudancaCategoria(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-          translate="no"
-        >
-          <RefreshCw className="w-4 h-4 text-slate-600" />
-          <span translate="no">Mudar Cat.</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowNascimento(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-          translate="no"
-        >
-          <Star className="w-4 h-4 text-slate-600" />
-          <span translate="no">Nascer</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowMorte(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-          translate="no"
-        >
-          <XCircle className="w-4 h-4 text-slate-600" />
-          <span translate="no">Morte</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowAbate(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-          translate="no"
-        >
-          <Package className="w-4 h-4 text-slate-600" />
-          <span translate="no">Abate</span>
-        </Button>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>
+        <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Pesar</Button>
+        <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mudar Categoria</Button>
+        <Button onClick={() => setShowNascimento(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Nascimento</Button>
+        <Button onClick={() => setShowMorte(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Morte</Button>
+        <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Abate</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-3">
@@ -697,9 +644,9 @@ export default function DetalhesLote({ lotes, onClose }) {
             }
           }}
           variant="outline"
-          className="h-9 text-[11px] font-semibold border-slate-300 gap-1"
+          size="sm"
+          className="h-8 text-xs font-semibold border-slate-300"
         >
-          <Pencil className="w-3.5 h-3.5" />
           Renomear Lote
         </Button>
         {lotes.length > 1 && (() => {
@@ -766,11 +713,11 @@ export default function DetalhesLote({ lotes, onClose }) {
                 window.dispatchEvent(new CustomEvent('atualizar-mapa'));
               }}
               variant="outline"
-              className={`h-9 text-[11px] font-semibold border-slate-300 gap-1 ${!podeJuntar ? 'opacity-50' : ''}`}
+              size="sm"
+              className={`h-8 text-xs font-semibold border-slate-300 ${!podeJuntar ? 'opacity-50' : ''}`}
               disabled={!podeJuntar}
               title={!mesmaCat ? 'Só é possível juntar lotes da mesma categoria' : !mesmaCategoriaManejo ? 'Não é possível juntar lotes com categoria de manejo diferente' : ''}
             >
-              <Merge className="w-3.5 h-3.5" />
               Juntar Lotes
             </Button>
           );
