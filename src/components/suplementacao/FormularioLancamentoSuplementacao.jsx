@@ -263,7 +263,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         });
       }
 
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "lotes-nota-suplementacao", "mapa-eventos-supl", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "lotes-nota-suplementacao", "mapa-eventos-supl", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
       setProgresso({ show: true, atual: totalPassos, total: totalPassos, mensagem: "Concluído!" });
       toast.success("Suplementação registrada com sucesso.");
       setTimeout(() => {
@@ -293,6 +293,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <span className="text-xs text-slate-600">Lotes nas áreas:</span>
                 {loadingLotes ? <Badge variant="outline" className="text-xs">Carregando...</Badge> : <Badge variant="outline" className="text-xs">{formatDecimal(lotes.length, 0, true)} lote(s) - {formatDecimal(totalCabecas, 0, true)} cabeças</Badge>}
                 {depositoVinculado?.local_estoque_nome && <Badge variant="outline" className="text-xs">Local: {depositoVinculado.local_estoque_nome}</Badge>}
+                {lotesSemFator.length > 0 && <Badge className="text-xs bg-red-100 text-red-800">Categorias sem fator configurado</Badge>}
               </div>
               {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-blue-700">Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
@@ -324,6 +325,29 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
 
             {depositoVinculado?.local_estoque_id && produtoSelecionado && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between"><div><div className="text-xs text-slate-500">Saldo disponível no depósito</div><div className="text-sm font-semibold text-slate-900">{formatDecimal(saldoNoDeposito)} {produtoSelecionado.unidade_medida || "KG"}</div></div><Badge variant="outline" className="text-xs">Baixa automática ativa</Badge></div>}
+
+            {!!formData.quantidade_total_kg && totalCabecas > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-xs font-semibold text-emerald-900">Validação técnica do novo lançamento</div>
+                  <Badge className={`text-xs ${avaliacaoTecnica.status === "dentro_ideal" ? "bg-emerald-100 text-emerald-800" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
+                    {avaliacaoTecnica.status === "dentro_ideal" ? "Dentro do ideal" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "Fora da faixa ideal" : "Fora do limite técnico"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]">
+                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Cabeças</div><div className="font-bold text-emerald-900">{formatDecimal(totalCabecas, 0, true)}</div></div>
+                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Dias estimados</div><div className="font-bold text-emerald-900">{formatDecimal(diasEstimadosNovoPeriodo, 0, true)}</div></div>
+                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Estimado kg/cab/dia</div><div className="font-bold text-emerald-900">{formatDecimal(consumoEstimadoCabDia, 3)}</div></div>
+                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Estimado g/cab/dia</div><div className="font-bold text-emerald-900">{formatDecimal(consumoEstimadoGramas, 0, true)}</div></div>
+                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Média recente 7 dias</div><div className="font-bold text-emerald-900">{formatDecimal(mediaRecente7Dias, 3)}</div></div>
+                </div>
+                <div className="text-[10px] text-emerald-800">
+                  {avaliacaoTecnica.message}
+                  {regraProduto?.label ? ` • Regra aplicada: ${regraProduto.label}` : ""}
+                  {ultimoConsumoCabDia > 0 ? ` • Último consumo fechado: ${formatDecimal(ultimoConsumoCabDia, 3)} kg/cab/dia` : ""}
+                </div>
+              </div>
+            )}
 
             {/* Consumo do último período (fechado ou em aberto) */}
             {ultimoEvento && (() => {
