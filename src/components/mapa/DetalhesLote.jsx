@@ -582,7 +582,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
                   )}
                 </div>
-                <ResumoSuplementacaoCategoria lotesIds={lotesCategoria.map(l => l.id)} />
+                <ResumoSuplementacao lotesIds={lotesCategoria.map(l => l.id)} modo="compacto" />
               </div>
             </div>
           );
@@ -612,7 +612,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         </div>
       </div>
 
-      <ResumoSuplementacaoLote lotesIds={lotes.map(l => l.id)} />
+      <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
 
       <div className="grid grid-cols-3 gap-2">
         <Button 
