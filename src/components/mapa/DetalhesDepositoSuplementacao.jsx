@@ -114,8 +114,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito</Badge>
           <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{deposito.local_estoque_nome || "Sem local"}</Badge>
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{indicador.badgeLabel}</Badge>
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Nível estimado: {Math.round((indicador?.percent || 0) * 100)}%</Badge>
         </div>
       </div>
 
@@ -137,11 +135,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
             <div className="flex items-center gap-3">
               <IndicadorCopoNivel
                 titulo="Depósito"
-                valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
                 subtitulo={formatKg(indicador.saldoAtual)}
                 percent={indicador?.percent || 0}
                 cor="#64748b"
-                compact
               />
               {subIconePonto && (
                 <img src={subIconePonto} alt={deposito.categoria_ponto || "Depósito"} className="w-10 h-10 object-contain" />
@@ -150,7 +146,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
-                <div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toFixed(1)} sacos</div>
+                <div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Necessidade estimada</div>
@@ -201,7 +197,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                     <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
                     <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{formatKg(item.saldo)}</Badge>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-1">Sacos: {item.saldoSacos > 0 ? item.saldoSacos.toFixed(1) : '0,0'}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">Sacos: {(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                 </div>
               ))}
             </div>

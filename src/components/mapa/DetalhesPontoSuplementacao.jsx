@@ -64,8 +64,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{ponto.status}</Badge>
           {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito: {ponto.deposito_origem_nome}</Badge>}
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{indicador.badgeLabel}</Badge>
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Nível estimado: {Math.round((indicador?.percent || 0) * 100)}%</Badge>
           {temAlerta && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Alerta</Badge>}
         </div>
       </div>
@@ -107,11 +105,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
               <div className="flex items-center gap-3">
                 <IndicadorCopoNivel
                   titulo="Cocho"
-                  valor={`${Math.round(percentual * 100)}%`}
                   subtitulo={formatKg(saldoEstimado)}
                   percent={percentual}
                   cor="#64748b"
-                  compact
                 />
                 {subIconePonto && (
                   <img src={subIconePonto} alt={ponto.categoria_ponto || "Cocho"} className="w-10 h-10 object-contain" />
