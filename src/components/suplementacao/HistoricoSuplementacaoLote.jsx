@@ -1,61 +1,34 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { formatDateBR } from "../utils/pecuariaUtils";
+import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
+import { calcularResumoHistorico, filtrarHistoricoPorMeses, montarSerieConsumoDiario, montarSerieMensal } from "./suplementacaoResumoUtils";
 
 export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [periodoMeses, setPeriodoMeses] = useState("3");
 
   const { data: historico = [], isLoading } = useQuery({
-    queryKey: ['suplementacao-lote', loteId],
+    queryKey: ['suplementacao-lote', empresaSelecionadaId, loteId],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoLote.list();
-      return all.filter(s => 
-        s.empresa_id === empresaSelecionadaId && 
-        s.lote_id === loteId
-      ).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
+      const registros = await base44.entities.SuplementacaoLote.filter({
+        empresa_id: empresaSelecionadaId,
+        lote_id: loteId,
+      }, '-data_lancamento', 300);
+      return registros;
     },
     enabled: !!empresaSelecionadaId && !!loteId,
   });
 
-  // Filtrar por período
-  const dataLimite = new Date();
-  dataLimite.setMonth(dataLimite.getMonth() - parseInt(periodoMeses));
-  
-  const historicoFiltrado = historico.filter(h => 
-    new Date(h.data_lancamento) >= dataLimite
-  );
-
-  // Dados para gráfico de consumo por cabeça ao longo do tempo
-  const dadosGraficoConsumo = [...historicoFiltrado]
-    .reverse()
-    .map(h => ({
-      data: new Date(h.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      consumo: parseFloat(h.consumo_por_cabeca_dia_kg || 0).toFixed(3),
-      produto: h.produto
-    }));
-
-  // Dados para gráfico de consumo total por mês
-  const consumoPorMes = historicoFiltrado.reduce((acc, h) => {
-    const mes = new Date(h.data_lancamento).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-    if (!acc[mes]) {
-      acc[mes] = { mes, total: 0 };
-    }
-    acc[mes].total += (h.consumo_total_lote_periodo_kg || 0);
-    return acc;
-  }, {});
-
-  const dadosGraficoMensal = Object.values(consumoPorMes).reverse();
-
-  const consumoMedio = historicoFiltrado.length > 0
-    ? (historicoFiltrado.reduce((sum, h) => sum + (h.consumo_por_cabeca_dia_kg || 0), 0) / historicoFiltrado.length).toFixed(3)
-    : 0;
-
-  const consumoTotal = historicoFiltrado.reduce((sum, h) => sum + (h.consumo_total_lote_periodo_kg || 0), 0).toFixed(1);
+  const historicoFiltrado = useMemo(() => filtrarHistoricoPorMeses(historico, periodoMeses), [historico, periodoMeses]);
+  const resumo = useMemo(() => calcularResumoHistorico(historicoFiltrado), [historicoFiltrado]);
+  const dadosGraficoConsumo = useMemo(() => montarSerieConsumoDiario(historicoFiltrado), [historicoFiltrado]);
+  const dadosGraficoMensal = useMemo(() => montarSerieMensal(historicoFiltrado), [historicoFiltrado]);
 
   return (
     <div className="space-y-4">
@@ -74,25 +47,16 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
         </Select>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-xs text-slate-600">Lançamentos</div>
-            <div className="text-2xl font-bold text-slate-900">{historicoFiltrado.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-xs text-slate-600">Consumo Médio</div>
-            <div className="text-2xl font-bold text-slate-900">{consumoMedio} kg/cab</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-xs text-slate-600">Consumo Total</div>
-            <div className="text-2xl font-bold text-slate-900">{consumoTotal} kg</div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Lançamentos</div><div className="text-2xl font-bold text-slate-900">{resumo.lancamentos}</div></CardContent></Card>
+        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Períodos válidos</div><div className="text-2xl font-bold text-slate-900">{resumo.periodosValidos}</div></CardContent></Card>
+        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Média kg/cab/dia</div><div className="text-xl font-bold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div></CardContent></Card>
+        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Média g/cab/dia</div><div className="text-xl font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div></CardContent></Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <Card className="lg:col-span-2"><CardContent className="p-3"><div className="text-xs text-slate-600">Consumo total do período</div><div className="text-2xl font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div><div className="text-[10px] text-slate-500">Último lançamento: {resumo.ultimoLancamento ? formatDateBR(resumo.ultimoLancamento.data_lancamento) : '-'}</div></CardContent></Card>
+        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Último produto</div><div className="text-sm font-bold text-slate-900 break-words">{resumo.ultimoLancamento?.produto || '-'}</div></CardContent></Card>
       </div>
 
       {historicoFiltrado.length > 0 && (
