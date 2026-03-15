@@ -1,14 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
-import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { getCochoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -40,113 +37,84 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
-  if (isDeposito) {
-    return <DetalhesDepositoSuplementacao deposito={ponto} onClose={onClose} />;
-  }
+  if (isDeposito) return <DetalhesDepositoSuplementacao deposito={ponto} onClose={onClose} />;
 
   return (
-    <div className="space-y-4" translate="no">
-      <div className="flex items-start justify-between gap-3 pb-2 border-b">
-        <div className="flex items-start gap-3">
-          <IndicadorCopoNivel titulo="Nível" valor={`${Math.round((indicador?.percent || 0) * 100)}%`} subtitulo={indicador.helperLabel} percent={indicador.percent} cor="#10b981" compact />
-          <div>
-            <div className="text-sm font-bold text-slate-900 mb-1">{ponto.nome_ponto}</div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={ponto.status === "Ativo" ? "default" : "secondary"} className="text-xs">{ponto.status}</Badge>
-              {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs">Depósito: {ponto.deposito_origem_nome}</Badge>}
-              <Badge variant="outline" className="text-xs">{indicador.badgeLabel}</Badge>
-              {temAlerta && <Badge className="bg-amber-100 text-amber-800 text-xs"><AlertCircle className="w-3 h-3 mr-1" />Alerta</Badge>}
-            </div>
-          </div>
+    <div className="space-y-3" translate="no">
+      {/* Header */}
+      <div className="pb-2 border-b">
+        <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
+        <div className="text-[10px] text-slate-500">
+          {ponto.status} · {ponto.deposito_origem_nome ? `Depósito: ${ponto.deposito_origem_nome}` : "Sem depósito"}
+          {temAlerta && " · Alerta: sem lançamento"}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* Botões */}
+      <div className="grid grid-cols-2 gap-1.5">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-[10px]">
-        <CardInfo label="Áreas vinculadas" value={
-          (Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0)
-            ? ponto.area_vinculada_nomes.join(", ")
-            : ponto.area_vinculada_nome || "-"
-        } />
-        <CardInfo label="Capacidade" value={ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : "-"} />
-        <CardInfo label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
-        <CardInfo label="Total fornecido" value={formatKg(totalFornecido)} />
+      {/* Resumo */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <InfoBox label="Áreas" value={(Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0) ? ponto.area_vinculada_nomes.join(", ") : ponto.area_vinculada_nome || "-"} />
+        <InfoBox label="Capacidade" value={ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : "-"} />
+        <InfoBox label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
+        <InfoBox label="Total fornecido" value={formatKg(totalFornecido)} />
       </div>
 
-      {/* Saldo estimado no cocho */}
+      {/* Saldo estimado */}
       {ultimoEvento && (() => {
         const sobra = ultimoEvento.sobra_kg || 0;
         const fornecido = ultimoEvento.quantidade_total_kg || 0;
         const consumoDiario = ultimoEvento.consumo_diario_grupo_kg || 0;
         const diasDesde = diasSemLancamento || 0;
         let saldoEstimado;
-        if (ultimoEvento.dias_periodo != null) {
-          // Período fechado: saldo = sobra informada
-          saldoEstimado = sobra;
-        } else {
-          // Período aberto: considera o fornecido do lançamento + a sobra existente no início do período
-          const totalDisponivel = fornecido + sobra;
-          const consumoEstimado = consumoDiario > 0 ? consumoDiario : (totalDisponivel / (ponto.frequencia_esperada_dias || 7));
-          saldoEstimado = Math.max(0, totalDisponivel - (consumoEstimado * diasDesde));
-        }
-        const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
+        if (ultimoEvento.dias_periodo != null) { saldoEstimado = sobra; }
+        else { const totalDisponivel = fornecido + sobra; const consumoEstimado = consumoDiario > 0 ? consumoDiario : (totalDisponivel / (ponto.frequencia_esperada_dias || 7)); saldoEstimado = Math.max(0, totalDisponivel - (consumoEstimado * diasDesde)); }
         return (
-          <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-3 space-y-2">
-            <div className="text-[11px] font-bold text-slate-900">Saldo estimado no cocho</div>
-            <div className="flex items-center gap-3">
-              <IndicadorCopoNivel 
-                titulo="Cocho" 
-                valor={formatKg(saldoEstimado)} 
-                subtitulo={ultimoEvento.dias_periodo != null ? "Sobra do último fechamento" : `~${diasDesde} dia(s) desde lançamento`}
-                percent={percentual} 
-                cor={percentual > 0.3 ? "#10b981" : percentual > 0.1 ? "#f59e0b" : "#ef4444"} 
-              />
-            </div>
+          <div className="border border-slate-200 rounded p-2">
+            <div className="text-[10px] text-slate-500">Saldo estimado no cocho</div>
+            <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
+            <div className="text-[9px] text-slate-400">{ultimoEvento.dias_periodo != null ? "Sobra do último fechamento" : `~${diasDesde} dia(s) desde lançamento`}</div>
           </div>
         );
       })()}
 
-      <CardSection title="Último Registro">
+      {/* Último registro */}
+      <div className="border border-slate-200 rounded p-2.5">
+        <div className="text-[11px] font-bold text-slate-900 mb-1.5">Último Registro</div>
         {ultimoEvento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-slate-900">{ultimoEvento.produto}</span>
-              <Badge variant="outline" className="text-xs">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-slate-600">
-              <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
-              <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
-              <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
-              <div>Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
-              <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
-              <div>Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + (ultimoEvento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</span></div>
-            </div>
-            {ultimoEvento.observacoes && <div className="text-slate-500 italic">{ultimoEvento.observacoes}</div>}
+          <div className="text-[10px] space-y-1 text-slate-600">
+            <div className="flex justify-between"><span className="font-semibold text-slate-900">{ultimoEvento.produto}</span><span className="font-semibold text-slate-900">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</span></div>
+            <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
+            <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
+            <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
+            <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${ultimoEvento.dias_periodo} dia(s)` : "Em aberto"}</span></div>
+            {ultimoEvento.observacoes && <div className="text-slate-500">{ultimoEvento.observacoes}</div>}
           </div>
         ) : (
-          <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
+          <div className="text-[10px] text-slate-500">Nenhum lançamento.</div>
         )}
-      </CardSection>
+      </div>
 
-      <CardSection title="Informações do Cocho">
-        <div className="space-y-1.5 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
-          {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
-          {ponto.cobertura_cocho && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cobertura:</span><span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência esperada:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.frequencia_esperada_dias || 0, 0, true)} dia(s)</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.alerta_sem_lancamento_dias || 0, 0, true)} dia(s)</span></div>
+      {/* Info do cocho */}
+      <div className="border border-slate-200 rounded p-2.5">
+        <div className="text-[11px] font-bold text-slate-900 mb-1.5">Informações do Cocho</div>
+        <div className="space-y-0.5 text-[10px] text-slate-600">
+          <div>Tipo: <span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
+          <div>Produto padrão: <span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
+          {ponto.metragem_cocho_m && <div>Metragem: <span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
+          {ponto.cobertura_cocho && <div>Cobertura: <span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
+          <div>Frequência: <span className="font-semibold text-slate-900">{formatDecimal(ponto.frequencia_esperada_dias || 0, 0, true)} dia(s)</span></div>
         </div>
-      </CardSection>
+      </div>
 
+      {/* Dialogs */}
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
         <DialogContent className="max-w-2xl"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => { setShowLancamento(false); handleSaved(); }} /></DialogContent>
       </Dialog>
-
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Cocho</DialogTitle></DialogHeader>
@@ -157,20 +125,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   );
 }
 
-function CardInfo({ label, value }) {
+function InfoBox({ label, value }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="text-slate-500">{label}</div>
-      <div className="text-sm font-bold text-slate-900">{value}</div>
-    </div>
-  );
-}
-
-function CardSection({ title, children }) {
-  return (
-    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-3 space-y-2">
-      <div className="text-[11px] font-bold text-slate-900">{title}</div>
-      {children}
+    <div className="border border-slate-200 rounded p-2">
+      <div className="text-[10px] text-slate-500">{label}</div>
+      <div className="text-[11px] font-bold text-slate-900">{value}</div>
     </div>
   );
 }

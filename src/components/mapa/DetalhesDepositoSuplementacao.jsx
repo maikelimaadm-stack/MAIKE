@@ -1,14 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
-import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import { formatKg } from "../suplementacao/formatters";
+import { formatSacos, podeMostrarSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
@@ -55,6 +53,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
   });
 
+  const { data: produtos = [] } = useQuery({
+    queryKey: ["produtos-deposito", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const cochosVinculados = useMemo(() => {
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
   }, [pontosSuplementacao, deposito.id]);
@@ -80,95 +87,91 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
+  // Função para obter sacos de um produto
+  const getSacosInfo = (produtoId, saldoKg) => {
+    const produto = produtos.find(p => p.id === produtoId);
+    if (produto && podeMostrarSacos(produto)) {
+      const sacos = saldoKg / produto.peso_por_saco_kg;
+      return `${sacos.toFixed(1)} sacos`;
+    }
+    return null;
+  };
+
   return (
-    <div className="space-y-4" translate="no">
-      <div className="flex items-start justify-between gap-3 pb-2 border-b">
-        <div className="flex items-start gap-3">
-          <IndicadorCopoNivel titulo="Nível" valor={`${Math.round((indicador?.percent || 0) * 100)}%`} subtitulo={indicador.helperLabel} percent={indicador.percent} cor="#0ea5e9" compact />
-          <div>
-            <div className="text-sm font-bold text-slate-900 mb-1">{deposito.nome_ponto}</div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs">Depósito</Badge>
-              <Badge variant="outline" className="text-xs">{deposito.local_estoque_nome || "Sem local"}</Badge>
-              <Badge variant="outline" className="text-xs">{indicador.badgeLabel}</Badge>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-3" translate="no">
+      {/* Header */}
+      <div className="pb-2 border-b">
+        <div className="text-sm font-bold text-slate-900">{deposito.nome_ponto}</div>
+        <div className="text-[10px] text-slate-500">Depósito · {deposito.local_estoque_nome || "Sem local"}</div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      {/* Botões */}
+      <div className="grid grid-cols-3 gap-1.5">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-[10px]">
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cobertura estimada</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div></CardContent></Card>
+      {/* Resumo */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <div className="border border-slate-200 rounded p-2"><div className="text-[10px] text-slate-500">Produtos</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></div>
+        <div className="border border-slate-200 rounded p-2"><div className="text-[10px] text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></div>
+        <div className="border border-slate-200 rounded p-2"><div className="text-[10px] text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></div>
+        <div className="border border-slate-200 rounded p-2"><div className="text-[10px] text-slate-500">Cobertura estimada</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div></div>
       </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-2">
-          <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
-          {ultimoRegistro ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-slate-900">{ultimoRegistro.produto_nome}</span>
-                <Badge variant="outline" className="text-xs">{formatKg(ultimoRegistro.quantidade || 0)}</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-slate-600">
-                <div>Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
-                <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
-                <div>Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
-                <div>Destino: <span className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</span></div>
-              </div>
-              {ultimoRegistro.observacoes && <div className="text-slate-500 italic">{ultimoRegistro.observacoes}</div>}
-            </div>
-          ) : (
-            <div className="text-xs text-slate-500">Nenhum registro ainda.</div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Último registro */}
+      <div className="border border-slate-200 rounded p-2.5">
+        <div className="text-[11px] font-bold text-slate-900 mb-1.5">Último Registro</div>
+        {ultimoRegistro ? (
+          <div className="text-[10px] space-y-1 text-slate-600">
+            <div className="flex justify-between"><span className="font-semibold text-slate-900">{ultimoRegistro.produto_nome}</span><span className="font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</span></div>
+            <div>Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
+            <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
+          </div>
+        ) : (
+          <div className="text-[10px] text-slate-500">Nenhum registro.</div>
+        )}
+      </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-2">
-          <div className="text-[11px] font-bold text-slate-900">Saldo por Produto</div>
-          {saldosAgrupados.length === 0 ? (
-            <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div>
-          ) : (
-            <div className="space-y-2">
-              {saldosAgrupados.map((item) => (
-                <div key={item.produto_id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
-                  <Badge variant="outline" className="text-xs">{formatKg(item.saldo)}</Badge>
+      {/* Saldo por produto */}
+      <div className="border border-slate-200 rounded p-2.5">
+        <div className="text-[11px] font-bold text-slate-900 mb-1.5">Saldo por Produto</div>
+        {saldosAgrupados.length === 0 ? (
+          <div className="text-[10px] text-slate-500">Sem saldo disponível.</div>
+        ) : (
+          <div className="space-y-1">
+            {saldosAgrupados.map((item) => {
+              const sacosInfo = getSacosInfo(item.produto_id, item.saldo);
+              return (
+                <div key={item.produto_id} className="flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                  <div className="text-[10px] font-medium text-slate-900">{item.produto_nome}</div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-bold text-slate-900">{formatKg(item.saldo)}</div>
+                    {sacosInfo && <div className="text-[9px] text-slate-500">{sacosInfo}</div>}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-2">
-          <div className="text-[11px] font-bold text-slate-900">Pastos atendidos pela saída do estoque</div>
-          {cochosVinculados.length === 0 ? (
-            <div className="text-xs text-slate-500">Nenhum cocho vinculado a este depósito.</div>
-          ) : (
-            <div className="space-y-2">
-              {cochosVinculados.map((cocho) => (
-                <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <div className="text-xs font-semibold text-slate-900">{cocho.area_vinculada_nome || "Sem pasto vinculado"}</div>
-                  <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
-                  <div className="text-[10px] text-slate-500">Saída do estoque para: {cocho.area_vinculada_nome || "Pasto não informado"}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Pastos atendidos */}
+      {cochosVinculados.length > 0 && (
+        <div className="border border-slate-200 rounded p-2.5">
+          <div className="text-[11px] font-bold text-slate-900 mb-1.5">Pastos atendidos</div>
+          <div className="space-y-1">
+            {cochosVinculados.map((cocho) => (
+              <div key={cocho.id} className="text-[10px] text-slate-600 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                <span className="font-semibold text-slate-900">{cocho.nome_ponto}</span> — {cocho.area_vinculada_nome || "Sem pasto"}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
+      {/* Dialogs */}
       <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle className="text-sm">Transferência do Depósito</DialogTitle></DialogHeader>
