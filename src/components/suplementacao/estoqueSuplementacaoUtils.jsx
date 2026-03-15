@@ -1,7 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { normalizeText, parseNumber } from "../utils/pecuariaUtils";
 
-// Re-exportar para manter compatibilidade com imports existentes
 export { normalizeText, parseNumber };
 
 export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => {
@@ -10,54 +9,52 @@ export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => 
     .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
 };
 
-export async function getNextSystemNumber() {
-  const movimentacoes = await base44.entities.MovimentacaoEstoque.list("-created_date", 1);
-  const ultimoNumero = parseInt(movimentacoes?.[0]?.numero_movimentacao) || 0;
-  return ultimoNumero > 0 ? ultimoNumero + 1 : 1;
-}
+const getFifoTimestamp = (lote) => {
+  const source = lote?.data_documento || lote?.created_date;
+  if (!source) return null;
+  const timestamp = new Date(source).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
 
-function getValidFifoDate(lote) {
-  const rawDate = lote.data_documento || lote.created_date;
-  const parsed = new Date(rawDate);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
+const buildRateioTrace = (rateio) => {
+  return rateio.map((item) => `${item.numero_documento || "S/N"}: ${item.quantidade_consumida.toFixed(3)} kg`).join(" | ");
+};
 
-function buildRateioObservacao(rateio) {
-  return rateio
-    .map((item) => `${item.numero_documento || "S/N"}: ${item.quantidade_consumida.toFixed(3)} kg`)
-    .join(" | ");
-}
-
-export function conferirDivergenciaEstoque({ lotesNota, produtoId, localEstoqueId, saldoProduto }) {
+export function validarDivergenciaEstoque({ lotesNota, produtoId, localEstoqueId, estoqueProduto }) {
   const saldoLotes = obterSaldoProdutoLocal(lotesNota, produtoId, localEstoqueId);
-  const saldoCadastro = Number(saldoProduto || 0);
-  const divergencia = Math.abs(saldoLotes - saldoCadastro);
+  const saldoProduto = Number(estoqueProduto || 0);
+  const divergencia = Math.abs(saldoLotes - saldoProduto);
   return {
     saldoLotes,
-    saldoCadastro,
+    saldoProduto,
     divergencia,
-    inconsistente: divergencia > 0.001,
+    possuiDivergencia: divergencia > 0.001,
   };
+}
+
+export async function getNextSystemNumber() {
+  const ultimoRegistro = await base44.entities.MovimentacaoEstoque.list("-created_date", 1);
+  const numeroAtual = parseInt(ultimoRegistro?.[0]?.numero_movimentacao, 10) || 0;
+  return numeroAtual + 1;
 }
 
 export function calcularRateioFIFO({ lotesNota, produtoId, localEstoqueId, quantidade }) {
   const quantidadeSolicitada = parseNumber(quantidade);
   const lotesElegiveis = lotesNota.filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && (lote.quantidade_disponivel || 0) > 0);
-  const lotesSemDataValida = lotesElegiveis.filter((lote) => !getValidFifoDate(lote));
+  const lotesSemDataValida = lotesElegiveis.filter((lote) => getFifoTimestamp(lote) === null);
 
   if (lotesSemDataValida.length > 0) {
     return {
       sucesso: false,
-      erro: "Existem lotes de estoque sem data válida para aplicar o FIFO com segurança.",
+      erro: "Existem lotes sem data válida no estoque. Corrija os documentos antes de consumir por FIFO.",
       rateio: [],
       custoMedioPonderado: 0,
     };
   }
 
-  const lotesOrdenados = lotesElegiveis.sort((a, b) => {
-    const dateA = getValidFifoDate(a);
-    const dateB = getValidFifoDate(b);
-    if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+  const lotesOrdenados = [...lotesElegiveis].sort((a, b) => {
+    const dateDiff = getFifoTimestamp(a) - getFifoTimestamp(b);
+    if (dateDiff !== 0) return dateDiff;
     return String(a.id).localeCompare(String(b.id));
   });
 
@@ -117,11 +114,11 @@ async function baixarLotesFIFO(rateio) {
     if (!loteAtual?.length) continue;
 
     const saldoAtual = loteAtual[0].quantidade_disponivel || 0;
-    if (item.quantidade_consumida > saldoAtual) {
-      throw new Error(`Tentativa de baixar ${item.quantidade_consumida.toFixed(3)} kg acima do saldo do lote ${item.numero_documento || item.lote_id}.`);
+    if (saldoAtual < item.quantidade_consumida) {
+      throw new Error("Divergência detectada: o saldo do lote ficou menor que o consumo solicitado.");
     }
-    const novoSaldo = Math.max(0, saldoAtual - item.quantidade_consumida);
 
+    const novoSaldo = saldoAtual - item.quantidade_consumida;
     await base44.entities.EstoqueLoteNota.update(item.lote_id, {
       quantidade_disponivel: novoSaldo,
       status: novoSaldo > 0 ? "Disponivel" : "Esgotado",
@@ -165,6 +162,18 @@ export async function registrarSaidaSuplementacao({
   depositoId,
   pontoSuplementacaoId,
 }) {
+  const quantidadeFinal = parseNumber(quantidade);
+  const consistencia = validarDivergenciaEstoque({
+    lotesNota,
+    produtoId: produto.id,
+    localEstoqueId: localOrigemId,
+    estoqueProduto: produto.estoque_atual,
+  });
+
+  if (consistencia.possuiDivergencia && consistencia.saldoLotes < quantidadeFinal) {
+    throw new Error("Divergência de estoque detectada entre saldo por lotes e saldo agregado do produto.");
+  }
+
   const resultado = calcularRateioFIFO({
     lotesNota,
     produtoId: produto.id,
@@ -176,21 +185,13 @@ export async function registrarSaidaSuplementacao({
     throw new Error(resultado.erro);
   }
 
-  const quantidadeFinal = parseNumber(quantidade);
-  const estoqueAtual = produto.estoque_atual || 0;
-  const conferencia = conferirDivergenciaEstoque({
-    lotesNota,
-    produtoId: produto.id,
-    localEstoqueId: localOrigemId,
-    saldoProduto: estoqueAtual,
-  });
-  if (conferencia.inconsistente) {
-    throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
-  }
-  if (estoqueAtual - quantidadeFinal < 0) {
+  const estoqueAtual = Number(produto.estoque_atual || consistencia.saldoLotes || 0);
+  if (consistencia.saldoLotes - quantidadeFinal < 0 || estoqueAtual - quantidadeFinal < 0) {
     throw new Error("Não é permitido saldo negativo de estoque.");
   }
+
   const numeroMovimentacao = await getNextSystemNumber();
+  const observacoesComTrace = `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioTrace(resultado.rateio)}`;
 
   const movimentacao = await base44.entities.MovimentacaoEstoque.create({
     empresa_id: empresaId,
@@ -213,14 +214,14 @@ export async function registrarSaidaSuplementacao({
     tipo_vinculo: areaId ? "area" : undefined,
     centro_custo_nome: areaNome || undefined,
     motivo_movimentacao: "Baixa automática de suplementação",
-    observacoes: `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioObservacao(resultado.rateio)}`,
+    observacoes: observacoesComTrace,
     origem_sistema: "suplementacao",
     deposito_id: depositoId || undefined,
     ponto_suplementacao_id: pontoSuplementacaoId || undefined,
     bloqueado_exclusao_estoque: true,
     exclusao_somente_em: "cocho",
-    saldo_antes: estoqueAtual,
-    saldo_depois: Math.max(0, estoqueAtual - quantidadeFinal),
+    saldo_antes: consistencia.saldoLotes,
+    saldo_depois: consistencia.saldoLotes - quantidadeFinal,
     custo_medio_antes: produto.preco_custo || 0,
     custo_medio_depois: produto.preco_custo || 0,
     usuario_responsavel: userEmail || "Sistema",
@@ -229,10 +230,10 @@ export async function registrarSaidaSuplementacao({
 
   await baixarLotesFIFO(resultado.rateio);
   await base44.entities.Produto.update(produto.id, {
-    estoque_atual: Math.max(0, estoqueAtual - quantidadeFinal),
+    estoque_atual: consistencia.saldoLotes - quantidadeFinal,
   });
 
-  return { movimentacao, rateio: resultado.rateio };
+  return { movimentacao, rateio: resultado.rateio, rastreabilidade: observacoesComTrace };
 }
 
 export async function registrarTransferenciaEntreLocais({
@@ -247,6 +248,14 @@ export async function registrarTransferenciaEntreLocais({
   observacoes,
   lotesNota,
 }) {
+  const quantidadeFinal = parseNumber(quantidade);
+  const consistencia = validarDivergenciaEstoque({
+    lotesNota,
+    produtoId: produto.id,
+    localEstoqueId: localOrigemId,
+    estoqueProduto: produto.estoque_atual,
+  });
+
   const resultado = calcularRateioFIFO({
     lotesNota,
     produtoId: produto.id,
@@ -258,21 +267,12 @@ export async function registrarTransferenciaEntreLocais({
     throw new Error(resultado.erro);
   }
 
-  const quantidadeFinal = parseNumber(quantidade);
-  const estoqueAtual = produto.estoque_atual || 0;
-  const conferencia = conferirDivergenciaEstoque({
-    lotesNota,
-    produtoId: produto.id,
-    localEstoqueId: localOrigemId,
-    saldoProduto: estoqueAtual,
-  });
-  if (conferencia.inconsistente) {
-    throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
-  }
-  if (estoqueAtual - quantidadeFinal < 0) {
+  if (consistencia.saldoLotes - quantidadeFinal < 0) {
     throw new Error("Não é permitido saldo negativo de estoque.");
   }
+
   const numeroBase = await getNextSystemNumber();
+  const observacoesComTrace = `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioTrace(resultado.rateio)}`;
 
   const movimentacaoSaida = await base44.entities.MovimentacaoEstoque.create({
     empresa_id: empresaId,
@@ -293,12 +293,12 @@ export async function registrarTransferenciaEntreLocais({
     local_estoque_destino: localDestinoId,
     local_destino: localDestinoNome,
     motivo_movimentacao: "Transferência entre locais de estoque",
-    observacoes,
+    observacoes: observacoesComTrace,
     origem_sistema: "deposito",
     bloqueado_exclusao_estoque: true,
     exclusao_somente_em: "deposito",
-    saldo_antes: estoqueAtual,
-    saldo_depois: estoqueAtual,
+    saldo_antes: consistencia.saldoLotes,
+    saldo_depois: consistencia.saldoLotes - quantidadeFinal,
     custo_medio_antes: produto.preco_custo || 0,
     custo_medio_depois: produto.preco_custo || 0,
     usuario_responsavel: userEmail || "Sistema",
@@ -326,13 +326,13 @@ export async function registrarTransferenciaEntreLocais({
     local_estoque_destino: localDestinoId,
     local_destino: localDestinoNome,
     motivo_movimentacao: "Transferência entre locais de estoque",
-    observacoes,
+    observacoes: observacoesComTrace,
     origem_sistema: "deposito",
     bloqueado_exclusao_estoque: true,
     exclusao_somente_em: "deposito",
     movimento_pai_id: movimentacaoSaida.id,
-    saldo_antes: estoqueAtual,
-    saldo_depois: estoqueAtual,
+    saldo_antes: 0,
+    saldo_depois: quantidadeFinal,
     custo_medio_antes: produto.preco_custo || 0,
     custo_medio_depois: produto.preco_custo || 0,
     usuario_responsavel: userEmail || "Sistema",
