@@ -23,6 +23,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
+  const [mostrarConsumoLote, setMostrarConsumoLote] = useState(false);
   const [formData, setFormData] = useState({
     data_lancamento: new Date().toISOString().split("T")[0],
     produto: ponto?.produto_padrao || "",
@@ -164,22 +165,42 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const consumoEsperadoGrupoDiaPV = consumoEsperadoCabDiaPV * totalCabecas;
 
   // Consumo estimado do novo lançamento
-  const diasEstimadosNovoPeriodo = Math.max(1, ponto?.frequencia_esperada_dias || 1);
-  const consumoEstimadoCabDia = safeDivide(quantidadeKg, totalCabecas * diasEstimadosNovoPeriodo);
+  const frequenciaMinima = Math.max(0, Number(ponto?.frequencia_esperada_dias_minimo || 0));
+  const frequenciaMaxima = Math.max(frequenciaMinima || 0, Number(ponto?.frequencia_esperada_dias_maximo || ponto?.frequencia_esperada_dias || 0));
+  const frequenciaMedia = frequenciaMinima > 0 && frequenciaMaxima > 0
+    ? (frequenciaMinima + frequenciaMaxima) / 2
+    : Math.max(1, Number(ponto?.frequencia_esperada_dias || 1));
+  const consumoReferenciaGrupoDia = consumoEsperadoGrupoDiaPV > 0
+    ? consumoEsperadoGrupoDiaPV
+    : (Number(ponto?.consumo_ideal_por_cabeca_kg || 0) * totalCabecas);
+  const consumoEstimadoCabDia = totalCabecas > 0 ? safeDivide(consumoReferenciaGrupoDia, totalCabecas) : 0;
   const consumoEstimadoGramas = consumoEstimadoCabDia * 1000;
+  const duracaoDiasNovoPeriodo = consumoReferenciaGrupoDia > 0 ? safeDivide(quantidadeKg, consumoReferenciaGrupoDia) : 0;
+  const duracaoDiasInteira = Math.max(0, Math.round(duracaoDiasNovoPeriodo || 0));
+  const dataEstimadaProxima = duracaoDiasInteira > 0
+    ? new Date(new Date(formData.data_lancamento).getTime() + duracaoDiasInteira * 86400000)
+    : null;
 
-  // Avaliação técnica: prioriza %PV se disponível, senão usa regras de fallback
+  const statusDuracao = (() => {
+    if (duracaoDiasInteira <= 0) return { status: "sem_dados", label: "Sem referência", message: "Não foi possível calcular a duração estimada." };
+    if (frequenciaMinima > 0 && duracaoDiasInteira < frequenciaMinima) {
+      return { status: "baixo", label: "Abaixo do mínimo", message: `A duração estimada ficou abaixo da frequência mínima (${formatDecimal(frequenciaMinima, 0, true)} dia(s)).` };
+    }
+    if (frequenciaMaxima > 0 && duracaoDiasInteira > frequenciaMaxima) {
+      return { status: "alto", label: "Acima do máximo", message: `A duração estimada ficou acima da frequência máxima (${formatDecimal(frequenciaMaxima, 0, true)} dia(s)).` };
+    }
+    return { status: "normal", label: "Dentro do limite", message: "A duração estimada ficou dentro da faixa esperada do cocho." };
+  })();
+
+  const regraProduto = getSupplementRule(formData.produto);
   const avaliacaoPV = pctPV > 0 && pesoMedioGeral > 0
     ? avaliarConsumoPV(consumoEstimadoCabDia, pesoMedioGeral, produtoSelecionado)
     : null;
-
-  const regraProduto = getSupplementRule(formData.produto);
   const avaliacaoFallback = evaluateConsumoFaixa(consumoEstimadoCabDia, formData.produto, {
     min: ponto?.limite_minimo_consumo || undefined,
     idealMin: ponto?.consumo_ideal_por_cabeca_kg || undefined,
     idealMax: ponto?.limite_maximo_consumo || undefined,
   });
-
   const avaliacaoTecnica = avaliacaoPV || avaliacaoFallback;
 
   // Médias recentes
@@ -271,6 +292,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
     if (["critico_baixo", "critico_alto"].includes(avaliacaoTecnica.status)) {
       return toast.error(avaliacaoTecnica.message);
+    }
+
+    if (statusDuracao.status === "baixo" || statusDuracao.status === "alto") {
+      const confirmarDuracao = window.confirm(`${statusDuracao.message}\n\nDeseja salvar mesmo assim?`);
+      if (!confirmarDuracao) return;
     }
 
     if (["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status)) {
@@ -391,12 +417,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   return (
     <>
-      <Card>
-        <CardHeader className="bg-slate-50 border-b py-3"><CardTitle className="text-sm font-semibold text-slate-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
-        <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-          <div className="space-y-4">
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="bg-slate-50 border-b py-2"><CardTitle className="text-sm font-semibold text-slate-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
+        <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div className="space-y-2">
             {/* Resumo do ponto */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs">
                 <div><span className="text-slate-600">Áreas:</span><span className="font-semibold text-slate-900 ml-2">{areaNomesVinculados.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
                 <div><span className="text-slate-600">Depósito:</span><span className="font-semibold text-slate-900 ml-2">{depositoVinculado?.nome_ponto || "Não vinculado"}</span></div>
@@ -413,7 +439,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
 
             {/* Formulário principal */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Data do lançamento *</Label>
                 <Input type="date" value={formData.data_lancamento} onChange={(e) => setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }))} className="h-8 text-xs" />
@@ -436,7 +462,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
 
             {/* Campos de quantidade com suporte a sacos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
               {suportaSacos && (
                 <div className="space-y-1">
                   <Label className="text-xs">Unidade de lançamento</Label>
@@ -499,7 +525,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
                 <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV do produto</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
@@ -512,7 +538,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Validação técnica */}
             {quantidadeKg > 0 && totalCabecas > 0 && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
                   <Badge variant="outline" className="text-xs">
@@ -546,7 +572,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               const saldoRestante = ultimoEvento.dias_periodo != null ? sobraAnterior : Math.max(0, totalDisponivelAnterior - (consumoDiarioAnterior * (diasPeriodo || 0)));
               const consumidoAnterior = Math.max(0, totalDisponivelAnterior - saldoRestante);
               return (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
                   <div className="text-xs font-semibold text-slate-900">Consumo do último período {ultimoEvento.dias_periodo == null ? "(estimativa)" : ""}</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                     <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatDecimal(fornecidoAnterior)} kg</div></div>

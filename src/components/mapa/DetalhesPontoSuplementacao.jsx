@@ -119,7 +119,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     });
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventos, produtos]);
-  const temAlerta = ponto.status === "Ativo" && (diasSemLancamento === null || diasSemLancamento > (ponto.alerta_sem_lancamento_dias || 10));
+  const frequenciaMinimaAlerta = Number(ponto.frequencia_esperada_dias_minimo || ponto.frequencia_esperada_dias || 0);
+  const temAlerta = ponto.status === "Ativo" && frequenciaMinimaAlerta > 0 && (diasSemLancamento === null || diasSemLancamento > frequenciaMinimaAlerta);
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -240,7 +241,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           {ponto.cobertura_cocho && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cobertura:</span><span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência mínima:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias_minimo ? `${formatDecimal(ponto.frequencia_esperada_dias_minimo, 0, true)} dia(s)` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência máxima:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias_maximo ? `${formatDecimal(ponto.frequencia_esperada_dias_maximo, 0, true)} dia(s)` : ponto.frequencia_esperada_dias ? `${formatDecimal(ponto.frequencia_esperada_dias, 0, true)} dia(s)` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.alerta_sem_lancamento_dias || 0, 0, true)} dia(s)</span></div>
+
         </div>
       </CardSection>
 
