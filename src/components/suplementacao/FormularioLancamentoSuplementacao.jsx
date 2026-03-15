@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuplementacao } from "./estoqueSuplementacaoUtils";
 import { formatDecimal } from "./formatters";
+import { calcularConsumo, calcularConsumoLote, calcularDiasPeriodo } from "../utils/consumoUtils";
+import { safeDivide } from "../utils/pecuariaUtils";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -95,7 +97,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
-  const diasPeriodo = ultimoEvento ? Math.max(1, Math.ceil((new Date(formData.data_lancamento) - new Date(ultimoEvento.data_lancamento)) / 86400000)) : null;
+  const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, formData.data_lancamento) : null;
   const pesoTotalConsumo = lotes.reduce((total, lote) => {
     const fator = fatores.find((item) => normalizeText(item.categoria) === normalizeText(lote.categoria))?.fator || 1;
     return total + ((lote.quantidade_cabecas || 0) * fator);
@@ -131,25 +133,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
       if (ultimoEvento && diasPeriodo > 0) {
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Fechando período anterior..." });
-        const quantidadeConsumidaAnterior = (ultimoEvento.quantidade_total_kg || 0) - (ultimoEvento.sobra_kg || 0);
-        const consumoDiarioAnterior = quantidadeConsumidaAnterior / diasPeriodo;
-        const consumoUnitarioAnterior = ultimoEvento.peso_total_consumo > 0 ? quantidadeConsumidaAnterior / (diasPeriodo * ultimoEvento.peso_total_consumo) : 0;
-
-        await base44.entities.SuplementacaoEvento.update(ultimoEvento.id, { dias_periodo: diasPeriodo, consumo_diario_grupo_kg: consumoDiarioAnterior });
-
-        const todosLotes = await base44.entities.SuplementacaoLote.list();
-        const lotesEventoAnterior = todosLotes.filter((item) => item.suplementacao_evento_id === ultimoEvento.id);
-        for (const loteAnterior of lotesEventoAnterior) {
-          const fatorLote = loteAnterior.fator_consumo || 1;
-          const consumoPorCabecaDia = consumoUnitarioAnterior * fatorLote;
-          const consumoTotalPeriodo = consumoPorCabecaDia * (loteAnterior.cabecas_na_area || 0) * diasPeriodo;
-          await base44.entities.SuplementacaoLote.update(loteAnterior.id, {
-            dias_periodo: diasPeriodo,
-            consumo_unitario_dia: consumoUnitarioAnterior,
-            consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
-            consumo_total_lote_periodo_kg: consumoTotalPeriodo,
-          });
-        }
+        const { fecharPeriodoSupplementacao } = await import("../utils/consumoUtils");
+        await fecharPeriodoSupplementacao({
+          evento: ultimoEvento,
+          diasPeriodo,
+          sobraFinal: ultimoEvento.sobra_kg || 0,
+        });
       }
 
       let movimentoEstoque = null;
