@@ -174,7 +174,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="max-w-[880px]"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>

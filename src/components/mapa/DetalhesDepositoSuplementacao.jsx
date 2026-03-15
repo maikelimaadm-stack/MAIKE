@@ -124,7 +124,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <div className="text-sm font-bold text-slate-900">{deposito.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">Depósito</Badge>
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{deposito.local_estoque_nome || "Sem local"}</Badge>
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Local: {deposito.local_estoque_nome || "Sem local"}</Badge>
         </div>
       </div>
 
@@ -172,12 +172,12 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
           {ultimoRegistro ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-1">
-              <div>
-                <span className="text-slate-900 pr-24 font-semibold">{ultimoRegistro.produto_nome}</span>
-                <Badge variant="outline" className="text-slate-900 mx-8 pr-24 font-semibold rounded-md inline-flex items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoRegistro.quantidade || 0)}</Badge>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-slate-900 font-semibold">{ultimoRegistro.produto_nome}</span>
+                <span className="whitespace-nowrap font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</span>
               </div>
-              <div className="grid grid-cols-3 gap-1 text-slate-600">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-slate-600">
                 <div>Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
                 <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
                 <div>Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
@@ -197,14 +197,14 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
           {saldosAgrupados.length === 0 ? (
             <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {saldosAgrupados.map((item) => (
-                <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
-                    <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{formatKg(item.saldo)}</Badge>
+                <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
+                    <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
+                    <div className="whitespace-nowrap text-slate-500">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.saldo)}</div>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-1">Sacos: {(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                 </div>
               ))}
             </div>
@@ -232,7 +232,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </Card>
 
       <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
-        <DialogContent className="max-w-[880px]">
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Transferência do Depósito</DialogTitle></DialogHeader>
           <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => { setShowTransferencia(false); handleSaved(); }} onCancel={() => setShowTransferencia(false)} />
         </DialogContent>
