@@ -295,30 +295,30 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMorte = async (formData) => {
-    console.log('🔍 DETALHES - Lotes passados para formulário:', lotes);
-    console.log('🔍 DETALHES - Categorias nos lotes:', lotes.map(l => l.categoria));
-
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaMorte = areas.find(a => a.id === areaAtualId);
 
     for (const lote of lotesCategoria) {
-      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
+      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas || 0);
+      if (qtdRemover <= 0) continue;
 
       await base44.entities.MovimentacaoMapa.create({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
         tipo: 'Morte',
         lote: lote.nome,
-          lote_id: lote.id,
+        lote_id: lote.id,
         quantidade_animais: qtdRemover,
         area_origem_id: areaAtualId,
         area_origem_nome: areaMorte?.nome || '',
         observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
       });
 
+      const novaQtd = Math.max(0, (lote.quantidade_cabecas || 0) - qtdRemover);
       await base44.entities.Lote.update(lote.id, {
-        quantidade_cabecas: lote.quantidade_cabecas - qtdRemover
+        quantidade_cabecas: novaQtd,
+        status: novaQtd > 0 ? lote.status : 'Inativo'
       });
 
       formData.quantidade -= qtdRemover;
@@ -401,22 +401,25 @@ export default function DetalhesLote({ lotes, onClose }) {
     const areaAbate = areas.find(a => a.id === areaAtualId);
 
     for (const lote of lotesCategoria) {
-      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
+      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas || 0);
+      if (qtdRemover <= 0) continue;
 
       await base44.entities.MovimentacaoMapa.create({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: new Date(formData.data_abate).toISOString(),
         tipo: 'Abate',
         lote: lote.nome,
-          lote_id: lote.id,
+        lote_id: lote.id,
         quantidade_animais: qtdRemover,
         area_origem_id: areaAtualId,
         area_origem_nome: areaAbate?.nome || '',
         observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
       });
 
+      const novaQtd = Math.max(0, (lote.quantidade_cabecas || 0) - qtdRemover);
       await base44.entities.Lote.update(lote.id, {
-        quantidade_cabecas: lote.quantidade_cabecas - qtdRemover
+        quantidade_cabecas: novaQtd,
+        status: novaQtd > 0 ? lote.status : 'Inativo'
       });
 
       formData.quantidade -= qtdRemover;
