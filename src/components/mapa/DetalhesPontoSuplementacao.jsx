@@ -45,18 +45,14 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
   return (
     <div className="space-y-4" translate="no">
-      <div className="flex items-start justify-between gap-3 pb-2 border-b">
-        <div className="flex items-start gap-3">
-          <IndicadorCopoNivel titulo="Nível" valor={`${Math.round((indicador?.percent || 0) * 100)}%`} subtitulo={indicador.helperLabel} percent={indicador.percent} cor="#10b981" compact />
-          <div>
-            <div className="text-sm font-bold text-slate-900 mb-1">{ponto.nome_ponto}</div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={ponto.status === "Ativo" ? "default" : "secondary"} className="text-xs">{ponto.status}</Badge>
-              {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs">Depósito: {ponto.deposito_origem_nome}</Badge>}
-              <Badge variant="outline" className="text-xs">{indicador.badgeLabel}</Badge>
-              {temAlerta && <Badge className="bg-amber-100 text-amber-800 text-xs"><AlertCircle className="w-3 h-3 mr-1" />Alerta</Badge>}
-            </div>
-          </div>
+      <div className="pb-2 border-b space-y-2">
+        <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{ponto.status}</Badge>
+          {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito: {ponto.deposito_origem_nome}</Badge>}
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{indicador.badgeLabel}</Badge>
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Nível estimado: {Math.round((indicador?.percent || 0) * 100)}%</Badge>
+          {temAlerta && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Alerta</Badge>}
         </div>
       </div>
 
@@ -84,28 +80,34 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const diasDesde = diasSemLancamento || 0;
         let saldoEstimado;
         if (ultimoEvento.dias_periodo != null) {
-          // Período fechado: saldo = sobra informada
           saldoEstimado = sobra;
         } else {
-          // Período aberto: considera o fornecido do lançamento + a sobra existente no início do período
           const totalDisponivel = fornecido + sobra;
           const consumoEstimado = consumoDiario > 0 ? consumoDiario : (totalDisponivel / (ponto.frequencia_esperada_dias || 7));
           saldoEstimado = Math.max(0, totalDisponivel - (consumoEstimado * diasDesde));
         }
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
-          <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-3 space-y-2">
-            <div className="text-[11px] font-bold text-slate-900">Saldo estimado no cocho</div>
-            <div className="flex items-center gap-3">
-              <IndicadorCopoNivel 
-                titulo="Cocho" 
-                valor={formatKg(saldoEstimado)} 
-                subtitulo={ultimoEvento.dias_periodo != null ? "Sobra do último fechamento" : `~${diasDesde} dia(s) desde lançamento`}
-                percent={percentual} 
-                cor={percentual > 0.3 ? "#10b981" : percentual > 0.1 ? "#f59e0b" : "#ef4444"} 
-              />
+          <CardSection title="Saldo estimado no cocho">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-slate-500">Saldo estimado</div>
+                <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-slate-500">Capacidade</div>
+                <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-slate-500">Nível estimado</div>
+                <div className="text-sm font-bold text-slate-900">{Math.round(percentual * 100)}%</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-slate-500">Base</div>
+                <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
+              </div>
             </div>
-          </div>
+          </CardSection>
         );
       })()}
 

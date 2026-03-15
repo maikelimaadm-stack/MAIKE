@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
-import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import { formatKg } from "../suplementacao/formatters";
+import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
@@ -26,6 +26,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.local_estoque_id === deposito.local_estoque_id && lote.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
+  });
+
+  const { data: produtos = [] } = useQuery({
+    queryKey: ["produtos-deposito-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
   });
 
   const { data: pontosSuplementacao = [] } = useQuery({
@@ -62,12 +71,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   const saldosAgrupados = useMemo(() => {
     const mapa = new Map();
     lotesNota.forEach((lote) => {
-      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0 };
+      const produto = produtos.find((item) => item.id === lote.produto_id);
+      const pesoPorSaco = Number(produto?.peso_por_saco_kg || 0);
+      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0, saldoSacos: 0 };
       current.saldo += lote.quantidade_disponivel || 0;
+      current.saldoSacos += pesoPorSaco > 0 ? kgParaSacos(lote.quantidade_disponivel || 0, pesoPorSaco) : 0;
       mapa.set(lote.produto_id, current);
     });
     return Array.from(mapa.values()).sort((a, b) => a.produto_nome.localeCompare(b.produto_nome));
-  }, [lotesNota]);
+  }, [lotesNota, produtos]);
 
   const indicador = useMemo(() => {
     return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes);
@@ -82,17 +94,13 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
 
   return (
     <div className="space-y-4" translate="no">
-      <div className="flex items-start justify-between gap-3 pb-2 border-b">
-        <div className="flex items-start gap-3">
-          <IndicadorCopoNivel titulo="Nível" valor={`${Math.round((indicador?.percent || 0) * 100)}%`} subtitulo={indicador.helperLabel} percent={indicador.percent} cor="#0ea5e9" compact />
-          <div>
-            <div className="text-sm font-bold text-slate-900 mb-1">{deposito.nome_ponto}</div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs">Depósito</Badge>
-              <Badge variant="outline" className="text-xs">{deposito.local_estoque_nome || "Sem local"}</Badge>
-              <Badge variant="outline" className="text-xs">{indicador.badgeLabel}</Badge>
-            </div>
-          </div>
+      <div className="pb-2 border-b space-y-2">
+        <div className="text-sm font-bold text-slate-900">{deposito.nome_ponto}</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito</Badge>
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{deposito.local_estoque_nome || "Sem local"}</Badge>
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{indicador.badgeLabel}</Badge>
+          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Nível estimado: {Math.round((indicador?.percent || 0) * 100)}%</Badge>
         </div>
       </div>
 
@@ -102,11 +110,11 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-[10px]">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cobertura estimada</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div></CardContent></Card>
+        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Saldo em sacos</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toFixed(1)} sacos</div></CardContent></Card>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
@@ -140,9 +148,12 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
           ) : (
             <div className="space-y-2">
               {saldosAgrupados.map((item) => (
-                <div key={item.produto_id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
-                  <Badge variant="outline" className="text-xs">{formatKg(item.saldo)}</Badge>
+                <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
+                    <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{formatKg(item.saldo)}</Badge>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-1">Sacos: {item.saldoSacos > 0 ? item.saldoSacos.toFixed(1) : '0,0'}</div>
                 </div>
               ))}
             </div>
