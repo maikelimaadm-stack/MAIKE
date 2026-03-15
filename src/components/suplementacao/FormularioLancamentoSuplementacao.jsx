@@ -272,10 +272,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
               const consumidoAnterior = fornecidoAnterior - sobraAnterior;
               const diasAnterior = ultimoEvento.dias_periodo || diasPeriodo || 0;
-              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || (diasAnterior > 0 ? consumidoAnterior / diasAnterior : 0);
-              const consumoPorCabAnterior = (ultimoEvento.total_cabecas_afetadas || 0) > 0 && diasAnterior > 0
-                ? consumidoAnterior / ((ultimoEvento.total_cabecas_afetadas || 1) * diasAnterior)
-                : 0;
+              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(consumidoAnterior, diasAnterior);
+              const consumoPorCabAnterior = safeDivide(consumidoAnterior, (ultimoEvento.total_cabecas_afetadas || 0) * diasAnterior);
               const saldoRestante = ultimoEvento.dias_periodo != null ? sobraAnterior : Math.max(0, fornecidoAnterior - (consumoDiarioAnterior * (diasPeriodo || 0)));
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
