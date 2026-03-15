@@ -113,7 +113,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="my-1 grid grid-cols- md:grid-cols-[auto,1fr] gap-8 items-center">
+            <div className="my-1 grid grid-cols- md:grid-cols-[auto,1fr] gap-1 items-center">
               <div className="pb-1 flex items-center gap-3">
                 <PontoPercentIcon
                   imageUrl={iconeExibicao}
