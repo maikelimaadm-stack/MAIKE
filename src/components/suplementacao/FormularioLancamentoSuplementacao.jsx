@@ -271,11 +271,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {ultimoEvento && (() => {
               const sobraAnterior = ultimoEvento.sobra_kg || 0;
               const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
-              const consumidoAnterior = fornecidoAnterior - sobraAnterior;
               const diasAnterior = ultimoEvento.dias_periodo || diasPeriodo || 0;
-              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(consumidoAnterior, diasAnterior);
-              const consumoPorCabAnterior = safeDivide(consumidoAnterior, (ultimoEvento.total_cabecas_afetadas || 0) * diasAnterior);
-              const saldoRestante = ultimoEvento.dias_periodo != null ? sobraAnterior : Math.max(0, fornecidoAnterior - (consumoDiarioAnterior * (diasPeriodo || 0)));
+              const totalDisponivelAnterior = ultimoEvento.dias_periodo != null ? fornecidoAnterior : fornecidoAnterior + sobraAnterior;
+              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(fornecidoAnterior, diasAnterior);
+              const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
+              const saldoRestante = ultimoEvento.dias_periodo != null ? sobraAnterior : Math.max(0, totalDisponivelAnterior - (consumoDiarioAnterior * (diasPeriodo || 0)));
+              const consumidoAnterior = Math.max(0, totalDisponivelAnterior - saldoRestante);
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
                   <div className="text-xs font-semibold text-blue-900">Consumo do último período {ultimoEvento.dias_periodo == null ? "(estimativa)" : ""}</div>
