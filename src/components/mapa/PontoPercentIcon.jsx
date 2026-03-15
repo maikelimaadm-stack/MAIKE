@@ -20,7 +20,7 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
           {label?.slice(0, 2) || "PT"}
         </div>
       )}
-      <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-700">
+      <div className="absolute inset-x-0 top-[58%] -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-slate-700">
         {nivel}%
       </div>
     </div>
