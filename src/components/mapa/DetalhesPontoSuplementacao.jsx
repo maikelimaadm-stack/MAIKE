@@ -74,8 +74,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <div className="pb-2 border-b space-y-1">
         <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">{ponto.status}</Badge>
-          {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito: {ponto.deposito_origem_nome}</Badge>}
+          
+          {ponto.deposito_origem_nome && <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">Depósito: {ponto.deposito_origem_nome}</Badge>}
           {temAlerta && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Alerta</Badge>}
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="my-1 grid grid-cols- md:grid-cols-[auto,1fr] gap-1 items-center">
+            <div className="my-1 grid grid-cols- md:grid-cols-[auto,1fr] gap-8 items-center">
               <div className="pb-1 flex items-center gap-3">
                 <PontoPercentIcon
                   imageUrl={iconeExibicao}
