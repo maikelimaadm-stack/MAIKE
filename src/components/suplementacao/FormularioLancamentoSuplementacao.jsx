@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,9 +119,21 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const sobraInformada = parseNumber(formData.sobra_kg || 0);
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
   const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, formData.data_lancamento) : null;
-  const lotesSemFator = lotes.filter((lote) => !fatores.some((item) => normalizeText(item.categoria) === normalizeText(lote.categoria)));
+  const getFatorLote = (lote) => {
+    const match = fatores.find((item) =>
+      normalizeText(item.categoria) === normalizeText(lote.categoria) ||
+      normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_nome) ||
+      normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_id)
+    );
+    return match?.fator || 1;
+  };
+  const lotesSemFator = lotes.filter((lote) => !fatores.some((item) =>
+    normalizeText(item.categoria) === normalizeText(lote.categoria) ||
+    normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_nome) ||
+    normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_id)
+  ));
   const pesoTotalConsumo = lotes.reduce((total, lote) => {
-    const fator = fatores.find((item) => normalizeText(item.categoria) === normalizeText(lote.categoria))?.fator || 0;
+    const fator = getFatorLote(lote);
     return total + ((lote.quantidade_cabecas || 0) * fator);
   }, 0);
   const diasEstimadosNovoPeriodo = Math.max(1, ponto?.frequencia_esperada_dias || 1);
@@ -167,6 +179,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     if (!depositoVinculado?.local_estoque_id || !produtoSelecionado) return 0;
     return obterSaldoProdutoLocal(lotesNota, produtoSelecionado.id, depositoVinculado.local_estoque_id);
   }, [depositoVinculado, produtoSelecionado, lotesNota]);
+
+  useEffect(() => {
+    if (!formData.produto && produtosDisponiveis.length === 1) {
+      setFormData((prev) => ({ ...prev, produto: produtosDisponiveis[0].nome_produto }));
+    }
+  }, [formData.produto, produtosDisponiveis]);
 
   const handleSalvar = async () => {
     if (progresso.show) return;
