@@ -352,7 +352,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
             <div className="space-y-3">
               {eventosAbertos.map((evento) => {
-                const diasPeriodo = Math.max(1, Math.ceil((new Date(formData.data_movimentacao) - new Date(evento.data_lancamento)) / (1000 * 60 * 60 * 24)));
+                const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
                 return (
                   <div key={evento.id} className="border border-slate-200 rounded-lg p-3 bg-white">
                     <div className="mb-3">
