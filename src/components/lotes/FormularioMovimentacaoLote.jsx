@@ -45,10 +45,13 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       quantidade_maxima: cat.quantidade_total
     }));
 
+    // Área de saída: priorizar areaOrigem, depois pegar do primeiro lote
+    const areaSaidaId = areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
+
     return {
       data_movimentacao: new Date().toISOString().split('T')[0],
       mover_todos: 'sim',
-      area_saida_id: areaOrigem?.id || '',
+      area_saida_id: areaSaidaId,
       area_entrada_id: areaDestino || '',
       movimentacoes: movimentacoesPre,
       unir_lotes: {},
