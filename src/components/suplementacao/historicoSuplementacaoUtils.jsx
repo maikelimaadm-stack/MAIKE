@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { reabrirPeriodoSuplementacao } from "../utils/consumoUtils";
 
 /**
  * Restaura o estoque no local de origem após exclusão de uma movimentação de suplementação.
@@ -91,19 +92,10 @@ export async function excluirEventoSuplementacaoComReversao({ evento, ponto }) {
     .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
 
   if (eventoAnterior) {
-    await base44.entities.SuplementacaoEvento.update(eventoAnterior.id, {
-      dias_periodo: null,
-      consumo_diario_grupo_kg: null,
+    await reabrirPeriodoSuplementacao({
+      eventoId: eventoAnterior.id,
+      lotesSupl: lotesEvento,
     });
-    const lotesAnteriores = lotesEvento.filter((item) => item.suplementacao_evento_id === eventoAnterior.id);
-    for (const lote of lotesAnteriores) {
-      await base44.entities.SuplementacaoLote.update(lote.id, {
-        dias_periodo: null,
-        consumo_unitario_dia: null,
-        consumo_por_cabeca_dia_kg: null,
-        consumo_total_lote_periodo_kg: null,
-      });
-    }
   }
 
   // 3) Reverter estoque se havia movimentação vinculada
