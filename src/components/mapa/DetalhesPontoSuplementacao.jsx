@@ -172,12 +172,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <CardSection title="Último Registro">
         {ultimoEvento ?
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
-              <div className="text-xs font-semibold text-slate-900 whitespace-nowrap">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1">
+            <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1">
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoEventoSacos != null ? formatDecimal(ultimoEventoSacos, 1) : '-'}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
