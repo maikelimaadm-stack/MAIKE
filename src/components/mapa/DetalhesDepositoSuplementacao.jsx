@@ -119,30 +119,30 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   };
 
   return (
-    <div className="space-y-4" translate="no">
-      <div className="pb-2 border-b space-y-2">
+    <div className="space-y-1" translate="no">
+      <div className="pb-2 border-b space-y-1">
         <div className="text-sm font-bold text-slate-900">{deposito.nome_ponto}</div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito</Badge>
+        <div className="flex items-center gap-1 flex-wrap">
+          <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">Depósito</Badge>
           <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{deposito.local_estoque_nome || "Sem local"}</Badge>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="space-y-2 text-[10px]">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">% uso</div><div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div></CardContent></Card>
+      <div className="space-y-1 text-[10px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">% uso</div><div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div></CardContent></Card>
         </div>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5">
-          <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-3 items-center">
+        <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
+          <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
             <div className="flex items-center gap-3">
               <PontoPercentIcon
                 imageUrl={subIconePonto}
@@ -150,7 +150,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 percent={indicador?.percent || 0}
               />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
                 <div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
@@ -169,15 +169,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </div>
 
       <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-2">
+        <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
           {ultimoRegistro ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-slate-900">{ultimoRegistro.produto_nome}</span>
-                <Badge variant="outline" className="text-xs">{formatKg(ultimoRegistro.quantidade || 0)}</Badge>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-1">
+              <div>
+                <span className="text-slate-900 pr-24 font-semibold">{ultimoRegistro.produto_nome}</span>
+                <Badge variant="outline" className="text-slate-900 mx-8 pr-24 font-semibold rounded-md inline-flex items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoRegistro.quantidade || 0)}</Badge>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-slate-600">
+              <div className="grid grid-cols-3 gap-1 text-slate-600">
                 <div>Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
                 <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
                 <div>Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
@@ -192,14 +192,14 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </Card>
 
       <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-2">
+        <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Saldo por Produto</div>
           {saldosAgrupados.length === 0 ? (
             <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div>
           ) : (
             <div className="space-y-2">
               {saldosAgrupados.map((item) => (
-                <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-xs font-medium text-slate-900">{item.produto_nome}</div>
                     <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{formatKg(item.saldo)}</Badge>
@@ -213,14 +213,14 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </Card>
 
       <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-2">
+        <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Pastos atendidos pela saída do estoque</div>
           {cochosVinculados.length === 0 ? (
             <div className="text-xs text-slate-500">Nenhum cocho vinculado a este depósito.</div>
           ) : (
             <div className="space-y-2">
               {cochosVinculados.map((cocho) => (
-                <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
                   <div className="text-xs font-semibold text-slate-900">{cocho.area_vinculada_nome || "Sem pasto vinculado"}</div>
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
                   <div className="text-[10px] text-slate-500">Saída do estoque para: {cocho.area_vinculada_nome || "Pasto não informado"}</div>
@@ -239,7 +239,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Histórico do Depósito</DialogTitle></DialogHeader>
           <HistoricoDepositoSuplementacao deposito={deposito} />
         </DialogContent>

@@ -95,29 +95,42 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                 const permiteEditar = ehMovimentoDeposito;
 
                 return (
-                  <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2 hover:bg-gray-50">
+                  <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_movimentacao}</Badge>
+                      <div className="flex-1 min-w-0 space-y-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-medium text-slate-500">{new Date(movimentacao.data_movimentacao).toLocaleDateString("pt-BR")}</span>
+                          {index === 0 && <Badge variant="outline" className="text-[10px]">Último</Badge>}
+                          <Badge variant="outline" className="rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_movimentacao}</Badge>
                           <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_detalhado}</Badge>
-                          {index === 0 && <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">Último registro</Badge>}
                         </div>
                         <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
-                        <div className="space-y-0.5 text-[10px] text-slate-600">
-                          <div><strong>Quantidade:</strong> {formatDecimal(movimentacao.quantidade)} {movimentacao.unidade_medida || "KG"}</div>
-                          <div><strong>Data:</strong> {new Date(movimentacao.data_movimentacao).toLocaleString("pt-BR")}</div>
-                          <div><strong>Origem:</strong> {movimentacao.local_origem || "-"}</div>
-                          <div><strong>Destino:</strong> {movimentacao.local_destino || "-"}</div>
-                          {movimentacao.observacoes && <div className="break-words"><strong>Detalhes:</strong> {movimentacao.observacoes}</div>}
-                          {bloqueado && <div className="text-slate-500 font-medium"><strong>Bloqueio:</strong> somente o último lançamento pode ser editado ou excluído.</div>}
-                          {ehNutricao && <div className="text-slate-500 font-medium"><strong>Regra:</strong> lançamentos de nutrição só podem ser editados ou excluídos no histórico do cocho.</div>}
-                          {!ehNutricao && !permiteExcluir && !bloqueado && <div className="text-slate-500 font-medium"><strong>Aviso:</strong> este lançamento não pode ser excluído por aqui.</div>}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 text-[10px]">
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Quantidade</div>
+                            <div className="font-bold text-slate-900">{formatDecimal(movimentacao.quantidade)} {movimentacao.unidade_medida || "KG"}</div>
+                          </div>
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Data</div>
+                            <div className="font-bold text-slate-900">{new Date(movimentacao.data_movimentacao).toLocaleString("pt-BR")}</div>
+                          </div>
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Origem</div>
+                            <div className="font-bold text-slate-900">{movimentacao.local_origem || "-"}</div>
+                          </div>
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Destino</div>
+                            <div className="font-bold text-slate-900">{movimentacao.local_destino || "-"}</div>
+                          </div>
                         </div>
+                        {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {movimentacao.observacoes}</div>}
+                        {bloqueado && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser editado ou excluído.</div>}
+                        {ehNutricao && <div className="text-[10px] text-slate-500 font-medium">Lançamentos de nutrição só podem ser editados ou excluídos no histórico do cocho.</div>}
+                        {!ehNutricao && !permiteExcluir && !bloqueado && <div className="text-[10px] text-slate-500 font-medium">Este lançamento não pode ser excluído por aqui.</div>}
                       </div>
-                      <div className="flex gap-1 shrink-0 flex-col sm:flex-row">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" disabled={bloqueado || !permiteEditar} onClick={() => { setEditMov(movimentacao); setShowEdit(true); }}>Editar</Button>
-                        <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={bloqueado || deletingId === movimentacao.id || !permiteExcluir} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
+                      <div className="flex gap-1 shrink-0 flex-col">
+                        <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={bloqueado || !permiteEditar} onClick={() => { setEditMov(movimentacao); setShowEdit(true); }}>Editar</Button>
+                        <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={bloqueado || deletingId === movimentacao.id || !permiteExcluir} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
                       </div>
                     </div>
                   </div>
@@ -152,7 +165,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
 
 function InfoCard({ label, value }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="text-sm font-bold text-slate-900">{value}</div>
     </div>
