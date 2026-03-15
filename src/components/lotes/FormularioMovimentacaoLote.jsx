@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
+import { parseNumber } from "../utils/pecuariaUtils";
 
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -79,14 +80,13 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         )
         );
 
-        const todosEventos = await base44.entities.SuplementacaoEvento.list();
+        const todosEventos = await base44.entities.SuplementacaoEvento.filter({ empresa_id: empresaSelecionadaId }, '-data_lancamento', 300);
         const abertos = [];
 
         for (const ponto of pontosArea) {
-          const eventoAberto = todosEventos.find((e) =>
-          e.ponto_suplementacao_id === ponto.id && (
-          e.dias_periodo === null || e.dias_periodo === undefined)
-          );
+          const eventoAberto = todosEventos
+            .filter((e) => e.ponto_suplementacao_id === ponto.id && (e.dias_periodo === null || e.dias_periodo === undefined))
+            .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
 
           if (eventoAberto) {
             abertos.push({
@@ -210,11 +210,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const categoriasDisponiveis = categorias.map((c) => c.categoria);
-  const totaisSolicitadosPorCategoria = formData.movimentacoes.reduce((acc, item) => {
-    const categoria = item.categoria;
-    acc[categoria] = (acc[categoria] || 0) + (parseFloat(item.quantidade) || 0);
-    return acc;
-  }, {});
 
   const handleMovimentacaoChange = (index, field, value) => {
     const novasMovimentacoes = [...formData.movimentacoes];
@@ -231,7 +226,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const handleFecharEventos = async () => {
-    if (loading) return;
     setLoading(true);
     try {
       const totalPassos = eventosAbertos.reduce((sum, ev) => {
@@ -248,10 +242,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
         const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
-        const saldoFisicoMaximo = (evento.quantidade_total_kg || 0) + (evento.sobra_kg || 0);
-        if (sobra < 0 || sobra > saldoFisicoMaximo) {
-          throw new Error(`A sobra informada para ${evento.ponto_nome} está fora do limite físico do período.`);
-        }
 
         setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i + 1}/${eventosAbertos.length}...` });
 
