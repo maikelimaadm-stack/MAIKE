@@ -405,12 +405,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <span className="text-xs text-slate-600">Lotes nas áreas:</span>
                 {loadingLotes ? <Badge variant="outline" className="text-xs">Carregando...</Badge> : <Badge variant="outline" className="text-xs">{formatDecimal(lotes.length, 0, true)} lote(s) - {formatDecimal(totalCabecas, 0, true)} cabeças</Badge>}
                 {pesoMedioGeral > 0 && <Badge variant="outline" className="text-xs">Peso médio: {formatDecimal(pesoMedioGeral, 1)} kg</Badge>}
-                {tipoConsumo && <Badge className={`text-xs ${tipoConsumo === "CONSUMO_DIARIO" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>{tipoConsumo === "CONSUMO_DIARIO" ? "Consumo Diário" : "Consumo Livre"}</Badge>}
+                {tipoConsumo && <Badge variant="outline" className="text-xs">{tipoConsumo === "CONSUMO_DIARIO" ? "Consumo Diário" : "Consumo Livre"}</Badge>}
               </div>
-              {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-blue-700">Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
+              {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-slate-600">Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
-            {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
+            {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
 
             {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -479,7 +479,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Saldo depósito */}
             {depositoVinculado?.local_estoque_id && produtoSelecionado && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs text-slate-500">Saldo disponível no depósito</div>
                   <div className="text-sm font-semibold text-slate-900">
@@ -491,7 +491,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               </div>
             )}
             {depositoVinculado?.local_estoque_id && formData.produto && produtoSelecionado && saldoNoDeposito <= 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                 O produto foi localizado, mas não possui saldo disponível neste depósito/local de estoque.
               </div>
             )}
@@ -499,34 +499,34 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
-                <div className="text-xs font-semibold text-indigo-900">Consumo esperado por %PV do produto</div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV do produto</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">%PV</div><div className="font-bold text-indigo-900">{formatDecimal(pctPV, 3)}%</div></div>
-                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">Peso médio</div><div className="font-bold text-indigo-900">{formatDecimal(pesoMedioGeral, 1)} kg</div></div>
-                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">Esperado/cab/dia</div><div className="font-bold text-indigo-900">{formatDecimal(consumoEsperadoCabDiaPV, 3)} kg</div></div>
-                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">Esperado grupo/dia</div><div className="font-bold text-indigo-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{formatDecimal(pesoMedioGeral, 1)} kg</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEsperadoCabDiaPV, 3)} kg</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>
                 </div>
               </div>
             )}
 
             {/* Validação técnica */}
             {quantidadeKg > 0 && totalCabecas > 0 && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="text-xs font-semibold text-emerald-900">Validação técnica do novo lançamento</div>
-                  <Badge className={`text-xs ${avaliacaoTecnica.status === "dentro_ideal" ? "bg-emerald-100 text-emerald-800" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
+                  <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
+                  <Badge variant="outline" className="text-xs">
                     {avaliacaoTecnica.status === "dentro_ideal" ? "Dentro do ideal" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "Fora da faixa ideal" : avaliacaoTecnica.status === "sem_config" || avaliacaoTecnica.status === "sem_regra" ? "Sem referência" : "Fora do limite técnico"}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]">
-                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Cabeças</div><div className="font-bold text-emerald-900">{formatDecimal(totalCabecas, 0, true)}</div></div>
-                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Dias estimados</div><div className="font-bold text-emerald-900">{formatDecimal(diasEstimadosNovoPeriodo, 0, true)}</div></div>
-                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">kg/cab/dia</div><div className="font-bold text-emerald-900">{formatDecimal(consumoEstimadoCabDia, 3)}</div></div>
-                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">g/cab/dia</div><div className="font-bold text-emerald-900">{formatDecimal(consumoEstimadoGramas, 0, true)}</div></div>
-                  <div className="rounded-md border border-emerald-200 bg-white p-2"><div className="text-emerald-700">Média 7 dias</div><div className="font-bold text-emerald-900">{formatDecimal(mediaRecente7Dias, 3)}</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(totalCabecas, 0, true)}</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Dias estimados</div><div className="font-bold text-slate-900">{formatDecimal(diasEstimadosNovoPeriodo, 0, true)}</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">kg/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEstimadoCabDia, 3)}</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">g/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEstimadoGramas, 0, true)}</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Média 7 dias</div><div className="font-bold text-slate-900">{formatDecimal(mediaRecente7Dias, 3)}</div></div>
                 </div>
-                <div className="text-[10px] text-emerald-800">
+                <div className="text-[10px] text-slate-600">
                   {avaliacaoTecnica.message}
                   {avaliacaoPV && consumoEsperadoCabDiaPV > 0 ? ` • Esperado (%PV): ${formatDecimal(consumoEsperadoCabDiaPV, 3)} kg/cab/dia` : ""}
                   {!avaliacaoPV && regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
@@ -546,28 +546,28 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               const saldoRestante = ultimoEvento.dias_periodo != null ? sobraAnterior : Math.max(0, totalDisponivelAnterior - (consumoDiarioAnterior * (diasPeriodo || 0)));
               const consumidoAnterior = Math.max(0, totalDisponivelAnterior - saldoRestante);
               return (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                  <div className="text-xs font-semibold text-blue-900">Consumo do último período {ultimoEvento.dias_periodo == null ? "(estimativa)" : ""}</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                  <div className="text-xs font-semibold text-slate-900">Consumo do último período {ultimoEvento.dias_periodo == null ? "(estimativa)" : ""}</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-                    <div className="rounded-md border border-blue-200 bg-white p-2"><div className="text-blue-700">Fornecido</div><div className="font-bold text-blue-900">{formatDecimal(fornecidoAnterior)} kg</div></div>
-                    <div className="rounded-md border border-blue-200 bg-white p-2"><div className="text-blue-700">Consumido</div><div className="font-bold text-blue-900">{formatDecimal(consumidoAnterior)} kg</div></div>
-                    <div className="rounded-md border border-blue-200 bg-white p-2"><div className="text-blue-700">Consumo/dia</div><div className="font-bold text-blue-900">{formatDecimal(consumoDiarioAnterior)} kg</div></div>
-                    <div className="rounded-md border border-blue-200 bg-white p-2"><div className="text-blue-700">Consumo/cab/dia</div><div className="font-bold text-blue-900">{formatDecimal(consumoPorCabAnterior, 3)} kg</div></div>
+                    <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatDecimal(fornecidoAnterior)} kg</div></div>
+                    <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(consumidoAnterior)} kg</div></div>
+                    <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumo/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoDiarioAnterior)} kg</div></div>
+                    <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumo/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoPorCabAnterior, 3)} kg</div></div>
                   </div>
-                  <div className="text-[10px] text-blue-800">Período: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)} • Saldo restante: {formatDecimal(saldoRestante)} kg</div>
+                  <div className="text-[10px] text-slate-600">Período: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)} • Saldo restante: {formatDecimal(saldoRestante)} kg</div>
                 </div>
               );
             })()}
 
             {/* Consumo por lote */}
             {quantidadeKg > 0 && totalCabecas > 0 && lotes.length > 0 && (
-              <div className="bg-slate-50 border border-slate-300 rounded-lg p-3 space-y-3">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
                 <div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatQuantidadeComUnidade(quantidadeKg, suportaSacos ? pesoPorSaco : 0)}</div></div>
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Sobra</div><div className="font-bold text-slate-900">{formatDecimal(sobraInformada)} kg</div></div>
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(Math.max(0, quantidadeKg - sobraInformada))} kg</div></div>
-                  {consumoEsperadoGrupoDiaPV > 0 && <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2"><div className="text-indigo-700">Esperado/dia (%PV)</div><div className="font-bold text-indigo-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>}
+                  {consumoEsperadoGrupoDiaPV > 0 && <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Esperado/dia (%PV)</div><div className="font-bold text-slate-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>}
                 </div>
                 <div className="space-y-2">
                   {lotes.map((lote) => {
@@ -587,10 +587,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                         <div className="grid grid-cols-3 gap-2 text-[10px]">
                           <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
                           <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : "-"}</div></div>
-                          <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-emerald-700">{formatDecimal(percentualConsumo, 1)}%</div></div>
+                          <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-slate-900">{formatDecimal(percentualConsumo, 1)}%</div></div>
                         </div>
                         {consumoEsperadoLote && (
-                          <div className="mt-1 text-[10px] text-indigo-700">Esperado (%PV): {formatDecimal(consumoEsperadoLote, 3)} kg/cab/dia</div>
+                          <div className="mt-1 text-[10px] text-slate-600">Esperado (%PV): {formatDecimal(consumoEsperadoLote, 3)} kg/cab/dia</div>
                         )}
                       </div>
                     );
