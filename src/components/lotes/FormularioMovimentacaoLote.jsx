@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
-import { parseNumber } from "../utils/pecuariaUtils";
 
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -80,13 +79,14 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         )
         );
 
-        const todosEventos = await base44.entities.SuplementacaoEvento.filter({ empresa_id: empresaSelecionadaId }, '-data_lancamento', 300);
+        const todosEventos = await base44.entities.SuplementacaoEvento.list();
         const abertos = [];
 
         for (const ponto of pontosArea) {
-          const eventoAberto = todosEventos
-            .filter((e) => e.ponto_suplementacao_id === ponto.id && (e.dias_periodo === null || e.dias_periodo === undefined))
-            .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
+          const eventoAberto = todosEventos.find((e) =>
+          e.ponto_suplementacao_id === ponto.id && (
+          e.dias_periodo === null || e.dias_periodo === undefined)
+          );
 
           if (eventoAberto) {
             abertos.push({
@@ -210,6 +210,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const categoriasDisponiveis = categorias.map((c) => c.categoria);
+  const totaisSolicitadosPorCategoria = formData.movimentacoes.reduce((acc, item) => {
+    const categoria = item.categoria;
+    acc[categoria] = (acc[categoria] || 0) + (parseFloat(item.quantidade) || 0);
+    return acc;
+  }, {});
 
   const handleMovimentacaoChange = (index, field, value) => {
     const novasMovimentacoes = [...formData.movimentacoes];
@@ -226,6 +231,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const handleFecharEventos = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       const totalPassos = eventosAbertos.reduce((sum, ev) => {
@@ -242,6 +248,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
         const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
+        const saldoFisicoMaximo = (evento.quantidade_total_kg || 0) + (evento.sobra_kg || 0);
+        if (sobra < 0 || sobra > saldoFisicoMaximo) {
+          throw new Error(`A sobra informada para ${evento.ponto_nome} está fora do limite físico do período.`);
+        }
 
         setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i + 1}/${eventosAbertos.length}...` });
 
@@ -271,6 +281,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
     if (!formData.area_saida_id) {
       alert('Selecione a área de saída');
@@ -291,6 +302,12 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       const temQuantidadeInvalida = formData.movimentacoes.some((m) => !m.quantidade || m.quantidade <= 0);
       if (temQuantidadeInvalida) {
         alert('Todas as movimentações devem ter quantidade maior que zero');
+        return;
+      }
+
+      const categoriasExcedidas = Object.entries(totaisSolicitadosPorCategoria).filter(([categoria, total]) => total > (categoriasPorLote[categoria]?.quantidade_total || 0));
+      if (categoriasExcedidas.length > 0) {
+        alert('A soma movimentada por categoria excede o total disponível em um ou mais grupos.');
         return;
       }
     }
@@ -517,6 +534,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
           {formData.mover_todos === 'nao' &&
           <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+              {Object.entries(totaisSolicitadosPorCategoria).some(([categoria, total]) => total > (categoriasPorLote[categoria]?.quantidade_total || 0)) && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  A soma solicitada por categoria ultrapassa o total disponível em pelo menos um grupo.
+                </div>
+              )}
               {formData.movimentacoes.map((mov, index) => {
               const infoCategoria = categoriasPorLote[mov.categoria];
               const configIcone = iconesConfig.find((ic) =>
