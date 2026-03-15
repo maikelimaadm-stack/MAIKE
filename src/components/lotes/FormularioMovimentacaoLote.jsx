@@ -459,7 +459,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       </CardHeader>
       <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Data da Movimentação *</Label>
               <Input
@@ -490,7 +490,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Área e módulo de saída *</Label>
               <Select
@@ -533,7 +533,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
 
           {formData.mover_todos === 'nao' &&
-          <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+          <div className="space-y-2 max-h-[42vh] overflow-y-auto">
               {Object.entries(totaisSolicitadosPorCategoria).some(([categoria, total]) => total > (categoriasPorLote[categoria]?.quantidade_total || 0)) && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                   A soma solicitada por categoria ultrapassa o total disponível em pelo menos um grupo.

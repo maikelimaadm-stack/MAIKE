@@ -110,11 +110,22 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-3"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">% uso</div><div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div></CardContent></Card>
+      <div className="space-y-2 text-[10px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">% uso</div><div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div></CardContent></Card>
+        </div>
+        <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5">
+          <div className="flex items-center justify-between text-[10px] mb-1">
+            <span className="text-slate-500">Gráfico de uso do depósito</span>
+            <span className="font-semibold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full bg-slate-600 transition-all" style={{ width: `${Math.round((indicador?.percent || 0) * 100)}%` }} />
+          </div>
+        </CardContent></Card>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
@@ -181,7 +192,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </Card>
 
       <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-[880px]">
           <DialogHeader><DialogTitle className="text-sm">Transferência do Depósito</DialogTitle></DialogHeader>
           <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => { setShowTransferencia(false); handleSaved(); }} onCancel={() => setShowTransferencia(false)} />
         </DialogContent>

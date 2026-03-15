@@ -89,22 +89,33 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="text-slate-500">Saldo estimado</div>
-                <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <div className="text-slate-500">Saldo estimado</div>
+                  <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <div className="text-slate-500">Capacidade</div>
+                  <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <div className="text-slate-500">Nível estimado</div>
+                  <div className="text-sm font-bold text-slate-900">{Math.round(percentual * 100)}%</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <div className="text-slate-500">Base</div>
+                  <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
+                </div>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="text-slate-500">Capacidade</div>
-                <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="text-slate-500">Nível estimado</div>
-                <div className="text-sm font-bold text-slate-900">{Math.round(percentual * 100)}%</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="text-slate-500">Base</div>
-                <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="flex items-center justify-between text-[10px] mb-1">
+                  <span className="text-slate-500">Gráfico de ocupação</span>
+                  <span className="font-semibold text-slate-900">{Math.round(percentual * 100)}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div className="h-full rounded-full bg-slate-600 transition-all" style={{ width: `${Math.round(percentual * 100)}%` }} />
+                </div>
               </div>
             </div>
           </CardSection>
@@ -145,7 +156,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="max-w-2xl"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => { setShowLancamento(false); handleSaved(); }} /></DialogContent>
+        <DialogContent className="max-w-[880px]"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => { setShowLancamento(false); handleSaved(); }} /></DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>

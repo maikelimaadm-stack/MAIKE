@@ -725,7 +725,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       </div>
 
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Movimentação de Lotes</DialogTitle>
           </DialogHeader>
@@ -802,14 +802,14 @@ export default function DetalhesLote({ lotes, onClose }) {
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Histórico de Movimentações</DialogTitle></DialogHeader>
           <HistoricoMovimentacoes lotes={lotes} areaId={areaAtual?.id} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showHistoricoSupl} onOpenChange={setShowHistoricoSupl}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Histórico de Suplementação</DialogTitle></DialogHeader>
           {lotes.length === 1 ? (
             <HistoricoSuplementacaoLote
