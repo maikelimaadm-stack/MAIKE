@@ -131,10 +131,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   return (
     <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-1">
-        <div className="text-sm font-bold text-slate-900">{deposito.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">Depósito</Badge>
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Local: {deposito.local_estoque_nome || "Sem local"}</Badge>
+          <Badge variant="outline" className="bg-orange-200 text-slate-900 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-orange-300">Local: {deposito.nome_ponto}</Badge>
         </div>
       </div>
 
@@ -145,12 +143,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </div>
 
       <div className="space-y-1 text-[10px]">
-        <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-1">
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Estoque mínimo</div><div className="text-sm font-bold text-slate-900">{deposito.estoque_minimo_kg ? formatKg(deposito.estoque_minimo_kg) : '-'}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Último lançamento</div><div className="text-sm font-bold text-slate-900">{ultimoRegistro ? new Date(ultimoRegistro.data_movimentacao).toLocaleDateString('pt-BR') : '-'}</div></CardContent></Card>
-        </div>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
           <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
             <div className="flex items-center gap-3">
@@ -168,7 +160,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
-                <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
+                <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Necessidade reposição kg</div>
@@ -189,7 +181,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleDateString("pt-BR")}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoRegistroSacos != null ? ultimoRegistroSacos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '-'}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoRegistroSacos != null ? ultimoRegistroSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</span></div>
               </div>
@@ -212,7 +204,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
             <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                     <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
-                    <div className="whitespace-nowrap text-slate-500">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
                     <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.saldo)}</div>
                   </div>
                 </div>
@@ -248,8 +240,10 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Informações do Depósito</div>
           <div className="space-y-1 text-[10px]">
-            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Local:</span><span className="font-semibold text-slate-900">{deposito.local_estoque_nome || '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Local de estoque:</span><span className="font-semibold text-slate-900">{deposito.local_estoque_nome || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Capacidade:</span><span className="font-semibold text-slate-900">{deposito.capacidade_cocho_kg ? formatKg(deposito.capacidade_cocho_kg) : '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Estoque mínimo:</span><span className="font-semibold text-slate-900">{deposito.estoque_minimo_kg ? formatKg(deposito.estoque_minimo_kg) : '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cochos vinculados:</span><span className="font-semibold text-slate-900">{cochosVinculados.length}</span></div>
           </div>
         </CardContent>
       </Card>

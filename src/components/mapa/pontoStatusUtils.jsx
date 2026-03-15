@@ -53,7 +53,7 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
 
   const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
   const capacidadeDeposito = Number(deposito.capacidade_cocho_kg || 0);
-  const necessidadeReposicao = estoqueMinimo > 0 ? Math.max(estoqueMinimo - saldoAtual, 0) : 0;
+  const necessidadeReposicao = capacidadeDeposito > 0 ? Math.max(capacidadeDeposito - saldoAtual, 0) : 0;
   const percent = capacidadeDeposito > 0 ? clamp(saldoAtual / capacidadeDeposito) : clamp(saldoAtual > 0 ? 1 : 0);
   const isCritical = estoqueMinimo > 0 && saldoAtual <= estoqueMinimo;
 
