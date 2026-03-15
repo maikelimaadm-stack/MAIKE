@@ -16,7 +16,24 @@ import {
   getCategoriaAnteriorFromObs,
 } from "../utils/pecuariaUtils";
 
-const CORES_TIPO = {};
+const CORES_TIPO = {
+  "Transferência de Área": "bg-blue-100 text-blue-800",
+  "Morte": "bg-red-100 text-red-800",
+  "Nascimento": "bg-green-100 text-green-800",
+  "Abate": "bg-orange-100 text-orange-800",
+  "Mudança de Categoria": "bg-purple-100 text-purple-800",
+  "Pesagem": "bg-emerald-100 text-emerald-800",
+  "Renomear Lote": "bg-slate-100 text-slate-800",
+  "Junção de Lotes": "bg-indigo-100 text-indigo-800",
+  "Nutrição": "bg-cyan-100 text-cyan-800",
+  "Medicamento": "bg-rose-100 text-rose-800",
+  "Sanidade": "bg-amber-100 text-amber-800",
+  "Vacinação": "bg-amber-100 text-amber-800",
+  "Vermifugação": "bg-amber-100 text-amber-800",
+  "Tratamento": "bg-amber-100 text-amber-800",
+  "Inseminação": "bg-amber-100 text-amber-800",
+  "Exame": "bg-amber-100 text-amber-800",
+};
 
 const TIPOS_EDITAVEIS = new Set([
   "Transferência de Área",
@@ -437,10 +454,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] font-semibold">
+                        <Badge className={`text-[10px] font-semibold ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800'}`}>
                           {tipoExibicao}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[10px] font-semibold">
                           {item.sourceLabel}
                         </Badge>
                         <span className="text-[10px] text-slate-500">
