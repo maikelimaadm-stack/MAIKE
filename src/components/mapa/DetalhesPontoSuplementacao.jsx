@@ -85,7 +85,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1 text-[10px]">
+      <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-1 text-[10px]">
         <CardInfo label="Áreas vinculadas" value={
         Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0 ?
         ponto.area_vinculada_nomes.join(", ") :
@@ -113,23 +113,23 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
-              <div className="flex items-center gap-3">
+            <div className="my-1 grid grid-cols- md:grid-cols-[auto,1fr] gap-1 items-center">
+              <div className="pb-1 flex items-center gap-3">
                 <PontoPercentIcon
                   imageUrl={iconeExibicao}
                   label={ponto.categoria_ponto || "Cocho"}
                   percent={percentual} />
 
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Capacidade</div>
-                  <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
-                </div>
+                
+
+
+
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Base</div>
                   <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
@@ -141,8 +141,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       })()}
 
       <CardSection title="Último Registro">
-        {ultimoEvento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+        {ultimoEvento ?
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
               <div className="text-xs font-semibold text-slate-900 whitespace-nowrap">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</div>
@@ -156,10 +156,10 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + ultimoEvento.dias_periodo * 86400000).toLocaleDateString("pt-BR") : "-"}</span></div>
             </div>
             {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
-          </div>
-        ) : (
-          <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
-        )}
+          </div> :
+
+        <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
+        }
       </CardSection>
 
       <CardSection title="Informações do Cocho">
