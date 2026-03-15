@@ -23,15 +23,14 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
       {isCocho ? (
         <>
           <div
-            className="absolute left-1/2 top-[22px] -translate-x-1/2 w-[54px] h-[20px] overflow-hidden"
+            className="absolute left-1/2 top-[23px] -translate-x-1/2 w-[50px] h-[12px] overflow-hidden"
             style={{
-              clipPath: "polygon(8% 0%, 92% 0%, 100% 35%, 90% 100%, 10% 100%, 0% 35%)",
-              backgroundColor: "#fde8d8",
+              clipPath: "polygon(6% 8%, 94% 8%, 82% 92%, 18% 92%)",
             }}
           >
             <div
               className="absolute inset-x-0 bottom-0 bg-[#f4b183] transition-all duration-300"
-              style={{ height: `${Math.max(10, nivel)}%` }}
+              style={{ height: `${nivel}%` }}
             />
           </div>
           <img
