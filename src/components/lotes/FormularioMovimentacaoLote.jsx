@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
 
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -240,35 +241,15 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         setProgresso({ show: true, atual: i * 2 + 1, total: eventosAbertos.length * 2, mensagem: `Fechando evento ${i + 1}/${eventosAbertos.length}...` });
 
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
-        const diasPeriodo = Math.max(1, Math.ceil((new Date(formData.data_movimentacao) - new Date(evento.data_lancamento)) / (1000 * 60 * 60 * 24)));
-        const quantidadeConsumida = evento.quantidade_total_kg - sobra;
-        const consumoDiario = quantidadeConsumida / diasPeriodo;
-
-        await base44.entities.SuplementacaoEvento.update(evento.id, {
-          sobra_kg: sobra,
-          dias_periodo: diasPeriodo,
-          consumo_diario_grupo_kg: consumoDiario
-        });
+        const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
 
         setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i + 1}/${eventosAbertos.length}...` });
 
-        const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
-        const lotesDoEvento = todosLotesSupl.filter((l) => l.suplementacao_evento_id === evento.id);
-
-        for (const loteSupl of lotesDoEvento) {
-          const consumoUnitario = evento.peso_total_consumo > 0 ?
-          quantidadeConsumida / (diasPeriodo * evento.peso_total_consumo) :
-          0;
-          const consumoPorCabecaDia = consumoUnitario * (loteSupl.fator_consumo || 1.0);
-          const consumoTotalPeriodo = consumoPorCabecaDia * loteSupl.cabecas_na_area * diasPeriodo;
-
-          await base44.entities.SuplementacaoLote.update(loteSupl.id, {
-            dias_periodo: diasPeriodo,
-            consumo_unitario_dia: consumoUnitario,
-            consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
-            consumo_total_lote_periodo_kg: consumoTotalPeriodo
-          });
-        }
+        await fecharPeriodoSupplementacao({
+          evento,
+          diasPeriodo,
+          sobraFinal: sobra,
+        });
       }
 
       setProgresso({ show: true, atual: eventosAbertos.length * 2, total: eventosAbertos.length * 2, mensagem: 'Concluído!' });
