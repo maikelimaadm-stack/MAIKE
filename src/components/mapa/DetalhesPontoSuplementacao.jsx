@@ -152,17 +152,13 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const totalDisponivel = fornecido + sobra;
         const consumoBase = consumoEsperadoDiaKg > 0 ? consumoEsperadoDiaKg : (ultimoEvento.consumo_diario_grupo_kg || 0);
         const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesde);
-        const duracaoCalculada = consumoBase > 0 ? totalDisponivel / consumoBase : 0;
         const minimoDias = Number(ponto.frequencia_esperada_dias_minimo || 0);
-        const maximoDias = Number(ponto.frequencia_esperada_dias_maximo || ponto.frequencia_esperada_dias || 0);
-        const duracaoInteira = Math.max(0, Math.round(duracaoCalculada || 0));
-        const baseDuracaoDias = minimoDias > 0 || maximoDias > 0
-          ? Math.min(maximoDias || duracaoInteira, Math.max(minimoDias || duracaoInteira, duracaoInteira))
-          : duracaoInteira;
+        const baseDuracaoDias = consumoBase > 0 ? Math.max(0, Math.round(saldoEstimado / consumoBase)) : 0;
         const proximaData = baseDuracaoDias > 0
-          ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + baseDuracaoDias * 86400000)
+          ? new Date(Date.now() + baseDuracaoDias * 86400000)
           : null;
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
+        const alertaGrafico = minimoDias > 0 && diasDesde >= minimoDias;
         return (
           <CardSection title="Saldo estimado no cocho">
             <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
@@ -170,7 +166,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                 <PontoPercentIcon
                   imageUrl={iconeExibicao}
                   label={ponto.categoria_ponto || "Cocho"}
-                  percent={percentual} />
+                  percent={percentual}
+                  fillClassName={alertaGrafico ? "bg-red-500" : "bg-lime-400"} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">

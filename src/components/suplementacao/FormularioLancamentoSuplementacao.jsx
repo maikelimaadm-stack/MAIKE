@@ -173,9 +173,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const consumoReferenciaGrupoDia = consumoEsperadoGrupoDiaPV > 0
     ? consumoEsperadoGrupoDiaPV
     : (Number(ponto?.consumo_ideal_por_cabeca_kg || 0) * totalCabecas);
-  const consumoEstimadoCabDia = totalCabecas > 0 ? safeDivide(consumoReferenciaGrupoDia, totalCabecas) : 0;
+  const totalDisponivelNovo = Math.max(0, quantidadeKg + sobraInformada);
+  const consumoEstimadoCabDia = totalCabecas > 0 && frequenciaMedia > 0 ? safeDivide(totalDisponivelNovo, totalCabecas * frequenciaMedia) : 0;
   const consumoEstimadoGramas = consumoEstimadoCabDia * 1000;
-  const duracaoDiasNovoPeriodo = consumoReferenciaGrupoDia > 0 ? safeDivide(quantidadeKg, consumoReferenciaGrupoDia) : 0;
+  const duracaoDiasNovoPeriodo = consumoReferenciaGrupoDia > 0 ? safeDivide(totalDisponivelNovo, consumoReferenciaGrupoDia) : 0;
   const duracaoDiasInteira = Math.max(0, Math.round(duracaoDiasNovoPeriodo || 0));
   const dataEstimadaProxima = duracaoDiasInteira > 0
     ? new Date(new Date(formData.data_lancamento).getTime() + duracaoDiasInteira * 86400000)
@@ -291,7 +292,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
 
     if (["critico_baixo", "critico_alto"].includes(avaliacaoTecnica.status)) {
-      return toast.error(avaliacaoTecnica.message);
+      const confirmarCritico = window.confirm(`${avaliacaoTecnica.message}\n\nDeseja salvar mesmo assim?`);
+      if (!confirmarCritico) return;
     }
 
     if (statusDuracao.status === "baixo" || statusDuracao.status === "alto") {
