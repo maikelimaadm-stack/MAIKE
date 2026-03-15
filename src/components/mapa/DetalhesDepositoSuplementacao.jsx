@@ -42,7 +42,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     queryKey: ["configuracao-icones-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
     },
     enabled: !!empresaSelecionadaId,
   });
