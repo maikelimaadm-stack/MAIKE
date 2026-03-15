@@ -2,7 +2,9 @@ import React from "react";
 
 export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
   const nivel = Math.max(0, Math.min(100, Math.round((percent || 0) * 100)));
-  const isCocho = String(label || "").toLowerCase().includes("cocho") || String(imageUrl || "").includes("AgroCattle15");
+  const isCocho =
+    String(label || "").toLowerCase().includes("cocho") ||
+    String(imageUrl || "").includes("AgroCattle15");
 
   if (!imageUrl) {
     return (
@@ -16,24 +18,30 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
 
   return (
     <div className="relative h-[74px] w-[74px] flex items-center justify-center isolate">
+      
+      {/* Percentual */}
       <span className="absolute left-0 top-0 z-20 rounded bg-white/90 px-1 py-0.5 text-[10px] font-bold leading-none text-slate-700 shadow-sm">
         {nivel}%
       </span>
 
       {isCocho ? (
         <>
+          {/* Área interna do cocho */}
           <div
-            className="absolute left-1/2 top-[14px] -translate-x-1/2 w-[62px] h-[30px]"
+            className="absolute left-1/2 top-[12px] -translate-x-1/2 w-[66px] h-[34px]"
             style={{
-              clipPath: "polygon(2% 22%, 98% 22%, 82% 100%, 18% 100%)",
+              clipPath: "polygon(0% 18%, 100% 18%, 78% 100%, 22% 100%)",
               backgroundColor: "#fde8d8",
             }}
           >
+            {/* Nível de ração */}
             <div
               className="absolute inset-x-0 bottom-0 bg-[#f4b183] transition-all duration-300"
               style={{ height: `${nivel}%` }}
             />
           </div>
+
+          {/* Imagem do cocho */}
           <img
             src={imageUrl}
             alt={label || "Ícone"}
@@ -42,6 +50,7 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
         </>
       ) : (
         <>
+          {/* Outros ícones */}
           <div
             className="relative h-[68px] w-[68px] overflow-hidden"
             style={{
@@ -64,6 +73,7 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
               }}
             />
           </div>
+
           <img
             src={imageUrl}
             alt={label || "Ícone"}
