@@ -18,3 +18,16 @@ export const formatQuantidadeTecnica = (value, digits = 3) => {
   const number = Number(value || 0);
   return number.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 };
+
+export const formatPercentualPV = (value) => {
+  const number = Number(value || 0);
+  return `${number.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
+};
+
+export const formatSacos = (kg, pesoPorSaco) => {
+  const kgNum = Number(kg || 0);
+  const pesoSaco = Number(pesoPorSaco || 0);
+  if (pesoSaco <= 0) return "";
+  const sacos = kgNum / pesoSaco;
+  return `${sacos.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} saco(s)`;
+};

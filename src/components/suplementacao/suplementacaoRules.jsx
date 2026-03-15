@@ -1,5 +1,9 @@
 import { normalizeText } from "../utils/pecuariaUtils";
 
+/**
+ * Regras hardcoded de fallback para quando o produto não tem %PV configurado.
+ * O sistema prioriza os dados do cadastro do produto.
+ */
 const RULES = [
   {
     matchers: ["SAL MINERAL", "MINERAL"],
@@ -9,6 +13,8 @@ const RULES = [
     max: 0.2,
     unidadeReferencia: "kg/cab/dia",
     label: "Sal mineral",
+    percentualPVSugerido: 0.03,
+    tipoConsumoSugerido: "CONSUMO_LIVRE",
   },
   {
     matchers: ["PROTEINADO", "PROTEICO"],
@@ -18,6 +24,8 @@ const RULES = [
     max: 1.0,
     unidadeReferencia: "kg/cab/dia",
     label: "Proteinado",
+    percentualPVSugerido: 0.1,
+    tipoConsumoSugerido: "CONSUMO_LIVRE",
   },
   {
     matchers: ["ENERGETICO", "ENERGÉTICO"],
@@ -27,6 +35,8 @@ const RULES = [
     max: 4.0,
     unidadeReferencia: "kg/cab/dia",
     label: "Energético",
+    percentualPVSugerido: 0.5,
+    tipoConsumoSugerido: "CONSUMO_DIARIO",
   },
   {
     matchers: ["MISTURA MULTIPLA", "MISTURA MÚLTIPLA", "MULTIPLA", "MÚLTIPLA"],
@@ -36,6 +46,19 @@ const RULES = [
     max: 0.8,
     unidadeReferencia: "kg/cab/dia",
     label: "Mistura múltipla",
+    percentualPVSugerido: 0.15,
+    tipoConsumoSugerido: "CONSUMO_LIVRE",
+  },
+  {
+    matchers: ["RACAO", "RAÇÃO", "CONFINAMENTO", "ENGORDA"],
+    min: 3.0,
+    idealMin: 5.0,
+    idealMax: 12.0,
+    max: 15.0,
+    unidadeReferencia: "kg/cab/dia",
+    label: "Ração / Confinamento",
+    percentualPVSugerido: 1.2,
+    tipoConsumoSugerido: "CONSUMO_DIARIO",
   },
 ];
 
@@ -44,6 +67,10 @@ export function getSupplementRule(produtoNome) {
   return RULES.find((rule) => rule.matchers.some((matcher) => normalized.includes(normalizeText(matcher)))) || null;
 }
 
+/**
+ * Avalia consumo usando as regras de fallback (quando produto não tem %PV).
+ * Mantém compatibilidade com o sistema anterior.
+ */
 export function evaluateConsumoFaixa(consumoKgCabDia, produtoNome, customLimits) {
   const consumo = Number(consumoKgCabDia || 0);
   if (consumo <= 0) {
@@ -104,4 +131,21 @@ export function evaluateConsumoFaixa(consumoKgCabDia, produtoNome, customLimits)
     message: "Consumo dentro da faixa técnica esperada.",
     rule,
   };
+}
+
+/**
+ * Sugere valores de %PV para migração de produtos existentes.
+ */
+export function sugerirPercentualPV(produtoNome) {
+  const rule = getSupplementRule(produtoNome);
+  if (rule) {
+    return {
+      percentual_consumo_pv: rule.percentualPVSugerido,
+      consumo_minimo_pv: rule.percentualPVSugerido * 0.5,
+      consumo_maximo_pv: rule.percentualPVSugerido * 2.0,
+      tipo_consumo: rule.tipoConsumoSugerido,
+      label: rule.label,
+    };
+  }
+  return null;
 }
