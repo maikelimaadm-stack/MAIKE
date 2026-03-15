@@ -41,7 +41,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     queryKey: ["produtos-suplementacao-transferencia", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId && normalizeText(produto.categoria).includes("SUPLEMENTAC"));
+      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
