@@ -73,14 +73,14 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-">
         <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{ponto.status}</Badge>
           {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito: {ponto.deposito_origem_nome}</Badge>}
           {temAlerta && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Alerta</Badge>}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
@@ -113,7 +113,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
+            <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
               <div className="flex items-center gap-3">
                 <PontoPercentIcon
                   imageUrl={iconeExibicao}
@@ -144,10 +144,10 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         {ultimoEvento ?
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[10px] space-y-1.">
             <div className="">
-              <span className="font-semibold text-slate-900">{ultimoEvento.produto}</span>
-              <Badge variant="outline" className="text-foreground pl-16 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
+              <span className="text-slate-900 pr-24 font-semibold">{ultimoEvento.produto}</span>
+              <Badge variant="outline" className="xt-xs font-semibold rounded-md inline-flex items-center  focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
             </div>
-            <div className="grid grid-cols-6 gap-3 text-slate-600">
+            <div className="grid grid-cols-2 gap-3 text-slate-600">
               <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
               <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
               <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
@@ -198,7 +198,7 @@ function CardInfo({ label, value }) {
 
 function CardSection({ title, children }) {
   return (
-    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">
+    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-">
       <div className="text-[11px] font-bold text-slate-900">{title}</div>
       {children}
     </div>);
