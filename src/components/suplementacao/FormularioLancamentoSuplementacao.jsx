@@ -137,7 +137,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         await fecharPeriodoSupplementacao({
           evento: ultimoEvento,
           diasPeriodo,
-          sobraFinal: ultimoEvento.sobra_kg || 0,
+          sobraInicial: ultimoEvento.sobra_kg || 0,
+          sobraFinal: parseNumber(formData.sobra_kg || 0),
         });
       }
 

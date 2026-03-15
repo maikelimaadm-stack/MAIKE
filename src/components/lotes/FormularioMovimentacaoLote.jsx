@@ -248,6 +248,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         await fecharPeriodoSupplementacao({
           evento,
           diasPeriodo,
+          sobraInicial: evento.sobra_kg || 0,
           sobraFinal: sobra,
         });
       }
@@ -394,7 +395,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                     <div className="mt-2 pt-2 border-t border-slate-200">
                       <div className="text-[10px] text-slate-700">
                         <strong>Consumo calculado:</strong>{' '}
-                        {(evento.quantidade_total_kg - parseFloat(formData.sobras_cocho[evento.id] || 0)).toFixed(1)} kg
+                        {(evento.quantidade_total_kg - parseFloat(formData.sobras_cocho[evento.id] || 0) + parseFloat(evento.sobra_kg || 0)).toFixed(1)} kg
                       </div>
                     </div>
                   </div>);

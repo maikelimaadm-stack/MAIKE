@@ -88,10 +88,10 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           // Período fechado: saldo = sobra informada
           saldoEstimado = sobra;
         } else {
-          // Período aberto: saldo estimado = fornecido - (consumo_diário_estimado * dias)
-          // Se não tem consumo diário anterior, usa a frequência como estimativa
-          const consumoEstimado = consumoDiario > 0 ? consumoDiario : (fornecido / (ponto.frequencia_esperada_dias || 7));
-          saldoEstimado = Math.max(0, fornecido - (consumoEstimado * diasDesde));
+          // Período aberto: considera o fornecido do lançamento + a sobra existente no início do período
+          const totalDisponivel = fornecido + sobra;
+          const consumoEstimado = consumoDiario > 0 ? consumoDiario : (totalDisponivel / (ponto.frequencia_esperada_dias || 7));
+          saldoEstimado = Math.max(0, totalDisponivel - (consumoEstimado * diasDesde));
         }
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (

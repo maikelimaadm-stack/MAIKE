@@ -38,11 +38,11 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const limiteMax = ponto?.limite_maximo_consumo || 0;
 
   const analises = eventosFiltrados.map(e => {
-    // Calcular consumo por cabeça/dia a partir dos dados do evento
-    const consumoTotal = Math.max(0, (e.quantidade_total_kg || 0) - (e.sobra_kg || 0));
     const dias = Math.max(1, e.dias_periodo || 1);
-    const cabecas = e.total_cabecas_afetadas || 1;
-    const consumo = safeDivide(consumoTotal, dias * cabecas);
+    const cabecas = e.total_cabecas_afetadas || 0;
+    const consumo = e.consumo_diario_grupo_kg != null
+      ? safeDivide(e.consumo_diario_grupo_kg, cabecas)
+      : safeDivide(Math.max(0, (e.quantidade_total_kg || 0) - (e.sobra_kg || 0)), dias * cabecas);
 
     let status = 'normal';
     let alerta = null;

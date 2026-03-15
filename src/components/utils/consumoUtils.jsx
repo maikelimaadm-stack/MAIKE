@@ -25,22 +25,23 @@ export function calcularDiasPeriodo(dataInicio, dataFim) {
 /**
  * Calcula o consumo de um período de suplementação.
  * 
- * Fórmula: consumo_total = fornecido - sobra_final
- * (sobra_inicial não é usado pois cada período começa com um novo fornecimento)
+ * Fórmula: consumo_total = fornecido - sobra_final + sobra_inicial
  * 
  * @param {number} fornecido - Quantidade total fornecida no período (kg)
  * @param {number} sobraFinal - Sobra encontrada ao final do período (kg)
+ * @param {number} sobraInicial - Sobra existente no início do período (kg)
  * @param {number} diasPeriodo - Número de dias do período
  * @param {number} pesoTotalConsumo - Soma dos pesos de consumo (cabeças × fatores)
  * @returns {{ consumoTotal, consumoDiarioGrupo, consumoUnitarioDia }}
  */
-export function calcularConsumo({ fornecido, sobraFinal, diasPeriodo, pesoTotalConsumo }) {
+export function calcularConsumo({ fornecido, sobraFinal, sobraInicial, diasPeriodo, pesoTotalConsumo }) {
   const fornecidoNum = Number(fornecido || 0);
-  const sobraNum = Number(sobraFinal || 0);
+  const sobraFinalNum = Number(sobraFinal || 0);
+  const sobraInicialNum = Number(sobraInicial || 0);
   const dias = Math.max(1, Number(diasPeriodo || 1));
   const pesoConsumo = Number(pesoTotalConsumo || 0);
 
-  const consumoTotal = Math.max(0, fornecidoNum - sobraNum);
+  const consumoTotal = Math.max(0, fornecidoNum - sobraFinalNum + sobraInicialNum);
   const consumoDiarioGrupo = safeDivide(consumoTotal, dias);
   const consumoUnitarioDia = safeDivide(consumoTotal, dias * pesoConsumo);
 
@@ -77,10 +78,11 @@ export function calcularConsumoLote({ consumoUnitarioDia, fatorConsumo, cabecas,
  * @param {number} sobraFinal - Sobra registrada (kg)
  * @param {function} onProgress - Callback de progresso (opcional)
  */
-export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFinal, onProgress }) {
+export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) {
   const { consumoTotal, consumoDiarioGrupo, consumoUnitarioDia } = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
+    sobraInicial: sobraInicial ?? evento.sobra_kg,
     diasPeriodo,
     pesoTotalConsumo: evento.peso_total_consumo,
   });
