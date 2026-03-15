@@ -26,7 +26,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       const all = await base44.entities.SuplementacaoEvento.list();
       return all.filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === ponto.id).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
     },
-    enabled: !!empresaSelecionadaId && !!ponto?.id,
+    enabled: !!empresaSelecionadaId && !!ponto?.id
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -35,7 +35,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
@@ -70,7 +70,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   }
 
   return (
-    <div className="space-y-4" translate="no">
+    <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-2">
         <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -85,11 +85,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-[10px]">
+      <div className="grid grid-cols-4 gap-1 text-[10px]">
         <CardInfo label="Áreas vinculadas" value={
-          (Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0)
-            ? ponto.area_vinculada_nomes.join(", ")
-            : ponto.area_vinculada_nome || "-"
+        Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0 ?
+        ponto.area_vinculada_nomes.join(", ") :
+        ponto.area_vinculada_nome || "-"
         } />
         <CardInfo label="Capacidade" value={ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : "-"} />
         <CardInfo label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
@@ -107,21 +107,21 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           saldoEstimado = sobra;
         } else {
           const totalDisponivel = fornecido + sobra;
-          const consumoEstimado = consumoDiario > 0 ? consumoDiario : (totalDisponivel / (ponto.frequencia_esperada_dias || 7));
-          saldoEstimado = Math.max(0, totalDisponivel - (consumoEstimado * diasDesde));
+          const consumoEstimado = consumoDiario > 0 ? consumoDiario : totalDisponivel / (ponto.frequencia_esperada_dias || 7);
+          saldoEstimado = Math.max(0, totalDisponivel - consumoEstimado * diasDesde);
         }
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-3 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
               <div className="flex items-center gap-3">
                 <PontoPercentIcon
                   imageUrl={iconeExibicao}
                   label={ponto.categoria_ponto || "Cocho"}
-                  percent={percentual}
-                />
+                  percent={percentual} />
+
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
@@ -130,19 +130,19 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   <div className="text-slate-500">Capacidade</div>
                   <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="rounded-lg border border-slate-20 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Base</div>
                   <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
                 </div>
               </div>
             </div>
-          </CardSection>
-        );
+          </CardSection>);
+
       })()}
 
       <CardSection title="Último Registro">
-        {ultimoEvento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
+        {ultimoEvento ?
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-slate-900">{ultimoEvento.produto}</span>
               <Badge variant="outline" className="text-xs">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
@@ -153,17 +153,17 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
               <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
               <div>Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
               <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
-              <div>Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + (ultimoEvento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</span></div>
+              <div>Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + ultimoEvento.dias_periodo * 86400000).toLocaleDateString("pt-BR") : "-"}</span></div>
             </div>
             {ultimoEvento.observacoes && <div className="text-slate-500 italic">{ultimoEvento.observacoes}</div>}
-          </div>
-        ) : (
-          <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
-        )}
+          </div> :
+
+        <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
+        }
       </CardSection>
 
       <CardSection title="Informações do Cocho">
-        <div className="space-y-1.5 text-[10px]">
+        <div className="space-y- text-[10px]">
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
           {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
@@ -174,7 +174,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="max-w-[880px]"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => { setShowLancamento(false); handleSaved(); }} /></DialogContent>
+        <DialogContent className="max-w-[880px]"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
@@ -183,24 +183,24 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} />
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
 
 function CardInfo({ label, value }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
       <div className="text-slate-500">{label}</div>
       <div className="text-sm font-bold text-slate-900">{value}</div>
-    </div>
-  );
+    </div>);
+
 }
 
 function CardSection({ title, children }) {
   return (
-    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-3 space-y-2">
+    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">
       <div className="text-[11px] font-bold text-slate-900">{title}</div>
       {children}
-    </div>
-  );
+    </div>);
+
 }
