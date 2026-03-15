@@ -5,16 +5,16 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
 
   if (!imageUrl) {
     return (
-      <div className="relative h-16 w-16 flex items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm text-[10px] font-bold text-slate-700">
+      <div className="relative h-[74px] w-[74px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 shadow-sm text-[10px] font-bold text-slate-700">
         {nivel}%
       </div>
     );
   }
 
   return (
-    <div className="relative h-20 w-20 flex items-center justify-center isolate">
+    <div className="relative h-[74px] w-[74px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 shadow-sm isolate">
       <div
-        className="relative h-16 w-16 overflow-hidden"
+        className="relative h-14 w-14 overflow-hidden"
         style={{
           WebkitMaskImage: `url(${imageUrl})`,
           maskImage: `url(${imageUrl})`,
@@ -24,12 +24,12 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
           maskPosition: "center",
           WebkitMaskSize: "contain",
           maskSize: "contain",
-          backgroundColor: "#e2e8f0",
+          backgroundColor: "#fde8d8",
         }}
       >
         <div
-          className="absolute inset-x-0 bottom-0 bg-slate-500 transition-all duration-300"
-          style={{ height: `${nivel}%` }}
+          className="absolute inset-x-0 bottom-0 transition-all duration-300"
+          style={{ height: `${nivel}%`, backgroundColor: "#f4b183" }}
         />
       </div>
 
@@ -37,11 +37,11 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
         <img
           src={imageUrl}
           alt={label || "Ícone"}
-          className="h-16 w-16 object-contain"
+          className="h-14 w-14 object-contain"
         />
       </div>
 
-      <div className="absolute inset-x-0 top-[48%] -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-slate-700 pointer-events-none">
+      <div className="absolute inset-x-0 top-[46%] -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-slate-700 pointer-events-none">
         {nivel}%
       </div>
     </div>
