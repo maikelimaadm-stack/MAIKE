@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Beaker, Package } from "lucide-react";
 import { toast } from "sonner";
+import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,12 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     preco_venda: "",
     estoque_minimo: "0",
     local_estoque: "",
+    tipo_consumo: "",
+    percentual_consumo_pv: "",
+    consumo_minimo_pv: "",
+    consumo_maximo_pv: "",
+    unidade_principal_estoque: "KG",
+    peso_por_saco_kg: "",
     observacoes: ""
   });
 
@@ -139,6 +146,11 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       return;
     }
 
+    if (formData.unidade_principal_estoque === "SACO" && !formData.peso_por_saco_kg) {
+      toast.error('Informe o peso por saco quando a unidade é SACO.');
+      return;
+    }
+
     const data = {
       nome_produto: formData.nome_produto?.toUpperCase(),
       codigo_interno: formData.codigo_interno?.toUpperCase(),
@@ -150,6 +162,12 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       preco_venda: parseFloat(formData.preco_venda) || 0,
       estoque_minimo: parseFloat(formData.estoque_minimo) || 0,
       local_estoque: formData.local_estoque?.toUpperCase() || undefined,
+      tipo_consumo: formData.tipo_consumo || undefined,
+      percentual_consumo_pv: parseFloat(formData.percentual_consumo_pv) || undefined,
+      consumo_minimo_pv: parseFloat(formData.consumo_minimo_pv) || undefined,
+      consumo_maximo_pv: parseFloat(formData.consumo_maximo_pv) || undefined,
+      unidade_principal_estoque: formData.unidade_principal_estoque || "KG",
+      peso_por_saco_kg: formData.unidade_principal_estoque === "SACO" ? parseFloat(formData.peso_por_saco_kg) || undefined : undefined,
       observacoes: formData.observacoes?.toUpperCase() || undefined
     };
 
@@ -329,6 +347,126 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                   style={{ textTransform: 'uppercase' }}
                   rows={2}
                 />
+              </div>
+
+              {/* Seção de Suplementação - visível quando categoria é SUPLEMENTAÇÃO */}
+              {formData.categoria?.toUpperCase()?.includes("SUPLEMENTA") && (
+                <div className="border border-indigo-200 bg-indigo-50/50 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Beaker className="w-4 h-4 text-indigo-600" />
+                      <span className="font-semibold text-sm text-indigo-900">Configuração de Suplementação</span>
+                    </div>
+                    {!formData.percentual_consumo_pv && formData.nome_produto && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs border-indigo-300 text-indigo-700"
+                        onClick={() => {
+                          const sugestao = sugerirPercentualPV(formData.nome_produto);
+                          if (sugestao) {
+                            setFormData(prev => ({
+                              ...prev,
+                              percentual_consumo_pv: sugestao.percentual_consumo_pv,
+                              consumo_minimo_pv: sugestao.consumo_minimo_pv,
+                              consumo_maximo_pv: sugestao.consumo_maximo_pv,
+                              tipo_consumo: sugestao.tipo_consumo,
+                            }));
+                            toast.success(`Valores sugeridos para "${sugestao.label}" aplicados.`);
+                          } else {
+                            toast.info("Não há sugestão para este produto. Preencha manualmente.");
+                          }
+                        }}
+                      >
+                        Sugerir valores
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tipo de consumo</Label>
+                      <Select value={formData.tipo_consumo || ""} onValueChange={(value) => handleChange('tipo_consumo', value)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CONSUMO_DIARIO" className="text-xs">Consumo Diário</SelectItem>
+                          <SelectItem value="CONSUMO_LIVRE" className="text-xs">Consumo Livre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">%PV consumo padrão</Label>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        value={formData.percentual_consumo_pv}
+                        onChange={(e) => handleChange('percentual_consumo_pv', e.target.value)}
+                        placeholder="0.30"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">%PV mínimo</Label>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        value={formData.consumo_minimo_pv}
+                        onChange={(e) => handleChange('consumo_minimo_pv', e.target.value)}
+                        placeholder="0.15"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">%PV máximo</Label>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        value={formData.consumo_maximo_pv}
+                        onChange={(e) => handleChange('consumo_maximo_pv', e.target.value)}
+                        placeholder="0.60"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-indigo-700 bg-indigo-100 rounded px-2 py-1">
+                    Fórmula: consumo esperado (kg/dia) = peso vivo médio × (%PV ÷ 100) × nº cabeças. Ex: 450kg × 0.3% = 1,35 kg/cab/dia
+                  </div>
+                </div>
+              )}
+
+              {/* Seção de Unidade de Estoque */}
+              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-slate-600" />
+                  <span className="font-semibold text-sm text-slate-700">Unidade de Estoque</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Unidade principal de estoque</Label>
+                    <Select value={formData.unidade_principal_estoque || "KG"} onValueChange={(value) => handleChange('unidade_principal_estoque', value)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="KG" className="text-xs">Quilogramas (KG)</SelectItem>
+                        <SelectItem value="SACO" className="text-xs">Sacos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.unidade_principal_estoque === "SACO" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso por saco (kg) *</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={formData.peso_por_saco_kg}
+                        onChange={(e) => handleChange('peso_por_saco_kg', e.target.value)}
+                        placeholder="40"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
