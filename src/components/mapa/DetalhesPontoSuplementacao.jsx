@@ -72,7 +72,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   return (
     <div className="space-y-1" translate="no">
       <div className="">
-        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-xs text-slate-700 border-slate-300 bg-white">{ponto.nome_ponto}</div>
+        <div className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">{ponto.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
           
           
