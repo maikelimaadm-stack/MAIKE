@@ -42,7 +42,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     queryKey: ["configuracao-icones-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
+      return all.filter((item) => item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -99,21 +99,19 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     const categoriaPonto = normalizeText(deposito?.categoria_ponto || "");
     const nomePonto = normalizeText(deposito?.nome_ponto || "");
 
-    const correspondentes = iconesConfig
-      .filter((item) => {
-        const categoriaIcone = normalizeText(item.categoria || "");
-        if (categoriaIcone === categoriaPonto) return true;
-        if (categoriaPonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
-        if (categoriaPonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
-        if (nomePonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
-        if (nomePonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
-        return false;
-      })
-      .sort((a, b) => new Date(b.updated_date || 0) - new Date(a.updated_date || 0));
+    const correspondentes = iconesConfig.filter((item) => {
+      const categoriaIcone = normalizeText(item.categoria || "");
+      if (categoriaIcone === categoriaPonto) return true;
+      if (categoriaPonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
+      if (categoriaPonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
+      if (nomePonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
+      if (nomePonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
+      return false;
+    });
 
-    return correspondentes.find((item) => item.sub_icone_url) || null;
+    return correspondentes.find((item) => item.ativo !== false) || correspondentes[0];
   }, [iconesConfig, deposito?.categoria_ponto, deposito?.nome_ponto]);
-  const subIconePonto = iconePonto?.sub_icone_url || "";
+  const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
 
   const ultimoRegistro = indicador.latestRecord;
 
