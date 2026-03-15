@@ -172,18 +172,18 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
           {ultimoRegistro ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate text-slate-900 font-semibold">{ultimoRegistro.produto_nome}</span>
-                <span className="whitespace-nowrap font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</span>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div className="font-semibold leading-tight text-slate-900">{ultimoRegistro.produto_nome}</div>
+                <div className="text-xs font-semibold text-slate-900 whitespace-nowrap">{formatKg(ultimoRegistro.quantidade || 0)}</div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-slate-600">
-                <div>Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
-                <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
-                <div>Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
-                <div>Destino: <span className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</span></div>
+              <div className="grid grid-cols-2 gap-1 md:grid-cols-4">
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</span></div>
               </div>
-              {ultimoRegistro.observacoes && <div className="text-slate-500 italic">{ultimoRegistro.observacoes}</div>}
+              {ultimoRegistro.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoRegistro.observacoes}</div>}
             </div>
           ) : (
             <div className="text-xs text-slate-500">Nenhum registro ainda.</div>

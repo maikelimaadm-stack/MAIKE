@@ -71,7 +71,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
   return (
     <div className="space-y-1" translate="no">
-      <div className="pb-2 border-b space-y-">
+      <div className="pb-2 border-b space-y-1">
         <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">{ponto.status}</Badge>
@@ -85,7 +85,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 text-[10px]">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
         <CardInfo label="Áreas vinculadas" value={
         Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0 ?
         ponto.area_vinculada_nomes.join(", ") :
@@ -130,7 +130,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   <div className="text-slate-500">Capacidade</div>
                   <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
                 </div>
-                <div className="rounded-lg border border-slate-20 bg-slate-50 p-2.5">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Base</div>
                   <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
                 </div>
@@ -141,29 +141,29 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       })()}
 
       <CardSection title="Último Registro">
-        {ultimoEvento ?
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-1.">
-            <div className="">
-              <span className="text-slate-900 pr-24 font-semibold">{ultimoEvento.produto}</span>
-              <Badge variant="outline" className="text-slate-900 mx-8 pr-24 font-semibold rounded-md inline-flex items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
+        {ultimoEvento ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
+              <div className="text-xs font-semibold text-slate-900 whitespace-nowrap">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</div>
             </div>
-            <div className="grid grid-cols-3 gap- text-slate-600">
-              <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
-              <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
-              <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
-              <div>Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
-              <div>Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
-              <div>Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + ultimoEvento.dias_periodo * 86400000).toLocaleDateString("pt-BR") : "-"}</span></div>
+            <div className="grid grid-cols-2 gap-1 md:grid-cols-3">
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + ultimoEvento.dias_periodo * 86400000).toLocaleDateString("pt-BR") : "-"}</span></div>
             </div>
-            {ultimoEvento.observacoes && <div className="text-slate-500 italic">{ultimoEvento.observacoes}</div>}
-          </div> :
-
-        <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
-        }
+            {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
+          </div>
+        ) : (
+          <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
+        )}
       </CardSection>
 
       <CardSection title="Informações do Cocho">
-        <div className="space-y- text-[10px]">
+        <div className="space-y-1 text-[10px]">
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
           {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
@@ -198,7 +198,7 @@ function CardInfo({ label, value }) {
 
 function CardSection({ title, children }) {
   return (
-    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-">
+    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">
       <div className="text-[11px] font-bold text-slate-900">{title}</div>
       {children}
     </div>);
