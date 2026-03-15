@@ -38,9 +38,9 @@ export default function AreasPastagem() {
   });
 
   const { data: gado = [] } = useQuery({
-    queryKey: ['gado', empresaSelecionadaId],
+    queryKey: ['lotes-areas', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Gado.list();
+      const all = await base44.entities.Lote.list();
       return all.filter(g => g.empresa_id === empresaSelecionadaId && g.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
