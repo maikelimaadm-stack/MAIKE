@@ -117,6 +117,9 @@ async function baixarLotesFIFO(rateio) {
     if (!loteAtual?.length) continue;
 
     const saldoAtual = loteAtual[0].quantidade_disponivel || 0;
+    if (item.quantidade_consumida > saldoAtual) {
+      throw new Error(`Tentativa de baixar ${item.quantidade_consumida.toFixed(3)} kg acima do saldo do lote ${item.numero_documento || item.lote_id}.`);
+    }
     const novoSaldo = Math.max(0, saldoAtual - item.quantidade_consumida);
 
     await base44.entities.EstoqueLoteNota.update(item.lote_id, {
@@ -210,7 +213,7 @@ export async function registrarSaidaSuplementacao({
     tipo_vinculo: areaId ? "area" : undefined,
     centro_custo_nome: areaNome || undefined,
     motivo_movimentacao: "Baixa automática de suplementação",
-    observacoes,
+    observacoes: `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioObservacao(resultado.rateio)}`,
     origem_sistema: "suplementacao",
     deposito_id: depositoId || undefined,
     ponto_suplementacao_id: pontoSuplementacaoId || undefined,
@@ -257,6 +260,15 @@ export async function registrarTransferenciaEntreLocais({
 
   const quantidadeFinal = parseNumber(quantidade);
   const estoqueAtual = produto.estoque_atual || 0;
+  const conferencia = conferirDivergenciaEstoque({
+    lotesNota,
+    produtoId: produto.id,
+    localEstoqueId: localOrigemId,
+    saldoProduto: estoqueAtual,
+  });
+  if (conferencia.inconsistente) {
+    throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
+  }
   if (estoqueAtual - quantidadeFinal < 0) {
     throw new Error("Não é permitido saldo negativo de estoque.");
   }
