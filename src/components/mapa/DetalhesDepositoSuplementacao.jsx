@@ -120,11 +120,11 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
 
   return (
     <div className="space-y-1" translate="no">
-      <div className="pb-2 border-b space-y-1">
-        <div className="text-sm font-bold text-slate-900">{deposito.nome_ponto}</div>
+      <div className="">
+        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-xs text-slate-700 border-slate-300 bg-white">{deposito.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
           
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Local: {deposito.local_estoque_nome || "Sem local"}</Badge>
+          
         </div>
       </div>
 
