@@ -16,6 +16,8 @@ import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { evaluateConsumoFaixa, getSupplementRule } from "./suplementacaoRules";
+import { quantidadeParaKg, produtoSuportaSacos, formatQuantidadeComUnidade, kgParaSacos } from "./unidadeConversaoUtils";
+import { consumoEsperadoPorCabecaDia, consumoEsperadoGrupoDia, pesoMedioPonderadoLotes, avaliarConsumoPV } from "./consumoPVUtils";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -26,6 +28,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     produto: ponto?.produto_padrao || "",
     quantidade_total_kg: "",
     sobra_kg: "0",
+    unidade_lancamento: "KG",
+    quantidade_sacos: "",
     observacoes: "",
   });
 
@@ -115,10 +119,30 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
-  const quantidadeTotal = parseNumber(formData.quantidade_total_kg || 0);
-  const sobraInformada = parseNumber(formData.sobra_kg || 0);
+  // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
+  const pesoMedioGeral = pesoMedioPonderadoLotes(lotes);
   const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, formData.data_lancamento) : null;
+
+  const produtoSelecionado = useMemo(() => {
+    return produtosSuplementacao.find((produto) => normalizeText(produto.nome_produto) === normalizeText(formData.produto)) || null;
+  }, [produtosSuplementacao, formData.produto]);
+
+  const suportaSacos = produtoSuportaSacos(produtoSelecionado);
+  const pesoPorSaco = Number(produtoSelecionado?.peso_por_saco_kg || 0);
+  const tipoConsumo = produtoSelecionado?.tipo_consumo || null;
+
+  // Quantidade em kg (sempre convertida)
+  const quantidadeKg = useMemo(() => {
+    if (formData.unidade_lancamento === "SACO" && suportaSacos) {
+      return quantidadeParaKg(parseNumber(formData.quantidade_sacos || 0), "SACO", pesoPorSaco);
+    }
+    return parseNumber(formData.quantidade_total_kg || 0);
+  }, [formData.unidade_lancamento, formData.quantidade_sacos, formData.quantidade_total_kg, suportaSacos, pesoPorSaco]);
+
+  const sobraInformada = parseNumber(formData.sobra_kg || 0);
+
+  // Fator legado (compatibilidade)
   const getFatorLote = (lote) => {
     const match = fatores.find((item) =>
       normalizeText(item.categoria) === normalizeText(lote.categoria) ||
@@ -127,25 +151,45 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     );
     return match?.fator || 1;
   };
+
   const lotesSemFator = lotes.filter((lote) => !fatores.some((item) =>
     normalizeText(item.categoria) === normalizeText(lote.categoria) ||
     normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_nome) ||
     normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_id)
   ));
+
   const pesoTotalConsumo = lotes.reduce((total, lote) => {
     const fator = getFatorLote(lote);
     return total + ((lote.quantidade_cabecas || 0) * fator);
   }, 0);
+
+  // %PV consumo esperado
+  const pctPV = Number(produtoSelecionado?.percentual_consumo_pv || 0);
+  const consumoEsperadoCabDiaPV = pctPV > 0 && pesoMedioGeral > 0
+    ? consumoEsperadoPorCabecaDia(pesoMedioGeral, pctPV)
+    : 0;
+  const consumoEsperadoGrupoDiaPV = consumoEsperadoCabDiaPV * totalCabecas;
+
+  // Consumo estimado do novo lançamento
   const diasEstimadosNovoPeriodo = Math.max(1, ponto?.frequencia_esperada_dias || 1);
-  const consumoEstimadoPeriodoKg = Math.max(0, quantidadeTotal);
-  const consumoEstimadoCabDia = safeDivide(consumoEstimadoPeriodoKg, totalCabecas * diasEstimadosNovoPeriodo);
+  const consumoEstimadoCabDia = safeDivide(quantidadeKg, totalCabecas * diasEstimadosNovoPeriodo);
   const consumoEstimadoGramas = consumoEstimadoCabDia * 1000;
+
+  // Avaliação técnica: prioriza %PV se disponível, senão usa regras de fallback
+  const avaliacaoPV = pctPV > 0 && pesoMedioGeral > 0
+    ? avaliarConsumoPV(consumoEstimadoCabDia, pesoMedioGeral, produtoSelecionado)
+    : null;
+
   const regraProduto = getSupplementRule(formData.produto);
-  const avaliacaoTecnica = evaluateConsumoFaixa(consumoEstimadoCabDia, formData.produto, {
+  const avaliacaoFallback = evaluateConsumoFaixa(consumoEstimadoCabDia, formData.produto, {
     min: ponto?.limite_minimo_consumo || undefined,
     idealMin: ponto?.consumo_ideal_por_cabeca_kg || undefined,
     idealMax: ponto?.limite_maximo_consumo || undefined,
   });
+
+  const avaliacaoTecnica = avaliacaoPV || avaliacaoFallback;
+
+  // Médias recentes
   const mediaRecente7Dias = (() => {
     const limite = new Date(formData.data_lancamento || new Date().toISOString().split("T")[0]);
     limite.setDate(limite.getDate() - 7);
@@ -155,10 +199,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     const totalConsumido = fechados.reduce((sum, evento) => sum + ((evento.consumo_diario_grupo_kg || 0) * (evento.dias_periodo || 0)), 0);
     return safeDivide(totalConsumido, totalAnimalDias);
   })();
+
   const ultimoConsumoCabDia = ultimoEvento?.consumo_diario_grupo_kg
     ? safeDivide(ultimoEvento.consumo_diario_grupo_kg, ultimoEvento.total_cabecas_afetadas || 0)
     : 0;
 
+  // Produtos disponíveis (ordenados por saldo)
   const produtosDisponiveis = useMemo(() => {
     if (!depositoVinculado?.local_estoque_id) return produtosSuplementacao;
     return [...produtosSuplementacao].sort((a, b) => {
@@ -171,30 +217,57 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     });
   }, [depositoVinculado, produtosSuplementacao, lotesNota, ponto]);
 
-  const produtoSelecionado = useMemo(() => {
-    return produtosSuplementacao.find((produto) => normalizeText(produto.nome_produto) === normalizeText(formData.produto)) || null;
-  }, [produtosSuplementacao, formData.produto]);
-
   const saldoNoDeposito = useMemo(() => {
     if (!depositoVinculado?.local_estoque_id || !produtoSelecionado) return 0;
     return obterSaldoProdutoLocal(lotesNota, produtoSelecionado.id, depositoVinculado.local_estoque_id);
   }, [depositoVinculado, produtoSelecionado, lotesNota]);
 
+  // Auto-selecionar produto único
   useEffect(() => {
     if (!formData.produto && produtosDisponiveis.length === 1) {
       setFormData((prev) => ({ ...prev, produto: produtosDisponiveis[0].nome_produto }));
     }
   }, [formData.produto, produtosDisponiveis]);
 
+  // Ajustar unidade ao trocar produto
+  useEffect(() => {
+    if (produtoSelecionado) {
+      if (!suportaSacos) {
+        setFormData((prev) => ({ ...prev, unidade_lancamento: "KG", quantidade_sacos: "" }));
+      }
+    }
+  }, [produtoSelecionado?.id]);
+
+  // Sincronizar kg ↔ sacos
+  const handleQuantidadeKgChange = (value) => {
+    const kg = parseNumber(value);
+    setFormData((prev) => ({
+      ...prev,
+      quantidade_total_kg: value,
+      quantidade_sacos: suportaSacos && pesoPorSaco > 0 ? kgParaSacos(kg, pesoPorSaco).toFixed(1) : "",
+    }));
+  };
+
+  const handleQuantidadeSacosChange = (value) => {
+    const sacos = parseNumber(value);
+    const kgConvertido = quantidadeParaKg(sacos, "SACO", pesoPorSaco);
+    setFormData((prev) => ({
+      ...prev,
+      quantidade_sacos: value,
+      quantidade_total_kg: kgConvertido.toFixed(2),
+    }));
+  };
+
+  // === SALVAR ===
   const handleSalvar = async () => {
     if (progresso.show) return;
 
     if (!formData.produto) return toast.error("Selecione um produto.");
-    if (quantidadeTotal <= 0) return toast.error("Informe a quantidade fornecida.");
+    if (quantidadeKg <= 0) return toast.error("Informe a quantidade fornecida.");
     if (sobraInformada < 0) return toast.error("A sobra informada não pode ser negativa.");
     if (totalCabecas <= 0) return toast.error("Não há cabeças ativas nas áreas vinculadas.");
     if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
-    if (depositoVinculado?.local_estoque_id && quantidadeTotal > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
+    if (depositoVinculado?.local_estoque_id && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
 
     if (ultimoEvento) {
       const saldoFisicoMaximo = (ultimoEvento.quantidade_total_kg || 0) + (ultimoEvento.sobra_kg || 0);
@@ -235,7 +308,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           empresaId: empresaSelecionadaId,
           userEmail: user?.email,
           produto: produtoSelecionado,
-          quantidade: quantidadeTotal,
+          quantidade: quantidadeKg,
           localOrigemId: depositoVinculado.local_estoque_id,
           localOrigemNome: depositoVinculado.local_estoque_nome,
           areaId: areaIdsVinculados[0] || ponto.area_vinculada_id,
@@ -249,6 +322,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }
 
       setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Criando evento de suplementação..." });
+      const sacosLancamento = formData.unidade_lancamento === "SACO" ? parseNumber(formData.quantidade_sacos || 0) : null;
+      
       const novoEvento = await base44.entities.SuplementacaoEvento.create({
         empresa_id: empresaSelecionadaId,
         ponto_suplementacao_id: ponto.id,
@@ -259,12 +334,20 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         area_nomes: areaNomesVinculados,
         data_lancamento: formData.data_lancamento,
         produto: formData.produto,
-        quantidade_total_kg: quantidadeTotal,
+        produto_id: produtoSelecionado?.id || null,
+        tipo_consumo: tipoConsumo || null,
+        quantidade_total_kg: quantidadeKg,
+        quantidade_sacos: sacosLancamento,
+        peso_por_saco_kg: suportaSacos ? pesoPorSaco : null,
+        unidade_lancamento: formData.unidade_lancamento,
         sobra_kg: parseNumber(formData.sobra_kg || 0),
         dias_periodo: null,
         consumo_diario_grupo_kg: null,
         total_cabecas_afetadas: totalCabecas,
+        peso_medio_lotes_kg: pesoMedioGeral || null,
         peso_total_consumo: pesoTotalConsumo,
+        consumo_esperado_pv_kg: consumoEsperadoGrupoDiaPV > 0 ? consumoEsperadoGrupoDiaPV : null,
+        percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
         movimentacao_estoque_id: movimentoEstoque?.id || null,
         observacoes: formData.observacoes || null,
       });
@@ -272,6 +355,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       for (let index = 0; index < lotes.length; index++) {
         const lote = lotes[index];
         const fator = getFatorLote(lote);
+        const pesoMedioLote = Number(lote.peso_medio_kg || 0);
+        const consumoEsperadoLotePV = pctPV > 0 && pesoMedioLote > 0
+          ? consumoEsperadoPorCabecaDia(pesoMedioLote, pctPV) * (lote.quantidade_cabecas || 0)
+          : null;
+
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: `Registrando lote ${index + 1}/${lotes.length}...` });
         await base44.entities.SuplementacaoLote.create({
           empresa_id: empresaSelecionadaId,
@@ -280,6 +368,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           lote_nome: lote.nome,
           categoria: lote.categoria,
           fator_consumo: fator,
+          peso_medio_lote_kg: pesoMedioLote || null,
+          consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
           data_lancamento: formData.data_lancamento,
           produto: formData.produto,
           cabecas_na_area: lote.quantidade_cabecas,
@@ -304,7 +394,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
   };
 
-  const botaoHabilitado = totalCabecas > 0 && formData.produto && formData.quantidade_total_kg;
+  const botaoHabilitado = totalCabecas > 0 && formData.produto && quantidadeKg > 0;
 
   return (
     <>
@@ -312,6 +402,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         <CardHeader className="bg-slate-50 border-b py-3"><CardTitle className="text-sm font-semibold text-slate-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
         <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           <div className="space-y-4">
+            {/* Resumo do ponto */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs">
                 <div><span className="text-slate-600">Áreas:</span><span className="font-semibold text-slate-900 ml-2">{areaNomesVinculados.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
@@ -320,14 +411,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-600">Lotes nas áreas:</span>
                 {loadingLotes ? <Badge variant="outline" className="text-xs">Carregando...</Badge> : <Badge variant="outline" className="text-xs">{formatDecimal(lotes.length, 0, true)} lote(s) - {formatDecimal(totalCabecas, 0, true)} cabeças</Badge>}
-                {depositoVinculado?.local_estoque_nome && <Badge variant="outline" className="text-xs">Local: {depositoVinculado.local_estoque_nome}</Badge>}
-                {lotesSemFator.length > 0 && <Badge className="text-xs bg-red-100 text-red-800">Categorias sem fator</Badge>}
+                {pesoMedioGeral > 0 && <Badge variant="outline" className="text-xs">Peso médio: {formatDecimal(pesoMedioGeral, 1)} kg</Badge>}
+                {tipoConsumo && <Badge className={`text-xs ${tipoConsumo === "CONSUMO_DIARIO" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>{tipoConsumo === "CONSUMO_DIARIO" ? "Consumo Diário" : "Consumo Livre"}</Badge>}
               </div>
               {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-blue-700">Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
             {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
 
+            {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs">Data do lançamento *</Label>
@@ -338,21 +430,73 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <Select value={formData.produto} onValueChange={(value) => setFormData((prev) => ({ ...prev, produto: value }))}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                   <SelectContent>
-                    {produtosDisponiveis.map((produto) => <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">{produto.nome_produto}</SelectItem>)}
+                    {produtosDisponiveis.map((produto) => (
+                      <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
+                        {produto.nome_produto}
+                        {produto.percentual_consumo_pv ? ` (${produto.percentual_consumo_pv}% PV)` : ""}
+                        {produto.unidade_principal_estoque === "SACO" ? ` • Saco ${produto.peso_por_saco_kg}kg` : ""}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Quantidade total fornecida (kg) *</Label>
-                <Input type="text" inputMode="decimal" value={formData.quantidade_total_kg} onChange={(e) => setFormData((prev) => ({ ...prev, quantidade_total_kg: e.target.value }))} className="h-8 text-xs" placeholder="0,00" />
-              </div>
+            </div>
+
+            {/* Campos de quantidade com suporte a sacos */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {suportaSacos && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Unidade de lançamento</Label>
+                  <Select value={formData.unidade_lancamento} onValueChange={(value) => setFormData((prev) => ({ ...prev, unidade_lancamento: value }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="KG" className="text-xs">Quilogramas (KG)</SelectItem>
+                      <SelectItem value="SACO" className="text-xs">Sacos ({pesoPorSaco} kg/saco)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {formData.unidade_lancamento === "SACO" && suportaSacos ? (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Quantidade de sacos *</Label>
+                    <Input type="text" inputMode="decimal" value={formData.quantidade_sacos} onChange={(e) => handleQuantidadeSacosChange(e.target.value)} className="h-8 text-xs" placeholder="0" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Equivalente em kg</Label>
+                    <div className="h-8 flex items-center px-3 bg-slate-100 rounded-md text-xs font-semibold text-slate-700 border">{formatDecimal(quantidadeKg)} kg</div>
+                  </div>
+                </>
+              ) : (
+                <div className={`space-y-1 ${suportaSacos ? "" : "lg:col-span-2"}`}>
+                  <Label className="text-xs">Quantidade total fornecida (kg) *</Label>
+                  <Input type="text" inputMode="decimal" value={formData.quantidade_total_kg} onChange={(e) => handleQuantidadeKgChange(e.target.value)} className="h-8 text-xs" placeholder="0,00" />
+                  {suportaSacos && pesoPorSaco > 0 && quantidadeKg > 0 && (
+                    <div className="text-[10px] text-slate-500">≈ {formatDecimal(kgParaSacos(quantidadeKg, pesoPorSaco), 1)} saco(s)</div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1">
                 <Label className="text-xs">Sobra no cocho (kg)</Label>
                 <Input type="text" inputMode="decimal" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-8 text-xs" placeholder="0,00" />
               </div>
             </div>
 
-            {depositoVinculado?.local_estoque_id && produtoSelecionado && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between"><div><div className="text-xs text-slate-500">Saldo disponível no depósito</div><div className="text-sm font-semibold text-slate-900">{formatDecimal(saldoNoDeposito)} {produtoSelecionado.unidade_medida || "KG"}</div></div><Badge variant="outline" className="text-xs">Baixa automática ativa</Badge></div>}
+            {/* Saldo depósito */}
+            {depositoVinculado?.local_estoque_id && produtoSelecionado && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-500">Saldo disponível no depósito</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {formatDecimal(saldoNoDeposito)} {produtoSelecionado.unidade_medida || "KG"}
+                    {suportaSacos && pesoPorSaco > 0 && <span className="text-xs text-slate-500 ml-2">({formatDecimal(kgParaSacos(saldoNoDeposito, pesoPorSaco), 1)} sacos)</span>}
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs">Baixa automática ativa</Badge>
+              </div>
+            )}
             {depositoVinculado?.local_estoque_id && formData.produto && produtoSelecionado && saldoNoDeposito <= 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 O produto foi localizado, mas não possui saldo disponível neste depósito/local de estoque.
@@ -364,12 +508,26 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               </div>
             )}
 
-            {!!formData.quantidade_total_kg && totalCabecas > 0 && (
+            {/* Painel %PV - quando disponível */}
+            {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-semibold text-indigo-900">Consumo esperado por %PV do produto</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">%PV</div><div className="font-bold text-indigo-900">{formatDecimal(pctPV, 3)}%</div></div>
+                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">Peso médio</div><div className="font-bold text-indigo-900">{formatDecimal(pesoMedioGeral, 1)} kg</div></div>
+                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">Esperado/cab/dia</div><div className="font-bold text-indigo-900">{formatDecimal(consumoEsperadoCabDiaPV, 3)} kg</div></div>
+                  <div className="rounded-md border border-indigo-200 bg-white p-2"><div className="text-indigo-700">Esperado grupo/dia</div><div className="font-bold text-indigo-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>
+                </div>
+              </div>
+            )}
+
+            {/* Validação técnica */}
+            {quantidadeKg > 0 && totalCabecas > 0 && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="text-xs font-semibold text-emerald-900">Validação técnica do novo lançamento</div>
                   <Badge className={`text-xs ${avaliacaoTecnica.status === "dentro_ideal" ? "bg-emerald-100 text-emerald-800" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
-                    {avaliacaoTecnica.status === "dentro_ideal" ? "Dentro do ideal" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "Fora da faixa ideal" : "Fora do limite técnico"}
+                    {avaliacaoTecnica.status === "dentro_ideal" ? "Dentro do ideal" : ["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status) ? "Fora da faixa ideal" : avaliacaoTecnica.status === "sem_config" || avaliacaoTecnica.status === "sem_regra" ? "Sem referência" : "Fora do limite técnico"}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]">
@@ -381,13 +539,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 </div>
                 <div className="text-[10px] text-emerald-800">
                   {avaliacaoTecnica.message}
-                  {regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
+                  {avaliacaoPV && consumoEsperadoCabDiaPV > 0 ? ` • Esperado (%PV): ${formatDecimal(consumoEsperadoCabDiaPV, 3)} kg/cab/dia` : ""}
+                  {!avaliacaoPV && regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
                   {ultimoConsumoCabDia > 0 ? ` • Último fechado: ${formatDecimal(ultimoConsumoCabDia, 3)} kg/cab/dia` : ""}
                 </div>
               </div>
             )}
 
-            {/* Consumo do último período (fechado ou em aberto) */}
+            {/* Consumo do último período */}
             {ultimoEvento && (() => {
               const sobraAnterior = ultimoEvento.sobra_kg || 0;
               const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
@@ -411,7 +570,46 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               );
             })()}
 
-            {formData.quantidade_total_kg && totalCabecas > 0 && lotes.length > 0 && <div className="bg-slate-50 border border-slate-300 rounded-lg p-3 space-y-3"><div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div><div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]"><div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatDecimal(parseNumber(formData.quantidade_total_kg || 0))} kg</div></div><div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Sobra</div><div className="font-bold text-slate-900">{formatDecimal(parseNumber(formData.sobra_kg || 0))} kg</div></div><div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(Math.max(0, parseNumber(formData.quantidade_total_kg || 0) - parseNumber(formData.sobra_kg || 0)))} kg</div></div><div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Peso total consumo</div><div className="font-bold text-slate-900">{formatDecimal(pesoTotalConsumo)}</div></div></div><div className="space-y-2">{lotes.map((lote) => { const fator = fatores.find((item) => normalizeText(item.categoria) === normalizeText(lote.categoria))?.fator || 1; const pesoConsumoLote = (lote.quantidade_cabecas || 0) * fator; const percentualConsumo = pesoTotalConsumo > 0 ? (pesoConsumoLote / pesoTotalConsumo) * 100 : 0; return <div key={lote.id} className="bg-white border border-slate-200 rounded-md p-2"><div className="flex items-center justify-between mb-1"><div className="font-semibold text-xs text-slate-900">{lote.nome}</div><Badge variant="outline" className="text-[10px]">{lote.categoria}</Badge></div><div className="grid grid-cols-3 gap-2 text-[10px]"><div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div><div><div className="text-slate-500">Fator</div><div className="font-bold text-slate-900">{formatDecimal(fator)}</div></div><div><div className="text-slate-500">% Consumo</div><div className="font-bold text-emerald-700">{formatDecimal(percentualConsumo, 1)}%</div></div></div></div>; })}</div></div>}
+            {/* Consumo por lote */}
+            {quantidadeKg > 0 && totalCabecas > 0 && lotes.length > 0 && (
+              <div className="bg-slate-50 border border-slate-300 rounded-lg p-3 space-y-3">
+                <div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatQuantidadeComUnidade(quantidadeKg, suportaSacos ? pesoPorSaco : 0)}</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Sobra</div><div className="font-bold text-slate-900">{formatDecimal(sobraInformada)} kg</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(Math.max(0, quantidadeKg - sobraInformada))} kg</div></div>
+                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Peso total consumo</div><div className="font-bold text-slate-900">{formatDecimal(pesoTotalConsumo)}</div></div>
+                </div>
+                <div className="space-y-2">
+                  {lotes.map((lote) => {
+                    const fator = getFatorLote(lote);
+                    const pesoConsumoLote = (lote.quantidade_cabecas || 0) * fator;
+                    const percentualConsumo = pesoTotalConsumo > 0 ? (pesoConsumoLote / pesoTotalConsumo) * 100 : 0;
+                    const pesoMedioLote = Number(lote.peso_medio_kg || 0);
+                    const consumoEsperadoLote = pctPV > 0 && pesoMedioLote > 0
+                      ? consumoEsperadoPorCabecaDia(pesoMedioLote, pctPV)
+                      : null;
+                    return (
+                      <div key={lote.id} className="bg-white border border-slate-200 rounded-md p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
+                          <Badge variant="outline" className="text-[10px]">{lote.categoria}</Badge>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 text-[10px]">
+                          <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
+                          <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : "-"}</div></div>
+                          <div><div className="text-slate-500">Fator</div><div className="font-bold text-slate-900">{formatDecimal(fator)}</div></div>
+                          <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-emerald-700">{formatDecimal(percentualConsumo, 1)}%</div></div>
+                        </div>
+                        {consumoEsperadoLote && (
+                          <div className="mt-1 text-[10px] text-indigo-700">Esperado (%PV): {formatDecimal(consumoEsperadoLote, 3)} kg/cab/dia</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label className="text-xs">Observações</Label>
