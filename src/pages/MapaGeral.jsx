@@ -173,9 +173,9 @@ export default function MapaGeral() {
   const pontosSuplementacaoDecorados = useMemo(() => {
     return pontosSuplementacao.map((ponto) => {
       const referencia = pontos.find((item) => normalizeText(item.nome) === normalizeText(ponto.nome_ponto)) || null;
-      const indicador = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO'
-        ? getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, [])
-        : getCochoIndicator(ponto, eventosSupl);
+      const indicador = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
+      getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, []) :
+      getCochoIndicator(ponto, eventosSupl);
 
       return {
         ...ponto,
@@ -183,7 +183,7 @@ export default function MapaGeral() {
         indicador_helper: indicador.helperLabel,
         ultimo_registro: indicador.latestRecord,
         icone_status_url: referencia?.icone_url ? buildProgressIconUrl(referencia.icone_url, indicador.percent) : null,
-        sub_icone_status_url: referencia?.sub_icone_url ? buildProgressIconUrl(referencia.sub_icone_url, indicador.percent, 40) : null,
+        sub_icone_status_url: referencia?.sub_icone_url ? buildProgressIconUrl(referencia.sub_icone_url, indicador.percent, 40) : null
       };
     });
   }, [pontosSuplementacao, pontos, lotes, estoqueLotes, eventosSupl]);
@@ -544,7 +544,7 @@ export default function MapaGeral() {
       </Dialog>
 
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}}>
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'}</DialogTitle></DialogHeader>
           {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} onClose={() => {setShowDetalhesPontoSupl(false);setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}} />}
         </DialogContent>
