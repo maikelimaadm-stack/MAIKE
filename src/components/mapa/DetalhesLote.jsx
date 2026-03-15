@@ -549,13 +549,13 @@ export default function DetalhesLote({ lotes, onClose }) {
           const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
           return (
-            <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-              <div className="space-y-2">
-                <div className="flex items-start gap-3">
+            <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm">
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-bold text-slate-900 mb-1.5">{categoria}</div>
-                    <div className="text-xl font-bold text-slate-900 mb-2">{totalCabecasCategoria} cab</div>
-                    <div className="space-y-1.5 text-[10px]">
+                    <div className="text-[11px] font-bold text-slate-900 mb-1">{categoria}</div>
+                    <div className="text-lg font-bold text-slate-900 mb-1.5">{totalCabecasCategoria} cab</div>
+                    <div className="space-y-1 text-[10px]">
                       <div className="flex gap-2">
                         <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
                         <span className="font-semibold text-slate-900 break-words">{lotesCategoria.map(l => l.nome).join(', ')}</span>
@@ -577,8 +577,8 @@ export default function DetalhesLote({ lotes, onClose }) {
         })}
       </div>
 
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-3">
-        <div className="grid grid-cols-4 gap-3 text-[10px]">
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
           <div>
             <div className="text-slate-600 mb-0.5">Total de cabeças</div>
             <div className="text-sm font-bold text-slate-900">{totalCabecas}</div>
@@ -611,7 +611,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Abate</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-3">
+      <div className="grid grid-cols-2 gap-2 mt-2">
         <Button 
           onClick={() => setShowHistorico(true)}
           variant="outline"

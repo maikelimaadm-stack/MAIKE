@@ -26,6 +26,13 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
 
   const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
   const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
+  const percentualUso = useMemo(() => {
+    const validos = consumosRecentes.filter((item) => (item.cabecas_na_area || 0) > 0 && (item.dias_periodo || 0) > 0 && (item.consumo_esperado_pv_lote_kg || 0) > 0);
+    if (!validos.length) return null;
+    const totalReal = validos.reduce((sum, item) => sum + (item.consumo_total_lote_periodo_kg || 0), 0);
+    const totalEsperado = validos.reduce((sum, item) => sum + ((item.consumo_esperado_pv_lote_kg || 0) * (item.dias_periodo || 0)), 0);
+    return totalEsperado > 0 ? (totalReal / totalEsperado) * 100 : null;
+  }, [consumosRecentes]);
 
   if (consumosLote.length === 0) return null;
 
@@ -33,7 +40,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     return (
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mt-2">
         <div className="text-[10px] font-semibold text-slate-900 mb-1">Suplementação (30 dias)</div>
-        <div className="grid grid-cols-3 gap-2 text-[9px]">
+        <div className="grid grid-cols-4 gap-2 text-[9px]">
           <div>
             <div className="text-slate-500">Total</div>
             <div className="text-xs font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div>
@@ -46,6 +53,10 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
             <div className="text-slate-500">g/cab/dia</div>
             <div className="text-xs font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)}</div>
           </div>
+          <div>
+            <div className="text-slate-500">% uso</div>
+            <div className="text-xs font-bold text-slate-900">{percentualUso != null ? `${percentualUso.toFixed(0)}%` : '-'}</div>
+          </div>
         </div>
       </div>
     );
@@ -54,7 +65,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-3">
       <div className="text-xs font-semibold text-slate-900 mb-2">Suplementação (últimos 30 dias)</div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px]">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 text-[10px]">
         <div>
           <div className="text-slate-500 mb-0.5">Total consumido</div>
           <div className="text-sm font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div>
@@ -66,6 +77,10 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
         <div>
           <div className="text-slate-500 mb-0.5">Média g/cab/dia</div>
           <div className="text-sm font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div>
+        </div>
+        <div>
+          <div className="text-slate-500 mb-0.5">% uso</div>
+          <div className="text-sm font-bold text-slate-900">{percentualUso != null ? `${percentualUso.toFixed(0)}%` : '-'}</div>
         </div>
         <div>
           <div className="text-slate-500 mb-0.5">Último lançamento</div>
