@@ -14,12 +14,12 @@ import { safeDivide } from "../utils/pecuariaUtils";
 
 function DesvioTag({ real, esperado }) {
   if (!esperado || esperado <= 0 || !real || real <= 0) return null;
-  const desvio = ((real - esperado) / esperado) * 100;
+  const desvio = (real - esperado) / esperado * 100;
   return (
     <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-700">
       {desvio > 0 ? "+" : ""}{desvio.toFixed(0)}%
-    </span>
-  );
+    </span>);
+
 }
 
 export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
@@ -37,7 +37,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
       const all = await base44.entities.SuplementacaoEvento.list();
       return all.filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === pontoId).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
     },
-    enabled: !!empresaSelecionadaId && !!pontoId,
+    enabled: !!empresaSelecionadaId && !!pontoId
   });
 
   const updateMutation = useMutation({
@@ -45,7 +45,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "ultimo-evento-ponto"].includes(query.queryKey[0]) });
       toast.success("Lançamento atualizado.");
-    },
+    }
   });
 
   const resumo = useMemo(() => {
@@ -85,45 +85,45 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
           <CardTitle className="text-sm font-semibold">Histórico do Cocho ({eventos.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-2">
-          {eventos.length === 0 ? (
-            <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>
-          ) : (
-            <div className="max-h-[60vh] overflow-y-auto space-y-1">
-              {eventos.map((evento, index) => {
-                const periodoFechado = (evento.dias_periodo || 0) > 0;
-                const cabecas = evento.total_cabecas_afetadas || 0;
-                const consumoDiarioGrupo = evento.consumo_diario_grupo_kg || 0;
-                const consumoCabDia = cabecas > 0 ? safeDivide(consumoDiarioGrupo, cabecas) : 0;
-                const consumoEsperadoPV = evento.consumo_esperado_pv_kg || 0;
-                const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
-                const pesoMedio = evento.peso_medio_lotes_kg || 0;
+          {eventos.length === 0 ?
+          <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div> :
 
-                return (
-                  <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
+          <div className="max-h-[60vh] overflow-y-auto space-y-1">
+              {eventos.map((evento, index) => {
+              const periodoFechado = (evento.dias_periodo || 0) > 0;
+              const cabecas = evento.total_cabecas_afetadas || 0;
+              const consumoDiarioGrupo = evento.consumo_diario_grupo_kg || 0;
+              const consumoCabDia = cabecas > 0 ? safeDivide(consumoDiarioGrupo, cabecas) : 0;
+              const consumoEsperadoPV = evento.consumo_esperado_pv_kg || 0;
+              const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
+              const pesoMedio = evento.peso_medio_lotes_kg || 0;
+
+              return (
+                <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex-1 min-w-0 space-y-0">
                         {/* Header */}
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-medium text-slate-500">{new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
                           {index === 0 && <Badge variant="outline" className="text-[10px]">Último</Badge>}
-                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
+                          <Badge variant="outline" className="rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-[10px] text-slate-700 border-slate-300 bg-white">
                             {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
                           </Badge>
-                          {evento.tipo_consumo && (
-                            <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
+                          {evento.tipo_consumo &&
+                        <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                               {evento.tipo_consumo === "CONSUMO_DIARIO" ? "Diário" : "Livre"}
                             </Badge>
-                          )}
-                          {periodoFechado && consumoEsperadoCabDia > 0 && (
-                            <DesvioTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
-                          )}
+                        }
+                          {periodoFechado && consumoEsperadoCabDia > 0 &&
+                        <DesvioTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
+                        }
                         </div>
 
                         {/* Produto */}
                         <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
                         {/* Métricas técnicas */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1.5 text-[10px]">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1 text-[10px]">
                           <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
                             <div className="text-slate-500">Fornecido</div>
                             <div className="font-bold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</div>
@@ -155,23 +155,23 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                       </div>
 
                       <div className="flex gap-1 shrink-0 flex-col">
-                        <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0} onClick={() => { setEditEvento(evento); setShowEdit(true); }}>Editar</Button>
+                        <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0} onClick={() => {setEditEvento(evento);setShowEdit(true);}}>Editar</Button>
                         <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id} onClick={() => handleDelete(evento, index)}>Excluir</Button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  </div>);
+
+            })}
             </div>
-          )}
+          }
         </CardContent>
       </Card>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle className="text-sm">Editar Lançamento</DialogTitle></DialogHeader>
-          {editEvento && (
-            <div className="space-y-2">
+          {editEvento &&
+          <div className="space-y-2">
               <label className="text-xs text-slate-600">Data</label>
               <Input type="date" className="h-8 text-xs" value={editEvento.data_lancamento || ""} onChange={(e) => setEditEvento({ ...editEvento, data_lancamento: e.target.value })} />
               <label className="text-xs text-slate-600">Sobra (kg)</label>
@@ -181,23 +181,23 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                  await updateMutation.mutateAsync({ id: editEvento.id, data: { data_lancamento: editEvento.data_lancamento, sobra_kg: editEvento.sobra_kg, observacoes: editEvento.observacoes } });
-                  setShowEdit(false);
-                }}>Salvar</Button>
+                await updateMutation.mutateAsync({ id: editEvento.id, data: { data_lancamento: editEvento.data_lancamento, sobra_kg: editEvento.sobra_kg, observacoes: editEvento.observacoes } });
+                setShowEdit(false);
+              }}>Salvar</Button>
               </div>
             </div>
-          )}
+          }
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
 
 function InfoCard({ label, value }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="text-sm font-bold text-slate-900">{value}</div>
-    </div>
-  );
+    </div>);
+
 }
