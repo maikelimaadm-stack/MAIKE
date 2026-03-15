@@ -33,7 +33,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     queryKey: ["configuracao-icones-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -43,19 +43,21 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     const categoriaPonto = normalizeText(ponto?.categoria_ponto || "");
     const nomePonto = normalizeText(ponto?.nome_ponto || "");
 
-    const correspondentes = iconesConfig.filter((item) => {
-      const categoriaIcone = normalizeText(item.categoria || "");
-      if (categoriaIcone === categoriaPonto) return true;
-      if (categoriaPonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
-      if (categoriaPonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
-      if (nomePonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
-      if (nomePonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
-      return false;
-    });
+    const correspondentes = iconesConfig
+      .filter((item) => {
+        const categoriaIcone = normalizeText(item.categoria || "");
+        if (categoriaIcone === categoriaPonto) return true;
+        if (categoriaPonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
+        if (categoriaPonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
+        if (nomePonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
+        if (nomePonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
+        return false;
+      })
+      .sort((a, b) => new Date(b.updated_date || 0) - new Date(a.updated_date || 0));
 
-    return correspondentes.find((item) => item.ativo !== false) || correspondentes[0];
+    return correspondentes.find((item) => item.sub_icone_url) || null;
   }, [iconesConfig, ponto?.categoria_ponto, ponto?.nome_ponto]);
-  const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
+  const subIconePonto = iconePonto?.sub_icone_url || "";
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
