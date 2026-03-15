@@ -62,47 +62,65 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
       {historicoFiltrado.length > 0 && (
         <>
           <Card>
-            <CardHeader className="py-3 border-b">
-              <CardTitle className="text-xs font-semibold">Consumo por Cabeça ao Longo do Tempo</CardTitle>
-            </CardHeader>
+            <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Consumo por cabeça ao longo do tempo</CardTitle></CardHeader>
             <CardContent className="p-3">
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={dadosGraficoConsumo}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="data" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} label={{ value: 'kg/cab', angle: -90, position: 'insideLeft', fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 10 }} label={{ value: 'kg/cab/dia', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+                  <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value) => [`${formatConsumoKgCabDia(value)} kg/cab/dia`, 'Consumo']} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Line type="monotone" dataKey="consumo" stroke="#10b981" strokeWidth={2} name="Consumo (kg/cab)" />
+                  <Line type="monotone" dataKey="consumo" stroke="#10b981" strokeWidth={2} name="Consumo (kg/cab/dia)" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="py-3 border-b">
-              <CardTitle className="text-xs font-semibold">Consumo Total por Mês</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={dadosGraficoMensal}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} label={{ value: 'kg', angle: -90, position: 'insideLeft', fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: 11 }} />
-                  <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Bar dataKey="total" fill="#10b981" name="Consumo Total (kg)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <Card>
+              <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Consumo total por mês</CardTitle></CardHeader>
+              <CardContent className="p-3">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={dadosGraficoMensal}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} label={{ value: 'kg', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+                    <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value) => [`${formatQuantidadeTecnica(value, 1)} kg`, 'Total']} />
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    <Bar dataKey="totalKg" fill="#10b981" name="Consumo Total (kg)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Produtos mais usados no período</CardTitle></CardHeader>
+              <CardContent className="p-3">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {resumo.consumoPorProduto.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-500">Sem períodos fechados para consolidar.</div>
+                  ) : resumo.consumoPorProduto.map((item) => (
+                    <div key={item.produto} className="border border-slate-200 rounded-lg p-2 bg-white">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-slate-900 break-words">{item.produto}</div>
+                          <div className="text-[10px] text-slate-500">{item.lancamentos} lançamento(s)</div>
+                        </div>
+                        <Badge variant="outline" className="text-xs">{formatQuantidadeTecnica(item.totalKg, 1)} kg</Badge>
+                      </div>
+                      <div className="text-[10px] text-slate-600 mt-1">Média: {formatConsumoKgCabDia(item.mediaKgCabDia)} kg/cab/dia</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
 
       <Card>
-        <CardHeader className="py-3 border-b">
-          <CardTitle className="text-xs font-semibold">Detalhamento dos Lançamentos</CardTitle>
-        </CardHeader>
+        <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Detalhamento dos lançamentos</CardTitle></CardHeader>
         <CardContent className="p-3">
           {isLoading ? (
             <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>
@@ -110,29 +128,28 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
             <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado</div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {historicoFiltrado.map((item, index) => (
-                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white hover:bg-slate-50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-900">{item.produto}</div>
-                      <div className="text-xs text-slate-600">
-                        {new Date(item.data_lancamento).toLocaleDateString('pt-BR')}
+              {historicoFiltrado.map((item) => {
+                const periodoFechado = (item.dias_periodo || 0) > 0;
+                return (
+                  <div key={item.id} className="border border-slate-200 rounded-lg p-3 bg-white hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="text-xs font-semibold text-slate-900">{item.produto}</div>
+                        <div className="text-xs text-slate-600">{formatDateBR(item.data_lancamento)}</div>
                       </div>
+                      <Badge className={`text-xs ${periodoFechado ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {periodoFechado ? `${formatConsumoKgCabDia(item.consumo_por_cabeca_dia_kg)} kg/cab/dia` : 'Período em aberto'}
+                      </Badge>
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-800 text-xs">
-                      {(item.consumo_por_cabeca_dia_kg || 0).toFixed(3)} kg/cab
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="text-slate-600">
-                      Cabeças: <span className="font-semibold text-slate-900">{item.cabecas_na_area}</span>
-                    </div>
-                    <div className="text-slate-600">
-                      Total lote: <span className="font-semibold text-slate-900">{(item.consumo_total_lote_periodo_kg || 0).toFixed(1)} kg</span>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                      <div className="text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(item.cabecas_na_area || 0, 0)}</span></div>
+                      <div className="text-slate-600">Dias: <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(item.dias_periodo || 0, 0)}</span></div>
+                      <div className="text-slate-600">Total lote: <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(item.consumo_total_lote_periodo_kg || 0, 1)} kg</span></div>
+                      <div className="text-slate-600">Fator: <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(item.fator_consumo || 0, 2)}</span></div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
