@@ -10,6 +10,23 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
 import { formatDecimal, formatKg } from "./formatters";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { safeDivide } from "../utils/pecuariaUtils";
+
+function DesvioTag({ real, esperado }) {
+  if (!esperado || esperado <= 0 || !real || real <= 0) return null;
+  const desvio = ((real - esperado) / esperado) * 100;
+  const absDesvio = Math.abs(desvio);
+  const isPositivo = desvio > 0;
+  const cor = absDesvio <= 10 ? "text-emerald-700 bg-emerald-50 border-emerald-200" : absDesvio <= 25 ? "text-amber-700 bg-amber-50 border-amber-200" : "text-red-700 bg-red-50 border-red-200";
+  const Icon = absDesvio <= 3 ? Minus : isPositivo ? TrendingUp : TrendingDown;
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${cor}`}>
+      <Icon className="w-3 h-3" />
+      {isPositivo ? "+" : ""}{desvio.toFixed(0)}%
+    </span>
+  );
+}
 
 export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -33,7 +50,6 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     mutationFn: ({ id, data }) => base44.entities.SuplementacaoEvento.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "ultimo-evento-ponto"].includes(query.queryKey[0]) });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Lançamento atualizado.");
     },
   });
@@ -45,16 +61,12 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
   }, [eventos]);
 
   const handleDelete = async (evento, index) => {
-    if (index !== 0) {
-      return toast.error("Exclua primeiro o último lançamento.");
-    }
+    if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
     if (!confirm("Excluir este lançamento e reverter o estoque do depósito?")) return;
-
     setDeletingId(evento.id);
     try {
       await excluirEventoSuplementacaoComReversao({ evento, ponto, userEmail: user?.email });
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "lotes-nota-suplementacao", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Lançamento excluído.");
     } catch (error) {
       toast.error(error.message || "Não foi possível excluir o lançamento.");
@@ -63,9 +75,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     }
   };
 
-  if (isLoading) {
-    return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
-  }
+  if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
 
   return (
     <div className="space-y-3">
@@ -85,34 +95,79 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
             <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>
           ) : (
             <div className="max-h-[60vh] overflow-y-auto space-y-1">
-              {eventos.map((evento, index) => (
-                <div key={evento.id} className="border border-slate-200 rounded-lg p-2 hover:bg-gray-50">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold">Nutrição</Badge>
-                        {index === 0 && <Badge variant="outline" className="text-[10px]">Último registro</Badge>}
-                        <span className="text-[10px] text-slate-500">{new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
+              {eventos.map((evento, index) => {
+                const periodoFechado = (evento.dias_periodo || 0) > 0;
+                const cabecas = evento.total_cabecas_afetadas || 0;
+                const consumoDiarioGrupo = evento.consumo_diario_grupo_kg || 0;
+                const consumoCabDia = cabecas > 0 ? safeDivide(consumoDiarioGrupo, cabecas) : 0;
+                const consumoEsperadoPV = evento.consumo_esperado_pv_kg || 0;
+                const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
+                const pesoMedio = evento.peso_medio_lotes_kg || 0;
+
+                return (
+                  <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        {/* Header */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-medium text-slate-500">{new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
+                          {index === 0 && <Badge variant="outline" className="text-[10px]">Último</Badge>}
+                          <Badge className={`text-[10px] ${periodoFechado ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
+                          </Badge>
+                          {evento.tipo_consumo && (
+                            <Badge className={`text-[10px] ${evento.tipo_consumo === "CONSUMO_DIARIO" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-purple-50 text-purple-700 border-purple-200"}`}>
+                              {evento.tipo_consumo === "CONSUMO_DIARIO" ? "Diário" : "Livre"}
+                            </Badge>
+                          )}
+                          {periodoFechado && consumoEsperadoCabDia > 0 && (
+                            <DesvioTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
+                          )}
+                        </div>
+
+                        {/* Produto */}
+                        <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
+
+                        {/* Métricas técnicas */}
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5 text-[10px]">
+                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Fornecido</div>
+                            <div className="font-bold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</div>
+                          </div>
+                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Sobra</div>
+                            <div className="font-bold text-slate-900">{formatKg(evento.sobra_kg || 0)}</div>
+                          </div>
+                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Cabeças</div>
+                            <div className="font-bold text-slate-900">{formatDecimal(cabecas, 0, true)}</div>
+                          </div>
+                          <div className="rounded border border-emerald-100 bg-emerald-50 px-1.5 py-1">
+                            <div className="text-emerald-700">Realizado</div>
+                            <div className="font-bold text-emerald-900">{periodoFechado && consumoCabDia > 0 ? `${consumoCabDia.toFixed(3)} kg/cab` : '-'}</div>
+                          </div>
+                          <div className="rounded border border-indigo-100 bg-indigo-50 px-1.5 py-1">
+                            <div className="text-indigo-700">Esperado</div>
+                            <div className="font-bold text-indigo-900">{consumoEsperadoCabDia > 0 ? `${consumoEsperadoCabDia.toFixed(3)} kg/cab` : '-'}</div>
+                          </div>
+                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Peso médio</div>
+                            <div className="font-bold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</div>
+                          </div>
+                        </div>
+
+                        {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
+                        {index !== 0 && <div className="text-[10px] text-amber-700 font-medium">Somente o último lançamento pode ser editado/excluído.</div>}
                       </div>
-                      <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
-                      <div className="space-y-0.5 text-[10px] text-slate-600">
-                        <div><strong>Quantidade:</strong> {formatKg(evento.quantidade_total_kg || 0)}</div>
-                        <div><strong>Sobra:</strong> {formatKg(evento.sobra_kg || 0)}</div>
-                        <div><strong>Cabeças:</strong> {formatDecimal(evento.total_cabecas_afetadas || 0, 0, true)}</div>
-                        <div><strong>Peso de consumo:</strong> {formatDecimal(evento.peso_total_consumo || 0)}</div>
-                        <div><strong>Fechamento:</strong> {evento.dias_periodo ? `${evento.dias_periodo} dia(s)` : "Em aberto"}</div>
-                        <div><strong>Novo fechamento:</strong> {evento.dias_periodo ? new Date(new Date(evento.data_lancamento).getTime() + (evento.dias_periodo * 86400000)).toLocaleDateString("pt-BR") : "-"}</div>
-                        {evento.observacoes && <div className="break-words"><strong>Detalhes:</strong> {evento.observacoes}</div>}
-                        {index !== 0 && <div className="text-amber-700 font-medium"><strong>Bloqueio:</strong> somente o último lançamento pode ser editado ou excluído.</div>}
+
+                      <div className="flex gap-1 shrink-0 flex-col">
+                        <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0} onClick={() => { setEditEvento(evento); setShowEdit(true); }}>Editar</Button>
+                        <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id} onClick={() => handleDelete(evento, index)}>Excluir</Button>
                       </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0 flex-col sm:flex-row">
-                      <Button variant="outline" size="sm" className="h-8 text-xs" disabled={index !== 0} onClick={() => { setEditEvento(evento); setShowEdit(true); }}>Editar</Button>
-                      <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={index !== 0 || deletingId === evento.id} onClick={() => handleDelete(evento, index)}>Excluir</Button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

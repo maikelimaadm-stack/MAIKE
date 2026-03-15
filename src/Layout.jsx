@@ -75,7 +75,7 @@ const DEFAULT_MENU = [
         { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
         { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
         { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
-      { id: "pec-fatores", title: "Configuracao Fatores Consumo", url: "ConfiguracaoFatoresConsumo" },
+
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
       { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
       { id: "pec-pesagens-ind", title: "Pesagens Individuais", url: "PesagensIndividuais" },
