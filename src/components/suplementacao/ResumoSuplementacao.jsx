@@ -24,10 +24,10 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     enabled: !!empresaSelecionadaId && lotesIds.length > 0,
   });
 
-  if (consumosLote.length === 0) return null;
-
   const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
   const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
+
+  if (consumosLote.length === 0) return null;
 
   if (modo === "compacto") {
     return (
