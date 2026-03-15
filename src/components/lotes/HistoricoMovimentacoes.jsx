@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import {
+  normalizeText,
+  getLinkedMovementIds,
+  getJuncaoLotesSnapshot,
+  getPesoAnteriorFromObs,
+  getCategoriaAnteriorFromObs,
+} from "../utils/pecuariaUtils";
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-blue-100 text-blue-800",
@@ -38,21 +45,7 @@ const TIPOS_EDITAVEIS = new Set([
 ]);
 
 const getTime = (value) => new Date(value).getTime() || 0;
-const normalize = (value) => String(value || "").trim().toUpperCase();
-const getLinkedMovementIds = (observacoes) => {
-  const match = String(observacoes || '').match(/\[PESAGEM_VINCULADA:([^\]]+)\]/);
-  return match ? match[1].split(',').map((item) => item.trim()).filter(Boolean) : [];
-};
-
-const getJuncaoLotesSnapshot = (observacoes) => {
-  const firstLine = String(observacoes || '').split('\n')[0] || '';
-  if (!firstLine.startsWith('[JUNCAO_LOTES]')) return null;
-  try {
-    return JSON.parse(firstLine.replace('[JUNCAO_LOTES]', ''));
-  } catch {
-    return null;
-  }
-};
+const normalize = (value) => normalizeText(value);
 
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
