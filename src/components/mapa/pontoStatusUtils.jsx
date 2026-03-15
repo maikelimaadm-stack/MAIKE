@@ -51,15 +51,21 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
     .filter((item) => item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id)
     .sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao))[0] || null;
 
-  const percent = necessidadeEstimada > 0 ? clamp(saldoAtual / necessidadeEstimada) : clamp(saldoAtual > 0 ? 1 : 0);
+  const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
+  const necessidadeReposicao = estoqueMinimo > 0 ? Math.max(estoqueMinimo - saldoAtual, 0) : 0;
+  const percent = estoqueMinimo > 0 ? clamp(saldoAtual / estoqueMinimo) : clamp(saldoAtual > 0 ? 1 : 0);
+  const isCritical = estoqueMinimo > 0 && saldoAtual <= estoqueMinimo;
 
   return {
     percent,
     saldoAtual,
+    estoqueMinimo,
     necessidadeEstimada,
+    necessidadeReposicao,
+    isCritical,
     badgeLabel: `${Math.round(percent * 100)}%`,
-    helperLabel: necessidadeEstimada > 0
-      ? `${formatKg(saldoAtual)} de ${formatKg(necessidadeEstimada)} estimados`
+    helperLabel: estoqueMinimo > 0
+      ? `${formatKg(saldoAtual)} de ${formatKg(estoqueMinimo)} mínimos`
       : `${formatKg(saldoAtual)} disponíveis`,
     latestRecord: ultimoRegistro,
   };

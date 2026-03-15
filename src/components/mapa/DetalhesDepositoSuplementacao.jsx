@@ -148,8 +148,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-1">
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
-          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Saldo em sacos</div><div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Estoque mínimo</div><div className="text-sm font-bold text-slate-900">{deposito.estoque_minimo_kg ? formatKg(deposito.estoque_minimo_kg) : '-'}</div></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Último lançamento</div><div className="text-sm font-bold text-slate-900">{ultimoRegistro ? new Date(ultimoRegistro.data_movimentacao).toLocaleDateString('pt-BR') : '-'}</div></CardContent></Card>
         </div>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
           <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
@@ -157,22 +157,23 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
               <PontoPercentIcon
                   imageUrl={subIconePonto}
                   label={deposito.categoria_ponto || "Depósito"}
-                  percent={indicador?.percent || 0} />
+                  percent={indicador?.percent || 0}
+                  fillClassName={indicador?.isCritical ? "bg-red-500" : "bg-lime-400"} />
 
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="text-slate-500">Saldo atual kg</div>
+                <div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div>
+              </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
                 <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                <div className="text-slate-500">Necessidade estimada</div>
-                <div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div>
+                <div className="text-slate-500">Necessidade reposição kg</div>
+                <div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeReposicao || 0)}</div>
               </div>
-              
-
-
-
             </div>
           </div>
         </CardContent></Card>
@@ -228,13 +229,16 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
           <div className="text-xs text-slate-500">Nenhum cocho vinculado a este depósito.</div> :
 
           <div className="space-y-2">
-              {cochosVinculados.map((cocho) =>
-            <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
-                  <div className="text-xs font-semibold text-slate-900">{cocho.area_vinculada_nome || "Sem pasto vinculado"}</div>
+              {cochosVinculados.map((cocho) => {
+            const pastosAtendidos = Array.isArray(cocho.area_vinculada_nomes) && cocho.area_vinculada_nomes.length > 0
+              ? cocho.area_vinculada_nomes.join(', ')
+              : cocho.area_vinculada_nome || 'Sem pasto vinculado';
+            return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
+                  <div className="text-xs font-semibold text-slate-900">{pastosAtendidos}</div>
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
-                  <div className="text-[10px] text-slate-500">Saída do estoque para: {cocho.area_vinculada_nome || "Pasto não informado"}</div>
-                </div>
-            )}
+                  <div className="text-[10px] text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
+                </div>;
+            })}
             </div>
           }
         </CardContent>

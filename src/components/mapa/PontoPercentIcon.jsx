@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
+export default function PontoPercentIcon({ imageUrl, label, percent = 0, fillClassName = "bg-lime-400" }) {
   const nivel = Math.max(0, Math.min(100, Math.round((percent || 0) * 100)));
 
   return (
@@ -22,7 +22,7 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
           {nivel}%
         </span>
         <div className="relative h-[72px] w-[14px] rounded-full bg-slate-200 overflow-hidden">
-          <div className="bg-lime-400 pl-1 rounded-full absolute inset-x-0 bottom-0 transition-all duration-300"
+          <div className={`${fillClassName} rounded-full absolute inset-x-0 bottom-0 transition-all duration-300`}
 
           style={{ height: `${nivel}%` }} />
 
