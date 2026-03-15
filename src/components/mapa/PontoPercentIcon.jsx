@@ -11,33 +11,39 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
     );
   }
 
+  const maskStyle = {
+    WebkitMaskImage: `url(${imageUrl})`,
+    maskImage: `url(${imageUrl})`,
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+  };
+
   return (
     <div className="relative h-[74px] w-[74px] flex items-center justify-center isolate">
-      <div
-        className="relative h-[68px] w-[68px] overflow-hidden"
-        style={{
-          WebkitMaskImage: `url(${imageUrl})`,
-          maskImage: `url(${imageUrl})`,
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "center",
-          maskPosition: "center",
-          WebkitMaskSize: "contain",
-          maskSize: "contain",
-          backgroundColor: "#fde8d8",
-        }}
-      >
+      <div className="relative h-[68px] w-[68px]">
         <div
-          className="absolute inset-x-0 bottom-0 transition-all duration-300"
-          style={{ height: `${nivel}%`, backgroundColor: "#f4b183" }}
+          className="absolute inset-0"
+          style={{
+            ...maskStyle,
+            backgroundColor: "#fde8d8",
+          }}
         />
-      </div>
-
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none mix-blend-multiply">
+        <div
+          className="absolute inset-0 transition-all duration-300"
+          style={{
+            ...maskStyle,
+            backgroundColor: "#f4b183",
+            clipPath: `inset(${100 - nivel}% 0 0 0)`,
+          }}
+        />
         <img
           src={imageUrl}
           alt={label || "Ícone"}
-          className="h-[68px] w-[68px] object-contain"
+          className="absolute inset-0 h-[68px] w-[68px] object-contain opacity-30 grayscale contrast-150 pointer-events-none"
         />
       </div>
 
