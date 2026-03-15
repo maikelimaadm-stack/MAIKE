@@ -8,20 +8,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { formatDateBR } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
 import { calcularResumoHistorico, filtrarHistoricoPorMeses, montarSerieConsumoDiario, montarSerieMensal } from "./suplementacaoResumoUtils";
-import { TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
-
 function DesvioIndicador({ real, esperado }) {
   if (!esperado || esperado <= 0 || !real) return <span className="text-slate-400">-</span>;
   const desvio = ((real - esperado) / esperado) * 100;
-  const absDesvio = Math.abs(desvio);
-  const isPositivo = desvio > 0;
-  const cor = absDesvio <= 10 ? "text-emerald-700" : absDesvio <= 25 ? "text-amber-700" : "text-red-700";
-  const bgCor = absDesvio <= 10 ? "bg-emerald-50 border-emerald-200" : absDesvio <= 25 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
-  const Icon = absDesvio <= 3 ? Minus : isPositivo ? TrendingUp : TrendingDown;
   return (
-    <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${cor} ${bgCor}`}>
-      <Icon className="w-3 h-3" />
-      {isPositivo ? "+" : ""}{desvio.toFixed(0)}%
+    <div className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-700">
+      {desvio > 0 ? "+" : ""}{desvio.toFixed(0)}%
     </div>
   );
 }

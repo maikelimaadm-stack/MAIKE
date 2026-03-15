@@ -10,20 +10,14 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
 import { formatDecimal, formatKg } from "./formatters";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { safeDivide } from "../utils/pecuariaUtils";
 
 function DesvioTag({ real, esperado }) {
   if (!esperado || esperado <= 0 || !real || real <= 0) return null;
   const desvio = ((real - esperado) / esperado) * 100;
-  const absDesvio = Math.abs(desvio);
-  const isPositivo = desvio > 0;
-  const cor = absDesvio <= 10 ? "text-emerald-700 bg-emerald-50 border-emerald-200" : absDesvio <= 25 ? "text-amber-700 bg-amber-50 border-amber-200" : "text-red-700 bg-red-50 border-red-200";
-  const Icon = absDesvio <= 3 ? Minus : isPositivo ? TrendingUp : TrendingDown;
   return (
-    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${cor}`}>
-      <Icon className="w-3 h-3" />
-      {isPositivo ? "+" : ""}{desvio.toFixed(0)}%
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-700">
+      {desvio > 0 ? "+" : ""}{desvio.toFixed(0)}%
     </span>
   );
 }
