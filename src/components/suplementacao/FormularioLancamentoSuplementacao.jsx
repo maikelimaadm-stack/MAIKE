@@ -111,12 +111,37 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
+  const quantidadeTotal = parseNumber(formData.quantidade_total_kg || 0);
+  const sobraInformada = parseNumber(formData.sobra_kg || 0);
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
   const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, formData.data_lancamento) : null;
+  const lotesSemFator = lotes.filter((lote) => !fatores.some((item) => normalizeText(item.categoria) === normalizeText(lote.categoria)));
   const pesoTotalConsumo = lotes.reduce((total, lote) => {
-    const fator = fatores.find((item) => normalizeText(item.categoria) === normalizeText(lote.categoria))?.fator || 1;
+    const fator = fatores.find((item) => normalizeText(item.categoria) === normalizeText(lote.categoria))?.fator || 0;
     return total + ((lote.quantidade_cabecas || 0) * fator);
   }, 0);
+  const diasEstimadosNovoPeriodo = Math.max(1, ponto?.frequencia_esperada_dias || 1);
+  const consumoEstimadoPeriodoKg = Math.max(0, quantidadeTotal);
+  const consumoEstimadoCabDia = safeDivide(consumoEstimadoPeriodoKg, totalCabecas * diasEstimadosNovoPeriodo);
+  const consumoEstimadoGramas = consumoEstimadoCabDia * 1000;
+  const regraProduto = getSupplementRule(formData.produto);
+  const avaliacaoTecnica = evaluateConsumoFaixa(consumoEstimadoCabDia, formData.produto, {
+    min: ponto?.limite_minimo_consumo || undefined,
+    idealMin: ponto?.consumo_ideal_por_cabeca_kg || undefined,
+    idealMax: ponto?.limite_maximo_consumo || undefined,
+  });
+  const mediaRecente7Dias = (() => {
+    const limite = new Date(formData.data_lancamento || new Date().toISOString().split("T")[0]);
+    limite.setDate(limite.getDate() - 7);
+    const fechados = eventosRecentes.filter((evento) => evento?.dias_periodo > 0 && new Date(evento.data_lancamento) >= limite && (evento.total_cabecas_afetadas || 0) > 0 && (evento.consumo_diario_grupo_kg || 0) > 0);
+    if (!fechados.length) return 0;
+    const totalAnimalDias = fechados.reduce((sum, evento) => sum + ((evento.total_cabecas_afetadas || 0) * (evento.dias_periodo || 0)), 0);
+    const totalConsumido = fechados.reduce((sum, evento) => sum + ((evento.consumo_diario_grupo_kg || 0) * (evento.dias_periodo || 0)), 0);
+    return safeDivide(totalConsumido, totalAnimalDias);
+  })();
+  const ultimoConsumoCabDia = ultimoEvento?.consumo_diario_grupo_kg
+    ? safeDivide(ultimoEvento.consumo_diario_grupo_kg, ultimoEvento.total_cabecas_afetadas || 0)
+    : 0;
 
   const produtosDisponiveis = useMemo(() => {
     if (!depositoVinculado?.local_estoque_id) return produtosSuplementacao;
@@ -133,13 +158,31 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   }, [depositoVinculado, produtoSelecionado, lotesNota]);
 
   const handleSalvar = async () => {
-    const quantidadeTotal = parseNumber(formData.quantidade_total_kg);
+    if (progresso.show) return;
 
     if (!formData.produto) return toast.error("Selecione um produto.");
     if (quantidadeTotal <= 0) return toast.error("Informe a quantidade fornecida.");
-    if (totalCabecas === 0) return toast.error("Não há lotes ativos nas áreas vinculadas.");
+    if (sobraInformada < 0) return toast.error("A sobra informada não pode ser negativa.");
+    if (totalCabecas <= 0) return toast.error("Não há cabeças ativas nas áreas vinculadas.");
+    if (lotesSemFator.length > 0) return toast.error("Existem categorias sem fator de consumo configurado.");
     if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
     if (depositoVinculado?.local_estoque_id && quantidadeTotal > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
+
+    if (ultimoEvento) {
+      const saldoFisicoMaximo = (ultimoEvento.quantidade_total_kg || 0) + (ultimoEvento.sobra_kg || 0);
+      if (sobraInformada > saldoFisicoMaximo) {
+        return toast.error("A sobra informada é maior que o total fisicamente disponível no período anterior.");
+      }
+    }
+
+    if (["critico_baixo", "critico_alto"].includes(avaliacaoTecnica.status)) {
+      return toast.error(avaliacaoTecnica.message);
+    }
+
+    if (["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status)) {
+      const confirmar = window.confirm(`${avaliacaoTecnica.message}\n\nDeseja salvar mesmo assim?`);
+      if (!confirmar) return;
+    }
 
     try {
       const totalPassos = (ultimoEvento ? 1 : 0) + (depositoVinculado?.local_estoque_id ? 1 : 0) + 1 + lotes.length;
