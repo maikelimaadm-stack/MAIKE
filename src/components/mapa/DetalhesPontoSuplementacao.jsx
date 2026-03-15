@@ -142,12 +142,12 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
       <CardSection title="Último Registro">
         {ultimoEvento ?
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[10px] space-y-1.">
+            <div className="">
               <span className="font-semibold text-slate-900">{ultimoEvento.produto}</span>
-              <Badge variant="outline" className="text-xs">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
+              <Badge variant="outline" className="text-foreground pl-16 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-slate-600">
+            <div className="grid grid-cols-6 gap-3 text-slate-600">
               <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
               <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
               <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
