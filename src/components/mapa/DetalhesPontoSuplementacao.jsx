@@ -54,9 +54,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     });
   }, [iconesConfig, ponto?.categoria_ponto, ponto?.nome_ponto]);
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
-  const iconeExibicao = normalizeText(ponto?.categoria_ponto || "").includes("COCHO")
-    ? "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/d5f4bbe0a_AgroCattle15.png"
-    : subIconePonto;
+  const iconeExibicao = subIconePonto;
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
