@@ -9,26 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Syringe, DollarSign } from "lucide-react";
+import { Plus, Trash2, Syringe } from "lucide-react";
 import { toast } from "sonner";
-
-const formatarData = (dataString) => {
-  if (!dataString) return '--/--/----';
-  try {
-    const dataStr = dataString.split('T')[0];
-    const [ano, mes, dia] = dataStr.split('-');
-    return `${dia}/${mes}/${ano}`;
-  } catch { return '--/--/----'; }
-};
+import { formatDateBR, formatDecimal, safeDivide } from "@/components/utils/pecuariaUtils";
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return 'R$ 0,00';
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
-
-const formatarNumero = (valor, decimals = 2) => {
-  if (!valor && valor !== 0) return '0,00';
-  return valor.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
 export default function AplicacoesMedicamentos() {
@@ -140,7 +127,7 @@ export default function AplicacoesMedicamentos() {
 
   const custoTotalLote = aplicacoesLote.reduce((s, a) => s + (a.custo_total || 0), 0);
   const loteAtual = lotes.find(l => l.id === loteSelecionado);
-  const custoPorAnimalTotal = loteAtual?.quantidade_animais > 0 ? custoTotalLote / loteAtual.quantidade_animais : 0;
+  const custoPorAnimalTotal = safeDivide(custoTotalLote, loteAtual?.quantidade_animais);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -161,7 +148,7 @@ export default function AplicacoesMedicamentos() {
                 <SelectContent>
                   {lotes.map(l => (
                     <SelectItem key={l.id} value={l.id}>
-                      {l.nome_lote} ({l.quantidade_animais} animais - {l.peso_medio_atual.toFixed(0)}kg)
+                      {l.nome_lote} ({l.quantidade_animais} animais - {formatDecimal(l.peso_medio_atual || 0, 0, true)}kg)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -171,7 +158,7 @@ export default function AplicacoesMedicamentos() {
               <div className="flex items-end">
                 <div className="text-xs">
                   <div className="font-semibold text-blue-800">Lote: {loteAtual.nome_lote}</div>
-                  <div className="text-blue-600">{loteAtual.quantidade_animais} animais • {loteAtual.peso_medio_atual.toFixed(2)}kg • GMD: {loteAtual.gmd_esperado.toFixed(3)}</div>
+                  <div className="text-blue-600">{loteAtual.quantidade_animais} animais • {formatDecimal(loteAtual.peso_medio_atual || 0)}kg • GMD: {formatDecimal(loteAtual.gmd_esperado || 0, 3)}</div>
                 </div>
               </div>
             )}
@@ -198,7 +185,7 @@ export default function AplicacoesMedicamentos() {
                     <SelectContent>
                       {produtos.map(p => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.nome_produto} - R$ {p.valor_unitario.toFixed(2)}/{p.unidade_medida}
+                          {p.nome_produto} - R$ {formatDecimal(p.valor_unitario || 0)}/{p.unidade_medida}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -279,12 +266,12 @@ export default function AplicacoesMedicamentos() {
                 <TableBody>
                   {aplicacoesLote.map(a => (
                     <TableRow key={a.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300">{formatarData(a.data_aplicacao)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300">{formatDateBR(a.data_aplicacao)}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300 font-semibold">{a.produto_nome}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <Badge variant="outline" className="text-[10px]">{a.categoria_produto}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(a.quantidade_aplicada, 2)} {a.unidade_medida}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatDecimal(a.quantidade_aplicada, 2)} {a.unidade_medida}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(a.custo_por_animal)}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">{formatarMoeda(a.custo_total)}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
