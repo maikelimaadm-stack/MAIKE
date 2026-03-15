@@ -17,22 +17,22 @@ import {
 } from "../utils/pecuariaUtils";
 
 const CORES_TIPO = {
-  "Transferência de Área": "bg-blue-100 text-blue-800",
-  "Morte": "bg-red-100 text-red-800",
-  "Nascimento": "bg-green-100 text-green-800",
-  "Abate": "bg-orange-100 text-orange-800",
-  "Mudança de Categoria": "bg-purple-100 text-purple-800",
-  "Pesagem": "bg-emerald-100 text-emerald-800",
-  "Renomear Lote": "bg-slate-100 text-slate-800",
-  "Junção de Lotes": "bg-indigo-100 text-indigo-800",
-  "Nutrição": "bg-cyan-100 text-cyan-800",
-  "Medicamento": "bg-rose-100 text-rose-800",
-  "Sanidade": "bg-amber-100 text-amber-800",
-  "Vacinação": "bg-amber-100 text-amber-800",
-  "Vermifugação": "bg-amber-100 text-amber-800",
-  "Tratamento": "bg-amber-100 text-amber-800",
-  "Inseminação": "bg-amber-100 text-amber-800",
-  "Exame": "bg-amber-100 text-amber-800",
+  "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
+  "Morte": "bg-slate-100 text-slate-800 border-slate-300",
+  "Nascimento": "bg-slate-100 text-slate-800 border-slate-300",
+  "Abate": "bg-slate-100 text-slate-800 border-slate-300",
+  "Mudança de Categoria": "bg-slate-100 text-slate-800 border-slate-300",
+  "Pesagem": "bg-slate-100 text-slate-800 border-slate-300",
+  "Renomear Lote": "bg-slate-100 text-slate-800 border-slate-300",
+  "Junção de Lotes": "bg-slate-100 text-slate-800 border-slate-300",
+  "Nutrição": "bg-slate-100 text-slate-800 border-slate-300",
+  "Medicamento": "bg-slate-100 text-slate-800 border-slate-300",
+  "Sanidade": "bg-slate-100 text-slate-800 border-slate-300",
+  "Vacinação": "bg-slate-100 text-slate-800 border-slate-300",
+  "Vermifugação": "bg-slate-100 text-slate-800 border-slate-300",
+  "Tratamento": "bg-slate-100 text-slate-800 border-slate-300",
+  "Inseminação": "bg-slate-100 text-slate-800 border-slate-300",
+  "Exame": "bg-slate-100 text-slate-800 border-slate-300",
 };
 
 const TIPOS_EDITAVEIS = new Set([
@@ -454,7 +454,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={`text-[10px] font-semibold ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800'}`}>
+                        <Badge className={`text-[10px] font-semibold border ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
                           {tipoExibicao}
                         </Badge>
                         <Badge variant="outline" className="text-[10px] font-semibold">
@@ -477,7 +477,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
                         {isBloqueado && item.canDelete && (
-                          <div className="text-amber-700 font-medium"><strong>Bloqueio:</strong> {motivoBloqueio}</div>
+                          <div className="text-slate-500 font-medium"><strong>Bloqueio:</strong> {motivoBloqueio}</div>
                         )}
                       </div>
                     </div>

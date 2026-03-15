@@ -99,9 +99,9 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge className="bg-slate-100 text-slate-800 text-[10px] font-semibold">{movimentacao.tipo_movimentacao}</Badge>
-                          <Badge variant="outline" className="text-[10px]">{movimentacao.tipo_detalhado}</Badge>
-                          {index === 0 && <Badge variant="outline" className="text-[10px]">Último registro</Badge>}
+                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_movimentacao}</Badge>
+                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_detalhado}</Badge>
+                          {index === 0 && <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">Último registro</Badge>}
                         </div>
                         <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
                         <div className="space-y-0.5 text-[10px] text-slate-600">
@@ -110,7 +110,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                           <div><strong>Origem:</strong> {movimentacao.local_origem || "-"}</div>
                           <div><strong>Destino:</strong> {movimentacao.local_destino || "-"}</div>
                           {movimentacao.observacoes && <div className="break-words"><strong>Detalhes:</strong> {movimentacao.observacoes}</div>}
-                          {bloqueado && <div className="text-amber-700 font-medium"><strong>Bloqueio:</strong> somente o último lançamento pode ser editado ou excluído.</div>}
+                          {bloqueado && <div className="text-slate-500 font-medium"><strong>Bloqueio:</strong> somente o último lançamento pode ser editado ou excluído.</div>}
                           {ehNutricao && <div className="text-slate-500 font-medium"><strong>Regra:</strong> lançamentos de nutrição só podem ser editados ou excluídos no histórico do cocho.</div>}
                           {!ehNutricao && !permiteExcluir && !bloqueado && <div className="text-slate-500 font-medium"><strong>Aviso:</strong> este lançamento não pode ser excluído por aqui.</div>}
                         </div>
