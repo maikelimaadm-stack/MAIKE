@@ -58,7 +58,10 @@ const createEmptyForm = () => ({
   consumo_ideal_por_cabeca_kg: "",
   limite_minimo_consumo: "",
   limite_maximo_consumo: "",
+  frequencia_esperada_dias_minimo: "",
+  frequencia_esperada_dias_maximo: "",
   frequencia_esperada_dias: "7",
+  estoque_minimo_kg: "",
   alerta_sem_lancamento_dias: "10",
 });
 
@@ -137,7 +140,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       consumo_ideal_por_cabeca_kg: pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg || "",
       limite_minimo_consumo: pontoSuplementacaoExistente?.limite_minimo_consumo || "",
       limite_maximo_consumo: pontoSuplementacaoExistente?.limite_maximo_consumo || "",
+      frequencia_esperada_dias_minimo: pontoSuplementacaoExistente?.frequencia_esperada_dias_minimo || "",
+      frequencia_esperada_dias_maximo: pontoSuplementacaoExistente?.frequencia_esperada_dias_maximo || pontoSuplementacaoExistente?.frequencia_esperada_dias || "7",
       frequencia_esperada_dias: pontoSuplementacaoExistente?.frequencia_esperada_dias || "7",
+      estoque_minimo_kg: pontoSuplementacaoExistente?.estoque_minimo_kg || "",
       alerta_sem_lancamento_dias: pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10",
     });
   }, [item, pontoSuplementacaoExistente]);
@@ -281,7 +287,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         consumo_ideal_por_cabeca_kg: data.tipo_categoria === "COCHO" && data.consumo_ideal_por_cabeca_kg ? parseFloat(data.consumo_ideal_por_cabeca_kg) : null,
         limite_minimo_consumo: data.tipo_categoria === "COCHO" && data.limite_minimo_consumo ? parseFloat(data.limite_minimo_consumo) : null,
         limite_maximo_consumo: data.tipo_categoria === "COCHO" && data.limite_maximo_consumo ? parseFloat(data.limite_maximo_consumo) : null,
-        frequencia_esperada_dias: data.tipo_categoria === "COCHO" ? parseInt(data.frequencia_esperada_dias || 7) : null,
+        frequencia_esperada_dias_minimo: data.tipo_categoria === "COCHO" && data.frequencia_esperada_dias_minimo ? parseInt(data.frequencia_esperada_dias_minimo) : null,
+        frequencia_esperada_dias_maximo: data.tipo_categoria === "COCHO" && data.frequencia_esperada_dias_maximo ? parseInt(data.frequencia_esperada_dias_maximo) : null,
+        frequencia_esperada_dias: data.tipo_categoria === "COCHO" ? parseInt(data.frequencia_esperada_dias_maximo || data.frequencia_esperada_dias_minimo || 7) : null,
+        estoque_minimo_kg: data.tipo_categoria === "DEPOSITO" && data.estoque_minimo_kg ? parseFloat(data.estoque_minimo_kg) : null,
         alerta_sem_lancamento_dias: data.tipo_categoria === "COCHO" ? parseInt(data.alerta_sem_lancamento_dias || 10) : null,
       };
 
@@ -345,6 +354,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
 
+    if (ehCocho && (!formData.frequencia_esperada_dias_minimo || !formData.frequencia_esperada_dias_maximo)) {
+      toast.error("Informe a frequência mínima e máxima do cocho.");
+      return;
+    }
+
+    if (ehCocho && Number(formData.frequencia_esperada_dias_minimo) > Number(formData.frequencia_esperada_dias_maximo)) {
+      toast.error("A frequência mínima não pode ser maior que a máxima.");
+      return;
+    }
+
     if (ehCocho && !formData.cobertura_cocho) {
       toast.error("Selecione se o cocho é coberto ou não coberto.");
       return;
@@ -352,6 +371,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
     if (ehDeposito && !formData.capacidade_cocho_kg) {
       toast.error("Informe a capacidade do depósito em kg.");
+      return;
+    }
+
+    if (ehDeposito && !formData.estoque_minimo_kg) {
+      toast.error("Informe o estoque mínimo do depósito em kg.");
       return;
     }
 
@@ -371,7 +395,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       consumo_ideal_por_cabeca_kg: ehCocho ? formData.consumo_ideal_por_cabeca_kg : null,
       limite_minimo_consumo: ehCocho ? formData.limite_minimo_consumo : null,
       limite_maximo_consumo: ehCocho ? formData.limite_maximo_consumo : null,
-      frequencia_esperada_dias: ehCocho ? formData.frequencia_esperada_dias : null,
+      frequencia_esperada_dias_minimo: ehCocho ? formData.frequencia_esperada_dias_minimo : null,
+      frequencia_esperada_dias_maximo: ehCocho ? formData.frequencia_esperada_dias_maximo : null,
+      frequencia_esperada_dias: ehCocho ? (formData.frequencia_esperada_dias_maximo || formData.frequencia_esperada_dias_minimo) : null,
+      estoque_minimo_kg: ehDeposito ? formData.estoque_minimo_kg : null,
       alerta_sem_lancamento_dias: ehCocho ? formData.alerta_sem_lancamento_dias : null,
       tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null,
     });
@@ -497,6 +524,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Frequência mínima (dias) *</Label>
+                <Input type="number" value={formData.frequencia_esperada_dias_minimo} onChange={(e) => setFormData((prev) => ({ ...prev, frequencia_esperada_dias_minimo: e.target.value }))} className="h-8 text-xs" />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Frequência máxima (dias) *</Label>
+                <Input type="number" value={formData.frequencia_esperada_dias_maximo} onChange={(e) => setFormData((prev) => ({ ...prev, frequencia_esperada_dias_maximo: e.target.value }))} className="h-8 text-xs" />
+              </div>
             </div>
 
             {depositosDisponiveis.length === 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Cadastre primeiro um ponto do tipo depósito para vincular este cocho.</div>}
@@ -511,6 +548,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
               <div className="space-y-1">
                 <Label className="text-xs">Capacidade do depósito (kg) *</Label>
                 <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Estoque mínimo (kg) *</Label>
+                <Input type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} className="h-8 text-xs" />
               </div>
             </div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
