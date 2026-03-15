@@ -12,9 +12,9 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
   }
 
   return (
-    <div className="relative h-20 w-20 flex items-center justify-center">
+    <div className="relative h-20 w-20 flex items-center justify-center isolate">
       <div
-        className="relative h-16 w-16"
+        className="relative h-16 w-16 overflow-hidden"
         style={{
           WebkitMaskImage: `url(${imageUrl})`,
           maskImage: `url(${imageUrl})`,
@@ -33,7 +33,7 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
         />
       </div>
 
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none mix-blend-multiply">
         <img
           src={imageUrl}
           alt={label || "Ícone"}
