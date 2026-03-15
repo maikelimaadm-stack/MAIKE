@@ -40,8 +40,19 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
   const iconePonto = useMemo(() => {
-    return iconesConfig.find((item) => normalizeText(item.categoria) === normalizeText(ponto?.categoria_ponto || "COCHO"));
-  }, [iconesConfig, ponto?.categoria_ponto]);
+    const categoriaPonto = normalizeText(ponto?.categoria_ponto || "");
+    const nomePonto = normalizeText(ponto?.nome_ponto || "");
+
+    return iconesConfig.find((item) => {
+      const categoriaIcone = normalizeText(item.categoria || "");
+      if (categoriaIcone === categoriaPonto) return true;
+      if (categoriaPonto.includes("COCHO") && categoriaIcone === "COCHO") return true;
+      if (categoriaPonto.includes("DEPOSITO") && categoriaIcone === "DEPOSITO") return true;
+      if (nomePonto.includes("COCHO") && categoriaIcone === "COCHO") return true;
+      if (nomePonto.includes("DEPOSITO") && categoriaIcone === "DEPOSITO") return true;
+      return false;
+    });
+  }, [iconesConfig, ponto?.categoria_ponto, ponto?.nome_ponto]);
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;

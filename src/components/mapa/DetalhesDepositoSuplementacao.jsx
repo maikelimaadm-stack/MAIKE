@@ -96,8 +96,19 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes]);
 
   const iconePonto = useMemo(() => {
-    return iconesConfig.find((item) => normalizeText(item.categoria) === normalizeText(deposito?.categoria_ponto || "DEPOSITO"));
-  }, [iconesConfig, deposito?.categoria_ponto]);
+    const categoriaPonto = normalizeText(deposito?.categoria_ponto || "");
+    const nomePonto = normalizeText(deposito?.nome_ponto || "");
+
+    return iconesConfig.find((item) => {
+      const categoriaIcone = normalizeText(item.categoria || "");
+      if (categoriaIcone === categoriaPonto) return true;
+      if (categoriaPonto.includes("DEPOSITO") && categoriaIcone === "DEPOSITO") return true;
+      if (categoriaPonto.includes("COCHO") && categoriaIcone === "COCHO") return true;
+      if (nomePonto.includes("DEPOSITO") && categoriaIcone === "DEPOSITO") return true;
+      if (nomePonto.includes("COCHO") && categoriaIcone === "COCHO") return true;
+      return false;
+    });
+  }, [iconesConfig, deposito?.categoria_ponto, deposito?.nome_ponto]);
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
 
   const ultimoRegistro = indicador.latestRecord;
