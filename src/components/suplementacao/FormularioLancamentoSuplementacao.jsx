@@ -193,7 +193,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     if (quantidadeTotal <= 0) return toast.error("Informe a quantidade fornecida.");
     if (sobraInformada < 0) return toast.error("A sobra informada não pode ser negativa.");
     if (totalCabecas <= 0) return toast.error("Não há cabeças ativas nas áreas vinculadas.");
-    if (lotesSemFator.length > 0) return toast.error("Existem categorias sem fator de consumo configurado.");
     if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
     if (depositoVinculado?.local_estoque_id && quantidadeTotal > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
 
@@ -272,7 +271,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
       for (let index = 0; index < lotes.length; index++) {
         const lote = lotes[index];
-        const fator = fatores.find((item) => normalizeText(item.categoria) === normalizeText(lote.categoria))?.fator || 1;
+        const fator = getFatorLote(lote);
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: `Registrando lote ${index + 1}/${lotes.length}...` });
         await base44.entities.SuplementacaoLote.create({
           empresa_id: empresaSelecionadaId,
@@ -357,6 +356,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {depositoVinculado?.local_estoque_id && formData.produto && produtoSelecionado && saldoNoDeposito <= 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 O produto foi localizado, mas não possui saldo disponível neste depósito/local de estoque.
+              </div>
+            )}
+            {lotesSemFator.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Existem categorias sem fator configurado; o lançamento usará fator padrão 1,00 até a configuração ser concluída.
               </div>
             )}
 
