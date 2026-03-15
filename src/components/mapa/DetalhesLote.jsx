@@ -45,6 +45,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [movimentacoesCriadasIds, setMovimentacoesCriadasIds] = useState([]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
+  const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me() });
 
   // Listener para abrir movimentação via drag-and-drop
   React.useEffect(() => {
