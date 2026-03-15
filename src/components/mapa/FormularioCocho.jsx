@@ -31,6 +31,8 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     consumo_ideal_por_cabeca_kg: "",
     limite_minimo_consumo: "",
     limite_maximo_consumo: "",
+    frequencia_esperada_dias_minimo: "",
+    frequencia_esperada_dias_maximo: "7",
     frequencia_esperada_dias: "7",
     alerta_sem_lancamento_dias: "10",
     observacoes: ""
@@ -47,6 +49,8 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
         consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || "",
         limite_minimo_consumo: item.limite_minimo_consumo || "",
         limite_maximo_consumo: item.limite_maximo_consumo || "",
+        frequencia_esperada_dias_minimo: item.frequencia_esperada_dias_minimo || "",
+        frequencia_esperada_dias_maximo: item.frequencia_esperada_dias_maximo || item.frequencia_esperada_dias || "7",
         frequencia_esperada_dias: item.frequencia_esperada_dias || "7",
         alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || "10",
         observacoes: item.observacoes || ""
@@ -99,21 +103,23 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     const areaVinculada = areas.find(a => a.id === formData.area_vinculada_id);
 
     const data = {
-      empresa_id: empresaSelecionadaId,
-      nome_ponto: formData.nome_ponto,
-      tipo: formData.tipo,
-      produto_padrao: formData.produto_padrao || null,
-      capacidade_cocho_kg: formData.capacidade_cocho_kg ? parseFloat(formData.capacidade_cocho_kg) : null,
-      area_vinculada_id: formData.area_vinculada_id,
-      area_vinculada_nome: areaVinculada?.nome || '',
-      consumo_ideal_por_cabeca_kg: formData.consumo_ideal_por_cabeca_kg ? parseFloat(formData.consumo_ideal_por_cabeca_kg) : null,
-      limite_minimo_consumo: formData.limite_minimo_consumo ? parseFloat(formData.limite_minimo_consumo) : null,
-      limite_maximo_consumo: formData.limite_maximo_consumo ? parseFloat(formData.limite_maximo_consumo) : null,
-      frequencia_esperada_dias: formData.frequencia_esperada_dias ? parseInt(formData.frequencia_esperada_dias) : 7,
-      alerta_sem_lancamento_dias: formData.alerta_sem_lancamento_dias ? parseInt(formData.alerta_sem_lancamento_dias) : 10,
-      coordenadas,
-      status: 'Ativo',
-      observacoes: formData.observacoes || null
+    empresa_id: empresaSelecionadaId,
+    nome_ponto: formData.nome_ponto,
+    tipo: formData.tipo,
+    produto_padrao: formData.produto_padrao || null,
+    capacidade_cocho_kg: formData.capacidade_cocho_kg ? parseFloat(formData.capacidade_cocho_kg) : null,
+    area_vinculada_id: formData.area_vinculada_id,
+    area_vinculada_nome: areaVinculada?.nome || '',
+    consumo_ideal_por_cabeca_kg: formData.consumo_ideal_por_cabeca_kg ? parseFloat(formData.consumo_ideal_por_cabeca_kg) : null,
+    limite_minimo_consumo: formData.limite_minimo_consumo ? parseFloat(formData.limite_minimo_consumo) : null,
+    limite_maximo_consumo: formData.limite_maximo_consumo ? parseFloat(formData.limite_maximo_consumo) : null,
+    frequencia_esperada_dias_minimo: formData.frequencia_esperada_dias_minimo ? parseInt(formData.frequencia_esperada_dias_minimo) : null,
+    frequencia_esperada_dias_maximo: formData.frequencia_esperada_dias_maximo ? parseInt(formData.frequencia_esperada_dias_maximo) : 7,
+    frequencia_esperada_dias: formData.frequencia_esperada_dias_maximo ? parseInt(formData.frequencia_esperada_dias_maximo) : 7,
+    alerta_sem_lancamento_dias: formData.alerta_sem_lancamento_dias ? parseInt(formData.alerta_sem_lancamento_dias) : 10,
+    coordenadas,
+    status: 'Ativo',
+    observacoes: formData.observacoes || null
     };
 
     if (item) {
@@ -221,23 +227,33 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs">Frequência Esperada (dias)</Label>
+          <Label className="text-xs">Frequência mínima (dias)</Label>
           <Input
             type="number"
-            value={formData.frequencia_esperada_dias}
-            onChange={(e) => setFormData({ ...formData, frequencia_esperada_dias: e.target.value })}
+            value={formData.frequencia_esperada_dias_minimo}
+            onChange={(e) => setFormData({ ...formData, frequencia_esperada_dias_minimo: e.target.value })}
             className="h-9 text-xs"
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Alerta sem Lançamento (dias)</Label>
+          <Label className="text-xs">Frequência máxima (dias)</Label>
           <Input
             type="number"
-            value={formData.alerta_sem_lancamento_dias}
-            onChange={(e) => setFormData({ ...formData, alerta_sem_lancamento_dias: e.target.value })}
+            value={formData.frequencia_esperada_dias_maximo}
+            onChange={(e) => setFormData({ ...formData, frequencia_esperada_dias_maximo: e.target.value })}
             className="h-9 text-xs"
           />
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Alerta sem Lançamento (dias)</Label>
+        <Input
+          type="number"
+          value={formData.alerta_sem_lancamento_dias}
+          onChange={(e) => setFormData({ ...formData, alerta_sem_lancamento_dias: e.target.value })}
+          className="h-9 text-xs"
+        />
       </div>
 
       <div className="space-y-1">
