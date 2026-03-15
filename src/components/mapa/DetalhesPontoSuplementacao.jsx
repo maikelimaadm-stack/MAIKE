@@ -12,6 +12,9 @@ import PontoPercentIcon from "./PontoPercentIcon";
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { getCochoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
+import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
+import { consumoEsperadoGrupoDia, pesoMedioPonderadoLotes } from "../suplementacao/consumoPVUtils";
+import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 
 export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -47,6 +50,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: lotes = [] } = useQuery({
+    queryKey: ["lotes-ponto-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Ativo");
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
   const iconePonto = useMemo(() => {
     const categoriaPonto = normalizeText(ponto?.categoria_ponto || "");
@@ -67,6 +79,18 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
+  const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0
+    ? ponto.area_vinculada_ids
+    : ponto.area_vinculada_id
+      ? [ponto.area_vinculada_id]
+      : [];
+  const lotesRelacionados = useMemo(() => {
+    return lotes.filter((lote) => areaIdsRelacionadas.includes(lote.area_atual_id));
+  }, [lotes, areaIdsRelacionadas]);
+  const totalCabecasRelacionadas = useMemo(() => {
+    return lotesRelacionados.reduce((total, lote) => total + Number(lote.quantidade_cabecas || 0), 0);
+  }, [lotesRelacionados]);
+  const pesoMedioRelacionados = useMemo(() => pesoMedioPonderadoLotes(lotesRelacionados), [lotesRelacionados]);
   const ultimoProduto = useMemo(() => {
     if (!ultimoEvento?.produto) return null;
     return produtos.find((produto) => normalizeText(produto.nome_produto || "") === normalizeText(ultimoEvento.produto || "")) || null;
@@ -74,19 +98,27 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const ultimoEventoSacos = useMemo(() => {
     const pesoPorSaco = Number(ultimoProduto?.peso_por_saco_kg || 0);
     if (!ultimoEvento || pesoPorSaco <= 0) return null;
-    return (ultimoEvento.quantidade_total_kg || 0) / pesoPorSaco;
+    return kgParaSacos(ultimoEvento.quantidade_total_kg || 0, pesoPorSaco);
   }, [ultimoProduto, ultimoEvento]);
-  const baseDiasEstimados = useMemo(() => {
-    if (!ultimoEvento) return null;
-    const sobra = ultimoEvento.sobra_kg || 0;
-    const fornecido = ultimoEvento.quantidade_total_kg || 0;
-    const totalDisponivel = fornecido + sobra;
-    const consumoEstimado = (ultimoEvento.consumo_diario_grupo_kg || 0) > 0
-      ? (ultimoEvento.consumo_diario_grupo_kg || 0)
-      : totalDisponivel / (ponto.frequencia_esperada_dias || 7);
-    if (consumoEstimado <= 0) return null;
-    return totalDisponivel / consumoEstimado;
-  }, [ultimoEvento, ponto.frequencia_esperada_dias]);
+  const percentualProduto = Number(ultimoProduto?.percentual_consumo_pv || sugerirPercentualPV(ultimoEvento?.produto || "")?.percentual_consumo_pv || 0);
+  const consumoEsperadoDiaKg = useMemo(() => {
+    if (!ultimoEvento) return 0;
+    const consumoPorPeso = consumoEsperadoGrupoDia(pesoMedioRelacionados, percentualProduto, totalCabecasRelacionadas);
+    if (consumoPorPeso > 0) return consumoPorPeso;
+    return Number(ultimoEvento.consumo_diario_grupo_kg || 0);
+  }, [ultimoEvento, pesoMedioRelacionados, percentualProduto, totalCabecasRelacionadas]);
+  const resumoProdutos = useMemo(() => {
+    const mapa = new Map();
+    eventos.forEach((evento) => {
+      const produto = produtos.find((item) => normalizeText(item.nome_produto || "") === normalizeText(evento.produto || ""));
+      const pesoPorSaco = Number(produto?.peso_por_saco_kg || 0);
+      const atual = mapa.get(evento.produto) || { produto: evento.produto, kg: 0, sacos: 0 };
+      atual.kg += Number(evento.quantidade_total_kg || 0);
+      atual.sacos += pesoPorSaco > 0 ? kgParaSacos(evento.quantidade_total_kg || 0, pesoPorSaco) : 0;
+      mapa.set(evento.produto, atual);
+    });
+    return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
+  }, [eventos, produtos]);
   const temAlerta = ponto.status === "Ativo" && (diasSemLancamento === null || diasSemLancamento > (ponto.alerta_sem_lancamento_dias || 10));
 
   const handleSaved = () => {
@@ -101,11 +133,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   return (
     <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-1">
-        <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">{ponto.status}</Badge>
-          {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito: {ponto.deposito_origem_nome}</Badge>}
-          {temAlerta && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Alerta</Badge>}
+          <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {ponto.nome_ponto}</Badge>
         </div>
       </div>
 
@@ -114,31 +143,24 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-1 text-[10px]">
-        <CardInfo label="Áreas vinculadas" value={
-        Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0 ?
-        ponto.area_vinculada_nomes.join(", ") :
-        ponto.area_vinculada_nome || "-"
-        } />
-        <CardInfo label="Base em dias" value={baseDiasEstimados ? `${formatDecimal(baseDiasEstimados, 1)} dia(s)` : "-"} />
-        <CardInfo label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
-        <CardInfo label="Total fornecido" value={formatKg(totalFornecido)} />
-      </div>
-
       {/* Saldo estimado no cocho */}
       {ultimoEvento && (() => {
-        const sobra = ultimoEvento.sobra_kg || 0;
-        const fornecido = ultimoEvento.quantidade_total_kg || 0;
-        const consumoDiario = ultimoEvento.consumo_diario_grupo_kg || 0;
+        const sobra = Number(ultimoEvento.sobra_kg || 0);
+        const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
         const diasDesde = diasSemLancamento || 0;
-        let saldoEstimado;
-        if (ultimoEvento.dias_periodo != null) {
-          saldoEstimado = sobra;
-        } else {
-          const totalDisponivel = fornecido + sobra;
-          const consumoEstimado = consumoDiario > 0 ? consumoDiario : totalDisponivel / (ponto.frequencia_esperada_dias || 7);
-          saldoEstimado = Math.max(0, totalDisponivel - consumoEstimado * diasDesde);
-        }
+        const totalDisponivel = fornecido + sobra;
+        const consumoBase = consumoEsperadoDiaKg > 0 ? consumoEsperadoDiaKg : (ultimoEvento.consumo_diario_grupo_kg || 0);
+        const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesde);
+        const duracaoCalculada = consumoBase > 0 ? totalDisponivel / consumoBase : 0;
+        const minimoDias = Number(ponto.frequencia_esperada_dias_minimo || 0);
+        const maximoDias = Number(ponto.frequencia_esperada_dias_maximo || ponto.frequencia_esperada_dias || 0);
+        const duracaoInteira = Math.max(0, Math.round(duracaoCalculada || 0));
+        const baseDuracaoDias = minimoDias > 0 || maximoDias > 0
+          ? Math.min(maximoDias || duracaoInteira, Math.max(minimoDias || duracaoInteira, duracaoInteira))
+          : duracaoInteira;
+        const proximaData = baseDuracaoDias > 0
+          ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + baseDuracaoDias * 86400000)
+          : null;
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
@@ -148,26 +170,43 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   imageUrl={iconeExibicao}
                   label={ponto.categoria_ponto || "Cocho"}
                   percent={percentual} />
-
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Saldo estimado</div>
+                  <div className="text-slate-500">Saldo estimado kg</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
                 </div>
-                
-
-
-
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Base em dias</div>
-                  <div className="text-sm font-bold text-slate-900">{baseDiasEstimados ? `${formatDecimal(baseDiasEstimados, 1)} dia(s)` : '-'}</div>
+                  <div className="text-slate-500">Base duração dias</div>
+                  <div className="text-sm font-bold text-slate-900">{baseDuracaoDias > 0 ? `${formatDecimal(baseDuracaoDias, 0, true)} dia(s)` : '-'}</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <div className="text-slate-500">Próxima suplementação</div>
+                  <div className="text-sm font-bold text-slate-900">{proximaData ? proximaData.toLocaleDateString('pt-BR') : '-'}</div>
                 </div>
               </div>
             </div>
           </CardSection>);
 
       })()}
+
+      <CardSection title="Total Fornecido por Produto">
+        {resumoProdutos.length === 0 ? (
+          <div className="text-xs text-slate-500">Nenhum produto lançado ainda.</div>
+        ) : (
+          <div className="space-y-1">
+            {resumoProdutos.map((item) => (
+              <div key={item.produto} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
+                  <div className="truncate font-medium text-slate-900">{item.produto}</div>
+                  <div className="whitespace-nowrap font-semibold text-slate-900">{item.sacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
+                  <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.kg)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardSection>
 
       <CardSection title="Último Registro">
         {ultimoEvento ?
@@ -192,12 +231,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
       <CardSection title="Informações do Cocho">
         <div className="space-y-1 text-[10px]">
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Depósito vinculado:</span><span className="font-semibold text-slate-900">{ponto.deposito_origem_nome || '-'}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Áreas vinculadas:</span><span className="font-semibold text-slate-900">{Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0 ? ponto.area_vinculada_nomes.join(', ') : ponto.area_vinculada_nome || '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Capacidade:</span><span className="font-semibold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</span></div>
           {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
           {ponto.cobertura_cocho && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cobertura:</span><span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência esperada:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.frequencia_esperada_dias || 0, 0, true)} dia(s)</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência mínima:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias_minimo ? `${formatDecimal(ponto.frequencia_esperada_dias_minimo, 0, true)} dia(s)` : '-'}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência máxima:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias_maximo ? `${formatDecimal(ponto.frequencia_esperada_dias_maximo, 0, true)} dia(s)` : ponto.frequencia_esperada_dias ? `${formatDecimal(ponto.frequencia_esperada_dias, 0, true)} dia(s)` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.alerta_sem_lancamento_dias || 0, 0, true)} dia(s)</span></div>
         </div>
       </CardSection>
