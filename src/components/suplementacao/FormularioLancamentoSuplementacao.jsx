@@ -54,14 +54,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && areaIdsVinculados.length > 0,
   });
 
-  const { data: fatores = [] } = useQuery({
-    queryKey: ["fatores-consumo", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.FatorConsumoCategoria.list();
-      return all.filter((fator) => fator.empresa_id === empresaSelecionadaId && fator.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+  const fatores = [];
 
   const { data: ultimoEvento } = useQuery({
     queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
@@ -502,11 +495,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 O produto foi localizado, mas não possui saldo disponível neste depósito/local de estoque.
               </div>
             )}
-            {lotesSemFator.length > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Existem categorias sem fator configurado; o lançamento usará fator padrão 1,00 até a configuração ser concluída.
-              </div>
-            )}
+
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
@@ -578,7 +567,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatQuantidadeComUnidade(quantidadeKg, suportaSacos ? pesoPorSaco : 0)}</div></div>
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Sobra</div><div className="font-bold text-slate-900">{formatDecimal(sobraInformada)} kg</div></div>
                   <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(Math.max(0, quantidadeKg - sobraInformada))} kg</div></div>
-                  <div className="rounded-md border border-slate-200 bg-white p-2"><div className="text-slate-500">Peso total consumo</div><div className="font-bold text-slate-900">{formatDecimal(pesoTotalConsumo)}</div></div>
+                  {consumoEsperadoGrupoDiaPV > 0 && <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2"><div className="text-indigo-700">Esperado/dia (%PV)</div><div className="font-bold text-indigo-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>}
                 </div>
                 <div className="space-y-2">
                   {lotes.map((lote) => {
@@ -595,10 +584,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                           <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
                           <Badge variant="outline" className="text-[10px]">{lote.categoria}</Badge>
                         </div>
-                        <div className="grid grid-cols-4 gap-2 text-[10px]">
+                        <div className="grid grid-cols-3 gap-2 text-[10px]">
                           <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
                           <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : "-"}</div></div>
-                          <div><div className="text-slate-500">Fator</div><div className="font-bold text-slate-900">{formatDecimal(fator)}</div></div>
                           <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-emerald-700">{formatDecimal(percentualConsumo, 1)}%</div></div>
                         </div>
                         {consumoEsperadoLote && (
