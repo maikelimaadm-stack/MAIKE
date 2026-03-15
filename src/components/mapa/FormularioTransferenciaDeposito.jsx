@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   normalizeText,
-  obterSaldoProdutoLocal,
+  obterSaldoTransferivelProduto,
   parseNumber,
   registrarTransferenciaEntreLocais,
 } from "../suplementacao/estoqueSuplementacaoUtils";
+import { formatQuantidadeTecnica } from "../suplementacao/formatters";
 
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -67,12 +68,21 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     ? deposito.local_estoque_nome
     : outrosLocais.find((local) => local.id === localRelacionadoId)?.nome || "";
 
+  const localFonteNome = direction === "entrada"
+    ? outrosLocais.find((local) => local.id === localRelacionadoId)?.nome || ""
+    : deposito.local_estoque_nome;
+
   const produtosDisponiveis = useMemo(() => {
     const localFonte = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
     if (!localFonte) return [];
 
-    return produtos.filter((produto) => obterSaldoProdutoLocal(lotesNota, produto.id, localFonte) > 0);
-  }, [direction, localRelacionadoId, deposito.local_estoque_id, produtos, lotesNota]);
+    return produtos.filter((produto) => obterSaldoTransferivelProduto({
+      produto,
+      lotesNota,
+      localEstoqueId: localFonte,
+      localEstoqueNome: localFonteNome,
+    }) > 0);
+  }, [direction, localRelacionadoId, deposito.local_estoque_id, produtos, lotesNota, localFonteNome]);
 
   const produtoSelecionado = useMemo(() => {
     return produtos.find((produto) => produto.id === produtoId) || null;
@@ -80,8 +90,13 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
   const saldoDisponivel = useMemo(() => {
     if (!produtoSelecionado || !localOrigemId) return 0;
-    return obterSaldoProdutoLocal(lotesNota, produtoSelecionado.id, localOrigemId);
-  }, [produtoSelecionado, localOrigemId, lotesNota]);
+    return obterSaldoTransferivelProduto({
+      produto: produtoSelecionado,
+      lotesNota,
+      localEstoqueId: localOrigemId,
+      localEstoqueNome: localOrigemNome,
+    });
+  }, [produtoSelecionado, localOrigemId, localOrigemNome, lotesNota]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -220,7 +235,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="text-xs text-slate-500">Saldo disponível</div>
               <div className="flex items-center gap-2 pt-1">
-                <Badge variant="outline" className="text-xs">{saldoDisponivel.toFixed(2)}</Badge>
+                <Badge variant="outline" className="text-xs">{formatQuantidadeTecnica(saldoDisponivel, 3)}</Badge>
                 <span className="text-xs text-slate-500">{produtoSelecionado?.unidade_medida || "KG"}</span>
               </div>
             </div>

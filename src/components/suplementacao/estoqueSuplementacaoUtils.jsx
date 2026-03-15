@@ -219,11 +219,11 @@ export async function registrarSaidaSuplementacao({
     localEstoqueId: localOrigemId,
     saldoProduto: estoqueAtual,
   });
-  if (conferencia.inconsistente) {
+  if (conferencia.inconsistente && conferencia.saldoLotes <= 0) {
     throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
   }
-  if (estoqueAtual - quantidadeFinal < 0) {
-    throw new Error("Não é permitido saldo negativo de estoque.");
+  if (conferencia.saldoLotes - quantidadeFinal < 0) {
+    throw new Error("Não é permitido saldo negativo no local de origem.");
   }
   const numeroMovimentacao = await getNextSystemNumber();
 
@@ -282,8 +282,12 @@ export async function registrarTransferenciaEntreLocais({
   observacoes,
   lotesNota,
 }) {
+  const quantidadeFinal = parseNumber(quantidade);
+  await garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota });
+  const lotesAtualizados = await base44.entities.EstoqueLoteNota.list();
+  const lotesDisponiveis = lotesAtualizados.filter((lote) => lote.empresa_id === empresaId && lote.status === "Disponivel");
   const resultado = calcularRateioFIFO({
-    lotesNota,
+    lotesNota: lotesDisponiveis,
     produtoId: produto.id,
     localEstoqueId: localOrigemId,
     quantidade,
@@ -293,19 +297,18 @@ export async function registrarTransferenciaEntreLocais({
     throw new Error(resultado.erro);
   }
 
-  const quantidadeFinal = parseNumber(quantidade);
   const estoqueAtual = produto.estoque_atual || 0;
   const conferencia = conferirDivergenciaEstoque({
-    lotesNota,
+    lotesNota: lotesDisponiveis,
     produtoId: produto.id,
     localEstoqueId: localOrigemId,
     saldoProduto: estoqueAtual,
   });
-  if (conferencia.inconsistente) {
+  if (conferencia.inconsistente && conferencia.saldoLotes <= 0) {
     throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
   }
-  if (estoqueAtual - quantidadeFinal < 0) {
-    throw new Error("Não é permitido saldo negativo de estoque.");
+  if (conferencia.saldoLotes - quantidadeFinal < 0) {
+    throw new Error("Não é permitido saldo negativo no local de origem.");
   }
   const numeroBase = await getNextSystemNumber();
 
