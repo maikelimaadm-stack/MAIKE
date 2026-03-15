@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -6,14 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, CheckCircle, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { formatDecimal, safeDivide } from "../utils/pecuariaUtils";
+import { safeDivide } from "../utils/pecuariaUtils";
 
 export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [periodoMeses, setPeriodoMeses] = useState("3");
 
   const { data: eventos = [] } = useQuery({
-    queryKey: ['eventos-analise', empresaSelecionadaId, pontoId],
+    queryKey: ['eventos-analise', empresaSelecionadaId, pontoId, periodoMeses],
     queryFn: async () => {
       const filtrados = await base44.entities.SuplementacaoEvento.filter({
         empresa_id: empresaSelecionadaId,
@@ -24,11 +24,8 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
     enabled: !!empresaSelecionadaId && !!pontoId,
   });
 
-  const dataLimite = useMemo(() => {
-    const limite = new Date();
-    limite.setMonth(limite.getMonth() - parseInt(periodoMeses, 10));
-    return limite;
-  }, [periodoMeses]);
+  const dataLimite = new Date();
+  dataLimite.setMonth(dataLimite.getMonth() - parseInt(periodoMeses));
 
   const eventosFiltrados = eventos.filter((evento) => new Date(evento.data_lancamento) >= dataLimite);
   const consumoIdeal = ponto?.consumo_ideal_por_cabeca_kg || 0;
@@ -45,25 +42,23 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
         ? safeDivide(evento.consumo_diario_grupo_kg, cabecas)
         : safeDivide(Math.max(0, Number(evento.quantidade_total_kg || 0) - Number(evento.sobra_kg || 0)), dias * cabecas);
 
-    const animalDias = inconsistente ? 0 : cabecas * dias;
-    const consumoAcumulado = consumoCalculado * animalDias;
-
     let status = 'normal';
     let alerta = null;
+
     if (inconsistente) {
       status = 'inconsistente';
       alerta = 'Evento com cabeças zeradas ou inválidas.';
     } else if (limiteMin > 0 && consumoCalculado < limiteMin) {
       status = 'baixo';
-      alerta = `Consumo abaixo do mínimo (${formatDecimal(limiteMin, 3)} kg/cab/dia).`;
+      alerta = `Consumo abaixo do limite mínimo (${limiteMin.toFixed(3)} kg/cab/dia).`;
     } else if (limiteMax > 0 && consumoCalculado > limiteMax) {
       status = 'alto';
-      alerta = `Consumo acima do máximo (${formatDecimal(limiteMax, 3)} kg/cab/dia).`;
+      alerta = `Consumo acima do limite máximo (${limiteMax.toFixed(3)} kg/cab/dia).`;
     } else if (consumoIdeal > 0) {
-      const desvioPct = safeDivide(consumoCalculado - consumoIdeal, consumoIdeal) * 100;
-      if (Math.abs(desvioPct) > 20) {
-        status = desvioPct > 0 ? 'acima' : 'abaixo';
-        alerta = `Desvio de ${formatDecimal(Math.abs(desvioPct), 0, true)}% em relação ao ideal.`;
+      const variacaoPercentual = ((consumoCalculado - consumoIdeal) / consumoIdeal) * 100;
+      if (Math.abs(variacaoPercentual) > 20) {
+        status = variacaoPercentual > 0 ? 'acima' : 'abaixo';
+        alerta = `Variação de ${variacaoPercentual.toFixed(0)}% em relação ao ideal.`;
       }
     }
 
@@ -71,47 +66,56 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
       ...evento,
       dias,
       cabecas,
-      animalDias,
+      inconsistente,
       consumo_calculado: consumoCalculado,
-      consumo_acumulado: consumoAcumulado,
+      consumo_total_periodo: consumoCalculado * cabecas * dias,
       status,
       alerta,
-      inconsistente,
     };
   });
 
-  const eventosValidos = analises.filter((item) => !item.inconsistente && item.animalDias > 0);
+  const analisesValidas = analises.filter((item) => !item.inconsistente);
   const consumosComProblema = analises.filter((item) => item.status !== 'normal');
-  const totalAnimalDias = eventosValidos.reduce((sum, item) => sum + item.animalDias, 0);
-  const totalConsumo = eventosValidos.reduce((sum, item) => sum + item.consumo_acumulado, 0);
-  const consumoMedio = safeDivide(totalConsumo, totalAnimalDias);
-  const desvio = consumoIdeal > 0 ? safeDivide(consumoMedio - consumoIdeal, consumoIdeal) * 100 : 0;
+  const ultimosEventos = analises.slice(-10);
+  const totalAnimalDias = analisesValidas.reduce((sum, item) => sum + (item.cabecas * item.dias), 0);
+  const consumoMedio = totalAnimalDias > 0
+    ? analisesValidas.reduce((sum, item) => sum + item.consumo_total_periodo, 0) / totalAnimalDias
+    : 0;
+  const desvio = consumoIdeal > 0 ? ((consumoMedio - consumoIdeal) / consumoIdeal) * 100 : 0;
 
-  const resumoPeriodo = (diasJanela) => {
+  const consumoAcumulado = (diasJanela) => {
     const limite = new Date();
     limite.setDate(limite.getDate() - diasJanela);
-    const itens = eventosValidos.filter((item) => new Date(item.data_lancamento) >= limite);
-    const animalDiasJanela = itens.reduce((sum, item) => sum + item.animalDias, 0);
-    const consumoJanela = itens.reduce((sum, item) => sum + item.consumo_acumulado, 0);
+    const janela = analisesValidas.filter((item) => new Date(item.data_lancamento) >= limite);
     return {
-      acumulado: consumoJanela,
-      medio: safeDivide(consumoJanela, animalDiasJanela),
+      total: janela.reduce((sum, item) => sum + item.consumo_total_periodo, 0),
+      medio: (() => {
+        const animalDias = janela.reduce((sum, item) => sum + (item.cabecas * item.dias), 0);
+        return animalDias > 0 ? janela.reduce((sum, item) => sum + item.consumo_total_periodo, 0) / animalDias : 0;
+      })(),
     };
   };
 
-  const periodo7 = resumoPeriodo(7);
-  const periodo15 = resumoPeriodo(15);
-  const periodo30 = resumoPeriodo(30);
+  const acumulado7 = consumoAcumulado(7);
+  const acumulado15 = consumoAcumulado(15);
+  const acumulado30 = consumoAcumulado(30);
 
-  const ultimosValidos = eventosValidos.slice(-6);
-  const mediaAtual = ultimosValidos.slice(-3).reduce((sum, item) => sum + item.consumo_calculado, 0) / Math.max(1, ultimosValidos.slice(-3).length);
-  const mediaAnterior = ultimosValidos.slice(0, -3).reduce((sum, item) => sum + item.consumo_calculado, 0) / Math.max(1, ultimosValidos.slice(0, -3).length);
-  const deltaTendencia = mediaAtual - mediaAnterior;
-  const tendencia = ultimosValidos.length < 4 || Math.abs(deltaTendencia) < 0.005 ? 'estavel' : deltaTendencia > 0 ? 'subindo' : 'caindo';
+  const tendencia = (() => {
+    const base = analisesValidas.slice(-6);
+    if (base.length < 4) return { label: 'Estável', color: 'text-slate-700', icon: CheckCircle };
+    const metade = Math.floor(base.length / 2);
+    const mediaAnterior = base.slice(0, metade).reduce((sum, item) => sum + item.consumo_calculado, 0) / metade;
+    const mediaAtual = base.slice(metade).reduce((sum, item) => sum + item.consumo_calculado, 0) / (base.length - metade);
+    const variacao = mediaAnterior > 0 ? ((mediaAtual - mediaAnterior) / mediaAnterior) * 100 : 0;
+    if (variacao > 5) return { label: 'Aumentando', color: 'text-orange-600', icon: TrendingUp };
+    if (variacao < -5) return { label: 'Diminuindo', color: 'text-red-600', icon: TrendingDown };
+    return { label: 'Estável', color: 'text-emerald-600', icon: CheckCircle };
+  })();
 
-  const dadosGrafico = analises.slice(-10).map((item) => ({
-    data: new Date(item.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    consumo: Number(item.consumo_calculado || 0),
+  const TendenciaIcon = tendencia.icon;
+  const dadosGrafico = ultimosEventos.map((evento) => ({
+    data: new Date(evento.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    consumo: Number(evento.consumo_calculado || 0),
     ideal: consumoIdeal,
     minimo: limiteMin,
     maximo: limiteMax,
@@ -119,10 +123,12 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-900">Análise Inteligente de Consumo - {pontoNome}</h3>
         <Select value={periodoMeses} onValueChange={setPeriodoMeses}>
-          <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-32 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="1" className="text-xs">Último mês</SelectItem>
             <SelectItem value="3" className="text-xs">Últimos 3 meses</SelectItem>
@@ -134,33 +140,41 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
 
       {consumoIdeal > 0 ? (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Consumo Ideal</div><div className="text-xl font-bold text-emerald-600">{formatDecimal(consumoIdeal, 3)}</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Médio Ponderado</div><div className="text-xl font-bold text-slate-900">{formatDecimal(consumoMedio, 3)}</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Desvio</div><div className={`text-xl font-bold ${Math.abs(desvio) > 20 ? 'text-amber-600' : 'text-slate-900'}`}>{desvio > 0 ? '+' : ''}{formatDecimal(desvio, 0, true)}%</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Tendência</div><div className={`text-xl font-bold ${tendencia === 'subindo' ? 'text-orange-600' : tendencia === 'caindo' ? 'text-red-600' : 'text-emerald-600'}`}>{tendencia === 'subindo' ? 'Alta' : tendencia === 'caindo' ? 'Queda' : 'Estável'}</div></CardContent></Card>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Consumo Ideal</div><div className="text-xl font-bold text-emerald-600">{consumoIdeal.toFixed(3)} kg</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Médio Ponderado</div><div className="text-xl font-bold text-slate-900">{consumoMedio.toFixed(3)} kg</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Desvio</div><div className={`text-xl font-bold ${Math.abs(desvio) > 20 ? 'text-amber-600' : 'text-slate-900'}`}>{desvio > 0 ? '+' : ''}{desvio.toFixed(0)}%</div></CardContent></Card>
             <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Alertas</div><div className="text-xl font-bold text-red-600">{consumosComProblema.length}</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Inconsistências</div><div className="text-xl font-bold text-red-700">{analises.filter((item) => item.inconsistente).length}</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Tendência</div><div className={`text-sm font-bold flex items-center gap-1 ${tendencia.color}`}><TendenciaIcon className="w-4 h-4" />{tendencia.label}</div></CardContent></Card>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Acumulado 7 dias</div><div className="text-lg font-bold text-slate-900">{formatDecimal(periodo7.acumulado)} kg</div><div className="text-[10px] text-slate-500">Média {formatDecimal(periodo7.medio, 3)} kg/cab/dia</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Acumulado 15 dias</div><div className="text-lg font-bold text-slate-900">{formatDecimal(periodo15.acumulado)} kg</div><div className="text-[10px] text-slate-500">Média {formatDecimal(periodo15.medio, 3)} kg/cab/dia</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Acumulado 30 dias</div><div className="text-lg font-bold text-slate-900">{formatDecimal(periodo30.acumulado)} kg</div><div className="text-[10px] text-slate-500">Média {formatDecimal(periodo30.medio, 3)} kg/cab/dia</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Acumulado 7 dias</div><div className="text-lg font-bold text-slate-900">{acumulado7.total.toFixed(1)} kg</div><div className="text-[10px] text-slate-500">Médio: {acumulado7.medio.toFixed(3)} kg/cab/dia</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Acumulado 15 dias</div><div className="text-lg font-bold text-slate-900">{acumulado15.total.toFixed(1)} kg</div><div className="text-[10px] text-slate-500">Médio: {acumulado15.medio.toFixed(3)} kg/cab/dia</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Acumulado 30 dias</div><div className="text-lg font-bold text-slate-900">{acumulado30.total.toFixed(1)} kg</div><div className="text-[10px] text-slate-500">Médio: {acumulado30.medio.toFixed(3)} kg/cab/dia</div></CardContent></Card>
           </div>
 
           {consumosComProblema.length > 0 && (
             <Card className="border-amber-200 bg-amber-50">
-              <CardHeader className="py-3 border-b border-amber-200"><CardTitle className="text-xs font-semibold text-amber-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Eventos com alerta ({consumosComProblema.length})</CardTitle></CardHeader>
+              <CardHeader className="py-3 border-b border-amber-200">
+                <CardTitle className="text-xs font-semibold text-amber-900 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Alertas e inconsistências ({consumosComProblema.length})
+                </CardTitle>
+              </CardHeader>
               <CardContent className="p-3">
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {consumosComProblema.slice(-6).reverse().map((evento) => (
-                    <div key={evento.id} className="bg-white border border-amber-200 rounded-lg p-2">
-                      <div className="flex items-start justify-between mb-1">
+                  {consumosComProblema.slice(-6).reverse().map((evento, index) => (
+                    <div key={index} className="bg-white border border-amber-200 rounded-lg p-2">
+                      <div className="flex items-start justify-between mb-1 gap-2">
                         <div className="text-xs font-semibold text-slate-900">{new Date(evento.data_lancamento).toLocaleDateString('pt-BR')}</div>
-                        <Badge className={`text-xs ${evento.status === 'inconsistente' ? 'bg-red-100 text-red-800' : evento.status === 'alto' || evento.status === 'acima' ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800'}`}>{formatDecimal(evento.consumo_calculado, 3)} kg/cab</Badge>
+                        <Badge className={`text-xs ${evento.status === 'inconsistente' ? 'bg-red-100 text-red-800' : evento.status === 'baixo' ? 'bg-amber-100 text-amber-800' : evento.status === 'alto' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {evento.inconsistente ? 'Inconsistente' : `${(evento.consumo_calculado || 0).toFixed(3)} kg/cab`}
+                        </Badge>
                       </div>
                       <div className="text-xs text-amber-700">{evento.alerta}</div>
-                      <div className="text-xs text-slate-600 mt-1">Total: {formatDecimal(evento.quantidade_total_kg || 0)} kg • {formatDecimal(evento.total_cabecas_afetadas || 0, 0, true)} cabeças</div>
+                      <div className="text-xs text-slate-600 mt-1">Total: {(evento.quantidade_total_kg || 0).toFixed(1)} kg • {evento.total_cabecas_afetadas || 0} cabeças • {evento.dias} dia(s)</div>
                     </div>
                   ))}
                 </div>
@@ -188,12 +202,14 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
           </Card>
 
           <Card>
-            <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Leitura técnica</CardTitle></CardHeader>
-            <CardContent className="p-3 space-y-2 text-xs">
-              {tendencia === 'subindo' && <div className="flex items-start gap-2"><TrendingUp className="w-4 h-4 text-orange-500 mt-0.5" /><div><div className="font-semibold text-slate-900">Tendência de alta</div><div className="text-slate-600">Verifique excesso de oferta, desperdício ou mudança no manejo do cocho.</div></div></div>}
-              {tendencia === 'caindo' && <div className="flex items-start gap-2"><TrendingDown className="w-4 h-4 text-red-500 mt-0.5" /><div><div className="font-semibold text-slate-900">Tendência de queda</div><div className="text-slate-600">Verifique palatabilidade, falha de abastecimento, acesso ao cocho e disponibilidade de água.</div></div></div>}
-              {tendencia === 'estavel' && <div className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5" /><div><div className="font-semibold text-slate-900">Tendência estável</div><div className="text-slate-600">O consumo está estável no período recente, mantendo melhor previsibilidade operacional.</div></div></div>}
-              {analises.some((item) => item.inconsistente) && <div className="flex items-start gap-2"><AlertCircle className="w-4 h-4 text-red-500 mt-0.5" /><div><div className="font-semibold text-slate-900">Existem eventos inconsistentes</div><div className="text-slate-600">Há registros com cabeças zeradas ou inválidas que não devem ser usados como base gerencial.</div></div></div>}
+            <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Recomendações</CardTitle></CardHeader>
+            <CardContent className="p-3">
+              <div className="space-y-2">
+                {desvio > 20 && <div className="flex items-start gap-2 text-xs"><TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo acima do ideal</div><div className="text-slate-600">Reveja quantidade ofertada, frequência e perdas no cocho para evitar desperdício.</div></div></div>}
+                {desvio < -20 && <div className="flex items-start gap-2 text-xs"><TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo abaixo do ideal</div><div className="text-slate-600">Verifique cocho vazio, palatabilidade, acesso à água e possível problema sanitário.</div></div></div>}
+                {Math.abs(desvio) <= 20 && <div className="flex items-start gap-2 text-xs"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo dentro do esperado</div><div className="text-slate-600">O ponto está operando próximo do padrão técnico definido.</div></div></div>}
+                {analises.some((item) => item.inconsistente) && <div className="flex items-start gap-2 text-xs"><AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Existem eventos inconsistentes</div><div className="text-slate-600">Corrija eventos com cabeças zeradas para evitar leitura enganosa da análise.</div></div></div>}
+              </div>
             </CardContent>
           </Card>
         </>
