@@ -15,6 +15,7 @@ import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuple
 import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { safeDivide } from "../utils/pecuariaUtils";
+import { evaluateConsumoFaixa, getSupplementRule } from "./suplementacaoRules";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -59,12 +60,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   const { data: ultimoEvento } = useQuery({
-    queryKey: ["ultimo-evento-ponto", ponto?.id],
+    queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoEvento.list();
-      return all.filter((evento) => evento.ponto_suplementacao_id === ponto?.id).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
+      const eventos = await base44.entities.SuplementacaoEvento.filter({
+        empresa_id: empresaSelecionadaId,
+        ponto_suplementacao_id: ponto?.id,
+      }, "-data_lancamento", 1);
+      return eventos[0] || null;
     },
-    enabled: !!ponto?.id,
+    enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
   const { data: produtosSuplementacao = [] } = useQuery({
@@ -94,6 +98,17 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: eventosRecentes = [] } = useQuery({
+    queryKey: ["eventos-recentes-ponto", empresaSelecionadaId, ponto?.id],
+    queryFn: async () => {
+      return await base44.entities.SuplementacaoEvento.filter({
+        empresa_id: empresaSelecionadaId,
+        ponto_suplementacao_id: ponto?.id,
+      }, "-data_lancamento", 12);
+    },
+    enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
