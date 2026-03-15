@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import { formatKg } from "../suplementacao/formatters";
-import { formatSacos, podeMostrarSacos } from "../suplementacao/unidadeConversaoUtils";
+import { produtoSuportaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
@@ -90,7 +90,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
   // Função para obter sacos de um produto
   const getSacosInfo = (produtoId, saldoKg) => {
     const produto = produtos.find(p => p.id === produtoId);
-    if (produto && podeMostrarSacos(produto)) {
+    if (produto && produtoSuportaSacos(produto)) {
       const sacos = saldoKg / produto.peso_por_saco_kg;
       return `${sacos.toFixed(1)} sacos`;
     }
