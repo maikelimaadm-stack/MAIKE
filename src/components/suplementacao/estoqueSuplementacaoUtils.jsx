@@ -10,6 +10,15 @@ export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => 
     .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
 };
 
+export const obterSaldoTransferivelProduto = ({ produto, lotesNota, localEstoqueId, localEstoqueNome }) => {
+  const saldoLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localEstoqueId);
+  if (saldoLocal > 0) return saldoLocal;
+  if (normalizeText(produto?.local_estoque) === normalizeText(localEstoqueNome) && Number(produto?.estoque_atual || 0) > 0) {
+    return Number(produto.estoque_atual || 0);
+  }
+  return 0;
+};
+
 export async function getNextSystemNumber() {
   const movimentacoes = await base44.entities.MovimentacaoEstoque.list("-created_date", 1);
   const ultimoNumero = parseInt(movimentacoes?.[0]?.numero_movimentacao) || 0;
@@ -127,6 +136,32 @@ async function baixarLotesFIFO(rateio) {
       status: novoSaldo > 0 ? "Disponivel" : "Esgotado",
     });
   }
+}
+
+async function garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota }) {
+  const saldoLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localOrigemId);
+  if (saldoLocal > 0) return;
+  if (normalizeText(produto?.local_estoque) !== normalizeText(localOrigemNome)) return;
+  const estoqueAtual = Number(produto?.estoque_atual || 0);
+  if (estoqueAtual <= 0) return;
+
+  await base44.entities.EstoqueLoteNota.create({
+    empresa_id: empresaId,
+    produto_id: produto.id,
+    produto_nome: produto.nome_produto,
+    local_estoque_id: localOrigemId,
+    local_estoque_nome: localOrigemNome,
+    numero_documento: "SALDO-INICIAL",
+    serie_documento: "INI",
+    data_documento: new Date().toISOString().split("T")[0],
+    fornecedor_id: null,
+    fornecedor_nome: null,
+    custo_unitario: produto.preco_custo || 0,
+    quantidade_entrada: estoqueAtual,
+    quantidade_disponivel: estoqueAtual,
+    movimentacao_entrada_id: null,
+    status: "Disponivel",
+  });
 }
 
 async function criarLotesDestinoTransferencia({ empresaId, produto, localDestinoId, localDestinoNome, rateio, movimentacaoEntradaId }) {
