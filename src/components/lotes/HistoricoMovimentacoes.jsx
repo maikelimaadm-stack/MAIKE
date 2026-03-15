@@ -437,10 +437,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={`text-[10px] font-semibold ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800'}`}>
+                        <Badge variant="outline" className="text-[10px] font-semibold">
                           {tipoExibicao}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] font-semibold">
+                        <Badge variant="outline" className="text-[10px]">
                           {item.sourceLabel}
                         </Badge>
                         <span className="text-[10px] text-slate-500">
