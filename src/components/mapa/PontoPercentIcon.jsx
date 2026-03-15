@@ -17,11 +17,11 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0, fillCla
         }
       </div>
 
-      <div className="pb-2 flex flex-col items-center justify-end h-[75px] shrink-0">
+      <div className="pb-2 flex flex-col items-center justify-end h-[78px] shrink-0">
         <span className="text-[10px] font-bold leading-none text-slate-900 mb-1">
           {nivel}%
         </span>
-        <div className="relative h-[72px] w-[14px] rounded-full bg-slate-200 overflow-hidden">
+        <div className="relative h-[74px] w-[18px] rounded-full bg-slate-200 overflow-hidden">
           <div className={`${fillClassName} rounded-full absolute inset-x-0 bottom-0 transition-all duration-300`}
 
           style={{ height: `${nivel}%` }} />

@@ -132,7 +132,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="bg-orange-200 text-slate-900 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-orange-300">Local: {deposito.nome_ponto}</Badge>
+          <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {deposito.nome_ponto}</Badge>
         </div>
       </div>
 
@@ -173,6 +173,27 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
+          <div className="text-[11px] font-bold text-slate-900">Saldo por Produto</div>
+          {saldosAgrupados.length === 0 ?
+          <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div> :
+
+          <div className="space-y-1">
+              {saldosAgrupados.map((item) =>
+            <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
+                    <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.saldo)}</div>
+                  </div>
+                </div>
+            )}
+            </div>
+          }
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-200 shadow-sm">
+        <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
           {ultimoRegistro ?
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
@@ -195,27 +216,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
-          <div className="text-[11px] font-bold text-slate-900">Saldo por Produto</div>
-          {saldosAgrupados.length === 0 ?
-          <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div> :
-
-          <div className="space-y-1">
-              {saldosAgrupados.map((item) =>
-            <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
-                    <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.saldo)}</div>
-                  </div>
-                </div>
-            )}
-            </div>
-          }
-        </CardContent>
-      </Card>
-
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Pastos atendidos pela saída do estoque</div>
           {cochosVinculados.length === 0 ?
           <div className="text-xs text-slate-500">Nenhum cocho vinculado a este depósito.</div> :
@@ -226,7 +226,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
               ? cocho.area_vinculada_nomes.join(', ')
               : cocho.area_vinculada_nome || 'Sem pasto vinculado';
             return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
-                  <div className="text-xs font-semibold text-slate-900">{pastosAtendidos}</div>
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
                   <div className="text-[10px] text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
                 </div>;
