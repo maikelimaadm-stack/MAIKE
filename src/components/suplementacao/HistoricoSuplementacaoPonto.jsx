@@ -106,11 +106,11 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-medium text-slate-500">{new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
                           {index === 0 && <Badge variant="outline" className="text-[10px]">Último</Badge>}
-                          <Badge className={`text-[10px] ${periodoFechado ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                             {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
                           </Badge>
                           {evento.tipo_consumo && (
-                            <Badge className={`text-[10px] ${evento.tipo_consumo === "CONSUMO_DIARIO" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-purple-50 text-purple-700 border-purple-200"}`}>
+                            <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                               {evento.tipo_consumo === "CONSUMO_DIARIO" ? "Diário" : "Livre"}
                             </Badge>
                           )}
@@ -123,35 +123,35 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
                         {/* Métricas técnicas */}
-                        <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5 text-[10px]">
-                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1.5 text-[10px]">
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
                             <div className="text-slate-500">Fornecido</div>
                             <div className="font-bold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</div>
                           </div>
-                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
                             <div className="text-slate-500">Sobra</div>
                             <div className="font-bold text-slate-900">{formatKg(evento.sobra_kg || 0)}</div>
                           </div>
-                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
                             <div className="text-slate-500">Cabeças</div>
                             <div className="font-bold text-slate-900">{formatDecimal(cabecas, 0, true)}</div>
                           </div>
-                          <div className="rounded border border-emerald-100 bg-emerald-50 px-1.5 py-1">
-                            <div className="text-emerald-700">Realizado</div>
-                            <div className="font-bold text-emerald-900">{periodoFechado && consumoCabDia > 0 ? `${consumoCabDia.toFixed(3)} kg/cab` : '-'}</div>
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Realizado</div>
+                            <div className="font-bold text-slate-900">{periodoFechado && consumoCabDia > 0 ? `${consumoCabDia.toFixed(3)} kg/cab` : '-'}</div>
                           </div>
-                          <div className="rounded border border-indigo-100 bg-indigo-50 px-1.5 py-1">
-                            <div className="text-indigo-700">Esperado</div>
-                            <div className="font-bold text-indigo-900">{consumoEsperadoCabDia > 0 ? `${consumoEsperadoCabDia.toFixed(3)} kg/cab` : '-'}</div>
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+                            <div className="text-slate-500">Esperado</div>
+                            <div className="font-bold text-slate-900">{consumoEsperadoCabDia > 0 ? `${consumoEsperadoCabDia.toFixed(3)} kg/cab` : '-'}</div>
                           </div>
-                          <div className="rounded border border-slate-100 bg-slate-50 px-1.5 py-1">
+                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
                             <div className="text-slate-500">Peso médio</div>
                             <div className="font-bold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</div>
                           </div>
                         </div>
 
                         {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
-                        {index !== 0 && <div className="text-[10px] text-amber-700 font-medium">Somente o último lançamento pode ser editado/excluído.</div>}
+                        {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser editado ou excluído.</div>}
                       </div>
 
                       <div className="flex gap-1 shrink-0 flex-col">

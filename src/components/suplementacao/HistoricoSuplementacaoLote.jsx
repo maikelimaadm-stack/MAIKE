@@ -91,8 +91,8 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                   <YAxis tick={{ fontSize: 10 }} label={{ value: 'kg/cab/dia', angle: -90, position: 'insideLeft', fontSize: 10 }} />
                   <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value, name) => [`${Number(value).toFixed(3)} kg/cab/dia`, name]} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Line type="monotone" dataKey="consumo" stroke="#10b981" strokeWidth={2} name="Consumo Real" />
-                  <Line type="monotone" dataKey="esperado" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 5" name="Esperado (%PV)" connectNulls={false} />
+                  <Line type="monotone" dataKey="consumo" stroke="#334155" strokeWidth={2} name="Consumo Real" />
+                  <Line type="monotone" dataKey="esperado" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" name="Esperado (%PV)" connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -109,7 +109,7 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                     <YAxis tick={{ fontSize: 10 }} label={{ value: 'kg', angle: -90, position: 'insideLeft', fontSize: 10 }} />
                     <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value) => [`${formatQuantidadeTecnica(value, 1)} kg`, 'Total']} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
-                    <Bar dataKey="totalKg" fill="#10b981" name="Consumo Total (kg)" />
+                    <Bar dataKey="totalKg" fill="#64748b" name="Consumo Total (kg)" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -168,34 +168,34 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                         {periodoFechado && consumoEsperado > 0 && (
                           <DesvioIndicador real={consumoReal} esperado={consumoEsperado} />
                         )}
-                        <Badge className={`text-[10px] ${periodoFechado ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                           {periodoFechado ? 'Fechado' : 'Em aberto'}
                         </Badge>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[10px]">
-                      <div className="rounded border border-slate-100 bg-slate-50 p-1.5">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-[10px]">
+                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
                         <div className="text-slate-500">Cabeças</div>
                         <div className="font-bold text-slate-900">{formatQuantidadeTecnica(item.cabecas_na_area || 0, 0)}</div>
                       </div>
-                      <div className="rounded border border-slate-100 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
                         <div className="text-slate-500">Dias</div>
                         <div className="font-bold text-slate-900">{formatQuantidadeTecnica(item.dias_periodo || 0, 0)}</div>
                       </div>
-                      <div className="rounded border border-slate-100 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
                         <div className="text-slate-500">Peso médio</div>
                         <div className="font-bold text-slate-900">{pesoMedio > 0 ? `${formatQuantidadeTecnica(pesoMedio, 0)} kg` : '-'}</div>
                       </div>
-                      <div className="rounded border border-emerald-100 bg-emerald-50 p-1.5">
-                        <div className="text-emerald-700">Realizado</div>
-                        <div className="font-bold text-emerald-900">{periodoFechado ? `${formatConsumoKgCabDia(consumoReal)} kg` : '-'}</div>
+                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                        <div className="text-slate-500">Realizado</div>
+                        <div className="font-bold text-slate-900">{periodoFechado ? `${formatConsumoKgCabDia(consumoReal)} kg` : '-'}</div>
                       </div>
-                      <div className="rounded border border-indigo-100 bg-indigo-50 p-1.5">
-                        <div className="text-indigo-700">Esperado (%PV)</div>
-                        <div className="font-bold text-indigo-900">{consumoEsperado > 0 ? `${consumoEsperado.toFixed(3)} kg` : '-'}</div>
+                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                        <div className="text-slate-500">Esperado (%PV)</div>
+                        <div className="font-bold text-slate-900">{consumoEsperado > 0 ? `${consumoEsperado.toFixed(3)} kg` : '-'}</div>
                       </div>
-                      <div className="rounded border border-slate-100 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
                         <div className="text-slate-500">Total lote</div>
                         <div className="font-bold text-slate-900">{formatQuantidadeTecnica(item.consumo_total_lote_periodo_kg || 0, 1)} kg</div>
                       </div>
