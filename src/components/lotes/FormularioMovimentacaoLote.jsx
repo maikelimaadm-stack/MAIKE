@@ -210,6 +210,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const categoriasDisponiveis = categorias.map((c) => c.categoria);
+  const totaisSolicitadosPorCategoria = formData.movimentacoes.reduce((acc, item) => {
+    const categoria = item.categoria;
+    acc[categoria] = (acc[categoria] || 0) + (parseFloat(item.quantidade) || 0);
+    return acc;
+  }, {});
 
   const handleMovimentacaoChange = (index, field, value) => {
     const novasMovimentacoes = [...formData.movimentacoes];
@@ -226,6 +231,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const handleFecharEventos = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       const totalPassos = eventosAbertos.reduce((sum, ev) => {
@@ -242,6 +248,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
         const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
+        const saldoFisicoMaximo = (evento.quantidade_total_kg || 0) + (evento.sobra_kg || 0);
+        if (sobra < 0 || sobra > saldoFisicoMaximo) {
+          throw new Error(`A sobra informada para ${evento.ponto_nome} está fora do limite físico do período.`);
+        }
 
         setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i + 1}/${eventosAbertos.length}...` });
 
