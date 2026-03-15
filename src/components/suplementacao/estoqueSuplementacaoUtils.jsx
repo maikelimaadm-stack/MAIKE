@@ -1,15 +1,8 @@
 import { base44 } from "@/api/base44Client";
+import { normalizeText, parseNumber } from "../utils/pecuariaUtils";
 
-export const normalizeText = (value = "") => String(value)
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .toUpperCase()
-  .trim();
-
-export const parseNumber = (value) => {
-  if (typeof value === "number") return value;
-  return parseFloat(String(value || 0).replace(/\./g, "").replace(",", ".")) || 0;
-};
+// Re-exportar para manter compatibilidade com imports existentes
+export { normalizeText, parseNumber };
 
 export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => {
   return lotesNota
