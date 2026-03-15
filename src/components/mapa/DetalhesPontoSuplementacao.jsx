@@ -33,7 +33,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     queryKey: ["configuracao-icones-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
+      return all.filter((item) => item.tipo_entidade === "Ponto" && item.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -43,7 +43,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     const categoriaPonto = normalizeText(ponto?.categoria_ponto || "");
     const nomePonto = normalizeText(ponto?.nome_ponto || "");
 
-    return iconesConfig.find((item) => {
+    const correspondentes = iconesConfig.filter((item) => {
       const categoriaIcone = normalizeText(item.categoria || "");
       if (categoriaIcone === categoriaPonto) return true;
       if (categoriaPonto.includes("COCHO") && categoriaIcone.includes("COCHO")) return true;
@@ -52,6 +52,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       if (nomePonto.includes("DEPOSITO") && categoriaIcone.includes("DEPOSITO")) return true;
       return false;
     });
+
+    return correspondentes.find((item) => item.ativo !== false) || correspondentes[0];
   }, [iconesConfig, ponto?.categoria_ponto, ponto?.nome_ponto]);
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const ultimoEvento = indicador.latestRecord;
