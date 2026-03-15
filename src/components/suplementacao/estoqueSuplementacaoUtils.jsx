@@ -11,28 +11,55 @@ export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => 
 };
 
 export async function getNextSystemNumber() {
-  const [pesagens, fornecedores, produtos, movimentacoes] = await Promise.all([
-    base44.entities.Pesagem.list(),
-    base44.entities.Fornecedor.list(),
-    base44.entities.Produto.list(),
-    base44.entities.MovimentacaoEstoque.list(),
-  ]);
+  const movimentacoes = await base44.entities.MovimentacaoEstoque.list("-created_date", 1);
+  const ultimoNumero = parseInt(movimentacoes?.[0]?.numero_movimentacao) || 0;
+  return ultimoNumero > 0 ? ultimoNumero + 1 : 1;
+}
 
-  const numeros = [
-    ...pesagens.map((item) => parseInt(item.numero_registro) || 0),
-    ...fornecedores.map((item) => parseInt(item.numero_cadastro) || 0),
-    ...produtos.map((item) => parseInt(item.numero_produto) || 0),
-    ...movimentacoes.map((item) => parseInt(item.numero_movimentacao) || 0),
-  ].filter((numero) => numero > 0 && numero < 1000000000);
+function getValidFifoDate(lote) {
+  const rawDate = lote.data_documento || lote.created_date;
+  const parsed = new Date(rawDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
-  return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+function buildRateioObservacao(rateio) {
+  return rateio
+    .map((item) => `${item.numero_documento || "S/N"}: ${item.quantidade_consumida.toFixed(3)} kg`)
+    .join(" | ");
+}
+
+export function conferirDivergenciaEstoque({ lotesNota, produtoId, localEstoqueId, saldoProduto }) {
+  const saldoLotes = obterSaldoProdutoLocal(lotesNota, produtoId, localEstoqueId);
+  const saldoCadastro = Number(saldoProduto || 0);
+  const divergencia = Math.abs(saldoLotes - saldoCadastro);
+  return {
+    saldoLotes,
+    saldoCadastro,
+    divergencia,
+    inconsistente: divergencia > 0.001,
+  };
 }
 
 export function calcularRateioFIFO({ lotesNota, produtoId, localEstoqueId, quantidade }) {
   const quantidadeSolicitada = parseNumber(quantidade);
-  const lotesOrdenados = lotesNota
-    .filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && (lote.quantidade_disponivel || 0) > 0)
-    .sort((a, b) => new Date(a.data_documento || a.created_date || 0) - new Date(b.data_documento || b.created_date || 0));
+  const lotesElegiveis = lotesNota.filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && (lote.quantidade_disponivel || 0) > 0);
+  const lotesSemDataValida = lotesElegiveis.filter((lote) => !getValidFifoDate(lote));
+
+  if (lotesSemDataValida.length > 0) {
+    return {
+      sucesso: false,
+      erro: "Existem lotes de estoque sem data válida para aplicar o FIFO com segurança.",
+      rateio: [],
+      custoMedioPonderado: 0,
+    };
+  }
+
+  const lotesOrdenados = lotesElegiveis.sort((a, b) => {
+    const dateA = getValidFifoDate(a);
+    const dateB = getValidFifoDate(b);
+    if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+    return String(a.id).localeCompare(String(b.id));
+  });
 
   const saldoTotal = lotesOrdenados.reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
 
@@ -148,6 +175,15 @@ export async function registrarSaidaSuplementacao({
 
   const quantidadeFinal = parseNumber(quantidade);
   const estoqueAtual = produto.estoque_atual || 0;
+  const conferencia = conferirDivergenciaEstoque({
+    lotesNota,
+    produtoId: produto.id,
+    localEstoqueId: localOrigemId,
+    saldoProduto: estoqueAtual,
+  });
+  if (conferencia.inconsistente) {
+    throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
+  }
   if (estoqueAtual - quantidadeFinal < 0) {
     throw new Error("Não é permitido saldo negativo de estoque.");
   }
