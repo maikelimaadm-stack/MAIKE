@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, CheckCircle, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { safeDivide } from "../utils/pecuariaUtils";
 
 export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -37,7 +38,12 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const limiteMax = ponto?.limite_maximo_consumo || 0;
 
   const analises = eventosFiltrados.map(e => {
-    const consumo = e.consumo_medio_por_cabeca_kg || 0;
+    // Calcular consumo por cabeça/dia a partir dos dados do evento
+    const consumoTotal = Math.max(0, (e.quantidade_total_kg || 0) - (e.sobra_kg || 0));
+    const dias = Math.max(1, e.dias_periodo || 1);
+    const cabecas = e.total_cabecas_afetadas || 1;
+    const consumo = safeDivide(consumoTotal, dias * cabecas);
+
     let status = 'normal';
     let alerta = null;
 
@@ -56,7 +62,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
       }
     }
 
-    return { ...e, status, alerta, variacao: consumo - consumoIdeal };
+    return { ...e, consumo_calculado: consumo, status, alerta, variacao: consumo - consumoIdeal };
   });
 
   const consumosComProblema = analises.filter(a => a.status !== 'normal');
@@ -65,15 +71,15 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   // Dados para gráfico
   const dadosGrafico = ultimosEventos.map(e => ({
     data: new Date(e.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    consumo: parseFloat(e.consumo_medio_por_cabeca_kg || 0).toFixed(3),
+    consumo: parseFloat(e.consumo_calculado || 0).toFixed(3),
     ideal: consumoIdeal,
     minimo: limiteMin,
     maximo: limiteMax
   }));
 
   // Estatísticas
-  const consumoMedio = eventosFiltrados.length > 0
-    ? (eventosFiltrados.reduce((sum, e) => sum + (e.consumo_medio_por_cabeca_kg || 0), 0) / eventosFiltrados.length)
+  const consumoMedio = analises.length > 0
+    ? analises.reduce((sum, e) => sum + (e.consumo_calculado || 0), 0) / analises.length
     : 0;
 
   const desvio = consumoIdeal > 0 ? ((consumoMedio - consumoIdeal) / consumoIdeal) * 100 : 0;
@@ -147,7 +153,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
                           evento.status === 'alto' ? 'bg-orange-100 text-orange-800' :
                           'bg-amber-100 text-amber-800'
                         }`}>
-                          {(evento.consumo_medio_por_cabeca_kg || 0).toFixed(3)} kg/cab
+                          {(evento.consumo_calculado || 0).toFixed(3)} kg/cab
                         </Badge>
                       </div>
                       <div className="text-xs text-amber-700">
