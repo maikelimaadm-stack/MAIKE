@@ -146,7 +146,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           tipo: 'Nutrição',
           tipo_exibicao: 'Nutrição',
           quantidade: item.cabecas_na_area,
-          observacoes: `${item.produto || 'Produto'} • ${(item.consumo_total_lote_periodo_kg || 0).toFixed(1)} kg no período • ${(item.consumo_por_cabeca_dia_kg || 0).toFixed(3)} kg/cab/dia`,
+          observacoes: `${item.produto || 'Produto'} • Consumo período: ${(item.consumo_total_lote_periodo_kg || 0).toFixed(1)} kg • ${(item.consumo_por_cabeca_dia_kg || 0).toFixed(3)} kg/cab/dia${item.dias_periodo ? ` • ${item.dias_periodo} dia(s)` : ' • Em aberto'}`,
           canEdit: false,
           canDelete: false,
         }));
