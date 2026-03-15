@@ -59,10 +59,13 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     };
   });
 
+  // Área de saída resolvida
+  const areaSaidaResolvida = areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
+
   // Verificar eventos abertos ao carregar
   React.useEffect(() => {
     const verificarEventosAbertos = async () => {
-      if (!areaOrigem?.id) return;
+      if (!areaSaidaResolvida) return;
 
       try {
         const todosPontos = await base44.entities.PontoSuplementacao.list();
@@ -70,8 +73,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         p.empresa_id === empresaSelecionadaId &&
         p.status === 'Ativo' &&
         (
-          p.area_vinculada_id === areaOrigem.id ||
-          (Array.isArray(p.area_vinculada_ids) && p.area_vinculada_ids.includes(areaOrigem.id))
+          p.area_vinculada_id === areaSaidaResolvida ||
+          (Array.isArray(p.area_vinculada_ids) && p.area_vinculada_ids.includes(areaSaidaResolvida))
         )
         );
 
@@ -113,7 +116,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     };
 
     verificarEventosAbertos();
-  }, [areaOrigem?.id, empresaSelecionadaId]);
+  }, [areaSaidaResolvida, empresaSelecionadaId]);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
