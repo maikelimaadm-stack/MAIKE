@@ -1,6 +1,8 @@
 // Utils de Movimentações de Estoque
 // Padroniza slugs/labels, leitura de locais (DISPLAY) e prepara dados 100% compatíveis com o schema
 
+import { normalizeText } from "../../utils/pecuariaUtils";
+
 const removerAcentos = (str = "") => String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 // A) Label -> slug consistente (ex.: "Ajuste Positivo" -> "ajuste_positivo")
