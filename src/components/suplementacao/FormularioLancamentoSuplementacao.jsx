@@ -72,10 +72,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   const { data: produtosSuplementacao = [] } = useQuery({
-    queryKey: ["produtos-suplementacao-lancamento", empresaSelecionadaId],
+    queryKey: ["produtos-suplementacao-lancamento", empresaSelecionadaId, ponto?.produto_padrao],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId && normalizeText(produto.categoria).includes("SUPLEMENTAC"));
+      return all.filter((produto) => {
+        const categoriaSuplementacao = normalizeText(produto.categoria).includes("SUPLEMENTAC");
+        const produtoMarcadoNoPonto = ponto?.produto_padrao && normalizeText(produto.nome_produto) === normalizeText(ponto.produto_padrao);
+        return produto.empresa_id === empresaSelecionadaId && (categoriaSuplementacao || produtoMarcadoNoPonto);
+      });
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -145,8 +149,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const produtosDisponiveis = useMemo(() => {
     if (!depositoVinculado?.local_estoque_id) return produtosSuplementacao;
-    return produtosSuplementacao.filter((produto) => obterSaldoProdutoLocal(lotesNota, produto.id, depositoVinculado.local_estoque_id) > 0);
-  }, [depositoVinculado, produtosSuplementacao, lotesNota]);
+    return [...produtosSuplementacao].sort((a, b) => {
+      const saldoA = obterSaldoProdutoLocal(lotesNota, a.id, depositoVinculado.local_estoque_id);
+      const saldoB = obterSaldoProdutoLocal(lotesNota, b.id, depositoVinculado.local_estoque_id);
+      const prioridadeA = saldoA > 0 || normalizeText(a.nome_produto) === normalizeText(ponto?.produto_padrao || "") ? 1 : 0;
+      const prioridadeB = saldoB > 0 || normalizeText(b.nome_produto) === normalizeText(ponto?.produto_padrao || "") ? 1 : 0;
+      if (prioridadeA !== prioridadeB) return prioridadeB - prioridadeA;
+      return a.nome_produto.localeCompare(b.nome_produto);
+    });
+  }, [depositoVinculado, produtosSuplementacao, lotesNota, ponto]);
 
   const produtoSelecionado = useMemo(() => {
     return produtosSuplementacao.find((produto) => normalizeText(produto.nome_produto) === normalizeText(formData.produto)) || null;
@@ -325,6 +336,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
 
             {depositoVinculado?.local_estoque_id && produtoSelecionado && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between"><div><div className="text-xs text-slate-500">Saldo disponível no depósito</div><div className="text-sm font-semibold text-slate-900">{formatDecimal(saldoNoDeposito)} {produtoSelecionado.unidade_medida || "KG"}</div></div><Badge variant="outline" className="text-xs">Baixa automática ativa</Badge></div>}
+            {depositoVinculado?.local_estoque_id && formData.produto && produtoSelecionado && saldoNoDeposito <= 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                O produto foi localizado, mas não possui saldo disponível neste depósito/local de estoque.
+              </div>
+            )}
 
             {!!formData.quantidade_total_kg && totalCabecas > 0 && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
