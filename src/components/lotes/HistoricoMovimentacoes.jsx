@@ -280,9 +280,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         for (const pesagemFilha of pesagensFilhas) {
           if (pesagemFilha.lote_id) {
             const lotePesagem = lotesEmpresa.find((l) => l.id === pesagemFilha.lote_id);
-            const obsMatch = String(pesagemFilha.observacoes || '').match(/Peso anterior:\s*([\d.]+)\s*kg/i);
-            const pesoAnterior = obsMatch ? parseFloat(obsMatch[1]) : null;
-            if (lotePesagem && pesoAnterior !== null && !Number.isNaN(pesoAnterior)) {
+            const pesoAnterior = getPesoAnteriorFromObs(pesagemFilha.observacoes);
+            if (lotePesagem && pesoAnterior !== null) {
               await base44.entities.Lote.update(lotePesagem.id, {
                 peso_medio_kg: pesoAnterior
               });
@@ -333,9 +332,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       if (mov.tipo === 'Pesagem') {
         if (loteRecord) {
-          const obsMatch = String(mov.observacoes || '').match(/Peso anterior:\s*([\d.]+)\s*kg/i);
-          const pesoAnterior = obsMatch ? parseFloat(obsMatch[1]) : null;
-          if (pesoAnterior !== null && !Number.isNaN(pesoAnterior)) {
+          const pesoAnterior = getPesoAnteriorFromObs(mov.observacoes);
+          if (pesoAnterior !== null) {
             await base44.entities.Lote.update(loteRecord.id, {
               peso_medio_kg: pesoAnterior
             });
@@ -345,10 +343,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       if (mov.tipo === 'Mudança de Categoria') {
         if (loteRecord) {
-          const catMatch = String(mov.observacoes || '').match(/De\s+(.+?)\s+para\s+/i);
-          if (catMatch) {
+          const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
+          if (categoriaAnterior) {
             await base44.entities.Lote.update(loteRecord.id, {
-              categoria: catMatch[1]
+              categoria: categoriaAnterior
             });
           }
         }
