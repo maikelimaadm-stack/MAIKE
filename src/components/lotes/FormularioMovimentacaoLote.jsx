@@ -457,8 +457,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Movimentação de Lotes</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="text-xs">Data da Movimentação *</Label>
@@ -601,7 +601,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           }
                         }}
                         max={mov.quantidade_maxima}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                         required />
 
@@ -628,9 +628,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               type="button"
               onClick={adicionarMovimentacao}
               variant="outline"
-              className="w-full h-10 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400">
-
-                <Plus className="w-4 h-4 mr-2" />
+              className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400">
                 Adicionar Categoria
               </Button>
             </div>

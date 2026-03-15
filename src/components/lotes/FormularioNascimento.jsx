@@ -96,8 +96,8 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Nascimento - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Data do Nascimento *</Label>
             <Input
@@ -162,7 +162,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                         min="0"
                         value={nascimento.quantidade}
                         onChange={(e) => handleNascimentoChange(index, 'quantidade', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                         required
                       />
@@ -174,7 +174,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                         value={nascimento.sexo}
                         onValueChange={(v) => handleNascimentoChange(index, 'sexo', v)}
                       >
-                        <SelectTrigger className="h-10 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Selecione o sexo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -191,7 +191,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                         step="0.1"
                         value={nascimento.peso_medio}
                         onChange={(e) => handleNascimentoChange(index, 'peso_medio', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                       />
                     </div>

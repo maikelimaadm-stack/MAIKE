@@ -158,8 +158,8 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Pesagem - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-3">
+      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-2.5">
           <div className="space-y-1">
             <Label className="text-xs">Data da Pesagem *</Label>
             <Input
@@ -226,7 +226,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                         value={pesosIndividuais[loteItem.id] || ''}
                         onChange={(e) => setPesosIndividuais(prev => ({ ...prev, [loteItem.id]: e.target.value }))}
                         placeholder={String(loteItem.peso_medio_kg || 0)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                       />
                     </div>
                   </div>
@@ -241,7 +241,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 step="0.1"
                 value={pesoGeral}
                 onChange={(e) => setPesoGeral(e.target.value)}
-                className="h-10 text-sm font-semibold"
+                className="h-8 text-xs font-semibold"
                 placeholder="0"
               />
               <div className="text-[10px] text-slate-600 mt-2">
@@ -302,7 +302,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                         value={pesagem.peso}
                         onChange={(e) => handlePesagemChange(index, 'peso', e.target.value)}
                         placeholder="0"
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         required
                       />
                     </div>

@@ -109,8 +109,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Mudança de categoria</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Data da Mudança *</Label>
             <Input
@@ -176,7 +176,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                         max={infoCategoria.totalCabecas}
                         value={mudanca.quantidade}
                         onChange={(e) => handleMudancaChange(index, 'quantidade', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                         required
                       />
@@ -188,7 +188,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                         value={mudanca.categoria_nova}
                         onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
                       >
-                        <SelectTrigger className="h-10 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Selecione a nova categoria" />
                         </SelectTrigger>
                         <SelectContent>
@@ -206,7 +206,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                         step="0.1"
                         value={mudanca.peso_medio || ""}
                         onChange={(e) => handleMudancaChange(index, 'peso_medio', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                       />
                     </div>

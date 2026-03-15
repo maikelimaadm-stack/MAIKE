@@ -95,8 +95,8 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Abate para Consumo - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Data do Abate *</Label>
             <Input
@@ -162,7 +162,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                         max={infoCategoria.totalCabecas}
                         value={abate.quantidade}
                         onChange={(e) => handleAbateChange(index, 'quantidade', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                         required
                       />
@@ -175,7 +175,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                         step="0.1"
                         value={abate.peso_vivo_total}
                         onChange={(e) => handleAbateChange(index, 'peso_vivo_total', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                       />
                     </div>
@@ -187,7 +187,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                         step="0.1"
                         value={abate.peso_carcaca_total}
                         onChange={(e) => handleAbateChange(index, 'peso_carcaca_total', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                       />
                     </div>
@@ -198,7 +198,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                         value={abate.destino}
                         onValueChange={(v) => handleAbateChange(index, 'destino', v)}
                       >
-                        <SelectTrigger className="h-10 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Selecione o destino" />
                         </SelectTrigger>
                         <SelectContent>

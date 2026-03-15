@@ -91,8 +91,8 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Morte - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Data da Ocorrência *</Label>
             <Input
@@ -158,7 +158,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                         max={infoCategoria.totalCabecas}
                         value={morte.quantidade}
                         onChange={(e) => handleMorteChange(index, 'quantidade', e.target.value)}
-                        className="h-10 text-xs"
+                        className="h-8 text-xs"
                         placeholder="0"
                         required
                       />
@@ -170,7 +170,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                         value={morte.causa_morte}
                         onValueChange={(v) => handleMorteChange(index, 'causa_morte', v)}
                       >
-                        <SelectTrigger className="h-10 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Selecione a causa" />
                         </SelectTrigger>
                         <SelectContent>
