@@ -85,7 +85,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1 text-[10px]">
         <CardInfo label="Áreas vinculadas" value={
         Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0 ?
         ponto.area_vinculada_nomes.join(", ") :
@@ -121,7 +121,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   percent={percentual} />
 
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
@@ -147,7 +147,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
               <div className="text-xs font-semibold text-slate-900 whitespace-nowrap">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</div>
             </div>
-            <div className="grid grid-cols-2 gap-1 md:grid-cols-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1">
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
@@ -191,7 +191,7 @@ function CardInfo({ label, value }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
       <div className="text-slate-500">{label}</div>
-      <div className="text-sm font-bold text-slate-90">{value}</div>
+      <div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div>
     </div>);
 
 }

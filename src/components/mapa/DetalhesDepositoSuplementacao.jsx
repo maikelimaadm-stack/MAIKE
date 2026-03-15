@@ -128,14 +128,14 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
       <div className="space-y-1 text-[10px]">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1">
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Produtos com saldo</div><div className="text-sm font-bold text-slate-900">{saldosAgrupados.length}</div></CardContent></Card>
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Cochos vinculados</div><div className="text-sm font-bold text-slate-900">{cochosVinculados.length}</div></CardContent></Card>
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-1"><div className="text-slate-500">Saldo atual</div><div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div></CardContent></Card>
@@ -150,7 +150,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 percent={indicador?.percent || 0}
               />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
                 <div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</div>
@@ -177,7 +177,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 <div className="font-semibold leading-tight text-slate-900">{ultimoRegistro.produto_nome}</div>
                 <div className="text-xs font-semibold text-slate-900 whitespace-nowrap">{formatKg(ultimoRegistro.quantidade || 0)}</div>
               </div>
-              <div className="grid grid-cols-2 gap-1 md:grid-cols-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1">
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleString("pt-BR")}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
