@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -202,11 +201,7 @@ export default function GerenciadorIcones() {
                       <div key={icone.id} className="border rounded p-3 bg-white hover:bg-slate-50 transition-colors">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {icone.tipo_entidade === 'Ponto' ? (
-                              <div className="w-16">
-                                <IndicadorCopoNivel titulo="" valor="" percent={0.6} cor={icone.cor_padrao || '#10b981'} />
-                              </div>
-                            ) : icone.icone_url ? (
+                            {icone.icone_url ? (
                               <img src={icone.icone_url} alt={icone.categoria} className="w-8 h-8 object-contain" />
                             ) : (
                               <div 
@@ -318,93 +313,81 @@ export default function GerenciadorIcones() {
               </div>
             )}
 
-            {formData.tipo_entidade === 'Ponto' ? (
+            <>
               <div className="space-y-1">
-                <Label className="text-xs">Visual do ponto</Label>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <div className="w-24">
-                    <IndicadorCopoNivel titulo="" valor="" percent={0.6} cor={formData.cor_padrao || '#10b981'} />
-                  </div>
-                  <p className="mt-2 text-[10px] text-slate-500">Os pontos de cocho e depósito agora usam o indicador em formato de copo no painel e o marcador do mapa fica padronizado.</p>
+                <Label className="text-xs">Ícone Principal (Mapa)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="h-8 text-xs"
+                    disabled={uploadingFile}
+                  />
+                  {uploadingFile && (
+                    <div className="text-xs text-slate-500 flex items-center">
+                      <Upload className="w-3 h-3 mr-1 animate-pulse" />
+                      Enviando...
+                    </div>
+                  )}
                 </div>
+                {formData.icone_url && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <img src={formData.icone_url} alt="Preview" className="w-10 h-10 object-contain border rounded" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, icone_url: "" })}
+                      className="h-8 text-xs"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <Label className="text-xs">Ícone Principal (Mapa)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="h-8 text-xs"
-                      disabled={uploadingFile}
-                    />
-                    {uploadingFile && (
-                      <div className="text-xs text-slate-500 flex items-center">
-                        <Upload className="w-3 h-3 mr-1 animate-pulse" />
-                        Enviando...
-                      </div>
-                    )}
-                  </div>
-                  {formData.icone_url && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <img src={formData.icone_url} alt="Preview" className="w-10 h-10 object-contain border rounded" />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setFormData({ ...formData, icone_url: "" })}
-                        className="h-6 w-6 text-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Sub Ícone (Informações/Detalhes)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        setUploadingFile(true);
-                        try {
-                          const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                          setFormData({ ...formData, sub_icone_url: file_url });
-                          toast.success('✅ Sub ícone carregado!');
-                        } catch (error) {
-                          toast.error('❌ Erro ao carregar sub ícone');
-                          console.error(error);
-                        } finally {
-                          setUploadingFile(false);
-                        }
-                      }}
-                      className="h-8 text-xs"
-                      disabled={uploadingFile}
-                    />
-                  </div>
-                  {formData.sub_icone_url && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <img src={formData.sub_icone_url} alt="Preview Sub" className="w-10 h-10 object-contain border rounded" />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setFormData({ ...formData, sub_icone_url: "" })}
-                        className="h-6 w-6 text-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
+              <div className="space-y-1">
+                <Label className="text-xs">Sub Ícone (Informações/Detalhes)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingFile(true);
+                      try {
+                        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                        setFormData({ ...formData, sub_icone_url: file_url });
+                        toast.success('✅ Sub ícone carregado!');
+                      } catch (error) {
+                        toast.error('❌ Erro ao carregar sub ícone');
+                        console.error(error);
+                      } finally {
+                        setUploadingFile(false);
+                      }
+                    }}
+                    className="h-8 text-xs"
+                    disabled={uploadingFile}
+                  />
                 </div>
-              </>
-            )}
+                {formData.sub_icone_url && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <img src={formData.sub_icone_url} alt="Preview Sub" className="w-10 h-10 object-contain border rounded" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, sub_icone_url: "" })}
+                      className="h-8 text-xs"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
 
             <div className="space-y-1">
               <Label className="text-xs">Cor Padrão</Label>
@@ -480,11 +463,9 @@ export default function GerenciadorIcones() {
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">
-                <X className="w-3 h-3 mr-1" />
                 Cancelar
               </Button>
               <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Save className="w-3 h-3 mr-1" />
                 Salvar
               </Button>
             </div>
