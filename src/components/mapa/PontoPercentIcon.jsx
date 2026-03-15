@@ -5,16 +5,16 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
 
   if (!imageUrl) {
     return (
-      <div className="relative h-[74px] w-[74px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 shadow-sm text-[10px] font-bold text-slate-700">
+      <div className="relative h-[74px] w-[74px] flex items-center justify-center text-[10px] font-bold text-slate-700">
         {nivel}%
       </div>
     );
   }
 
   return (
-    <div className="relative h-[74px] w-[74px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 shadow-sm isolate">
+    <div className="relative h-[74px] w-[74px] flex items-center justify-center isolate">
       <div
-        className="relative h-14 w-14 overflow-hidden"
+        className="relative h-[68px] w-[68px] overflow-hidden"
         style={{
           WebkitMaskImage: `url(${imageUrl})`,
           maskImage: `url(${imageUrl})`,
@@ -37,11 +37,11 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0 }) {
         <img
           src={imageUrl}
           alt={label || "Ícone"}
-          className="h-14 w-14 object-contain"
+          className="h-[68px] w-[68px] object-contain"
         />
       </div>
 
-      <div className="absolute inset-x-0 top-[46%] -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-slate-700 pointer-events-none">
+      <div className="absolute inset-x-0 top-[43%] -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-slate-700 pointer-events-none">
         {nivel}%
       </div>
     </div>
