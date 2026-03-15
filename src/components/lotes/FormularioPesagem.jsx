@@ -37,6 +37,14 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
 
   const [modoPesagem, setModoPesagem] = useState("categorias");
   const [pesoGeral, setPesoGeral] = useState("");
+  const [pesosIndividuais, setPesosIndividuais] = useState({});
+
+  // Se há múltiplos lotes na mesma categoria com pesos diferentes, habilitar modo individual
+  const temLotesComPesosDiferentes = Object.values(lotesPorCategoria).some(cat => {
+    if (cat.lotes.length <= 1) return false;
+    const pesos = cat.lotes.map(l => l.peso_medio_kg || 0);
+    return new Set(pesos).size > 1;
+  });
 
   const [formData, setFormData] = useState({
     data_pesagem: new Date().toISOString().split('T')[0],
@@ -63,6 +71,31 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
             acc[cat] = parseFloat(pesoGeral);
             return acc;
           }, {}),
+          observacoes: formData.observacoes
+        });
+      } finally {
+        setSaving(false);
+      }
+    } else if (modoPesagem === "individual") {
+      // Modo individual: peso por lote
+      const lotesComPeso = Object.entries(pesosIndividuais).filter(([, peso]) => peso && parseFloat(peso) > 0);
+      if (lotesComPeso.length === 0) {
+        alert("Preencha o peso de pelo menos um lote");
+        return;
+      }
+      const categoriasAfetadas = [...new Set(lotesArray.filter(l => pesosIndividuais[l.id]).map(l => l.categoria))];
+      setSaving(true);
+      try {
+        await onSubmit({
+          data_pesagem: formData.data_pesagem,
+          categorias_selecionadas: categoriasAfetadas,
+          pesos_por_categoria: categoriasAfetadas.reduce((acc, cat) => {
+            // Usa o primeiro peso da categoria como fallback
+            const primeiroLote = lotesArray.find(l => l.categoria === cat && pesosIndividuais[l.id]);
+            acc[cat] = primeiroLote ? parseFloat(pesosIndividuais[primeiroLote.id]) : 0;
+            return acc;
+          }, {}),
+          pesos_por_lote: Object.fromEntries(lotesComPeso),
           observacoes: formData.observacoes
         });
       } finally {
@@ -140,7 +173,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
 
           <div className="space-y-2 border-b pb-3">
             <Label className="text-xs font-semibold">Modo de Pesagem</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 type="button"
                 onClick={() => setModoPesagem("categorias")}
@@ -148,6 +181,14 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 className={`flex-1 h-8 text-xs ${modoPesagem === "categorias" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
               >
                 Por Categoria
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setModoPesagem("individual")}
+                variant={modoPesagem === "individual" ? "default" : "outline"}
+                className={`flex-1 h-8 text-xs ${modoPesagem === "individual" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+              >
+                Por Lote
               </Button>
               <Button
                 type="button"
@@ -160,7 +201,39 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
             </div>
           </div>
 
-          {modoPesagem === "todos" ? (
+          {modoPesagem === "individual" ? (
+            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+              {lotesArray.map((loteItem) => {
+                const configIcone = iconesConfig.find(ic => 
+                  ic.tipo_entidade === 'Lote' && 
+                  ic.categoria?.toUpperCase() === loteItem.categoria?.toUpperCase()
+                );
+                const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+                return (
+                  <div key={loteItem.id} className="border border-slate-200 rounded-lg p-3 bg-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      {iconeUrl && <img src={iconeUrl} alt="" className="w-6 h-6 object-contain" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-slate-900 truncate">{loteItem.nome}</div>
+                        <div className="text-[10px] text-slate-500">{loteItem.categoria} • {loteItem.quantidade_cabecas || 0} cab • Peso atual: {loteItem.peso_medio_kg || 0} kg</div>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-600">Novo Peso (kg)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={pesosIndividuais[loteItem.id] || ''}
+                        onChange={(e) => setPesosIndividuais(prev => ({ ...prev, [loteItem.id]: e.target.value }))}
+                        placeholder={String(loteItem.peso_medio_kg || 0)}
+                        className="h-10 text-xs"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : modoPesagem === "todos" ? (
             <div className="space-y-2 bg-slate-50 border border-slate-300 rounded-lg p-4">
               <Label className="text-xs font-semibold">Peso para Todos os Animais (kg) *</Label>
               <Input

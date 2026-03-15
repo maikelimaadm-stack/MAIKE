@@ -65,8 +65,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         const todosPontos = await base44.entities.PontoSuplementacao.list();
         const pontosArea = todosPontos.filter((p) =>
         p.empresa_id === empresaSelecionadaId &&
-        p.area_vinculada_id === areaOrigem.id &&
-        p.status === 'Ativo'
+        p.status === 'Ativo' &&
+        (
+          p.area_vinculada_id === areaOrigem.id ||
+          (Array.isArray(p.area_vinculada_ids) && p.area_vinculada_ids.includes(areaOrigem.id))
+        )
         );
 
         const todosEventos = await base44.entities.SuplementacaoEvento.list();

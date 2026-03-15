@@ -601,11 +601,18 @@ export default function DetalhesLote({ lotes, onClose }) {
     const areaPesagem = areas.find(a => a.id === areaAtualId);
     const vinculoPesagem = movimentacoesCriadasIds.length > 0 ? `[PESAGEM_VINCULADA:${movimentacoesCriadasIds.join(',')}] ` : '';
 
+    // Se há pesos individuais por lote, usar esses; senão usar por categoria
+    const pesosIndividuais = formData.pesos_por_lote || {};
+
     for (const categoria of formData.categorias_selecionadas) {
       const lotesCategoria = lotesParaPesar.filter(l => l.categoria === categoria);
-      const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
+      const pesoPadrao = parseFloat(formData.pesos_por_categoria[categoria]);
 
       for (const lote of lotesCategoria) {
+        // Verificar se tem peso individual para este lote específico
+        const pesoNovo = pesosIndividuais[lote.id] ? parseFloat(pesosIndividuais[lote.id]) : pesoPadrao;
+        if (!pesoNovo || pesoNovo <= 0) continue;
+
         const pesoAnterior = lote.peso_medio_kg || 0;
         const ganho = pesoNovo - pesoAnterior;
 
