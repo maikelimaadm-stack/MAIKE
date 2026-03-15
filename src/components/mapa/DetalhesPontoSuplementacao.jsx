@@ -74,7 +74,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <div className="pb-2 border-b space-y-">
         <div className="text-sm font-bold text-slate-900">{ponto.nome_ponto}</div>
         <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">{ponto.status}</Badge>
+          <Badge variant="outline" className="bg-amber-300 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-slate-300">{ponto.status}</Badge>
           {ponto.deposito_origem_nome && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Depósito: {ponto.deposito_origem_nome}</Badge>}
           {temAlerta && <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">Alerta</Badge>}
         </div>
@@ -142,12 +142,12 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
       <CardSection title="Último Registro">
         {ultimoEvento ?
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[10px] space-y-1.">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-1.">
             <div className="">
               <span className="text-slate-900 pr-24 font-semibold">{ultimoEvento.produto}</span>
-              <Badge variant="outline" className="xt-xs font-semibold rounded-md inline-flex items-center  focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
+              <Badge variant="outline" className="text-slate-900 mx-8 pr-24 font-semibold rounded-md inline-flex items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</Badge>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-slate-600">
+            <div className="grid grid-cols-3 gap- text-slate-600">
               <div>Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
               <div>Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
               <div>Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
