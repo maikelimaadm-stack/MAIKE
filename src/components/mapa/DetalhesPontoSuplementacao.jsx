@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
+import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { getCochoIndicator } from "./pontoStatusUtils";
@@ -28,7 +29,20 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ["configuracao-icones-ponto-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
+  const iconePonto = useMemo(() => {
+    return iconesConfig.find((item) => normalizeText(item.categoria) === normalizeText(ponto?.categoria_ponto || "COCHO"));
+  }, [iconesConfig, ponto?.categoria_ponto]);
+  const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
@@ -89,8 +103,21 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         return (
           <CardSection title="Saldo estimado no cocho">
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+            <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-3 items-center">
+              <div className="flex items-center gap-3">
+                <IndicadorCopoNivel
+                  titulo="Cocho"
+                  valor={`${Math.round(percentual * 100)}%`}
+                  subtitulo={formatKg(saldoEstimado)}
+                  percent={percentual}
+                  cor="#64748b"
+                  compact
+                />
+                {subIconePonto && (
+                  <img src={subIconePonto} alt={ponto.categoria_ponto || "Cocho"} className="w-10 h-10 object-contain" />
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
@@ -100,21 +127,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   <div className="text-sm font-bold text-slate-900">{ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : '-'}</div>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Nível estimado</div>
-                  <div className="text-sm font-bold text-slate-900">{Math.round(percentual * 100)}%</div>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Base</div>
                   <div className="text-sm font-bold text-slate-900">{ultimoEvento.dias_periodo != null ? 'Último fechamento' : `~${diasDesde} dia(s)`}</div>
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                <div className="flex items-center justify-between text-[10px] mb-1">
-                  <span className="text-slate-500">Gráfico de ocupação</span>
-                  <span className="font-semibold text-slate-900">{Math.round(percentual * 100)}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                  <div className="h-full rounded-full bg-slate-600 transition-all" style={{ width: `${Math.round(percentual * 100)}%` }} />
                 </div>
               </div>
             </div>

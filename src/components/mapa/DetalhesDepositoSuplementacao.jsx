@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
+import IndicadorCopoNivel from "../suplementacao/IndicadorCopoNivel";
 import { formatKg } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
@@ -33,6 +34,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ["configuracao-icones-deposito-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -85,6 +95,11 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
     return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes);
   }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes]);
 
+  const iconePonto = useMemo(() => {
+    return iconesConfig.find((item) => normalizeText(item.categoria) === normalizeText(deposito?.categoria_ponto || "DEPOSITO"));
+  }, [iconesConfig, deposito?.categoria_ponto]);
+  const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
+
   const ultimoRegistro = indicador.latestRecord;
 
   const handleSaved = () => {
@@ -118,12 +133,34 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
           <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5"><div className="text-slate-500">% uso</div><div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div></CardContent></Card>
         </div>
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-2.5">
-          <div className="flex items-center justify-between text-[10px] mb-1">
-            <span className="text-slate-500">Gráfico de uso do depósito</span>
-            <span className="font-semibold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</span>
-          </div>
-          <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-            <div className="h-full rounded-full bg-slate-600 transition-all" style={{ width: `${Math.round((indicador?.percent || 0) * 100)}%` }} />
+          <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-3 items-center">
+            <div className="flex items-center gap-3">
+              <IndicadorCopoNivel
+                titulo="Depósito"
+                valor={`${Math.round((indicador?.percent || 0) * 100)}%`}
+                subtitulo={formatKg(indicador.saldoAtual)}
+                percent={indicador?.percent || 0}
+                cor="#64748b"
+                compact
+              />
+              {subIconePonto && (
+                <img src={subIconePonto} alt={deposito.categoria_ponto || "Depósito"} className="w-10 h-10 object-contain" />
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px]">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="text-slate-500">Saldo em sacos</div>
+                <div className="text-sm font-bold text-slate-900">{saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0).toFixed(1)} sacos</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="text-slate-500">Necessidade estimada</div>
+                <div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeEstimada)}</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="text-slate-500">Nível</div>
+                <div className="text-sm font-bold text-slate-900">{Math.round((indicador?.percent || 0) * 100)}%</div>
+              </div>
+            </div>
           </div>
         </CardContent></Card>
       </div>
