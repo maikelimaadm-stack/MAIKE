@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuplementacao } from "./estoqueSuplementacaoUtils";
 import { formatDecimal } from "./formatters";
-import { calcularConsumo, calcularConsumoLote, calcularDiasPeriodo } from "../utils/consumoUtils";
+import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { safeDivide } from "../utils/pecuariaUtils";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
