@@ -102,6 +102,21 @@ export default function DetalhesLote({ lotes, onClose }) {
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
       const movimentacoesCriadas = [];
+      const todosLotesSistema = await base44.entities.Lote.list();
+      const lotesDestinoAtivos = todosLotesSistema.filter(l =>
+        l.empresa_id === empresaSelecionadaId &&
+        l.area_atual_id === formData.area_entrada_id &&
+        l.status === 'Ativo'
+      );
+      const encontrarLoteDestinoCompativel = (loteOrigem, categoriaMovimento) => {
+        return lotesDestinoAtivos.find(l =>
+          l.area_atual_id === formData.area_entrada_id &&
+          (l.categoria || '').toUpperCase() === categoriaMovimento &&
+          (l.sexo || '') === (loteOrigem.sexo || '') &&
+          (l.categoria_manejo_id || l.categoria_manejo_nome || '') === (loteOrigem.categoria_manejo_id || loteOrigem.categoria_manejo_nome || '') &&
+          l.status === 'Ativo'
+        );
+      };
       
       // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
       if (formData.mover_todos === 'sim') {
@@ -122,6 +137,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             area_origem_nome: areaSaida?.nome || '',
             area_destino_id: formData.area_entrada_id,
             area_destino_nome: areaEntrada?.nome || '',
+            usuario_responsavel: user?.email || null,
             observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
           });
           movimentacoesCriadas.push(movimentacaoCriada);
@@ -131,39 +147,23 @@ export default function DetalhesLote({ lotes, onClose }) {
           if (mov.quantidade <= 0) continue;
 
           const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
-          let quantidadeRestante = mov.quantidade;
-          
-          // Verificar se deve unir ao lote existente na área destino
+          let quantidadeRestante = Number(mov.quantidade || 0);
           const deveUnir = formData.unir_lotes[mov.categoria] === 'sim';
-          
+
           for (const lote of lotesCategoria) {
             if (quantidadeRestante <= 0) break;
-            
-            const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
-            
-            if (quantidadeMover === lote.quantidade_cabecas) {
-              if (deveUnir) {
-                // Unir ao lote existente na área destino
-                const lotesDestino = await base44.entities.Lote.list();
-                const loteExistente = lotesDestino.find(l => 
-                  l.empresa_id === empresaSelecionadaId && 
-                  l.area_atual_id === formData.area_entrada_id && 
-                  l.categoria?.toUpperCase() === mov.categoria &&
-                  l.status === 'Ativo'
-                );
-                if (loteExistente) {
-                  await base44.entities.Lote.update(loteExistente.id, {
-                    quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
-                  });
-                  // Inativar lote original
-                  await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
-                } else {
-                  // Fallback: mover o lote inteiro
-                  await base44.entities.Lote.update(lote.id, {
-                    area_atual_id: formData.area_entrada_id,
-                    area_atual_nome: areaEntrada?.nome || ''
-                  });
-                }
+
+            const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
+            if (quantidadeMover <= 0) continue;
+            const loteExistente = deveUnir ? encontrarLoteDestinoCompativel(lote, mov.categoria) : null;
+
+            if (quantidadeMover === (lote.quantidade_cabecas || 0)) {
+              if (deveUnir && loteExistente) {
+                await base44.entities.Lote.update(loteExistente.id, {
+                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
+                });
+                loteExistente.quantidade_cabecas = (loteExistente.quantidade_cabecas || 0) + quantidadeMover;
+                await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
               } else {
                 await base44.entities.Lote.update(lote.id, {
                   area_atual_id: formData.area_entrada_id,
@@ -171,39 +171,13 @@ export default function DetalhesLote({ lotes, onClose }) {
                 });
               }
             } else {
-              // Movimentação parcial
-              if (deveUnir) {
-                const lotesDestino = await base44.entities.Lote.list();
-                const loteExistente = lotesDestino.find(l => 
-                  l.empresa_id === empresaSelecionadaId && 
-                  l.area_atual_id === formData.area_entrada_id && 
-                  l.categoria?.toUpperCase() === mov.categoria &&
-                  l.status === 'Ativo'
-                );
-                if (loteExistente) {
-                  await base44.entities.Lote.update(loteExistente.id, {
-                    quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
-                  });
-                } else {
-                  await base44.entities.Lote.create({
-                    empresa_id: empresaSelecionadaId,
-                    nome: lote.nome,
-                    quantidade_cabecas: quantidadeMover,
-                    categoria: lote.categoria,
-                    sexo: lote.sexo,
-                    peso_medio_kg: lote.peso_medio_kg,
-                    idade_media_meses: lote.idade_media_meses,
-                    area_atual_id: formData.area_entrada_id,
-                    area_atual_nome: areaEntrada?.nome || '',
-                    raca_predominante: lote.raca_predominante,
-                    sistema_produtivo: lote.sistema_produtivo,
-                    data_entrada: formData.data_movimentacao,
-                    origem: 'MOVIMENTAÇÃO',
-                    status: 'Ativo'
-                  });
-                }
+              if (deveUnir && loteExistente) {
+                await base44.entities.Lote.update(loteExistente.id, {
+                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
+                });
+                loteExistente.quantidade_cabecas = (loteExistente.quantidade_cabecas || 0) + quantidadeMover;
               } else {
-                await base44.entities.Lote.create({
+                const novoLote = await base44.entities.Lote.create({
                   empresa_id: empresaSelecionadaId,
                   nome: lote.nome,
                   quantidade_cabecas: quantidadeMover,
@@ -215,14 +189,19 @@ export default function DetalhesLote({ lotes, onClose }) {
                   area_atual_nome: areaEntrada?.nome || '',
                   raca_predominante: lote.raca_predominante,
                   sistema_produtivo: lote.sistema_produtivo,
+                  categoria_manejo_id: lote.categoria_manejo_id,
+                  categoria_manejo_nome: lote.categoria_manejo_nome,
                   data_entrada: formData.data_movimentacao,
                   origem: 'MOVIMENTAÇÃO',
                   status: 'Ativo'
                 });
+                lotesDestinoAtivos.push(novoLote);
               }
 
+              const saldoRemanescente = Math.max(0, (lote.quantidade_cabecas || 0) - quantidadeMover);
               await base44.entities.Lote.update(lote.id, {
-                quantidade_cabecas: lote.quantidade_cabecas - quantidadeMover
+                quantidade_cabecas: saldoRemanescente,
+                status: saldoRemanescente > 0 ? lote.status : 'Inativo'
               });
             }
 
@@ -237,11 +216,16 @@ export default function DetalhesLote({ lotes, onClose }) {
               area_origem_nome: areaSaida?.nome || '',
               area_destino_id: formData.area_entrada_id,
               area_destino_nome: areaEntrada?.nome || '',
+              usuario_responsavel: user?.email || null,
               observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`
             });
             movimentacoesCriadas.push(movimentacaoCriada);
 
             quantidadeRestante -= quantidadeMover;
+          }
+
+          if (quantidadeRestante > 0) {
+            throw new Error(`Não foi possível mover toda a quantidade solicitada da categoria ${mov.categoria}.`);
           }
         }
       }
