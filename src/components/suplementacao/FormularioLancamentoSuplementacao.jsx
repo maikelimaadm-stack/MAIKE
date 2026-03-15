@@ -525,26 +525,25 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             )}
 
 
-            {/* Consumo do último período */}
+            {/* Consumo do fechamento / estimativa */}
             {ultimoEvento && (() => {
               const sobraAnterior = ultimoEvento.sobra_kg || 0;
               const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
               const diasAnterior = ultimoEvento.dias_periodo || diasPeriodo || 0;
               const totalDisponivelAnterior = ultimoEvento.dias_periodo != null ? fornecidoAnterior : fornecidoAnterior + sobraAnterior;
-              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(fornecidoAnterior, diasAnterior);
+              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(Math.max(0, totalDisponivelAnterior - sobraAnterior), diasAnterior);
               const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
-              const saldoRestante = ultimoEvento.dias_periodo != null ? sobraAnterior : Math.max(0, totalDisponivelAnterior - (consumoDiarioAnterior * (diasPeriodo || 0)));
-              const consumidoAnterior = Math.max(0, totalDisponivelAnterior - saldoRestante);
+              const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraAnterior);
               return (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-                  <div className="text-xs font-semibold text-slate-900">Consumo do último período {ultimoEvento.dias_periodo == null ? "(estimativa)" : ""}</div>
+                  <div className="text-xs font-semibold text-slate-900">Consumo do fechamento / estimativa</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatDecimal(fornecidoAnterior)} kg</div></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(consumidoAnterior)} kg</div></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoDiarioAnterior)} kg</div></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoPorCabAnterior, 3)} kg</div></div>
                   </div>
-                  <div className="text-[10px] text-slate-600">Período: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)} • Saldo restante: {formatDecimal(saldoRestante)} kg</div>
+                  <div className="text-[10px] text-slate-600">Período analisado: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</div>
                 </div>
               );
             })()}
@@ -569,22 +568,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                   <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
                   <Badge variant="outline" className="text-xs">{statusDuracao.label}</Badge>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. mínima</div><div className="font-bold text-slate-900">{frequenciaMinima > 0 ? `${formatDecimal(frequenciaMinima, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. máxima</div><div className="font-bold text-slate-900">{frequenciaMaxima > 0 ? `${formatDecimal(frequenciaMaxima, 0, true)} dia(s)` : '-'}</div></div>
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. média</div><div className="font-bold text-slate-900">{frequenciaMedia > 0 ? `${formatDecimal(frequenciaMedia, 0, true)} dia(s)` : '-'}</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Duração estimada</div><div className="font-bold text-slate-900">{duracaoDiasInteira > 0 ? `${formatDecimal(duracaoDiasInteira, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Próxima suplementação</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">kg/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEstimadoCabDia, 3)}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">g/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEstimadoGramas, 0, true)}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Média 7 dias</div><div className="font-bold text-slate-900">{formatDecimal(mediaRecente7Dias, 3)}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1 col-span-2"><div className="text-slate-500">Próxima suplementação</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
                 </div>
                 <div className="text-[10px] text-slate-600">
                   {statusDuracao.message}
                   {avaliacaoTecnica?.message ? ` • ${avaliacaoTecnica.message}` : ""}
                   {avaliacaoPV && consumoEsperadoCabDiaPV > 0 ? ` • Esperado (%PV): ${formatDecimal(consumoEsperadoCabDiaPV, 3)} kg/cab/dia` : ""}
                   {!avaliacaoPV && regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
-                  {ultimoConsumoCabDia > 0 ? ` • Último fechado: ${formatDecimal(ultimoConsumoCabDia, 3)} kg/cab/dia` : ""}
                 </div>
               </div>
             )}
@@ -599,41 +592,38 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                   </Button>
                 </div>
                 {mostrarConsumoLote && (
-                  <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatQuantidadeComUnidade(quantidadeKg, suportaSacos ? pesoPorSaco : 0)}</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Sobra</div><div className="font-bold text-slate-900">{formatDecimal(sobraInformada)} kg</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(Math.max(0, quantidadeKg - sobraInformada))} kg</div></div>
-                      {consumoEsperadoGrupoDiaPV > 0 && <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/dia (%PV)</div><div className="font-bold text-slate-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>}
-                    </div>
-                    <div className="space-y-1">
-                      {lotes.map((lote) => {
-                        const fator = getFatorLote(lote);
-                        const pesoConsumoLote = (lote.quantidade_cabecas || 0) * fator;
-                        const percentualConsumo = pesoTotalConsumo > 0 ? (pesoConsumoLote / pesoTotalConsumo) * 100 : 0;
-                        const pesoMedioLote = Number(lote.peso_medio_kg || 0);
-                        const consumoEsperadoLote = pctPV > 0 && pesoMedioLote > 0
-                          ? consumoEsperadoPorCabecaDia(pesoMedioLote, pctPV)
-                          : null;
-                        return (
-                          <div key={lote.id} className="rounded-lg border border-slate-200 bg-white p-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
-                              <Badge variant="outline" className="text-[10px]">{lote.categoria}</Badge>
-                            </div>
-                            <div className="grid grid-cols-3 gap-1 text-[10px]">
-                              <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
-                              <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : "-"}</div></div>
-                              <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-slate-900">{formatDecimal(percentualConsumo, 1)}%</div></div>
-                            </div>
-                            {consumoEsperadoLote && (
-                              <div className="mt-1 text-[10px] text-slate-600">Esperado (%PV): {formatDecimal(consumoEsperadoLote, 3)} kg/cab/dia</div>
-                            )}
+                  <div className="space-y-1">
+                    {lotes.map((lote) => {
+                      const fator = getFatorLote(lote);
+                      const pesoConsumoLote = (lote.quantidade_cabecas || 0) * fator;
+                      const percentualConsumo = pesoTotalConsumo > 0 ? (pesoConsumoLote / pesoTotalConsumo) * 100 : 0;
+                      const pesoMedioLote = Number(lote.peso_medio_kg || 0);
+                      const quantidadeLoteKg = totalDisponivelNovo * (percentualConsumo / 100);
+                      const consumoPlanejadoLoteCabDia = lote.quantidade_cabecas > 0 && frequenciaMedia > 0 ? safeDivide(quantidadeLoteKg, lote.quantidade_cabecas * frequenciaMedia) : 0;
+                      const avaliacaoLotePV = pctPV > 0 && pesoMedioLote > 0 ? avaliarConsumoPV(consumoPlanejadoLoteCabDia, pesoMedioLote, produtoSelecionado) : null;
+                      const avaliacaoLoteFallback = evaluateConsumoFaixa(consumoPlanejadoLoteCabDia, formData.produto, {
+                        min: ponto?.limite_minimo_consumo || undefined,
+                        idealMin: ponto?.consumo_ideal_por_cabeca_kg || undefined,
+                        idealMax: ponto?.limite_maximo_consumo || undefined,
+                      });
+                      const avaliacaoLote = avaliacaoLotePV || avaliacaoLoteFallback;
+                      return (
+                        <div key={lote.id} className="rounded-lg border border-slate-200 bg-white p-2 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
+                            <Badge variant="outline" className="text-[10px]">{avaliacaoLote?.status === 'dentro_ideal' ? 'Dentro do ideal' : 'Validar'}</Badge>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
+                          <div className="text-[10px] text-slate-600">Área: {lote.area_atual_nome || areaNomesVinculados.join(', ') || ponto.area_vinculada_nome || '-'}</div>
+                          <div className="grid grid-cols-3 gap-1 text-[10px]">
+                            <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
+                            <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : '-'}</div></div>
+                            <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-slate-900">{formatDecimal(percentualConsumo, 1)}%</div></div>
+                          </div>
+                          <div className="text-[10px] text-slate-600">Validação técnica do novo lançamento: {avaliacaoLote?.message || 'Sem referência técnica.'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
