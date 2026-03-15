@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, CheckCircle, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, TrendingUp, TrendingDown, AlertCircle, Target } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { safeDivide } from "../utils/pecuariaUtils";
+import { formatDecimal } from "./formatters";
+import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoPVUtils";
 
 export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -24,13 +26,42 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
     enabled: !!empresaSelecionadaId && !!pontoId,
   });
 
+  // Busca produto para obter %PV
+  const { data: produtoRef = null } = useQuery({
+    queryKey: ['produto-ponto-analise', empresaSelecionadaId, ponto?.produto_padrao],
+    queryFn: async () => {
+      if (!ponto?.produto_padrao) return null;
+      const all = await base44.entities.Produto.list();
+      const normalizeText = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+      return all.find(p => p.empresa_id === empresaSelecionadaId && normalizeText(p.nome_produto) === normalizeText(ponto.produto_padrao)) || null;
+    },
+    enabled: !!empresaSelecionadaId && !!ponto?.produto_padrao,
+  });
+
+  // Busca lotes atuais para peso médio
+  const { data: lotesAtuais = [] } = useQuery({
+    queryKey: ['lotes-analise', empresaSelecionadaId, ponto?.area_vinculada_ids?.join("|") || ponto?.area_vinculada_id],
+    queryFn: async () => {
+      const areaIds = Array.isArray(ponto?.area_vinculada_ids) ? ponto.area_vinculada_ids.filter(Boolean) : (ponto?.area_vinculada_id ? [ponto.area_vinculada_id] : []);
+      if (!areaIds.length) return [];
+      const all = await base44.entities.Lote.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId && areaIds.includes(l.area_atual_id) && l.status === "Ativo");
+    },
+    enabled: !!empresaSelecionadaId && !!ponto,
+  });
+
   const dataLimite = new Date();
   dataLimite.setMonth(dataLimite.getMonth() - parseInt(periodoMeses));
-
   const eventosFiltrados = eventos.filter((evento) => new Date(evento.data_lancamento) >= dataLimite);
+
+  // Parâmetros de referência
   const consumoIdeal = ponto?.consumo_ideal_por_cabeca_kg || 0;
   const limiteMin = ponto?.limite_minimo_consumo || 0;
   const limiteMax = ponto?.limite_maximo_consumo || 0;
+  const pctPV = Number(produtoRef?.percentual_consumo_pv || 0);
+  const pesoMedio = pesoMedioPonderadoLotes(lotesAtuais);
+  const consumoEsperadoPV = pctPV > 0 && pesoMedio > 0 ? consumoEsperadoPorCabecaDia(pesoMedio, pctPV) : 0;
+  const referencia = consumoEsperadoPV > 0 ? consumoEsperadoPV : consumoIdeal;
 
   const analises = eventosFiltrados.map((evento) => {
     const dias = Math.max(1, evento.dias_periodo || 1);
@@ -41,6 +72,8 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
       : evento.consumo_diario_grupo_kg != null
         ? safeDivide(evento.consumo_diario_grupo_kg, cabecas)
         : safeDivide(Math.max(0, Number(evento.quantidade_total_kg || 0) - Number(evento.sobra_kg || 0)), dias * cabecas);
+
+    const diferencaRef = referencia > 0 ? ((consumoCalculado - referencia) / referencia) * 100 : 0;
 
     let status = 'normal';
     let alerta = null;
@@ -54,11 +87,10 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
     } else if (limiteMax > 0 && consumoCalculado > limiteMax) {
       status = 'alto';
       alerta = `Consumo acima do limite máximo (${limiteMax.toFixed(3)} kg/cab/dia).`;
-    } else if (consumoIdeal > 0) {
-      const variacaoPercentual = ((consumoCalculado - consumoIdeal) / consumoIdeal) * 100;
-      if (Math.abs(variacaoPercentual) > 20) {
-        status = variacaoPercentual > 0 ? 'acima' : 'abaixo';
-        alerta = `Variação de ${variacaoPercentual.toFixed(0)}% em relação ao ideal.`;
+    } else if (referencia > 0) {
+      if (Math.abs(diferencaRef) > 20) {
+        status = diferencaRef > 0 ? 'acima' : 'abaixo';
+        alerta = `Variação de ${diferencaRef.toFixed(0)}% em relação ao esperado (${referencia.toFixed(3)} kg/cab/dia).`;
       }
     }
 
@@ -68,6 +100,8 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
       cabecas,
       inconsistente,
       consumo_calculado: consumoCalculado,
+      consumo_esperado: referencia,
+      diferenca_percentual: diferencaRef,
       consumo_total_periodo: consumoCalculado * cabecas * dias,
       status,
       alerta,
@@ -81,7 +115,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const consumoMedio = totalAnimalDias > 0
     ? analisesValidas.reduce((sum, item) => sum + item.consumo_total_periodo, 0) / totalAnimalDias
     : 0;
-  const desvio = consumoIdeal > 0 ? ((consumoMedio - consumoIdeal) / consumoIdeal) * 100 : 0;
+  const desvio = referencia > 0 ? ((consumoMedio - referencia) / referencia) * 100 : 0;
 
   const consumoAcumulado = (diasJanela) => {
     const limite = new Date();
@@ -116,19 +150,19 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const dadosGrafico = ultimosEventos.map((evento) => ({
     data: new Date(evento.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     consumo: Number(evento.consumo_calculado || 0),
-    ideal: consumoIdeal,
+    esperado: referencia,
     minimo: limiteMin,
     maximo: limiteMax,
   }));
+
+  const temReferencia = referencia > 0;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-900">Análise Inteligente de Consumo - {pontoNome}</h3>
         <Select value={periodoMeses} onValueChange={setPeriodoMeses}>
-          <SelectTrigger className="w-32 h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="1" className="text-xs">Último mês</SelectItem>
             <SelectItem value="3" className="text-xs">Últimos 3 meses</SelectItem>
@@ -138,10 +172,20 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
         </Select>
       </div>
 
-      {consumoIdeal > 0 ? (
+      {/* Info de referência %PV */}
+      {consumoEsperadoPV > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 flex items-center gap-3 text-xs">
+          <Target className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+          <div className="text-indigo-800">
+            <span className="font-semibold">Referência %PV:</span> {produtoRef?.nome_produto} • {formatDecimal(pctPV, 3)}% PV • Peso médio: {formatDecimal(pesoMedio, 1)} kg • Esperado: <span className="font-bold">{formatDecimal(consumoEsperadoPV, 3)} kg/cab/dia</span>
+          </div>
+        </div>
+      )}
+
+      {temReferencia ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Consumo Ideal</div><div className="text-xl font-bold text-emerald-600">{consumoIdeal.toFixed(3)} kg</div></CardContent></Card>
+            <Card><CardContent className="p-3"><div className="text-xs text-slate-600">{consumoEsperadoPV > 0 ? "Esperado (%PV)" : "Consumo Ideal"}</div><div className="text-xl font-bold text-emerald-600">{referencia.toFixed(3)} kg</div></CardContent></Card>
             <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Médio Ponderado</div><div className="text-xl font-bold text-slate-900">{consumoMedio.toFixed(3)} kg</div></CardContent></Card>
             <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Desvio</div><div className={`text-xl font-bold ${Math.abs(desvio) > 20 ? 'text-amber-600' : 'text-slate-900'}`}>{desvio > 0 ? '+' : ''}{desvio.toFixed(0)}%</div></CardContent></Card>
             <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Alertas</div><div className="text-xl font-bold text-red-600">{consumosComProblema.length}</div></CardContent></Card>
@@ -169,9 +213,16 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
                     <div key={index} className="bg-white border border-amber-200 rounded-lg p-2">
                       <div className="flex items-start justify-between mb-1 gap-2">
                         <div className="text-xs font-semibold text-slate-900">{new Date(evento.data_lancamento).toLocaleDateString('pt-BR')}</div>
-                        <Badge className={`text-xs ${evento.status === 'inconsistente' ? 'bg-red-100 text-red-800' : evento.status === 'baixo' ? 'bg-amber-100 text-amber-800' : evento.status === 'alto' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {evento.inconsistente ? 'Inconsistente' : `${(evento.consumo_calculado || 0).toFixed(3)} kg/cab`}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge className={`text-xs ${evento.status === 'inconsistente' ? 'bg-red-100 text-red-800' : evento.status === 'baixo' ? 'bg-amber-100 text-amber-800' : evento.status === 'alto' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {evento.inconsistente ? 'Inconsistente' : `${(evento.consumo_calculado || 0).toFixed(3)} kg/cab`}
+                          </Badge>
+                          {!evento.inconsistente && evento.diferenca_percentual !== 0 && (
+                            <Badge variant="outline" className={`text-[10px] ${Math.abs(evento.diferenca_percentual) > 30 ? 'border-red-300 text-red-700' : 'border-amber-300 text-amber-700'}`}>
+                              {evento.diferenca_percentual > 0 ? '+' : ''}{evento.diferenca_percentual.toFixed(0)}%
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs text-amber-700">{evento.alerta}</div>
                       <div className="text-xs text-slate-600 mt-1">Total: {(evento.quantidade_total_kg || 0).toFixed(1)} kg • {evento.total_cabecas_afetadas || 0} cabeças • {evento.dias} dia(s)</div>
@@ -183,7 +234,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
           )}
 
           <Card>
-            <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Evolução do Consumo vs. Ideal</CardTitle></CardHeader>
+            <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Evolução: Consumo Real vs. Esperado</CardTitle></CardHeader>
             <CardContent className="p-3">
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={dadosGrafico}>
@@ -193,7 +244,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
                   <Tooltip contentStyle={{ fontSize: 11 }} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
                   <Line type="monotone" dataKey="consumo" stroke="#10b981" strokeWidth={2} name="Consumo Real" />
-                  <Line type="monotone" dataKey="ideal" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" name="Consumo Ideal" />
+                  <Line type="monotone" dataKey="esperado" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 5" name={consumoEsperadoPV > 0 ? "Esperado (%PV)" : "Consumo Ideal"} />
                   {limiteMin > 0 && <Line type="monotone" dataKey="minimo" stroke="#ef4444" strokeWidth={1} strokeDasharray="3 3" name="Limite Mínimo" />}
                   {limiteMax > 0 && <Line type="monotone" dataKey="maximo" stroke="#f97316" strokeWidth={1} strokeDasharray="3 3" name="Limite Máximo" />}
                 </LineChart>
@@ -205,9 +256,10 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
             <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Recomendações</CardTitle></CardHeader>
             <CardContent className="p-3">
               <div className="space-y-2">
-                {desvio > 20 && <div className="flex items-start gap-2 text-xs"><TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo acima do ideal</div><div className="text-slate-600">Reveja quantidade ofertada, frequência e perdas no cocho para evitar desperdício.</div></div></div>}
-                {desvio < -20 && <div className="flex items-start gap-2 text-xs"><TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo abaixo do ideal</div><div className="text-slate-600">Verifique cocho vazio, palatabilidade, acesso à água e possível problema sanitário.</div></div></div>}
+                {desvio > 20 && <div className="flex items-start gap-2 text-xs"><TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo acima do esperado</div><div className="text-slate-600">Reveja quantidade ofertada, frequência e perdas no cocho para evitar desperdício.</div></div></div>}
+                {desvio < -20 && <div className="flex items-start gap-2 text-xs"><TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo abaixo do esperado</div><div className="text-slate-600">Verifique cocho vazio, palatabilidade, acesso à água e possível problema sanitário.</div></div></div>}
                 {Math.abs(desvio) <= 20 && <div className="flex items-start gap-2 text-xs"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Consumo dentro do esperado</div><div className="text-slate-600">O ponto está operando próximo do padrão técnico definido.</div></div></div>}
+                {!consumoEsperadoPV && consumoIdeal > 0 && <div className="flex items-start gap-2 text-xs"><Target className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Configure o %PV no cadastro do produto</div><div className="text-slate-600">Cadastre o percentual de consumo sobre peso vivo para análises mais precisas baseadas em peso do animal.</div></div></div>}
                 {analises.some((item) => item.inconsistente) && <div className="flex items-start gap-2 text-xs"><AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" /><div><div className="font-semibold text-slate-900">Existem eventos inconsistentes</div><div className="text-slate-600">Corrija eventos com cabeças zeradas para evitar leitura enganosa da análise.</div></div></div>}
               </div>
             </CardContent>
@@ -218,7 +270,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
           <CardContent className="p-6 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-slate-300 mb-3" />
             <div className="text-sm font-semibold text-slate-900 mb-1">Configure os parâmetros de consumo</div>
-            <div className="text-xs text-slate-600">Para habilitar a análise inteligente, defina o consumo ideal e os limites mínimo/máximo nas configurações do ponto.</div>
+            <div className="text-xs text-slate-600">Para habilitar a análise inteligente, configure o %PV no cadastro do produto ou defina o consumo ideal e os limites nas configurações do ponto.</div>
           </CardContent>
         </Card>
       )}
