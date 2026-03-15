@@ -67,11 +67,48 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-[10px]">
-        <CardInfo label="Área vinculada" value={ponto.area_vinculada_nome || "-"} />
+        <CardInfo label="Áreas vinculadas" value={
+          (Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0)
+            ? ponto.area_vinculada_nomes.join(", ")
+            : ponto.area_vinculada_nome || "-"
+        } />
         <CardInfo label="Capacidade" value={ponto.capacidade_cocho_kg ? formatKg(ponto.capacidade_cocho_kg) : "-"} />
         <CardInfo label="Último lançamento" value={ultimoEvento ? new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR") : "-"} />
         <CardInfo label="Total fornecido" value={formatKg(totalFornecido)} />
       </div>
+
+      {/* Saldo estimado no cocho */}
+      {ultimoEvento && (() => {
+        const sobra = ultimoEvento.sobra_kg || 0;
+        const fornecido = ultimoEvento.quantidade_total_kg || 0;
+        const consumoDiario = ultimoEvento.consumo_diario_grupo_kg || 0;
+        const diasDesde = diasSemLancamento || 0;
+        let saldoEstimado;
+        if (ultimoEvento.dias_periodo != null) {
+          // Período fechado: saldo = sobra informada
+          saldoEstimado = sobra;
+        } else {
+          // Período aberto: saldo estimado = fornecido - (consumo_diário_estimado * dias)
+          // Se não tem consumo diário anterior, usa a frequência como estimativa
+          const consumoEstimado = consumoDiario > 0 ? consumoDiario : (fornecido / (ponto.frequencia_esperada_dias || 7));
+          saldoEstimado = Math.max(0, fornecido - (consumoEstimado * diasDesde));
+        }
+        const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
+        return (
+          <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-3 space-y-2">
+            <div className="text-[11px] font-bold text-slate-900">Saldo estimado no cocho</div>
+            <div className="flex items-center gap-3">
+              <IndicadorCopoNivel 
+                titulo="Cocho" 
+                valor={formatKg(saldoEstimado)} 
+                subtitulo={ultimoEvento.dias_periodo != null ? "Sobra do último fechamento" : `~${diasDesde} dia(s) desde lançamento`}
+                percent={percentual} 
+                cor={percentual > 0.3 ? "#10b981" : percentual > 0.1 ? "#f59e0b" : "#ef4444"} 
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       <CardSection title="Último Registro">
         {ultimoEvento ? (
