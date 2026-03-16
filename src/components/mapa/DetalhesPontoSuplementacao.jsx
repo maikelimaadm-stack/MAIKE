@@ -228,28 +228,40 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         return (
           <CardSection title="Saldo estimado no cocho">
             <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
-              <div className="pb-1 flex items-end gap-3">
-                {/* Gráfico 1: Consumo estimado */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <PontoPercentIcon
-                    imageUrl={iconeExibicao}
-                    label={ponto.categoria_ponto || "Cocho"}
-                    percent={percentConsumo}
-                    fillClassName={alertaGrafico ? "bg-red-500" : "bg-lime-400"} />
-                  <span className="text-[9px] text-slate-500 text-center leading-tight">Saldo<br/>ciclo</span>
-                </div>
-                {/* Gráfico 2: Capacidade física (só se capacidade cadastrada) */}
-                {percentCapacidade !== null && (
-                  <div className="flex flex-col items-center gap-0.5">
+              <div className="pb-1 flex flex-col gap-1">
+                <div className="flex items-end gap-3">
+                  {/* Gráfico 1: Consumo estimado */}
+                  <div className="flex flex-col items-center gap-0.5" title="Saldo do ciclo">
                     <PontoPercentIcon
-                      imageUrl={null}
-                      label="Capacidade"
-                      percent={percentCapacidade}
-                      fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}
-                      hideImageArea={true} />
-                    <span className="text-[9px] text-slate-500 text-center leading-tight">Capac.<br/>cocho</span>
+                      imageUrl={iconeExibicao}
+                      label={ponto.categoria_ponto || "Cocho"}
+                      percent={percentConsumo}
+                      fillClassName={alertaGrafico ? "bg-red-500" : "bg-lime-400"} />
                   </div>
-                )}
+                  {/* Gráfico 2: Capacidade física (só se capacidade cadastrada) */}
+                  {percentCapacidade !== null && (
+                    <div className="flex flex-col items-center gap-0.5" title="Capacidade do cocho">
+                      <PontoPercentIcon
+                        imageUrl={null}
+                        label="Capacidade"
+                        percent={percentCapacidade}
+                        fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}
+                        hideImageArea={true} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 pl-1">
+                  <div className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${alertaGrafico ? "bg-red-500" : "bg-lime-400"}`} />
+                    <span className="text-[8px] text-slate-500">Saldo ciclo</span>
+                  </div>
+                  {percentCapacidade !== null && (
+                    <div className="flex items-center gap-1">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}`} />
+                      <span className="text-[8px] text-slate-500">Capac. cocho</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
