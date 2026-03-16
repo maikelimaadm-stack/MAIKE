@@ -13,9 +13,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, MoreVertical, Edit, Trash2, MapPin, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Search, MoreVertical, Edit, Trash2, MapPin, ArrowUpDown, ArrowUp, ArrowDown, X, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { base44 } from "@/api/base44Client";
 
 export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
