@@ -12,12 +12,13 @@ import { kgParaSacos } from "./unidadeConversaoUtils";
  * 
  * @param {string[]} lotesIds - IDs dos lotes para buscar consumo
  * @param {"completo"|"compacto"} modo - "completo" ou "compacto"
+ * @param {string} areaId - ID da área atual (filtra consumo apenas desta área)
  */
-export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }) {
+export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", areaId = "" }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
   // Buscar registros de consumo por lote
-  const { data: consumosLote = [] } = useQuery({
+  const { data: consumosLoteBrutos = [] } = useQuery({
     queryKey: ["suplementacao-resumo", empresaSelecionadaId, lotesIds.join("|"), modo],
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoLote.list();
@@ -26,16 +27,30 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     enabled: !!empresaSelecionadaId && lotesIds.length > 0,
   });
 
-  // Buscar eventos de suplementação (contém fornecimento em kg, sacos, sobra)
-  const eventoIds = useMemo(() => [...new Set(consumosLote.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosLote]);
+  // Buscar eventos de suplementação (contém fornecimento em kg, sacos, sobra, area_id)
+  const eventoIdsBrutos = useMemo(() => [...new Set(consumosLoteBrutos.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosLoteBrutos]);
   const { data: eventosSupl = [] } = useQuery({
-    queryKey: ["suplementacao-eventos-resumo", empresaSelecionadaId, eventoIds.join("|")],
+    queryKey: ["suplementacao-eventos-resumo", empresaSelecionadaId, eventoIdsBrutos.join("|")],
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoEvento.list();
-      return all.filter((e) => eventoIds.includes(e.id));
+      return all.filter((e) => eventoIdsBrutos.includes(e.id));
     },
-    enabled: eventoIds.length > 0,
+    enabled: eventoIdsBrutos.length > 0,
   });
+
+  // Filtrar consumos: se areaId informado, manter apenas registros de eventos vinculados a essa área
+  // Isso impede que histórico de suplementação de outra área "viaje junto" quando o lote é movido
+  const consumosLote = useMemo(() => {
+    if (!areaId || eventosSupl.length === 0) return consumosLoteBrutos;
+    const eventosNaArea = new Set(
+      eventosSupl
+        .filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)))
+        .map((e) => e.id)
+    );
+    return consumosLoteBrutos.filter((c) => eventosNaArea.has(c.suplementacao_evento_id));
+  }, [consumosLoteBrutos, eventosSupl, areaId]);
+
+  const eventoIds = useMemo(() => [...new Set(consumosLote.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosLote]);
 
   const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
   const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
