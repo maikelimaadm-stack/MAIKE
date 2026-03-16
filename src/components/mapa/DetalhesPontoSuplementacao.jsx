@@ -175,12 +175,19 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const diasDesde = diasSemLancamento || 0;
         const totalDisponivel = fornecido + sobra;
         const consumoBase = consumoEsperadoDiaKg > 0 ? consumoEsperadoDiaKg : (ultimoEvento.consumo_diario_grupo_kg || 0);
+        // Se período já fechado, saldo = sobra. Senão, saldo = total - consumo × dias desde lançamento
         const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesde);
         const minimoDias = Number(ponto.frequencia_esperada_dias_minimo || 0);
-        const baseDuracaoDias = consumoBase > 0 ? Math.max(0, Math.round(saldoEstimado / consumoBase)) : 0;
+        // Base duração = dias totais que o totalDisponivel dura (desde a data do lançamento)
+        const baseDuracaoTotal = consumoBase > 0 ? Math.max(0, Math.round(totalDisponivel / consumoBase)) : 0;
+        // Dias restantes a partir de hoje
+        const diasRestantes = ultimoEvento.dias_periodo != null
+          ? (consumoBase > 0 ? Math.max(0, Math.round(sobra / consumoBase)) : 0)
+          : Math.max(0, baseDuracaoTotal - diasDesde);
         const dataBaseLancamento = parseDateLocal(ultimoEvento.data_lancamento);
-        const proximaData = dataBaseLancamento && baseDuracaoDias > 0
-          ? new Date(dataBaseLancamento.getTime() + baseDuracaoDias * 86400000)
+        // Próxima suplementação = data_lancamento + duração total
+        const proximaData = dataBaseLancamento && baseDuracaoTotal > 0
+          ? new Date(dataBaseLancamento.getTime() + baseDuracaoTotal * 86400000)
           : null;
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         const alertaGrafico = minimoDias > 0 && diasDesde >= minimoDias;
@@ -200,8 +207,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Base duração dias</div>
-                  <div className="text-sm font-bold text-slate-900">{baseDuracaoDias > 0 ? `${formatDecimal(baseDuracaoDias, 0, true)} dia(s)` : '-'}</div>
+                  <div className="text-slate-500">Duração total</div>
+                  <div className="text-sm font-bold text-slate-900">{baseDuracaoTotal > 0 ? `${formatDecimal(baseDuracaoTotal, 0, true)} dia(s)` : '-'}</div>
+                  {diasRestantes > 0 && <div className="text-[9px] text-slate-500 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Próxima suplementação</div>
