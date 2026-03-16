@@ -44,12 +44,12 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
   const sistemasUnicos = [...new Set(lotesNaArea.map(l => l.sistema_produtivo).filter(Boolean))];
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
       <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
         Informações da Área: {area.nome}
       </Badge>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]" >
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Hectares</div>
           <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>

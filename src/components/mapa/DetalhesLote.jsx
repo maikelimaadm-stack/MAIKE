@@ -545,7 +545,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     <div className="space-y-4" translate="no">
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
-      <div className="space-y-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-1">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const configIcone = iconesConfig.find(ic => 
@@ -563,7 +563,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             if (entrada) { entrada.setHours(0,0,0,0); diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000)); }
 
             return (
-              <div key={lote.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+              <div key={lote.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                 <div className="flex items-center justify-between">
                   <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
                     Lote: {lote.nome}
@@ -572,7 +572,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                <div className="grid grid-cols-3 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
                     <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
