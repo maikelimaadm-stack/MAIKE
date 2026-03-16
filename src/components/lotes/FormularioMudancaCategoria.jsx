@@ -217,6 +217,12 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                       </Select>
                     </div>
 
+                    {mudanca.sexo_novo && (
+                      <div className="text-xs text-slate-500">
+                        Sexo da nova categoria: <span className="font-semibold text-slate-700">{mudanca.sexo_novo}</span>
+                      </div>
+                    )}
+
                     <div>
                       <Label className="text-xs text-slate-600">Peso Médio (kg)</Label>
                       <Input
