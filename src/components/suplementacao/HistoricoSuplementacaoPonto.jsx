@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,6 @@ import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
 import { formatDecimal, formatKg } from "./formatters";
 import { safeDivide } from "../utils/pecuariaUtils";
-import FormularioLancamentoSuplementacao from "./FormularioLancamentoSuplementacao";
 
 function DesvioTag({ real, esperado }) {
   if (!esperado || esperado <= 0 || !real || real <= 0) return null;
@@ -64,12 +64,6 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     }
   };
 
-  const handleSavedEdit = () => {
-    queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "ultimo-evento-ponto"].includes(query.queryKey[0]) });
-    setShowEdit(false);
-    setEditEvento(null);
-  };
-
   if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
 
   return (
@@ -106,7 +100,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                       }
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0} onClick={() => {setEditEvento(evento);setShowEdit(true);}}>Editar</Button>
+                      <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0} onClick={() => {setEditEvento({...evento});setShowEdit(true);}}>Editar</Button>
                       <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id} onClick={() => handleDelete(evento, index)}>Excluir</Button>
                     </div>
                   </div>
@@ -137,14 +131,67 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
       </Card>
 
       <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) setEditEvento(null); }}>
-        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Editar Lançamento</DialogTitle></DialogHeader>
-          {editEvento && ponto &&
-            <FormularioLancamentoSuplementacao
-              ponto={ponto}
-              eventoEdicao={editEvento}
-              onCancel={handleSavedEdit}
-            />
+          {editEvento &&
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Data</Label>
+                <Input type="date" className="h-8 text-xs" value={editEvento.data_lancamento || ""} onChange={(e) => setEditEvento({ ...editEvento, data_lancamento: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Produto</Label>
+                <Input className="h-8 text-xs" value={editEvento.produto || ""} onChange={(e) => setEditEvento({ ...editEvento, produto: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Quantidade fornecida (kg)</Label>
+                <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.quantidade_total_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, quantidade_total_kg: parseFloat(e.target.value || 0) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Sobra no cocho (kg)</Label>
+                <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.sobra_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, sobra_kg: parseFloat(e.target.value || 0) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Cabeças</Label>
+                <Input type="number" className="h-8 text-xs" value={editEvento.total_cabecas_afetadas || 0} onChange={(e) => setEditEvento({ ...editEvento, total_cabecas_afetadas: parseInt(e.target.value || 0) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Peso médio (kg)</Label>
+                <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.peso_medio_lotes_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, peso_medio_lotes_kg: parseFloat(e.target.value || 0) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Consumo esperado PV/dia (kg)</Label>
+                <Input type="number" step="0.001" className="h-8 text-xs" value={editEvento.consumo_esperado_pv_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, consumo_esperado_pv_kg: parseFloat(e.target.value || 0) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Dias período (fechamento)</Label>
+                <Input type="number" className="h-8 text-xs" value={editEvento.dias_periodo || ""} onChange={(e) => setEditEvento({ ...editEvento, dias_periodo: e.target.value ? parseInt(e.target.value) : null })} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Observações</Label>
+              <Textarea rows={3} className="text-xs" value={editEvento.observacoes || ""} onChange={(e) => setEditEvento({ ...editEvento, observacoes: e.target.value })} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
+                await updateMutation.mutateAsync({ id: editEvento.id, data: {
+                  data_lancamento: editEvento.data_lancamento,
+                  produto: editEvento.produto,
+                  quantidade_total_kg: editEvento.quantidade_total_kg,
+                  sobra_kg: editEvento.sobra_kg,
+                  total_cabecas_afetadas: editEvento.total_cabecas_afetadas,
+                  peso_medio_lotes_kg: editEvento.peso_medio_lotes_kg,
+                  consumo_esperado_pv_kg: editEvento.consumo_esperado_pv_kg,
+                  dias_periodo: editEvento.dias_periodo,
+                  observacoes: editEvento.observacoes
+                }});
+                setShowEdit(false);
+                setEditEvento(null);
+              }}>Salvar</Button>
+            </div>
+          </div>
           }
         </DialogContent>
       </Dialog>
