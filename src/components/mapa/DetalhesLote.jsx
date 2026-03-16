@@ -473,6 +473,8 @@ export default function DetalhesLote({ lotes, onClose }) {
             quantidade_cabecas: qtdMudar,
             categoria: mudanca.categoria_nova,
             sexo: sexoNovo,
+            categoria_manejo_id: catManejoIdNovo,
+            categoria_manejo_nome: catManejoNomeNovo,
             peso_medio_kg: lote.peso_medio_kg,
             idade_media_meses: lote.idade_media_meses,
             area_atual_id: areaAtualId,
