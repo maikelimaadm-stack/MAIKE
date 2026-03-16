@@ -120,7 +120,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           area_destino_nome: mov.area_destino_nome,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
           canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
-          canDelete: ((TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) || mov.motivo === 'Junção de Lotes'),
+          canDelete: (
+            // Transferência pode ser excluída (exclui pesagens vinculadas junto)
+            (mov.tipo === 'Transferência de Área' && !mov.motivo) ||
+            // Outros tipos editáveis podem ser excluídos se não forem pesagem vinculada
+            (TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) ||
+            // Junção de lotes pode ser desfeita
+            mov.motivo === 'Junção de Lotes'
+          ),
+          // Flag para indicar que tem pesagens filhas (usada no hasLaterRelatedRecord)
+          hasPesagensFilhas: mov.tipo === 'Transferência de Área',
           raw: mov,
         }));
 
