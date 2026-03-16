@@ -113,6 +113,14 @@ export function getCategoriaAnteriorFromObs(observacoes) {
   return match ? match[1] : null;
 }
 
+/**
+ * Extrai sexo anterior de observações de mudança de categoria: "Sexo: Macho" ou "Sexo: Fêmea"
+ */
+export function getSexoAnteriorFromObs(observacoes) {
+  const match = String(observacoes || "").match(/Sexo:\s*(Macho|Fêmea|Femea|F[eê]mea|Misto)/i);
+  return match ? match[1] : null;
+}
+
 // ============================================
 // UTILITÁRIOS NUMÉRICOS
 // ============================================
