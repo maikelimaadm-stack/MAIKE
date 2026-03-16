@@ -61,15 +61,6 @@ export default function DetalhesLote({ lotes, onClose }) {
     };
   }, []);
 
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones-global'],
-    queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.ativo !== false);
-    },
-  });
-
-  // Calcular total de cabeças
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
 
   const { data: areas = [] } = useQuery({
