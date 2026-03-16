@@ -103,9 +103,9 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0 space-y-0">
                         {/* Header */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] font-medium text-slate-500">{new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
-                          {index === 0 && <Badge variant="outline" className="text-[10px]">Último</Badge>}
+                        <div className="flex flex-wrap items-center gap-1.">
+                          <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-[10px] text-slate-700 border-slate-300 bg-white">{new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
+                          {index === 0 && <Badge variant="outline" className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-[10px] text-slate-700 border-slate-300 bg-white">Último</Badge>}
                           <Badge variant="outline" className="rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-[10px] text-slate-700 border-slate-300 bg-white">
                             {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
                           </Badge>
@@ -123,7 +123,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
                         {/* Métricas técnicas */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 text-[10px]">
+                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-0 text-[10px]">
                           <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fornecido: <span className="font-semibold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</span></div>
                           <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(evento.sobra_kg || 0)}</span></div>
                           <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecas, 0, true)}</span></div>
