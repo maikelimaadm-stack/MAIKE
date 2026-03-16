@@ -353,48 +353,65 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Transferência de Área') {
-        if (loteOrigem && loteDestino && loteOrigem.id !== loteDestino.id) {
-          await base44.entities.Lote.update(loteOrigem.id, {
-            quantidade_cabecas: (loteOrigem.quantidade_cabecas || 0) + qtd
+        // Buscar lotes incluindo inativos para cobrir movimentação parcial que inativou lote na origem
+        const loteOrigemInclInativo = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.area_atual_id === mov.area_origem_id);
+        const loteDestinoInclInativo = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.area_atual_id === mov.area_destino_id);
+        // Preferir o lote ativo, mas aceitar inativo se não houver ativo
+        const origemFinal = loteOrigem || loteOrigemInclInativo;
+        const destinoFinal = loteDestino || loteDestinoInclInativo;
+
+        if (origemFinal && destinoFinal && origemFinal.id !== destinoFinal.id) {
+          // Caso 1: lotes distintos na origem e destino (movimentação parcial ou com unir)
+          // Devolver cabeças ao lote de origem e reativar se necessário
+          await base44.entities.Lote.update(origemFinal.id, {
+            quantidade_cabecas: (origemFinal.quantidade_cabecas || 0) + qtd,
+            status: 'Ativo'
           });
 
-          const novaQtdDestino = (loteDestino.quantidade_cabecas || 0) - qtd;
-          await base44.entities.Lote.update(loteDestino.id, {
+          const novaQtdDestino = (destinoFinal.quantidade_cabecas || 0) - qtd;
+          await base44.entities.Lote.update(destinoFinal.id, {
             quantidade_cabecas: Math.max(0, novaQtdDestino),
-            status: novaQtdDestino > 0 ? loteDestino.status : 'Inativo'
+            status: novaQtdDestino > 0 ? 'Ativo' : 'Inativo'
           });
-        } else if (loteDestino && (!loteOrigem || loteDestino.id === lotePorId?.id)) {
-          if ((loteDestino.quantidade_cabecas || 0) > qtd) {
+        } else if (destinoFinal && (!origemFinal || destinoFinal.id === lotePorId?.id)) {
+          // Caso 2: mesmo lote movido inteiro (não existe lote separado na origem)
+          if ((destinoFinal.quantidade_cabecas || 0) > qtd) {
+            // Movimentação parcial sem lote separado na origem: criar novo lote na origem
             await base44.entities.Lote.create({
-              empresa_id: loteDestino.empresa_id,
-              nome: loteDestino.nome,
+              empresa_id: destinoFinal.empresa_id,
+              nome: destinoFinal.nome,
               quantidade_cabecas: qtd,
-              categoria: loteDestino.categoria,
-              sexo: loteDestino.sexo,
-              peso_medio_kg: loteDestino.peso_medio_kg,
-              idade_media_meses: loteDestino.idade_media_meses,
+              categoria: destinoFinal.categoria,
+              sexo: destinoFinal.sexo,
+              peso_medio_kg: destinoFinal.peso_medio_kg,
+              idade_media_meses: destinoFinal.idade_media_meses,
               area_atual_id: mov.area_origem_id,
               area_atual_nome: mov.area_origem_nome || '',
-              raca_predominante: loteDestino.raca_predominante,
-              sistema_produtivo: loteDestino.sistema_produtivo,
+              raca_predominante: destinoFinal.raca_predominante,
+              sistema_produtivo: destinoFinal.sistema_produtivo,
+              categoria_manejo_id: destinoFinal.categoria_manejo_id,
+              categoria_manejo_nome: destinoFinal.categoria_manejo_nome,
               data_entrada: mov.data_movimentacao,
               origem: 'REVERSÃO MOVIMENTAÇÃO',
               status: 'Ativo'
             });
-            await base44.entities.Lote.update(loteDestino.id, {
-              quantidade_cabecas: (loteDestino.quantidade_cabecas || 0) - qtd
+            await base44.entities.Lote.update(destinoFinal.id, {
+              quantidade_cabecas: (destinoFinal.quantidade_cabecas || 0) - qtd
             });
           } else {
-            await base44.entities.Lote.update(loteDestino.id, {
+            // Lote inteiro movido: simplesmente mover de volta para a origem
+            await base44.entities.Lote.update(destinoFinal.id, {
               area_atual_id: mov.area_origem_id,
               area_atual_nome: mov.area_origem_nome || '',
               status: 'Ativo'
             });
           }
         } else if (loteRecord) {
+          // Fallback: mover o lote de volta pelo ID
           await base44.entities.Lote.update(loteRecord.id, {
             area_atual_id: mov.area_origem_id,
-            area_atual_nome: mov.area_origem_nome || ''
+            area_atual_nome: mov.area_origem_nome || '',
+            status: 'Ativo'
           });
         }
       }
