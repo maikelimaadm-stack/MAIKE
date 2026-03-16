@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { base44 } from "@/api/base44Client";
@@ -24,6 +22,10 @@ import { Label } from "@/components/ui/label";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import { Progress } from "@/components/ui/progress";
+import ResumoPasto from "./ResumoPasto";
+import ResumoLoteDashboard from "./ResumoLoteDashboard";
+import ComposicaoCategoria from "./ComposicaoCategoria";
+import BotoesAcaoLote from "./BotoesAcaoLote";
 
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
