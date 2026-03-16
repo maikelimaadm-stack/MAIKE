@@ -43,7 +43,17 @@ export function getCochoIndicator(ponto, eventos = []) {
   const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
   const totalDisponivel = fornecido + sobra;
   const consumoBase = Number(ultimoEvento.consumo_diario_grupo_kg || ultimoEvento.consumo_esperado_pv_kg || 0);
-  const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesdeUltimo);
+
+  let saldoEstimado;
+  if (ultimoEvento.dias_periodo != null) {
+    saldoEstimado = sobra;
+  } else if (consumoBase > 0) {
+    saldoEstimado = Math.max(0, totalDisponivel - consumoBase * diasDesdeUltimo);
+  } else {
+    // Sem consumo configurado: mostrar total fornecido inteiro
+    saldoEstimado = totalDisponivel;
+  }
+
   const percent = totalDisponivel > 0 ? clamp(saldoEstimado / totalDisponivel) : 0;
 
   return {
