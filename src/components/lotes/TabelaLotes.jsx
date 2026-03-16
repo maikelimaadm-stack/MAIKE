@@ -233,9 +233,9 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete, lotesComMo
                       </TableCell>
                       <TableCell className="text-xs font-mono border-r border-slate-200">#{lote.numero_lote}</TableCell>
                       <TableCell className="text-xs font-medium border-r border-slate-200">{lote.nome}</TableCell>
-                      <TableCell className="text-xs text-right font-mono font-semibold border-r border-slate-200">{lote.quantidade_cabecas}</TableCell>
-                      <TableCell className="text-xs border-r border-slate-200">{lote.categoria}</TableCell>
-                      <TableCell className="text-xs text-right font-mono border-r border-slate-200">{lote.peso_medio_kg ? `${lote.peso_medio_kg} kg` : '-'}</TableCell>
+                      <TableCell className="text-xs text-right font-mono font-semibold border-r border-slate-200">{lote.quantidade_entrada || lote.quantidade_cabecas}</TableCell>
+                      <TableCell className="text-xs border-r border-slate-200">{lote.categoria_entrada || lote.categoria}</TableCell>
+                      <TableCell className="text-xs text-right font-mono border-r border-slate-200">{(lote.peso_entrada_kg || lote.peso_medio_kg) ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : '-'}</TableCell>
                       <TableCell className="text-xs border-r border-slate-200">
                         {lote.area_entrada_nome ? (
                           <Badge variant="outline" className="gap-1 text-[10px]">
