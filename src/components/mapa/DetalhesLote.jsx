@@ -863,42 +863,19 @@ export default function DetalhesLote({ lotes, onClose }) {
               ))}
             </div>
           ) : loteParaRenomear ? (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-600">Lote atual: <strong>{loteParaRenomear.nome}</strong></p>
-              <div>
-                <Label className="text-xs">Novo nome</Label>
-                <Input value={novoNomeLote} onChange={e => setNovoNomeLote(e.target.value)} className="h-8 text-xs" />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowRenomear(false)}>Cancelar</Button>
-                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                  if (!novoNomeLote.trim()) return;
-                  const nomeAnterior = loteParaRenomear.nome;
-                  await base44.entities.Lote.update(loteParaRenomear.id, { nome: novoNomeLote.trim() });
-                  
-                  // Registrar no histórico
-                  const areaAtualId = loteParaRenomear.area_atual_id;
-                  const areaRen = areas.find(a => a.id === areaAtualId);
-                  await base44.entities.MovimentacaoMapa.create({
-                    empresa_id: empresaSelecionadaId,
-                    data_movimentacao: new Date().toISOString(),
-                    tipo: 'Entrada',
-                    motivo: 'Renomear Lote',
-                    lote: novoNomeLote.trim(),
-                    lote_id: loteParaRenomear.id,
-                    quantidade_animais: loteParaRenomear.quantidade_cabecas || 0,
-                    area_origem_id: areaAtualId,
-                    area_origem_nome: areaRen?.nome || '',
-                    observacoes: `Renomear Lote: "${nomeAnterior}" → "${novoNomeLote.trim()}"`
-                  });
-                  
-                  toast.success('Lote renomeado!');
-                  setShowRenomear(false);
-                  onClose();
-                  window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-                }}>Salvar</Button>
-              </div>
-            </div>
+            <RenomearLoteForm
+              lote={loteParaRenomear}
+              novoNome={novoNomeLote}
+              onNovoNomeChange={setNovoNomeLote}
+              empresaSelecionadaId={empresaSelecionadaId}
+              areas={areas}
+              onClose={() => {
+                setShowRenomear(false);
+                onClose();
+                window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+              }}
+              onCancel={() => setShowRenomear(false)}
+            />
           ) : null}
         </DialogContent>
       </Dialog>
