@@ -76,9 +76,15 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       ]);
 
       const matchLote = (nome, id) => {
-        const matchById = !!id && loteIds.includes(id);
-        const matchByName = loteNomes.some((item) => normalize(item) === normalize(nome));
-        return matchById || matchByName;
+        // Se temos IDs de lote, PRIORIZAR match por ID para evitar mistura entre lotes de mesmo nome
+        if (loteIds.length > 0) {
+          // Se a movimentação tem lote_id, comparar direto com os IDs dos lotes selecionados
+          if (id) return loteIds.includes(id);
+          // Se a movimentação NÃO tem lote_id (legado), usar fallback por nome
+          return loteNomes.some((item) => normalize(item) === normalize(nome));
+        }
+        // Se não temos IDs (chamado apenas com nomes), usar match por nome
+        return loteNomes.some((item) => normalize(item) === normalize(nome));
       };
       const matchAreaMov = (mov) => !areaId || mov.area_origem_id === areaId || mov.area_destino_id === areaId;
 
