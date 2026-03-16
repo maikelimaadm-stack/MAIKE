@@ -18,16 +18,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
-export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
+export default function TabelaLotes({ lotes, areas, onEdit, onDelete, lotesComMovimentacoes = [] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("nome");
   const [sortDirection, setSortDirection] = useState("asc");
   const [selecionados, setSelecionados] = useState([]);
 
+  const temMovimentacoes = (loteId) => lotesComMovimentacoes.includes(loteId);
+
   const lotesFiltered = lotes.filter(lote =>
     lote.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lote.categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lote.area_atual_nome?.toLowerCase().includes(searchTerm.toLowerCase())
+    lote.area_entrada_nome?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lotesSorted = [...lotesFiltered].sort((a, b) => {
@@ -75,8 +77,16 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
       toast.error('Selecione ao menos um lote!');
       return;
     }
-    if (window.confirm(`Excluir ${selecionados.length} lote(s)? Lotes com histórico de movimentações serão ignorados.`)) {
-      for (const id of selecionados) {
+    const comMovimentacoes = selecionados.filter(id => temMovimentacoes(id));
+    const semMovimentacoes = selecionados.filter(id => !temMovimentacoes(id));
+    
+    if (comMovimentacoes.length > 0) {
+      toast.error(`${comMovimentacoes.length} lote(s) possuem movimentações e não podem ser excluídos.`);
+    }
+    if (semMovimentacoes.length === 0) return;
+    
+    if (window.confirm(`Excluir ${semMovimentacoes.length} lote(s) sem movimentações?`)) {
+      for (const id of semMovimentacoes) {
         await onDelete(id);
       }
       setSelecionados([]);
@@ -152,7 +162,7 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
                   <div className="flex items-center">Categoria {getSortIcon('categoria')}</div>
                 </TableHead>
                 <TableHead className="text-xs border-r border-slate-200 text-right">Peso Médio</TableHead>
-                <TableHead className="text-xs border-r border-slate-200">Área Atual</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Área de Entrada</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Motivo</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Status</TableHead>
                 <TableHead className="text-xs border-r border-slate-200 text-right">Valor Total</TableHead>
@@ -189,15 +199,35 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={() => onEdit(lote)} className="text-xs">
-                              <Edit className="w-3.5 h-3.5 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => onDelete(lote.id)} className="text-xs text-red-600">
-                              <Trash2 className="w-3.5 h-3.5 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
+                            {temMovimentacoes(lote.id) ? (
+                              <>
+                                <DropdownMenuItem disabled className="text-xs text-slate-400">
+                                  <AlertTriangle className="w-3.5 h-3.5 mr-2 text-amber-500" />
+                                  Lote com movimentações
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem disabled className="text-xs text-slate-400">
+                                  <Edit className="w-3.5 h-3.5 mr-2" />
+                                  Editar (bloqueado)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem disabled className="text-xs text-slate-400">
+                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                  Excluir (bloqueado)
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
+                              <>
+                                <DropdownMenuItem onClick={() => onEdit(lote)} className="text-xs">
+                                  <Edit className="w-3.5 h-3.5 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onDelete(lote.id)} className="text-xs text-red-600">
+                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -207,10 +237,10 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
                       <TableCell className="text-xs border-r border-slate-200">{lote.categoria}</TableCell>
                       <TableCell className="text-xs text-right font-mono border-r border-slate-200">{lote.peso_medio_kg ? `${lote.peso_medio_kg} kg` : '-'}</TableCell>
                       <TableCell className="text-xs border-r border-slate-200">
-                        {lote.area_atual_nome ? (
+                        {(lote.area_entrada_nome || lote.area_atual_nome) ? (
                           <Badge variant="outline" className="gap-1 text-[10px]">
                             <MapPin className="w-2.5 h-2.5" />
-                            {lote.area_atual_nome}
+                            {lote.area_entrada_nome || lote.area_atual_nome}
                           </Badge>
                         ) : (
                           <span className="text-slate-400">-</span>
