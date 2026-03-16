@@ -63,35 +63,37 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
   }
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-3">
-      <div className="text-xs font-semibold text-slate-900 mb-2">Suplementação (últimos 30 dias)</div>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 text-[10px]">
-        <div>
-          <div className="text-slate-500 mb-0.5">Total consumido</div>
-          <div className="text-sm font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+      <span className="font-semibold text-slate-900 text-xs">Suplementação (últimos 30 dias)</span>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="text-slate-500">Total consumido</div>
+          <div className="font-semibold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div>
         </div>
-        <div>
-          <div className="text-slate-500 mb-0.5">Média kg/cab/dia</div>
-          <div className="text-sm font-bold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div>
+        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="text-slate-500">Média kg/cab/dia</div>
+          <div className="font-semibold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div>
         </div>
-        <div>
-          <div className="text-slate-500 mb-0.5">Média g/cab/dia</div>
-          <div className="text-sm font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div>
+        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="text-slate-500">Média g/cab/dia</div>
+          <div className="font-semibold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div>
         </div>
-        <div>
-          <div className="text-slate-500 mb-0.5">% uso</div>
-          <div className="text-sm font-bold text-slate-900">{percentualUso != null ? `${percentualUso.toFixed(0)}%` : '-'}</div>
+        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="text-slate-500">% uso</div>
+          <div className="font-semibold text-slate-900">{percentualUso != null ? `${percentualUso.toFixed(0)}%` : '-'}</div>
         </div>
-        <div>
-          <div className="text-slate-500 mb-0.5">Último lançamento</div>
-          <div className="text-[11px] font-semibold text-slate-900">{resumo.ultimoLancamento ? formatDateBR(resumo.ultimoLancamento.data_lancamento) : "-"}</div>
+        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="text-slate-500">Último lançamento</div>
+          <div className="font-semibold text-slate-900">{resumo.ultimoLancamento ? formatDateBR(resumo.ultimoLancamento.data_lancamento) : "-"}</div>
         </div>
+        {resumo.ultimoLancamento && (
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Último produto</div>
+            <div className="font-semibold text-slate-900">{resumo.ultimoLancamento.produto}</div>
+          </div>
+        )}
       </div>
-      {resumo.ultimoLancamento && (
-        <div className="mt-2 pt-2 border-t border-slate-200 text-[10px] text-slate-700">
-          <strong>Último produto:</strong> {resumo.ultimoLancamento.produto}
-        </div>
-      )}
     </div>
   );
 }
