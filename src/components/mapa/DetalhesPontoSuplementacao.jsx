@@ -307,7 +307,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoDiaKg > 0 ? `${formatKg(consumoEsperadoDiaKg)}` : '-'}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo cab/dia: <span className="font-semibold text-slate-900">{consumoEspCabDia > 0 ? `${consumoEspCabDia.toFixed(3)} kg` : '-'}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Dias desde lanç.: <span className="font-semibold text-slate-900">{diasSemLancamento != null ? `${formatDecimal(diasSemLancamento, 0, true)} dia(s)` : '-'}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Duração estimada: <span className="font-semibold text-slate-900">{(() => {
+                const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
+                const dur = consumoEsperadoDiaKg > 0 ? Math.round(totalDisp / consumoEsperadoDiaKg) : 0;
+                return dur > 0 ? `${dur} dia(s)` : '-';
+              })()}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Próx. reposição: <span className="font-semibold text-slate-900">{(() => {
                 const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
                 const duracaoTotal = consumoEsperadoDiaKg > 0 ? Math.round(totalDisp / consumoEsperadoDiaKg) : 0;
