@@ -35,6 +35,29 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     return totalEsperado > 0 ? (totalReal / totalEsperado) * 100 : null;
   }, [consumosRecentes]);
 
+  // Métricas agregadas de fornecimento e consumo
+  const metricas = useMemo(() => {
+    const validos = getHistoricoValido(consumosRecentes);
+    // Fornecimento total (soma de todos os registros)
+    const totalFornecidoKg = consumosRecentes.reduce((s, i) => s + (i.quantidade_fornecida_kg || i.consumo_total_lote_periodo_kg || 0), 0);
+    // Consumo esperado PV total/dia (média ponderada por cabeças)
+    const totalCabecas = validos.reduce((s, i) => s + (i.cabecas_na_area || 0), 0);
+    const totalPesoKg = validos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.peso_medio_kg || 0)), 0);
+    const pesoMedioGeral = totalCabecas > 0 ? totalPesoKg / totalCabecas : 0;
+    const consumoEsperadoPVTotal = validos.reduce((s, i) => s + ((i.consumo_esperado_pv_lote_kg || 0)), 0);
+    const consumoEsperadoPVDia = validos.length > 0 ? consumoEsperadoPVTotal / validos.length : 0;
+    const consumoEsperadoCabDia = consumoEsperadoPVDia > 0 && totalCabecas > 0 ? (consumoEsperadoPVDia / (totalCabecas / validos.length)) : 0;
+    // Consumo real cab/dia
+    const totalAnimalDias = validos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.dias_periodo || 0)), 0);
+    const totalConsumoReal = validos.reduce((s, i) => s + (i.consumo_total_lote_periodo_kg || 0), 0);
+    const consumoRealCabDia = totalAnimalDias > 0 ? totalConsumoReal / totalAnimalDias : 0;
+    const desvioKg = consumoRealCabDia > 0 && consumoEsperadoCabDia > 0 ? consumoRealCabDia - consumoEsperadoCabDia : null;
+
+    return { totalFornecidoKg, totalCabecas, pesoMedioGeral, consumoEsperadoPVDia, consumoEsperadoCabDia, consumoRealCabDia, desvioKg };
+  }, [consumosRecentes]);
+
+  const fmtNum3 = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : "-";
+
   if (consumosLote.length === 0) return null;
 
   if (modo === "compacto") {
