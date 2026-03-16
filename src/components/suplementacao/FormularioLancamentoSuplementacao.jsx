@@ -531,20 +531,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Saldo depósito */}
             {depositoVinculado?.local_estoque_id && produtoSelecionado && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs text-slate-500">Saldo disponível no depósito</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {formatDecimal(saldoNoDeposito)} {produtoSelecionado.unidade_medida || "KG"}
-                    {suportaSacos && pesoPorSaco > 0 && <span className="text-xs text-slate-500 ml-2">({formatDecimal(kgParaSacos(saldoNoDeposito, pesoPorSaco), 1)} sacos)</span>}
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-xs">Baixa automática ativa</Badge>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo depósito: <span className="font-semibold text-slate-900">{saldoNoDeposito.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {produtoSelecionado.unidade_medida || "KG"}</span></div>
+                {suportaSacos && pesoPorSaco > 0 && <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sacos: <span className="font-semibold text-slate-900">{kgParaSacos(saldoNoDeposito, pesoPorSaco).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</span></div>}
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Baixa automática: <span className="font-semibold text-emerald-700">Ativa</span></div>
               </div>
             )}
             {depositoVinculado?.local_estoque_id && formData.produto && produtoSelecionado && saldoNoDeposito <= 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                O produto foi localizado, mas não possui saldo disponível neste depósito/local de estoque.
+              <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-700">
+                Produto sem saldo disponível neste depósito/local de estoque.
               </div>
             )}
 
