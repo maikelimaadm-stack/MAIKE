@@ -23,6 +23,7 @@ export default function CategoriasManejo() {
     sigla: "",
     especie: "Bovinos",
     sexo: "",
+    raca: "",
     idade_minima_meses: "",
     idade_maxima_meses: "",
     categoria_oficial: "",
@@ -91,6 +92,7 @@ export default function CategoriasManejo() {
       sigla: "",
       especie: "Bovinos",
       sexo: "",
+      raca: "",
       idade_minima_meses: "",
       idade_maxima_meses: "",
       categoria_oficial: "",
@@ -118,6 +120,7 @@ export default function CategoriasManejo() {
       sigla: cat.sigla || "",
       especie: cat.especie || "Bovinos",
       sexo: cat.sexo || "",
+      raca: cat.raca || "",
       idade_minima_meses: cat.idade_minima_meses || "",
       idade_maxima_meses: cat.idade_maxima_meses || "",
       categoria_oficial: cat.categoria_oficial || "",
@@ -153,6 +156,7 @@ export default function CategoriasManejo() {
       sigla: formData.sigla.toUpperCase(),
       especie: formData.especie,
       sexo: formData.sexo || null,
+      raca: formData.raca ? formData.raca.toUpperCase() : null,
       idade_minima_meses: formData.idade_minima_meses ? parseInt(formData.idade_minima_meses) : null,
       idade_maxima_meses: formData.idade_maxima_meses ? parseInt(formData.idade_maxima_meses) : null,
       categoria_oficial: formData.categoria_oficial || null,
@@ -238,7 +242,7 @@ export default function CategoriasManejo() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Nome da Categoria *</Label>
               <Input
@@ -273,6 +277,16 @@ export default function CategoriasManejo() {
                   <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Raça</Label>
+              <Input
+                value={formData.raca}
+                onChange={(e) => setFormData({ ...formData, raca: e.target.value })}
+                placeholder="NELORE, ANGUS..."
+                className="h-8 text-xs uppercase"
+              />
             </div>
           </div>
 
