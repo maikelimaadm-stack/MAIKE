@@ -545,7 +545,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     <div className="space-y-4" translate="no">
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
-      <div className="space-y-3 mb-4">
+      <div className="space-y-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const configIcone = iconesConfig.find(ic => 
@@ -586,7 +586,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     <div className="font-semibold text-slate-900">{diasPastejo.toLocaleString('pt-BR')} dia(s)</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-                    <div className="text-slate-500">Sistema reprodutivo</div>
+                    <div className="text-slate-500">Sist. Rep.</div>
                     <div className="font-semibold text-slate-900">{lote.sistema_produtivo || '-'}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
