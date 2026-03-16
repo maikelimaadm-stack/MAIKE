@@ -465,7 +465,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
 
             {/* Formulário principal */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <div className="space-y-1">
                 <Label className="text-xs">Data do lançamento *</Label>
                 <Input type="date" value={formData.data_lancamento} onChange={(e) => setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }))} className="h-8 text-xs" />
@@ -488,7 +488,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
 
             {/* Campos de quantidade com suporte a sacos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               {suportaSacos && (
                 <div className="space-y-1">
                   <Label className="text-xs">Unidade de lançamento</Label>
@@ -658,7 +658,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs" rows={3} />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button>
               <Button type="button" onClick={handleSalvar} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar"}</Button>
             </div>
