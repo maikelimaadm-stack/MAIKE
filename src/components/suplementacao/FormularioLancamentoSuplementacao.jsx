@@ -241,17 +241,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     ? safeDivide(ultimoEvento.consumo_diario_grupo_kg, ultimoEvento.total_cabecas_afetadas || 0)
     : 0;
 
-  // Produtos disponíveis (ordenados por saldo)
+  // Produtos disponíveis - filtrar apenas os que têm saldo no depósito vinculado
   const produtosDisponiveis = useMemo(() => {
     if (!depositoVinculado?.local_estoque_id) return produtosSuplementacao;
-    return [...produtosSuplementacao].sort((a, b) => {
-      const saldoA = obterSaldoProdutoLocal(lotesNota, a.id, depositoVinculado.local_estoque_id);
-      const saldoB = obterSaldoProdutoLocal(lotesNota, b.id, depositoVinculado.local_estoque_id);
-      const prioridadeA = saldoA > 0 || normalizeText(a.nome_produto) === normalizeText(ponto?.produto_padrao || "") ? 1 : 0;
-      const prioridadeB = saldoB > 0 || normalizeText(b.nome_produto) === normalizeText(ponto?.produto_padrao || "") ? 1 : 0;
-      if (prioridadeA !== prioridadeB) return prioridadeB - prioridadeA;
-      return a.nome_produto.localeCompare(b.nome_produto);
-    });
+    // Only show products that have saldo in the linked deposit
+    return produtosSuplementacao
+      .filter((p) => {
+        const saldo = obterSaldoProdutoLocal(lotesNota, p.id, depositoVinculado.local_estoque_id);
+        const ehProdutoPadrao = normalizeText(p.nome_produto) === normalizeText(ponto?.produto_padrao || "");
+        return saldo > 0 || ehProdutoPadrao;
+      })
+      .sort((a, b) => {
+        const saldoA = obterSaldoProdutoLocal(lotesNota, a.id, depositoVinculado.local_estoque_id);
+        const saldoB = obterSaldoProdutoLocal(lotesNota, b.id, depositoVinculado.local_estoque_id);
+        if (saldoA > 0 && saldoB <= 0) return -1;
+        if (saldoB > 0 && saldoA <= 0) return 1;
+        return a.nome_produto.localeCompare(b.nome_produto);
+      });
   }, [depositoVinculado, produtosSuplementacao, lotesNota, ponto]);
 
   const saldoNoDeposito = useMemo(() => {
