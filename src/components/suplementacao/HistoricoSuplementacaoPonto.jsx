@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
 import { formatDecimal, formatKg } from "./formatters";
 import { safeDivide } from "../utils/pecuariaUtils";
+import FormularioLancamentoSuplementacao from "./FormularioLancamentoSuplementacao";
 
 function DesvioTag({ real, esperado }) {
   if (!esperado || esperado <= 0 || !real || real <= 0) return null;
@@ -48,12 +49,6 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     }
   });
 
-  const resumo = useMemo(() => {
-    const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
-    const ultimaData = eventos[0] ? new Date(eventos[0].data_lancamento).toLocaleDateString("pt-BR") : "-";
-    return { totalFornecido, ultimaData };
-  }, [eventos]);
-
   const handleDelete = async (evento, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
     if (!confirm("Excluir este lançamento e reverter o estoque do depósito?")) return;
@@ -67,6 +62,12 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleSavedEdit = () => {
+    queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "ultimo-evento-ponto"].includes(query.queryKey[0]) });
+    setShowEdit(false);
+    setEditEvento(null);
   };
 
   if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
@@ -113,14 +114,14 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   {/* Produto */}
                   <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
-                  {/* Métricas técnicas - 2 colunas mobile, 4 colunas desktop */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 text-[10px]">
+                  {/* Métricas - grid padrão sm:2 md:4 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fornecido: <span className="font-semibold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(evento.sobra_kg || 0)}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecas, 0, true)}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Esperado cab/dia: <span className="font-semibold text-slate-900">{consumoEsperadoCabDia > 0 ? `${formatDecimal(consumoEsperadoCabDia, 3)} kg` : '-'}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo cab/dia: <span className="font-semibold text-slate-900">{consumoEsperadoCabDia > 0 ? `${formatDecimal(consumoEsperadoCabDia, 3)} kg` : '-'}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Realizado cab/dia: <span className="font-semibold text-slate-900">{periodoFechado && consumoCabDia > 0 ? `${formatDecimal(consumoCabDia, 3)} kg` : '-'}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}</span></div>
                   </div>
@@ -135,67 +136,15 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
         </CardContent>
       </Card>
 
-      <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) setEditEvento(null); }}>
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Editar Lançamento</DialogTitle></DialogHeader>
-          {editEvento &&
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-600">Data</label>
-                <Input type="date" className="h-8 text-xs" value={editEvento.data_lancamento || ""} onChange={(e) => setEditEvento({ ...editEvento, data_lancamento: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Produto</label>
-                <Input className="h-8 text-xs" value={editEvento.produto || ""} onChange={(e) => setEditEvento({ ...editEvento, produto: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Quantidade (kg)</label>
-                <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.quantidade_total_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, quantidade_total_kg: parseFloat(e.target.value || 0) })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Sobra (kg)</label>
-                <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.sobra_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, sobra_kg: parseFloat(e.target.value || 0) })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Cabeças</label>
-                <Input type="number" className="h-8 text-xs" value={editEvento.total_cabecas_afetadas || 0} onChange={(e) => setEditEvento({ ...editEvento, total_cabecas_afetadas: parseInt(e.target.value || 0) })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Peso médio (kg)</label>
-                <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.peso_medio_lotes_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, peso_medio_lotes_kg: parseFloat(e.target.value || 0) })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Consumo esperado PV/dia (kg)</label>
-                <Input type="number" step="0.001" className="h-8 text-xs" value={editEvento.consumo_esperado_pv_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, consumo_esperado_pv_kg: parseFloat(e.target.value || 0) })} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Dias período (fechamento)</label>
-                <Input type="number" className="h-8 text-xs" value={editEvento.dias_periodo || ""} onChange={(e) => setEditEvento({ ...editEvento, dias_periodo: e.target.value ? parseInt(e.target.value) : null })} />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-slate-600">Observações</label>
-              <Textarea rows={3} className="text-xs" value={editEvento.observacoes || ""} onChange={(e) => setEditEvento({ ...editEvento, observacoes: e.target.value })} />
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>Cancelar</Button>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                await updateMutation.mutateAsync({ id: editEvento.id, data: {
-                  data_lancamento: editEvento.data_lancamento,
-                  produto: editEvento.produto,
-                  quantidade_total_kg: editEvento.quantidade_total_kg,
-                  sobra_kg: editEvento.sobra_kg,
-                  total_cabecas_afetadas: editEvento.total_cabecas_afetadas,
-                  peso_medio_lotes_kg: editEvento.peso_medio_lotes_kg,
-                  consumo_esperado_pv_kg: editEvento.consumo_esperado_pv_kg,
-                  dias_periodo: editEvento.dias_periodo,
-                  observacoes: editEvento.observacoes
-                }});
-                setShowEdit(false);
-              }}>Salvar</Button>
-            </div>
-          </div>
+          {editEvento && ponto &&
+            <FormularioLancamentoSuplementacao
+              ponto={ponto}
+              eventoEdicao={editEvento}
+              onCancel={handleSavedEdit}
+            />
           }
         </DialogContent>
       </Dialog>
