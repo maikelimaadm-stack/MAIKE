@@ -68,7 +68,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                     <div className="flex flex-wrap items-center gap-1">
                       <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{evento.data_lancamento?.includes("T") ? evento.data_lancamento.split("T")[0].split("-").reverse().join("/") : new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
                       <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
-                        {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
+                        {periodoFechado ? 'Fechado' : 'Em aberto'}
                       </Badge>
                       {periodoFechado && consumoEsperadoCabDia > 0 &&
                         <DesvioConsumoTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />

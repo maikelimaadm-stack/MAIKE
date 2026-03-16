@@ -4,19 +4,16 @@ import { formatDecimal, formatKg } from "./formatters";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { kgParaSacos } from "./unidadeConversaoUtils";
 
-/**
- * Card de métricas de um evento de suplementação, organizado em seções lógicas:
- * FORNECIMENTO → DADOS DO LOTE → CONSUMO ESPERADO → CONSUMO REAL (só fechado) → PROJEÇÃO
- *
- * Props:
- *  - evento: objeto SuplementacaoEvento
- *  - consumoEsperadoDiaKg: consumo esperado do grupo/dia (externo, ex: DetalhesPonto)
- *  - sacos: quantidade em sacos (opcional, se não passado calcula via produto)
- *  - produto: objeto Produto (opcional, para calcular sacos)
- *  - showProjecao: se mostra seção de projeção (default true)
- *  - duracaoEstimada: dias de duração estimada (opcional)
- *  - proximaReposicao: string data formatada (opcional, para aberto)
- */
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [ano, mes, dia] = value.split("-").map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 export default function CardMetricaEvento({
   evento,
   consumoEsperadoDiaKg,
@@ -42,9 +39,15 @@ export default function CardMetricaEvento({
   const sobra = Number(evento.sobra_kg || 0);
   const totalDisp = fornecido + sobra;
 
-  // Sacos: usar prop ou calcular via produto
-  const pesoPorSaco = Number(produto?.peso_por_saco_kg || 0);
-  const sacosCalc = sacos != null ? sacos : (pesoPorSaco > 0 ? kgParaSacos(fornecido, pesoPorSaco) : null);
+  // Sacos: 1) prop, 2) evento.quantidade_sacos, 3) calcular via produto ou evento.peso_por_saco_kg
+  const pesoPorSaco = Number(produto?.peso_por_saco_kg || evento.peso_por_saco_kg || 0);
+  const sacosCalc = sacos != null
+    ? sacos
+    : evento.quantidade_sacos > 0
+      ? evento.quantidade_sacos
+      : pesoPorSaco > 0
+        ? kgParaSacos(fornecido, pesoPorSaco)
+        : null;
 
   // Duração estimada
   const duracaoCalc = duracaoEstimada != null
@@ -57,6 +60,21 @@ export default function CardMetricaEvento({
   const diferencaDias = periodoFechado && duracaoCalc > 0 && evento.dias_periodo > 0
     ? duracaoCalc - evento.dias_periodo
     : null;
+
+  // Desvio: realizado - esperado (em kg, não %)
+  const desvioKg = periodoFechado && consumoCabDiaReal > 0 && consumoEsperadoCabDia > 0
+    ? consumoCabDiaReal - consumoEsperadoCabDia
+    : null;
+
+  // Próx. reposição: calcular internamente quando não passado e período aberto
+  const proxReposicaoCalc = (() => {
+    if (proximaReposicao) return proximaReposicao;
+    if (periodoFechado) return null;
+    if (duracaoCalc <= 0) return null;
+    const dataBase = parseDateLocal(evento.data_lancamento);
+    if (!dataBase) return null;
+    return new Date(dataBase.getTime() + duracaoCalc * 86400000).toLocaleDateString("pt-BR");
+  })();
 
   const fmtNum3 = (v) =>
     v > 0
@@ -107,12 +125,12 @@ export default function CardMetricaEvento({
             <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
               <div className="text-slate-500">Desvio</div>
               <div className="font-semibold text-slate-900 flex items-center gap-1">
-                {consumoCabDiaReal > 0 && consumoEsperadoCabDia > 0 ? (
-                  <DesvioConsumoTag real={consumoCabDiaReal} esperado={consumoEsperadoCabDia} />
-                ) : null}
-                {consumoCabDiaReal > 0 && consumoEsperadoCabDia > 0
-                  ? `${((consumoCabDiaReal - consumoEsperadoCabDia) / consumoEsperadoCabDia * 100) > 0 ? "+" : ""}${((consumoCabDiaReal - consumoEsperadoCabDia) / consumoEsperadoCabDia * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                  : "-"}
+                {desvioKg != null ? (
+                  <>
+                    <DesvioConsumoTag real={consumoCabDiaReal} esperado={consumoEsperadoCabDia} />
+                    {desvioKg > 0 ? "+" : ""}{desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
+                  </>
+                ) : "-"}
               </div>
             </div>
           </div>
@@ -132,7 +150,7 @@ export default function CardMetricaEvento({
                 value={diferencaDias != null ? `${diferencaDias > 0 ? "+" : ""}${diferencaDias} dia(s)` : "-"}
               />
             ) : (
-              <MetricCell label="Próx. reposição" value={proximaReposicao || "-"} />
+              <MetricCell label="Próx. reposição" value={proxReposicaoCalc || "-"} />
             )}
           </div>
         </div>
