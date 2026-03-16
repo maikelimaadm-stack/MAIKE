@@ -159,7 +159,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="py-3 px-4 border-b bg-slate-50">
-        <CardTitle className="text-sm font-semibold text-slate-900">Transferência do Depósito</CardTitle>
+        <CardTitle className="text-sm font-semibold text-slate-900">{direction === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
