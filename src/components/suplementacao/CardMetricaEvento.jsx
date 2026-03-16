@@ -146,7 +146,7 @@ export default function CardMetricaEvento({
             <MetricCell label="Duração estimada" value={duracaoCalc > 0 ? `${duracaoCalc} dia(s)` : "-"} />
             {periodoFechado ? (
               <MetricCell
-                label="Diferença (est - real)"
+                label="Diferença dia(s)"
                 value={diferencaDias != null ? `${diferencaDias > 0 ? "+" : ""}${diferencaDias} dia(s)` : "-"}
               />
             ) : (

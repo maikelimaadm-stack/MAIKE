@@ -102,30 +102,37 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
               ? "Suplementação"
               : (movimentacao.local_destino || "-");
 
-            const unidade = movimentacao.unidade_medida || "KG";
-
             return (
-              <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2 hover:bg-gray-50 space-y-1">
+              <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex flex-wrap items-center gap-1">
-                    <span className="inline-flex items-center rounded-md border px-2 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{dataDisplay}</span>
-                    {index === 0 && <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700 bg-emerald-50">Último</Badge>}
+                    <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{dataDisplay}</span>
                     <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{getLabelTipoDetalhado(movimentacao.tipo_detalhado)}</Badge>
                   </div>
-                  <Button variant="destructive" size="sm" className="h-6 text-[10px] px-2" disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
+                  <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
                 </div>
 
-                <div className="text-xs font-bold text-slate-900">{movimentacao.produto_nome}</div>
+                <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade: <span className="font-semibold text-slate-900">{formatKg(movimentacao.quantidade || 0)}</span></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Unidade: <span className="font-semibold text-slate-900">{unidade}</span></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{movimentacao.local_origem || "-"}</span></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{destinoLabel}</span></div>
+                <div className="space-y-1.5">
+                  <div>
+                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Quantidade</div>
+                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Quantidade kg</div><div className="font-semibold text-slate-900">{formatKg(movimentacao.quantidade || 0)}</div></div>
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Unidade</div><div className="font-semibold text-slate-900">{movimentacao.unidade_medida || "KG"}</div></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
+                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{movimentacao.local_origem || "-"}</div></div>
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{destinoLabel}</div></div>
+                    </div>
+                  </div>
                 </div>
 
                 {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {formatObsKgPtBR(movimentacao.observacoes)}</div>}
-                {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
+                {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser excluído.</div>}
                 {ehNutricao && <div className="text-[10px] text-slate-400">Nutrição só pode ser excluída no histórico do cocho.</div>}
               </div>
             );

@@ -196,16 +196,30 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
           {ultimoRegistro ?
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-              <div className="font-semibold leading-tight text-slate-900">{ultimoRegistro.produto_nome}</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1">
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Tipo: <span className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleDateString("pt-BR")}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoRegistroSacos != null ? ultimoRegistroSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
+          <div className="space-y-1.5">
+              <div className="text-xs font-semibold text-slate-900">{ultimoRegistro.produto_nome}</div>
+              <div>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Movimentação</div>
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Tipo</div><div className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Data</div><div className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleDateString("pt-BR")}</div></div>
+                </div>
               </div>
-              {ultimoRegistro.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoRegistro.observacoes}</div>}
+              <div>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Quantidade</div>
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Quantidade kg</div><div className="font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Quantidade sacos</div><div className="font-semibold text-slate-900">{ultimoRegistroSacos != null ? ultimoRegistroSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</div></div>
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</div></div>
+                </div>
+              </div>
+              {ultimoRegistro.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {ultimoRegistro.observacoes}</div>}
             </div> :
 
           <div className="text-xs text-slate-500">Nenhum registro ainda.</div>
