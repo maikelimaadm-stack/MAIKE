@@ -21,6 +21,15 @@ const CATEGORIAS = [
 
 export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
+  const { data: categoriasManejo = [] } = useQuery({
+    queryKey: ['categorias-manejo-mudanca', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CategoriaManejo.list();
+      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
   const [showHistorico, setShowHistorico] = useState(false);
   
   const lotesArray = Array.isArray(lote) ? lote : [lote];
@@ -101,6 +110,15 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       ...novasMudancas[index],
       [field]: value
     };
+    // Se mudou a nova categoria, buscar o sexo da categoria de manejo correspondente
+    if (field === 'categoria_nova') {
+      const catManejo = categoriasManejo.find(c => c.categoria_oficial === value);
+      if (catManejo?.sexo) {
+        novasMudancas[index].sexo_novo = catManejo.sexo;
+        novasMudancas[index].categoria_manejo_id_novo = catManejo.id;
+        novasMudancas[index].categoria_manejo_nome_novo = catManejo.nome;
+      }
+    }
     setFormData({ ...formData, mudancas: novasMudancas });
   };
 

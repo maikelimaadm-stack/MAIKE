@@ -65,11 +65,14 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
   const handleChange = (field, value) => {
     const newData = { ...formData, [field]: value };
     
-    // Se mudou categoria de manejo, atualizar categoria oficial automaticamente
+    // Se mudou categoria de manejo, atualizar categoria oficial e sexo automaticamente
     if (field === 'categoria_manejo_id') {
       const catManejo = categoriasManejo.find(c => c.id === value);
       if (catManejo) {
         newData.categoria = catManejo.categoria_oficial;
+        if (catManejo.sexo) {
+          newData.sexo = catManejo.sexo;
+        }
       }
     }
     
