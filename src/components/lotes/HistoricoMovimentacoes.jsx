@@ -252,12 +252,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
       if (entry?.tipo === 'Pesagem' && (entry?.linked_movement_ids || []).length > 0) {
-        return 'Esta pesagem está vinculada à movimentação e só pode ser excluída junto com ela.';
+        return 'Esta pesagem está vinculada à transferência. Para excluí-la, exclua a transferência correspondente (a pesagem será removida automaticamente).';
       }
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
-      return 'Existem registros filhos ou lançamentos posteriores para este lote. Exclua sempre o último lançamento primeiro.';
+      return 'Existem registros posteriores para este lote. Exclua sempre o último lançamento primeiro (do mais recente para o mais antigo).';
     }
     return '';
   }, [hasLaterRelatedRecord]);
