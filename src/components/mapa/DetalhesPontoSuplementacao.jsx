@@ -275,7 +275,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                   {diasRestantes > 0 && <div className="text-[9px] text-slate-500 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Próxima suplementação</div>
+                  <div className="text-slate-500">Próxima Reposição</div>
                   <div className="text-sm font-bold text-slate-900">{proximaData ? proximaData.toLocaleDateString('pt-BR') : '-'}</div>
                 </div>
               </div>
@@ -314,11 +314,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{formatDateBR(ultimoEvento.data_lancamento)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoEventoSacos != null ? formatDecimal(ultimoEventoSacos, 2) : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecasEvt, 0, true)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Qtd. Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecasEvt, 0, true)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{ultimoEvento.peso_medio_lotes_kg ? `${formatDecimal(ultimoEvento.peso_medio_lotes_kg, 0)} kg` : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoDiaKg > 0 ? `${formatKg(consumoEsperadoDiaKg)}` : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo cab/dia: <span className="font-semibold text-slate-900">{consumoEspCabDia > 0 ? `${consumoEspCabDia.toFixed(3)} kg` : '-'}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo Lote PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoDiaKg > 0 ? `${formatKg(consumoEsperadoDiaKg)}` : '-'}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Esperado/cab/dia: <span className="font-semibold text-slate-900">{consumoEspCabDia > 0 ? consumoEspCabDia.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : '-'}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Duração estimada: <span className="font-semibold text-slate-900">{(() => {
                 const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);

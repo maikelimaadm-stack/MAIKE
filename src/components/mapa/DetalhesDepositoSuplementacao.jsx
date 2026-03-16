@@ -204,7 +204,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoRegistroSacos != null ? ultimoRegistroSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</span></div>
               </div>
               {ultimoRegistro.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoRegistro.observacoes}</div>}
             </div> :

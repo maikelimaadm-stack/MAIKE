@@ -11,10 +11,11 @@ import { safeDivide } from "../utils/pecuariaUtils";
 
 function DesvioTag({ real, esperado }) {
   if (!esperado || esperado <= 0 || !real || real <= 0) return null;
-  const desvio = (real - esperado) / esperado * 100;
+  const desvioKg = real - esperado;
+  const isPositivo = desvioKg > 0;
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-700">
-      {desvio > 0 ? "+" : ""}{desvio.toFixed(0)}%
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-semibold ${isPositivo ? "border-red-300 bg-red-50 text-red-700" : "border-emerald-300 bg-emerald-50 text-emerald-700"}`}>
+      {isPositivo ? "+" : ""}{desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
     </span>
   );
 }
@@ -97,10 +98,10 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fornecido: <span className="font-semibold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(evento.sobra_kg || 0)}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecas, 0, true)}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Qtd. Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecas, 0, true)}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo cab/dia: <span className="font-semibold text-slate-900">{consumoEsperadoCabDia > 0 ? `${formatDecimal(consumoEsperadoCabDia, 3)} kg` : '-'}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo Lote PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : '-'}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Esperado/cab/dia: <span className="font-semibold text-slate-900">{consumoEsperadoCabDia > 0 ? consumoEsperadoCabDia.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : '-'}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Realizado cab/dia: <span className="font-semibold text-slate-900">{periodoFechado && consumoCabDia > 0 ? `${formatDecimal(consumoCabDia, 3)} kg` : '-'}</span></div>
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}</span></div>
                   </div>
