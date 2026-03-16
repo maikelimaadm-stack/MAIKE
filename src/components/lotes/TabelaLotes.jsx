@@ -75,9 +75,9 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
       toast.error('Selecione ao menos um lote!');
       return;
     }
-    if (window.confirm(`Excluir ${selecionados.length} lote(s)?`)) {
+    if (window.confirm(`Excluir ${selecionados.length} lote(s)? Lotes com histórico de movimentações serão ignorados.`)) {
       for (const id of selecionados) {
-        onDelete(id);
+        await onDelete(id);
       }
       setSelecionados([]);
     }
