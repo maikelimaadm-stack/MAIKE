@@ -22,8 +22,12 @@ export function getCochoIndicator(ponto, eventos = []) {
   }
 
   const diasDesdeUltimo = Math.max(0, Math.floor((Date.now() - new Date(ultimoEvento.data_lancamento).getTime()) / 86400000));
-  const frequencia = ponto.frequencia_esperada_dias || 7;
-  const percent = clamp(1 - (diasDesdeUltimo / Math.max(1, frequencia)));
+  const sobra = Number(ultimoEvento.sobra_kg || 0);
+  const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
+  const totalDisponivel = fornecido + sobra;
+  const consumoBase = Number(ultimoEvento.consumo_esperado_pv_kg || ultimoEvento.consumo_diario_grupo_kg || 0);
+  const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesdeUltimo);
+  const percent = ponto.capacidade_cocho_kg > 0 ? clamp(saldoEstimado / Number(ponto.capacidade_cocho_kg || 0)) : clamp(saldoEstimado > 0 ? 1 : 0);
 
   return {
     percent,
