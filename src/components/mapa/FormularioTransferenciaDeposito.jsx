@@ -29,21 +29,14 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
 
-  const { data: user } = useQuery({
-    queryKey: ["user-transferencia-deposito"],
-    queryFn: () => base44.auth.me(),
-  });
-
-  const { data: locais = [] } = useQuery({
-    queryKey: ["locais-estoque-deposito"],
-    queryFn: () => base44.entities.LocalEstoque.list(),
-  });
+  const { data: user } = useQuery({ queryKey: ["user-transferencia-deposito"], queryFn: () => base44.auth.me() });
+  const { data: locais = [] } = useQuery({ queryKey: ["locais-estoque-deposito"], queryFn: () => base44.entities.LocalEstoque.list() });
 
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-suplementacao-transferencia", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -52,55 +45,44 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     queryKey: ["estoque-lotes-transferencia", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.EstoqueLoteNota.list();
-      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Disponivel");
+      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId,
   });
 
-  const outrosLocais = useMemo(() => {
-    return locais.filter((local) => local.id !== deposito.local_estoque_id);
-  }, [locais, deposito.local_estoque_id]);
+  const outrosLocais = useMemo(() => locais.filter((l) => l.id !== deposito.local_estoque_id), [locais, deposito.local_estoque_id]);
 
   const localOrigemId = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
   const localOrigemNome = direction === "entrada"
-    ? outrosLocais.find((local) => local.id === localRelacionadoId)?.nome || ""
+    ? outrosLocais.find((l) => l.id === localRelacionadoId)?.nome || ""
     : deposito.local_estoque_nome;
   const localDestinoId = direction === "entrada" ? deposito.local_estoque_id : localRelacionadoId;
   const localDestinoNome = direction === "entrada"
     ? deposito.local_estoque_nome
-    : outrosLocais.find((local) => local.id === localRelacionadoId)?.nome || "";
+    : outrosLocais.find((l) => l.id === localRelacionadoId)?.nome || "";
 
+  const localFonteId = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
   const localFonteNome = direction === "entrada"
-    ? outrosLocais.find((local) => local.id === localRelacionadoId)?.nome || ""
+    ? outrosLocais.find((l) => l.id === localRelacionadoId)?.nome || ""
     : deposito.local_estoque_nome;
 
+  // Filter products: only those with saldo in the SOURCE local
   const produtosDisponiveis = useMemo(() => {
-    const localFonte = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
-    if (!localFonte) return [];
+    if (!localFonteId) return [];
+    return produtos.filter((p) => {
+      const categoriaSuplementacao = normalizeText(p.categoria).includes("SUPLEMENTAC");
+      if (!categoriaSuplementacao) return false;
+      return obterSaldoTransferivelProduto({ produto: p, lotesNota, localEstoqueId: localFonteId, localEstoqueNome: localFonteNome }) > 0;
+    });
+  }, [direction, localRelacionadoId, deposito.local_estoque_id, produtos, lotesNota, localFonteId, localFonteNome]);
 
-    return produtos.filter((produto) => obterSaldoTransferivelProduto({
-      produto,
-      lotesNota,
-      localEstoqueId: localFonte,
-      localEstoqueNome: localFonteNome,
-    }) > 0);
-  }, [direction, localRelacionadoId, deposito.local_estoque_id, produtos, lotesNota, localFonteNome]);
-
-  const produtoSelecionado = useMemo(() => {
-    return produtos.find((produto) => produto.id === produtoId) || null;
-  }, [produtos, produtoId]);
-
+  const produtoSelecionado = useMemo(() => produtos.find((p) => p.id === produtoId) || null, [produtos, produtoId]);
   const suportaSacos = useMemo(() => produtoSelecionado ? produtoSuportaSacos(produtoSelecionado) : false, [produtoSelecionado]);
   const pesoPorSaco = Number(produtoSelecionado?.peso_por_saco_kg || 0);
 
   const saldoDisponivel = useMemo(() => {
     if (!produtoSelecionado || !localOrigemId) return 0;
-    return obterSaldoTransferivelProduto({
-      produto: produtoSelecionado,
-      lotesNota,
-      localEstoqueId: localOrigemId,
-      localEstoqueNome: localOrigemNome,
-    });
+    return obterSaldoTransferivelProduto({ produto: produtoSelecionado, lotesNota, localEstoqueId: localOrigemId, localEstoqueNome: localOrigemNome });
   }, [produtoSelecionado, localOrigemId, localOrigemNome, lotesNota]);
 
   const saldoEmSacos = useMemo(() => {
@@ -110,59 +92,26 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!localRelacionadoId) {
-      toast.error("Selecione o outro local da transferência.");
-      return;
-    }
-
-    if (!produtoSelecionado) {
-      toast.error("Selecione um produto.");
-      return;
-    }
+    if (!localRelacionadoId) return toast.error("Selecione o local.");
+    if (!produtoSelecionado) return toast.error("Selecione um produto.");
 
     const inputNum = parseNumber(quantidade);
     const quantidadeFinal = unidadeInput === "SACO" ? sacosParaKg(inputNum, pesoPorSaco) : inputNum;
-
-    if (quantidadeFinal <= 0) {
-      toast.error("Informe uma quantidade válida.");
-      return;
-    }
-
-    if (quantidadeFinal > saldoDisponivel) {
-      toast.error("A quantidade informada é maior que o saldo disponível.");
-      return;
-    }
+    if (quantidadeFinal <= 0) return toast.error("Informe uma quantidade válida.");
+    if (quantidadeFinal > saldoDisponivel) return toast.error("Quantidade maior que o saldo disponível.");
 
     setSaving(true);
     try {
       await registrarTransferenciaEntreLocais({
-        empresaId: empresaSelecionadaId,
-        userEmail: user?.email,
-        produto: produtoSelecionado,
-        quantidade: quantidadeFinal,
-        localOrigemId,
-        localOrigemNome,
-        localDestinoId,
-        localDestinoNome,
-        observacoes: observacoes || `Transferência pelo depósito ${deposito.nome_ponto}`,
-        lotesNota,
+        empresaId: empresaSelecionadaId, userEmail: user?.email, produto: produtoSelecionado,
+        quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
+        observacoes: observacoes || `Transferência pelo depósito ${deposito.nome_ponto}`, lotesNota,
       });
-
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && [
-        "estoque-lotes-transferencia",
-        "saldo-deposito",
-        "cochos-vinculados-deposito",
-        "lotes-nota-suplementacao",
-        "mapa-pontos-supl",
-        "movimentacoes",
-        "produtos",
-      ].includes(query.queryKey[0]) });
-
-      toast.success("Transferência registrada com sucesso.");
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "movimentacoes", "produtos", "historico-deposito"].includes(q.queryKey[0]) });
+      toast.success("Transferência registrada.");
       onSuccess?.();
     } catch (error) {
-      toast.error(error.message || "Erro ao registrar transferência.");
+      toast.error(error.message || "Erro ao registrar.");
     } finally {
       setSaving(false);
     }
@@ -170,110 +119,60 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
   return (
     <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="py-3 px-4 border-b bg-slate-50">
+      <CardHeader className="py-2 px-3 border-b bg-slate-50">
         <CardTitle className="text-sm font-semibold text-slate-900">{direction === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="space-y-1">
+      <CardContent className="p-2">
+        <form onSubmit={handleSubmit} className="space-y-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">{direction === "entrada" ? "Local de Origem" : "Local de Destino"}</Label>
-              <Select value={localRelacionadoId} onValueChange={(value) => {
-                setLocalRelacionadoId(value);
-                setProdutoId("");
-                setQuantidade("");
-              }}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione o local" />
-                </SelectTrigger>
-                <SelectContent>
-                  {outrosLocais.map((local) => (
-                    <SelectItem key={local.id} value={local.id} className="text-xs">{local.nome}</SelectItem>
-                  ))}
-                </SelectContent>
+              <Select value={localRelacionadoId} onValueChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o local" /></SelectTrigger>
+                <SelectContent>{outrosLocais.map((l) => <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Produto de Suplementação</Label>
-              <Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localRelacionadoId}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione o produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {produtosDisponiveis.map((produto) => (
-                    <SelectItem key={produto.id} value={produto.id} className="text-xs">{produto.nome_produto}</SelectItem>
-                  ))}
-                </SelectContent>
+              <Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto} ({p.unidade_medida || "KG"})</SelectItem>)}</SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Unidade</Label>
               <Select value={unidadeInput} onValueChange={setUnidadeInput} disabled={!suportaSacos}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="KG" className="text-xs">KG</SelectItem>
                   {suportaSacos && <SelectItem value="SACO" className="text-xs">Sacas ({pesoPorSaco} kg/saco)</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"})</Label>
-              <Input
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                type="number"
-                step="0.01"
-                className="h-8 text-xs"
-                placeholder="0,00"
-              />
+              <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className="h-8 text-xs" placeholder="0,00" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Local de origem</div>
-              <div className="text-sm font-semibold text-slate-900">{localOrigemNome || "-"}</div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Saldo disponível (kg)</div>
-              <div className="flex items-center gap-2 pt-1">
-                <Badge variant="outline" className="text-xs">{formatQuantidadeTecnica(saldoDisponivel, 3)}</Badge>
-                <span className="text-xs text-slate-500">kg</span>
-              </div>
-            </div>
-            {suportaSacos && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs text-slate-500">Saldo disponível (sacas)</div>
-                <div className="flex items-center gap-2 pt-1">
-                  <Badge variant="outline" className="text-xs">{saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
-                  <span className="text-xs text-slate-500">sacas</span>
-                </div>
-              </div>
-            )}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{localOrigemNome || "-"}</span></div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{localDestinoNome || "-"}</span></div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo (kg): <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(saldoDisponivel, 3)}</span></div>
+            {suportaSacos && <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo (sacas): <span className="font-semibold text-slate-900">{saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <Label className="text-xs">Observações</Label>
-            <Textarea
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              rows={3}
-              className="text-xs"
-            />
+            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="text-xs" />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={saving}>
-              {saving ? "Salvando..." : "Salvar Transferência"}
-            </Button>
+          <div className="flex justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </div>
         </form>
       </CardContent>
