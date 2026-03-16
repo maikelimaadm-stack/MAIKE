@@ -605,7 +605,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         })}
       </div>
 
-      <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
+      <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>
