@@ -448,22 +448,18 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   return (
     <>
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50 border-b py-2"><CardTitle className="text-sm font-semibold text-slate-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
+        <CardHeader className="bg-emerald-50 border-b border-emerald-200 py-2 px-3"><CardTitle className="text-sm font-bold text-emerald-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
         <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden">
-          <div className="space-y-2">
+          <div className="space-y-1">
             {/* Resumo do ponto */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs">
-                <div><span className="text-slate-600">Áreas:</span><span className="font-semibold text-slate-900 ml-2">{areaNomesVinculados.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
-                <div><span className="text-slate-600">Depósito:</span><span className="font-semibold text-slate-900 ml-2">{depositoVinculado?.nome_ponto || "Não vinculado"}</span></div>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2 text-[11px] space-y-1">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Áreas: <span className="font-semibold text-slate-900">{areaNomesVinculados.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Depósito: <span className="font-semibold text-slate-900">{depositoVinculado?.nome_ponto || "Não vinculado"}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Lotes: <span className="font-semibold text-slate-900">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</span></div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-slate-600">Lotes nas áreas:</span>
-                {loadingLotes ? <Badge variant="outline" className="text-xs">Carregando...</Badge> : <Badge variant="outline" className="text-xs">{formatDecimal(lotes.length, 0, true)} lote(s) - {formatDecimal(totalCabecas, 0, true)} cabeças</Badge>}
-                {pesoMedioGeral > 0 && <Badge variant="outline" className="text-xs">Peso médio: {formatDecimal(pesoMedioGeral, 1)} kg</Badge>}
-                {tipoConsumo && <Badge variant="outline" className="text-xs">{tipoConsumo === "CONSUMO_DIARIO" ? "Consumo Diário" : "Consumo Livre"}</Badge>}
-              </div>
-              {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-slate-600">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
+              {ultimoEvento && diasPeriodo && <div className="text-[10px] text-slate-600 pt-1 border-t border-emerald-200">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
             {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
