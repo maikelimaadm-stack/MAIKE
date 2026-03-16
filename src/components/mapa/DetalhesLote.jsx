@@ -22,6 +22,7 @@ import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
+import RenomearLoteForm from "../lotes/RenomearLoteForm";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
