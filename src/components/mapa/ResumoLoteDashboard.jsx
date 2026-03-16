@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * Card de resumo compacto dos lotes - mostra informações consolidadas.
+ * Card de resumo compacto dos lotes - estilo CardSection igual ao cocho/depósito.
  */
 export default function ResumoLoteDashboard({ lotes = [], areaAtual }) {
   if (lotes.length === 0) return null;
@@ -12,7 +12,6 @@ export default function ResumoLoteDashboard({ lotes = [], areaAtual }) {
     ? pesosValidos.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0) / pesosValidos.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0)
     : 0;
 
-  const categoriasUnicas = [...new Set(lotes.map((l) => l.categoria || "Sem categoria"))];
   const sistemasUnicos = [...new Set(lotes.map((l) => l.sistema_produtivo).filter(Boolean))];
 
   const ultimaEntrada = lotes
@@ -20,25 +19,30 @@ export default function ResumoLoteDashboard({ lotes = [], areaAtual }) {
     .filter(Boolean)
     .sort((a, b) => new Date(b) - new Date(a))[0];
 
-  const campos = [
-    { label: "Total de cabeças", valor: totalCabecas.toLocaleString("pt-BR") },
-    { label: "Peso médio", valor: pesoMedioGeral > 0 ? `${pesoMedioGeral.toFixed(0)} kg` : "-" },
-    { label: "Qtd. lotes", valor: lotes.length },
-    { label: "Categorias", valor: categoriasUnicas.join(", ") },
-    { label: "Sistema", valor: sistemasUnicos.join(", ") || "-" },
-    { label: "Última mov.", valor: ultimaEntrada ? new Date(ultimaEntrada).toLocaleDateString("pt-BR") : "-" },
-  ];
-
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-      <div className="text-xs font-bold text-slate-900 mb-2">Resumo dos Lotes</div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-        {campos.map((c) => (
-          <div key={c.label} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider">{c.label}</div>
-            <div className="text-sm font-semibold text-slate-900 leading-tight">{c.valor}</div>
-          </div>
-        ))}
+    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">
+      <div className="text-[11px] font-bold text-slate-900">Resumo dos Lotes</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+        <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+          <div className="text-slate-500">Total de cabeças</div>
+          <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString("pt-BR")}</div>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+          <div className="text-slate-500">Peso médio</div>
+          <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${pesoMedioGeral.toFixed(0)} kg` : "-"}</div>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+          <div className="text-slate-500">Qtd. lotes</div>
+          <div className="font-semibold text-slate-900">{lotes.length}</div>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+          <div className="text-slate-500">Sistema</div>
+          <div className="font-semibold text-slate-900">{sistemasUnicos.join(", ") || "-"}</div>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
+          <div className="text-slate-500">Última mov.</div>
+          <div className="font-semibold text-slate-900">{ultimaEntrada ? new Date(ultimaEntrada).toLocaleDateString("pt-BR") : "-"}</div>
+        </div>
       </div>
     </div>
   );

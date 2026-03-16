@@ -1,8 +1,7 @@
 import React from "react";
-import { MapPin } from "lucide-react";
 
 /**
- * Resumo geral do pasto/área - exibido no topo do dashboard de lotes.
+ * Resumo geral do pasto/área - estilo CardSection igual ao cocho/depósito.
  */
 export default function ResumoPasto({ area, lotes = [] }) {
   if (!area) return null;
@@ -12,7 +11,6 @@ export default function ResumoPasto({ area, lotes = [] }) {
   const haEfetivo = area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0);
   const uaHa = haEfetivo > 0 ? (totalUA / haEfetivo) : 0;
 
-  // Dias de pastejo: diferença entre hoje e a data de entrada mais antiga dos lotes ativos
   const dataEntradaMaisAntiga = lotes
     .map(l => l.data_entrada ? new Date(l.data_entrada) : null)
     .filter(Boolean)
@@ -21,31 +19,17 @@ export default function ResumoPasto({ area, lotes = [] }) {
     ? Math.max(0, Math.floor((new Date() - dataEntradaMaisAntiga) / 86400000))
     : 0;
 
-  const metricas = [
-    { label: "Pasto", valor: area.nome, destaque: true },
-    { label: "Cultura", valor: area.tipo_pastagem || "-" },
-    { label: "Cabeças totais", valor: totalCabecas.toLocaleString("pt-BR") },
-    { label: "UA total", valor: totalUA.toFixed(1) },
-    { label: "UA/ha", valor: uaHa.toFixed(2) },
-    { label: "Dias de pastejo", valor: diasPastejo > 0 ? `${diasPastejo} dias` : "-" },
-    { label: "Área disponível", valor: `${haEfetivo} ha` },
-  ];
-
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-      <div className="flex items-center gap-1.5 mb-2">
-        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-        <span className="text-xs font-bold text-slate-900">Resumo do Pasto</span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {metricas.map((m) => (
-          <div key={m.label} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider">{m.label}</div>
-            <div className={`font-semibold text-slate-900 ${m.destaque ? "text-sm" : "text-lg"} leading-tight`}>
-              {m.valor}
-            </div>
-          </div>
-        ))}
+    <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">
+      <div className="text-[11px] font-bold text-slate-900">Informações do Pasto</div>
+      <div className="space-y-1 text-[10px]">
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Pasto:</span><span className="font-semibold text-slate-900">{area.nome}</span></div>
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cultura:</span><span className="font-semibold text-slate-900">{area.tipo_pastagem || "-"}</span></div>
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área disponível:</span><span className="font-semibold text-slate-900">{haEfetivo} ha</span></div>
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cabeças totais:</span><span className="font-semibold text-slate-900">{totalCabecas.toLocaleString("pt-BR")}</span></div>
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">UA total:</span><span className="font-semibold text-slate-900">{totalUA.toFixed(1)}</span></div>
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">UA/ha:</span><span className="font-semibold text-slate-900">{uaHa.toFixed(2)}</span></div>
+        <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Dias de pastejo:</span><span className="font-semibold text-slate-900">{diasPastejo > 0 ? `${diasPastejo} dias` : "-"}</span></div>
       </div>
     </div>
   );
