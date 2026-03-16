@@ -216,7 +216,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
                 <div className="grid grid-cols-2 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{ultimoRegistro.local_destino || "-"}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{ultimoRegistro.tipo_detalhado === "suplementacao" ? "Suplementação" : (ultimoRegistro.local_destino || "-")}</div></div>
                 </div>
               </div>
               {ultimoRegistro.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {ultimoRegistro.observacoes}</div>}
