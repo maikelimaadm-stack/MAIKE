@@ -74,6 +74,7 @@ const DEFAULT_MENU = [
         { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
         { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
         { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
+        { id: "pec-mov-lotes", title: "Movimentações de Lotes", url: "MovimentacoesLote" },
         { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
 
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
