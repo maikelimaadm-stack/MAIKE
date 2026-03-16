@@ -543,74 +543,66 @@ export default function DetalhesLote({ lotes, onClose }) {
   return (
     <>
     <div className="space-y-4" translate="no">
-      <div className="text-sm font-bold text-slate-900 pb-2 border-b">
-        {tituloLotes}
-      </div>
-
-      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
+      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
       <div className="space-y-3 mb-4">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
-          const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
-          const pesoMedio = lotesCategoria[0]?.peso_medio_kg || 0;
-
           const configIcone = iconesConfig.find(ic => 
             ic.tipo_entidade === 'Lote' && 
             ic.categoria?.toUpperCase() === categoria?.toUpperCase()
           );
           const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
-          return (
-            <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm">
-              <div className="space-y-1.5">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-bold text-slate-900 mb-1">{categoria}</div>
-                    <div className="text-lg font-bold text-slate-900 mb-1.5">{totalCabecasCategoria} cab</div>
-                    <div className="space-y-1 text-[10px]">
-                      <div className="flex gap-2">
-                        <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
-                        <span className="font-semibold text-slate-900 break-words">{lotesCategoria.map(l => l.nome).join(', ')}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="font-medium text-slate-600">Peso:</span>
-                        <span className="font-semibold text-slate-900">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
-                      </div>
-                    </div>
-                  </div>
+          return lotesCategoria.map(lote => {
+            const cab = lote.quantidade_cabecas || 0;
+            const peso = lote.peso_medio_kg || 0;
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const entrada = lote.data_entrada ? new Date(lote.data_entrada) : null;
+            let diasPastejo = 0;
+            if (entrada) { entrada.setHours(0,0,0,0); diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000)); }
+
+            return (
+              <div key={lote.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
+                    Lote: {lote.nome}
+                  </Badge>
                   {iconeUrl && (
-                    <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
+                    <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                   )}
                 </div>
-
+                <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Qtd. Cabeças</div>
+                    <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Peso Médio</div>
+                    <div className="font-semibold text-slate-900">{peso > 0 ? `${peso.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg` : '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Dias de pastejo</div>
+                    <div className="font-semibold text-slate-900">{diasPastejo.toLocaleString('pt-BR')} dia(s)</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Sistema reprodutivo</div>
+                    <div className="font-semibold text-slate-900">{lote.sistema_produtivo || '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Sexo</div>
+                    <div className="font-semibold text-slate-900">{lote.sexo || '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Entrada na área</div>
+                    <div className="font-semibold text-slate-900">{lote.data_entrada ? new Date(lote.data_entrada).toLocaleDateString('pt-BR') : '-'}</div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500">Categoria: <span className="font-semibold text-slate-700">{categoria}</span></div>
               </div>
-            </div>
-          );
+            );
+          });
         })}
-      </div>
-
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-2">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-          <div>
-            <div className="text-slate-600 mb-0.5">Total de cabeças</div>
-            <div className="text-sm font-bold text-slate-900">{totalCabecas}</div>
-          </div>
-          <div>
-            <div className="text-slate-600 mb-0.5">Última mov.</div>
-            <div className="text-[11px] font-semibold text-slate-900">
-              {lotes[0]?.data_entrada ? new Date(lotes[0].data_entrada).toLocaleDateString() : '-'}
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-600 mb-0.5">Área atual</div>
-            <div className="text-[11px] font-semibold text-slate-900 truncate">{areaAtual?.nome || '-'}</div>
-          </div>
-          <div>
-            <div className="text-slate-600 mb-0.5">Sistema</div>
-            <div className="text-[11px] font-semibold text-slate-900">{lotes[0]?.sistema_produtivo || '-'}</div>
-          </div>
-        </div>
       </div>
 
       <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
