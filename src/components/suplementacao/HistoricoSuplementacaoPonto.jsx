@@ -63,11 +63,10 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
 
               return (
                 <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
-                  {/* Header com badges e botões */}
+                  {/* Header com data e botão */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1">
                       <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{evento.data_lancamento?.includes("T") ? evento.data_lancamento.split("T")[0].split("-").reverse().join("/") : new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
-                      {index === 0 && <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">Último</Badge>}
                       <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                         {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
                       </Badge>
@@ -87,7 +86,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   <CardMetricaEvento evento={evento} showProjecao={true} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
-                  {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser editado ou excluído.</div>}
+                  {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser excluído.</div>}
                 </div>
               );
             })}
