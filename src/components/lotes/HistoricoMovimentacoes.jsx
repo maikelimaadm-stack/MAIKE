@@ -126,7 +126,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
             // Outros tipos editáveis podem ser excluídos se não forem pesagem vinculada
             (TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) ||
             // Junção de lotes pode ser desfeita
-            mov.motivo === 'Junção de Lotes'
+            mov.motivo === 'Junção de Lotes' ||
+            // Renomear lote pode ser desfeito
+            mov.motivo === 'Renomear Lote'
           ),
           // Flag para indicar que tem pesagens filhas (usada no hasLaterRelatedRecord)
           hasPesagensFilhas: mov.tipo === 'Transferência de Área',
