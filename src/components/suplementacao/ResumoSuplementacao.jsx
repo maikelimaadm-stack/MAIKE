@@ -162,18 +162,26 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
               <div className="text-slate-500">Total fornecido</div>
               <div className="font-semibold text-slate-900">{formatKg(metricas.totalFornecidoKg)}</div>
             </div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Total sacos</div>
+              <div className="font-semibold text-slate-900">{fmtSacos(metricas.totalSacos)}</div>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Sobra</div>
+              <div className="font-semibold text-slate-900">{formatKg(metricas.totalSobraKg)}</div>
+            </div>
           </div>
         </div>
       )}
 
       {/* DADOS DO LOTE */}
-      {metricas.totalCabecas > 0 && (
+      {metricas.mediaCabecas > 0 && (
         <div>
           <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
             <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
               <div className="text-slate-500">Qtd. Cabeças (média)</div>
-              <div className="font-semibold text-slate-900">{Math.round(metricas.totalCabecas / (resumo.periodosValidos || 1)).toLocaleString("pt-BR")}</div>
+              <div className="font-semibold text-slate-900">{metricas.mediaCabecas.toLocaleString("pt-BR")}</div>
             </div>
             <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
               <div className="text-slate-500">Peso médio</div>
