@@ -153,6 +153,7 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
                 </TableHead>
                 <TableHead className="text-xs border-r border-slate-200 text-right">Peso Médio</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Área Atual</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Motivo</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Status</TableHead>
                 <TableHead className="text-xs border-r border-slate-200 text-right">Valor Total</TableHead>
               </TableRow>
@@ -161,7 +162,7 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
               <AnimatePresence>
                 {lotesSorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12 text-slate-400 text-xs">
+                    <TableCell colSpan={11} className="text-center py-12 text-slate-400 text-xs">
                       Nenhum lote encontrado
                     </TableCell>
                   </TableRow>
@@ -214,6 +215,9 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
                         ) : (
                           <span className="text-slate-400">-</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-xs border-r border-slate-200">
+                        {lote.motivo_entrada || lote.origem || '-'}
                       </TableCell>
                       <TableCell className="border-r border-slate-200">
                         <Badge className="text-[10px] bg-slate-100 text-slate-700">{lote.status}</Badge>
