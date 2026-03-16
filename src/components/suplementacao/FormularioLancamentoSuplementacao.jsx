@@ -443,7 +443,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     <>
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="bg-slate-50 border-b py-2"><CardTitle className="text-sm font-semibold text-slate-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
-        <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden">
           <div className="space-y-2">
             {/* Resumo do ponto */}
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
