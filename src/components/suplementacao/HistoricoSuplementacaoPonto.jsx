@@ -101,14 +101,14 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                           {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
                         </Badge>
-                        {evento.tipo_consumo &&
-                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
-                            {evento.tipo_consumo === "CONSUMO_DIARIO" ? "Diário" : "Livre"}
-                          </Badge>
-                        }
+                        
+
+
+
+
                         {periodoFechado && consumoEsperadoCabDia > 0 &&
-                          <DesvioTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
-                        }
+                      <DesvioTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
+                      }
                       </div>
                       <div className="flex gap-1 shrink-0">
                         <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0} onClick={() => {setEditEvento(evento);setShowEdit(true);}}>Editar</Button>
