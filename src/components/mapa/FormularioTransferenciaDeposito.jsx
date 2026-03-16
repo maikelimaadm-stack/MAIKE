@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -164,24 +164,6 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo de Transferência</Label>
-              <Select value={direction} onValueChange={(value) => {
-                setDirection(value);
-                setLocalRelacionadoId("");
-                setProdutoId("");
-                setQuantidade("");
-              }}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrada" className="text-xs">Entrada no depósito</SelectItem>
-                  <SelectItem value="saida" className="text-xs">Saída do depósito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="space-y-1">
               <Label className="text-xs">{direction === "entrada" ? "Local de Origem" : "Local de Destino"}</Label>
               <Select value={localRelacionadoId} onValueChange={(value) => {
