@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
+import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 
 export default function DetalhesLote({ lotes, onClose }) {
@@ -96,6 +97,16 @@ export default function DetalhesLote({ lotes, onClose }) {
   });
 
   const areaAtual = areas.find(a => a.id === lotes[0]?.area_atual_id);
+
+  // Buscar todos os lotes ativos na mesma área (para métricas da área)
+  const { data: todosLotesNaArea = [] } = useQuery({
+    queryKey: ['lotes-na-area', empresaSelecionadaId, lotes[0]?.area_atual_id],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
+    },
+    enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id,
+  });
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
@@ -576,6 +587,8 @@ export default function DetalhesLote({ lotes, onClose }) {
           );
         })}
       </div>
+
+      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
 
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-2">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
