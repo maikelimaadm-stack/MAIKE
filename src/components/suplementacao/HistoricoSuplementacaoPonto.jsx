@@ -74,10 +74,10 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
   return (
     <div className="space-y-3">
       <Card className="border-slate-200 shadow-sm">
-        
-
-
-        <CardContent className="">
+        <CardHeader className="bg-slate-50 border-b py-3 px-3">
+          <CardTitle className="text-sm font-semibold">Histórico do Cocho ({eventos.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-2">
           {eventos.length === 0 ?
           <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div> :
 
@@ -142,20 +142,62 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
       </Card>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">Editar Lançamento</DialogTitle></DialogHeader>
           {editEvento &&
-          <div className="space-y-2">
-              <label className="text-xs text-slate-600">Data</label>
-              <Input type="date" className="h-8 text-xs" value={editEvento.data_lancamento || ""} onChange={(e) => setEditEvento({ ...editEvento, data_lancamento: e.target.value })} />
-              <label className="text-xs text-slate-600">Sobra (kg)</label>
-              <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.sobra_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, sobra_kg: parseFloat(e.target.value || 0) })} />
-              <label className="text-xs text-slate-600">Observações</label>
-              <Textarea rows={3} className="text-xs" value={editEvento.observacoes || ""} onChange={(e) => setEditEvento({ ...editEvento, observacoes: e.target.value })} />
+          <div className="space-y-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-600">Data</label>
+                  <Input type="date" className="h-8 text-xs" value={editEvento.data_lancamento || ""} onChange={(e) => setEditEvento({ ...editEvento, data_lancamento: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Produto</label>
+                  <Input className="h-8 text-xs" value={editEvento.produto || ""} onChange={(e) => setEditEvento({ ...editEvento, produto: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Quantidade (kg)</label>
+                  <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.quantidade_total_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, quantidade_total_kg: parseFloat(e.target.value || 0) })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Sobra (kg)</label>
+                  <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.sobra_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, sobra_kg: parseFloat(e.target.value || 0) })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Cabeças</label>
+                  <Input type="number" className="h-8 text-xs" value={editEvento.total_cabecas_afetadas || 0} onChange={(e) => setEditEvento({ ...editEvento, total_cabecas_afetadas: parseInt(e.target.value || 0) })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Peso médio (kg)</label>
+                  <Input type="number" step="0.01" className="h-8 text-xs" value={editEvento.peso_medio_lotes_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, peso_medio_lotes_kg: parseFloat(e.target.value || 0) })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Consumo esperado PV/dia (kg)</label>
+                  <Input type="number" step="0.001" className="h-8 text-xs" value={editEvento.consumo_esperado_pv_kg || 0} onChange={(e) => setEditEvento({ ...editEvento, consumo_esperado_pv_kg: parseFloat(e.target.value || 0) })} />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600">Dias período (fechamento)</label>
+                  <Input type="number" className="h-8 text-xs" value={editEvento.dias_periodo || ""} onChange={(e) => setEditEvento({ ...editEvento, dias_periodo: e.target.value ? parseInt(e.target.value) : null })} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-600">Observações</label>
+                <Textarea rows={3} className="text-xs" value={editEvento.observacoes || ""} onChange={(e) => setEditEvento({ ...editEvento, observacoes: e.target.value })} />
+              </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                await updateMutation.mutateAsync({ id: editEvento.id, data: { data_lancamento: editEvento.data_lancamento, sobra_kg: editEvento.sobra_kg, observacoes: editEvento.observacoes } });
+                await updateMutation.mutateAsync({ id: editEvento.id, data: {
+                  data_lancamento: editEvento.data_lancamento,
+                  produto: editEvento.produto,
+                  quantidade_total_kg: editEvento.quantidade_total_kg,
+                  sobra_kg: editEvento.sobra_kg,
+                  total_cabecas_afetadas: editEvento.total_cabecas_afetadas,
+                  peso_medio_lotes_kg: editEvento.peso_medio_lotes_kg,
+                  consumo_esperado_pv_kg: editEvento.consumo_esperado_pv_kg,
+                  dias_periodo: editEvento.dias_periodo,
+                  observacoes: editEvento.observacoes
+                }});
                 setShowEdit(false);
               }}>Salvar</Button>
               </div>
