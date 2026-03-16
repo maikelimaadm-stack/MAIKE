@@ -20,7 +20,7 @@ import { formatQuantidadeTecnica } from "../suplementacao/formatters";
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
-  const [direction, setDirection] = useState(initialDirection);
+  const direction = initialDirection;
   const [localRelacionadoId, setLocalRelacionadoId] = useState("");
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");

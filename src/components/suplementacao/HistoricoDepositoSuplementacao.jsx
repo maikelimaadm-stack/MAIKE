@@ -1,20 +1,16 @@
-import React, { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { excluirTransferenciaDeposito } from "./historicoSuplementacaoUtils";
-import { formatDecimal } from "./formatters";
+import { formatDecimal, formatKg, formatDateBR } from "./formatters";
 
 export default function HistoricoDepositoSuplementacao({ deposito }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
-  const [editMov, setEditMov] = useState(null);
-  const [showEdit, setShowEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   const { data: movimentacoes = [], isLoading } = useQuery({
@@ -30,20 +26,6 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
   });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.MovimentacaoEstoque.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["historico-deposito", "saldo-deposito", "movimentacoes-deposito-detalhe"].includes(query.queryKey[0]) });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
-      toast.success("Lançamento atualizado.");
-    },
-  });
-
-  const resumo = useMemo(() => {
-    const ultimaData = movimentacoes[0] ? new Date(movimentacoes[0].data_movimentacao).toLocaleString("pt-BR") : "-";
-    return { total: movimentacoes.length, ultimaData };
-  }, [movimentacoes]);
 
   const handleDelete = async (movimentacao, index) => {
     if (index !== 0) {
@@ -67,107 +49,65 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     }
   };
 
+  if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <InfoCard label="Registros" value={String(resumo.total)} />
-        <InfoCard label="Último registro" value={resumo.ultimaData} />
-        <InfoCard label="Local" value={deposito.local_estoque_nome || "-"} />
-        <InfoCard label="Depósito" value={deposito.nome_ponto} />
-      </div>
-
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50 border-b py-3">
+        <CardHeader className="bg-slate-50 border-b py-3 px-3">
           <CardTitle className="text-sm font-semibold">Histórico do Depósito ({movimentacoes.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-2">
-          {isLoading ? (
-            <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>
-          ) : movimentacoes.length === 0 ? (
-            <div className="text-center py-8 text-xs text-slate-500">Nenhum registro encontrado.</div>
-          ) : (
-            <div className="max-h-[60vh] overflow-y-auto space-y-1">
-              {movimentacoes.map((movimentacao, index) => {
-                const bloqueado = index !== 0;
-                const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.motivo_movimentacao === "Baixa automática de suplementação" || movimentacao.exclusao_somente_em === "cocho";
-                const ehMovimentoDeposito = movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
-                const permiteExcluir = ehMovimentoDeposito;
-                const permiteEditar = ehMovimentoDeposito;
+          {movimentacoes.length === 0 ?
+          <div className="text-center py-8 text-xs text-slate-500">Nenhum registro encontrado.</div> :
+          <div className="max-h-[60vh] overflow-y-auto space-y-1">
+            {movimentacoes.map((movimentacao, index) => {
+              const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.motivo_movimentacao === "Baixa automática de suplementação" || movimentacao.exclusao_somente_em === "cocho";
+              const ehMovimentoDeposito = movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
+              const permiteExcluir = ehMovimentoDeposito;
 
-                return (
-                  <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 space-y-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] font-medium text-slate-500">{new Date(movimentacao.data_movimentacao).toLocaleDateString("pt-BR")}</span>
-                          {index === 0 && <Badge variant="outline" className="text-[10px]">Último</Badge>}
-                          <Badge variant="outline" className="rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_movimentacao}</Badge>
-                          <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_detalhado}</Badge>
-                        </div>
-                        <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 text-[10px]">
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Quantidade</div>
-                            <div className="font-bold text-slate-900">{formatDecimal(movimentacao.quantidade)} {movimentacao.unidade_medida || "KG"}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Data</div>
-                            <div className="font-bold text-slate-900">{new Date(movimentacao.data_movimentacao).toLocaleString("pt-BR")}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Origem</div>
-                            <div className="font-bold text-slate-900">{movimentacao.local_origem || "-"}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Destino</div>
-                            <div className="font-bold text-slate-900">{movimentacao.local_destino || "-"}</div>
-                          </div>
-                        </div>
-                        {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {movimentacao.observacoes}</div>}
-                        {bloqueado && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser editado ou excluído.</div>}
-                        {ehNutricao && <div className="text-[10px] text-slate-500 font-medium">Lançamentos de nutrição só podem ser editados ou excluídos no histórico do cocho.</div>}
-                        {!ehNutricao && !permiteExcluir && !bloqueado && <div className="text-[10px] text-slate-500 font-medium">Este lançamento não pode ser excluído por aqui.</div>}
-                      </div>
-                      <div className="flex gap-1 shrink-0 flex-col">
-                        <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" disabled={bloqueado || !permiteEditar} onClick={() => { setEditMov(movimentacao); setShowEdit(true); }}>Editar</Button>
-                        <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={bloqueado || deletingId === movimentacao.id || !permiteExcluir} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
-                      </div>
+              // Extrair data corretamente (usar apenas a parte da data, sem timezone)
+              const dataRaw = movimentacao.data_movimentacao || "";
+              const dataDisplay = dataRaw.includes("T")
+                ? dataRaw.split("T")[0].split("-").reverse().join("/")
+                : new Date(dataRaw).toLocaleDateString("pt-BR");
+
+              return (
+                <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
+                  {/* Header com badges e botões */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{dataDisplay}</span>
+                      {index === 0 && <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">Último</Badge>}
+                      <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_movimentacao}</Badge>
+                      <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{movimentacao.tipo_detalhado}</Badge>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === movimentacao.id || !permiteExcluir} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+
+                  {/* Produto */}
+                  <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
+
+                  {/* Métricas - grid padrão sm:2 md:4 (igual ao cocho) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade: <span className="font-semibold text-slate-900">{formatKg(movimentacao.quantidade || 0)}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{dataDisplay}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{movimentacao.local_origem || "-"}</span></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{movimentacao.local_destino || "-"}</span></div>
+                  </div>
+
+                  {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {movimentacao.observacoes}</div>}
+                  {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser editado ou excluído.</div>}
+                  {ehNutricao && <div className="text-[10px] text-slate-500 font-medium">Lançamentos de nutrição só podem ser excluídos no histórico do cocho.</div>}
+                </div>
+              );
+            })}
+          </div>
+          }
         </CardContent>
       </Card>
-
-      <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle className="text-sm">Editar Lançamento</DialogTitle></DialogHeader>
-          {editMov && (
-            <div className="space-y-2">
-              <label className="text-xs text-slate-600">Observações</label>
-              <Textarea rows={4} className="text-xs" value={editMov.observacoes || ""} onChange={(e) => setEditMov({ ...editMov, observacoes: e.target.value })} />
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>Cancelar</Button>
-                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                  await updateMutation.mutateAsync({ id: editMov.id, data: { observacoes: editMov.observacoes } });
-                  setShowEdit(false);
-                }}>Salvar</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function InfoCard({ label, value }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="text-sm font-bold text-slate-900">{value}</div>
     </div>
   );
 }
