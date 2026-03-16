@@ -42,9 +42,15 @@ export function getCochoIndicator(ponto, eventos = []) {
   const sobra = Number(ultimoEvento.sobra_kg || 0);
   const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
   const totalDisponivel = fornecido + sobra;
-  // Usar apenas consumo_esperado_pv_kg (calculado por %PV), nunca consumo_diario_grupo_kg
-  // pois este último guarda o consumo total do período fechado, não o consumo diário esperado
-  const consumoBase = Number(ultimoEvento.consumo_esperado_pv_kg || 0);
+  // Cascata de fontes de consumo diário:
+  // 1) consumo_esperado_pv_kg (calculado por %PV no momento do lançamento)
+  // 2) totalDisponivel / frequencia_esperada_dias (fallback pela frequência do ponto)
+  // NUNCA usar consumo_diario_grupo_kg pois é consumo do período fechado, não diário
+  const freq = Number(ponto.frequencia_esperada_dias || 0);
+  let consumoBase = Number(ultimoEvento.consumo_esperado_pv_kg || 0);
+  if (consumoBase <= 0 && freq > 0 && totalDisponivel > 0) {
+    consumoBase = totalDisponivel / freq;
+  }
 
   let saldoEstimado;
   if (ultimoEvento.dias_periodo != null) {

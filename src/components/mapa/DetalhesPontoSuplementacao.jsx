@@ -127,10 +127,20 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const percentualProduto = Number(ultimoProduto?.percentual_consumo_pv || sugerirPercentualPV(ultimoEvento?.produto || "")?.percentual_consumo_pv || 0);
   const consumoEsperadoDiaKg = useMemo(() => {
     if (!ultimoEvento) return 0;
+    // 1) %PV calculado dos lotes atuais
     const consumoPorPeso = consumoEsperadoGrupoDia(pesoMedioRelacionados, percentualProduto, totalCabecasRelacionadas);
     if (consumoPorPeso > 0) return consumoPorPeso;
-    return Number(ultimoEvento.consumo_diario_grupo_kg || 0);
-  }, [ultimoEvento, pesoMedioRelacionados, percentualProduto, totalCabecasRelacionadas]);
+    // 2) consumo_esperado_pv_kg salvo no evento (calculado no momento do lançamento)
+    if (Number(ultimoEvento.consumo_esperado_pv_kg || 0) > 0) return Number(ultimoEvento.consumo_esperado_pv_kg);
+    // 3) consumo ideal por cabeça cadastrado no ponto × cabeças
+    const consumoIdealPonto = Number(ponto?.consumo_ideal_por_cabeca_kg || 0) * totalCabecasRelacionadas;
+    if (consumoIdealPonto > 0) return consumoIdealPonto;
+    // 4) Último recurso: totalDisponivel / frequência esperada do ponto
+    const freq = Number(ponto?.frequencia_esperada_dias || 0);
+    const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
+    if (freq > 0 && totalDisp > 0) return totalDisp / freq;
+    return 0;
+  }, [ultimoEvento, pesoMedioRelacionados, percentualProduto, totalCabecasRelacionadas, ponto]);
   const resumoProdutos = useMemo(() => {
     const mapa = new Map();
     eventos.forEach((evento) => {
