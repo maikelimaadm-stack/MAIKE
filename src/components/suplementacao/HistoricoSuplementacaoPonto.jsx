@@ -123,31 +123,15 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
                         {/* Métricas técnicas */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1 text-[10px]">
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Fornecido</div>
-                            <div className="font-bold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Sobra</div>
-                            <div className="font-bold text-slate-900">{formatKg(evento.sobra_kg || 0)}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Cabeças</div>
-                            <div className="font-bold text-slate-900">{formatDecimal(cabecas, 0, true)}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Realizado</div>
-                            <div className="font-bold text-slate-900">{periodoFechado && consumoCabDia > 0 ? `${consumoCabDia.toFixed(3)} kg/cab` : '-'}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Esperado</div>
-                            <div className="font-bold text-slate-900">{consumoEsperadoCabDia > 0 ? `${consumoEsperadoCabDia.toFixed(3)} kg/cab` : '-'}</div>
-                          </div>
-                          <div className="rounded border border-slate-200 bg-slate-50 px-1.5 py-1">
-                            <div className="text-slate-500">Peso médio</div>
-                            <div className="font-bold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</div>
-                          </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 text-[10px]">
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fornecido: <span className="font-semibold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(evento.sobra_kg || 0)}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecas, 0, true)}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : '-'}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Esperado cab/dia: <span className="font-semibold text-slate-900">{consumoEsperadoCabDia > 0 ? `${consumoEsperadoCabDia.toFixed(3)} kg` : '-'}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Realizado cab/dia: <span className="font-semibold text-slate-900">{periodoFechado && consumoCabDia > 0 ? `${consumoCabDia.toFixed(3)} kg` : '-'}</span></div>
+                          <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}</span></div>
                         </div>
 
                         {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}

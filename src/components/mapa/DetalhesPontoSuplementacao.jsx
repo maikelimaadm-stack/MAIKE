@@ -290,22 +290,35 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </CardSection>
 
       <CardSection title="Último Registro">
-        {ultimoEvento ?
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+        {ultimoEvento ? (() => {
+          const cabecasEvt = ultimoEvento.total_cabecas_afetadas || 0;
+          const consumoEspPV = Number(ultimoEvento.consumo_esperado_pv_kg || 0);
+          const consumoEspCabDia = consumoEspPV > 0 && cabecasEvt > 0 ? consumoEspPV / cabecasEvt : 0;
+          return (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
             <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1">
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{formatDateBR(ultimoEvento.data_lancamento)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoEventoSacos != null ? formatDecimal(ultimoEventoSacos, 2) : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecasEvt, 0, true)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso consumo: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.peso_total_consumo || 0)}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{ultimoEvento.peso_medio_lotes_kg ? `${formatDecimal(ultimoEvento.peso_medio_lotes_kg, 0)} kg` : '-'}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoDiaKg > 0 ? `${formatKg(consumoEsperadoDiaKg)}` : '-'}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo cab/dia: <span className="font-semibold text-slate-900">{consumoEspCabDia > 0 ? `${consumoEspCabDia.toFixed(3)} kg` : '-'}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Novo fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? new Date(new Date(ultimoEvento.data_lancamento).getTime() + ultimoEvento.dias_periodo * 86400000).toLocaleDateString("pt-BR") : "-"}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Dias desde lanç.: <span className="font-semibold text-slate-900">{diasSemLancamento != null ? `${formatDecimal(diasSemLancamento, 0, true)} dia(s)` : '-'}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Próx. reposição: <span className="font-semibold text-slate-900">{(() => {
+                const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
+                const duracaoTotal = consumoEsperadoDiaKg > 0 ? Math.round(totalDisp / consumoEsperadoDiaKg) : 0;
+                if (duracaoTotal <= 0) return '-';
+                const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
+                return dataBase ? new Date(dataBase.getTime() + duracaoTotal * 86400000).toLocaleDateString("pt-BR") : '-';
+              })()}</span></div>
             </div>
             {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
-          </div> :
-
+          </div>);
+        })() :
         <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
         }
       </CardSection>
