@@ -16,6 +16,21 @@ import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { consumoEsperadoGrupoDia, pesoMedioPonderadoLotes } from "../suplementacao/consumoPVUtils";
 import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [ano, mes, dia] = value.split("-").map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDateBR = (value) => {
+  const data = parseDateLocal(value);
+  return data ? data.toLocaleDateString("pt-BR") : "-";
+};
+
 export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
@@ -77,7 +92,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const iconeExibicao = subIconePonto;
   const ultimoEvento = indicador.latestRecord;
-  const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
+  const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - parseDateLocal(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
   const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0
     ? ponto.area_vinculada_ids
@@ -211,7 +226,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
             <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1">
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}</span></div>
+              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{formatDateBR(ultimoEvento.data_lancamento)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoEventoSacos != null ? formatDecimal(ultimoEventoSacos, 2) : '-'}</span></div>
               <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</span></div>

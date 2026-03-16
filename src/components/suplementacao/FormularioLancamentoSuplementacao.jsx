@@ -21,11 +21,31 @@ import { consumoEsperadoPorCabecaDia, consumoEsperadoGrupoDia, pesoMedioPonderad
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const getTodayLocalYMD = () => {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+    const dia = String(hoje.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  };
+  const parseDateLocal = (value) => {
+    if (!value) return null;
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [ano, mes, dia] = value.split("-").map(Number);
+      return new Date(ano, mes - 1, dia);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const formatDateBR = (value) => {
+    const data = parseDateLocal(value);
+    return data ? data.toLocaleDateString("pt-BR") : "-";
+  };
   const queryClient = useQueryClient();
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
   const [mostrarConsumoLote, setMostrarConsumoLote] = useState(false);
   const [formData, setFormData] = useState({
-    data_lancamento: new Date().toISOString().split("T")[0],
+    data_lancamento: getTodayLocalYMD(),
     produto: ponto?.produto_padrao || "",
     quantidade_total_kg: "",
     sobra_kg: "0",
@@ -178,9 +198,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const consumoEstimadoGramas = consumoEstimadoCabDia * 1000;
   const duracaoDiasNovoPeriodo = consumoReferenciaGrupoDia > 0 ? safeDivide(totalDisponivelNovo, consumoReferenciaGrupoDia) : 0;
   const duracaoDiasInteira = Math.max(0, Math.round(duracaoDiasNovoPeriodo || 0));
-  const dataEstimadaProxima = duracaoDiasInteira > 0
-    ? new Date(new Date(formData.data_lancamento).getTime() + duracaoDiasInteira * 86400000)
-    : null;
+  const dataEstimadaProxima = (() => {
+    const dataBase = parseDateLocal(formData.data_lancamento);
+    if (!dataBase || duracaoDiasInteira <= 0) return null;
+    return new Date(dataBase.getTime() + duracaoDiasInteira * 86400000);
+  })();
 
   const statusDuracao = (() => {
     if (duracaoDiasInteira <= 0) return { status: "sem_dados", label: "Sem referência", message: "Não foi possível calcular a duração estimada." };
@@ -435,7 +457,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 {pesoMedioGeral > 0 && <Badge variant="outline" className="text-xs">Peso médio: {formatDecimal(pesoMedioGeral, 1)} kg</Badge>}
                 {tipoConsumo && <Badge variant="outline" className="text-xs">{tipoConsumo === "CONSUMO_DIARIO" ? "Consumo Diário" : "Consumo Livre"}</Badge>}
               </div>
-              {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-slate-600">Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
+              {ultimoEvento && diasPeriodo && <div className="pt-2 border-t border-slate-200 text-xs text-slate-600">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
             {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
@@ -531,9 +553,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
               const diasAnterior = ultimoEvento.dias_periodo || diasPeriodo || 0;
               const totalDisponivelAnterior = ultimoEvento.dias_periodo != null ? fornecidoAnterior : fornecidoAnterior + sobraAnterior;
-              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(Math.max(0, totalDisponivelAnterior - sobraAnterior), diasAnterior);
+              const sobraFechamento = ultimoEvento.dias_periodo != null ? sobraAnterior : sobraInformada;
+              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(Math.max(0, totalDisponivelAnterior - sobraFechamento), diasAnterior);
               const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
-              const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraAnterior);
+              const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraFechamento);
               return (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
                   <div className="text-xs font-semibold text-slate-900">Consumo do fechamento / estimativa</div>

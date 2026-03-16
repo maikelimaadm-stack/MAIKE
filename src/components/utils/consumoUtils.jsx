@@ -16,9 +16,19 @@ import { safeDivide } from "./pecuariaUtils";
  */
 export function calcularDiasPeriodo(dataInicio, dataFim) {
   if (!dataInicio || !dataFim) return 0;
-  const inicio = new Date(dataInicio);
-  const fim = new Date(dataFim);
-  if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) return 0;
+  const parseDateLocal = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [ano, mes, dia] = value.split("-").map(Number);
+      return new Date(ano, mes - 1, dia);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const inicio = parseDateLocal(dataInicio);
+  const fim = parseDateLocal(dataFim);
+  if (!inicio || !fim) return 0;
   return Math.max(1, Math.ceil((fim - inicio) / 86400000));
 }
 
