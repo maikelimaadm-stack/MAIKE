@@ -16,6 +16,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'nome', label: 'Nome', default: true },
   { id: 'sigla', label: 'Sigla', default: true },
   { id: 'sexo', label: 'Sexo', default: true },
+  { id: 'raca', label: 'Raça', default: true },
   { id: 'idade', label: 'Faixa Idade', default: true },
   { id: 'especie', label: 'Espécie', default: false },
   { id: 'categoria_oficial', label: 'Categoria Oficial', default: true },
@@ -121,6 +122,8 @@ export default function TabelaCategoriasManejo({ categorias, onEdit, onDelete, i
             ) : '-'}
           </TableCell>
         );
+      case 'raca':
+        return <TableCell className="text-xs font-medium border-r">{cat.raca || '-'}</TableCell>;
       case 'idade':
         return (
           <TableCell className="text-xs border-r">
