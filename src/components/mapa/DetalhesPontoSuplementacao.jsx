@@ -31,6 +31,15 @@ const formatDateBR = (value) => {
   return data ? data.toLocaleDateString("pt-BR") : "-";
 };
 
+const startOfLocalDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const diffLocalDays = (start, end = new Date()) => {
+  const inicio = parseDateLocal(start);
+  if (!inicio) return 0;
+  const inicioDia = startOfLocalDay(inicio);
+  const fimDia = startOfLocalDay(end);
+  return Math.max(0, Math.floor((fimDia - inicioDia) / 86400000));
+};
+
 export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
@@ -92,7 +101,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const iconeExibicao = subIconePonto;
   const ultimoEvento = indicador.latestRecord;
-  const diasSemLancamento = ultimoEvento ? Math.floor((new Date() - parseDateLocal(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)) : null;
+  const diasSemLancamento = ultimoEvento ? diffLocalDays(ultimoEvento.data_lancamento) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
   const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0
     ? ponto.area_vinculada_ids
@@ -169,8 +178,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesde);
         const minimoDias = Number(ponto.frequencia_esperada_dias_minimo || 0);
         const baseDuracaoDias = consumoBase > 0 ? Math.max(0, Math.round(saldoEstimado / consumoBase)) : 0;
-        const proximaData = baseDuracaoDias > 0
-          ? new Date(Date.now() + baseDuracaoDias * 86400000)
+        const dataBaseLancamento = parseDateLocal(ultimoEvento.data_lancamento);
+        const proximaData = dataBaseLancamento && baseDuracaoDias > 0
+          ? new Date(dataBaseLancamento.getTime() + baseDuracaoDias * 86400000)
           : null;
         const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
         const alertaGrafico = minimoDias > 0 && diasDesde >= minimoDias;

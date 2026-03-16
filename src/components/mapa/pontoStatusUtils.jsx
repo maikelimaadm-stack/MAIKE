@@ -2,6 +2,23 @@ import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { formatKg } from "../suplementacao/formatters";
 
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value || 0));
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [ano, mes, dia] = value.split("-").map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+const startOfLocalDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const diffLocalDays = (start, end = new Date()) => {
+  const inicio = parseDateLocal(start);
+  if (!inicio) return 0;
+  const inicioDia = startOfLocalDay(inicio);
+  const fimDia = startOfLocalDay(end);
+  return Math.max(0, Math.floor((fimDia - inicioDia) / 86400000));
+};
 
 export function buildProgressIconUrl(baseIconUrl) {
   return baseIconUrl;
@@ -21,7 +38,7 @@ export function getCochoIndicator(ponto, eventos = []) {
     };
   }
 
-  const diasDesdeUltimo = Math.max(0, Math.floor((Date.now() - new Date(ultimoEvento.data_lancamento).getTime()) / 86400000));
+  const diasDesdeUltimo = diffLocalDays(ultimoEvento.data_lancamento);
   const sobra = Number(ultimoEvento.sobra_kg || 0);
   const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
   const totalDisponivel = fornecido + sobra;
