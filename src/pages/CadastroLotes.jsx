@@ -14,11 +14,18 @@ export default function CadastroLotes() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
+  // Origens criadas automaticamente pelo sistema (movimentações, nascimentos, etc)
+  const ORIGENS_SISTEMA = ['MOVIMENTAÇÃO', 'REVERSÃO MOVIMENTAÇÃO', 'Nascimento', 'Mudança de Categoria'];
+
   const { data: lotes = [], isLoading } = useQuery({
-    queryKey: ['lotes', empresaSelecionadaId],
+    queryKey: ['lotes-cadastro', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+      // Mostrar apenas lotes cadastrados manualmente (não criados por movimentações do sistema)
+      return all.filter(l => 
+        l.empresa_id === empresaSelecionadaId && 
+        !ORIGENS_SISTEMA.includes(l.origem)
+      );
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
