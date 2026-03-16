@@ -112,6 +112,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
       ...formData,
       nome: formData.nome.toUpperCase(),
       area_entrada_nome: area?.nome || '',
+      area_atual_id: formData.area_entrada_id,
+      area_atual_nome: area?.nome || '',
       categoria_manejo_nome: catManejo?.nome || '',
       origem: formData.motivo_entrada?.toUpperCase() || '',
       observacoes: formData.observacoes?.toUpperCase(),
