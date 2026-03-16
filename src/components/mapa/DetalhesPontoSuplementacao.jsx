@@ -10,6 +10,7 @@ import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
 import PontoPercentIcon from "./PontoPercentIcon";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
+import CardMetricaEvento from "../suplementacao/CardMetricaEvento";
 import { getCochoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
@@ -304,35 +305,24 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
       <CardSection title="Último Registro">
         {ultimoEvento ? (() => {
-          const cabecasEvt = ultimoEvento.total_cabecas_afetadas || 0;
-          const consumoEspPV = Number(ultimoEvento.consumo_esperado_pv_kg || 0);
-          const consumoEspCabDia = consumoEspPV > 0 && cabecasEvt > 0 ? consumoEspPV / cabecasEvt : 0;
+          const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
+          const durEst = consumoEsperadoDiaKg > 0 ? Math.round(totalDisp / consumoEsperadoDiaKg) : 0;
+          const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
+          const proxReposicao = durEst > 0 && dataBase ? new Date(dataBase.getTime() + durEst * 86400000).toLocaleDateString("pt-BR") : null;
           return (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-            <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1">
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Data: <span className="font-semibold text-slate-900">{formatDateBR(ultimoEvento.data_lancamento)}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade kg: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.quantidade_total_kg || 0)}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Quantidade sacos: <span className="font-semibold text-slate-900">{ultimoEventoSacos != null ? formatDecimal(ultimoEventoSacos, 2) : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Qtd. Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecasEvt, 0, true)}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(ultimoEvento.sobra_kg || 0)}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{ultimoEvento.peso_medio_lotes_kg ? `${formatDecimal(ultimoEvento.peso_medio_lotes_kg, 0)} kg` : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo Lote PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoDiaKg > 0 ? `${formatKg(consumoEsperadoDiaKg)}` : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Esperado/cab/dia: <span className="font-semibold text-slate-900">{consumoEspCabDia > 0 ? consumoEspCabDia.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : '-'}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{ultimoEvento.dias_periodo ? `${formatDecimal(ultimoEvento.dias_periodo, 0, true)} dia(s)` : "Em aberto"}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Duração estimada: <span className="font-semibold text-slate-900">{(() => {
-                const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
-                const dur = consumoEsperadoDiaKg > 0 ? Math.round(totalDisp / consumoEsperadoDiaKg) : 0;
-                return dur > 0 ? `${dur} dia(s)` : '-';
-              })()}</span></div>
-              <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Próx. reposição: <span className="font-semibold text-slate-900">{(() => {
-                const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
-                const duracaoTotal = consumoEsperadoDiaKg > 0 ? Math.round(totalDisp / consumoEsperadoDiaKg) : 0;
-                if (duracaoTotal <= 0) return '-';
-                const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
-                return dataBase ? new Date(dataBase.getTime() + duracaoTotal * 86400000).toLocaleDateString("pt-BR") : '-';
-              })()}</span></div>
+            <div className="flex items-center justify-between">
+              <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
+              <span className="text-[10px] text-slate-500">{formatDateBR(ultimoEvento.data_lancamento)}</span>
             </div>
+            <CardMetricaEvento
+              evento={ultimoEvento}
+              consumoEsperadoDiaKg={consumoEsperadoDiaKg}
+              sacos={ultimoEventoSacos}
+              showProjecao={true}
+              duracaoEstimada={durEst}
+              proximaReposicao={proxReposicao}
+            />
             {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
           </div>);
         })() :
