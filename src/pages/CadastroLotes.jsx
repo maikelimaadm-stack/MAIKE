@@ -121,7 +121,7 @@ export default function CadastroLotes() {
       ...lotes.map(l => [
         l.numero_lote, l.nome, l.quantidade_cabecas, l.motivo_entrada || l.origem || '',
         l.categoria, l.sexo || '', l.raca_predominante || '', l.peso_medio_kg || '', 
-        l.area_entrada_nome || l.area_atual_nome || '', l.status, l.valor_total_compra || ''
+        l.area_entrada_nome || '', l.status, l.valor_total_compra || ''
       ].join(';'))
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

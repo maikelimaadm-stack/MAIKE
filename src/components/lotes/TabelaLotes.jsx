@@ -237,10 +237,10 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete, lotesComMo
                       <TableCell className="text-xs border-r border-slate-200">{lote.categoria}</TableCell>
                       <TableCell className="text-xs text-right font-mono border-r border-slate-200">{lote.peso_medio_kg ? `${lote.peso_medio_kg} kg` : '-'}</TableCell>
                       <TableCell className="text-xs border-r border-slate-200">
-                        {(lote.area_entrada_nome || lote.area_atual_nome) ? (
+                        {lote.area_entrada_nome ? (
                           <Badge variant="outline" className="gap-1 text-[10px]">
                             <MapPin className="w-2.5 h-2.5" />
-                            {lote.area_entrada_nome || lote.area_atual_nome}
+                            {lote.area_entrada_nome}
                           </Badge>
                         ) : (
                           <span className="text-slate-400">-</span>
