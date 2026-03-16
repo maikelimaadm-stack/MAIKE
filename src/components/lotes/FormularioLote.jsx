@@ -12,7 +12,7 @@ import { base44 } from "@/api/base44Client";
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
 
-export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing, hasChildren }) {
+export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const [formData, setFormData] = useState(initialData || {
@@ -127,8 +127,6 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   };
 
   const motivo = formData.motivo_entrada;
-  // Se editando com filhos, bloquear campos críticos
-  const bloqueado = isEditing && hasChildren;
 
   const motivoIcon = {
     Compra: <ShoppingCart className="w-4 h-4 text-emerald-600" />,
@@ -143,11 +141,6 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
         <CardHeader className="bg-slate-50 border-b py-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             {isEditing ? 'Editar Lote' : 'Cadastrar Novo Lote'}
-            {bloqueado && (
-              <span className="text-xs text-amber-600 font-normal bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                Campos críticos bloqueados (possui registros vinculados)
-              </span>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -161,13 +154,12 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   <button
                     key={m}
                     type="button"
-                    disabled={bloqueado}
                     onClick={() => handleChange('motivo_entrada', m)}
-                    className={`flex items-center gap-2 p-3 border rounded-lg text-xs font-medium transition-all ${
+                    className={`flex items-center gap-2 p-3 border rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       motivo === m 
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500' 
                         : 'border-slate-200 text-slate-600 hover:border-slate-400'
-                    } ${bloqueado ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    }`}
                   >
                     {motivoIcon[m]}
                     {m}
@@ -182,15 +174,15 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Nome do Lote *</Label>
-                  <Input value={formData.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder="LOTE 01, ENGORDA A..." className="h-8 text-xs uppercase" required disabled={bloqueado} />
+                  <Input value={formData.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder="LOTE 01, ENGORDA A..." className="h-8 text-xs uppercase" required />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Quantidade de Cabeças *</Label>
-                  <Input type="number" value={formData.quantidade_cabecas} onChange={(e) => handleChange('quantidade_cabecas', e.target.value)} placeholder="50" className="h-8 text-xs" required min="1" disabled={bloqueado} />
+                  <Input type="number" value={formData.quantidade_cabecas} onChange={(e) => handleChange('quantidade_cabecas', e.target.value)} placeholder="50" className="h-8 text-xs" required min="1" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Data de Entrada *</Label>
-                  <Input type="date" value={formData.data_entrada} onChange={(e) => handleChange('data_entrada', e.target.value)} className="h-8 text-xs" required disabled={bloqueado} />
+                  <Input type="date" value={formData.data_entrada} onChange={(e) => handleChange('data_entrada', e.target.value)} className="h-8 text-xs" required />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Categoria de Manejo</Label>
