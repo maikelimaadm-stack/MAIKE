@@ -38,17 +38,21 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     enabled: eventoIdsBrutos.length > 0,
   });
 
-  // Filtrar consumos: se areaId informado, manter apenas registros de eventos vinculados a essa área
-  // Isso impede que histórico de suplementação de outra área "viaje junto" quando o lote é movido
+  // Filtrar consumos: se areaId informado, manter APENAS registros de eventos vinculados a essa área.
+  // Isso impede que histórico de suplementação de outra área "viaje junto" quando o lote é movido.
+  // IMPORTANTE: se areaId está definido mas eventos ainda não carregaram, retornar vazio (não mostrar dados sem filtro).
   const consumosLote = useMemo(() => {
-    if (!areaId || eventosSupl.length === 0) return consumosLoteBrutos;
+    if (!areaId) return consumosLoteBrutos;
+    // Se temos consumos mas os eventos ainda não carregaram, retornar vazio para não mostrar dados de outra área
+    if (consumosLoteBrutos.length > 0 && eventoIdsBrutos.length > 0 && eventosSupl.length === 0) return [];
+    if (eventosSupl.length === 0) return [];
     const eventosNaArea = new Set(
       eventosSupl
         .filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)))
         .map((e) => e.id)
     );
     return consumosLoteBrutos.filter((c) => eventosNaArea.has(c.suplementacao_evento_id));
-  }, [consumosLoteBrutos, eventosSupl, areaId]);
+  }, [consumosLoteBrutos, eventosSupl, areaId, eventoIdsBrutos]);
 
   const eventoIds = useMemo(() => [...new Set(consumosLote.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosLote]);
 
