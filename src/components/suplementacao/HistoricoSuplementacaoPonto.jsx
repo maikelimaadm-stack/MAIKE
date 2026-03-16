@@ -6,19 +6,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
-import { formatDecimal, formatKg } from "./formatters";
 import { safeDivide } from "../utils/pecuariaUtils";
-
-function DesvioTag({ real, esperado }) {
-  if (!esperado || esperado <= 0 || !real || real <= 0) return null;
-  const desvioKg = real - esperado;
-  const isPositivo = desvioKg > 0;
-  return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-semibold ${isPositivo ? "border-red-300 bg-red-50 text-red-700" : "border-emerald-300 bg-emerald-50 text-emerald-700"}`}>
-      {isPositivo ? "+" : ""}{desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
-    </span>
-  );
-}
+import CardMetricaEvento from "./CardMetricaEvento";
+import DesvioConsumoTag from "./DesvioConsumoTag";
 
 export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -70,7 +60,6 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
               const consumoCabDia = cabecas > 0 ? safeDivide(consumoDiarioGrupo, cabecas) : 0;
               const consumoEsperadoPV = evento.consumo_esperado_pv_kg || 0;
               const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
-              const pesoMedio = evento.peso_medio_lotes_kg || 0;
 
               return (
                 <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
@@ -83,7 +72,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         {periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}
                       </Badge>
                       {periodoFechado && consumoEsperadoCabDia > 0 &&
-                        <DesvioTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
+                        <DesvioConsumoTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
                       }
                     </div>
                     <div className="flex gap-1 shrink-0">
@@ -94,17 +83,8 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   {/* Produto */}
                   <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
-                  {/* Métricas - grid padrão sm:2 md:4 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fornecido: <span className="font-semibold text-slate-900">{formatKg(evento.quantidade_total_kg || 0)}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sobra: <span className="font-semibold text-slate-900">{formatKg(evento.sobra_kg || 0)}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Qtd. Cabeças: <span className="font-semibold text-slate-900">{formatDecimal(cabecas, 0, true)}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Consumo Lote PV/dia: <span className="font-semibold text-slate-900">{consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Esperado/cab/dia: <span className="font-semibold text-slate-900">{consumoEsperadoCabDia > 0 ? consumoEsperadoCabDia.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Realizado cab/dia: <span className="font-semibold text-slate-900">{periodoFechado && consumoCabDia > 0 ? `${formatDecimal(consumoCabDia, 3)} kg` : '-'}</span></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Fechamento: <span className="font-semibold text-slate-900">{periodoFechado ? `${evento.dias_periodo} dia(s)` : 'Em aberto'}</span></div>
-                  </div>
+                  {/* Métricas organizadas por seção */}
+                  <CardMetricaEvento evento={evento} showProjecao={true} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
                   {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser editado ou excluído.</div>}
