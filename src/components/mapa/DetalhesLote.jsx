@@ -70,23 +70,8 @@ export default function DetalhesLote({ lotes, onClose }) {
     },
   });
 
-  // Agrupar lotes por categoria
-  const lotesPorCategoria = lotes.reduce((acc, lote) => {
-    const cat = lote.categoria?.toUpperCase() || 'SEM CATEGORIA';
-    if (!acc[cat]) {
-      acc[cat] = [];
-    }
-    acc[cat].push(lote);
-    return acc;
-  }, {});
-
-  const categorias = Object.keys(lotesPorCategoria).sort();
-  
   // Calcular total de cabeças
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
-  
-  // Título com nomes dos lotes
-  const tituloLotes = lotes.map(l => l.nome).join(' - ');
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
