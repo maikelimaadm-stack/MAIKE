@@ -453,10 +453,17 @@ export default function DetalhesLote({ lotes, onClose }) {
           observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
         });
 
+        const sexoNovo = mudanca.sexo_novo || lote.sexo;
+        const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
+        const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
+
         if (qtdMudar === lote.quantidade_cabecas) {
           // Mudar categoria do lote todo
           await base44.entities.Lote.update(lote.id, {
-            categoria: mudanca.categoria_nova
+            categoria: mudanca.categoria_nova,
+            sexo: sexoNovo,
+            categoria_manejo_id: catManejoIdNovo,
+            categoria_manejo_nome: catManejoNomeNovo
           });
         } else {
           // Mudança parcial - criar novo lote com nova categoria
@@ -465,7 +472,7 @@ export default function DetalhesLote({ lotes, onClose }) {
             nome: lote.nome,
             quantidade_cabecas: qtdMudar,
             categoria: mudanca.categoria_nova,
-            sexo: lote.sexo,
+            sexo: sexoNovo,
             peso_medio_kg: lote.peso_medio_kg,
             idade_media_meses: lote.idade_media_meses,
             area_atual_id: areaAtualId,
