@@ -39,6 +39,18 @@ export default function CadastroLotes() {
     initialData: [],
   });
 
+  // Busca movimentações para saber quais lotes têm registros filhos (bloqueio de edição/exclusão)
+  const { data: lotesComMovimentacoes = [] } = useQuery({
+    queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
+    queryFn: async () => {
+      const movs = await base44.entities.MovimentacaoPecuaria.list();
+      const movsEmpresa = movs.filter(m => m.empresa_id === empresaSelecionadaId && m.lote_id);
+      return [...new Set(movsEmpresa.map(m => m.lote_id))];
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: [],
+  });
+
   const createLoteMutation = useMutation({
     mutationFn: async (data) => {
       const allLotes = await base44.entities.Lote.list();
@@ -85,11 +97,19 @@ export default function CadastroLotes() {
   };
 
   const handleEdit = (lote) => {
+    if (lotesComMovimentacoes.includes(lote.id)) {
+      toast.error('Este lote possui movimentações registradas e não pode ser editado.');
+      return;
+    }
     setEditingLote(lote);
     setShowForm(true);
   };
 
   const handleDelete = (id) => {
+    if (lotesComMovimentacoes.includes(id)) {
+      toast.error('Este lote possui movimentações registradas e não pode ser excluído.');
+      return;
+    }
     if (window.confirm('Deseja realmente excluir este lote?')) {
       deleteLoteMutation.mutate(id);
     }
@@ -101,7 +121,7 @@ export default function CadastroLotes() {
       ...lotes.map(l => [
         l.numero_lote, l.nome, l.quantidade_cabecas, l.motivo_entrada || l.origem || '',
         l.categoria, l.sexo || '', l.raca_predominante || '', l.peso_medio_kg || '', 
-        l.area_atual_nome || '', l.status, l.valor_total_compra || ''
+        l.area_entrada_nome || l.area_atual_nome || '', l.status, l.valor_total_compra || ''
       ].join(';'))
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -147,6 +167,7 @@ export default function CadastroLotes() {
             areas={areas}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            lotesComMovimentacoes={lotesComMovimentacoes}
           />
         )}
       </AnimatePresence>
