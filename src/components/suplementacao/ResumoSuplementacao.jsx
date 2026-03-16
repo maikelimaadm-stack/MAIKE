@@ -5,17 +5,18 @@ import { formatDateBR, formatKg } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
 import { calcularResumoHistorico, filtrarHistoricoPorMeses, getHistoricoValido } from "./suplementacaoResumoUtils";
 import DesvioConsumoTag from "./DesvioConsumoTag";
+import { kgParaSacos } from "./unidadeConversaoUtils";
 
 /**
  * Componente unificado para exibir resumo de suplementação.
- * Substitui ResumoSuplementacaoLote e ResumoSuplementacaoCategoria.
  * 
  * @param {string[]} lotesIds - IDs dos lotes para buscar consumo
- * @param {"completo"|"compacto"} modo - "completo" (3 colunas, fundo verde) ou "compacto" (2 colunas, fundo azul)
+ * @param {"completo"|"compacto"} modo - "completo" ou "compacto"
  */
 export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
+  // Buscar registros de consumo por lote
   const { data: consumosLote = [] } = useQuery({
     queryKey: ["suplementacao-resumo", empresaSelecionadaId, lotesIds.join("|"), modo],
     queryFn: async () => {
@@ -25,8 +26,24 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     enabled: !!empresaSelecionadaId && lotesIds.length > 0,
   });
 
+  // Buscar eventos de suplementação (contém fornecimento em kg, sacos, sobra)
+  const eventoIds = useMemo(() => [...new Set(consumosLote.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosLote]);
+  const { data: eventosSupl = [] } = useQuery({
+    queryKey: ["suplementacao-eventos-resumo", empresaSelecionadaId, eventoIds.join("|")],
+    queryFn: async () => {
+      const all = await base44.entities.SuplementacaoEvento.list();
+      return all.filter((e) => eventoIds.includes(e.id));
+    },
+    enabled: eventoIds.length > 0,
+  });
+
   const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
   const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
+
+  // IDs de eventos dos últimos 30 dias (sem duplicatas)
+  const eventosRecentesIds = useMemo(() => [...new Set(consumosRecentes.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosRecentes]);
+  const eventosRecentes = useMemo(() => eventosSupl.filter((e) => eventosRecentesIds.includes(e.id)), [eventosSupl, eventosRecentesIds]);
+
   const percentualUso = useMemo(() => {
     const validos = consumosRecentes.filter((item) => (item.cabecas_na_area || 0) > 0 && (item.dias_periodo || 0) > 0 && (item.consumo_esperado_pv_lote_kg || 0) > 0);
     if (!validos.length) return null;
@@ -35,28 +52,45 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     return totalEsperado > 0 ? (totalReal / totalEsperado) * 100 : null;
   }, [consumosRecentes]);
 
-  // Métricas agregadas de fornecimento e consumo
+  // Métricas agregadas: fornecimento, lote, consumo esperado, consumo real
   const metricas = useMemo(() => {
     const validos = getHistoricoValido(consumosRecentes);
-    // Fornecimento total (soma de todos os registros)
-    const totalFornecidoKg = consumosRecentes.reduce((s, i) => s + (i.quantidade_fornecida_kg || i.consumo_total_lote_periodo_kg || 0), 0);
-    // Consumo esperado PV total/dia (média ponderada por cabeças)
-    const totalCabecas = validos.reduce((s, i) => s + (i.cabecas_na_area || 0), 0);
-    const totalPesoKg = validos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.peso_medio_kg || 0)), 0);
-    const pesoMedioGeral = totalCabecas > 0 ? totalPesoKg / totalCabecas : 0;
-    const consumoEsperadoPVTotal = validos.reduce((s, i) => s + ((i.consumo_esperado_pv_lote_kg || 0)), 0);
+
+    // --- FORNECIMENTO (vem dos eventos, sem duplicar) ---
+    const totalFornecidoKg = eventosRecentes.reduce((s, e) => s + (e.quantidade_total_kg || 0), 0);
+    const totalSobraKg = eventosRecentes.reduce((s, e) => s + (e.sobra_kg || 0), 0);
+    // Sacos: soma dos sacos dos eventos, ou calcula pelo peso médio por saco
+    const totalSacos = eventosRecentes.reduce((s, e) => {
+      if (e.quantidade_sacos > 0) return s + e.quantidade_sacos;
+      if (e.peso_por_saco_kg > 0) return s + kgParaSacos(e.quantidade_total_kg || 0, e.peso_por_saco_kg);
+      return s;
+    }, 0);
+
+    // --- DADOS DO LOTE (média ponderada de cabeças e peso) ---
+    const totalCabecasSoma = validos.reduce((s, i) => s + (i.cabecas_na_area || 0), 0);
+    const mediaCabecas = validos.length > 0 ? Math.round(totalCabecasSoma / validos.length) : 0;
+    const totalPesoKg = validos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.peso_medio_lote_kg || 0)), 0);
+    const pesoMedioGeral = totalCabecasSoma > 0 ? totalPesoKg / totalCabecasSoma : 0;
+
+    // --- CONSUMO ESPERADO (média dos lançamentos) ---
+    const consumoEsperadoPVTotal = validos.reduce((s, i) => s + (i.consumo_esperado_pv_lote_kg || 0), 0);
     const consumoEsperadoPVDia = validos.length > 0 ? consumoEsperadoPVTotal / validos.length : 0;
-    const consumoEsperadoCabDia = consumoEsperadoPVDia > 0 && totalCabecas > 0 ? (consumoEsperadoPVDia / (totalCabecas / validos.length)) : 0;
-    // Consumo real cab/dia
+    const cabecasMedia = validos.length > 0 ? totalCabecasSoma / validos.length : 0;
+    const consumoEsperadoCabDia = consumoEsperadoPVDia > 0 && cabecasMedia > 0 ? consumoEsperadoPVDia / cabecasMedia : 0;
+
+    // --- CONSUMO REAL (kg/cab/dia ponderado por animal-dias) ---
     const totalAnimalDias = validos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.dias_periodo || 0)), 0);
     const totalConsumoReal = validos.reduce((s, i) => s + (i.consumo_total_lote_periodo_kg || 0), 0);
     const consumoRealCabDia = totalAnimalDias > 0 ? totalConsumoReal / totalAnimalDias : 0;
+
+    // --- DESVIO ---
     const desvioKg = consumoRealCabDia > 0 && consumoEsperadoCabDia > 0 ? consumoRealCabDia - consumoEsperadoCabDia : null;
 
-    return { totalFornecidoKg, totalCabecas, pesoMedioGeral, consumoEsperadoPVDia, consumoEsperadoCabDia, consumoRealCabDia, desvioKg };
-  }, [consumosRecentes]);
+    return { totalFornecidoKg, totalSobraKg, totalSacos, mediaCabecas, pesoMedioGeral, consumoEsperadoPVDia, consumoEsperadoCabDia, consumoRealCabDia, desvioKg };
+  }, [consumosRecentes, eventosRecentes]);
 
   const fmtNum3 = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : "-";
+  const fmtSacos = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
 
   if (consumosLote.length === 0) return null;
 
