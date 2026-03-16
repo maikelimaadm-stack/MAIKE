@@ -196,7 +196,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
             <div className="space-y-1">
               <Label className="text-xs">Produto de Suplementação</Label>
-              <Select value={produtoId} onValueChange={setProdutoId} disabled={!localRelacionadoId}>
+              <Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localRelacionadoId}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Selecione o produto" />
                 </SelectTrigger>
