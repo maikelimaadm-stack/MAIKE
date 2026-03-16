@@ -547,6 +547,8 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
+      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
+
       <div className="space-y-3 mb-4">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
@@ -587,8 +589,6 @@ export default function DetalhesLote({ lotes, onClose }) {
           );
         })}
       </div>
-
-      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
 
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-2">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
