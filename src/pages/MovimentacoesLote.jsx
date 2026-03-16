@@ -1,16 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Search, Download, ArrowUpDown, ArrowUp, ArrowDown, 
-  ChevronLeft, ChevronRight, Filter, X
-} from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Search, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -27,6 +25,7 @@ const motivoColors = {
   'Nascimento': 'bg-purple-100 text-purple-800',
   'Morte': 'bg-red-100 text-red-800',
   'Transferência': 'bg-amber-100 text-amber-800',
+  'Transferência de Área': 'bg-amber-100 text-amber-800',
   'Mudança de Categoria': 'bg-indigo-100 text-indigo-800',
   'Abate': 'bg-orange-100 text-orange-800',
   'Pesagem': 'bg-cyan-100 text-cyan-800',
@@ -38,21 +37,26 @@ const motivoColors = {
 const tipoColors = {
   'Entrada': 'bg-green-100 text-green-800 border-green-300',
   'Saída': 'bg-red-100 text-red-800 border-red-300',
+  'Transferência de Área': 'bg-amber-100 text-amber-800 border-amber-300',
+  'Morte': 'bg-red-100 text-red-800 border-red-300',
+  'Nascimento': 'bg-purple-100 text-purple-800 border-purple-300',
+  'Abate': 'bg-orange-100 text-orange-800 border-orange-300',
+  'Mudança de Categoria': 'bg-indigo-100 text-indigo-800 border-indigo-300',
+  'Pesagem': 'bg-cyan-100 text-cyan-800 border-cyan-300',
 };
 
 export default function MovimentacoesLote() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [searchTerm, setSearchTerm] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("");
-  const [filtroMotivo, setFiltroMotivo] = useState("");
-  const [filtroLote, setFiltroLote] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("__all__");
+  const [filtroMotivo, setFiltroMotivo] = useState("__all__");
+  const [filtroLote, setFiltroLote] = useState("__all__");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [sortField, setSortField] = useState("data");
   const [sortDirection, setSortDirection] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Buscar movimentações do mapa (lotes) e pecuária que tenham lote vinculado
   const { data: movMapa = [], isLoading: loadingMapa } = useQuery({
     queryKey: ['mov-mapa-lotes', empresaSelecionadaId],
     queryFn: async () => {
@@ -71,81 +75,69 @@ export default function MovimentacoesLote() {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Unificar movimentações em formato comum
   const movimentacoes = useMemo(() => {
     const items = [];
+    const seenIds = new Set();
 
     movMapa.forEach(m => {
+      const key = `mapa-${m.id}`;
+      if (seenIds.has(key)) return;
+      seenIds.add(key);
       items.push({
-        id: m.id,
-        fonte: 'mapa',
-        data: m.data_movimentacao,
-        tipo: m.tipo || '-',
-        motivo: m.motivo || '-',
-        lote: m.lote || '-',
-        lote_id: m.lote_id,
+        id: m.id, fonte: 'mapa', data: m.data_movimentacao,
+        tipo: m.tipo || '-', motivo: m.motivo || m.tipo || '-',
+        lote: m.lote || '-', lote_id: m.lote_id,
         quantidade: m.quantidade_animais || 0,
-        area_origem: m.area_origem_nome || '',
-        area_destino: m.area_destino_nome || '',
-        peso_medio: m.peso_medio || null,
-        observacoes: m.observacoes || '',
+        area_origem: m.area_origem_nome || '', area_destino: m.area_destino_nome || '',
+        categoria: m.categoria_animal || '', sexo: m.sexo || '',
+        peso_medio: m.peso_medio || null, observacoes: m.observacoes || '',
       });
     });
 
     movPec.forEach(m => {
+      const key = `pec-${m.id}`;
+      if (seenIds.has(key)) return;
+      seenIds.add(key);
       items.push({
-        id: m.id,
-        fonte: 'pecuaria',
-        data: m.data_movimentacao,
-        tipo: m.tipo || '-',
-        motivo: m.motivo || '-',
-        lote: m.lote || '-',
-        lote_id: m.lote_id,
+        id: m.id, fonte: 'pecuaria', data: m.data_movimentacao,
+        tipo: m.tipo || '-', motivo: m.motivo || m.tipo || '-',
+        lote: m.lote || '-', lote_id: m.lote_id,
         quantidade: m.quantidade_animais || 0,
-        area_origem: m.area_origem_nome || '',
-        area_destino: m.area_destino_nome || '',
-        categoria: m.categoria_animal || '',
-        sexo: m.sexo || '',
+        area_origem: m.area_origem_nome || '', area_destino: m.area_destino_nome || '',
+        categoria: m.categoria_animal || '', sexo: m.sexo || '',
         peso_medio: m.peso_medio || null,
         valor_total: m.valor_total || null,
         fornecedor: m.fornecedor_origem || m.destino_venda || '',
-        nota_fiscal: m.nota_fiscal || '',
-        gta: m.gta || '',
-        causa_morte: m.causa_morte || '',
-        observacoes: m.observacoes || '',
+        nota_fiscal: m.nota_fiscal || '', gta: m.gta || '',
+        causa_morte: m.causa_morte || '', observacoes: m.observacoes || '',
       });
     });
 
     return items;
   }, [movMapa, movPec]);
 
-  // Valores únicos para filtros
-  const motivosUnicos = useMemo(() => [...new Set(movimentacoes.map(m => m.motivo).filter(Boolean))].sort(), [movimentacoes]);
-  const lotesUnicos = useMemo(() => [...new Set(movimentacoes.map(m => m.lote).filter(Boolean))].sort(), [movimentacoes]);
+  const motivosUnicos = useMemo(() => [...new Set(movimentacoes.map(m => m.motivo).filter(m => m && m !== '-'))].sort(), [movimentacoes]);
+  const tiposUnicos = useMemo(() => [...new Set(movimentacoes.map(m => m.tipo).filter(t => t && t !== '-'))].sort(), [movimentacoes]);
+  const lotesUnicos = useMemo(() => [...new Set(movimentacoes.map(m => m.lote).filter(l => l && l !== '-'))].sort(), [movimentacoes]);
 
-  // Filtrar
   const filtered = useMemo(() => {
     return movimentacoes.filter(m => {
       if (searchTerm) {
         const s = searchTerm.toLowerCase();
-        if (!(
-          m.lote?.toLowerCase().includes(s) ||
-          m.motivo?.toLowerCase().includes(s) ||
-          m.area_origem?.toLowerCase().includes(s) ||
-          m.area_destino?.toLowerCase().includes(s) ||
-          m.observacoes?.toLowerCase().includes(s)
-        )) return false;
+        if (!(m.lote?.toLowerCase().includes(s) || m.motivo?.toLowerCase().includes(s) ||
+          m.area_origem?.toLowerCase().includes(s) || m.area_destino?.toLowerCase().includes(s) ||
+          m.observacoes?.toLowerCase().includes(s) || m.fornecedor?.toLowerCase().includes(s)))
+          return false;
       }
-      if (filtroTipo && m.tipo !== filtroTipo) return false;
-      if (filtroMotivo && m.motivo !== filtroMotivo) return false;
-      if (filtroLote && m.lote !== filtroLote) return false;
+      if (filtroTipo !== "__all__" && m.tipo !== filtroTipo) return false;
+      if (filtroMotivo !== "__all__" && m.motivo !== filtroMotivo) return false;
+      if (filtroLote !== "__all__" && m.lote !== filtroLote) return false;
       if (filtroDataInicio && m.data?.split('T')[0] < filtroDataInicio) return false;
       if (filtroDataFim && m.data?.split('T')[0] > filtroDataFim) return false;
       return true;
     });
   }, [movimentacoes, searchTerm, filtroTipo, filtroMotivo, filtroLote, filtroDataInicio, filtroDataFim]);
 
-  // Ordenar
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
       let aV, bV;
@@ -176,17 +168,16 @@ export default function MovimentacoesLote() {
   };
 
   const limparFiltros = () => {
-    setSearchTerm(""); setFiltroTipo(""); setFiltroMotivo(""); setFiltroLote("");
+    setSearchTerm(""); setFiltroTipo("__all__"); setFiltroMotivo("__all__"); setFiltroLote("__all__");
     setFiltroDataInicio(""); setFiltroDataFim(""); setCurrentPage(1);
   };
 
   const handleExport = () => {
     const csv = [
-      ['Data', 'Tipo', 'Motivo', 'Lote', 'Quantidade', 'Área Origem', 'Área Destino', 'Categoria', 'Peso Médio', 'Fornecedor', 'NF', 'GTA', 'Observações'].join(';'),
+      ['Data', 'Tipo', 'Motivo', 'Lote', 'Quantidade', 'Área Origem', 'Área Destino', 'Categoria', 'Peso Médio', 'Observações'].join(';'),
       ...filtered.map(m => [
         formatDate(m.data), m.tipo, m.motivo, m.lote, m.quantidade,
-        m.area_origem, m.area_destino, m.categoria || '', m.peso_medio || '',
-        m.fornecedor || '', m.nota_fiscal || '', m.gta || '', m.observacoes
+        m.area_origem, m.area_destino, m.categoria || '', m.peso_medio || '', m.observacoes
       ].join(';'))
     ].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -198,8 +189,6 @@ export default function MovimentacoesLote() {
   };
 
   const isLoading = loadingMapa || loadingPec;
-
-  // Totais resumidos
   const totalEntradas = filtered.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + m.quantidade, 0);
   const totalSaidas = filtered.filter(m => m.tipo === 'Saída').reduce((s, m) => s + m.quantidade, 0);
 
@@ -208,7 +197,7 @@ export default function MovimentacoesLote() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Movimentações de Lotes</h1>
-          <p className="text-xs text-slate-600">Todas as movimentações vinculadas a lotes — mortes, nascimentos, transferências, nutrição e mais</p>
+          <p className="text-xs text-slate-600">Todas as movimentações vinculadas a lotes (transferências, mortes, nascimentos, pesagens, etc.)</p>
         </div>
         <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
           <Download className="w-3.5 h-3.5 mr-1" /> Exportar
@@ -246,42 +235,61 @@ export default function MovimentacoesLote() {
       {/* Filtros */}
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <div className="md:col-span-2 relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="h-8 text-xs pl-8" />
+              <Label className="text-xs">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input placeholder="Lote, motivo, área..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="h-8 text-xs pl-8" />
+              </div>
             </div>
-            <Select value={filtroTipo} onValueChange={(v) => { setFiltroTipo(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                <SelectItem value="Entrada">Entrada</SelectItem>
-                <SelectItem value="Saída">Saída</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filtroMotivo} onValueChange={(v) => { setFiltroMotivo(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Motivo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {motivosUnicos.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filtroLote} onValueChange={(v) => { setFiltroLote(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Lote" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {lotesUnicos.map(l => <SelectItem key={l} value={l} className="text-xs">{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input type="date" value={filtroDataInicio} onChange={(e) => { setFiltroDataInicio(e.target.value); setCurrentPage(1); }} className="h-8 text-xs" />
-            <Input type="date" value={filtroDataFim} onChange={(e) => { setFiltroDataFim(e.target.value); setCurrentPage(1); }} className="h-8 text-xs" />
+            <div>
+              <Label className="text-xs">Tipo</Label>
+              <Select value={filtroTipo} onValueChange={(v) => { setFiltroTipo(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__" className="text-xs">Todos</SelectItem>
+                  {tiposUnicos.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Motivo</Label>
+              <Select value={filtroMotivo} onValueChange={(v) => { setFiltroMotivo(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__" className="text-xs">Todos</SelectItem>
+                  {motivosUnicos.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Lote</Label>
+              <Select value={filtroLote} onValueChange={(v) => { setFiltroLote(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__" className="text-xs">Todos</SelectItem>
+                  {lotesUnicos.map(l => <SelectItem key={l} value={l} className="text-xs">{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col justify-end">
+              <Button variant="outline" size="sm" onClick={limparFiltros} className="h-8 text-xs w-full">
+                <X className="w-3 h-3 mr-1" /> Limpar
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-between items-center mt-2">
-            <span className="text-xs text-slate-500">{filtered.length} de {movimentacoes.length} registros</span>
-            <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
-              <X className="w-3 h-3 mr-1" /> Limpar
-            </Button>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <Label className="text-xs">Data Início</Label>
+              <Input type="date" value={filtroDataInicio} onChange={(e) => { setFiltroDataInicio(e.target.value); setCurrentPage(1); }} className="h-8 text-xs" />
+            </div>
+            <div>
+              <Label className="text-xs">Data Fim</Label>
+              <Input type="date" value={filtroDataFim} onChange={(e) => { setFiltroDataFim(e.target.value); setCurrentPage(1); }} className="h-8 text-xs" />
+            </div>
           </div>
+          <div className="mt-2 text-xs text-slate-500">{filtered.length} de {movimentacoes.length} registros</div>
         </CardContent>
       </Card>
 
@@ -291,7 +299,7 @@ export default function MovimentacoesLote() {
           <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 border-b">
+                <TableRow className="bg-slate-50">
                   <TableHead className="text-xs font-bold py-1 border border-black cursor-pointer hover:bg-slate-100" onClick={() => handleSort('data')}>
                     <div className="flex items-center">Data{getSortIcon('data')}</div>
                   </TableHead>
@@ -321,7 +329,7 @@ export default function MovimentacoesLote() {
                   <AnimatePresence>
                     {paginated.map((m) => (
                       <motion.tr key={`${m.fonte}-${m.id}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-gray-50 border-b">
-                        <TableCell className="text-xs py-1 border border-gray-300">{formatDate(m.data)}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 whitespace-nowrap">{formatDate(m.data)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">
                           <Badge variant="outline" className={`text-[10px] ${tipoColors[m.tipo] || ''}`}>{m.tipo}</Badge>
                         </TableCell>
@@ -329,7 +337,7 @@ export default function MovimentacoesLote() {
                           <Badge className={`text-[10px] ${motivoColors[m.motivo] || 'bg-slate-100 text-slate-700'}`}>{m.motivo}</Badge>
                         </TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 font-semibold">{m.lote}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{m.quantidade} cab</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{m.quantidade}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{m.area_origem || '-'}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{m.area_destino || '-'}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{m.categoria || '-'}</TableCell>
