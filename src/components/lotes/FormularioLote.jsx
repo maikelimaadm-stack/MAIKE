@@ -108,6 +108,9 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     const area = areas.find(a => a.id === formData.area_entrada_id);
     const catManejo = categoriasManejo.find(c => c.id === formData.categoria_manejo_id);
     
+    const qtd = parseInt(formData.quantidade_cabecas) || 0;
+    const peso = parseFloat(formData.peso_medio_kg) || 0;
+    
     const dataToSave = {
       ...formData,
       nome: formData.nome.toUpperCase(),
@@ -117,12 +120,20 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
       categoria_manejo_nome: catManejo?.nome || '',
       origem: formData.motivo_entrada?.toUpperCase() || '',
       observacoes: formData.observacoes?.toUpperCase(),
-      quantidade_cabecas: parseInt(formData.quantidade_cabecas) || 0,
-      peso_medio_kg: parseFloat(formData.peso_medio_kg) || 0,
+      quantidade_cabecas: qtd,
+      peso_medio_kg: peso,
       idade_media_meses: parseInt(formData.idade_media_meses) || 0,
       valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
       valor_por_cabeca: parseFloat(formData.valor_por_cabeca) || 0,
-      valor_frete: parseFloat(formData.valor_frete) || 0
+      valor_frete: parseFloat(formData.valor_frete) || 0,
+      // Campos fixos de entrada (IMUTÁVEIS) — gravados apenas na criação
+      ...(!isEditing ? {
+        quantidade_entrada: qtd,
+        peso_entrada_kg: peso,
+        categoria_entrada: formData.categoria || '',
+        categoria_manejo_entrada_id: formData.categoria_manejo_id || '',
+        categoria_manejo_entrada_nome: catManejo?.nome || '',
+      } : {})
     };
 
     onSubmit(dataToSave);

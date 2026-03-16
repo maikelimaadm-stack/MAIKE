@@ -39,13 +39,17 @@ export default function CadastroLotes() {
     initialData: [],
   });
 
-  // Busca movimentações para saber quais lotes têm registros filhos (bloqueio de edição/exclusão)
+  // Busca movimentações de AMBAS as fontes para saber quais lotes têm registros filhos
   const { data: lotesComMovimentacoes = [] } = useQuery({
     queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
     queryFn: async () => {
-      const movs = await base44.entities.MovimentacaoPecuaria.list();
-      const movsEmpresa = movs.filter(m => m.empresa_id === empresaSelecionadaId && m.lote_id);
-      return [...new Set(movsEmpresa.map(m => m.lote_id))];
+      const [movsPecuaria, movsMapa] = await Promise.all([
+        base44.entities.MovimentacaoPecuaria.list(),
+        base44.entities.MovimentacaoMapa.list()
+      ]);
+      const idsPecuaria = movsPecuaria.filter(m => m.empresa_id === empresaSelecionadaId && m.lote_id).map(m => m.lote_id);
+      const idsMapa = movsMapa.filter(m => m.empresa_id === empresaSelecionadaId && m.lote_id).map(m => m.lote_id);
+      return [...new Set([...idsPecuaria, ...idsMapa])];
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
