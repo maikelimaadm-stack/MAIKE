@@ -16,6 +16,7 @@ import {
   registrarTransferenciaEntreLocais,
 } from "../suplementacao/estoqueSuplementacaoUtils";
 import { formatQuantidadeTecnica } from "../suplementacao/formatters";
+import { produtoSuportaSacos, sacosParaKg, kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -25,6 +26,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
 
   const { data: user } = useQuery({
