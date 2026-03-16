@@ -567,6 +567,18 @@ export default function DetalhesLote({ lotes, onClose }) {
         motivoNaoJuntar={motivoNaoJuntar}
       />
 
+      {/* Suplementação estilo cocho */}
+      <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
+
+      {/* Composição por Categoria */}
+      <ComposicaoCategoria lotes={lotes} />
+
+      {/* Resumo dos Lotes */}
+      <ResumoLoteDashboard lotes={lotes} areaAtual={areaAtual} />
+
+      {/* Informações do Pasto */}
+      <ResumoPasto area={areaAtual} lotes={lotes} />
+
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
