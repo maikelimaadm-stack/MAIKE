@@ -42,7 +42,9 @@ export function getCochoIndicator(ponto, eventos = []) {
   const sobra = Number(ultimoEvento.sobra_kg || 0);
   const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
   const totalDisponivel = fornecido + sobra;
-  const consumoBase = Number(ultimoEvento.consumo_diario_grupo_kg || ultimoEvento.consumo_esperado_pv_kg || 0);
+  // Usar apenas consumo_esperado_pv_kg (calculado por %PV), nunca consumo_diario_grupo_kg
+  // pois este último guarda o consumo total do período fechado, não o consumo diário esperado
+  const consumoBase = Number(ultimoEvento.consumo_esperado_pv_kg || 0);
 
   let saldoEstimado;
   if (ultimoEvento.dias_periodo != null) {
@@ -50,7 +52,7 @@ export function getCochoIndicator(ponto, eventos = []) {
   } else if (consumoBase > 0) {
     saldoEstimado = Math.max(0, totalDisponivel - consumoBase * diasDesdeUltimo);
   } else {
-    // Sem consumo configurado: mostrar total fornecido inteiro
+    // Sem %PV configurado: não desconta, mostra total fornecido
     saldoEstimado = totalDisponivel;
   }
 
