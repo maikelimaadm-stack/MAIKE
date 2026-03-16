@@ -209,7 +209,20 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Quantidade</Label>
+              <Label className="text-xs">Unidade</Label>
+              <Select value={unidadeInput} onValueChange={setUnidadeInput} disabled={!suportaSacos}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="KG" className="text-xs">KG</SelectItem>
+                  {suportaSacos && <SelectItem value="SACO" className="text-xs">Sacas ({pesoPorSaco} kg/saco)</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"})</Label>
               <Input
                 value={quantidade}
                 onChange={(e) => setQuantidade(e.target.value)}
@@ -221,18 +234,27 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="text-xs text-slate-500">Local de origem</div>
               <div className="text-sm font-semibold text-slate-900">{localOrigemNome || "-"}</div>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Saldo disponível</div>
+              <div className="text-xs text-slate-500">Saldo disponível (kg)</div>
               <div className="flex items-center gap-2 pt-1">
                 <Badge variant="outline" className="text-xs">{formatQuantidadeTecnica(saldoDisponivel, 3)}</Badge>
-                <span className="text-xs text-slate-500">{produtoSelecionado?.unidade_medida || "KG"}</span>
+                <span className="text-xs text-slate-500">kg</span>
               </div>
             </div>
+            {suportaSacos && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs text-slate-500">Saldo disponível (sacas)</div>
+                <div className="flex items-center gap-2 pt-1">
+                  <Badge variant="outline" className="text-xs">{saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
+                  <span className="text-xs text-slate-500">sacas</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
