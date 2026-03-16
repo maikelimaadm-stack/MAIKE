@@ -90,6 +90,9 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     return produtos.find((produto) => produto.id === produtoId) || null;
   }, [produtos, produtoId]);
 
+  const suportaSacos = useMemo(() => produtoSelecionado ? produtoSuportaSacos(produtoSelecionado) : false, [produtoSelecionado]);
+  const pesoPorSaco = Number(produtoSelecionado?.peso_por_saco_kg || 0);
+
   const saldoDisponivel = useMemo(() => {
     if (!produtoSelecionado || !localOrigemId) return 0;
     return obterSaldoTransferivelProduto({
@@ -99,6 +102,11 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       localEstoqueNome: localOrigemNome,
     });
   }, [produtoSelecionado, localOrigemId, localOrigemNome, lotesNota]);
+
+  const saldoEmSacos = useMemo(() => {
+    if (!suportaSacos || pesoPorSaco <= 0) return 0;
+    return kgParaSacos(saldoDisponivel, pesoPorSaco);
+  }, [saldoDisponivel, suportaSacos, pesoPorSaco]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,7 +121,9 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       return;
     }
 
-    const quantidadeFinal = parseNumber(quantidade);
+    const inputNum = parseNumber(quantidade);
+    const quantidadeFinal = unidadeInput === "SACO" ? sacosParaKg(inputNum, pesoPorSaco) : inputNum;
+
     if (quantidadeFinal <= 0) {
       toast.error("Informe uma quantidade válida.");
       return;
