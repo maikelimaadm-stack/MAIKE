@@ -333,6 +333,15 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         }
       }
 
+      // Reverter renomear lote: extrair nome anterior da observação
+      if (mov.motivo === 'Renomear Lote') {
+        const obsText = mov.observacoes || '';
+        const matchRenomear = obsText.match(/Renomear Lote: "(.+?)" →/);
+        if (matchRenomear && matchRenomear[1] && mov.lote_id) {
+          await base44.entities.Lote.update(mov.lote_id, { nome: matchRenomear[1] });
+        }
+      }
+
       if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {
         if (loteRecord) {
           await base44.entities.Lote.update(loteRecord.id, {
