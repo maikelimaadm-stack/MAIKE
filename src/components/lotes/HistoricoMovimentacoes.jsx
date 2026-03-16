@@ -229,6 +229,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
+
+      // Se estamos verificando uma Transferência de Área, ignorar pesagens vinculadas a ela
+      // pois serão excluídas automaticamente junto com a transferência
+      if (entry?.tipo === 'Transferência de Área' && item.source === 'movimentacao') {
+        const linkedIds = (item.linked_movement_ids || []);
+        if (item.tipo === 'Pesagem' && linkedIds.includes(entry.id)) {
+          return false; // Pesagem filha não bloqueia a transferência pai
+        }
+      }
+
       const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual;
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
       if (!sameLote && !childLinked) return false;
