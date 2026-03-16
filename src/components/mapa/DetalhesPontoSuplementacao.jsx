@@ -173,57 +173,81 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const sobra = Number(ultimoEvento.sobra_kg || 0);
         const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
         const diasDesde = diasSemLancamento || 0;
+        // totalDisponivel = o que foi colocado no cocho neste lançamento (fornecido) + sobra do anterior
         const totalDisponivel = fornecido + sobra;
-        // Usar consumo esperado calculado por %PV, ou fallback para o do evento
-        const consumoBase = consumoEsperadoDiaKg > 0 ? consumoEsperadoDiaKg : Number(ultimoEvento.consumo_diario_grupo_kg || 0);
         const minimoDias = Number(ponto.frequencia_esperada_dias_minimo || 0);
+        const capacidadeCocho = Number(ponto.capacidade_cocho_kg || 0);
+
+        // consumoBase: apenas via %PV calculado dos lotes atuais — NÃO usa consumo_diario_grupo_kg do evento
+        // pois esse campo guarda o consumo do período FECHADO anterior, não o consumo diário esperado
+        const consumoBase = consumoEsperadoDiaKg > 0 ? consumoEsperadoDiaKg : 0;
 
         let saldoEstimado;
         let baseDuracaoTotal;
         let diasRestantes;
 
         if (ultimoEvento.dias_periodo != null) {
-          // Período fechado: saldo é a sobra registrada
+          // Período fechado: saldo é a sobra registrada no fechamento
           saldoEstimado = sobra;
-          baseDuracaoTotal = consumoBase > 0 ? Math.max(0, Math.round(totalDisponivel / consumoBase)) : 0;
+          baseDuracaoTotal = consumoBase > 0 ? Math.max(0, Math.round(totalDisponivel / consumoBase)) : Number(ultimoEvento.dias_periodo || 0);
           diasRestantes = consumoBase > 0 ? Math.max(0, Math.round(sobra / consumoBase)) : 0;
         } else if (consumoBase > 0) {
-          // Período em aberto com consumo conhecido: descontar dias
+          // Período em aberto com %PV configurado: descontar dias desde o lançamento
           saldoEstimado = Math.max(0, totalDisponivel - consumoBase * diasDesde);
           baseDuracaoTotal = Math.max(0, Math.round(totalDisponivel / consumoBase));
           diasRestantes = Math.max(0, baseDuracaoTotal - diasDesde);
         } else {
-          // Período em aberto SEM consumo configurado: mostrar total fornecido (não desconta)
+          // Sem %PV configurado: não desconta, mostra total fornecido como saldo
           saldoEstimado = totalDisponivel;
           baseDuracaoTotal = 0;
           diasRestantes = 0;
         }
 
         const dataBaseLancamento = parseDateLocal(ultimoEvento.data_lancamento);
-        // Próxima suplementação = data_lancamento + duração total
         const proximaData = dataBaseLancamento && baseDuracaoTotal > 0
           ? new Date(dataBaseLancamento.getTime() + baseDuracaoTotal * 86400000)
           : null;
-        // Percentual: proporção restante (saldo/totalDisponivel), 100% se sem consumo base
-        const percentual = totalDisponivel > 0 ? Math.min(1, saldoEstimado / totalDisponivel) : 0;
+
+        // Gráfico 1: saldo consumo (quanto resta do fornecido neste ciclo)
+        const percentConsumo = totalDisponivel > 0 ? Math.min(1, Math.max(0, saldoEstimado / totalDisponivel)) : 0;
+        // Gráfico 2: saldo capacidade (quanto ocupa da capacidade física do cocho)
+        const percentCapacidade = capacidadeCocho > 0 ? Math.min(1, Math.max(0, saldoEstimado / capacidadeCocho)) : null;
+
         const alertaGrafico = minimoDias > 0 && diasDesde >= minimoDias;
+
         return (
           <CardSection title="Saldo estimado no cocho">
             <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
-              <div className="pb-1 flex items-center gap-3">
-                <PontoPercentIcon
-                  imageUrl={iconeExibicao}
-                  label={ponto.categoria_ponto || "Cocho"}
-                  percent={percentual}
-                  fillClassName={alertaGrafico ? "bg-red-500" : "bg-lime-400"} />
+              <div className="pb-1 flex items-end gap-3">
+                {/* Gráfico 1: Consumo estimado */}
+                <div className="flex flex-col items-center gap-0.5">
+                  <PontoPercentIcon
+                    imageUrl={iconeExibicao}
+                    label={ponto.categoria_ponto || "Cocho"}
+                    percent={percentConsumo}
+                    fillClassName={alertaGrafico ? "bg-red-500" : "bg-lime-400"} />
+                  <span className="text-[9px] text-slate-500 text-center leading-tight">Saldo<br/>ciclo</span>
+                </div>
+                {/* Gráfico 2: Capacidade física (só se capacidade cadastrada) */}
+                {percentCapacidade !== null && (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <PontoPercentIcon
+                      imageUrl={null}
+                      label="Capacidade"
+                      percent={percentCapacidade}
+                      fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"} />
+                    <span className="text-[9px] text-slate-500 text-center leading-tight">Capac.<br/>cocho</span>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Saldo estimado kg</div>
+                  <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
+                  {consumoBase > 0 && <div className="text-[9px] text-slate-400 mt-0.5">{formatKg(consumoBase)}/dia</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="text-slate-500">Duração total</div>
+                  <div className="text-slate-500">Duração estimada</div>
                   <div className="text-sm font-bold text-slate-900">{baseDuracaoTotal > 0 ? `${formatDecimal(baseDuracaoTotal, 0, true)} dia(s)` : '-'}</div>
                   {diasRestantes > 0 && <div className="text-[9px] text-slate-500 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
                 </div>
