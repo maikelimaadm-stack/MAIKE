@@ -94,9 +94,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
   // Último evento global (mais recente entre todos os cochos das áreas)
   const ultimoEventoGlobal = eventos[0] || null;
 
-  if (!ultimoEventoGlobal && consumosLote.length === 0) return null;
-
-  // Dados do último evento (estilo cocho)
+  // Dados do último evento (estilo cocho) - ALL HOOKS MUST BE BEFORE ANY EARLY RETURN
   const ultimoProduto = useMemo(() => {
     if (!ultimoEventoGlobal?.produto) return null;
     return produtos.find((p) => normalizeText(p.nome_produto || "") === normalizeText(ultimoEventoGlobal.produto || "")) || null;
@@ -144,7 +142,6 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
       ? new Date(dataBase.getTime() + baseDuracaoTotal * 86400000)
       : null;
 
-    // Consumo real (período fechado)
     const consumoDiarioGrupo = ultimoEventoGlobal.consumo_diario_grupo_kg || 0;
     const consumoCabDiaReal = totalCabecas > 0 && consumoDiarioGrupo > 0 ? consumoDiarioGrupo / totalCabecas : 0;
     const consumoEsperadoCabDia = consumoEsperadoDiaKg > 0 && totalCabecas > 0 ? consumoEsperadoDiaKg / totalCabecas : 0;
@@ -152,7 +149,6 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     const pesoPorSaco = Number(ultimoProduto?.peso_por_saco_kg || 0);
     const sacosCalc = pesoPorSaco > 0 ? kgParaSacos(fornecido, pesoPorSaco) : null;
 
-    // Diferença dias (fechado)
     const diferencaDias = periodoFechado && baseDuracaoTotal > 0 && ultimoEventoGlobal.dias_periodo > 0
       ? baseDuracaoTotal - ultimoEventoGlobal.dias_periodo
       : null;
@@ -163,6 +159,9 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
       sacosCalc, diferencaDias, diasDesde
     };
   }, [ultimoEventoGlobal, consumoEsperadoDiaKg, totalCabecas, ultimoProduto]);
+
+  // Early return AFTER all hooks
+  if (!ultimoEventoGlobal && consumosLote.length === 0) return null;
 
   // ---- Modo compacto (cards menores em outros contextos) ----
   if (modo === "compacto") {
