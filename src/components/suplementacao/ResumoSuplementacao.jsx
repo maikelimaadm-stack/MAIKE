@@ -118,6 +118,77 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
           </div>
         )}
       </div>
+
+      {/* FORNECIMENTO */}
+      {metricas.totalFornecidoKg > 0 && (
+        <div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fornecimento</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Total fornecido</div>
+              <div className="font-semibold text-slate-900">{formatKg(metricas.totalFornecidoKg)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DADOS DO LOTE */}
+      {metricas.totalCabecas > 0 && (
+        <div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Qtd. Cabeças (média)</div>
+              <div className="font-semibold text-slate-900">{Math.round(metricas.totalCabecas / (resumo.periodosValidos || 1)).toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Peso médio</div>
+              <div className="font-semibold text-slate-900">{metricas.pesoMedioGeral > 0 ? `${metricas.pesoMedioGeral.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} kg` : "-"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONSUMO ESPERADO */}
+      {metricas.consumoEsperadoCabDia > 0 && (
+        <div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Consumo Lote PV/dia</div>
+              <div className="font-semibold text-slate-900">{metricas.consumoEsperadoPVDia > 0 ? formatKg(metricas.consumoEsperadoPVDia) : "-"}</div>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Esperado/cab/dia</div>
+              <div className="font-semibold text-slate-900">{fmtNum3(metricas.consumoEsperadoCabDia)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONSUMO REAL */}
+      {metricas.consumoRealCabDia > 0 && (
+        <div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Real</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Realizado cab/dia</div>
+              <div className="font-semibold text-slate-900">{fmtNum3(metricas.consumoRealCabDia)}</div>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+              <div className="text-slate-500">Desvio</div>
+              <div className="font-semibold text-slate-900 flex items-center gap-1">
+                {metricas.desvioKg != null ? (
+                  <>
+                    <DesvioConsumoTag real={metricas.consumoRealCabDia} esperado={metricas.consumoEsperadoCabDia} />
+                    {metricas.desvioKg > 0 ? "+" : ""}{metricas.desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
+                  </>
+                ) : "-"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
