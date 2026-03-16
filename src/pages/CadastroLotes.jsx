@@ -96,7 +96,20 @@ export default function CadastroLotes() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    // Verificar se o lote tem histórico de movimentações
+    const todasMovimentacoes = await base44.entities.MovimentacaoMapa.list();
+    const lote = lotes.find(l => l.id === id);
+    const temHistorico = todasMovimentacoes.some(m => 
+      m.empresa_id === empresaSelecionadaId && 
+      (m.lote_id === id || (lote && m.lote?.toUpperCase().trim() === lote.nome?.toUpperCase().trim()))
+    );
+
+    if (temHistorico) {
+      toast.error('Este lote possui histórico de movimentações. Exclua todas as movimentações do lote antes de excluí-lo no cadastro.');
+      return;
+    }
+
     if (window.confirm('⚠️ Deseja realmente excluir este lote?')) {
       deleteLoteMutation.mutate(id);
     }
