@@ -286,7 +286,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const loteMesmoNome = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.status === 'Ativo');
       const loteRecord = lotePorId || loteMesmoNome;
 
-      if (hasLaterRelatedRecord(entry)) {
+      if (mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes' && hasLaterRelatedRecord(entry)) {
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
       }
 
