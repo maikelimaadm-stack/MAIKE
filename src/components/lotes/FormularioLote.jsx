@@ -23,7 +23,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     sexo: "",
     peso_medio_kg: "",
     idade_media_meses: "",
-    area_atual_id: "",
+    area_entrada_id: "",
     raca_predominante: "",
     sistema_produtivo: "",
     data_entrada: new Date().toISOString().split('T')[0],
@@ -105,13 +105,13 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const area = areas.find(a => a.id === formData.area_atual_id);
+    const area = areas.find(a => a.id === formData.area_entrada_id);
     const catManejo = categoriasManejo.find(c => c.id === formData.categoria_manejo_id);
     
     const dataToSave = {
       ...formData,
       nome: formData.nome.toUpperCase(),
-      area_atual_nome: area?.nome || '',
+      area_entrada_nome: area?.nome || '',
       categoria_manejo_nome: catManejo?.nome || '',
       origem: formData.motivo_entrada?.toUpperCase() || '',
       observacoes: formData.observacoes?.toUpperCase(),
@@ -221,8 +221,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   <Input type="number" value={formData.idade_media_meses} onChange={(e) => handleChange('idade_media_meses', e.target.value)} placeholder="0" className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Área/Piquete</Label>
-                  <Select value={formData.area_atual_id} onValueChange={(v) => handleChange('area_atual_id', v)}>
+                  <Label className="text-xs">Área de Entrada</Label>
+                  <Select value={formData.area_entrada_id} onValueChange={(v) => handleChange('area_entrada_id', v)}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       {areas.map(area => (
