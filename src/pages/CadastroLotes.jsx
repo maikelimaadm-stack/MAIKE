@@ -121,10 +121,10 @@ export default function CadastroLotes() {
 
   const handleExport = () => {
     const csv = [
-      ['Código', 'Nome', 'Quantidade', 'Motivo', 'Categoria', 'Sexo', 'Raça', 'Peso Médio', 'Área', 'Status', 'Valor Total'].join(';'),
+      ['Código', 'Nome', 'Qtd Entrada', 'Motivo', 'Categoria Entrada', 'Sexo', 'Raça', 'Peso Entrada', 'Área Entrada', 'Status', 'Valor Total'].join(';'),
       ...lotes.map(l => [
-        l.numero_lote, l.nome, l.quantidade_cabecas, l.motivo_entrada || l.origem || '',
-        l.categoria, l.sexo || '', l.raca_predominante || '', l.peso_medio_kg || '', 
+        l.numero_lote, l.nome, l.quantidade_entrada || l.quantidade_cabecas, l.motivo_entrada || l.origem || '',
+        l.categoria_entrada || l.categoria, l.sexo || '', l.raca_predominante || '', l.peso_entrada_kg || l.peso_medio_kg || '', 
         l.area_entrada_nome || '', l.status, l.valor_total_compra || ''
       ].join(';'))
     ].join('\n');
