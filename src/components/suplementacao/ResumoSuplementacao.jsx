@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { formatDateBR } from "../utils/pecuariaUtils";
+import { formatDateBR, formatKg } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
-import { calcularResumoHistorico, filtrarHistoricoPorMeses } from "./suplementacaoResumoUtils";
+import { calcularResumoHistorico, filtrarHistoricoPorMeses, getHistoricoValido } from "./suplementacaoResumoUtils";
+import DesvioConsumoTag from "./DesvioConsumoTag";
 
 /**
  * Componente unificado para exibir resumo de suplementação.
