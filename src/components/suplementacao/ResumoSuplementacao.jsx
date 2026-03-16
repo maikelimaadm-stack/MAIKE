@@ -55,9 +55,15 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
   const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
   const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
 
+  // Eventos filtrados pela área (se areaId informado)
+  const eventosAreaFiltrados = useMemo(() => {
+    if (!areaId) return eventosSupl;
+    return eventosSupl.filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)));
+  }, [eventosSupl, areaId]);
+
   // IDs de eventos dos últimos 30 dias (sem duplicatas)
   const eventosRecentesIds = useMemo(() => [...new Set(consumosRecentes.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosRecentes]);
-  const eventosRecentes = useMemo(() => eventosSupl.filter((e) => eventosRecentesIds.includes(e.id)), [eventosSupl, eventosRecentesIds]);
+  const eventosRecentes = useMemo(() => eventosAreaFiltrados.filter((e) => eventosRecentesIds.includes(e.id)), [eventosAreaFiltrados, eventosRecentesIds]);
 
   const percentualUso = useMemo(() => {
     const validos = consumosRecentes.filter((item) => (item.cabecas_na_area || 0) > 0 && (item.dias_periodo || 0) > 0 && (item.consumo_esperado_pv_lote_kg || 0) > 0);
