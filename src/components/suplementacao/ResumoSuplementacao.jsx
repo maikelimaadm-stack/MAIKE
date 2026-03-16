@@ -136,114 +136,66 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo" }
     );
   }
 
+  const Cell = ({ label, children }) => (
+    <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+      <div className="text-slate-500">{label}</div>
+      <div className="font-semibold text-slate-900">{children}</div>
+    </div>
+  );
+
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
       <span className="font-semibold text-slate-900 text-xs">Suplementação (últimos 30 dias)</span>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Total consumido</div>
-          <div className="font-semibold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div>
+      {/* FORNECIMENTO */}
+      <div>
+        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fornecimento</div>
+        <div className="grid grid-cols-3 gap-1 text-[10px]">
+          <Cell label="Total fornecido">{formatKg(metricas.totalFornecidoKg)}</Cell>
+          <Cell label="Total consumido">{formatKg(metricas.totalConsumidoKg)}</Cell>
+          <Cell label="Sobra (resta)">{formatKg(metricas.sobraRestaKg)}</Cell>
         </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Média kg/cab/dia</div>
-          <div className="font-semibold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Média g/cab/dia</div>
-          <div className="font-semibold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">% uso</div>
-          <div className="font-semibold text-slate-900">{percentualUso != null ? `${percentualUso.toFixed(0)}%` : '-'}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Último lançamento</div>
-          <div className="font-semibold text-slate-900">{resumo.ultimoLancamento ? formatDateBR(resumo.ultimoLancamento.data_lancamento) : "-"}</div>
-        </div>
-        {resumo.ultimoLancamento && (
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-            <div className="text-slate-500">Último produto</div>
-            <div className="font-semibold text-slate-900">{resumo.ultimoLancamento.produto}</div>
-          </div>
-        )}
       </div>
 
-      {/* FORNECIMENTO */}
-      {metricas.totalFornecidoKg > 0 && (
-        <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fornecimento</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Total fornecido</div>
-              <div className="font-semibold text-slate-900">{formatKg(metricas.totalFornecidoKg)}</div>
-            </div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Total sacos</div>
-              <div className="font-semibold text-slate-900">{fmtSacos(metricas.totalSacos)}</div>
-            </div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Sobra</div>
-              <div className="font-semibold text-slate-900">{formatKg(metricas.totalSobraKg)}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* DADOS DO LOTE */}
-      {metricas.mediaCabecas > 0 && (
-        <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Qtd. Cabeças (média)</div>
-              <div className="font-semibold text-slate-900">{metricas.mediaCabecas.toLocaleString("pt-BR")}</div>
-            </div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Peso médio</div>
-              <div className="font-semibold text-slate-900">{metricas.pesoMedioGeral > 0 ? `${metricas.pesoMedioGeral.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} kg` : "-"}</div>
-            </div>
-          </div>
+      <div>
+        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
+        <div className="grid grid-cols-3 gap-1 text-[10px]">
+          <Cell label="Qtd. Lotes">{metricas.qtdLotes}</Cell>
+          <Cell label="Qtd. Cabeças">{metricas.totalCabecasAtual.toLocaleString("pt-BR")}</Cell>
+          <Cell label="Peso médio geral">{metricas.pesoMedioGeral > 0 ? `${metricas.pesoMedioGeral.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} kg` : "-"}</Cell>
         </div>
-      )}
+      </div>
 
-      {/* CONSUMO ESPERADO */}
-      {metricas.consumoEsperadoCabDia > 0 && (
-        <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Consumo Lote PV/dia</div>
-              <div className="font-semibold text-slate-900">{metricas.consumoEsperadoPVDia > 0 ? formatKg(metricas.consumoEsperadoPVDia) : "-"}</div>
-            </div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Esperado/cab/dia</div>
-              <div className="font-semibold text-slate-900">{fmtNum3(metricas.consumoEsperadoCabDia)}</div>
-            </div>
-          </div>
+      {/* CONSUMO ESPERADO + REAL (mesma linha) */}
+      <div>
+        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado / Real</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+          <Cell label="Consumo Lote PV/dia">{metricas.consumoEsperadoPVDia > 0 ? formatKg(metricas.consumoEsperadoPVDia) : "-"}</Cell>
+          <Cell label="Esperado/cab/dia">{fmtNum3(metricas.consumoEsperadoCabDia)}</Cell>
+          <Cell label="Realizado cab/dia">{fmtNum3(metricas.consumoRealCabDia)}</Cell>
+          <Cell label="Desvio">
+            <span className="flex items-center gap-1">
+              {metricas.desvioKg != null ? (
+                <>
+                  <DesvioConsumoTag real={metricas.consumoRealCabDia} esperado={metricas.consumoEsperadoCabDia} />
+                  {metricas.desvioKg > 0 ? "+" : ""}{metricas.desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
+                </>
+              ) : "-"}
+            </span>
+          </Cell>
         </div>
-      )}
+      </div>
 
-      {/* CONSUMO REAL */}
-      {metricas.consumoRealCabDia > 0 && (
+      {/* ÚLTIMO LANÇAMENTO */}
+      {metricas.ultimoEvento && (
         <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Real</div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Último Lançamento</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Realizado cab/dia</div>
-              <div className="font-semibold text-slate-900">{fmtNum3(metricas.consumoRealCabDia)}</div>
-            </div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Desvio</div>
-              <div className="font-semibold text-slate-900 flex items-center gap-1">
-                {metricas.desvioKg != null ? (
-                  <>
-                    <DesvioConsumoTag real={metricas.consumoRealCabDia} esperado={metricas.consumoEsperadoCabDia} />
-                    {metricas.desvioKg > 0 ? "+" : ""}{metricas.desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
-                  </>
-                ) : "-"}
-              </div>
-            </div>
+            <Cell label="Data">{formatDateBR(metricas.ultimoEvento.data_lancamento)}</Cell>
+            <Cell label="Produto">{metricas.ultimoEvento.produto || "-"}</Cell>
+            <Cell label="Total fornecido">{formatKg(metricas.ultimoEvento.quantidade_total_kg || 0)}</Cell>
+            <Cell label="Total sacos">{fmtSacos(metricas.ultimoSacos)}</Cell>
           </div>
         </div>
       )}
