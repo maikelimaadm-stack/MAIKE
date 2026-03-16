@@ -245,7 +245,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
                       imageUrl={null}
                       label="Capacidade"
                       percent={percentCapacidade}
-                      fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"} />
+                      fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}
+                      hideImageArea={true} />
                     <span className="text-[9px] text-slate-500 text-center leading-tight">Capac.<br/>cocho</span>
                   </div>
                 )}
