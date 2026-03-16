@@ -44,7 +44,7 @@ export function getCochoIndicator(ponto, eventos = []) {
   const totalDisponivel = fornecido + sobra;
   const consumoBase = Number(ultimoEvento.consumo_diario_grupo_kg || ultimoEvento.consumo_esperado_pv_kg || 0);
   const saldoEstimado = ultimoEvento.dias_periodo != null ? sobra : Math.max(0, totalDisponivel - consumoBase * diasDesdeUltimo);
-  const percent = ponto.capacidade_cocho_kg > 0 ? clamp(saldoEstimado / Number(ponto.capacidade_cocho_kg || 0)) : clamp(saldoEstimado > 0 ? 1 : 0);
+  const percent = totalDisponivel > 0 ? clamp(saldoEstimado / totalDisponivel) : 0;
 
   return {
     percent,

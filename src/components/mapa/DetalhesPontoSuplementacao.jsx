@@ -189,7 +189,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         const proximaData = dataBaseLancamento && baseDuracaoTotal > 0
           ? new Date(dataBaseLancamento.getTime() + baseDuracaoTotal * 86400000)
           : null;
-        const percentual = ponto.capacidade_cocho_kg > 0 ? Math.min(1, saldoEstimado / ponto.capacidade_cocho_kg) : 0;
+        // Percentual baseado na proporção restante do período (saldo/totalDisponivel)
+        const percentual = totalDisponivel > 0 ? Math.min(1, saldoEstimado / totalDisponivel) : 0;
         const alertaGrafico = minimoDias > 0 && diasDesde >= minimoDias;
         return (
           <CardSection title="Saldo estimado no cocho">
