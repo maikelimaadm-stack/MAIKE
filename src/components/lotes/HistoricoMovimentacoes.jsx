@@ -124,6 +124,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           observacoes: mov.observacoes,
           area_origem_nome: mov.area_origem_nome,
           area_destino_nome: mov.area_destino_nome,
+          area_destino_id: mov.area_destino_id,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
           canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
           canDelete: (
@@ -144,7 +145,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const suplementacoes = suplementacoesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
         .filter((item) => matchLote(item.lote_nome, item.lote_id))
-
         .filter((item) => dentroDoHistoricoAtual(item.data_lancamento))
         .map((item) => ({
           uniqueId: `supl-${item.id}`,
@@ -231,20 +231,57 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     enabled: !!empresaSelecionadaId && (loteIds.length > 0 || loteNomes.length > 0 || !!areaId),
   });
 
+  // Buscar TODAS as movimentações do sistema para verificar registros posteriores de lotes derivados
+  const { data: todasMovimentacoesGlobal = [] } = useQuery({
+    queryKey: ['todas-movimentacoes-global', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const hasLaterRelatedRecord = React.useCallback((entry) => {
     const loteAtual = entry?.lote_key || normalize(entry?.lote);
+    const loteNomeNorm = normalize(entry?.lote);
     const dataAtual = getTime(entry?.data_evento);
     const createdAtual = getTime(entry?.created_at);
+    const isTransferencia = entry?.tipo === 'Transferência de Área';
 
+    // Para transferências, verificar TODAS as movimentações globais (não apenas as do histórico filtrado)
+    // porque lotes derivados (parciais) no destino podem ter IDs diferentes
+    if (isTransferencia) {
+      const areaDestinoId = entry?.area_destino_id || entry?.raw?.area_destino_id;
+      const hasLaterGlobal = todasMovimentacoesGlobal.some((mov) => {
+        if (mov.id === entry.id) return false;
+        
+        // Pesagens vinculadas à transferência são excluídas junto, não bloqueiam
+        const linkedIds = getLinkedMovementIds(mov.observacoes);
+        if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
+        
+        // Verificar se é uma movimentação posterior do mesmo lote (por nome) na área destino
+        const mesmoNome = normalize(mov.lote) === loteNomeNorm;
+        const mesmoId = !!mov.lote_id && mov.lote_id === (entry?.raw?.lote_id);
+        const naAreaDestino = mov.area_origem_id === areaDestinoId || mov.area_destino_id === areaDestinoId;
+        
+        if (!mesmoNome && !mesmoId) return false;
+        
+        const dataItem = getTime(mov.data_movimentacao);
+        const createdItem = getTime(mov.created_date || mov.data_movimentacao);
+        return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
+      });
+      if (hasLaterGlobal) return true;
+    }
+
+    // Verificação padrão no histórico local
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
 
-      // Se estamos verificando uma Transferência de Área, ignorar pesagens vinculadas a ela
-      // pois serão excluídas automaticamente junto com a transferência
-      if (entry?.tipo === 'Transferência de Área' && item.source === 'movimentacao') {
+      // Pesagens vinculadas à transferência pai são excluídas junto
+      if (isTransferencia && item.source === 'movimentacao') {
         const linkedIds = (item.linked_movement_ids || []);
         if (item.tipo === 'Pesagem' && linkedIds.includes(entry.id)) {
-          return false; // Pesagem filha não bloqueia a transferência pai
+          return false;
         }
       }
 
@@ -256,7 +293,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const createdItem = getTime(item.created_at);
       return childLinked || dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
     });
-  }, [historico]);
+  }, [historico, todasMovimentacoesGlobal]);
 
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
@@ -266,7 +303,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
-      return 'Existem registros posteriores para este lote. Exclua sempre o último lançamento primeiro (do mais recente para o mais antigo).';
+      return 'Existem registros posteriores para este lote (pesagem, mudança de categoria, morte, etc). Exclua sempre os lançamentos mais recentes primeiro.';
     }
     return '';
   }, [hasLaterRelatedRecord]);
@@ -429,6 +466,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               categoria_manejo_id: destinoFinal.categoria_manejo_id,
               categoria_manejo_nome: destinoFinal.categoria_manejo_nome,
               data_entrada: mov.data_movimentacao,
+              motivo_entrada: 'Outros',
+              motivo_outros: 'Reversão de movimentação',
               origem: 'REVERSÃO MOVIMENTAÇÃO',
               status: 'Ativo'
             });
@@ -456,6 +495,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       await base44.entities.MovimentacaoMapa.delete(mov.id);
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
       try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
       toast.success('Lançamento excluído do histórico e do MovimentacaoMapa');
@@ -531,7 +571,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
                         {isBloqueado && item.canDelete && (
-                          <div className="text-slate-500 font-medium"><strong>Bloqueio:</strong> {motivoBloqueio}</div>
+                          <div className="text-amber-600 font-medium"><strong>⚠ Bloqueio:</strong> {motivoBloqueio}</div>
                         )}
                       </div>
                     </div>
