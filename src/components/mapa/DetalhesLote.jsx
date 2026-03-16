@@ -531,200 +531,69 @@ export default function DetalhesLote({ lotes, onClose }) {
     window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
+  // Juntar lotes logic
+  const categoriasUnicas = [...new Set(lotes.map(l => (l.categoria || '').toUpperCase()))];
+  const categoriasManejoUnicas = [...new Set(lotes.map(l => l.categoria_manejo_id || l.categoria_manejo_nome || 'SEM_CATEGORIA_MANEJO'))];
+  const mesmaCat = categoriasUnicas.length === 1;
+  const mesmaCategoriaManejo = categoriasManejoUnicas.length === 1;
+  const podeJuntar = mesmaCat && mesmaCategoriaManejo;
+  const motivoNaoJuntar = !mesmaCat ? 'Só é possível juntar lotes da mesma categoria' : !mesmaCategoriaManejo ? 'Não é possível juntar lotes com categoria de manejo diferente' : '';
+
+  const handleJuntar = async () => {
+    if (!mesmaCat) { alert('Não é possível juntar lotes de categorias diferentes.'); return; }
+    if (!mesmaCategoriaManejo) { alert('Não é possível juntar lotes com categoria de manejo diferente.'); return; }
+    if (!confirm(`Deseja juntar todos os ${lotes.length} lotes desta área em um único lote?`)) return;
+    const principal = lotes[0];
+    const totalCab = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+    const pesoTotal = lotes.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
+    const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
+    const snapshotLotes = lotes.map(l => ({ id: l.id, nome: l.nome, quantidade_cabecas: l.quantidade_cabecas || 0, peso_medio_kg: l.peso_medio_kg || 0, status: l.status || 'Ativo', categoria: l.categoria || '', categoria_manejo_id: l.categoria_manejo_id || '', categoria_manejo_nome: l.categoria_manejo_nome || '', area_atual_id: l.area_atual_id || '', area_atual_nome: l.area_atual_nome || '' }));
+    const nomesLotes = lotes.map(l => l.nome).join(', ');
+    for (let i = 1; i < lotes.length; i++) { await base44.entities.Lote.update(lotes[i].id, { status: 'Inativo', quantidade_cabecas: 0 }); }
+    await base44.entities.Lote.update(principal.id, { quantidade_cabecas: totalCab, peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg });
+    const areaAtualId = principal.area_atual_id;
+    const areaJuncao = areas.find(a => a.id === areaAtualId);
+    await base44.entities.MovimentacaoMapa.create({ empresa_id: empresaSelecionadaId, data_movimentacao: new Date().toISOString(), tipo: 'Entrada', motivo: 'Junção de Lotes', lote: principal.nome, lote_id: principal.id, quantidade_animais: totalCab, area_origem_id: areaAtualId, area_origem_nome: areaJuncao?.nome || '', observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.` });
+    toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
+    onClose();
+    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+  };
+
   return (
     <>
-    <div className="space-y-4" translate="no">
-      <div className="text-sm font-bold text-slate-900 pb-2 border-b">
-        {tituloLotes}
-      </div>
+    <div className="space-y-2" translate="no">
+      {/* 1. Resumo do Pasto */}
+      <ResumoPasto area={areaAtual} lotes={lotes} />
 
-      <div className="space-y-3 mb-4">
-        {categorias.map(categoria => {
-          const lotesCategoria = lotesPorCategoria[categoria];
-          const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
-          const pesoMedio = lotesCategoria[0]?.peso_medio_kg || 0;
+      {/* 2. Resumo dos Lotes */}
+      <ResumoLoteDashboard lotes={lotes} areaAtual={areaAtual} />
 
-          const configIcone = iconesConfig.find(ic => 
-            ic.tipo_entidade === 'Lote' && 
-            ic.categoria?.toUpperCase() === categoria?.toUpperCase()
-          );
-          const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+      {/* 3. Composição por Categoria */}
+      <ComposicaoCategoria lotes={lotes} />
 
-          return (
-            <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm">
-              <div className="space-y-1.5">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-bold text-slate-900 mb-1">{categoria}</div>
-                    <div className="text-lg font-bold text-slate-900 mb-1.5">{totalCabecasCategoria} cab</div>
-                    <div className="space-y-1 text-[10px]">
-                      <div className="flex gap-2">
-                        <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
-                        <span className="font-semibold text-slate-900 break-words">{lotesCategoria.map(l => l.nome).join(', ')}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="font-medium text-slate-600">Peso:</span>
-                        <span className="font-semibold text-slate-900">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {iconeUrl && (
-                    <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
-                  )}
-                </div>
-
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-2">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-          <div>
-            <div className="text-slate-600 mb-0.5">Total de cabeças</div>
-            <div className="text-sm font-bold text-slate-900">{totalCabecas}</div>
-          </div>
-          <div>
-            <div className="text-slate-600 mb-0.5">Última mov.</div>
-            <div className="text-[11px] font-semibold text-slate-900">
-              {lotes[0]?.data_entrada ? new Date(lotes[0].data_entrada).toLocaleDateString() : '-'}
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-600 mb-0.5">Área atual</div>
-            <div className="text-[11px] font-semibold text-slate-900 truncate">{areaAtual?.nome || '-'}</div>
-          </div>
-          <div>
-            <div className="text-slate-600 mb-0.5">Sistema</div>
-            <div className="text-[11px] font-semibold text-slate-900">{lotes[0]?.sistema_produtivo || '-'}</div>
-          </div>
-        </div>
-      </div>
-
+      {/* 4. Suplementação Integrada */}
       <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>
-        <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Pesar</Button>
-        <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mudar Categoria</Button>
-        <Button onClick={() => setShowNascimento(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Nascimento</Button>
-        <Button onClick={() => setShowMorte(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Morte</Button>
-        <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Abate</Button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button 
-          onClick={() => setShowHistorico(true)}
-          variant="outline"
-          className="h-9 text-[11px] font-semibold border-slate-300"
-          translate="no"
-        >
-          Histórico Movimentações
-        </Button>
-        <Button 
-          onClick={() => setShowHistoricoSupl(true)}
-          variant="outline"
-          className="h-9 text-[11px] font-semibold border-slate-300"
-          translate="no"
-        >
-          Histórico Suplementação
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button 
-          onClick={() => {
-            if (lotes.length === 1) {
-              setLoteParaRenomear(lotes[0]);
-              setNovoNomeLote(lotes[0].nome);
-              setShowRenomear(true);
-            } else {
-              // Mostrar lista para escolher qual renomear
-              setLoteParaRenomear(null);
-              setShowRenomear(true);
-            }
-          }}
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs font-semibold border-slate-300"
-        >
-          Renomear Lote
-        </Button>
-        {lotes.length > 1 && (() => {
-          const categoriasUnicas = [...new Set(lotes.map(l => (l.categoria || '').toUpperCase()))];
-          const categoriasManejoUnicas = [...new Set(lotes.map(l => l.categoria_manejo_id || l.categoria_manejo_nome || 'SEM_CATEGORIA_MANEJO'))];
-          const mesmaCat = categoriasUnicas.length === 1;
-          const mesmaCategoriaManejo = categoriasManejoUnicas.length === 1;
-          const podeJuntar = mesmaCat && mesmaCategoriaManejo;
-          return (
-            <Button 
-              onClick={async () => {
-                if (!mesmaCat) {
-                  alert('Não é possível juntar lotes de categorias diferentes. Selecione apenas lotes da mesma categoria.');
-                  return;
-                }
-                if (!mesmaCategoriaManejo) {
-                  alert('Não é possível juntar lotes com categoria de manejo diferente.');
-                  return;
-                }
-                if (!confirm(`Deseja juntar todos os ${lotes.length} lotes desta área em um único lote?`)) return;
-                const principal = lotes[0];
-                const totalCab = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-                const pesoTotal = lotes.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
-                const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
-                const snapshotLotes = lotes.map(l => ({
-                  id: l.id,
-                  nome: l.nome,
-                  quantidade_cabecas: l.quantidade_cabecas || 0,
-                  peso_medio_kg: l.peso_medio_kg || 0,
-                  status: l.status || 'Ativo',
-                  categoria: l.categoria || '',
-                  categoria_manejo_id: l.categoria_manejo_id || '',
-                  categoria_manejo_nome: l.categoria_manejo_nome || '',
-                  area_atual_id: l.area_atual_id || '',
-                  area_atual_nome: l.area_atual_nome || ''
-                }));
-                
-                const nomesLotes = lotes.map(l => l.nome).join(', ');
-                for (let i = 1; i < lotes.length; i++) {
-                  await base44.entities.Lote.update(lotes[i].id, { status: 'Inativo', quantidade_cabecas: 0 });
-                }
-                await base44.entities.Lote.update(principal.id, { 
-                  quantidade_cabecas: totalCab,
-                  peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
-                });
-
-                const areaAtualId = principal.area_atual_id;
-                const areaJuncao = areas.find(a => a.id === areaAtualId);
-                await base44.entities.MovimentacaoMapa.create({
-                  empresa_id: empresaSelecionadaId,
-                  data_movimentacao: new Date().toISOString(),
-                  tipo: 'Entrada',
-                  motivo: 'Junção de Lotes',
-                  lote: principal.nome,
-                  lote_id: principal.id,
-                  quantidade_animais: totalCab,
-                  area_origem_id: areaAtualId,
-                  area_origem_nome: areaJuncao?.nome || '',
-                  observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
-                });
-
-                toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
-                onClose();
-                window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-              }}
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs font-semibold border-slate-300 ${!podeJuntar ? 'opacity-50' : ''}`}
-              disabled={!podeJuntar}
-              title={!mesmaCat ? 'Só é possível juntar lotes da mesma categoria' : !mesmaCategoriaManejo ? 'Não é possível juntar lotes com categoria de manejo diferente' : ''}
-            >
-              Juntar Lotes
-            </Button>
-          );
-        })()}
-      </div>
+      {/* 5. Botões de Ação Agrupados */}
+      <BotoesAcaoLote
+        lotes={lotes}
+        onMover={() => setShowMovimentacao(true)}
+        onPesar={() => setShowPesagem(true)}
+        onMudarCategoria={() => setShowMudancaCategoria(true)}
+        onNascimento={() => setShowNascimento(true)}
+        onMorte={() => setShowMorte(true)}
+        onAbate={() => setShowAbate(true)}
+        onHistorico={() => setShowHistorico(true)}
+        onHistoricoSupl={() => setShowHistoricoSupl(true)}
+        onRenomear={() => {
+          if (lotes.length === 1) { setLoteParaRenomear(lotes[0]); setNovoNomeLote(lotes[0].nome); }
+          else { setLoteParaRenomear(null); }
+          setShowRenomear(true);
+        }}
+        onJuntar={handleJuntar}
+        podeJuntar={podeJuntar}
+        motivoNaoJuntar={motivoNaoJuntar}
+      />
 
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
