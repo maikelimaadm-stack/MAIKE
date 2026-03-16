@@ -368,6 +368,8 @@ export default function DetalhesLote({ lotes, onClose }) {
         area_atual_id: areaAtualId,
         area_atual_nome: areaAtual?.nome || '',
         data_entrada: formData.data_nascimento,
+        motivo_entrada: 'Outros',
+        motivo_outros: 'Nascimento',
         origem: 'Nascimento',
         status: 'Ativo',
         sistema_produtivo: lotes[0]?.sistema_produtivo
@@ -473,22 +475,24 @@ export default function DetalhesLote({ lotes, onClose }) {
         } else {
           // Mudança parcial - criar novo lote com nova categoria
           await base44.entities.Lote.create({
-            empresa_id: empresaSelecionadaId,
-            nome: lote.nome,
-            quantidade_cabecas: qtdMudar,
-            categoria: mudanca.categoria_nova,
-            sexo: sexoNovo,
-            categoria_manejo_id: catManejoIdNovo,
-            categoria_manejo_nome: catManejoNomeNovo,
-            peso_medio_kg: lote.peso_medio_kg,
-            idade_media_meses: lote.idade_media_meses,
-            area_atual_id: areaAtualId,
-            area_atual_nome: areaMudanca?.nome || '',
-            raca_predominante: lote.raca_predominante,
-            sistema_produtivo: lote.sistema_produtivo,
-            data_entrada: formData.data_mudanca,
-            origem: 'Mudança de Categoria',
-            status: 'Ativo'
+          empresa_id: empresaSelecionadaId,
+          nome: lote.nome,
+          quantidade_cabecas: qtdMudar,
+          categoria: mudanca.categoria_nova,
+          sexo: sexoNovo,
+          categoria_manejo_id: catManejoIdNovo,
+          categoria_manejo_nome: catManejoNomeNovo,
+          peso_medio_kg: lote.peso_medio_kg,
+          idade_media_meses: lote.idade_media_meses,
+          area_atual_id: areaAtualId,
+          area_atual_nome: areaMudanca?.nome || '',
+          raca_predominante: lote.raca_predominante,
+          sistema_produtivo: lote.sistema_produtivo,
+          data_entrada: formData.data_mudanca,
+          motivo_entrada: 'Outros',
+          motivo_outros: 'Mudança de Categoria',
+          origem: 'Mudança de Categoria',
+          status: 'Ativo'
           });
 
           // Diminuir quantidade do lote original
