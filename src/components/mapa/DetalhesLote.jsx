@@ -536,20 +536,17 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   return (
     <>
-    <div className="space-y-2" translate="no">
-      {/* 1. Resumo do Pasto */}
-      <ResumoPasto area={areaAtual} lotes={lotes} />
+    <div className="space-y-1" translate="no">
+      {/* Badge header - estilo cocho */}
+      <div className="pb-2 border-b space-y-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
+            Lote: {lotes.map(l => l.nome).join(' - ')}
+          </span>
+        </div>
+      </div>
 
-      {/* 2. Resumo dos Lotes */}
-      <ResumoLoteDashboard lotes={lotes} areaAtual={areaAtual} />
-
-      {/* 3. Composição por Categoria */}
-      <ComposicaoCategoria lotes={lotes} />
-
-      {/* 4. Suplementação Integrada */}
-      <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" />
-
-      {/* 5. Botões de Ação Agrupados */}
+      {/* Botões de ação - logo abaixo do header como no cocho */}
       <BotoesAcaoLote
         lotes={lotes}
         onMover={() => setShowMovimentacao(true)}
