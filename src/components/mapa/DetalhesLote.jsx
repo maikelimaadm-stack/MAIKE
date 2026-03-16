@@ -200,11 +200,15 @@ export default function DetalhesLote({ lotes, onClose }) {
                   idade_media_meses: lote.idade_media_meses,
                   area_atual_id: formData.area_entrada_id,
                   area_atual_nome: areaEntrada?.nome || '',
+                  area_entrada_id: formData.area_entrada_id,
+                  area_entrada_nome: areaEntrada?.nome || '',
                   raca_predominante: lote.raca_predominante,
                   sistema_produtivo: lote.sistema_produtivo,
                   categoria_manejo_id: lote.categoria_manejo_id,
                   categoria_manejo_nome: lote.categoria_manejo_nome,
                   data_entrada: formData.data_movimentacao,
+                  motivo_entrada: 'Outros',
+                  motivo_outros: 'Movimentação parcial',
                   origem: 'MOVIMENTAÇÃO',
                   status: 'Ativo'
                 });
