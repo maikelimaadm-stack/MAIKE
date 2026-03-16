@@ -462,7 +462,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               {ultimoEvento && diasPeriodo && <div className="text-[10px] text-slate-600 pt-1 border-t border-emerald-200">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
-            {!depositoVinculado?.local_estoque_id && <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Este cocho ainda não tem depósito vinculado. O lançamento será salvo sem baixa automática de estoque.</div>}
+            {!depositoVinculado?.local_estoque_id && <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-600">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</div>}
 
             {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
@@ -544,6 +544,28 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             )}
 
 
+            {/* Validação técnica - ANTES do fechamento */}
+            {quantidadeKg > 0 && totalCabecas > 0 && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+                <div className="flex items-center justify-between gap-1 flex-wrap">
+                  <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
+                  <Badge variant="outline" className="text-xs">{statusDuracao.label}</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. média</div><div className="font-bold text-slate-900">{frequenciaMedia > 0 ? `${formatDecimal(frequenciaMedia, 0, true)} dia(s)` : '-'}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Duração estimada</div><div className="font-bold text-slate-900">{duracaoDiasInteira > 0 ? `${formatDecimal(duracaoDiasInteira, 0, true)} dia(s)` : '-'}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Próxima Reposição</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{consumoEstimadoCabDia > 0 ? consumoEstimadoCabDia.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : '-'}</div></div>
+                </div>
+                <div className="text-[10px] text-slate-600">
+                  {statusDuracao.message}
+                  {avaliacaoTecnica?.message ? ` • ${avaliacaoTecnica.message}` : ""}
+                  {avaliacaoPV && consumoEsperadoCabDiaPV > 0 ? ` • Esperado (%PV): ${consumoEsperadoCabDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg/cab/dia` : ""}
+                  {!avaliacaoPV && regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
+                </div>
+              </div>
+            )}
+
             {/* Consumo do fechamento / estimativa */}
             {ultimoEvento && (() => {
               const sobraAnterior = ultimoEvento.sobra_kg || 0;
@@ -558,10 +580,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                   <div className="text-xs font-semibold text-slate-900">Consumo do fechamento / estimativa</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatDecimal(fornecidoAnterior)} kg</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{formatDecimal(consumidoAnterior)} kg</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoDiarioAnterior)} kg</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoPorCabAnterior, 3)} kg</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{fornecidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{consumidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/dia</div><div className="font-bold text-slate-900">{consumoDiarioAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/cab/dia</div><div className="font-bold text-slate-900">{consumoPorCabAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg</div></div>
                   </div>
                   <div className="text-[10px] text-slate-600">Período analisado: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</div>
                 </div>
@@ -574,30 +596,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV do produto</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{formatDecimal(pesoMedioGeral, 1)} kg</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEsperadoCabDiaPV, 3)} kg</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900">{formatDecimal(consumoEsperadoGrupoDiaPV, 1)} kg</div></div>
-                </div>
-              </div>
-            )}
-
-            {/* Validação técnica */}
-            {quantidadeKg > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
-                <div className="flex items-center justify-between gap-1 flex-wrap">
-                  <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
-                  <Badge variant="outline" className="text-xs">{statusDuracao.label}</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. média</div><div className="font-bold text-slate-900">{frequenciaMedia > 0 ? `${formatDecimal(frequenciaMedia, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Duração estimada</div><div className="font-bold text-slate-900">{duracaoDiasInteira > 0 ? `${formatDecimal(duracaoDiasInteira, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1 col-span-2"><div className="text-slate-500">Próxima suplementação</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
-                </div>
-                <div className="text-[10px] text-slate-600">
-                  {statusDuracao.message}
-                  {avaliacaoTecnica?.message ? ` • ${avaliacaoTecnica.message}` : ""}
-                  {avaliacaoPV && consumoEsperadoCabDiaPV > 0 ? ` • Esperado (%PV): ${formatDecimal(consumoEsperadoCabDiaPV, 3)} kg/cab/dia` : ""}
-                  {!avaliacaoPV && regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioGeral.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{consumoEsperadoCabDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900">{consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
                 </div>
               </div>
             )}
