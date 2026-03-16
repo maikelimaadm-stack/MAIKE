@@ -560,7 +560,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
               const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraFechamento);
               return (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                   <div className="text-xs font-semibold text-slate-900">Consumo do fechamento / estimativa</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{formatDecimal(fornecidoAnterior)} kg</div></div>
@@ -575,7 +575,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                 <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV do produto</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
@@ -588,8 +588,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Validação técnica */}
             {quantidadeKg > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+                <div className="flex items-center justify-between gap-1 flex-wrap">
                   <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
                   <Badge variant="outline" className="text-xs">{statusDuracao.label}</Badge>
                 </div>
@@ -609,8 +609,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Consumo por lote */}
             {quantidadeKg > 0 && totalCabecas > 0 && lotes.length > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-                <div className="flex items-center justify-between gap-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+                <div className="flex items-center justify-between gap-1">
                   <div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div>
                   <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarConsumoLote((prev) => !prev)}>
                     {mostrarConsumoLote ? "Ocultar" : "Ver"}
