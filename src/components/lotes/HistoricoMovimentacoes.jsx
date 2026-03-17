@@ -143,6 +143,18 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const movimentacoes = movimentacoesRaw
         .filter((mov) => mov.empresa_id === empresaSelecionadaId)
         .filter((mov) => {
+          // Transferências devem aparecer na área de ORIGEM (para exclusão) e na de destino (para consulta)
+          // Na área de origem, o lote pode não estar mais lá, então precisamos match especial
+          if (mov.tipo === 'Transferência de Área' && areaId) {
+            const isOrigem = mov.area_origem_id === areaId;
+            const isDestino = mov.area_destino_id === areaId;
+            if (isOrigem || isDestino) {
+              // Verificar se o nome/id do lote bate com os lotes que estamos visualizando
+              const nomeMatch = loteNomes.some((item) => normalize(item) === normalize(mov.lote));
+              const idMatch = loteIds.length > 0 && !!mov.lote_id && loteIds.includes(mov.lote_id);
+              if (nomeMatch || idMatch) return true;
+            }
+          }
           if (loteIds.length > 0 || loteNomes.length > 0) {
             return matchLote(mov.lote, mov.lote_id) && dentroDoHistoricoAtual(mov.created_date, mov.data_movimentacao);
           }
