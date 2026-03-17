@@ -220,7 +220,6 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
   const lotePrincipal = findLoteById(originalMovement.lote_id);
 
   if (diff !== 0) {
-
     if (originalMovement.tipo === "Morte" || originalMovement.tipo === "Abate") {
       if (!lotePrincipal) throw new Error("Não foi possível localizar o lote para reconciliar a edição.");
       if (diff > 0) ensureAvailable(lotePrincipal, diff, "O lote não tem saldo suficiente para aumentar essa baixa.");
@@ -250,6 +249,11 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
         findLoteByNomeAreaCategoria,
       });
     }
+  }
+
+  if (originalMovement.tipo === "Pesagem") {
+    if (!lotePrincipal) throw new Error("Não foi possível localizar o lote para reconciliar a pesagem.");
+    await base44.entities.Lote.update(lotePrincipal.id, { peso_medio_kg: payload.peso_medio });
   }
 
   await base44.entities.MovimentacaoMapa.update(originalMovement.id, payload);
