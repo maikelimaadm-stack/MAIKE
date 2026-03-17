@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toNoonUtcISOString } from "../utils/pecuariaUtils";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -141,7 +142,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
           const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
             empresa_id: empresaSelecionadaId,
-            data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
+            data_movimentacao: toNoonUtcISOString(formData.data_movimentacao),
             tipo: 'Transferência de Área',
             lote: lote.nome,
             lote_id: lote.id,
@@ -224,7 +225,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
             const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
               empresa_id: empresaSelecionadaId,
-              data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
+              data_movimentacao: toNoonUtcISOString(formData.data_movimentacao),
               tipo: 'Transferência de Área',
               lote: lote.nome,
               lote_id: lote.id,
@@ -306,7 +307,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       await base44.entities.MovimentacaoMapa.create({
         empresa_id: empresaSelecionadaId,
-        data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
+        data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
         tipo: 'Morte',
         lote: lote.nome,
         lote_id: lote.id,
@@ -381,7 +382,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     // Registrar movimentação
     await base44.entities.MovimentacaoMapa.create({
       empresa_id: empresaSelecionadaId,
-      data_movimentacao: new Date(formData.data_nascimento).toISOString(),
+      data_movimentacao: toNoonUtcISOString(formData.data_nascimento),
       tipo: 'Nascimento',
       lote: loteFilhote.nome,
       lote_id: loteFilhote.id,
@@ -409,7 +410,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       await base44.entities.MovimentacaoMapa.create({
         empresa_id: empresaSelecionadaId,
-        data_movimentacao: new Date(formData.data_abate).toISOString(),
+        data_movimentacao: toNoonUtcISOString(formData.data_abate),
         tipo: 'Abate',
         lote: lote.nome,
         lote_id: lote.id,
@@ -450,7 +451,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
         await base44.entities.MovimentacaoMapa.create({
           empresa_id: empresaSelecionadaId,
-          data_movimentacao: new Date(formData.data_mudanca).toISOString(),
+          data_movimentacao: toNoonUtcISOString(formData.data_mudanca),
           tipo: 'Mudança de Categoria',
           lote: lote.nome,
           lote_id: lote.id,
@@ -534,7 +535,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
         await base44.entities.MovimentacaoMapa.create({
           empresa_id: empresaSelecionadaId,
-          data_movimentacao: new Date(formData.data_pesagem).toISOString(),
+          data_movimentacao: toNoonUtcISOString(formData.data_pesagem),
           tipo: 'Pesagem',
           lote: lote.nome,
           lote_id: lote.id,

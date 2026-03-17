@@ -714,7 +714,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
                       <div className="space-y-0.5 text-[10px] text-slate-600">
                         {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
-                        <div><strong>Data:</strong> {new Date(item.data_evento).toLocaleDateString('pt-BR')}</div>
+                        <div><strong>Data:</strong> {formatDateOnly(item.data_evento)}</div>
                         {item.tipo === 'Transferência de Área' && (
                           <div><strong>Trajeto:</strong> {item.area_origem_nome || '-'} → {item.area_destino_nome || '-'}</div>
                         )}
