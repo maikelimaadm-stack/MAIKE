@@ -516,7 +516,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       // Declarar categoriaMovimento no escopo externo para uso na reversão de transferência
       let categoriaMovimento = null;
       if (mov.tipo === 'Transferência de Área') {
-        categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || findLoteById(mov.lote_id)?.categoria || null;
+        // Prioridade: 1) campo direto categoria_animal (gravado na transferência)
+        // 2) extrair das observações (movimentação parcial)
+        // NÃO usar findLoteById(mov.lote_id)?.categoria como fallback pois o lote pode ter
+        // mudado de categoria desde a transferência
+        categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || null;
         const pesagensFilhas = movsAll.filter(item =>
           item.empresa_id === empresaSelecionadaId &&
           item.tipo === 'Pesagem' &&
