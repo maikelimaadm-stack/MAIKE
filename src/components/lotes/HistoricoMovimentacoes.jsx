@@ -54,6 +54,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const [editMov, setEditMov] = React.useState(null);
   const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
+  const deleteInProgressRef = React.useRef(false);
   const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
   const loteNomes = React.useMemo(() => {
     const nomesDosLotes = lotes.map((item) => item?.nome).filter(Boolean);
