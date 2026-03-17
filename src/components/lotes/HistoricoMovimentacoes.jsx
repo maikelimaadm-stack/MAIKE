@@ -16,6 +16,7 @@ import {
   getCategoriaAnteriorFromObs,
   getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
+import { reconcileMovementEdit } from "./movimentacaoReconciliation";
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
@@ -47,7 +48,6 @@ const TIPOS_EDITAVEIS = new Set([
 
 const getTime = (value) => new Date(value).getTime() || 0;
 const normalize = (value) => normalizeText(value);
-const pendingDeleteMovementIds = new Set();
 
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -56,8 +56,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
   const [hiddenMovementIds, setHiddenMovementIds] = React.useState([]);
-  const [lockedDeleteIds, setLockedDeleteIds] = React.useState([]);
-  const deleteInProgressRef = React.useRef(false);
   const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
   const loteNomes = React.useMemo(() => {
     const nomesDosLotes = lotes.map((item) => item?.nome).filter(Boolean);
@@ -65,8 +63,22 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   }, [lotes, lotesIds]);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.MovimentacaoMapa.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] })
+    mutationFn: ({ movement, data }) => reconcileMovementEdit({
+      empresaSelecionadaId,
+      originalMovement: movement,
+      nextData: data,
+    }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
+        queryClient.invalidateQueries({ queryKey: ['lotes'] }),
+        queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
+        queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] }),
+        queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
+      ]);
+      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
+      toast.success('Lançamento atualizado e saldo reconciliado');
+    }
   });
 
   const { data: historico = [], isLoading } = useQuery({
@@ -366,44 +378,21 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     [historico, hiddenMovementIds]
   );
 
-  const handleDelete = async (entry, buttonElement) => {
-    // Travar imediatamente no primeiro clique
-    if (
-      deleteInProgressRef.current ||
-      hiddenMovementIds.includes(entry.id) ||
-      lockedDeleteIds.includes(entry.id) ||
-      pendingDeleteMovementIds.has(entry.id)
-    ) return;
+  const handleDelete = async (entry) => {
+    if (deletingId) return;
 
-    pendingDeleteMovementIds.add(entry.id);
-    if (buttonElement) {
-      buttonElement.disabled = true;
-      buttonElement.style.pointerEvents = 'none';
-    }
-    deleteInProgressRef.current = true;
     setDeletingId(entry.id);
-    setLockedDeleteIds((prev) => (prev.includes(entry.id) ? prev : [...prev, entry.id]));
-    
+
     const motivoBloqueio = getDeleteBlockReason(entry);
     if (motivoBloqueio) {
-      deleteInProgressRef.current = false;
       setDeletingId(null);
-      setLockedDeleteIds((prev) => prev.filter((id) => id !== entry.id));
-      pendingDeleteMovementIds.delete(entry.id);
       alert(motivoBloqueio);
       return;
     }
 
     const mov = entry.raw;
     if (!confirm('Excluir este lançamento? O lote será revertido automaticamente.')) {
-      deleteInProgressRef.current = false;
       setDeletingId(null);
-      setLockedDeleteIds((prev) => prev.filter((id) => id !== entry.id));
-      pendingDeleteMovementIds.delete(entry.id);
-      if (buttonElement) {
-        buttonElement.disabled = false;
-        buttonElement.style.pointerEvents = '';
-      }
       return;
     }
 
@@ -429,11 +418,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
       }
 
-      // Buscar lotes uma vez e reutilizar a lista de movimentações já carregada acima
       const lotesAll = await base44.entities.Lote.list();
       const lotesEmpresa = lotesAll.filter(l => l.empresa_id === empresaSelecionadaId);
 
-      // Helpers que usam o snapshot carregado
       const findLoteById = (id) => id ? lotesEmpresa.find(l => l.id === id) : null;
       const findLoteByNome = (nome, apenasAtivo = true) => lotesEmpresa.find(l =>
         normalize(l.nome) === normalize(nome) && (!apenasAtivo || l.status === 'Ativo')
@@ -442,7 +429,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         normalize(l.nome) === normalize(nome) && l.area_atual_id === areaId && (!apenasAtivo || l.status === 'Ativo')
       ) || null;
 
-      // Resolver lote principal da movimentação
       const resolverLote = () => findLoteById(mov.lote_id) || findLoteByNome(mov.lote);
 
       if (mov.tipo === 'Transferência de Área') {
@@ -575,7 +561,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       await base44.entities.MovimentacaoMapa.delete(mov.id);
 
-      // Aguardar invalidação das queries antes de liberar o botão
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['lotes'] }),
         queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
@@ -599,10 +584,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         toast.error(error.message || 'Não foi possível excluir o lançamento');
       }
     } finally {
-      deleteInProgressRef.current = false;
       setDeletingId(null);
-      setLockedDeleteIds((prev) => prev.filter((id) => id !== entry.id));
-      pendingDeleteMovementIds.delete(entry.id);
     }
   };
 
@@ -693,10 +675,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             variant="destructive"
                             size="sm"
                             className="h-8 text-xs"
-                            disabled={!!deletingId || hiddenMovementIds.includes(item.id) || lockedDeleteIds.includes(item.id) || isBloqueado}
-                            onClick={(e) => handleDelete(item, e.currentTarget)}
+                            disabled={!!deletingId || hiddenMovementIds.includes(item.id) || isBloqueado}
+                            onClick={() => handleDelete(item)}
                           >
-                            {deletingId === item.id || lockedDeleteIds.includes(item.id) ? 'Excluindo...' : 'Excluir'}
+                            {deletingId === item.id ? 'Excluindo...' : 'Excluir'}
                           </Button>
                         )}
                       </div>
@@ -743,7 +725,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                   className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
                   onClick={async () => {
                     await updateMutation.mutateAsync({
-                      id: editMov.id,
+                      movement: editMov,
                       data: {
                         quantidade_animais: editMov.quantidade_animais,
                         observacoes: editMov.observacoes,
