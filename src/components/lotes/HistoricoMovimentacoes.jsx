@@ -765,9 +765,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         {item.source === 'suplementacao' && (
                           <div className="text-amber-600 font-medium"><strong>⚠ Regra:</strong> exclusão apenas pelo histórico do cocho.</div>
                         )}
-                        {item.tipo === 'Transferência de Área' && areaId && item.raw?.area_origem_id !== areaId && (
-                          <div className="text-amber-600 font-medium"><strong>⚠ Regra:</strong> exclusão apenas pela área de origem.</div>
-                        )}
+
                         {isBloqueado && item.canDelete && (
                           <div className="text-amber-600 font-medium"><strong>⚠ Bloqueio:</strong> {motivoBloqueio}</div>
                         )}
