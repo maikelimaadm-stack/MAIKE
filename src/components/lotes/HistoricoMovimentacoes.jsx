@@ -47,6 +47,7 @@ const TIPOS_EDITAVEIS = new Set([
 
 const getTime = (value) => new Date(value).getTime() || 0;
 const normalize = (value) => normalizeText(value);
+const pendingDeleteMovementIds = new Set();
 
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -365,10 +366,20 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     [historico, hiddenMovementIds]
   );
 
-  const handleDelete = async (entry) => {
+  const handleDelete = async (entry, buttonElement) => {
     // Travar imediatamente no primeiro clique
-    if (deleteInProgressRef.current || hiddenMovementIds.includes(entry.id) || lockedDeleteIds.includes(entry.id)) return;
+    if (
+      deleteInProgressRef.current ||
+      hiddenMovementIds.includes(entry.id) ||
+      lockedDeleteIds.includes(entry.id) ||
+      pendingDeleteMovementIds.has(entry.id)
+    ) return;
 
+    pendingDeleteMovementIds.add(entry.id);
+    if (buttonElement) {
+      buttonElement.disabled = true;
+      buttonElement.style.pointerEvents = 'none';
+    }
     deleteInProgressRef.current = true;
     setDeletingId(entry.id);
     setLockedDeleteIds((prev) => (prev.includes(entry.id) ? prev : [...prev, entry.id]));
@@ -378,6 +389,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       deleteInProgressRef.current = false;
       setDeletingId(null);
       setLockedDeleteIds((prev) => prev.filter((id) => id !== entry.id));
+      pendingDeleteMovementIds.delete(entry.id);
       alert(motivoBloqueio);
       return;
     }
@@ -387,6 +399,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       deleteInProgressRef.current = false;
       setDeletingId(null);
       setLockedDeleteIds((prev) => prev.filter((id) => id !== entry.id));
+      pendingDeleteMovementIds.delete(entry.id);
+      if (buttonElement) {
+        buttonElement.disabled = false;
+        buttonElement.style.pointerEvents = '';
+      }
       return;
     }
 
@@ -585,6 +602,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       deleteInProgressRef.current = false;
       setDeletingId(null);
       setLockedDeleteIds((prev) => prev.filter((id) => id !== entry.id));
+      pendingDeleteMovementIds.delete(entry.id);
     }
   };
 
@@ -676,7 +694,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             size="sm"
                             className="h-8 text-xs"
                             disabled={!!deletingId || hiddenMovementIds.includes(item.id) || lockedDeleteIds.includes(item.id) || isBloqueado}
-                            onClick={() => handleDelete(item)}
+                            onClick={(e) => handleDelete(item, e.currentTarget)}
                           >
                             {deletingId === item.id || lockedDeleteIds.includes(item.id) ? 'Excluindo...' : 'Excluir'}
                           </Button>
