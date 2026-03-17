@@ -794,19 +794,19 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               const tipoExibicao = item.tipo_exibicao || item.tipo;
 
               return (
-                <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-slate-50 transition-colors">
+                <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={`text-[10px] font-semibold border ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
-                          {tipoExibicao}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px] font-semibold">
-                          {item.sourceLabel}
-                        </Badge>
-                        <span className="text-[10px] text-slate-500">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
                           {formatDateOnly(item.data_evento)}
                         </span>
+                        <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
+                          {tipoExibicao}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] font-semibold text-slate-700 border-slate-300 bg-white">
+                          {item.sourceLabel}
+                        </Badge>
                       </div>
 
                       <div className="text-xs font-semibold text-slate-900">{item.lote || 'Sem lote'}</div>
@@ -836,7 +836,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 text-xs"
+                            className="h-7 text-[10px] px-2"
                             disabled={isBloqueado || updateMutation.isPending}
                             onClick={() => openEditDialog(item.raw)}
                           >
@@ -847,7 +847,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           <Button
                             variant="destructive"
                             size="sm"
-                            className="h-8 text-xs"
+                            className="h-7 text-[10px] px-2"
                             disabled={!!deletingId || hiddenMovementIds.includes(item.id) || isBloqueado}
                             onClick={() => handleDelete(item)}
                           >
