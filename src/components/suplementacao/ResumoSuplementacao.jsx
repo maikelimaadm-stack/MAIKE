@@ -166,9 +166,9 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     // --- DESVIO ---
     const desvioKg = consumoRealCabDia > 0 && consumoEsperadoCabDia > 0 ? consumoRealCabDia - consumoEsperadoCabDia : null;
 
-    // --- ÚLTIMO LANÇAMENTO (evento mais recente) ---
-    const ultimoEvento = [...eventosRecentes].sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
-    const ultimoSacos = ultimoEvento ? (ultimoEvento.quantidade_sacos > 0 ? ultimoEvento.quantidade_sacos : (ultimoEvento.peso_por_saco_kg > 0 ? kgParaSacos(ultimoEvento.quantidade_total_kg || 0, ultimoEvento.peso_por_saco_kg) : 0)) : 0;
+    // --- ÚLTIMO LANÇAMENTO RATEADO ---
+    const ultimoEvento = resumoPorEvento.ultimoEventoRateado || null;
+    const ultimoSacos = ultimoEvento?.quantidade_rateada_sacos || 0;
 
     return {
       totalFornecidoKg, totalSacos, totalConsumidoKg, sobraRestaKg,
