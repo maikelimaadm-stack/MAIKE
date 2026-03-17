@@ -330,6 +330,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const linkedIds = getLinkedMovementIds(mov.observacoes);
         if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
         
+        // Outras transferências (ida ou volta) NÃO bloqueiam — são operações independentes
+        if (mov.tipo === 'Transferência de Área') return false;
+        
         // Só considerar movimentações que ocorreram NA ÁREA DESTINO desta transferência
         const movNaAreaDestino = mov.area_origem_id === areaDestinoId || mov.area_destino_id === areaDestinoId;
         if (!movNaAreaDestino) return false;
