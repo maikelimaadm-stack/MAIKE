@@ -418,10 +418,13 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       if (mov.tipo === 'Mudança de Categoria') {
         if (loteRecord) {
           const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
+          const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
           if (categoriaAnterior) {
-            await base44.entities.Lote.update(loteRecord.id, {
-              categoria: categoriaAnterior
-            });
+            const updateData = { categoria: categoriaAnterior };
+            if (sexoAnterior) {
+              updateData.sexo = sexoAnterior;
+            }
+            await base44.entities.Lote.update(loteRecord.id, updateData);
           }
         }
       }
