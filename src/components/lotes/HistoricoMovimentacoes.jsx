@@ -63,6 +63,20 @@ const formatDateOnly = (value) => {
   return `${day}/${month}/${year}`;
 };
 
+const getDirecaoHistorico = (item) => {
+  if (item?.source !== 'movimentacao') return item?.sourceLabel || 'Registro';
+  if (item?.tipo === 'Nascimento') return 'Entrada';
+  if (['Transferência de Área', 'Morte', 'Abate'].includes(item?.tipo)) return 'Saída';
+  return 'Registro';
+};
+
+const MetricCell = ({ label, value, children }) => (
+  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+    <div className="text-slate-500">{label}</div>
+    <div className="font-semibold text-slate-900">{children ?? value}</div>
+  </div>
+);
+
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
