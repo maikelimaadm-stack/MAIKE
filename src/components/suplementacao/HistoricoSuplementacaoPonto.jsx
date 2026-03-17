@@ -35,25 +35,23 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     enabled: !!empresaSelecionadaId,
   });
 
-  const podeExcluirEvento = React.useCallback(async (evento) => {
-    const lotesSuplementacao = await base44.entities.SuplementacaoLote.list();
-    const lotesRelacionados = lotesSuplementacao.filter((item) => item.suplementacao_evento_id === evento.id);
-    const loteIds = new Set(lotesRelacionados.map((item) => item.lote_id).filter(Boolean));
-    const loteNomes = new Set(lotesRelacionados.map((item) => String(item.lote_nome || '').trim().toUpperCase()).filter(Boolean));
-    const areasEvento = new Set([evento.area_id, ...(Array.isArray(evento.area_ids) ? evento.area_ids : [])].filter(Boolean));
-    const dataEvento = new Date(evento.data_lancamento || evento.created_date || 0).getTime();
+  const bloqueiosPorEvento = useMemo(() => {
+    const mapa = {};
 
-    const existeMovimentoPosterior = movimentacoes.some((mov) => {
-      const dataMov = new Date(mov.data_movimentacao || mov.created_date || 0).getTime();
-      if (dataMov <= dataEvento) return false;
+    eventos.forEach((evento) => {
+      const areasEvento = new Set([evento.area_id, ...(Array.isArray(evento.area_ids) ? evento.area_ids : [])].filter(Boolean));
+      const dataEvento = new Date(evento.data_lancamento || evento.created_date || 0).getTime();
 
-      const mesmaArea = areasEvento.size === 0 || areasEvento.has(mov.area_origem_id) || areasEvento.has(mov.area_destino_id);
-      const mesmoLote = (mov.lote_id && loteIds.has(mov.lote_id)) || loteNomes.has(String(mov.lote || '').trim().toUpperCase());
-      return mesmaArea && mesmoLote;
+      mapa[evento.id] = movimentacoes.some((mov) => {
+        const dataMov = new Date(mov.data_movimentacao || mov.created_date || 0).getTime();
+        if (dataMov <= dataEvento) return false;
+        if (areasEvento.size === 0) return false;
+        return areasEvento.has(mov.area_origem_id) || areasEvento.has(mov.area_destino_id);
+      });
     });
 
-    return !existeMovimentoPosterior;
-  }, [movimentacoes]);
+    return mapa;
+  }, [eventos, movimentacoes]);
 
   const handleDelete = async (evento, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
