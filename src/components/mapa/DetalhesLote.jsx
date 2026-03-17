@@ -47,6 +47,9 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [registrarPesagemAposMovimentacao, setRegistrarPesagemAposMovimentacao] = useState(false);
   const [movimentacoesCriadasIds, setMovimentacoesCriadasIds] = useState([]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
+  const [showJuntarLotes, setShowJuntarLotes] = useState(false);
+  const [lotePrincipalJuncao, setLotePrincipalJuncao] = useState(null);
+  const [categoriaSelecionadaJuncao, setCategoriaSelecionadaJuncao] = useState(null);
   const queryClient = useQueryClient();
   const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me() });
 
