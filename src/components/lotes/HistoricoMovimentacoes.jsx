@@ -99,9 +99,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId],
     queryFn: async () => {
-      const [movimentacoesRaw, suplementacoesRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw] = await Promise.all([
+      const [movimentacoesRaw, suplementacoesRaw, eventosSuplementacaoRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw] = await Promise.all([
         base44.entities.MovimentacaoMapa.list('-data_movimentacao'),
         base44.entities.SuplementacaoLote.list('-data_lancamento'),
+        base44.entities.SuplementacaoEvento.list('-data_lancamento'),
         base44.entities.AplicacaoMedicamento.list('-data_aplicacao'),
         base44.entities.EventoSanitario.list('-data_evento'),
         base44.entities.ManejoTecnicoRebanho.list('-data_evento')
@@ -123,6 +124,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const byId = !!id && loteIds.includes(id);
         const byNome = loteNomes.some((item) => normalize(item) === normalize(nome));
         return byId || byNome;
+      };
+      const eventosSuplementacaoById = eventosSuplementacaoRaw.reduce((acc, evento) => {
+        acc[evento.id] = evento;
+        return acc;
+      }, {});
+      const matchEventoArea = (evento) => {
+        if (!areaId) return true;
+        return evento?.area_id === areaId || (Array.isArray(evento?.area_ids) && evento.area_ids.includes(areaId));
       };
 
       const transferenciasParaAreaAtual = movimentacoesRaw
@@ -180,8 +189,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
           canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
           canDelete: (
-            // Transferência: permitir exclusão pela área de origem, OU pela área de destino se não existe mais lote ativo na origem
-            (mov.tipo === 'Transferência de Área' && !mov.motivo) ||
+            // Transferência: exclusão apenas no histórico da área de origem
+            (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_origem_id === areaId)) ||
             // Outros tipos editáveis (exceto transferência, que já é tratada acima)
             (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) ||
             // Junção de lotes pode ser desfeita

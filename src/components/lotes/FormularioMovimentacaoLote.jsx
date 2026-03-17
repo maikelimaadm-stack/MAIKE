@@ -61,7 +61,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   });
 
   // Área de saída resolvida
-  const areaSaidaResolvida = areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
+  const areaSaidaResolvida = formData.area_saida_id || areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
 
   // Verificar eventos abertos ao carregar
   React.useEffect(() => {
@@ -69,39 +69,30 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       if (!areaSaidaResolvida) return;
 
       try {
-        const todosPontos = await base44.entities.PontoSuplementacao.list();
-        const pontosArea = todosPontos.filter((p) =>
-        p.empresa_id === empresaSelecionadaId &&
-        p.status === 'Ativo' &&
-        (
-          p.area_vinculada_id === areaSaidaResolvida ||
-          (Array.isArray(p.area_vinculada_ids) && p.area_vinculada_ids.includes(areaSaidaResolvida))
-        )
-        );
+        const [todosPontos, todosEventos] = await Promise.all([
+          base44.entities.PontoSuplementacao.list(),
+          base44.entities.SuplementacaoEvento.list(),
+        ]);
 
-        const todosEventos = await base44.entities.SuplementacaoEvento.list();
-        const abertos = [];
+        const pontosById = todosPontos.reduce((acc, ponto) => {
+          acc[ponto.id] = ponto;
+          return acc;
+        }, {});
 
-        for (const ponto of pontosArea) {
-          const eventoAberto = todosEventos.find((e) =>
-          e.ponto_suplementacao_id === ponto.id && (
-          e.dias_periodo === null || e.dias_periodo === undefined)
-          );
-
-          if (eventoAberto) {
-            abertos.push({
-              ...eventoAberto,
-              ponto_nome: ponto.nome_ponto,
-              ponto_id: ponto.id
-            });
-          }
-        }
+        const abertos = todosEventos
+          .filter((evento) => evento.empresa_id === empresaSelecionadaId)
+          .filter((evento) => evento.dias_periodo === null || evento.dias_periodo === undefined)
+          .filter((evento) => evento.area_id === areaSaidaResolvida || (Array.isArray(evento.area_ids) && evento.area_ids.includes(areaSaidaResolvida)))
+          .map((evento) => ({
+            ...evento,
+            ponto_nome: pontosById[evento.ponto_suplementacao_id]?.nome_ponto || evento.ponto_nome || 'Cocho',
+            ponto_id: evento.ponto_suplementacao_id,
+          }));
 
         setEventosAbertos(abertos);
 
         if (abertos.length > 0) {
           setEtapa('fechamento_consumo');
-          // Inicializar sobras como 0
           const sobrasIniciais = {};
           abertos.forEach((ev) => {
             sobrasIniciais[ev.id] = '0';
