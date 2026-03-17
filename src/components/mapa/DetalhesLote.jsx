@@ -679,73 +679,33 @@ export default function DetalhesLote({ lotes, onClose }) {
           Renomear Lote
         </Button>
         {lotes.length > 1 && (() => {
-          const categoriasUnicas = [...new Set(lotes.map(l => (l.categoria || '').toUpperCase()))];
-          const categoriasManejoUnicas = [...new Set(lotes.map(l => l.categoria_manejo_id || l.categoria_manejo_nome || 'SEM_CATEGORIA_MANEJO'))];
-          const mesmaCat = categoriasUnicas.length === 1;
-          const mesmaCategoriaManejo = categoriasManejoUnicas.length === 1;
-          const podeJuntar = mesmaCat && mesmaCategoriaManejo;
+          // Agrupar por categoria para ver quais categorias têm mais de 1 lote
+          const porCategoria = {};
+          lotes.forEach(l => {
+            const cat = (l.categoria || '').toUpperCase();
+            if (!porCategoria[cat]) porCategoria[cat] = [];
+            porCategoria[cat].push(l);
+          });
+          const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
+          const temJuntavel = categoriasJuntaveis.length > 0;
+          
           return (
             <Button 
-              onClick={async () => {
-                if (!mesmaCat) {
-                  alert('Não é possível juntar lotes de categorias diferentes. Selecione apenas lotes da mesma categoria.');
-                  return;
+              onClick={() => {
+                if (categoriasJuntaveis.length === 1) {
+                  setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
+                  setLotePrincipalJuncao(null);
+                } else {
+                  setCategoriaSelecionadaJuncao(null);
+                  setLotePrincipalJuncao(null);
                 }
-                if (!mesmaCategoriaManejo) {
-                  alert('Não é possível juntar lotes com categoria de manejo diferente.');
-                  return;
-                }
-                if (!confirm(`Deseja juntar todos os ${lotes.length} lotes desta área em um único lote?`)) return;
-                const principal = lotes[0];
-                const totalCab = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-                const pesoTotal = lotes.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
-                const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
-                const snapshotLotes = lotes.map(l => ({
-                  id: l.id,
-                  nome: l.nome,
-                  quantidade_cabecas: l.quantidade_cabecas || 0,
-                  peso_medio_kg: l.peso_medio_kg || 0,
-                  status: l.status || 'Ativo',
-                  categoria: l.categoria || '',
-                  categoria_manejo_id: l.categoria_manejo_id || '',
-                  categoria_manejo_nome: l.categoria_manejo_nome || '',
-                  area_atual_id: l.area_atual_id || '',
-                  area_atual_nome: l.area_atual_nome || ''
-                }));
-                
-                const nomesLotes = lotes.map(l => l.nome).join(', ');
-                for (let i = 1; i < lotes.length; i++) {
-                  await base44.entities.Lote.update(lotes[i].id, { status: 'Inativo', quantidade_cabecas: 0 });
-                }
-                await base44.entities.Lote.update(principal.id, { 
-                  quantidade_cabecas: totalCab,
-                  peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
-                });
-
-                const areaAtualId = principal.area_atual_id;
-                const areaJuncao = areas.find(a => a.id === areaAtualId);
-                await base44.entities.MovimentacaoMapa.create({
-                  empresa_id: empresaSelecionadaId,
-                  data_movimentacao: new Date().toISOString(),
-                  tipo: 'Entrada',
-                  motivo: 'Junção de Lotes',
-                  lote: principal.nome,
-                  lote_id: principal.id,
-                  quantidade_animais: totalCab,
-                  area_origem_id: areaAtualId,
-                  area_origem_nome: areaJuncao?.nome || '',
-                  observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
-                });
-
-                toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
-                onClose();
-                window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+                setShowJuntarLotes(true);
               }}
               variant="outline"
               size="sm"
-              className={`h-8 text-xs font-semibold border-slate-300 ${!podeJuntar ? 'opacity-50' : ''}`}
-              disabled={!podeJuntar}
-              title={!mesmaCat ? 'Só é possível juntar lotes da mesma categoria' : !mesmaCategoriaManejo ? 'Não é possível juntar lotes com categoria de manejo diferente' : ''}
+              className={`h-8 text-xs font-semibold border-slate-300 ${!temJuntavel ? 'opacity-50' : ''}`}
+              disabled={!temJuntavel}
+              title={!temJuntavel ? 'Precisa haver 2+ lotes da mesma categoria para juntar' : ''}
             >
               Juntar Lotes
             </Button>
