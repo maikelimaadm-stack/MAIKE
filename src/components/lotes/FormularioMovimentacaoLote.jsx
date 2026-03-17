@@ -617,44 +617,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             </div>
           }
 
-          {Object.keys(categoriasComLotesExistentes).length > 0 &&
-          <div className="border border-amber-300 rounded p-3 bg-amber-50">
-              <div className="text-xs font-semibold text-amber-800 mb-3 flex items-center gap-2">
-                <span className="text-lg">⚠️</span>
-                Existem lotes com mesma categoria na área de destino
-              </div>
-              <div className="space-y-3">
-                {Object.entries(categoriasComLotesExistentes).map(([categoria, info]) =>
-              <div key={categoria} className="bg-white border rounded p-3">
-                    <div className="text-xs font-semibold text-slate-700 mb-2">{categoria}</div>
-                    <div className="text-[10px] text-slate-600 mb-2">
-                      • {info.lote.nome} ({info.lote.quantidade_cabecas} cabeças)
-                    </div>
-                    <div className="mt-2">
-                      <Label className="text-xs mb-2 block">Deseja unir ao lote existente?</Label>
-                      <RadioGroup
-                    value={formData.unir_lotes[categoria] || 'nao'}
-                    onValueChange={(v) => setFormData({
-                      ...formData,
-                      unir_lotes: { ...formData.unir_lotes, [categoria]: v }
-                    })}
-                    className="flex gap-4">
 
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="sim" id={`unir-sim-${categoria}`} />
-                          <Label htmlFor={`unir-sim-${categoria}`} className="text-xs cursor-pointer">Sim, unir</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="nao" id={`unir-nao-${categoria}`} />
-                          <Label htmlFor={`unir-nao-${categoria}`} className="text-xs cursor-pointer">Não, criar novo</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  </div>
-              )}
-              </div>
-            </div>
-          }
 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
