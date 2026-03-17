@@ -260,9 +260,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const isTransferencia = entry?.tipo === 'Transferência de Área';
 
     // Para transferências, verificar TODAS as movimentações globais (não apenas as do histórico filtrado)
-    // porque lotes derivados (parciais) no destino podem ter IDs diferentes
+    // porque lotes derivados (parciais) no destino podem ter IDs diferentes ou renomeados
     if (isTransferencia) {
       const loteIdOriginal = entry?.raw?.lote_id;
+      // Coletar todos os IDs de lotes que compartilham o mesmo nome (inclui parciais e derivados)
+      const idsLotesMesmoNome = new Set(
+        todosLotesGlobal
+          .filter(l => normalize(l.nome) === loteNomeNorm)
+          .map(l => l.id)
+      );
+      if (loteIdOriginal) idsLotesMesmoNome.add(loteIdOriginal);
+
       const hasLaterGlobal = todasMovimentacoesGlobal.some((mov) => {
         if (mov.id === entry.id) return false;
         
@@ -270,11 +278,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const linkedIds = getLinkedMovementIds(mov.observacoes);
         if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
         
-        // Match por nome OU por lote_id do lote original
+        // Match por nome OU por lote_id de qualquer lote derivado/com mesmo nome
         const mesmoNome = normalize(mov.lote) === loteNomeNorm;
-        const mesmoIdOriginal = !!mov.lote_id && !!loteIdOriginal && mov.lote_id === loteIdOriginal;
+        const loteIdRelacionado = !!mov.lote_id && idsLotesMesmoNome.has(mov.lote_id);
         
-        if (!mesmoNome && !mesmoIdOriginal) return false;
+        if (!mesmoNome && !loteIdRelacionado) return false;
         
         const dataItem = getTime(mov.data_movimentacao);
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
