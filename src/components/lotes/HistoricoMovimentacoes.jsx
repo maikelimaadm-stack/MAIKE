@@ -242,6 +242,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     enabled: !!empresaSelecionadaId,
   });
 
+  // Buscar todos os lotes para resolver IDs derivados (parciais, renomeados)
+  const { data: todosLotesGlobal = [] } = useQuery({
+    queryKey: ['todos-lotes-global', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const hasLaterRelatedRecord = React.useCallback((entry) => {
     const loteAtual = entry?.lote_key || normalize(entry?.lote);
     const loteNomeNorm = normalize(entry?.lote);
