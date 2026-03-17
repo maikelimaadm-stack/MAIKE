@@ -267,7 +267,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
             <Cell label="Data">{formatDateBR(metricas.ultimoEvento.data_lancamento)}</Cell>
             <Cell label="Produto">{metricas.ultimoEvento.produto || "-"}</Cell>
-            <Cell label="Total fornecido">{formatKg(metricas.ultimoEvento.quantidade_total_kg || 0)}</Cell>
+            <Cell label="Total fornecido">{formatKg(metricas.ultimoEvento.quantidade_rateada_kg || 0)}</Cell>
             <Cell label="Total sacos">{fmtSacos(metricas.ultimoSacos)}</Cell>
           </div>
         </div>
