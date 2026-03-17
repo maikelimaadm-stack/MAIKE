@@ -397,16 +397,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       return false;
     }
 
-    // Verificação padrão para outros tipos (não-transferência): histórico local
-    // Apenas movimentações bloqueiam — suplementação, medicamentos, sanidade, manejo técnico são independentes
+    // Verificação padrão para outros tipos (não-transferência)
+    // Regra especial: mudança de categoria também deve ser bloqueada por nutrição/sanidade/medicamentos posteriores.
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
-      // Ignorar registros que não são movimentações para fins de bloqueio
-      if (item.source !== 'movimentacao') return false;
 
       const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
       if (!sameLote && !childLinked) return false;
+
+      const isHistoricoNaoMovimentacao = item.source !== 'movimentacao';
+      if (isHistoricoNaoMovimentacao && entry?.tipo !== 'Mudança de Categoria') return false;
 
       const dataItem = getTime(item.data_evento);
       const createdItem = getTime(item.created_at);
