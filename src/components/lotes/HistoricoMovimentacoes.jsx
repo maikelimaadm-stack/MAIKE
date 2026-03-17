@@ -359,6 +359,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       });
       if (hasEventoNaOrigem) return true;
 
+      const hasRegistroPosteriorNoHistorico = historico.some((item) => {
+        if (item.uniqueId === entry.uniqueId) return false;
+        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
+        if (!sameLote) return false;
+
+        const dataItem = getTime(item.data_evento);
+        const createdItem = getTime(item.created_at);
+        return dataItem > dataAtual || createdItem > createdAtual;
+      });
+      if (hasRegistroPosteriorNoHistorico) return true;
+
       return false;
     }
 
@@ -372,7 +383,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const dataItem = getTime(item.data_evento);
       const createdItem = getTime(item.created_at);
-      return childLinked || dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
+      return childLinked || dataItem > dataAtual || createdItem > createdAtual;
     });
   }, [historico, todasMovimentacoesGlobal, todosLotesGlobal]);
 
