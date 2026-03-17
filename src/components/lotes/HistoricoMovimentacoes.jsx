@@ -259,28 +259,34 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const createdAtual = getTime(entry?.created_at);
     const isTransferencia = entry?.tipo === 'Transferência de Área';
 
-    // Para transferências, verificar TODAS as movimentações globais (não apenas as do histórico filtrado)
-    // porque lotes derivados (parciais) no destino podem ter IDs diferentes ou renomeados
     if (isTransferencia) {
       const loteIdOriginal = entry?.raw?.lote_id;
-      // Coletar todos os IDs de lotes que compartilham o mesmo nome (inclui parciais e derivados)
-      const idsLotesMesmoNome = new Set(
+      const areaDestinoId = entry?.raw?.area_destino_id;
+      const areaOrigemId = entry?.raw?.area_origem_id;
+
+      // 1) Verificar se houve evento posterior NA ÁREA DESTINO desta transferência específica
+      // Coletar IDs de lotes com mesmo nome QUE ESTÃO NA ÁREA DESTINO desta transferência
+      const idsLotesDestinoEstaTransf = new Set(
         todosLotesGlobal
-          .filter(l => normalize(l.nome) === loteNomeNorm)
+          .filter(l => normalize(l.nome) === loteNomeNorm && l.area_atual_id === areaDestinoId)
           .map(l => l.id)
       );
-      if (loteIdOriginal) idsLotesMesmoNome.add(loteIdOriginal);
+      if (loteIdOriginal) idsLotesDestinoEstaTransf.add(loteIdOriginal);
 
-      const hasLaterGlobal = todasMovimentacoesGlobal.some((mov) => {
+      const hasEventoNoDestino = todasMovimentacoesGlobal.some((mov) => {
         if (mov.id === entry.id) return false;
         
-        // Pesagens vinculadas à transferência são excluídas junto, não bloqueiam
+        // Pesagens vinculadas à ESTA transferência são excluídas junto, não bloqueiam
         const linkedIds = getLinkedMovementIds(mov.observacoes);
         if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
         
-        // Match por nome OU por lote_id de qualquer lote derivado/com mesmo nome
+        // Só considerar movimentações que ocorreram NA ÁREA DESTINO desta transferência
+        const movNaAreaDestino = mov.area_origem_id === areaDestinoId || mov.area_destino_id === areaDestinoId;
+        if (!movNaAreaDestino) return false;
+
+        // Match por nome OU por lote_id de lotes na área destino
         const mesmoNome = normalize(mov.lote) === loteNomeNorm;
-        const loteIdRelacionado = !!mov.lote_id && idsLotesMesmoNome.has(mov.lote_id);
+        const loteIdRelacionado = !!mov.lote_id && idsLotesDestinoEstaTransf.has(mov.lote_id);
         
         if (!mesmoNome && !loteIdRelacionado) return false;
         
@@ -288,20 +294,45 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
         return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
       });
-      if (hasLaterGlobal) return true;
+      if (hasEventoNoDestino) return true;
+
+      // 2) Verificar se houve evento posterior NA ÁREA ORIGEM (lote que ficou com o saldo)
+      // Isso bloqueia se o lote remanescente na origem teve pesagem, morte, etc.
+      const idsLotesOrigemEstaTransf = new Set(
+        todosLotesGlobal
+          .filter(l => normalize(l.nome) === loteNomeNorm && l.area_atual_id === areaOrigemId)
+          .map(l => l.id)
+      );
+
+      const hasEventoNaOrigem = todasMovimentacoesGlobal.some((mov) => {
+        if (mov.id === entry.id) return false;
+        // Não considerar outras transferências saindo da origem — essas são independentes
+        if (mov.tipo === 'Transferência de Área') return false;
+        
+        const linkedIds = getLinkedMovementIds(mov.observacoes);
+        if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
+        
+        // Só eventos que ocorreram na área de origem
+        const movNaAreaOrigem = mov.area_origem_id === areaOrigemId || mov.area_destino_id === areaOrigemId;
+        if (!movNaAreaOrigem) return false;
+
+        const mesmoNome = normalize(mov.lote) === loteNomeNorm;
+        const loteIdRelacionado = !!mov.lote_id && idsLotesOrigemEstaTransf.has(mov.lote_id);
+        
+        if (!mesmoNome && !loteIdRelacionado) return false;
+        
+        const dataItem = getTime(mov.data_movimentacao);
+        const createdItem = getTime(mov.created_date || mov.data_movimentacao);
+        return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
+      });
+      if (hasEventoNaOrigem) return true;
+
+      return false;
     }
 
-    // Verificação padrão no histórico local
+    // Verificação padrão para outros tipos (não-transferência): histórico local
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
-
-      // Pesagens vinculadas à transferência pai são excluídas junto
-      if (isTransferencia && item.source === 'movimentacao') {
-        const linkedIds = (item.linked_movement_ids || []);
-        if (item.tipo === 'Pesagem' && linkedIds.includes(entry.id)) {
-          return false;
-        }
-      }
 
       const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual;
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
