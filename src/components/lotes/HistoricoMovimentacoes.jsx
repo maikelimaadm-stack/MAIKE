@@ -818,28 +818,46 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
                           {tipoExibicao}
                         </span>
-                        <Badge variant="outline" className="text-[10px] font-semibold text-slate-700 border-slate-300 bg-white">
-                          {item.sourceLabel}
-                        </Badge>
+                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
+                          {getDirecaoHistorico(item)}
+                        </span>
                       </div>
 
                       <div className="text-xs font-semibold text-slate-900">{item.lote || 'Sem lote'}</div>
 
-                      <div className="space-y-0.5 text-[10px] text-slate-600">
-                        {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
-                        <div><strong>Data:</strong> {formatDateOnly(item.data_evento)}</div>
-                        {item.tipo === 'Transferência de Área' && (
-                          <div><strong>Trajeto:</strong> {item.area_origem_nome || '-'} → {item.area_destino_nome || '-'}</div>
+                      <div className="space-y-1.5">
+                        <div>
+                          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
+                          <div className="grid grid-cols-2 gap-1 text-[10px]">
+                            <MetricCell label="Qtd. Cabeças" value={item.quantidade ? `${item.quantidade} cab` : '-'} />
+                            <MetricCell label="Peso médio" value={item.peso_medio ? `${item.peso_medio} kg` : '-'} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Movimentação</div>
+                          <div className={`grid gap-1 text-[10px] ${item.tipo === 'Transferência de Área' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                            <MetricCell label="Motivo" value={tipoExibicao} />
+                            <MetricCell label="Tipo" value={getDirecaoHistorico(item)} />
+                            {item.tipo === 'Transferência de Área' && (
+                              <MetricCell label="Trajeto" value={`${item.area_origem_nome || '-'} → ${item.area_destino_nome || '-'}`} />
+                            )}
+                          </div>
+                        </div>
+
+                        {!!item.observacoes && (
+                          <div>
+                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Detalhes</div>
+                            <MetricCell label="Informações" value={item.observacoes} />
+                          </div>
                         )}
-                        {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
-                        <div><strong>Origem:</strong> {item.sourceLabel}</div>
-                        {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
+
                         {item.source === 'suplementacao' && (
-                          <div className="text-amber-600 font-medium"><strong>⚠ Regra:</strong> exclusão apenas pelo histórico do cocho.</div>
+                          <div className="text-[10px] text-amber-600 font-medium">Exclusão apenas pelo histórico do cocho.</div>
                         )}
 
                         {isBloqueado && item.canDelete && (
-                          <div className="text-amber-600 font-medium"><strong>⚠ Bloqueio:</strong> {motivoBloqueio}</div>
+                          <div className="text-[10px] text-amber-600 font-medium">{motivoBloqueio}</div>
                         )}
                       </div>
                     </div>
