@@ -128,18 +128,21 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         .filter((mov) => matchLote(mov.lote, mov.lote_id));
 
       const inicioNovoHistorico = transferenciasParaAreaAtual.length > 0
-        ? Math.max(...transferenciasParaAreaAtual.map((mov) => getTime(mov.data_movimentacao)))
+        ? Math.max(...transferenciasParaAreaAtual.map((mov) => getTime(mov.created_date || mov.data_movimentacao)))
         : null;
 
-      const dentroDoHistoricoAtual = (dataEvento) => !inicioNovoHistorico || getTime(dataEvento) >= inicioNovoHistorico;
+      const dentroDoHistoricoAtual = (createdAt, dataEvento) => {
+        const referencia = createdAt || dataEvento;
+        return !inicioNovoHistorico || getTime(referencia) >= inicioNovoHistorico;
+      };
 
       const movimentacoes = movimentacoesRaw
         .filter((mov) => mov.empresa_id === empresaSelecionadaId)
         .filter((mov) => {
           if (loteIds.length > 0 || loteNomes.length > 0) {
-            return matchLote(mov.lote, mov.lote_id) && dentroDoHistoricoAtual(mov.data_movimentacao);
+            return matchLote(mov.lote, mov.lote_id) && dentroDoHistoricoAtual(mov.created_date, mov.data_movimentacao);
           }
-          return matchAreaMov(mov) && dentroDoHistoricoAtual(mov.data_movimentacao);
+          return matchAreaMov(mov) && dentroDoHistoricoAtual(mov.created_date, mov.data_movimentacao);
         })
         .map((mov) => ({
           uniqueId: `mov-${mov.id}`,
@@ -197,7 +200,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const medicamentos = medicamentosRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
         .filter((item) => matchLoteFlex(item.lote_nome, item.lote_id))
-        .filter((item) => dentroDoHistoricoAtual(item.data_aplicacao))
+        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_aplicacao))
         .map((item) => ({
           uniqueId: `med-${item.id}`,
           source: 'medicamento',
@@ -217,7 +220,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const sanidades = sanidadesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
         .filter((item) => matchLote(item.lote))
-        .filter((item) => dentroDoHistoricoAtual(item.data_evento))
+        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_evento))
         .map((item) => ({
           uniqueId: `san-${item.id}`,
           source: 'sanidade',
@@ -236,7 +239,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const manejosTecnicos = manejosTecnicosRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
         .filter((item) => matchLoteFlex(item.nome_lote, item.lote_id))
-        .filter((item) => dentroDoHistoricoAtual(item.data_evento))
+        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_evento))
         .map((item) => ({
           uniqueId: `mt-${item.id}`,
           source: 'manejo_tecnico',
@@ -255,9 +258,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       return [...movimentacoes, ...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos]
         .sort((a, b) => {
-          const dataDiff = getTime(b.data_evento) - getTime(a.data_evento);
-          if (dataDiff !== 0) return dataDiff;
-          return getTime(b.created_at) - getTime(a.created_at);
+          const createdDiff = getTime(b.created_at) - getTime(a.created_at);
+          if (createdDiff !== 0) return createdDiff;
+          return getTime(b.data_evento) - getTime(a.data_evento);
         });
     },
     enabled: !!empresaSelecionadaId && (loteIds.length > 0 || loteNomes.length > 0 || !!areaId),
