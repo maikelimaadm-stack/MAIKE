@@ -30,6 +30,11 @@ function parseCategoriaNovaFromObs(observacoes) {
   return match ? match[1].trim() : null;
 }
 
+function parseCategoriaTransferenciaFromObs(observacoes) {
+  const match = String(observacoes || "").match(/Movimentação parcial\s*-\s*\d+\s*cabeças\s+de\s+(.+)$/i);
+  return match ? match[1].trim() : null;
+}
+
 function ensureAvailable(lote, quantidade, mensagem) {
   if (!lote || toNumber(lote.quantidade_cabecas) < quantidade) {
     throw new Error(mensagem);
@@ -91,10 +96,15 @@ function createFinders(lotesEmpresa) {
   return { findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria };
 }
 
-async function reconcileTransferencia({ mov, diff, findLoteById, findLoteByNomeArea }) {
-  const origemFinal = findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false);
-  const destinoFinal = findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false);
+async function reconcileTransferencia({ mov, diff, findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria }) {
   const lotePorId = findLoteById(mov.lote_id);
+  const categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || lotePorId?.categoria || null;
+  const origemFinal = categoriaMovimento
+    ? (findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaMovimento) || findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false))
+    : (findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false));
+  const destinoFinal = categoriaMovimento
+    ? (findLoteByNomeAreaCategoria(mov.lote, mov.area_destino_id, categoriaMovimento) || findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false))
+    : (findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false));
 
   if (origemFinal && destinoFinal && origemFinal.id !== destinoFinal.id) {
     if (diff > 0) {
@@ -250,6 +260,7 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
         diff,
         findLoteById,
         findLoteByNomeArea,
+        findLoteByNomeAreaCategoria,
       });
     }
 

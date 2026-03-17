@@ -229,6 +229,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               tipo: 'Transferência de Área',
               lote: lote.nome,
               lote_id: lote.id,
+              categoria_animal: lote.categoria,
               quantidade_animais: quantidadeMover,
               area_origem_id: formData.area_saida_id,
               area_origem_nome: areaSaida?.nome || '',

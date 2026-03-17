@@ -50,6 +50,10 @@ const parseCategoriaNovaFromObs = (observacoes) => {
   const match = String(observacoes || '').match(/De\s+.+?\s+para\s+(.+?)\.\s*Sexo:/i);
   return match ? match[1].trim() : null;
 };
+const parseCategoriaTransferenciaFromObs = (observacoes) => {
+  const match = String(observacoes || '').match(/Movimentação parcial\s*-\s*\d+\s*cabeças\s+de\s+(.+)$/i);
+  return match ? match[1].trim() : null;
+};
 const formatDateOnly = (value) => {
   const raw = String(value || '');
   if (!raw) return '-';
@@ -498,6 +502,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const resolverLote = () => findLoteById(mov.lote_id) || findLoteByNome(mov.lote);
 
       if (mov.tipo === 'Transferência de Área') {
+        const categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || findLoteById(mov.lote_id)?.categoria || null;
         const pesagensFilhas = movsAll.filter(item =>
           item.empresa_id === empresaSelecionadaId &&
           item.tipo === 'Pesagem' &&
@@ -604,8 +609,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Transferência de Área') {
-        const origemFinal = findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false);
-        const destinoFinal = findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false);
+        const origemFinal = categoriaMovimento
+          ? (findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaMovimento) || findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false))
+          : (findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false));
+        const destinoFinal = categoriaMovimento
+          ? (findLoteByNomeAreaCategoria(mov.lote, mov.area_destino_id, categoriaMovimento) || findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false))
+          : (findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false));
         const lotePorId = findLoteById(mov.lote_id);
 
         if (origemFinal && destinoFinal && origemFinal.id !== destinoFinal.id) {
