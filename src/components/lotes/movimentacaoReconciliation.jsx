@@ -214,11 +214,12 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
   const oldQuantidade = Math.max(0, toNumber(originalMovement.quantidade_animais));
   const diff = payload.quantidade_animais - oldQuantidade;
 
+  const lotesAll = await base44.entities.Lote.list();
+  const lotesEmpresa = lotesAll.filter((lote) => lote.empresa_id === empresaSelecionadaId);
+  const { findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria } = createFinders(lotesEmpresa);
+  const lotePrincipal = findLoteById(originalMovement.lote_id);
+
   if (diff !== 0) {
-    const lotesAll = await base44.entities.Lote.list();
-    const lotesEmpresa = lotesAll.filter((lote) => lote.empresa_id === empresaSelecionadaId);
-    const { findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria } = createFinders(lotesEmpresa);
-    const lotePrincipal = findLoteById(originalMovement.lote_id);
 
     if (originalMovement.tipo === "Morte" || originalMovement.tipo === "Abate") {
       if (!lotePrincipal) throw new Error("Não foi possível localizar o lote para reconciliar a edição.");
