@@ -38,6 +38,32 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     enabled: eventoIdsBrutos.length > 0,
   });
 
+  const { data: movimentacoesLote = [] } = useQuery({
+    queryKey: ["suplementacao-movimentacoes-lote", empresaSelecionadaId, lotesIds.join("|"), areaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+      return all.filter((mov) =>
+        mov.empresa_id === empresaSelecionadaId &&
+        mov.tipo === 'Transferência de Área' &&
+        mov.area_destino_id === areaId &&
+        lotesIds.includes(mov.lote_id)
+      );
+    },
+    enabled: !!empresaSelecionadaId && !!areaId && lotesIds.length > 0,
+  });
+
+  const inicioHistoricoPorLote = useMemo(() => {
+    const mapa = {};
+    movimentacoesLote.forEach((mov) => {
+      const atual = mapa[mov.lote_id];
+      const dataMov = new Date(mov.data_movimentacao || mov.created_date || 0).getTime();
+      if (!atual || dataMov > atual) {
+        mapa[mov.lote_id] = dataMov;
+      }
+    });
+    return mapa;
+  }, [movimentacoesLote]);
+
   // Filtrar consumos: se areaId informado, manter APENAS registros de eventos vinculados a essa área.
   // Isso impede que histórico de suplementação de outra área "viaje junto" quando o lote é movido.
   // IMPORTANTE: se areaId está definido mas eventos ainda não carregaram, retornar vazio (não mostrar dados sem filtro).
@@ -51,8 +77,14 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
         .filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)))
         .map((e) => e.id)
     );
-    return consumosLoteBrutos.filter((c) => eventosNaArea.has(c.suplementacao_evento_id));
-  }, [consumosLoteBrutos, eventosSupl, areaId, eventoIdsBrutos]);
+    return consumosLoteBrutos.filter((c) => {
+      if (!eventosNaArea.has(c.suplementacao_evento_id)) return false;
+      const inicioLoteNaArea = inicioHistoricoPorLote[c.lote_id];
+      if (!inicioLoteNaArea) return true;
+      const dataLancamento = new Date(c.data_lancamento || 0).getTime();
+      return dataLancamento >= inicioLoteNaArea;
+    });
+  }, [consumosLoteBrutos, eventosSupl, areaId, eventoIdsBrutos, inicioHistoricoPorLote]);
 
   const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
   const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
