@@ -115,6 +115,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         return loteNomes.some((item) => normalize(item) === normalize(nome));
       };
       const matchAreaMov = (mov) => !areaId || mov.area_origem_id === areaId || mov.area_destino_id === areaId;
+      const matchLoteFlex = (nome, id) => {
+        const byId = !!id && loteIds.includes(id);
+        const byNome = loteNomes.some((item) => normalize(item) === normalize(nome));
+        return byId || byNome;
+      };
 
       const transferenciasParaAreaAtual = movimentacoesRaw
         .filter((mov) => mov.empresa_id === empresaSelecionadaId)
@@ -172,7 +177,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const suplementacoes = suplementacoesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLote(item.lote_nome, item.lote_id))
+        .filter((item) => matchLoteFlex(item.lote_nome, item.lote_id))
         .filter((item) => dentroDoHistoricoAtual(item.data_lancamento))
         .map((item) => ({
           uniqueId: `supl-${item.id}`,
@@ -192,7 +197,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const medicamentos = medicamentosRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLote(item.lote_nome, item.lote_id))
+        .filter((item) => matchLoteFlex(item.lote_nome, item.lote_id))
         .filter((item) => dentroDoHistoricoAtual(item.data_aplicacao))
         .map((item) => ({
           uniqueId: `med-${item.id}`,
@@ -231,7 +236,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const manejosTecnicos = manejosTecnicosRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLote(item.nome_lote, item.lote_id))
+        .filter((item) => matchLoteFlex(item.nome_lote, item.lote_id))
         .filter((item) => dentroDoHistoricoAtual(item.data_evento))
         .map((item) => ({
           uniqueId: `mt-${item.id}`,
@@ -361,7 +366,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
 
-      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual;
+      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
       if (!sameLote && !childLinked) return false;
 
