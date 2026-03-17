@@ -513,8 +513,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const resolverLote = () => findLoteById(mov.lote_id) || findLoteByNome(mov.lote);
 
+      // Declarar categoriaMovimento no escopo externo para uso na reversão de transferência
+      let categoriaMovimento = null;
       if (mov.tipo === 'Transferência de Área') {
-        const categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || findLoteById(mov.lote_id)?.categoria || null;
+        categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || findLoteById(mov.lote_id)?.categoria || null;
         const pesagensFilhas = movsAll.filter(item =>
           item.empresa_id === empresaSelecionadaId &&
           item.tipo === 'Pesagem' &&
