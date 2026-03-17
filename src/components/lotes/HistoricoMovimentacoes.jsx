@@ -46,6 +46,14 @@ const TIPOS_EDITAVEIS = new Set([
 
 const getTime = (value) => new Date(value).getTime() || 0;
 const normalize = (value) => normalizeText(value);
+const formatDateOnly = (value) => {
+  const raw = String(value || '');
+  if (!raw) return '-';
+  const datePart = raw.includes('T') ? raw.split('T')[0] : raw;
+  const [year, month, day] = datePart.split('-');
+  if (!year || !month || !day) return new Date(value).toLocaleDateString('pt-BR');
+  return `${day}/${month}/${year}`;
+};
 
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -458,6 +466,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const findLoteByNomeArea = (nome, areaId, apenasAtivo = false) => lotesEmpresa.find(l =>
         normalize(l.nome) === normalize(nome) && l.area_atual_id === areaId && (!apenasAtivo || l.status === 'Ativo')
       ) || null;
+      const findLoteByNomeAreaCategoria = (nome, areaId, categoria, excludeId = null) => lotesEmpresa.find(l =>
+        l.id !== excludeId &&
+        normalize(l.nome) === normalize(nome) &&
+        l.area_atual_id === areaId &&
+        normalize(l.categoria) === normalize(categoria)
+      ) || null;
 
       const resolverLote = () => findLoteById(mov.lote_id) || findLoteByNome(mov.lote);
 
@@ -533,11 +547,28 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Mudança de Categoria') {
+        const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
         const loteRecord = resolverLote();
-        if (loteRecord) {
-          const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
-          const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
-          if (categoriaAnterior) {
+        const qtdMovimento = mov.quantidade_animais || 0;
+
+        if (loteRecord && categoriaAnterior) {
+          const loteCategoriaAnterior = normalize(loteRecord.categoria) === normalize(categoriaAnterior)
+            ? loteRecord
+            : findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior, loteRecord.id);
+
+          if (loteCategoriaAnterior && loteCategoriaAnterior.id !== loteRecord.id) {
+            await base44.entities.Lote.update(loteCategoriaAnterior.id, {
+              quantidade_cabecas: (loteCategoriaAnterior.quantidade_cabecas || 0) + qtdMovimento,
+              status: 'Ativo'
+            });
+
+            const novaQtdCategoriaNova = Math.max(0, (loteRecord.quantidade_cabecas || 0) - qtdMovimento);
+            await base44.entities.Lote.update(loteRecord.id, {
+              quantidade_cabecas: novaQtdCategoriaNova,
+              status: novaQtdCategoriaNova > 0 ? 'Ativo' : 'Inativo'
+            });
+          } else {
+            const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
             const updateData = { categoria: categoriaAnterior };
             if (sexoAnterior) updateData.sexo = sexoAnterior;
             await base44.entities.Lote.update(loteRecord.id, updateData);
@@ -666,7 +697,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           {item.sourceLabel}
                         </Badge>
                         <span className="text-[10px] text-slate-500">
-                          {new Date(item.data_evento).toLocaleDateString('pt-BR')}
+                          {formatDateOnly(item.data_evento)}
                         </span>
                       </div>
 

@@ -7,8 +7,19 @@ const toDateOnly = (value) => String(value || new Date().toISOString()).split("T
 const toIsoDateTime = (value, fallback) => {
   if (!value) return fallback;
   if (String(value).includes("T")) return value;
-  return new Date(value).toISOString();
+  return `${value}T12:00:00.000Z`;
 };
+
+function syncObservacoesWithPayload(originalMovement, observacoes, quantidade) {
+  let texto = observacoes || "";
+
+  if (originalMovement.tipo === "Transferência de Área") {
+    texto = texto.replace(/Movimentação parcial\s*-\s*\d+\s*cabeças/i, `Movimentação parcial - ${quantidade} cabeças`);
+    texto = texto.replace(/Movimentação completa do lote\s*-\s*\d+\s*cabeças/i, `Movimentação completa do lote - ${quantidade} cabeças`);
+  }
+
+  return texto;
+}
 
 function buildActiveStatus(quantidade) {
   return quantidade > 0 ? "Ativo" : "Inativo";
@@ -202,13 +213,14 @@ async function reconcileMudancaCategoria({ mov, diff, findLoteById, findLoteByNo
 }
 
 export async function reconcileMovementEdit({ empresaSelecionadaId, originalMovement, nextData }) {
+  const quantidadeFinal = Math.max(0, toNumber(nextData.quantidade_animais ?? originalMovement.quantidade_animais));
   const payload = {
     data_movimentacao: toIsoDateTime(nextData.data_movimentacao, originalMovement.data_movimentacao),
-    quantidade_animais: Math.max(0, toNumber(nextData.quantidade_animais ?? originalMovement.quantidade_animais)),
+    quantidade_animais: quantidadeFinal,
     peso_medio: nextData.peso_medio === "" || nextData.peso_medio == null
       ? (originalMovement.tipo === "Pesagem" ? null : originalMovement.peso_medio)
       : toNumber(nextData.peso_medio),
-    observacoes: nextData.observacoes,
+    observacoes: syncObservacoesWithPayload(originalMovement, nextData.observacoes, quantidadeFinal),
   };
 
   const oldQuantidade = Math.max(0, toNumber(originalMovement.quantidade_animais));
