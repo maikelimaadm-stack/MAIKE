@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                       }
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id} onClick={() => handleDelete(evento, index)}>Excluir</Button>
+                      <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>Excluir</Button>
                     </div>
                   </div>
 
@@ -117,6 +117,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   <CardMetricaEvento evento={evento} showProjecao={true} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
+                  {bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-amber-600 font-medium">Existem movimentações posteriores na área após este lançamento.</div>}
                   {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser excluído.</div>}
                 </div>
               );
