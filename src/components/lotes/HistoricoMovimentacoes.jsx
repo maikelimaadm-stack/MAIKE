@@ -182,8 +182,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           canDelete: (
             // Transferência só pode ser excluída pela área de origem
             (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_origem_id === areaId)) ||
-            // Outros tipos editáveis podem ser excluídos se não forem pesagem vinculada
-            (TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) ||
+            // Outros tipos editáveis (exceto transferência, que já é tratada acima)
+            (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) ||
             // Junção de lotes pode ser desfeita
             mov.motivo === 'Junção de Lotes' ||
             // Renomear lote pode ser desfeito
