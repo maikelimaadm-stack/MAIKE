@@ -46,6 +46,10 @@ const TIPOS_EDITAVEIS = new Set([
 
 const getTime = (value) => new Date(value).getTime() || 0;
 const normalize = (value) => normalizeText(value);
+const parseCategoriaNovaFromObs = (observacoes) => {
+  const match = String(observacoes || '').match(/De\s+.+?\s+para\s+(.+?)\.\s*Sexo:/i);
+  return match ? match[1].trim() : null;
+};
 const formatDateOnly = (value) => {
   const raw = String(value || '');
   if (!raw) return '-';
@@ -548,22 +552,27 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       if (mov.tipo === 'Mudança de Categoria') {
         const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
-        const loteRecord = resolverLote();
+        const categoriaNova = parseCategoriaNovaFromObs(mov.observacoes);
+        const lotePrincipal = resolverLote();
         const qtdMovimento = mov.quantidade_animais || 0;
 
-        if (loteRecord && categoriaAnterior) {
-          const loteCategoriaAnterior = normalize(loteRecord.categoria) === normalize(categoriaAnterior)
-            ? loteRecord
-            : findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior, loteRecord.id);
+        if (categoriaAnterior && categoriaNova && lotePrincipal) {
+          const loteCategoriaAnterior = findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior) || lotePrincipal;
+          const loteCategoriaNova = findLoteByNomeAreaCategoria(
+            mov.lote,
+            mov.area_origem_id,
+            categoriaNova,
+            loteCategoriaAnterior?.id
+          );
 
-          if (loteCategoriaAnterior && loteCategoriaAnterior.id !== loteRecord.id) {
+          if (loteCategoriaNova && loteCategoriaNova.id !== loteCategoriaAnterior?.id) {
             await base44.entities.Lote.update(loteCategoriaAnterior.id, {
               quantidade_cabecas: (loteCategoriaAnterior.quantidade_cabecas || 0) + qtdMovimento,
               status: 'Ativo'
             });
 
-            const novaQtdCategoriaNova = Math.max(0, (loteRecord.quantidade_cabecas || 0) - qtdMovimento);
-            await base44.entities.Lote.update(loteRecord.id, {
+            const novaQtdCategoriaNova = Math.max(0, (loteCategoriaNova.quantidade_cabecas || 0) - qtdMovimento);
+            await base44.entities.Lote.update(loteCategoriaNova.id, {
               quantidade_cabecas: novaQtdCategoriaNova,
               status: novaQtdCategoriaNova > 0 ? 'Ativo' : 'Inativo'
             });
@@ -571,7 +580,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
             const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
             const updateData = { categoria: categoriaAnterior };
             if (sexoAnterior) updateData.sexo = sexoAnterior;
-            await base44.entities.Lote.update(loteRecord.id, updateData);
+            await base44.entities.Lote.update(lotePrincipal.id, updateData);
           }
         }
       }
