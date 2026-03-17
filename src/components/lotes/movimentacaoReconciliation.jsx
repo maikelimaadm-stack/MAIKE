@@ -139,6 +139,7 @@ async function reconcileTransferencia({ mov, diff, findLoteById, findLoteByNomeA
         areaNome: mov.area_origem_nome,
         quantidade: retorno,
         dataMovimentacao: mov.data_movimentacao,
+        categoria: categoriaMovimento,
       });
     }
 
@@ -157,7 +158,9 @@ async function reconcileTransferencia({ mov, diff, findLoteById, findLoteByNomeA
   const retorno = Math.abs(diff);
   ensureAvailable(lotePorId, retorno, "O lote de destino não tem saldo suficiente para reduzir essa transferência.");
 
-  const origemExistente = findLoteByNomeArea(mov.lote, mov.area_origem_id, true, lotePorId.id) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false, lotePorId.id);
+  const origemExistente = categoriaMovimento
+    ? (findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaMovimento, lotePorId.id) || findLoteByNomeArea(mov.lote, mov.area_origem_id, true, lotePorId.id) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false, lotePorId.id))
+    : (findLoteByNomeArea(mov.lote, mov.area_origem_id, true, lotePorId.id) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false, lotePorId.id));
 
   if (origemExistente) {
     await updateLoteQuantidade(origemExistente, toNumber(origemExistente.quantidade_cabecas) + retorno);
@@ -168,6 +171,7 @@ async function reconcileTransferencia({ mov, diff, findLoteById, findLoteByNomeA
       areaNome: mov.area_origem_nome,
       quantidade: retorno,
       dataMovimentacao: mov.data_movimentacao,
+      categoria: categoriaMovimento,
     });
   }
 
