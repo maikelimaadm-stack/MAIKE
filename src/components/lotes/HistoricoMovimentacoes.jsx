@@ -397,11 +397,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       });
       if (hasEventoNaOrigem) return true;
 
-      // Verificar no histórico local SOMENTE movimentações (não suplementação/medicamento/sanidade/manejo)
+      // Nutrição posterior também bloqueia exclusão de registros anteriores
       const hasRegistroPosteriorNoHistorico = historico.some((item) => {
         if (item.uniqueId === entry.uniqueId) return false;
-        // Apenas movimentações bloqueiam — suplementação, medicamentos, sanidade, manejo técnico são independentes
-        if (item.source !== 'movimentacao') return false;
+        const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
+        if (!isRegistroBloqueador) return false;
         const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
         if (!sameLote) return false;
 
@@ -415,7 +415,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     }
 
     // Verificação padrão para outros tipos (não-transferência)
-    // Regra especial: mudança de categoria também deve ser bloqueada por nutrição/sanidade/medicamentos posteriores.
+    // Nutrição posterior bloqueia automaticamente qualquer registro anterior do mesmo lote.
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
 
@@ -423,8 +423,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
       if (!sameLote && !childLinked) return false;
 
-      const isHistoricoNaoMovimentacao = item.source !== 'movimentacao';
-      if (isHistoricoNaoMovimentacao && entry?.tipo !== 'Mudança de Categoria') return false;
+      const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
+      if (!isRegistroBloqueador) return false;
 
       const dataItem = getTime(item.data_evento);
       const createdItem = getTime(item.created_at);
