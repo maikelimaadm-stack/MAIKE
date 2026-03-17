@@ -311,7 +311,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const createdItem = getTime(item.created_at);
       return childLinked || dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
     });
-  }, [historico, todasMovimentacoesGlobal]);
+  }, [historico, todasMovimentacoesGlobal, todosLotesGlobal]);
 
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
