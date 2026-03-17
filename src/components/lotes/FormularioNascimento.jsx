@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -38,7 +39,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
 
   const [formData, setFormData] = useState({
-    data_nascimento: new Date().toISOString().split('T')[0],
+    data_nascimento: getTodayLocalDate(),
     nascimentos: [],
     observacoes: ""
   });

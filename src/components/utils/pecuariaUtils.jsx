@@ -26,7 +26,25 @@ export function formatKg(value, digits = 2) {
 
 export function formatDateBR(value, options = {}) {
   if (!value) return "-";
+  const raw = String(value);
+  const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
+  const [year, month, day] = datePart.split("-");
+  if (year && month && day) return `${day}/${month}/${year}`;
   return new Date(value).toLocaleDateString("pt-BR", options);
+}
+
+export function getTodayLocalDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function toNoonUtcISOString(dateOnly) {
+  if (!dateOnly) return null;
+  if (String(dateOnly).includes("T")) return dateOnly;
+  return `${dateOnly}T12:00:00.000Z`;
 }
 
 // ============================================

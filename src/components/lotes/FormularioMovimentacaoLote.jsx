@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
+import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -50,7 +51,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     const areaSaidaId = areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
 
     return {
-      data_movimentacao: new Date().toISOString().split('T')[0],
+      data_movimentacao: getTodayLocalDate(),
       mover_todos: 'sim',
       area_saida_id: areaSaidaId,
       area_entrada_id: areaDestino || '',

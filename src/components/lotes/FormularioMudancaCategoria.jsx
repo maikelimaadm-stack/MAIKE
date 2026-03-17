@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 const CATEGORIAS = [
   "Bezerro 0 a 12 meses",
@@ -60,7 +61,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
 
   const [formData, setFormData] = useState({
-    data_mudanca: new Date().toISOString().split('T')[0],
+    data_mudanca: getTodayLocalDate(),
     mudancas: [],
     observacoes: ""
   });

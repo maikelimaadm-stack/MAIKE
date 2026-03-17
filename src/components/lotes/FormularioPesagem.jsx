@@ -8,6 +8,7 @@ import { X, Save, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -47,7 +48,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   });
 
   const [formData, setFormData] = useState({
-    data_pesagem: new Date().toISOString().split('T')[0],
+    data_pesagem: getTodayLocalDate(),
     pesagens: [],
     observacoes: ""
   });
