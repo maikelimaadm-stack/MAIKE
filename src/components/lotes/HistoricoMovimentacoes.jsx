@@ -205,7 +205,15 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const suplementacoes = suplementacoesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLoteFlex(item.lote_nome, item.lote_id))
+        .filter((item) => {
+          if (loteIds.length > 0) {
+            if (item.lote_id) return loteIds.includes(item.lote_id);
+            return loteNomes.some((nome) => normalize(nome) === normalize(item.lote_nome));
+          }
+          return matchLoteFlex(item.lote_nome, item.lote_id);
+        })
+        .filter((item) => matchEventoArea(eventosSuplementacaoById[item.suplementacao_evento_id]))
+        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_lancamento))
         .map((item) => ({
           uniqueId: `supl-${item.id}`,
           source: 'suplementacao',
