@@ -125,9 +125,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       const encontrarLoteDestinoCompativel = (loteOrigem, categoriaMovimento) => {
         return lotesDestinoAtivos.find(l =>
           l.area_atual_id === formData.area_entrada_id &&
+          (l.nome || '').toUpperCase() === (loteOrigem.nome || '').toUpperCase() &&
           (l.categoria || '').toUpperCase() === categoriaMovimento &&
-          (l.sexo || '') === (loteOrigem.sexo || '') &&
-          (l.categoria_manejo_id || l.categoria_manejo_nome || '') === (loteOrigem.categoria_manejo_id || loteOrigem.categoria_manejo_nome || '') &&
           l.status === 'Ativo'
         );
       };
