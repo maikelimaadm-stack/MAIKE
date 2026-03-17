@@ -117,7 +117,7 @@ export default function MapaGeral() {
   const { data: lotes = [], refetch: refetchLotes } = useQuery({
     queryKey: ['mapa-lotes', empresaSelecionadaId],
     queryFn: async () => {const all = await base44.entities.Lote.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');},
-    enabled: !!empresaSelecionadaId, staleTime: ST
+    enabled: !!empresaSelecionadaId, staleTime: 10 * 1000, refetchOnWindowFocus: true
   });
 
   const { data: iconesConfig = [] } = useQuery({
