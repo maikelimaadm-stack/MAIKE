@@ -178,7 +178,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const suplementacoes = suplementacoesRaw
         .filter((item) => item.empresa_id === empresaSelecionadaId)
         .filter((item) => matchLoteFlex(item.lote_nome, item.lote_id))
-        .filter((item) => dentroDoHistoricoAtual(item.data_lancamento))
         .map((item) => ({
           uniqueId: `supl-${item.id}`,
           source: 'suplementacao',
