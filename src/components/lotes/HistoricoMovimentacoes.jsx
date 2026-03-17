@@ -359,6 +359,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   }, [hasLaterRelatedRecord]);
 
   const handleDelete = async (entry) => {
+    // Prevenir duplo clique com ref (mais confiável que state)
+    if (deleteInProgressRef.current) return;
+    
     const motivoBloqueio = getDeleteBlockReason(entry);
     if (motivoBloqueio) {
       alert(motivoBloqueio);
@@ -368,45 +371,37 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const mov = entry.raw;
     if (!confirm('Excluir este lançamento? O lote será revertido automaticamente.')) return;
 
+    deleteInProgressRef.current = true;
     setDeletingId(entry.id);
 
     try {
-      // IMPORTANTE: Buscar dados FRESCOS do banco no momento da exclusão
-      // para evitar saldos inconsistentes quando múltiplas exclusões são feitas em sequência
-      const buscarLoteFresco = async (loteId) => {
-        if (!loteId) return null;
-        const todos = await base44.entities.Lote.list();
-        return todos.find(l => l.id === loteId) || null;
-      };
-
-      const buscarLotePorNomeArea = async (nomeLote, areaId, apenasAtivo = false) => {
-        const todos = await base44.entities.Lote.list();
-        return todos.find(l => 
-          l.empresa_id === empresaSelecionadaId &&
-          normalize(l.nome) === normalize(nomeLote) &&
-          l.area_atual_id === areaId &&
-          (!apenasAtivo || l.status === 'Ativo')
-        ) || null;
-      };
-
-      const buscarLotePorNome = async (nomeLote, apenasAtivo = true) => {
-        const todos = await base44.entities.Lote.list();
-        return todos.find(l =>
-          l.empresa_id === empresaSelecionadaId &&
-          normalize(l.nome) === normalize(nomeLote) &&
-          (!apenasAtivo || l.status === 'Ativo')
-        ) || null;
-      };
-
       const qtd = mov.quantidade_animais || 0;
 
       if (mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes' && hasLaterRelatedRecord(entry)) {
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
       }
 
+      // Buscar lotes e movimentações UMA SÓ VEZ (evita múltiplas chamadas .list())
+      const [lotesAll, movsAll] = await Promise.all([
+        base44.entities.Lote.list(),
+        (mov.tipo === 'Transferência de Área') ? base44.entities.MovimentacaoMapa.list('-data_movimentacao') : Promise.resolve([])
+      ]);
+      const lotesEmpresa = lotesAll.filter(l => l.empresa_id === empresaSelecionadaId);
+
+      // Helpers que usam o snapshot carregado
+      const findLoteById = (id) => id ? lotesEmpresa.find(l => l.id === id) : null;
+      const findLoteByNome = (nome, apenasAtivo = true) => lotesEmpresa.find(l =>
+        normalize(l.nome) === normalize(nome) && (!apenasAtivo || l.status === 'Ativo')
+      ) || null;
+      const findLoteByNomeArea = (nome, areaId, apenasAtivo = false) => lotesEmpresa.find(l =>
+        normalize(l.nome) === normalize(nome) && l.area_atual_id === areaId && (!apenasAtivo || l.status === 'Ativo')
+      ) || null;
+
+      // Resolver lote principal da movimentação
+      const resolverLote = () => findLoteById(mov.lote_id) || findLoteByNome(mov.lote);
+
       if (mov.tipo === 'Transferência de Área') {
-        const todasMovimentacoes = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-        const pesagensFilhas = todasMovimentacoes.filter((item) =>
+        const pesagensFilhas = movsAll.filter(item =>
           item.empresa_id === empresaSelecionadaId &&
           item.tipo === 'Pesagem' &&
           getLinkedMovementIds(item.observacoes).includes(mov.id)
@@ -414,12 +409,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
         for (const pesagemFilha of pesagensFilhas) {
           if (pesagemFilha.lote_id) {
-            const lotePesagem = await buscarLoteFresco(pesagemFilha.lote_id);
+            const lotePesagem = findLoteById(pesagemFilha.lote_id);
             const pesoAnterior = getPesoAnteriorFromObs(pesagemFilha.observacoes);
             if (lotePesagem && pesoAnterior !== null) {
-              await base44.entities.Lote.update(lotePesagem.id, {
-                peso_medio_kg: pesoAnterior
-              });
+              await base44.entities.Lote.update(lotePesagem.id, { peso_medio_kg: pesoAnterior });
             }
           }
           await base44.entities.MovimentacaoMapa.delete(pesagemFilha.id);
@@ -431,155 +424,127 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (!snapshotLotes || snapshotLotes.length === 0) {
           throw new Error('Não foi possível desfazer a junção: dados originais não encontrados.');
         }
-
-        for (const loteOriginal of snapshotLotes) {
-          await base44.entities.Lote.update(loteOriginal.id, {
-            nome: loteOriginal.nome,
-            quantidade_cabecas: loteOriginal.quantidade_cabecas,
-            peso_medio_kg: loteOriginal.peso_medio_kg,
-            status: loteOriginal.status,
-            categoria: loteOriginal.categoria,
-            categoria_manejo_id: loteOriginal.categoria_manejo_id || null,
-            categoria_manejo_nome: loteOriginal.categoria_manejo_nome || null,
-            area_atual_id: loteOriginal.area_atual_id,
-            area_atual_nome: loteOriginal.area_atual_nome
+        for (const lo of snapshotLotes) {
+          await base44.entities.Lote.update(lo.id, {
+            nome: lo.nome, quantidade_cabecas: lo.quantidade_cabecas, peso_medio_kg: lo.peso_medio_kg,
+            status: lo.status, categoria: lo.categoria,
+            categoria_manejo_id: lo.categoria_manejo_id || null, categoria_manejo_nome: lo.categoria_manejo_nome || null,
+            area_atual_id: lo.area_atual_id, area_atual_nome: lo.area_atual_nome
           });
         }
       }
 
       if (mov.motivo === 'Renomear Lote') {
         const obsText = mov.observacoes || '';
-        const matchRenomear = obsText.match(/Renomear Lote: "(.+?)" →/);
-        if (matchRenomear && matchRenomear[1] && mov.lote_id) {
-          await base44.entities.Lote.update(mov.lote_id, { nome: matchRenomear[1] });
+        const m = obsText.match(/Renomear Lote: "(.+?)" →/);
+        if (m && m[1] && mov.lote_id) {
+          await base44.entities.Lote.update(mov.lote_id, { nome: m[1] });
         }
       }
 
       if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {
-        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
+        const loteRecord = resolverLote();
         if (loteRecord) {
           await base44.entities.Lote.update(loteRecord.id, {
-            quantidade_cabecas: (loteRecord.quantidade_cabecas || 0) + qtd,
-            status: 'Ativo'
+            quantidade_cabecas: (loteRecord.quantidade_cabecas || 0) + qtd, status: 'Ativo'
           });
         }
       }
 
       if (mov.tipo === 'Nascimento') {
-        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
+        const loteRecord = resolverLote();
         if (loteRecord) {
           const novaQtd = Math.max(0, (loteRecord.quantidade_cabecas || 0) - qtd);
           await base44.entities.Lote.update(loteRecord.id, {
-            quantidade_cabecas: novaQtd,
-            status: novaQtd > 0 ? loteRecord.status : 'Inativo'
+            quantidade_cabecas: novaQtd, status: novaQtd > 0 ? loteRecord.status : 'Inativo'
           });
         }
       }
 
       if (mov.tipo === 'Pesagem') {
-        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
+        const loteRecord = resolverLote();
         if (loteRecord) {
           const pesoAnterior = getPesoAnteriorFromObs(mov.observacoes);
           if (pesoAnterior !== null) {
-            await base44.entities.Lote.update(loteRecord.id, {
-              peso_medio_kg: pesoAnterior
-            });
+            await base44.entities.Lote.update(loteRecord.id, { peso_medio_kg: pesoAnterior });
           }
         }
       }
 
       if (mov.tipo === 'Mudança de Categoria') {
-        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
+        const loteRecord = resolverLote();
         if (loteRecord) {
           const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
           const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
           if (categoriaAnterior) {
             const updateData = { categoria: categoriaAnterior };
-            if (sexoAnterior) {
-              updateData.sexo = sexoAnterior;
-            }
+            if (sexoAnterior) updateData.sexo = sexoAnterior;
             await base44.entities.Lote.update(loteRecord.id, updateData);
           }
         }
       }
 
       if (mov.tipo === 'Transferência de Área') {
-        // Buscar dados FRESCOS para cada lote envolvido
-        const origemAtivo = await buscarLotePorNomeArea(mov.lote, mov.area_origem_id, true);
-        const origemQualquer = await buscarLotePorNomeArea(mov.lote, mov.area_origem_id, false);
-        const destinoAtivo = await buscarLotePorNomeArea(mov.lote, mov.area_destino_id, true);
-        const destinoQualquer = await buscarLotePorNomeArea(mov.lote, mov.area_destino_id, false);
-        const lotePorId = mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null;
-
-        const origemFinal = origemAtivo || origemQualquer;
-        const destinoFinal = destinoAtivo || destinoQualquer;
+        const origemFinal = findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false);
+        const destinoFinal = findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false);
+        const lotePorId = findLoteById(mov.lote_id);
 
         if (origemFinal && destinoFinal && origemFinal.id !== destinoFinal.id) {
-          // Caso 1: lotes distintos na origem e destino (movimentação parcial ou com unir)
           await base44.entities.Lote.update(origemFinal.id, {
-            quantidade_cabecas: (origemFinal.quantidade_cabecas || 0) + qtd,
-            status: 'Ativo'
+            quantidade_cabecas: (origemFinal.quantidade_cabecas || 0) + qtd, status: 'Ativo'
           });
-
           const novaQtdDestino = (destinoFinal.quantidade_cabecas || 0) - qtd;
           await base44.entities.Lote.update(destinoFinal.id, {
             quantidade_cabecas: Math.max(0, novaQtdDestino),
             status: novaQtdDestino > 0 ? 'Ativo' : 'Inativo'
           });
         } else if (destinoFinal && (!origemFinal || destinoFinal.id === lotePorId?.id)) {
-          // Caso 2: mesmo lote movido inteiro
           if ((destinoFinal.quantidade_cabecas || 0) > qtd) {
             await base44.entities.Lote.create({
-              empresa_id: destinoFinal.empresa_id,
-              nome: destinoFinal.nome,
-              quantidade_cabecas: qtd,
-              categoria: destinoFinal.categoria,
-              sexo: destinoFinal.sexo,
-              peso_medio_kg: destinoFinal.peso_medio_kg,
+              empresa_id: destinoFinal.empresa_id, nome: destinoFinal.nome,
+              quantidade_cabecas: qtd, categoria: destinoFinal.categoria,
+              sexo: destinoFinal.sexo, peso_medio_kg: destinoFinal.peso_medio_kg,
               idade_media_meses: destinoFinal.idade_media_meses,
-              area_atual_id: mov.area_origem_id,
-              area_atual_nome: mov.area_origem_nome || '',
+              area_atual_id: mov.area_origem_id, area_atual_nome: mov.area_origem_nome || '',
               raca_predominante: destinoFinal.raca_predominante,
               sistema_produtivo: destinoFinal.sistema_produtivo,
               categoria_manejo_id: destinoFinal.categoria_manejo_id,
               categoria_manejo_nome: destinoFinal.categoria_manejo_nome,
-              data_entrada: mov.data_movimentacao,
-              motivo_entrada: 'Outros',
-              motivo_outros: 'Reversão de movimentação',
-              origem: 'REVERSÃO MOVIMENTAÇÃO',
-              status: 'Ativo'
+              data_entrada: mov.data_movimentacao, motivo_entrada: 'Outros',
+              motivo_outros: 'Reversão de movimentação', origem: 'REVERSÃO MOVIMENTAÇÃO', status: 'Ativo'
             });
             await base44.entities.Lote.update(destinoFinal.id, {
               quantidade_cabecas: (destinoFinal.quantidade_cabecas || 0) - qtd
             });
           } else {
             await base44.entities.Lote.update(destinoFinal.id, {
-              area_atual_id: mov.area_origem_id,
-              area_atual_nome: mov.area_origem_nome || '',
-              status: 'Ativo'
+              area_atual_id: mov.area_origem_id, area_atual_nome: mov.area_origem_nome || '', status: 'Ativo'
             });
           }
         } else if (lotePorId) {
           await base44.entities.Lote.update(lotePorId.id, {
-            area_atual_id: mov.area_origem_id,
-            area_atual_nome: mov.area_origem_nome || '',
-            status: 'Ativo'
+            area_atual_id: mov.area_origem_id, area_atual_nome: mov.area_origem_nome || '', status: 'Ativo'
           });
         }
       }
 
       await base44.entities.MovimentacaoMapa.delete(mov.id);
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
-      queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] });
-      queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] });
-      queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
+
+      // Aguardar invalidação das queries antes de liberar o botão
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['lotes'] }),
+        queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
+        queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
+        queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] }),
+        queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
+      ]);
       try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
       toast.success('Lançamento excluído e saldo revertido');
     } catch (error) {
       console.error('Erro ao excluir lançamento:', error);
       toast.error(error.message || 'Não foi possível excluir o lançamento');
     } finally {
+      deleteInProgressRef.current = false;
       setDeletingId(null);
     }
   };
