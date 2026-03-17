@@ -55,8 +55,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
 
   const handleDelete = async (evento, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
-    const permitido = await podeExcluirEvento(evento);
-    if (!permitido) return toast.error("Este lançamento do cocho não pode ser excluído porque já existem movimentações posteriores ligadas aos lotes/área.");
+    if (bloqueiosPorEvento[evento.id]) return toast.error("Este lançamento do cocho não pode ser excluído porque já existem movimentações posteriores na área.");
     if (!confirm("Excluir este lançamento e reverter o estoque do depósito?")) return;
     setDeletingId(evento.id);
     try {
