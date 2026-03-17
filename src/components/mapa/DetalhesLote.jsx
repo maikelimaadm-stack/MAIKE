@@ -713,6 +713,116 @@ export default function DetalhesLote({ lotes, onClose }) {
         })()}
       </div>
 
+      {/* Dialog Juntar Lotes */}
+      <Dialog open={showJuntarLotes} onOpenChange={(open) => { setShowJuntarLotes(open); if (!open) { setCategoriaSelecionadaJuncao(null); setLotePrincipalJuncao(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-sm">Juntar Lotes</DialogTitle></DialogHeader>
+          {(() => {
+            const porCategoria = {};
+            lotes.forEach(l => {
+              const cat = (l.categoria || '').toUpperCase();
+              if (!porCategoria[cat]) porCategoria[cat] = [];
+              porCategoria[cat].push(l);
+            });
+            const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
+
+            if (!categoriaSelecionadaJuncao && categoriasJuntaveis.length > 1) {
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-600">Selecione a categoria para juntar:</p>
+                  {categoriasJuntaveis.map(([cat, ls]) => (
+                    <Button key={cat} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => { setCategoriaSelecionadaJuncao(cat); setLotePrincipalJuncao(null); }}>
+                      {cat} ({ls.length} lotes, {ls.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0)} cab)
+                    </Button>
+                  ))}
+                </div>
+              );
+            }
+
+            const catSel = categoriaSelecionadaJuncao || (categoriasJuntaveis[0] && categoriasJuntaveis[0][0]);
+            const lotesParaJuntar = porCategoria[catSel] || [];
+
+            if (!lotePrincipalJuncao && lotesParaJuntar.length > 0) {
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-600">Selecione o lote que receberá os animais (lote principal):</p>
+                  <p className="text-[10px] text-slate-500">Categoria: <strong>{catSel}</strong></p>
+                  {lotesParaJuntar.map(l => (
+                    <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-between" onClick={() => setLotePrincipalJuncao(l)}>
+                      <span>{l.nome}</span>
+                      <span className="text-slate-500">{l.quantidade_cabecas} cab</span>
+                    </Button>
+                  ))}
+                </div>
+              );
+            }
+
+            if (lotePrincipalJuncao && lotesParaJuntar.length > 0) {
+              const outrosLotes = lotesParaJuntar.filter(l => l.id !== lotePrincipalJuncao.id);
+              const totalCab = lotesParaJuntar.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+              return (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-emerald-800">Lote principal: {lotePrincipalJuncao.nome}</p>
+                    <p className="text-[10px] text-emerald-700">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-600">Lotes que serão absorvidos:</p>
+                    {outrosLotes.map(l => (
+                      <div key={l.id} className="flex justify-between text-xs p-2 bg-slate-50 rounded border">
+                        <span>{l.nome}</span>
+                        <span className="text-slate-500">{l.quantidade_cabecas} cab</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLotePrincipalJuncao(null)}>Voltar</Button>
+                    <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
+                      const principal = lotePrincipalJuncao;
+                      const pesoTotal = lotesParaJuntar.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
+                      const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
+                      const snapshotLotes = lotesParaJuntar.map(l => ({
+                        id: l.id, nome: l.nome, quantidade_cabecas: l.quantidade_cabecas || 0,
+                        peso_medio_kg: l.peso_medio_kg || 0, status: l.status || 'Ativo',
+                        categoria: l.categoria || '', categoria_manejo_id: l.categoria_manejo_id || '',
+                        categoria_manejo_nome: l.categoria_manejo_nome || '',
+                        area_atual_id: l.area_atual_id || '', area_atual_nome: l.area_atual_nome || ''
+                      }));
+                      const nomesLotes = lotesParaJuntar.map(l => l.nome).join(', ');
+                      for (const l of outrosLotes) {
+                        await base44.entities.Lote.update(l.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                      }
+                      await base44.entities.Lote.update(principal.id, {
+                        quantidade_cabecas: totalCab,
+                        peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
+                      });
+                      const areaAtualId = principal.area_atual_id;
+                      const areaJuncao = areas.find(a => a.id === areaAtualId);
+                      await base44.entities.MovimentacaoMapa.create({
+                        empresa_id: empresaSelecionadaId,
+                        data_movimentacao: new Date().toISOString(),
+                        tipo: 'Entrada', motivo: 'Junção de Lotes',
+                        lote: principal.nome, lote_id: principal.id,
+                        quantidade_animais: totalCab,
+                        area_origem_id: areaAtualId, area_origem_nome: areaJuncao?.nome || '',
+                        observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
+                      });
+                      toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
+                      setShowJuntarLotes(false);
+                      onClose();
+                      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+                    }}>
+                      Confirmar Junção
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
