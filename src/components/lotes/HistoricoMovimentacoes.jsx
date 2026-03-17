@@ -4,10 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import MovimentacaoEditDialog from "./MovimentacaoEditDialog";
 import {
   normalizeText,
   getLinkedMovementIds,
@@ -52,7 +51,8 @@ const normalize = (value) => normalizeText(value);
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-  const [editMov, setEditMov] = React.useState(null);
+  const [editMovOriginal, setEditMovOriginal] = React.useState(null);
+  const [editMovForm, setEditMovForm] = React.useState(null);
   const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
   const [hiddenMovementIds, setHiddenMovementIds] = React.useState([]);
@@ -378,6 +378,37 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     [historico, hiddenMovementIds]
   );
 
+  const openEditDialog = (movement) => {
+    setEditMovOriginal(movement);
+    setEditMovForm({
+      data_movimentacao: String(movement.data_movimentacao || '').split('T')[0] || '',
+      quantidade_animais: movement.quantidade_animais ?? 0,
+      peso_medio: movement.peso_medio ?? '',
+      observacoes: movement.observacoes || '',
+    });
+    setShowEdit(true);
+  };
+
+  const closeEditDialog = () => {
+    if (updateMutation.isPending) return;
+    setShowEdit(false);
+    setEditMovOriginal(null);
+    setEditMovForm(null);
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditMovForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editMovOriginal || !editMovForm) return;
+    await updateMutation.mutateAsync({
+      movement: editMovOriginal,
+      data: editMovForm,
+    });
+    closeEditDialog();
+  };
+
   const handleDelete = async (entry) => {
     if (deletingId) return;
 
@@ -664,8 +695,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             variant="outline"
                             size="sm"
                             className="h-8 text-xs"
-                            disabled={isBloqueado}
-                            onClick={() => { setEditMov(item.raw); setShowEdit(true); }}
+                            disabled={isBloqueado || updateMutation.isPending}
+                            onClick={() => openEditDialog(item.raw)}
                           >
                             Editar
                           </Button>
@@ -691,56 +722,15 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         </CardContent>
       </Card>
 
-      <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Editar Lançamento</DialogTitle>
-          </DialogHeader>
-          {editMov && (
-            <div className="space-y-2">
-              <div>
-                <label className="text-xs text-slate-600">Quantidade</label>
-                <Input
-                  type="number"
-                  className="h-8 text-xs"
-                  value={editMov.quantidade_animais || 0}
-                  onChange={(e) => setEditMov({ ...editMov, quantidade_animais: parseInt(e.target.value || '0', 10) })}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-600">Observações</label>
-                <Textarea
-                  rows={3}
-                  className="text-xs"
-                  value={editMov.observacoes || ''}
-                  onChange={(e) => setEditMov({ ...editMov, observacoes: e.target.value })}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(false)}>
-                  Cancelar
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-                  onClick={async () => {
-                    await updateMutation.mutateAsync({
-                      movement: editMov,
-                      data: {
-                        quantidade_animais: editMov.quantidade_animais,
-                        observacoes: editMov.observacoes,
-                      }
-                    });
-                    setShowEdit(false);
-                  }}
-                >
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <MovimentacaoEditDialog
+        open={showEdit}
+        movement={editMovOriginal}
+        formData={editMovForm}
+        isSaving={updateMutation.isPending}
+        onClose={closeEditDialog}
+        onChange={handleEditFieldChange}
+        onSave={handleSaveEdit}
+      />
     </>
   );
 }

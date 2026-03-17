@@ -4,6 +4,11 @@ import { getCategoriaAnteriorFromObs, normalizeText } from "../utils/pecuariaUti
 const normalize = (value) => normalizeText(value);
 const toNumber = (value) => Number(value || 0);
 const toDateOnly = (value) => String(value || new Date().toISOString()).split("T")[0];
+const toIsoDateTime = (value, fallback) => {
+  if (!value) return fallback;
+  if (String(value).includes("T")) return value;
+  return new Date(value).toISOString();
+};
 
 function buildActiveStatus(quantidade) {
   return quantidade > 0 ? "Ativo" : "Inativo";
@@ -198,7 +203,11 @@ async function reconcileMudancaCategoria({ mov, diff, findLoteById, findLoteByNo
 
 export async function reconcileMovementEdit({ empresaSelecionadaId, originalMovement, nextData }) {
   const payload = {
-    quantidade_animais: Math.max(0, toNumber(nextData.quantidade_animais)),
+    data_movimentacao: toIsoDateTime(nextData.data_movimentacao, originalMovement.data_movimentacao),
+    quantidade_animais: Math.max(0, toNumber(nextData.quantidade_animais ?? originalMovement.quantidade_animais)),
+    peso_medio: nextData.peso_medio === "" || nextData.peso_medio == null
+      ? (originalMovement.tipo === "Pesagem" ? null : originalMovement.peso_medio)
+      : toNumber(nextData.peso_medio),
     observacoes: nextData.observacoes,
   };
 
