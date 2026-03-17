@@ -44,26 +44,38 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     const qtdLotes = lotesAtuais.length;
     const totalCabecasAtual = lotesAtuais.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
     const pesoTotalAtual = lotesAtuais.reduce((sum, lote) => sum + ((lote.quantidade_cabecas || 0) * (lote.peso_medio_kg || 0)), 0);
-    const pesoMedioGeral = totalCabecasAtual > 0 ? pesoTotalAtual / totalCabecasAtual : 0;
 
     const totalFornecidoKg = eventosRecentes.reduce((sum, evento) => sum + (evento.quantidade_total_kg || 0), 0);
     const totalConsumidoKg = eventosFechados.reduce((sum, evento) => sum + ((evento.consumo_diario_grupo_kg || 0) * (evento.dias_periodo || 0)), 0);
     const sobraRestaKg = Math.max(0, totalFornecidoKg - totalConsumidoKg);
 
+    const totalDiasFechados = eventosFechados.reduce((sum, evento) => sum + (evento.dias_periodo || 0), 0);
     const totalAnimalDias = eventosFechados.reduce((sum, evento) => sum + ((evento.total_cabecas_afetadas || 0) * (evento.dias_periodo || 0)), 0);
     const totalEsperadoPeriodoKg = eventosFechados.reduce((sum, evento) => sum + ((evento.consumo_esperado_pv_kg || 0) * (evento.dias_periodo || 0)), 0);
 
+    const mediaCabecasHistorico = totalDiasFechados > 0
+      ? eventosFechados.reduce((sum, evento) => sum + ((evento.total_cabecas_afetadas || 0) * (evento.dias_periodo || 0)), 0) / totalDiasFechados
+      : 0;
+    const pesoMedioHistorico = totalAnimalDias > 0
+      ? eventosFechados.reduce((sum, evento) => sum + ((evento.peso_medio_lotes_kg || 0) * (evento.total_cabecas_afetadas || 0) * (evento.dias_periodo || 0)), 0) / totalAnimalDias
+      : 0;
+
+    const totalCabecasReferencia = mediaCabecasHistorico > 0 ? Math.round(mediaCabecasHistorico) : totalCabecasAtual;
+    const pesoMedioGeral = pesoMedioHistorico > 0 ? pesoMedioHistorico : (totalCabecasAtual > 0 ? pesoTotalAtual / totalCabecasAtual : 0);
+
     const consumoRealCabDia = totalAnimalDias > 0 ? totalConsumidoKg / totalAnimalDias : 0;
     const consumoEsperadoCabDia = totalAnimalDias > 0 ? totalEsperadoPeriodoKg / totalAnimalDias : 0;
-    const consumoEsperadoPVDia = totalCabecasAtual > 0 ? consumoEsperadoCabDia * totalCabecasAtual : 0;
+    const consumoEsperadoPVDia = totalDiasFechados > 0 ? totalEsperadoPeriodoKg / totalDiasFechados : 0;
     const desvioKg = consumoRealCabDia > 0 && consumoEsperadoCabDia > 0 ? consumoRealCabDia - consumoEsperadoCabDia : null;
 
     const ultimoEvento = [...eventosRecentes].sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
-    const ultimoSacos = ultimoEvento?.quantidade_sacos || 0;
+    const ultimoSacos = ultimoEvento?.quantidade_sacos > 0
+      ? ultimoEvento.quantidade_sacos
+      : (ultimoEvento?.peso_por_saco_kg > 0 ? (ultimoEvento.quantidade_total_kg || 0) / ultimoEvento.peso_por_saco_kg : 0);
 
     return {
       qtdLotes,
-      totalCabecasAtual,
+      totalCabecasAtual: totalCabecasReferencia,
       pesoMedioGeral,
       totalFornecidoKg,
       totalConsumidoKg,
