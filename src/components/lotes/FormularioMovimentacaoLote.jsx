@@ -56,7 +56,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       area_saida_id: areaSaidaId,
       area_entrada_id: areaDestino || '',
       movimentacoes: movimentacoesPre,
-      unir_lotes: {},
       sobras_cocho: {}
     };
   });
