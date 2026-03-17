@@ -1389,7 +1389,7 @@ export default function LancamentoPesagensIndividuais() {
 
             {tipoManejo === 'Cadastro' && <>
               <Button type="button" variant="outline" size="icon" onClick={() => setMostrarSequenciaBrinco(!mostrarSequenciaBrinco)} className="h-8 w-8" title={mostrarSequenciaBrinco ? 'Ocultar Sequência de Brincos' : 'Sequência de Brincos'}>
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/ef5814d44_istockphoto-1951050133-612x612-removebg-preview.png" alt="" className="w-5 h-5" />
+                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/ef5814d44_istockphoto-1951050133-612x612-removebg-preview.png" alt="" className="w-8 h-8 object-contain flex-shrink-0" />
               </Button>
               <Button type="button" variant="outline" size="icon" onClick={() => setMostrarDadosCompra(!mostrarDadosCompra)} className="h-8 w-8" title={mostrarDadosCompra ? 'Ocultar Dados de Compra' : 'Mostrar Dados de Compra'}>
                 {mostrarDadosCompra ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
