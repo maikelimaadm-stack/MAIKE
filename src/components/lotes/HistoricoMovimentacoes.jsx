@@ -726,6 +726,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
+                        {item.source === 'suplementacao' && (
+                          <div className="text-amber-600 font-medium"><strong>⚠ Regra:</strong> exclusão apenas pelo histórico do cocho.</div>
+                        )}
                         {isBloqueado && item.canDelete && (
                           <div className="text-amber-600 font-medium"><strong>⚠ Bloqueio:</strong> {motivoBloqueio}</div>
                         )}
