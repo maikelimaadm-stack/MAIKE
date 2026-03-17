@@ -401,11 +401,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
       }
 
-      // Buscar lotes e movimentações UMA SÓ VEZ (evita múltiplas chamadas .list())
-      const [lotesAll, movsAll] = await Promise.all([
-        base44.entities.Lote.list(),
-        (mov.tipo === 'Transferência de Área') ? base44.entities.MovimentacaoMapa.list('-data_movimentacao') : Promise.resolve([])
-      ]);
+      // Buscar lotes uma vez e reutilizar a lista de movimentações já carregada acima
+      const lotesAll = await base44.entities.Lote.list();
       const lotesEmpresa = lotesAll.filter(l => l.empresa_id === empresaSelecionadaId);
 
       // Helpers que usam o snapshot carregado
@@ -562,7 +559,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       toast.success('Lançamento excluído e saldo revertido');
     } catch (error) {
       console.error('Erro ao excluir lançamento:', error);
-      toast.error(error.message || 'Não foi possível excluir o lançamento');
+      if (error?.status === 404) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
+          queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
+          queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
+        ]);
+        toast.success('Lançamento já estava excluído');
+      } else {
+        setHiddenMovementIds((prev) => prev.filter((id) => id !== entry.id));
+        toast.error(error.message || 'Não foi possível excluir o lançamento');
+      }
     } finally {
       deleteInProgressRef.current = false;
       setDeletingId(null);
@@ -579,7 +586,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     );
   }
 
-  if (historico.length === 0) {
+  if (historicoVisivel.length === 0) {
     return (
       <Card>
         <CardHeader className="bg-slate-50 border-b py-3">
@@ -596,11 +603,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     <>
       <Card>
         <CardHeader className="bg-slate-50 border-b py-3">
-          <CardTitle className="text-sm font-semibold">Histórico do Lote ({historico.length})</CardTitle>
+          <CardTitle className="text-sm font-semibold">Histórico do Lote ({historicoVisivel.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-2">
           <div className="max-h-[500px] overflow-y-auto space-y-2">
-            {historico.map((item) => {
+            {historicoVisivel.map((item) => {
               const motivoBloqueio = item.source === 'movimentacao' ? getDeleteBlockReason(item) : '';
               const isBloqueado = !!motivoBloqueio;
               const tipoExibicao = item.tipo_exibicao || item.tipo;
@@ -656,10 +663,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             variant="destructive"
                             size="sm"
                             className="h-8 text-xs"
-                            disabled={!!deletingId || isBloqueado}
+                            disabled={!!deletingId || hiddenMovementIds.includes(item.id) || isBloqueado}
                             onClick={() => handleDelete(item)}
                           >
-                            Excluir
+                            {deletingId === item.id ? 'Excluindo...' : 'Excluir'}
                           </Button>
                         )}
                       </div>
