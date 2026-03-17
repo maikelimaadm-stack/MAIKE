@@ -162,17 +162,18 @@ export default function DetalhesLote({ lotes, onClose }) {
 
           const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
           let quantidadeRestante = Number(mov.quantidade || 0);
-          const deveUnir = formData.unir_lotes[mov.categoria] === 'sim';
 
           for (const lote of lotesCategoria) {
             if (quantidadeRestante <= 0) break;
 
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
             if (quantidadeMover <= 0) continue;
-            const loteExistente = deveUnir ? encontrarLoteDestinoCompativel(lote, mov.categoria) : null;
+            // Unificação automática: buscar lote com mesmo nome+categoria no destino
+            const loteExistente = encontrarLoteDestinoCompativel(lote, mov.categoria);
 
             if (quantidadeMover === (lote.quantidade_cabecas || 0)) {
-              if (deveUnir && loteExistente) {
+              if (loteExistente) {
+                // Unificar automaticamente com lote existente de mesmo nome+categoria
                 await base44.entities.Lote.update(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
                 });
@@ -185,7 +186,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                 });
               }
             } else {
-              if (deveUnir && loteExistente) {
+              if (loteExistente) {
                 await base44.entities.Lote.update(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
                 });
