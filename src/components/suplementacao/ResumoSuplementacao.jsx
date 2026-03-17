@@ -47,55 +47,6 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     enabled: !!empresaSelecionadaId && eventoIdsBrutos.length > 0,
   });
 
-  const getPesoRateio = (item) => Number(item?.peso_consumo_lote || item?.consumo_esperado_pv_lote_kg || item?.cabecas_na_area || 0);
-
-  const calcularRateioEvento = (eventoId, registrosSelecionados) => {
-    const registrosEvento = consumosEventosRelacionados.filter((item) => item.suplementacao_evento_id === eventoId);
-    const pesoSelecionado = registrosSelecionados.reduce((sum, item) => sum + getPesoRateio(item), 0);
-    const pesoTotalEvento = registrosEvento.reduce((sum, item) => sum + getPesoRateio(item), 0);
-
-    if (pesoTotalEvento > 0) return pesoSelecionado / pesoTotalEvento;
-    if (registrosEvento.length > 0) return registrosSelecionados.length / registrosEvento.length;
-    return 0;
-  };
-
-  const metricasEventosRecentes = useMemo(() => {
-    return eventosSupl.map((evento) => {
-      const registrosSelecionados = consumosRecentes.filter((item) => item.suplementacao_evento_id === evento.id);
-      const rateio = calcularRateioEvento(evento.id, registrosSelecionados);
-      const quantidadeRateadaKg = (evento.quantidade_total_kg || 0) * rateio;
-      const quantidadeRateadaSacos = evento.quantidade_sacos > 0
-        ? (evento.quantidade_sacos || 0) * rateio
-        : (evento.peso_por_saco_kg > 0 ? kgParaSacos(quantidadeRateadaKg, evento.peso_por_saco_kg) : 0);
-
-      return {
-        ...evento,
-        rateio,
-        quantidade_rateada_kg: quantidadeRateadaKg,
-        quantidade_rateada_sacos: quantidadeRateadaSacos,
-      };
-    });
-  }, [eventosSupl, consumosRecentes, consumosEventosRelacionados]);
-
-  const metricasEventosAreaFiltrados = useMemo(() => {
-    if (!areaId) return metricasEventosRecentes;
-    return metricasEventosRecentes.filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)));
-  }, [metricasEventosRecentes, areaId]);
-
-  const metricasEventosRecentesFiltrados = useMemo(() => {
-    return metricasEventosAreaFiltrados.filter((e) => eventosRecentesIds.includes(e.id) && e.rateio > 0);
-  }, [metricasEventosAreaFiltrados, eventosRecentesIds]);
-
-  const resumoPorEvento = useMemo(() => {
-    const ultimoEventoRateado = [...metricasEventosRecentesFiltrados].sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
-
-    return {
-      totalFornecidoKg: metricasEventosRecentesFiltrados.reduce((sum, evento) => sum + (evento.quantidade_rateada_kg || 0), 0),
-      totalSacos: metricasEventosRecentesFiltrados.reduce((sum, evento) => sum + (evento.quantidade_rateada_sacos || 0), 0),
-      ultimoEventoRateado,
-    };
-  }, [metricasEventosRecentesFiltrados]);
-
   // Filtrar consumos: se areaId informado, manter APENAS registros de eventos vinculados a essa área.
   // Isso impede que histórico de suplementação de outra área "viaje junto" quando o lote é movido.
   // IMPORTANTE: se areaId está definido mas eventos ainda não carregaram, retornar vazio (não mostrar dados sem filtro).
