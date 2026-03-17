@@ -176,7 +176,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
       consumoEsperadoPVDia, consumoEsperadoCabDia, consumoRealCabDia, desvioKg,
       ultimoEvento, ultimoSacos,
     };
-  }, [consumosRecentes, eventosRecentes]);
+  }, [consumosRecentes, resumoPorEvento]);
 
   const fmtNum3 = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : "-";
   const fmtSacos = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
