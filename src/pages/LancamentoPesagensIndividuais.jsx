@@ -586,7 +586,7 @@ export default function LancamentoPesagensIndividuais() {
   [pesagens]
   );
   const erasExistentes = useMemo(() => [...new Set(pesagens.map((p) => p.era).filter(Boolean))].sort(), [pesagens]);
-  const numerosUsados = useMemo(() => { const s = new Set(); pesagens.forEach((p) => { if (p.numero_animal) s.add(p.numero_animal); }); pendingPesagensDB.forEach((p) => { if (p.numero_animal) s.add(p.numero_animal); }); return s; }, [pesagens, pendingPesagensDB]);
+  const numerosUsados = useMemo(() => { const s = new Set(); pesagens.forEach((p) => { if (p.numero_animal && String(p.marca || '').trim().toUpperCase() === String(marca || '').trim().toUpperCase()) s.add(p.numero_animal); }); pendingPesagensDB.forEach((p) => { if (p.numero_animal && String(p.marca || '').trim().toUpperCase() === String(marca || '').trim().toUpperCase()) s.add(p.numero_animal); }); return s; }, [pesagens, pendingPesagensDB, marca]);
   const lotesApartacaoAtual = useMemo(() => { if (!apartacaoSelecionada) return []; return lotesApartacao.filter((l) => l.apartacao_id === apartacaoSelecionada); }, [apartacaoSelecionada, lotesApartacao]);
 
   // ========== ESTATÍSTICAS DO DIA ==========
@@ -804,9 +804,9 @@ export default function LancamentoPesagensIndividuais() {
     let dataAnterior = null,pesoAnterior = null,dias = null,ganho = null,gmd = null;
 
     if (!isSN) {
-      const historicoAnimal = pesagens.
-      filter((p) => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem).
-      sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+      const historicoAnimal = pesagens
+        .filter((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm && String(p.marca || '').trim().toUpperCase() === marcaNorm && p.data_pesagem < dataPesagem)
+        .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
 
       if (historicoAnimal.length > 0 && historicoAnimal[0].peso) {
         const ultimo = historicoAnimal[0];
@@ -1559,9 +1559,9 @@ export default function LancamentoPesagensIndividuais() {
             {(() => {
               if (!numeroAnimal?.trim() || !peso) return null;
               if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
-              const historicoAnimal = pesagens.
-              filter((p) => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem).
-              sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+              const historicoAnimal = pesagens
+              .filter((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroAnimal.trim().toUpperCase() && String(p.marca || '').trim().toUpperCase() === String(marca || '').trim().toUpperCase() && p.data_pesagem < dataPesagem)
+              .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
               if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
               const ultimo = historicoAnimal[0];
               const pesoNum = parseFloat(peso);
