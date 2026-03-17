@@ -14,6 +14,7 @@ import {
   getJuncaoLotesSnapshot,
   getPesoAnteriorFromObs,
   getCategoriaAnteriorFromObs,
+  getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
 
 const CORES_TIPO = {
