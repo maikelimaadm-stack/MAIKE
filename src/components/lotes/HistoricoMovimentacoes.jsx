@@ -54,6 +54,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const [editMov, setEditMov] = React.useState(null);
   const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
+  const [hiddenMovementIds, setHiddenMovementIds] = React.useState([]);
   const deleteInProgressRef = React.useRef(false);
   const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
   const loteNomes = React.useMemo(() => {
@@ -358,9 +359,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     return '';
   }, [hasLaterRelatedRecord]);
 
+  const historicoVisivel = React.useMemo(
+    () => historico.filter((item) => !(item.source === 'movimentacao' && hiddenMovementIds.includes(item.id))),
+    [historico, hiddenMovementIds]
+  );
+
   const handleDelete = async (entry) => {
     // Prevenir duplo clique com ref (mais confiável que state)
-    if (deleteInProgressRef.current) return;
+    if (deleteInProgressRef.current || hiddenMovementIds.includes(entry.id)) return;
     
     const motivoBloqueio = getDeleteBlockReason(entry);
     if (motivoBloqueio) {
@@ -373,9 +379,23 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
     deleteInProgressRef.current = true;
     setDeletingId(entry.id);
+    setHiddenMovementIds((prev) => (prev.includes(entry.id) ? prev : [...prev, entry.id]));
 
     try {
-      const qtd = mov.quantidade_animais || 0;
+      const movsAll = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+      const movimentoAtual = movsAll.find((item) => item.id === mov.id);
+
+      if (!movimentoAtual) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
+          queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
+          queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
+        ]);
+        toast.success('Lançamento já estava excluído');
+        return;
+      }
+
+      const qtd = movimentoAtual.quantidade_animais || 0;
 
       if (mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes' && hasLaterRelatedRecord(entry)) {
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
