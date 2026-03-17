@@ -380,8 +380,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       });
       if (hasEventoNaOrigem) return true;
 
+      // Verificar no histórico local SOMENTE movimentações (não suplementação/medicamento/sanidade/manejo)
       const hasRegistroPosteriorNoHistorico = historico.some((item) => {
         if (item.uniqueId === entry.uniqueId) return false;
+        // Apenas movimentações bloqueiam — suplementação, medicamentos, sanidade, manejo técnico são independentes
+        if (item.source !== 'movimentacao') return false;
         const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
         if (!sameLote) return false;
 
@@ -395,8 +398,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     }
 
     // Verificação padrão para outros tipos (não-transferência): histórico local
+    // Apenas movimentações bloqueiam — suplementação, medicamentos, sanidade, manejo técnico são independentes
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
+      // Ignorar registros que não são movimentações para fins de bloqueio
+      if (item.source !== 'movimentacao') return false;
 
       const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
