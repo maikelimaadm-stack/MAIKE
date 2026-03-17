@@ -132,16 +132,13 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
   const metricas = useMemo(() => {
     const validos = getHistoricoValido(consumosRecentes);
 
-    // --- FORNECIMENTO (eventos sem duplicar) ---
-    const totalFornecidoKg = eventosRecentes.reduce((s, e) => s + (e.quantidade_total_kg || 0), 0);
-    const totalSacos = eventosRecentes.reduce((s, e) => {
-      if (e.quantidade_sacos > 0) return s + e.quantidade_sacos;
-      if (e.peso_por_saco_kg > 0) return s + kgParaSacos(e.quantidade_total_kg || 0, e.peso_por_saco_kg);
-      return s;
-    }, 0);
+    // --- FORNECIMENTO RATEADO PELO HISTÓRICO DO LOTE ---
+    // Nunca usar o total bruto do evento da área; usar apenas a parcela recalculada dos lotes selecionados.
+    const totalFornecidoKg = resumoPorEvento.totalFornecidoKg || 0;
+    const totalSacos = resumoPorEvento.totalSacos || 0;
     // Total consumido = soma do consumo real de todos os registros de lote
     const totalConsumidoKg = validos.reduce((s, i) => s + (i.consumo_total_lote_periodo_kg || 0), 0);
-    // Sobra = fornecido - consumido (o que resta a consumir)
+    // Sobra = fornecido rateado do lote - consumido do lote
     const sobraRestaKg = Math.max(0, totalFornecidoKg - totalConsumidoKg);
 
     // --- DADOS DO LOTE ---
