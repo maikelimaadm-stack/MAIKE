@@ -3,183 +3,92 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatDateBR, formatKg } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
-import { calcularResumoHistorico, filtrarHistoricoPorMeses, getHistoricoValido } from "./suplementacaoResumoUtils";
 import DesvioConsumoTag from "./DesvioConsumoTag";
-import { kgParaSacos } from "./unidadeConversaoUtils";
 
-/**
- * Componente unificado para exibir resumo de suplementação.
- * 
- * @param {string[]} lotesIds - IDs dos lotes para buscar consumo
- * @param {"completo"|"compacto"} modo - "completo" ou "compacto"
- * @param {string} areaId - ID da área atual (filtra consumo apenas desta área)
- */
 export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", areaId = "" }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
-  // Buscar registros de consumo por lote
-  const { data: consumosLoteBrutos = [] } = useQuery({
-    queryKey: ["suplementacao-resumo", empresaSelecionadaId, lotesIds.join("|"), modo],
+  const { data: lotesAtuais = [] } = useQuery({
+    queryKey: ["suplementacao-lotes-atuais", empresaSelecionadaId, lotesIds.join("|")],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoLote.list();
-      return all.filter((s) => s.empresa_id === empresaSelecionadaId && lotesIds.includes(s.lote_id));
+      const all = await base44.entities.Lote.list();
+      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lotesIds.includes(lote.id) && lote.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId && lotesIds.length > 0,
   });
 
-  // Buscar eventos de suplementação (contém fornecimento em kg, sacos, sobra, area_id)
-  const eventoIdsBrutos = useMemo(() => [...new Set(consumosLoteBrutos.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosLoteBrutos]);
-  const { data: eventosSupl = [] } = useQuery({
-    queryKey: ["suplementacao-eventos-resumo", empresaSelecionadaId, eventoIdsBrutos.join("|")],
+  const { data: eventosArea = [] } = useQuery({
+    queryKey: ["suplementacao-eventos-area-resumo", empresaSelecionadaId, areaId],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoEvento.list();
-      return all.filter((e) => eventoIdsBrutos.includes(e.id));
+      const all = await base44.entities.SuplementacaoEvento.list("-data_lancamento");
+      return all.filter((evento) => {
+        if (evento.empresa_id !== empresaSelecionadaId) return false;
+        if (!areaId) return true;
+        return evento.area_id === areaId || (Array.isArray(evento.area_ids) && evento.area_ids.includes(areaId));
+      });
     },
-    enabled: eventoIdsBrutos.length > 0,
+    enabled: !!empresaSelecionadaId,
   });
 
-  const { data: movimentacoesLote = [] } = useQuery({
-    queryKey: ["suplementacao-movimentacoes-lote", empresaSelecionadaId, lotesIds.join("|"), areaId],
-    queryFn: async () => {
-      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-      return all.filter((mov) =>
-        mov.empresa_id === empresaSelecionadaId &&
-        mov.tipo === 'Transferência de Área' &&
-        mov.area_destino_id === areaId &&
-        lotesIds.includes(mov.lote_id)
-      );
-    },
-    enabled: !!empresaSelecionadaId && !!areaId && lotesIds.length > 0,
-  });
+  const eventosRecentes = useMemo(() => {
+    const dataLimite = new Date();
+    dataLimite.setMonth(dataLimite.getMonth() - 1);
+    return eventosArea.filter((evento) => new Date(evento.data_lancamento) >= dataLimite);
+  }, [eventosArea]);
 
-  const inicioHistoricoPorLote = useMemo(() => {
-    const mapa = {};
-    movimentacoesLote.forEach((mov) => {
-      const atual = mapa[mov.lote_id];
-      const dataMov = new Date(mov.data_movimentacao || mov.created_date || 0).getTime();
-      if (!atual || dataMov > atual) {
-        mapa[mov.lote_id] = dataMov;
-      }
-    });
-    return mapa;
-  }, [movimentacoesLote]);
+  const eventosFechados = useMemo(() => {
+    return eventosRecentes.filter((evento) => (evento.dias_periodo || 0) > 0 && (evento.total_cabecas_afetadas || 0) > 0);
+  }, [eventosRecentes]);
 
-  // Filtrar consumos: se areaId informado, manter APENAS registros de eventos vinculados a essa área.
-  // Isso impede que histórico de suplementação de outra área "viaje junto" quando o lote é movido.
-  // IMPORTANTE: se areaId está definido mas eventos ainda não carregaram, retornar vazio (não mostrar dados sem filtro).
-  const consumosLote = useMemo(() => {
-    if (!areaId) return consumosLoteBrutos;
-    // Se temos consumos mas os eventos ainda não carregaram, retornar vazio para não mostrar dados de outra área
-    if (consumosLoteBrutos.length > 0 && eventoIdsBrutos.length > 0 && eventosSupl.length === 0) return [];
-    if (eventosSupl.length === 0) return [];
-    const eventosNaArea = new Set(
-      eventosSupl
-        .filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)))
-        .map((e) => e.id)
-    );
-    return consumosLoteBrutos.filter((c) => {
-      if (!eventosNaArea.has(c.suplementacao_evento_id)) return false;
-      const inicioLoteNaArea = inicioHistoricoPorLote[c.lote_id];
-      if (!inicioLoteNaArea) return true;
-      const dataLancamento = new Date(c.data_lancamento || 0).getTime();
-      return dataLancamento >= inicioLoteNaArea;
-    });
-  }, [consumosLoteBrutos, eventosSupl, areaId, eventoIdsBrutos, inicioHistoricoPorLote]);
-
-  const consumosRecentes = useMemo(() => filtrarHistoricoPorMeses(consumosLote, 1), [consumosLote]);
-  const resumo = useMemo(() => calcularResumoHistorico(consumosRecentes), [consumosRecentes]);
-
-  // Eventos filtrados pela área (se areaId informado)
-  const eventosAreaFiltrados = useMemo(() => {
-    if (!areaId) return eventosSupl;
-    return eventosSupl.filter((e) => e.area_id === areaId || (Array.isArray(e.area_ids) && e.area_ids.includes(areaId)));
-  }, [eventosSupl, areaId]);
-
-  // IDs de eventos dos últimos 30 dias (sem duplicatas)
-  const eventosRecentesIds = useMemo(() => [...new Set(consumosRecentes.map((c) => c.suplementacao_evento_id).filter(Boolean))], [consumosRecentes]);
-  const eventosRecentes = useMemo(() => eventosAreaFiltrados.filter((e) => eventosRecentesIds.includes(e.id)), [eventosAreaFiltrados, eventosRecentesIds]);
-
-  const resumoPorEvento = useMemo(() => {
-    const ultimoRegistro = [...consumosRecentes].sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
-
-    return {
-      // Regra: no resumo do lote nunca usar o total bruto do evento da área.
-      // O painel passa a refletir apenas o histórico recalculado do próprio lote.
-      totalFornecidoKg: consumosRecentes.reduce((sum, item) => sum + (item.consumo_total_lote_periodo_kg || 0), 0),
-      totalSacos: 0,
-      ultimoEventoRateado: ultimoRegistro
-        ? {
-            data_lancamento: ultimoRegistro.data_lancamento,
-            produto: ultimoRegistro.produto,
-            quantidade_rateada_kg: ultimoRegistro.consumo_total_lote_periodo_kg || 0,
-            quantidade_rateada_sacos: 0,
-          }
-        : null,
-    };
-  }, [consumosRecentes]);
-
-  const percentualUso = useMemo(() => {
-    const validos = consumosRecentes.filter((item) => (item.cabecas_na_area || 0) > 0 && (item.dias_periodo || 0) > 0 && (item.consumo_esperado_pv_lote_kg || 0) > 0);
-    if (!validos.length) return null;
-    const totalReal = validos.reduce((sum, item) => sum + (item.consumo_total_lote_periodo_kg || 0), 0);
-    const totalEsperado = validos.reduce((sum, item) => sum + ((item.consumo_esperado_pv_lote_kg || 0) * (item.dias_periodo || 0)), 0);
-    return totalEsperado > 0 ? (totalReal / totalEsperado) * 100 : null;
-  }, [consumosRecentes]);
-
-  // Métricas agregadas: fornecimento, lote, consumo esperado/real
   const metricas = useMemo(() => {
-    const validos = getHistoricoValido(consumosRecentes);
+    const qtdLotes = lotesAtuais.length;
+    const totalCabecasAtual = lotesAtuais.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
+    const pesoTotalAtual = lotesAtuais.reduce((sum, lote) => sum + ((lote.quantidade_cabecas || 0) * (lote.peso_medio_kg || 0)), 0);
+    const pesoMedioGeral = totalCabecasAtual > 0 ? pesoTotalAtual / totalCabecasAtual : 0;
 
-    // --- FORNECIMENTO RATEADO PELO HISTÓRICO DO LOTE ---
-    // Nunca usar o total bruto do evento da área; usar apenas a parcela recalculada dos lotes selecionados.
-    const totalFornecidoKg = resumoPorEvento.totalFornecidoKg || 0;
-    const totalSacos = resumoPorEvento.totalSacos || 0;
-    // Total consumido = soma do consumo real de todos os registros de lote
-    const totalConsumidoKg = validos.reduce((s, i) => s + (i.consumo_total_lote_periodo_kg || 0), 0);
-    // Sobra = fornecido rateado do lote - consumido do lote
+    const totalFornecidoKg = eventosRecentes.reduce((sum, evento) => sum + (evento.quantidade_total_kg || 0), 0);
+    const totalConsumidoKg = eventosFechados.reduce((sum, evento) => sum + ((evento.consumo_diario_grupo_kg || 0) * (evento.dias_periodo || 0)), 0);
     const sobraRestaKg = Math.max(0, totalFornecidoKg - totalConsumidoKg);
 
-    // --- DADOS DO LOTE ---
-    // Média de cabeças: agrupar por evento, pegar o total_cabecas de cada evento,
-    // e fazer a média. Assim se lancei 150+150 = média 150 (mesmo lote) ou 300 (lotes diferentes).
-    // Usar o último registro de cada lote para refletir a qtd atual
-    const ultimoRegistroPorLote = {};
-    [...validos].sort((a, b) => new Date(a.data_lancamento) - new Date(b.data_lancamento)).forEach((i) => {
-      ultimoRegistroPorLote[i.lote_id] = i;
-    });
-    const lotesUnicos = Object.values(ultimoRegistroPorLote);
-    const qtdLotes = lotesUnicos.length;
-    const totalCabecasAtual = lotesUnicos.reduce((s, i) => s + (i.cabecas_na_area || 0), 0);
-    const totalPesoKg = lotesUnicos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.peso_medio_lote_kg || 0)), 0);
-    const pesoMedioGeral = totalCabecasAtual > 0 ? totalPesoKg / totalCabecasAtual : 0;
+    const totalAnimalDias = eventosFechados.reduce((sum, evento) => sum + ((evento.total_cabecas_afetadas || 0) * (evento.dias_periodo || 0)), 0);
+    const totalEsperadoPeriodoKg = eventosFechados.reduce((sum, evento) => sum + ((evento.consumo_esperado_pv_kg || 0) * (evento.dias_periodo || 0)), 0);
 
-    // --- CONSUMO ESPERADO (média ponderada usando cabeças atuais) ---
-    const consumoEsperadoPVDia = lotesUnicos.reduce((s, i) => s + (i.consumo_esperado_pv_lote_kg || 0), 0);
-    const consumoEsperadoCabDia = totalCabecasAtual > 0 && consumoEsperadoPVDia > 0 ? consumoEsperadoPVDia / totalCabecasAtual : 0;
-
-    // --- CONSUMO REAL (kg/cab/dia ponderado por animal-dias) ---
-    const totalAnimalDias = validos.reduce((s, i) => s + ((i.cabecas_na_area || 0) * (i.dias_periodo || 0)), 0);
     const consumoRealCabDia = totalAnimalDias > 0 ? totalConsumidoKg / totalAnimalDias : 0;
-
-    // --- DESVIO ---
+    const consumoEsperadoCabDia = totalAnimalDias > 0 ? totalEsperadoPeriodoKg / totalAnimalDias : 0;
+    const consumoEsperadoPVDia = totalCabecasAtual > 0 ? consumoEsperadoCabDia * totalCabecasAtual : 0;
     const desvioKg = consumoRealCabDia > 0 && consumoEsperadoCabDia > 0 ? consumoRealCabDia - consumoEsperadoCabDia : null;
 
-    // --- ÚLTIMO LANÇAMENTO RATEADO ---
-    const ultimoEvento = resumoPorEvento.ultimoEventoRateado || null;
-    const ultimoSacos = ultimoEvento?.quantidade_rateada_sacos || 0;
+    const ultimoEvento = [...eventosRecentes].sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
+    const ultimoSacos = ultimoEvento?.quantidade_sacos || 0;
 
     return {
-      totalFornecidoKg, totalSacos, totalConsumidoKg, sobraRestaKg,
-      qtdLotes, totalCabecasAtual, pesoMedioGeral,
-      consumoEsperadoPVDia, consumoEsperadoCabDia, consumoRealCabDia, desvioKg,
-      ultimoEvento, ultimoSacos,
+      qtdLotes,
+      totalCabecasAtual,
+      pesoMedioGeral,
+      totalFornecidoKg,
+      totalConsumidoKg,
+      sobraRestaKg,
+      consumoEsperadoPVDia,
+      consumoEsperadoCabDia,
+      consumoRealCabDia,
+      desvioKg,
+      ultimoEvento,
+      ultimoSacos,
     };
-  }, [consumosRecentes, resumoPorEvento]);
+  }, [lotesAtuais, eventosRecentes, eventosFechados]);
+
+  const percentualUso = useMemo(() => {
+    const totalAnimalDias = eventosFechados.reduce((sum, evento) => sum + ((evento.total_cabecas_afetadas || 0) * (evento.dias_periodo || 0)), 0);
+    const totalEsperadoPeriodoKg = eventosFechados.reduce((sum, evento) => sum + ((evento.consumo_esperado_pv_kg || 0) * (evento.dias_periodo || 0)), 0);
+    const totalConsumidoKg = eventosFechados.reduce((sum, evento) => sum + ((evento.consumo_diario_grupo_kg || 0) * (evento.dias_periodo || 0)), 0);
+    if (totalAnimalDias <= 0 || totalEsperadoPeriodoKg <= 0) return null;
+    return (totalConsumidoKg / totalEsperadoPeriodoKg) * 100;
+  }, [eventosFechados]);
 
   const fmtNum3 = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : "-";
   const fmtSacos = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
 
-  if (consumosLote.length === 0) return null;
+  if (!areaId || eventosRecentes.length === 0) return null;
 
   if (modo === "compacto") {
     return (
@@ -188,15 +97,15 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
         <div className="grid grid-cols-4 gap-2 text-[9px]">
           <div>
             <div className="text-slate-500">Total</div>
-            <div className="text-xs font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div>
+            <div className="text-xs font-bold text-slate-900">{formatQuantidadeTecnica(metricas.totalConsumidoKg, 1)} kg</div>
           </div>
           <div>
             <div className="text-slate-500">kg/cab/dia</div>
-            <div className="text-xs font-bold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div>
+            <div className="text-xs font-bold text-slate-900">{formatConsumoKgCabDia(metricas.consumoRealCabDia)}</div>
           </div>
           <div>
             <div className="text-slate-500">g/cab/dia</div>
-            <div className="text-xs font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)}</div>
+            <div className="text-xs font-bold text-slate-900">{formatConsumoGramasCabDia(metricas.consumoRealCabDia)}</div>
           </div>
           <div>
             <div className="text-slate-500">% uso</div>
@@ -218,7 +127,6 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
       <span className="font-semibold text-slate-900 text-xs">Suplementação (últimos 30 dias)</span>
 
-      {/* FORNECIMENTO */}
       <div>
         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fornecimento</div>
         <div className="grid grid-cols-3 gap-1 text-[10px]">
@@ -228,7 +136,6 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
         </div>
       </div>
 
-      {/* DADOS DO LOTE */}
       <div>
         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
         <div className="grid grid-cols-3 gap-1 text-[10px]">
@@ -238,7 +145,6 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
         </div>
       </div>
 
-      {/* CONSUMO ESPERADO + REAL (mesma linha) */}
       <div>
         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado / Real</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
@@ -258,14 +164,13 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
         </div>
       </div>
 
-      {/* ÚLTIMO LANÇAMENTO */}
       {metricas.ultimoEvento && (
         <div>
           <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Último Lançamento</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
             <Cell label="Data">{formatDateBR(metricas.ultimoEvento.data_lancamento)}</Cell>
             <Cell label="Produto">{metricas.ultimoEvento.produto || "-"}</Cell>
-            <Cell label="Total fornecido">{formatKg(metricas.ultimoEvento.quantidade_rateada_kg || 0)}</Cell>
+            <Cell label="Total fornecido">{formatKg(metricas.ultimoEvento.quantidade_total_kg || 0)}</Cell>
             <Cell label="Total sacos">{fmtSacos(metricas.ultimoSacos)}</Cell>
           </div>
         </div>
