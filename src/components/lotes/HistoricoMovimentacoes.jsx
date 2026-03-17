@@ -517,6 +517,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
       queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] });
+      queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
       try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
       toast.success('Lançamento excluído do histórico e do MovimentacaoMapa');
