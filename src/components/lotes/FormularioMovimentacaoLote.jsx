@@ -177,24 +177,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   const categorias = Object.values(categoriasPorLote);
 
-  // Verificar se há lotes com mesma categoria na área de destino
-  const categoriasComLotesExistentes = React.useMemo(() => {
-    if (!formData.area_entrada_id) return {};
 
-    const lotesNaArea = todosLotes.filter((l) => l.area_atual_id === formData.area_entrada_id);
-    const resultado = {};
-
-    categorias.forEach((cat) => {
-      const loteExistente = lotesNaArea.find((l) => l.categoria?.toUpperCase() === cat.categoria);
-      if (loteExistente) {
-        resultado[cat.categoria] = {
-          lote: loteExistente
-        };
-      }
-    });
-
-    return resultado;
-  }, [formData.area_entrada_id, todosLotes, categorias]);
 
   const adicionarMovimentacao = () => {
     const primeiraCategoria = categorias[0];
