@@ -754,62 +754,46 @@ export default function LancamentoPesagensIndividuais() {
       }
     }
 
-    // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN e variações SNx
     const isSN = /^SN\s*\d*$/i.test(numeroAnimal.trim()) || numeroAnimal.trim().toUpperCase() === 'SN';
+    const numeroDigitado = numeroAnimal.trim();
+    const numeroNorm = numeroDigitado.toUpperCase();
+    const marcaDigitada = marca.trim();
+    const marcaComparacao = marcaDigitada || ((tipoManejo !== 'Cadastro') ? (pesagens.find((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm)?.marca || '') : '');
+    const marcaNorm = String(marcaComparacao || '').trim().toUpperCase();
+    const registrosMesmoNumero = pesagens.filter((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm);
+    const marcasMesmoNumero = [...new Set(registrosMesmoNumero.map((p) => String(p.marca || '').trim().toUpperCase()).filter(Boolean))];
+    const registrosMesmaIdentidade = registrosMesmoNumero.filter((p) => String(p.marca || '').trim().toUpperCase() === marcaNorm);
+
+    if (!editingId && !isSN && registrosMesmoNumero.length > 0 && !marcaDigitada && (tipoManejo === 'Cadastro' || marcasMesmoNumero.length > 1)) {
+      setAvisoTela({ tipo: 'erro', mensagem: `⚠️ O número ${numeroDigitado} já existe. Informe a marca para validar corretamente.` });
+      return;
+    }
+
     if (!editingId && !isSN) {
-      const duplicado = pesagensDia.find((p) =>
-      p.numero_animal === numeroAnimal.trim() &&
-      p.id !== editingId
-      );
+      const duplicado = pesagensDia.find((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm && String(p.marca || '').trim().toUpperCase() === marcaNorm && p.id !== editingId && p._offlineId !== editingOfflineId);
       if (duplicado) {
-        setAvisoTela({
-          tipo: 'erro',
-          mensagem: `⚠️ Animal ${numeroAnimal.trim()} já foi pesado hoje! Peso registrado: ${duplicado.peso}kg`
-        });
+        setAvisoTela({ tipo: 'erro', mensagem: `⚠️ Animal ${numeroDigitado}${marcaComparacao ? ` / Marca ${marcaComparacao}` : ''} já foi pesado hoje! Peso registrado: ${duplicado.peso}kg` });
         return;
       }
     }
 
-    // No modo "Manejo", verificar se o brinco existe no cadastro
-    if (tipoManejo === 'Manejo' && !isSN && !editingId) {
-      const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
-      if (!animalExiste) {
-        setAvisoTela({
-          tipo: 'erro',
-          mensagem: `❌ Brinco ${numeroAnimal.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
-        });
-        numeroInputRef.current?.focus();
-        return;
-      }
+    if (tipoManejo === 'Manejo' && !isSN && !editingId && !registrosMesmaIdentidade.some((p) => p.status_animal === 'Ativo')) {
+      setAvisoTela({ tipo: 'erro', mensagem: registrosMesmoNumero.length > 0 ? `❌ O número ${numeroDigitado} existe, mas em outra marca. Informe a marca correta.` : `❌ Brinco ${numeroDigitado} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.` });
+      numeroInputRef.current?.focus();
+      return;
     }
 
-    // No modo "Saída", verificar se o brinco existe
-    if (tipoManejo === 'Saída' && !isSN && !editingId) {
-      const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
-      if (!animalExiste) {
-        setAvisoTela({
-          tipo: 'erro',
-          mensagem: `❌ Brinco ${numeroAnimal.trim()} NÃO CADASTRADO ou já está INATIVO!`
-        });
-        numeroInputRef.current?.focus();
-        return;
-      }
+    if (tipoManejo === 'Saída' && !isSN && !editingId && !registrosMesmaIdentidade.some((p) => p.status_animal === 'Ativo')) {
+      setAvisoTela({ tipo: 'erro', mensagem: registrosMesmoNumero.length > 0 ? `❌ O número ${numeroDigitado} existe, mas em outra marca. Informe a marca correta.` : `❌ Brinco ${numeroDigitado} NÃO CADASTRADO ou já está INATIVO!` });
+      numeroInputRef.current?.focus();
+      return;
     }
 
-    // No modo "Cadastro", verificar se o brinco JÁ existe (não permitir duplicado)
-    if (tipoManejo === 'Cadastro' && !isSN && !editingId) {
-      const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim());
-      if (animalExiste) {
-        const ultimo = pesagens.
-        filter((p) => p.numero_animal === numeroAnimal.trim()).
-        sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem))[0];
-        setAvisoTela({
-          tipo: 'erro',
-          mensagem: `❌ Animal ${numeroAnimal.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg! Use "Manejo" para nova pesagem.`
-        });
-        numeroInputRef.current?.focus();
-        return;
-      }
+    if (tipoManejo === 'Cadastro' && !isSN && !editingId && registrosMesmaIdentidade.length > 0) {
+      const ultimo = [...registrosMesmaIdentidade].sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem))[0];
+      setAvisoTela({ tipo: 'erro', mensagem: `❌ Animal ${numeroDigitado}${marcaComparacao ? ` / Marca ${marcaComparacao}` : ''} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg! Use "Manejo" para nova pesagem.` });
+      numeroInputRef.current?.focus();
+      return;
     }
 
     setIsSaving(true);
@@ -1461,12 +1445,12 @@ export default function LancamentoPesagensIndividuais() {
 
           <div className="flex flex-wrap items-end gap-1">
             <div className="space-y-1"><Label className="text-xs font-medium">Data <span className="text-red-500">*</span></Label><Input type="date" value={dataPesagem} onChange={(e) => setDataPesagem(e.target.value)} className="h-9 text-sm w-40" /></div>
-            {tipoManejo === 'Cadastro' && <>
+            <>
               <div className="space-y-1"><Label className="text-xs font-medium">Sexo</Label><Select value={sexo} onValueChange={setSexo}><SelectTrigger className="h-9 text-sm w-20"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="M">M</SelectItem><SelectItem value="F">F</SelectItem></SelectContent></Select></div>
               <div className="space-y-1"><Label className="text-xs font-medium">Raça</Label><ComboboxComNovo value={raca} onChange={setRaca} options={racasExistentes} placeholder="Nelore" className="h-9 text-sm w-28" /></div>
               <div className="space-y-1"><Label className="text-xs font-medium">Era</Label><ComboboxComNovo value={era} onChange={setEra} options={erasExistentes} placeholder="Ex: 14" className="h-9 text-sm w-24" /></div>
-              <div className="space-y-1"><Label className="text-xs font-medium">Marca</Label><ComboboxComNovo value={marca} onChange={setMarca} options={marcasExistentes} placeholder="Ex: ABC" className="h-9 text-sm w-24" /></div>
-            </>}
+              <div className="space-y-1"><Label className="text-xs font-medium">Marca</Label><ComboboxComNovo value={marca} onChange={(v) => { setMarca(v); setAvisoTela(null); }} options={marcasExistentes} placeholder="Ex: ABC" className="h-9 text-sm w-24" /></div>
+            </>
             <div className="space-y-1">
               <Label className="text-xs font-medium">Nº Ident./Nome <span className="text-red-500">*</span></Label>
               <Input
@@ -1477,57 +1461,38 @@ export default function LancamentoPesagensIndividuais() {
                   setNumeroAnimal(valor);
                   setAvisoTela(null); // Limpar aviso anterior
 
-                  // Buscar dados anteriores do animal (exceto SN)
                   if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
-                    const historicoAnimal = pesagens.
-                    filter((p) => p.numero_animal === valor.trim()).
-                    sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-
-                    // Verificar se já foi pesado hoje
-                    const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim() && p.id !== editingId && p._offlineId !== editingOfflineId);
+                    const numeroNorm = valor.trim().toUpperCase();
+                    const marcaNorm = marca.trim().toUpperCase();
+                    const registrosMesmoNumero = pesagens.filter((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm).sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                    const marcasMesmoNumero = [...new Set(registrosMesmoNumero.map((p) => String(p.marca || '').trim().toUpperCase()).filter(Boolean))];
+                    const historicoAnimal = marcaNorm ? registrosMesmoNumero.filter((p) => String(p.marca || '').trim().toUpperCase() === marcaNorm) : (marcasMesmoNumero.length === 1 ? registrosMesmoNumero : []);
+                    const marcaComparacao = marca.trim() || (historicoAnimal[0]?.marca || '');
+                    const pesadoHoje = pesagensDia.find((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm && String(p.marca || '').trim().toUpperCase() === String(marcaComparacao || '').trim().toUpperCase() && p.id !== editingId && p._offlineId !== editingOfflineId);
                     if (pesadoHoje) {
-                      setAvisoTela({
-                        tipo: 'erro',
-                        mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
-                      });
-                      return; // Não preenche dados se já foi pesado
+                      setAvisoTela({ tipo: 'erro', mensagem: `⚠️ Animal ${valor.trim()}${marcaComparacao ? ` / Marca ${marcaComparacao}` : ''} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg` });
+                      return;
                     }
-
+                    if (registrosMesmoNumero.length > 0 && marcasMesmoNumero.length > 1 && !marca.trim()) {
+                      setAvisoTela({ tipo: 'alerta', mensagem: `ℹ️ O número ${valor.trim()} existe em mais de uma marca. Informe a marca para continuar.` });
+                      return;
+                    }
                     if (historicoAnimal.length > 0) {
-                      // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
-                      const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
+                      const cadastroOriginal = historicoAnimal.find((p) => p.tipo_manejo === 'Cadastro');
                       const ultimo = historicoAnimal[0];
                       const dadosCadastro = cadastroOriginal || ultimo;
-
-                      // PREENCHER DADOS AUTOMATICAMENTE EM TODOS OS MODOS
                       setSexo(dadosCadastro.sexo || "M");
                       setRaca(dadosCadastro.raca || "Nelore");
                       setEra(dadosCadastro.era || "");
                       setMarca(dadosCadastro.marca || "");
-
-                      // No modo CADASTRO, avisar que animal já existe
                       if (tipoManejo === 'Cadastro' && !editingId && !editingOfflineId) {
-                        setAvisoTela({
-                          tipo: 'alerta',
-                          mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
-                        });
-                      } else if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
+                        setAvisoTela({ tipo: 'alerta', mensagem: `⚠️ Animal ${valor.trim()} / Marca ${dadosCadastro.marca || '-'} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.` });
+                      } else {
                         const statusAtual = ultimo.status_animal || 'Ativo';
-                        setAvisoTela({
-                          tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
-                          mensagem: statusAtual === 'Inativo' ?
-                          `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
-                          `✓ ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
-                        });
+                        setAvisoTela({ tipo: statusAtual === 'Inativo' ? 'erro' : 'info', mensagem: statusAtual === 'Inativo' ? `❌ Animal ${valor.trim()} / Marca ${dadosCadastro.marca || '-'} está INATIVO (já teve saída registrada)` : `✓ ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg` });
                       }
-                    } else {
-                      // Animal não encontrado
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
-                        setAvisoTela({
-                          tipo: 'erro',
-                          mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
-                        });
-                      }
+                    } else if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
+                      setAvisoTela({ tipo: registrosMesmoNumero.length > 0 ? 'alerta' : 'erro', mensagem: registrosMesmoNumero.length > 0 ? `ℹ️ O número ${valor.trim()} existe, mas em outra marca. Informe a marca correta.` : `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.` });
                     }
                   }
                 }}
