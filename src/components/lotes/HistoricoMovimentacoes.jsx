@@ -370,14 +370,34 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     setDeletingId(entry.id);
 
     try {
-      const lotesAll = await base44.entities.Lote.list();
-      const lotesEmpresa = lotesAll.filter((l) => l.empresa_id === empresaSelecionadaId);
+      // IMPORTANTE: Buscar dados FRESCOS do banco no momento da exclusão
+      // para evitar saldos inconsistentes quando múltiplas exclusões são feitas em sequência
+      const buscarLoteFresco = async (loteId) => {
+        if (!loteId) return null;
+        const todos = await base44.entities.Lote.list();
+        return todos.find(l => l.id === loteId) || null;
+      };
+
+      const buscarLotePorNomeArea = async (nomeLote, areaId, apenasAtivo = false) => {
+        const todos = await base44.entities.Lote.list();
+        return todos.find(l => 
+          l.empresa_id === empresaSelecionadaId &&
+          normalize(l.nome) === normalize(nomeLote) &&
+          l.area_atual_id === areaId &&
+          (!apenasAtivo || l.status === 'Ativo')
+        ) || null;
+      };
+
+      const buscarLotePorNome = async (nomeLote, apenasAtivo = true) => {
+        const todos = await base44.entities.Lote.list();
+        return todos.find(l =>
+          l.empresa_id === empresaSelecionadaId &&
+          normalize(l.nome) === normalize(nomeLote) &&
+          (!apenasAtivo || l.status === 'Ativo')
+        ) || null;
+      };
+
       const qtd = mov.quantidade_animais || 0;
-      const lotePorId = mov.lote_id ? lotesEmpresa.find((l) => l.id === mov.lote_id) : null;
-      const loteOrigem = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.area_atual_id === mov.area_origem_id && l.status === 'Ativo');
-      const loteDestino = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.area_atual_id === mov.area_destino_id && l.status === 'Ativo');
-      const loteMesmoNome = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.status === 'Ativo');
-      const loteRecord = lotePorId || loteMesmoNome;
 
       if (mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes' && hasLaterRelatedRecord(entry)) {
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
@@ -393,7 +413,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
         for (const pesagemFilha of pesagensFilhas) {
           if (pesagemFilha.lote_id) {
-            const lotePesagem = lotesEmpresa.find((l) => l.id === pesagemFilha.lote_id);
+            const lotePesagem = await buscarLoteFresco(pesagemFilha.lote_id);
             const pesoAnterior = getPesoAnteriorFromObs(pesagemFilha.observacoes);
             if (lotePesagem && pesoAnterior !== null) {
               await base44.entities.Lote.update(lotePesagem.id, {
@@ -426,7 +446,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         }
       }
 
-      // Reverter renomear lote: extrair nome anterior da observação
       if (mov.motivo === 'Renomear Lote') {
         const obsText = mov.observacoes || '';
         const matchRenomear = obsText.match(/Renomear Lote: "(.+?)" →/);
@@ -436,14 +455,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {
+        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
         if (loteRecord) {
           await base44.entities.Lote.update(loteRecord.id, {
-            quantidade_cabecas: (loteRecord.quantidade_cabecas || 0) + qtd
+            quantidade_cabecas: (loteRecord.quantidade_cabecas || 0) + qtd,
+            status: 'Ativo'
           });
         }
       }
 
       if (mov.tipo === 'Nascimento') {
+        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
         if (loteRecord) {
           const novaQtd = Math.max(0, (loteRecord.quantidade_cabecas || 0) - qtd);
           await base44.entities.Lote.update(loteRecord.id, {
@@ -454,6 +476,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Pesagem') {
+        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
         if (loteRecord) {
           const pesoAnterior = getPesoAnteriorFromObs(mov.observacoes);
           if (pesoAnterior !== null) {
@@ -465,6 +488,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Mudança de Categoria') {
+        const loteRecord = (mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null) || await buscarLotePorNome(mov.lote);
         if (loteRecord) {
           const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
           const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
@@ -479,16 +503,18 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Transferência de Área') {
-        // Buscar lotes incluindo inativos para cobrir movimentação parcial que inativou lote na origem
-        const loteOrigemInclInativo = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.area_atual_id === mov.area_origem_id);
-        const loteDestinoInclInativo = lotesEmpresa.find((l) => normalize(l.nome) === normalize(mov.lote) && l.area_atual_id === mov.area_destino_id);
-        // Preferir o lote ativo, mas aceitar inativo se não houver ativo
-        const origemFinal = loteOrigem || loteOrigemInclInativo;
-        const destinoFinal = loteDestino || loteDestinoInclInativo;
+        // Buscar dados FRESCOS para cada lote envolvido
+        const origemAtivo = await buscarLotePorNomeArea(mov.lote, mov.area_origem_id, true);
+        const origemQualquer = await buscarLotePorNomeArea(mov.lote, mov.area_origem_id, false);
+        const destinoAtivo = await buscarLotePorNomeArea(mov.lote, mov.area_destino_id, true);
+        const destinoQualquer = await buscarLotePorNomeArea(mov.lote, mov.area_destino_id, false);
+        const lotePorId = mov.lote_id ? await buscarLoteFresco(mov.lote_id) : null;
+
+        const origemFinal = origemAtivo || origemQualquer;
+        const destinoFinal = destinoAtivo || destinoQualquer;
 
         if (origemFinal && destinoFinal && origemFinal.id !== destinoFinal.id) {
           // Caso 1: lotes distintos na origem e destino (movimentação parcial ou com unir)
-          // Devolver cabeças ao lote de origem e reativar se necessário
           await base44.entities.Lote.update(origemFinal.id, {
             quantidade_cabecas: (origemFinal.quantidade_cabecas || 0) + qtd,
             status: 'Ativo'
@@ -500,9 +526,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
             status: novaQtdDestino > 0 ? 'Ativo' : 'Inativo'
           });
         } else if (destinoFinal && (!origemFinal || destinoFinal.id === lotePorId?.id)) {
-          // Caso 2: mesmo lote movido inteiro (não existe lote separado na origem)
+          // Caso 2: mesmo lote movido inteiro
           if ((destinoFinal.quantidade_cabecas || 0) > qtd) {
-            // Movimentação parcial sem lote separado na origem: criar novo lote na origem
             await base44.entities.Lote.create({
               empresa_id: destinoFinal.empresa_id,
               nome: destinoFinal.nome,
@@ -527,16 +552,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               quantidade_cabecas: (destinoFinal.quantidade_cabecas || 0) - qtd
             });
           } else {
-            // Lote inteiro movido: simplesmente mover de volta para a origem
             await base44.entities.Lote.update(destinoFinal.id, {
               area_atual_id: mov.area_origem_id,
               area_atual_nome: mov.area_origem_nome || '',
               status: 'Ativo'
             });
           }
-        } else if (loteRecord) {
-          // Fallback: mover o lote de volta pelo ID
-          await base44.entities.Lote.update(loteRecord.id, {
+        } else if (lotePorId) {
+          await base44.entities.Lote.update(lotePorId.id, {
             area_atual_id: mov.area_origem_id,
             area_atual_nome: mov.area_origem_nome || '',
             status: 'Ativo'
@@ -551,7 +574,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
       try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
-      toast.success('Lançamento excluído do histórico e do MovimentacaoMapa');
+      toast.success('Lançamento excluído e saldo revertido');
     } catch (error) {
       console.error('Erro ao excluir lançamento:', error);
       toast.error(error.message || 'Não foi possível excluir o lançamento');
