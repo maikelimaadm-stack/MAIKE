@@ -63,20 +63,6 @@ const formatDateOnly = (value) => {
   return `${day}/${month}/${year}`;
 };
 
-const getDirecaoHistorico = (item) => {
-  if (item?.source !== 'movimentacao') return item?.sourceLabel || 'Registro';
-  if (item?.tipo === 'Nascimento') return 'Entrada';
-  if (['Transferência de Área', 'Morte', 'Abate'].includes(item?.tipo)) return 'Saída';
-  return 'Registro';
-};
-
-const MetricCell = ({ label, value, children }) => (
-  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-    <div className="text-slate-500">{label}</div>
-    <div className="font-semibold text-slate-900">{children ?? value}</div>
-  </div>
-);
-
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -808,56 +794,38 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               const tipoExibicao = item.tipo_exibicao || item.tipo;
 
               return (
-                <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
+                <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-slate-50 transition-colors">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
-                          {formatDateOnly(item.data_evento)}
-                        </span>
-                        <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={`text-[10px] font-semibold border ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
                           {tipoExibicao}
-                        </span>
-                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
-                          {getDirecaoHistorico(item)}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] font-semibold">
+                          {item.sourceLabel}
+                        </Badge>
+                        <span className="text-[10px] text-slate-500">
+                          {formatDateOnly(item.data_evento)}
                         </span>
                       </div>
 
                       <div className="text-xs font-semibold text-slate-900">{item.lote || 'Sem lote'}</div>
 
-                      <div className="space-y-1.5">
-                        <div>
-                          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
-                          <div className="grid grid-cols-2 gap-1 text-[10px]">
-                            <MetricCell label="Qtd. Cabeças" value={item.quantidade ? `${item.quantidade} cab` : '-'} />
-                            <MetricCell label="Peso médio" value={item.peso_medio ? `${item.peso_medio} kg` : '-'} />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Movimentação</div>
-                          <div className={`grid gap-1 text-[10px] ${item.tipo === 'Transferência de Área' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                            <MetricCell label="Motivo" value={tipoExibicao} />
-                            <MetricCell label="Tipo" value={getDirecaoHistorico(item)} />
-                            {item.tipo === 'Transferência de Área' && (
-                              <MetricCell label="Trajeto" value={`${item.area_origem_nome || '-'} → ${item.area_destino_nome || '-'}`} />
-                            )}
-                          </div>
-                        </div>
-
-                        {!!item.observacoes && (
-                          <div>
-                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Detalhes</div>
-                            <MetricCell label="Informações" value={item.observacoes} />
-                          </div>
+                      <div className="space-y-0.5 text-[10px] text-slate-600">
+                        {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
+                        <div><strong>Data:</strong> {formatDateOnly(item.data_evento)}</div>
+                        {item.tipo === 'Transferência de Área' && (
+                          <div><strong>Trajeto:</strong> {item.area_origem_nome || '-'} → {item.area_destino_nome || '-'}</div>
                         )}
-
+                        {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
+                        <div><strong>Origem:</strong> {item.sourceLabel}</div>
+                        {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
                         {item.source === 'suplementacao' && (
-                          <div className="text-[10px] text-amber-600 font-medium">Exclusão apenas pelo histórico do cocho.</div>
+                          <div className="text-amber-600 font-medium"><strong>⚠ Regra:</strong> exclusão apenas pelo histórico do cocho.</div>
                         )}
 
                         {isBloqueado && item.canDelete && (
-                          <div className="text-[10px] text-amber-600 font-medium">{motivoBloqueio}</div>
+                          <div className="text-amber-600 font-medium"><strong>⚠ Bloqueio:</strong> {motivoBloqueio}</div>
                         )}
                       </div>
                     </div>
@@ -868,7 +836,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 text-[10px] px-2"
+                            className="h-8 text-xs"
                             disabled={isBloqueado || updateMutation.isPending}
                             onClick={() => openEditDialog(item.raw)}
                           >
@@ -879,7 +847,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           <Button
                             variant="destructive"
                             size="sm"
-                            className="h-7 text-[10px] px-2"
+                            className="h-8 text-xs"
                             disabled={!!deletingId || hiddenMovementIds.includes(item.id) || isBloqueado}
                             onClick={() => handleDelete(item)}
                           >
