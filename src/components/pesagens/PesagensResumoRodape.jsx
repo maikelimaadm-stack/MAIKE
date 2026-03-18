@@ -52,9 +52,9 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
           }
         </div>
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[12px] text-slate-500">Marcas:</span>
+          <span className="text-[13px] text-slate-500">Marcas:</span>
           {resumoMarcasDia.map(({ marcaNome, quantidade }) =>
-          <Badge key={marcaNome} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
+          <Badge key={marcaNome} variant="outline" className="text-[13px] px-1.5 py-0 border-slate-300 text-slate-700">
               {marcaNome}: {quantidade}
             </Badge>
           )}
