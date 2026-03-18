@@ -63,6 +63,18 @@ const formatDateOnly = (value) => {
   return `${day}/${month}/${year}`;
 };
 
+const getTipoFluxo = (item, areaId) => {
+  if (item?.source !== 'movimentacao') return item?.sourceLabel || 'Registro';
+  if (item?.tipo === 'Transferência de Área') {
+    if (areaId && item?.raw?.area_origem_id === areaId) return 'Saída';
+    if (areaId && item?.raw?.area_destino_id === areaId) return 'Entrada';
+    return 'Transferência';
+  }
+  if (item?.tipo === 'Nascimento') return 'Entrada';
+  if (item?.tipo === 'Morte' || item?.tipo === 'Abate') return 'Saída';
+  return 'Manejo';
+};
+
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -793,20 +805,22 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               const isBloqueado = !!motivoBloqueio;
               const tipoExibicao = item.tipo_exibicao || item.tipo;
 
+              const tipoFluxo = getTipoFluxo(item, areaId);
+
               return (
-                <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-slate-50 transition-colors">
+                <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={`text-[10px] font-semibold border ${CORES_TIPO[tipoExibicao] || 'bg-slate-100 text-slate-800 border-slate-300'}`}>
-                          {tipoExibicao}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px] font-semibold">
-                          {item.sourceLabel}
-                        </Badge>
-                        <span className="text-[10px] text-slate-500">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
                           {formatDateOnly(item.data_evento)}
                         </span>
+                        <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
+                          {tipoExibicao}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
+                          {tipoFluxo}
+                        </Badge>
                       </div>
 
                       <div className="text-xs font-semibold text-slate-900">{item.lote || 'Sem lote'}</div>
