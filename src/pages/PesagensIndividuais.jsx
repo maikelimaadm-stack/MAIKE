@@ -97,7 +97,7 @@ export default function PesagensIndividuais() {
 
   // Estado para edição em lote
   const [showEditarLote, setShowEditarLote] = useState(false);
-  const [edicaoLote, setEdicaoLote] = useState({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
+  const [edicaoLote, setEdicaoLote] = useState({ data_pesagem: "", sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
   
   // Fetch apartações e lotes
   const { data: apartacoesData = [] } = useQuery({
@@ -603,6 +603,7 @@ export default function PesagensIndividuais() {
 
   const confirmarEdicaoLote = async () => {
     const dadosParaAtualizar = {};
+    if (edicaoLote.data_pesagem) dadosParaAtualizar.data_pesagem = edicaoLote.data_pesagem;
     if (edicaoLote.sexo) dadosParaAtualizar.sexo = edicaoLote.sexo;
     if (edicaoLote.raca) dadosParaAtualizar.raca = edicaoLote.raca;
     if (edicaoLote.era) dadosParaAtualizar.era = edicaoLote.era;
@@ -648,7 +649,7 @@ export default function PesagensIndividuais() {
 
       toast.success(`✓ ${selectedItems.length} registro(s) atualizado(s)!`);
       setShowEditarLote(false);
-      setEdicaoLote({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
+      setEdicaoLote({ data_pesagem: "", sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
       setSelectedItems([]);
     } catch (error) {
       toast.error('Erro na atualização: ' + error.message);
@@ -1198,6 +1199,16 @@ export default function PesagensIndividuais() {
             )}
 
             <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Data</Label>
+                <Input 
+                  type="date"
+                  value={edicaoLote.data_pesagem} 
+                  onChange={(e) => setEdicaoLote({ ...edicaoLote, data_pesagem: e.target.value })} 
+                  className="h-8 text-xs" 
+                />
+              </div>
+
               <div className="space-y-1">
                 <Label className="text-xs">Sexo</Label>
                 <Select value={edicaoLote.sexo} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, sexo: v })}>

@@ -1,8 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoSaida, documentoSelecionado, resumoDoc, resumoEmbarque, pesagensDia, exportarExcel, n }) {
+  const [mostrarMediaMarcas, setMostrarMediaMarcas] = useState(false);
+
   const resumoMarcasDia = useMemo(() => {
     const mapa = pesagensDia.reduce((acc, item) => {
       const chave = String(item.marca || '').trim() || 'Sem marca';
