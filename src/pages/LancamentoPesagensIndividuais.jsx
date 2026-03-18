@@ -55,6 +55,7 @@ import ResumoVendaDia from "../components/pesagens/ResumoVendaDia";
 import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
 import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog";
 import ResumoLotes from "../components/pesagens/ResumoLotes";
+import PesagensResumoRodape from "../components/pesagens/PesagensResumoRodape";
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
@@ -1449,7 +1450,7 @@ export default function LancamentoPesagensIndividuais() {
               <div className="space-y-1"><Label className="text-xs font-medium">Sexo</Label><Select value={sexo} onValueChange={setSexo}><SelectTrigger className="h-9 text-sm w-20"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="M">M</SelectItem><SelectItem value="F">F</SelectItem></SelectContent></Select></div>
               <div className="space-y-1"><Label className="text-xs font-medium">Raça</Label><ComboboxComNovo value={raca} onChange={setRaca} options={racasExistentes} placeholder="Nelore" className="h-9 text-sm w-28" /></div>
               <div className="space-y-1"><Label className="text-xs font-medium">Era</Label><ComboboxComNovo value={era} onChange={setEra} options={erasExistentes} placeholder="Ex: 14" className="h-9 text-sm w-24" /></div>
-              <div className="space-y-1"><Label className="text-xs font-medium">Marca</Label><ComboboxComNovo value={marca} onChange={(v) => { setMarca(v); setAvisoTela(null); }} options={marcasExistentes} placeholder="Ex: ABC" className="h-9 text-sm w-24" /></div>
+              <div className="space-y-1"><Label className="text-xs font-medium">Marca</Label><ComboboxComNovo value={marca} onChange={(v) => { setMarca(v); setAvisoTela(null); }} onConfirm={() => setTimeout(() => numeroInputRef.current?.focus(), 0)} options={marcasExistentes} placeholder="Ex: ABC" className="h-9 text-sm w-24" /></div>
             </>
             <div className="space-y-1">
               <Label className="text-xs font-medium">Nº Ident./Nome <span className="text-red-500">*</span></Label>
@@ -2267,45 +2268,17 @@ export default function LancamentoPesagensIndividuais() {
             </CardContent>
           </Card>
 
-          {/* RODAPÉ COM ESTATÍSTICAS */}
-          <div className="flex items-center justify-between mt-2 bg-white rounded px-3 py-2 shadow-sm">
-            <div className="flex items-center gap-6 text-xs">
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Total Animais</span>
-                <span className="font-bold text-lg">{estatisticas.total}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Total Machos</span>
-                <span className="font-bold text-lg">{estatisticas.machos}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Total Fêmeas</span>
-                <span className="font-bold text-lg">{estatisticas.femeas}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Peso Médio</span>
-                <span className="font-bold text-lg">{n(estatisticas.pesoMedio, 2)}</span>
-              </div>
-            {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
-              <div className="flex items-center gap-1 ml-4">
-                <span className="text-slate-500">{documentoSelecionado ? 'Doc Selecionado' : 'Embarque Selecionado'}</span>
-                <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.total : resumoEmbarque.total}</span>
-                <span className="text-slate-400">/</span>
-                <span className="text-slate-500">M</span>
-                <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.machos : resumoEmbarque.machos}</span>
-                <span className="text-slate-400">/</span>
-                <span className="text-slate-500">F</span>
-                <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.femeas : resumoEmbarque.femeas}</span>
-                <span className="text-slate-400">•</span>
-                <span className="text-slate-500">Média</span>
-                <span className="font-bold text-lg text-amber-500">{n(documentoSelecionado ? resumoDoc.pesoMedio : resumoEmbarque.pesoMedio, 2)}</span>
-              </div>
-            )}
-            </div>
-            <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs">
-              Exportar
-            </Button>
-          </div>
+          <PesagensResumoRodape
+            estatisticas={estatisticas}
+            tipoManejo={tipoManejo}
+            motivoSaida={motivoSaida}
+            documentoSelecionado={documentoSelecionado}
+            resumoDoc={resumoDoc}
+            resumoEmbarque={resumoEmbarque}
+            pesagensDia={pesagensDia}
+            exportarExcel={exportarExcel}
+            n={n}
+          />
         </div>
 
         {/* RESUMO: Lotes ou Documentação */}
