@@ -63,20 +63,20 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
         </div>
         <div className="space-y-1">
           <div className="flex items-center gap-1 flex-wrap">
-            <button type="button" onClick={() => setMostrarMediaMarcas((prev) => !prev)} className="text-[10px] text-slate-500 hover:text-slate-700 font-medium">
+            <button type="button" onClick={() => setMostrarMediaMarcas((prev) => !prev)} className="text-[13px] text-slate-500 hover:text-slate-700 font-medium">
               Marcas:
             </button>
             {resumoMarcasDia.map(({ marcaNome, quantidade }) =>
-              <Badge key={marcaNome} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
+              <Badge key={marcaNome} variant="outline" className="text-[13px] px-1.5 py-0 border-slate-300 text-slate-700">
                 {marcaNome}: {quantidade}
               </Badge>
             )}
           </div>
           {mostrarMediaMarcas && (
             <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-[10px] text-slate-500">Média por marca:</span>
+              <span className="text-[13px] text-slate-500">Média por marca:</span>
               {resumoMarcasDia.map(({ marcaNome, pesoMedio }) =>
-                <Badge key={`${marcaNome}-media`} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
+                <Badge key={`${marcaNome}-media`} variant="outline" className="text-[13px] px-1.5 py-0 border-slate-300 text-slate-700">
                   {marcaNome}: {n(pesoMedio, 2)}
                 </Badge>
               )}
