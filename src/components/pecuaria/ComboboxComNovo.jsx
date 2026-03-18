@@ -9,6 +9,7 @@ export default function ComboboxComNovo({
   options = [], 
   placeholder = "Selecione ou digite...",
   onAddNew,
+  onConfirm,
   className = ""
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,10 +51,17 @@ export default function ComboboxComNovo({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [inputValue, value, onChange]);
 
-  const handleSelect = (opt) => {
-    setInputValue(opt);
-    onChange(opt);
+  const confirmarValor = (nextValue) => {
+    const finalValue = nextValue ?? inputValue ?? value ?? "";
+    onChange(finalValue);
+    setInputValue(finalValue);
     setIsOpen(false);
+    setIsFocused(false);
+    setTimeout(() => onConfirm?.(finalValue), 0);
+  };
+
+  const handleSelect = (opt) => {
+    confirmarValor(opt);
   };
 
   const handleInputChange = (e) => {
@@ -83,12 +91,21 @@ export default function ComboboxComNovo({
     if (inputValue && onAddNew) {
       onAddNew(inputValue);
     }
-    onChange(inputValue);
-    setIsOpen(false);
+    confirmarValor(inputValue);
   };
 
   const showAddButton = inputValue && 
     !filteredOptions.some(opt => opt.toLowerCase() === inputValue.toLowerCase());
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const valorDigitado = (inputValue || value || "").trim();
+      if (!valorDigitado) return;
+      const matchExato = filteredOptions.find((opt) => opt.toLowerCase() === valorDigitado.toLowerCase());
+      confirmarValor(matchExato || valorDigitado);
+    }
+  };
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
@@ -98,6 +115,7 @@ export default function ComboboxComNovo({
           onChange={handleInputChange}
           onFocus={handleFocus}
           onBlur={handleInputBlur}
+          onKeyDown={handleInputKeyDown}
           placeholder={placeholder}
           className="h-9 text-sm pr-8"
         />
