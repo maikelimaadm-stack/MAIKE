@@ -10,9 +10,9 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
       return acc;
     }, {});
 
-    return Object.entries(mapa)
-      .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
-      .map(([marcaNome, quantidade]) => ({ marcaNome, quantidade }));
+    return Object.entries(mapa).
+    sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).
+    map(([marcaNome, quantidade]) => ({ marcaNome, quantidade }));
   }, [pesagensDia]);
 
   return (
@@ -35,8 +35,8 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
             <span className="text-slate-500">Peso Médio</span>
             <span className="font-bold text-lg">{n(estatisticas.pesoMedio, 2)}</span>
           </div>
-          {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
-            <div className="flex items-center gap-1 ml-4">
+          {tipoManejo === 'Saída' && motivoSaida === 'Abate' &&
+          <div className="flex items-center gap-1 ml-4">
               <span className="text-slate-500">{documentoSelecionado ? 'Doc Selecionado' : 'Embarque Selecionado'}</span>
               <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.total : resumoEmbarque.total}</span>
               <span className="text-slate-400">/</span>
@@ -49,20 +49,20 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
               <span className="text-slate-500">Média</span>
               <span className="font-bold text-lg text-amber-500">{n(documentoSelecionado ? resumoDoc.pesoMedio : resumoEmbarque.pesoMedio, 2)}</span>
             </div>
-          )}
+          }
         </div>
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] text-slate-500">Marcas:</span>
-          {resumoMarcasDia.map(({ marcaNome, quantidade }) => (
-            <Badge key={marcaNome} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
+          <span className="text-[12px] text-slate-500">Marcas:</span>
+          {resumoMarcasDia.map(({ marcaNome, quantidade }) =>
+          <Badge key={marcaNome} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
               {marcaNome}: {quantidade}
             </Badge>
-          ))}
+          )}
         </div>
       </div>
       <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs shrink-0">
         Exportar
       </Button>
-    </div>
-  );
+    </div>);
+
 }
