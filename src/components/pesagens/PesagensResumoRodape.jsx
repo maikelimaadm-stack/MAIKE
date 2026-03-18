@@ -8,13 +8,21 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
   const resumoMarcasDia = useMemo(() => {
     const mapa = pesagensDia.reduce((acc, item) => {
       const chave = String(item.marca || '').trim() || 'Sem marca';
-      acc[chave] = (acc[chave] || 0) + 1;
+      if (!acc[chave]) {
+        acc[chave] = { quantidade: 0, pesoTotal: 0 };
+      }
+      acc[chave].quantidade += 1;
+      acc[chave].pesoTotal += Number(item.peso || 0);
       return acc;
     }, {});
 
-    return Object.entries(mapa).
-    sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).
-    map(([marcaNome, quantidade]) => ({ marcaNome, quantidade }));
+    return Object.entries(mapa)
+      .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
+      .map(([marcaNome, dados]) => ({
+        marcaNome,
+        quantidade: dados.quantidade,
+        pesoMedio: dados.quantidade > 0 ? dados.pesoTotal / dados.quantidade : 0,
+      }));
   }, [pesagensDia]);
 
   return (
@@ -53,12 +61,26 @@ export default function PesagensResumoRodape({ estatisticas, tipoManejo, motivoS
             </div>
           }
         </div>
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[13px] text-slate-500">Marcas:</span>
-          {resumoMarcasDia.map(({ marcaNome, quantidade }) =>
-          <Badge key={marcaNome} variant="outline" className="text-[13px] px-1.5 py-0 border-slate-300 text-slate-700">
-              {marcaNome}: {quantidade}
-            </Badge>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1 flex-wrap">
+            <button type="button" onClick={() => setMostrarMediaMarcas((prev) => !prev)} className="text-[10px] text-slate-500 hover:text-slate-700 font-medium">
+              Marcas:
+            </button>
+            {resumoMarcasDia.map(({ marcaNome, quantidade }) =>
+              <Badge key={marcaNome} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
+                {marcaNome}: {quantidade}
+              </Badge>
+            )}
+          </div>
+          {mostrarMediaMarcas && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-[10px] text-slate-500">Média por marca:</span>
+              {resumoMarcasDia.map(({ marcaNome, pesoMedio }) =>
+                <Badge key={`${marcaNome}-media`} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">
+                  {marcaNome}: {n(pesoMedio, 2)}
+                </Badge>
+              )}
+            </div>
           )}
         </div>
       </div>
