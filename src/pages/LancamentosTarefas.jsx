@@ -51,12 +51,36 @@ export default function LancamentosTarefas() {
   const [sortDirection, setSortDirection] = useState('asc');
 
   const [selecionados, setSelecionados] = useState([]);
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: grupos = [] } = useQuery({ queryKey: ["grupos-atividades"], queryFn: () => base44.entities.GrupoAtividade.list(), initialData: [] });
   const { data: tipos = [] } = useQuery({ queryKey: ["tipos-tarefa"], queryFn: () => base44.entities.TipoTarefa.list(), initialData: [] });
   const { data: areas = [] } = useQuery({ queryKey: ["areas-pasto"], queryFn: () => base44.entities.AreaPastagem.list(), initialData: [] });
   const { data: pessoas = [] } = useQuery({ queryKey: ["contatos"], queryFn: () => base44.entities.Fornecedor.list(), initialData: [] });
   const { data: lancs = [], isLoading, refetch } = useQuery({ queryKey: ["lancamentos-tarefa"], queryFn: () => base44.entities.LancamentoTarefa.list("-updated_date"), initialData: [] });
+  const { data: iconesPrioridade = [] } = useQuery({
+    queryKey: ["icones-prioridade-tarefa", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((icone) => icone.ativo !== false && icone.empresa_id === empresaSelecionadaId && icone.tipo_entidade === "Prioridade Tarefa");
+    },
+    initialData: [],
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const normalizarPrioridade = (valor) =>
+    (valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+
+  const getIconePrioridade = (lancamento) => {
+    const prioridades = [lancamento?.nivel_urgencia, lancamento?.urgencia].filter(Boolean);
+    return iconesPrioridade.find((icone) =>
+      prioridades.some((prioridade) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(prioridade))
+    );
+  };
 
   const filtered = useMemo(() => {
     const termo = (search || '').toLowerCase();
@@ -188,7 +212,20 @@ export default function LancamentosTarefas() {
                       {colunasOrdem.filter((id) => colunas[id]).map((id) =>
                   <React.Fragment key={id}>
                           {id === 'status' && <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>}
-                          {id === 'urgencia' && <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
+                          {id === 'urgencia' && (
+                            <TableCell className="text-xs py-1 border border-gray-300">
+                              <div className="flex items-center gap-2">
+                                {getIconePrioridade(l)?.icone_url && (
+                                  <img
+                                    src={getIconePrioridade(l).icone_url}
+                                    alt={l.nivel_urgencia || l.urgencia}
+                                    className="w-4 h-4 object-contain"
+                                  />
+                                )}
+                                <span>{l.urgencia} / {l.nivel_urgencia}</span>
+                              </div>
+                            </TableCell>
+                          )}
                           {id === 'grupo' && <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>}
                           {id === 'tipo' && <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>}
                           {id === 'area' && <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>}

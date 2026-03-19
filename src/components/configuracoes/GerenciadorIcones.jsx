@@ -21,14 +21,16 @@ const TIPOS_ENTIDADE = [
   { value: "Ponto", label: "Ponto de Referência" },
   { value: "Area", label: "Área/Polígono" },
   { value: "Lote", label: "Lote de Gado" },
-  { value: "Linha", label: "Linha/Estrada" }
+  { value: "Linha", label: "Linha/Estrada" },
+  { value: "Prioridade Tarefa", label: "Prioridade de Tarefa" }
 ];
 
 const CATEGORIAS_SUGERIDAS = {
   "Ponto": ["Cocho", "Bebedouro", "Aguada", "Balança", "Curral", "Tronco", "Armazém", "Depósito", "Casa Sede", "Retiro", "Saleiro"],
   "Area": ["Pasto", "Lavoura", "Reserva Legal", "APP", "Curral", "Sede", "Talhão", "Piquete"],
   "Lote": ["Bezerro 0 a 12 meses", "Bezerra 0 a 12 meses", "Garrote 13 a 24 meses", "Novilha 13 a 24 meses", "Boi 25 a 36 meses", "Vaca 25 a 36 meses", "Touro + 36 meses", "Vaca + 36 meses", "MISTO"],
-  "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"]
+  "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"],
+  "Prioridade Tarefa": ["Baixa", "Normal", "Alta", "Urgente", "Baixo", "Médio", "Alto", "Crítico"]
 };
 
 const CORES_PADRAO = [
@@ -53,11 +55,13 @@ export default function GerenciadorIcones() {
   const queryClient = useQueryClient();
 
   const { data: icones = [] } = useQuery({
-    queryKey: ['configuracao-icones-global'],
+    queryKey: ['configuracao-icones-global', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.ativo !== false);
+      return all.filter(i => i.ativo !== false && i.empresa_id === empresaSelecionadaId);
     },
+    initialData: [],
+    enabled: !!empresaSelecionadaId,
   });
 
   const createIconeMutation = useMutation({

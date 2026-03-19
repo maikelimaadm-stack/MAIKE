@@ -50,6 +50,26 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: iconesPrioridade = [] } = useQuery({
+    queryKey: ['icones-prioridade-tarefa-mapa', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((icone) => icone.ativo !== false && icone.empresa_id === empresaSelecionadaId && icone.tipo_entidade === 'Prioridade Tarefa');
+    },
+    initialData: [],
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const normalizarPrioridade = (valor) =>
+    (valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+
+  const getIconePrioridade = (prioridade) =>
+    iconesPrioridade.find((icone) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(prioridade));
+
   const tarefasFiltradas = tarefas.filter(t => {
     if (filtroStatus === 'ativas') return t.status === 'Pendente' || t.status === 'Em Andamento';
     if (filtroStatus === 'concluidas') return t.status === 'Concluída';
@@ -170,9 +190,18 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-sm text-slate-900 truncate">{tarefa.titulo}</span>
-                      <Badge className={`${PRIORIDADE_CORES[tarefa.prioridade]} text-[10px]`}>
-                        {tarefa.prioridade}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        {getIconePrioridade(tarefa.prioridade)?.icone_url && (
+                          <img
+                            src={getIconePrioridade(tarefa.prioridade).icone_url}
+                            alt={tarefa.prioridade}
+                            className="w-4 h-4 object-contain"
+                          />
+                        )}
+                        <Badge className={`${PRIORIDADE_CORES[tarefa.prioridade]} text-[10px]`}>
+                          {tarefa.prioridade}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
                       <Badge variant="outline" className="text-[10px]">{tarefa.tipo}</Badge>
