@@ -132,7 +132,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                 </div>
 
                 {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {formatObsKgPtBR(movimentacao.observacoes)}</div>}
-                {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser excluído.</div>}
+                {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
                 {ehNutricao && <div className="text-[10px] text-slate-400">Nutrição só pode ser excluída no histórico do cocho.</div>}
               </div>
             );

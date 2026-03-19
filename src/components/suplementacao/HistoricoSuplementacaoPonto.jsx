@@ -116,8 +116,8 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   <CardMetricaEvento evento={evento} showProjecao={true} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
-                  {bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-amber-600 font-medium">Existem registros criados depois deste lançamento na mesma área.</div>}
-                  {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser excluído.</div>}
+                  {bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}
+                  {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
                 </div>
               );
             })}

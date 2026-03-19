@@ -63,6 +63,21 @@ const formatDateOnly = (value) => {
   return `${day}/${month}/${year}`;
 };
 
+const formatHistoricoObservacoes = (item) => {
+  const observacoes = item?.observacoes || '';
+
+  if (item?.motivo === 'Junção de Lotes') {
+    const snapshot = getJuncaoLotesSnapshot(observacoes);
+    if (snapshot?.length) {
+      const origens = snapshot.map((lote) => `${lote.nome}(${Number(lote.quantidade_cabecas || 0).toLocaleString('pt-BR')})`).join(' + ');
+      const total = snapshot.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0);
+      return `[JUNCAO_LOTES] ${origens} => ${item.lote}(${total.toLocaleString('pt-BR')})`;
+    }
+  }
+
+  return observacoes;
+};
+
 const getTipoFluxo = (item, areaId) => {
   if (item?.source !== 'movimentacao') return item?.sourceLabel || 'Registro';
   if (item?.tipo === 'Transferência de Área') {
@@ -769,13 +784,13 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         )}
                         {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
-                        {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
+                        {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {formatHistoricoObservacoes(item)}</div>}
                         {item.source === 'suplementacao' && (
-                          <div className="text-amber-600 font-medium"><strong>⚠ Regra:</strong> exclusão apenas pelo histórico do cocho.</div>
+                          <div className="text-[10px] text-slate-400">Nutrição só pode ser excluída no histórico do cocho.</div>
                         )}
 
                         {isBloqueado && item.canDelete && (
-                          <div className="text-amber-600 font-medium"><strong>⚠ Bloqueio:</strong> {motivoBloqueio}</div>
+                          <div className="text-[10px] text-slate-400">{motivoBloqueio}</div>
                         )}
                       </div>
                     </div>
