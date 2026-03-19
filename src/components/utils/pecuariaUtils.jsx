@@ -113,6 +113,16 @@ export function getJuncaoLotesSnapshot(observacoes) {
   }
 }
 
+export function getMudancaCategoriaSnapshot(observacoes) {
+  const firstLine = String(observacoes || "").split("\n")[0] || "";
+  if (!firstLine.startsWith("[MUDANCA_CATEGORIA]")) return null;
+  try {
+    return JSON.parse(firstLine.replace("[MUDANCA_CATEGORIA]", ""));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Extrai peso anterior de observações: "Peso anterior: XXXkg"
  */

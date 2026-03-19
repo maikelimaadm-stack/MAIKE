@@ -1,5 +1,5 @@
 import { base44 } from "@/api/base44Client";
-import { getCategoriaAnteriorFromObs, normalizeText } from "../utils/pecuariaUtils";
+import { getCategoriaAnteriorFromObs, getMudancaCategoriaSnapshot, normalizeText } from "../utils/pecuariaUtils";
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 
 const normalize = (value) => normalizeText(value);
@@ -182,17 +182,22 @@ async function reconcileTransferencia({ mov, diff, findLoteById, findLoteByNomeA
 async function reconcileMudancaCategoria({ mov, diff, findLoteById, findLoteByNomeAreaCategoria }) {
   const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
   const categoriaNova = parseCategoriaNovaFromObs(mov.observacoes);
+  const snapshotMudanca = getMudancaCategoriaSnapshot(mov.observacoes);
   const loteBase = findLoteById(mov.lote_id);
 
   if (!loteBase || !categoriaAnterior || !categoriaNova) return;
 
-  const loteCategoriaAnterior = normalize(loteBase.categoria) === normalize(categoriaAnterior)
-    ? loteBase
-    : findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior, loteBase.id);
+  const loteCategoriaAnterior = snapshotMudanca?.origem_lote_id
+    ? findLoteById(snapshotMudanca.origem_lote_id)
+    : (normalize(loteBase.categoria) === normalize(categoriaAnterior)
+        ? loteBase
+        : findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior, loteBase.id));
 
-  const loteCategoriaNova = normalize(loteBase.categoria) === normalize(categoriaNova)
-    ? loteBase
-    : findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaNova, loteBase.id);
+  const loteCategoriaNova = snapshotMudanca?.destino_lote_id
+    ? findLoteById(snapshotMudanca.destino_lote_id)
+    : (normalize(loteBase.categoria) === normalize(categoriaNova)
+        ? loteBase
+        : findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaNova, loteBase.id));
 
   if (!loteCategoriaNova) {
     throw new Error("Não foi possível localizar o lote da nova categoria para reconciliar a edição.");

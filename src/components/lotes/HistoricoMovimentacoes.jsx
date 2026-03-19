@@ -9,6 +9,7 @@ import {
   normalizeText,
   getLinkedMovementIds,
   getJuncaoLotesSnapshot,
+  getMudancaCategoriaSnapshot,
   getPesoAnteriorFromObs,
   getCategoriaAnteriorFromObs,
   getSexoAnteriorFromObs,
@@ -562,19 +563,25 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       if (mov.tipo === 'Mudança de Categoria') {
         const categoriaAnterior = getCategoriaAnteriorFromObs(mov.observacoes);
         const categoriaNova = parseCategoriaNovaFromObs(mov.observacoes);
+        const snapshotMudanca = getMudancaCategoriaSnapshot(mov.observacoes);
         const lotePrincipal = resolverLote();
         const qtdMovimento = mov.quantidade_animais || 0;
 
         if (categoriaAnterior && categoriaNova && lotePrincipal) {
-          const loteCategoriaAnterior = findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior) || lotePrincipal;
-          const loteCategoriaNova = findLoteByNomeAreaCategoria(
-            mov.lote,
-            mov.area_origem_id,
-            categoriaNova,
-            loteCategoriaAnterior?.id
-          );
+          const loteCategoriaAnterior = snapshotMudanca?.origem_lote_id
+            ? findLoteById(snapshotMudanca.origem_lote_id)
+            : (findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaAnterior) || lotePrincipal);
 
-          if (loteCategoriaNova && loteCategoriaNova.id !== loteCategoriaAnterior?.id) {
+          const loteCategoriaNova = snapshotMudanca?.destino_lote_id
+            ? findLoteById(snapshotMudanca.destino_lote_id)
+            : findLoteByNomeAreaCategoria(
+                mov.lote,
+                mov.area_origem_id,
+                categoriaNova,
+                loteCategoriaAnterior?.id
+              );
+
+          if (loteCategoriaNova && loteCategoriaAnterior && loteCategoriaNova.id !== loteCategoriaAnterior.id) {
             await base44.entities.Lote.update(loteCategoriaAnterior.id, {
               quantidade_cabecas: (loteCategoriaAnterior.quantidade_cabecas || 0) + qtdMovimento,
               status: 'Ativo'

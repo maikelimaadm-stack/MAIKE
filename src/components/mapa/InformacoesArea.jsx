@@ -96,8 +96,8 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
       {tituloLotes && (
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[10px] text-slate-500">Lotes:</span>
-          {tituloLotes.split(' - ').map(nome => (
-            <Badge key={nome} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{nome}</Badge>
+          {tituloLotes.split(' - ').map((nome, index) => (
+            <Badge key={`${nome}-${index}`} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{nome}</Badge>
           ))}
         </div>
       )}

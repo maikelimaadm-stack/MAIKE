@@ -498,6 +498,55 @@ export default function DetalhesLote({ lotes, onClose }) {
         });
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
+        const sexoNovo = mudanca.sexo_novo || lote.sexo;
+        const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
+        const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
+        let loteDestinoId = lote.id;
+        let modoMudanca = 'total';
+
+        if (qtdMudar === lote.quantidade_cabecas) {
+          await base44.entities.Lote.update(lote.id, {
+            categoria: mudanca.categoria_nova,
+            sexo: sexoNovo,
+            categoria_manejo_id: catManejoIdNovo,
+            categoria_manejo_nome: catManejoNomeNovo
+          });
+        } else {
+          modoMudanca = 'parcial';
+          const loteNovoCategoria = await base44.entities.Lote.create({
+            empresa_id: empresaSelecionadaId,
+            nome: lote.nome,
+            quantidade_cabecas: qtdMudar,
+            categoria: mudanca.categoria_nova,
+            sexo: sexoNovo,
+            categoria_manejo_id: catManejoIdNovo,
+            categoria_manejo_nome: catManejoNomeNovo,
+            peso_medio_kg: lote.peso_medio_kg,
+            idade_media_meses: lote.idade_media_meses,
+            area_atual_id: areaAtualId,
+            area_atual_nome: areaMudanca?.nome || '',
+            raca_predominante: lote.raca_predominante,
+            sistema_produtivo: lote.sistema_produtivo,
+            data_entrada: formData.data_mudanca,
+            motivo_entrada: 'Outros',
+            motivo_outros: 'Mudança de Categoria',
+            origem: 'Mudança de Categoria',
+            status: 'Ativo'
+          });
+          loteDestinoId = loteNovoCategoria.id;
+
+          await base44.entities.Lote.update(lote.id, {
+            quantidade_cabecas: lote.quantidade_cabecas - qtdMudar
+          });
+        }
+
+        const snapshotMudanca = {
+          modo: modoMudanca,
+          origem_lote_id: lote.id,
+          destino_lote_id: loteDestinoId,
+          categoria_anterior: mudanca.categoria_atual,
+          categoria_nova: mudanca.categoria_nova,
+        };
 
         await base44.entities.MovimentacaoMapa.create({
           empresa_id: empresaSelecionadaId,
@@ -508,49 +557,8 @@ export default function DetalhesLote({ lotes, onClose }) {
           quantidade_animais: qtdMudar,
           area_origem_id: areaAtualId,
           area_origem_nome: areaMudanca?.nome || '',
-          observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
+          observacoes: `[MUDANCA_CATEGORIA]${JSON.stringify(snapshotMudanca)}\nDe ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
         });
-
-        const sexoNovo = mudanca.sexo_novo || lote.sexo;
-        const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
-        const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
-
-        if (qtdMudar === lote.quantidade_cabecas) {
-          // Mudar categoria do lote todo
-          await base44.entities.Lote.update(lote.id, {
-            categoria: mudanca.categoria_nova,
-            sexo: sexoNovo,
-            categoria_manejo_id: catManejoIdNovo,
-            categoria_manejo_nome: catManejoNomeNovo
-          });
-        } else {
-          // Mudança parcial - criar novo lote com nova categoria
-          await base44.entities.Lote.create({
-          empresa_id: empresaSelecionadaId,
-          nome: lote.nome,
-          quantidade_cabecas: qtdMudar,
-          categoria: mudanca.categoria_nova,
-          sexo: sexoNovo,
-          categoria_manejo_id: catManejoIdNovo,
-          categoria_manejo_nome: catManejoNomeNovo,
-          peso_medio_kg: lote.peso_medio_kg,
-          idade_media_meses: lote.idade_media_meses,
-          area_atual_id: areaAtualId,
-          area_atual_nome: areaMudanca?.nome || '',
-          raca_predominante: lote.raca_predominante,
-          sistema_produtivo: lote.sistema_produtivo,
-          data_entrada: formData.data_mudanca,
-          motivo_entrada: 'Outros',
-          motivo_outros: 'Mudança de Categoria',
-          origem: 'Mudança de Categoria',
-          status: 'Ativo'
-          });
-
-          // Diminuir quantidade do lote original
-          await base44.entities.Lote.update(lote.id, {
-            quantidade_cabecas: lote.quantidade_cabecas - qtdMudar
-          });
-        }
 
         quantidadeRestante -= qtdMudar;
       }
