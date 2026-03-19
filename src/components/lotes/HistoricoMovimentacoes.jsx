@@ -179,8 +179,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           canDelete: (
             // Transferência: exclusão apenas no histórico da área de destino
             (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
-            // Outros tipos editáveis (exceto transferência, que já é tratada acima)
-            (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0)) ||
+            // Outros tipos do histórico
+            (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
             // Junção de lotes pode ser desfeita
             mov.motivo === 'Junção de Lotes' ||
             // Renomear lote pode ser desfeito
@@ -331,10 +331,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const hasEventoNoDestino = todasMovimentacoesGlobal.some((mov) => {
         if (mov.id === entry.id) return false;
         
-        // Pesagens vinculadas à ESTA transferência são excluídas junto, não bloqueiam
-        const linkedIds = getLinkedMovementIds(mov.observacoes);
-        if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
-        
         // Outras transferências (ida ou volta) NÃO bloqueiam — são operações independentes
         if (mov.tipo === 'Transferência de Área') return false;
         
@@ -366,9 +362,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (mov.id === entry.id) return false;
         // Não considerar outras transferências saindo da origem — essas são independentes
         if (mov.tipo === 'Transferência de Área') return false;
-        
-        const linkedIds = getLinkedMovementIds(mov.observacoes);
-        if (mov.tipo === 'Pesagem' && linkedIds.includes(entry.id)) return false;
         
         // Só eventos que ocorreram na área de origem
         const movNaAreaOrigem = mov.area_origem_id === areaOrigemId || mov.area_destino_id === areaOrigemId;
@@ -422,9 +415,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
-      if (entry?.tipo === 'Pesagem' && (entry?.linked_movement_ids || []).length > 0) {
-        return 'Esta pesagem está vinculada à transferência. Para removê-la, exclua a transferência correspondente (a pesagem será removida automaticamente).';
-      }
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
@@ -515,22 +505,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         // NÃO usar findLoteById(mov.lote_id)?.categoria como fallback pois o lote pode ter
         // mudado de categoria desde a transferência
         categoriaMovimento = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || null;
-        const pesagensFilhas = movsAll.filter(item =>
-          item.empresa_id === empresaSelecionadaId &&
-          item.tipo === 'Pesagem' &&
-          getLinkedMovementIds(item.observacoes).includes(mov.id)
-        );
-
-        for (const pesagemFilha of pesagensFilhas) {
-          if (pesagemFilha.lote_id) {
-            const lotePesagem = findLoteById(pesagemFilha.lote_id);
-            const pesoAnterior = getPesoAnteriorFromObs(pesagemFilha.observacoes);
-            if (lotePesagem && pesoAnterior !== null) {
-              await base44.entities.Lote.update(lotePesagem.id, { peso_medio_kg: pesoAnterior });
-            }
-          }
-          await base44.entities.MovimentacaoMapa.delete(pesagemFilha.id);
-        }
       }
 
       if (mov.motivo === 'Junção de Lotes') {

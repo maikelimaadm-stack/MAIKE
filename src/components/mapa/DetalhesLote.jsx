@@ -566,7 +566,6 @@ export default function DetalhesLote({ lotes, onClose }) {
     const lotesParaPesar = lotesAtualizados || lotes;
     const areaAtualId = lotesParaPesar[0]?.area_atual_id;
     const areaPesagem = areas.find(a => a.id === areaAtualId);
-    const vinculoPesagem = movimentacoesCriadasIds.length > 0 ? `[PESAGEM_VINCULADA:${movimentacoesCriadasIds.join(',')}] ` : '';
 
     // Se há pesos individuais por lote, usar esses; senão usar por categoria
     const pesosIndividuais = formData.pesos_por_lote || {};
@@ -599,7 +598,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           peso_medio: pesoNovo,
           area_origem_id: areaAtualId,
           area_origem_nome: areaPesagem?.nome || '',
-          observacoes: `${vinculoPesagem}Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
+          observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
         });
 
         await base44.entities.Lote.update(lote.id, {
