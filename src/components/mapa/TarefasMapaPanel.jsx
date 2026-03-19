@@ -51,13 +51,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   });
 
   const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ['icones-prioridade-tarefa-mapa', empresaSelecionadaId],
+    queryKey: ['icones-prioridade-tarefa-mapa'],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((icone) => icone.ativo !== false && icone.empresa_id === empresaSelecionadaId && icone.tipo_entidade === 'Prioridade Tarefa');
+      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === 'Prioridade Tarefa');
     },
     initialData: [],
-    enabled: !!empresaSelecionadaId,
   });
 
   const normalizarPrioridade = (valor) =>

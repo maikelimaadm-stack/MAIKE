@@ -51,7 +51,6 @@ export default function LancamentosTarefas() {
   const [sortDirection, setSortDirection] = useState('asc');
 
   const [selecionados, setSelecionados] = useState([]);
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: grupos = [] } = useQuery({ queryKey: ["grupos-atividades"], queryFn: () => base44.entities.GrupoAtividade.list(), initialData: [] });
   const { data: tipos = [] } = useQuery({ queryKey: ["tipos-tarefa"], queryFn: () => base44.entities.TipoTarefa.list(), initialData: [] });
@@ -59,13 +58,12 @@ export default function LancamentosTarefas() {
   const { data: pessoas = [] } = useQuery({ queryKey: ["contatos"], queryFn: () => base44.entities.Fornecedor.list(), initialData: [] });
   const { data: lancs = [], isLoading, refetch } = useQuery({ queryKey: ["lancamentos-tarefa"], queryFn: () => base44.entities.LancamentoTarefa.list("-updated_date"), initialData: [] });
   const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ["icones-prioridade-tarefa", empresaSelecionadaId],
+    queryKey: ["icones-prioridade-tarefa"],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((icone) => icone.ativo !== false && icone.empresa_id === empresaSelecionadaId && icone.tipo_entidade === "Prioridade Tarefa");
+      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === "Prioridade Tarefa");
     },
     initialData: [],
-    enabled: !!empresaSelecionadaId,
   });
 
   const normalizarPrioridade = (valor) =>

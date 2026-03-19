@@ -55,20 +55,18 @@ export default function GerenciadorIcones() {
   const queryClient = useQueryClient();
 
   const { data: icones = [] } = useQuery({
-    queryKey: ['configuracao-icones-global', empresaSelecionadaId],
+    queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.ativo !== false && i.empresa_id === empresaSelecionadaId);
+      return all.filter(i => i.ativo !== false);
     },
     initialData: [],
-    enabled: !!empresaSelecionadaId,
   });
 
   const createIconeMutation = useMutation({
     mutationFn: (data) => {
       return base44.entities.ConfiguracaoIcone.create({
         ...data,
-        empresa_id: empresaSelecionadaId,
         ativo: true
       });
     },
