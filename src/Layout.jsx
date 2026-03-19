@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles, Mail
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -42,6 +42,7 @@ import {
 
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
+import SendEmailDialog from "@/components/email/SendEmailDialog";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -352,6 +353,7 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
 
   const handleLogout = () => {
     base44.auth.logout();
@@ -561,6 +563,10 @@ export default function Layout({ children, currentPageName }) {
                       <Sparkles className="w-3 h-3 mr-2" />
                       Editor Visual
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs" onClick={() => setShowEmailDialog(true)}>
+                    <Mail className="w-3 h-3 mr-2" />
+                    Enviar e-mail
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
@@ -789,6 +795,13 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </nav>
       )}
+
+      <SendEmailDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
+        senderEmail="suporte@makestaopecuaria.com"
+        senderName={empresaAtual?.apelido || empresaAtual?.nome || "MakGestão Pecuária"}
+      />
 
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
