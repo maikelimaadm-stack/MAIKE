@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { getCategoriaAnteriorFromObs, normalizeText } from "../utils/pecuariaUtils";
+import { validarSemRegistrosPosteriores } from "./manejoValidations";
 
 const normalize = (value) => normalizeText(value);
 const toNumber = (value) => Number(value || 0);
@@ -239,6 +240,16 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
 
   const oldQuantidade = Math.max(0, toNumber(originalMovement.quantidade_animais));
   const diff = payload.quantidade_animais - oldQuantidade;
+
+  if (originalMovement.lote_id) {
+    await validarSemRegistrosPosteriores({
+      empresaId: empresaSelecionadaId,
+      loteId: originalMovement.lote_id,
+      dataReferencia: originalMovement.data_movimentacao,
+      createdDateReferencia: originalMovement.created_date,
+      ignorarMovimentacaoId: originalMovement.id,
+    });
+  }
 
   const lotesAll = await base44.entities.Lote.list();
   const lotesEmpresa = lotesAll.filter((lote) => lote.empresa_id === empresaSelecionadaId);

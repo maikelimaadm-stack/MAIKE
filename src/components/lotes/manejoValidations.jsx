@@ -6,11 +6,26 @@ const getDateKey = (value) => {
   return raw.includes("T") ? raw.split("T")[0] : raw;
 };
 
+const getTimestamp = (value) => {
+  const time = new Date(value || 0).getTime();
+  return Number.isNaN(time) ? 0 : time;
+};
+
 const isPosterior = (itemDate, referenceDate) => {
   const itemKey = getDateKey(itemDate);
   const referenceKey = getDateKey(referenceDate);
   if (!itemKey || !referenceKey) return false;
   return itemKey > referenceKey;
+};
+
+const isPosteriorOuMesmoDiaMaisNovo = ({ itemDate, itemCreatedDate, referenceDate, referenceCreatedDate }) => {
+  const itemTime = getTimestamp(itemDate);
+  const referenceTime = getTimestamp(referenceDate);
+
+  if (itemTime > referenceTime) return true;
+  if (itemTime < referenceTime) return false;
+
+  return getTimestamp(itemCreatedDate) > getTimestamp(referenceCreatedDate || referenceDate);
 };
 
 export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferencia }) {

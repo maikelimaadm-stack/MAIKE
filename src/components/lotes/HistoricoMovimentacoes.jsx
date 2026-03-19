@@ -15,6 +15,7 @@ import {
   getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
 import { reconcileMovementEdit } from "./movimentacaoReconciliation";
+import { validarSemRegistrosPosteriores } from "./manejoValidations";
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
@@ -531,6 +532,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       if (mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes' && hasLaterRelatedRecord(entry)) {
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
+      }
+
+      if (movimentoAtual.lote_id && mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes') {
+        await validarSemRegistrosPosteriores({
+          empresaId: empresaSelecionadaId,
+          loteId: movimentoAtual.lote_id,
+          dataReferencia: movimentoAtual.data_movimentacao,
+          createdDateReferencia: movimentoAtual.created_date,
+          ignorarMovimentacaoId: movimentoAtual.id,
+        });
       }
 
       const lotesAll = await base44.entities.Lote.list();
