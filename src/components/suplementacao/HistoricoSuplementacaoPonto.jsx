@@ -21,7 +21,9 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     queryKey: ["suplementacao-ponto", pontoId],
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoEvento.list();
-      return all.filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === pontoId).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
+      return all
+        .filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === pontoId)
+        .sort((a, b) => new Date(b.created_date || b.data_lancamento || 0) - new Date(a.created_date || a.data_lancamento || 0));
     },
     enabled: !!empresaSelecionadaId && !!pontoId
   });
@@ -40,11 +42,11 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
 
     eventos.forEach((evento) => {
       const areasEvento = new Set([evento.area_id, ...(Array.isArray(evento.area_ids) ? evento.area_ids : [])].filter(Boolean));
-      const dataEvento = new Date(evento.data_lancamento || evento.created_date || 0).getTime();
+      const sequenciaEvento = new Date(evento.created_date || evento.data_lancamento || 0).getTime();
 
       mapa[evento.id] = movimentacoes.some((mov) => {
-        const dataMov = new Date(mov.data_movimentacao || mov.created_date || 0).getTime();
-        if (dataMov <= dataEvento) return false;
+        const sequenciaMov = new Date(mov.created_date || mov.data_movimentacao || 0).getTime();
+        if (sequenciaMov <= sequenciaEvento) return false;
         if (areasEvento.size === 0) return false;
         return areasEvento.has(mov.area_origem_id) || areasEvento.has(mov.area_destino_id);
       });
@@ -55,7 +57,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
 
   const handleDelete = async (evento, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
-    if (bloqueiosPorEvento[evento.id]) return toast.error("Este lançamento do cocho não pode ser excluído porque já existem movimentações posteriores na área.");
+    if (bloqueiosPorEvento[evento.id]) return toast.error("Este lançamento do cocho não pode ser excluído porque existem registros criados depois dele na mesma área.");
     if (!confirm("Excluir este lançamento e reverter o estoque do depósito?")) return;
     setDeletingId(evento.id);
     try {
@@ -114,7 +116,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   <CardMetricaEvento evento={evento} showProjecao={true} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
-                  {bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-amber-600 font-medium">Existem movimentações posteriores na área após este lançamento.</div>}
+                  {bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-amber-600 font-medium">Existem registros criados depois deste lançamento na mesma área.</div>}
                   {index !== 0 && <div className="text-[10px] text-slate-500 font-medium">Somente o último lançamento pode ser excluído.</div>}
                 </div>
               );
