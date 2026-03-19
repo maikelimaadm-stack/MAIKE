@@ -32,8 +32,8 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
   if (!empresaId || !loteId || !dataReferencia) return;
 
   const [movimentacoes, suplementacoes] = await Promise.all([
-    base44.entities.MovimentacaoMapa.filter({ empresa_id: empresaId, lote_id: loteId }, '-data_movimentacao', 200),
-    base44.entities.SuplementacaoLote.filter({ empresa_id: empresaId, lote_id: loteId }, '-data_lancamento', 200),
+    base44.entities.MovimentacaoMapa.filter({ empresa_id: empresaId, lote_id: loteId }, "-data_movimentacao", 200),
+    base44.entities.SuplementacaoLote.filter({ empresa_id: empresaId, lote_id: loteId }, "-data_lancamento", 200),
   ]);
 
   const existePosterior = [...movimentacoes, ...suplementacoes].some((item) => {
@@ -42,7 +42,7 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
   });
 
   if (existePosterior) {
-    throw new Error('Não é possível lançar ou alterar este registro, pois existem eventos posteriores para o lote.');
+    throw new Error("Não é possível lançar ou alterar este registro, pois existem eventos posteriores para o lote.");
   }
 }
 
@@ -51,5 +51,34 @@ export async function validarOrdemTemporalLotes({ empresaId, lotes, dataReferenc
 
   for (const loteId of loteIds) {
     await validarOrdemTemporalLote({ empresaId, loteId, dataReferencia });
+  }
+}
+
+export async function validarSemRegistrosPosteriores({ empresaId, loteId, dataReferencia, createdDateReferencia, ignorarMovimentacaoId }) {
+  if (!empresaId || !loteId || !dataReferencia) return;
+
+  const [movimentacoes, suplementacoes] = await Promise.all([
+    base44.entities.MovimentacaoMapa.filter({ empresa_id: empresaId, lote_id: loteId }, "-data_movimentacao", 200),
+    base44.entities.SuplementacaoLote.filter({ empresa_id: empresaId, lote_id: loteId }, "-data_lancamento", 200),
+  ]);
+
+  const movimentacoesPosteriores = movimentacoes
+    .filter((item) => item.id !== ignorarMovimentacaoId)
+    .some((item) => isPosteriorOuMesmoDiaMaisNovo({
+      itemDate: item.data_movimentacao || item.created_date,
+      itemCreatedDate: item.created_date,
+      referenceDate: dataReferencia,
+      referenceCreatedDate: createdDateReferencia,
+    }));
+
+  const suplementacoesPosteriores = suplementacoes.some((item) => isPosteriorOuMesmoDiaMaisNovo({
+    itemDate: item.data_lancamento || item.created_date,
+    itemCreatedDate: item.created_date,
+    referenceDate: dataReferencia,
+    referenceCreatedDate: createdDateReferencia,
+  }));
+
+  if (movimentacoesPosteriores || suplementacoesPosteriores) {
+    throw new Error("Existem registros posteriores para este lote. Exclua ou ajuste primeiro os lançamentos mais recentes.");
   }
 }
