@@ -829,6 +829,12 @@ export default function DetalhesLote({ lotes, onClose }) {
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLotePrincipalJuncao(null)}>Voltar</Button>
                     <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
+                      await validarOrdemTemporalLotes({
+                        empresaId: empresaSelecionadaId,
+                        lotes: lotesParaJuntar,
+                        dataReferencia: new Date().toISOString(),
+                      });
+
                       const principal = lotePrincipalJuncao;
                       const pesoTotal = lotesParaJuntar.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
                       const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
