@@ -15,7 +15,7 @@ import {
   getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
 import { reconcileMovementEdit } from "./movimentacaoReconciliation";
-import { validarSemRegistrosPosteriores } from "./manejoValidations";
+import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",

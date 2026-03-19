@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { getCategoriaAnteriorFromObs, normalizeText } from "../utils/pecuariaUtils";
-import { validarSemRegistrosPosteriores } from "./manejoValidations";
+import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 
 const normalize = (value) => normalizeText(value);
 const toNumber = (value) => Number(value || 0);
