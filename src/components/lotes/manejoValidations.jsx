@@ -42,7 +42,7 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
   });
 
   if (existePosterior) {
-    throw new Error("Não é possível lançar ou alterar este registro, pois existem eventos posteriores para o lote.");
+    throw new Error("Não é possível seguir com este registro, pois existem eventos posteriores para o lote.");
   }
 }
 
@@ -79,6 +79,6 @@ export async function validarSemRegistrosPosteriores({ empresaId, loteId, dataRe
   }));
 
   if (movimentacoesPosteriores || suplementacoesPosteriores) {
-    throw new Error("Existem registros posteriores para este lote. Exclua ou ajuste primeiro os lançamentos mais recentes.");
+    throw new Error("Existem registros posteriores para este lote. Exclua primeiro os lançamentos mais recentes e refaça o registro, se necessário.");
   }
 }

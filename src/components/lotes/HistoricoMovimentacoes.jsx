@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import MovimentacaoEditDialog from "./MovimentacaoEditDialog";
 import {
   normalizeText,
   getLinkedMovementIds,
@@ -14,7 +13,6 @@ import {
   getCategoriaAnteriorFromObs,
   getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
-import { reconcileMovementEdit } from "./movimentacaoReconciliation";
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 
 const CORES_TIPO = {
@@ -79,9 +77,6 @@ const getTipoFluxo = (item, areaId) => {
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-  const [editMovOriginal, setEditMovOriginal] = React.useState(null);
-  const [editMovForm, setEditMovForm] = React.useState(null);
-  const [showEdit, setShowEdit] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
   const [hiddenMovementIds, setHiddenMovementIds] = React.useState([]);
   const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
@@ -89,25 +84,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const nomesDosLotes = lotes.map((item) => item?.nome).filter(Boolean);
     return nomesDosLotes.length > 0 ? nomesDosLotes : lotesIds.filter(Boolean);
   }, [lotes, lotesIds]);
-
-  const updateMutation = useMutation({
-    mutationFn: ({ movement, data }) => reconcileMovementEdit({
-      empresaSelecionadaId,
-      originalMovement: movement,
-      nextData: data,
-    }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
-        queryClient.invalidateQueries({ queryKey: ['lotes'] }),
-        queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
-        queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] }),
-        queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
-      ]);
-      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
-      toast.success('Lançamento atualizado e saldo reconciliado');
-    }
-  });
 
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId],
@@ -200,7 +176,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           area_destino_nome: mov.area_destino_nome,
           area_destino_id: mov.area_destino_id,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
-          canEdit: TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo && !(mov.tipo === 'Pesagem' && getLinkedMovementIds(mov.observacoes).length > 0),
           canDelete: (
             // Transferência: exclusão apenas no histórico da área de destino
             (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
@@ -448,12 +423,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
       if (entry?.tipo === 'Pesagem' && (entry?.linked_movement_ids || []).length > 0) {
-        return 'Esta pesagem está vinculada à transferência. Para excluí-la, exclua a transferência correspondente (a pesagem será removida automaticamente).';
+        return 'Esta pesagem está vinculada à transferência. Para removê-la, exclua a transferência correspondente (a pesagem será removida automaticamente).';
       }
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
-      return 'Existem registros posteriores para este lote (pesagem, mudança de categoria, morte, etc). Exclua sempre os lançamentos mais recentes primeiro.';
+      return 'Existem registros posteriores para este lote (pesagem, mudança de categoria, morte, etc). Exclua sempre os lançamentos mais recentes primeiro e refaça o fluxo se necessário.';
     }
     return '';
   }, [hasLaterRelatedRecord]);
@@ -462,37 +437,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     () => historico.filter((item) => !(item.source === 'movimentacao' && hiddenMovementIds.includes(item.id))),
     [historico, hiddenMovementIds]
   );
-
-  const openEditDialog = (movement) => {
-    setEditMovOriginal(movement);
-    setEditMovForm({
-      data_movimentacao: String(movement.data_movimentacao || '').split('T')[0] || '',
-      quantidade_animais: movement.quantidade_animais ?? 0,
-      peso_medio: movement.peso_medio ?? '',
-      observacoes: movement.observacoes || '',
-    });
-    setShowEdit(true);
-  };
-
-  const closeEditDialog = () => {
-    if (updateMutation.isPending) return;
-    setShowEdit(false);
-    setEditMovOriginal(null);
-    setEditMovForm(null);
-  };
-
-  const handleEditFieldChange = (field, value) => {
-    setEditMovForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editMovOriginal || !editMovForm) return;
-    await updateMutation.mutateAsync({
-      movement: editMovOriginal,
-      data: editMovForm,
-    });
-    closeEditDialog();
-  };
 
   const handleDelete = async (entry) => {
     if (deletingId) return;
@@ -857,17 +801,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
                     {item.source === 'movimentacao' && (
                       <div className="flex gap-1 shrink-0">
-                        {item.canEdit && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs"
-                            disabled={isBloqueado || updateMutation.isPending}
-                            onClick={() => openEditDialog(item.raw)}
-                          >
-                            Editar
-                          </Button>
-                        )}
                         {item.canDelete && (
                           <Button
                             variant="destructive"
@@ -889,15 +822,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         </CardContent>
       </Card>
 
-      <MovimentacaoEditDialog
-        open={showEdit}
-        movement={editMovOriginal}
-        formData={editMovForm}
-        isSaving={updateMutation.isPending}
-        onClose={closeEditDialog}
-        onChange={handleEditFieldChange}
-        onSave={handleSaveEdit}
-      />
     </>
   );
 }
