@@ -27,6 +27,7 @@ import RenomearLoteForm from "../lotes/RenomearLoteForm";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
+import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations";
 
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -50,19 +51,20 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showJuntarLotes, setShowJuntarLotes] = useState(false);
   const [lotePrincipalJuncao, setLotePrincipalJuncao] = useState(null);
   const [categoriaSelecionadaJuncao, setCategoriaSelecionadaJuncao] = useState(null);
+  const [areaDestinoPreSelecionada, setAreaDestinoPreSelecionada] = useState(null);
   const queryClient = useQueryClient();
   const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me() });
 
   // Listener para abrir movimentação via drag-and-drop
   React.useEffect(() => {
     const handleOpenMovimentacao = (e) => {
+      setAreaDestinoPreSelecionada(e?.detail?.areaDestinoId || null);
       setShowMovimentacao(true);
     };
 
     window.addEventListener('open-movimentacao', handleOpenMovimentacao);
     return () => {
       window.removeEventListener('open-movimentacao', handleOpenMovimentacao);
-      delete window.areaDestinoArrastada;
     };
   }, []);
 
@@ -103,6 +105,16 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const areaAtual = areas.find(a => a.id === lotes[0]?.area_atual_id);
 
+  const atualizarLoteDestinoLocal = (lista, loteAtualizado) => {
+    if (!loteAtualizado?.id) return;
+    const index = lista.findIndex((item) => item.id === loteAtualizado.id);
+    if (index >= 0) {
+      lista[index] = loteAtualizado;
+      return;
+    }
+    lista.push(loteAtualizado);
+  };
+
   // Buscar todos os lotes ativos na mesma área (para métricas da área)
   const { data: todosLotesNaArea = [] } = useQuery({
     queryKey: ['lotes-na-area', empresaSelecionadaId, lotes[0]?.area_atual_id],
@@ -136,6 +148,12 @@ export default function DetalhesLote({ lotes, onClose }) {
       
       // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
       if (formData.mover_todos === 'sim') {
+        await validarOrdemTemporalLotes({
+          empresaId: empresaSelecionadaId,
+          lotes,
+          dataReferencia: formData.data_movimentacao,
+        });
+
         for (const lote of lotes) {
           await base44.entities.Lote.update(lote.id, {
             area_atual_id: formData.area_entrada_id,
@@ -169,6 +187,12 @@ export default function DetalhesLote({ lotes, onClose }) {
           for (const lote of lotesCategoria) {
             if (quantidadeRestante <= 0) break;
 
+            await validarOrdemTemporalLote({
+              empresaId: empresaSelecionadaId,
+              loteId: lote.id,
+              dataReferencia: formData.data_movimentacao,
+            });
+
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
             if (quantidadeMover <= 0) continue;
             // Unificação automática: buscar lote com mesmo nome+categoria no destino
@@ -177,10 +201,10 @@ export default function DetalhesLote({ lotes, onClose }) {
             if (quantidadeMover === (lote.quantidade_cabecas || 0)) {
               if (loteExistente) {
                 // Unificar automaticamente com lote existente de mesmo nome+categoria
-                await base44.entities.Lote.update(loteExistente.id, {
+                const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
                 });
-                loteExistente.quantidade_cabecas = (loteExistente.quantidade_cabecas || 0) + quantidadeMover;
+                atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
                 await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
               } else {
                 await base44.entities.Lote.update(lote.id, {
@@ -190,10 +214,10 @@ export default function DetalhesLote({ lotes, onClose }) {
               }
             } else {
               if (loteExistente) {
-                await base44.entities.Lote.update(loteExistente.id, {
+                const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
                 });
-                loteExistente.quantidade_cabecas = (loteExistente.quantidade_cabecas || 0) + quantidadeMover;
+                atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
               } else {
                 const novoLote = await base44.entities.Lote.create({
                   empresa_id: empresaSelecionadaId,
@@ -258,6 +282,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       },
       onSuccess: async (movimentacoesCriadas, variables) => {
         toast.success('Gado movido com sucesso!');
+        setAreaDestinoPreSelecionada(null);
         setShowMovimentacao(false);
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
         queryClient.invalidateQueries({ queryKey: ['lotes'] });
@@ -305,9 +330,16 @@ export default function DetalhesLote({ lotes, onClose }) {
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaMorte = areas.find(a => a.id === areaAtualId);
+    let quantidadeRestante = Number(formData.quantidade || 0);
 
     for (const lote of lotesCategoria) {
-      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas || 0);
+      await validarOrdemTemporalLote({
+        empresaId: empresaSelecionadaId,
+        loteId: lote.id,
+        dataReferencia: formData.data_ocorrencia,
+      });
+
+      const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
       if (qtdRemover <= 0) continue;
 
       await base44.entities.MovimentacaoMapa.create({
@@ -408,9 +440,16 @@ export default function DetalhesLote({ lotes, onClose }) {
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaAbate = areas.find(a => a.id === areaAtualId);
+    let quantidadeRestante = Number(formData.quantidade || 0);
 
     for (const lote of lotesCategoria) {
-      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas || 0);
+      await validarOrdemTemporalLote({
+        empresaId: empresaSelecionadaId,
+        loteId: lote.id,
+        dataReferencia: formData.data_abate,
+      });
+
+      const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
       if (qtdRemover <= 0) continue;
 
       await base44.entities.MovimentacaoMapa.create({
@@ -451,6 +490,12 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       for (const lote of lotesCategoria) {
         if (quantidadeRestante <= 0) break;
+
+        await validarOrdemTemporalLote({
+          empresaId: empresaSelecionadaId,
+          loteId: lote.id,
+          dataReferencia: formData.data_mudanca,
+        });
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
 
@@ -531,6 +576,12 @@ export default function DetalhesLote({ lotes, onClose }) {
       const pesoPadrao = parseFloat(formData.pesos_por_categoria[categoria]);
 
       for (const lote of lotesCategoria) {
+        await validarOrdemTemporalLote({
+          empresaId: empresaSelecionadaId,
+          loteId: lote.id,
+          dataReferencia: formData.data_pesagem,
+        });
+
         // Verificar se tem peso individual para este lote específico
         const pesoNovo = pesosIndividuais[lote.id] ? parseFloat(pesosIndividuais[lote.id]) : pesoPadrao;
         if (!pesoNovo || pesoNovo <= 0) continue;
@@ -823,7 +874,10 @@ export default function DetalhesLote({ lotes, onClose }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
+      <Dialog open={showMovimentacao} onOpenChange={(open) => {
+        setShowMovimentacao(open);
+        if (!open) setAreaDestinoPreSelecionada(null);
+      }}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Movimentação de Lotes</DialogTitle>
@@ -831,8 +885,12 @@ export default function DetalhesLote({ lotes, onClose }) {
           <FormularioMovimentacaoLote
             lotesOriginais={lotes}
             areaOrigem={areaAtual}
+            areaDestinoPreSelecionada={areaDestinoPreSelecionada}
             onSubmit={handleMovimentacao}
-            onCancel={() => setShowMovimentacao(false)}
+            onCancel={() => {
+              setAreaDestinoPreSelecionada(null);
+              setShowMovimentacao(false);
+            }}
           />
         </DialogContent>
       </Dialog>

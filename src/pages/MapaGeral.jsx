@@ -351,7 +351,7 @@ export default function MapaGeral() {
     if (orig) {const ps = orig.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));if (ptInPoly(newPos, ps)) {toast.error('Arraste para outra área');return;}}
     let dest = null;
     for (const a of allAreas) {if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue;if (ptInPoly(newPos, a.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })))) {dest = a;break;}}
-    if (dest) {window.areaDestinoArrastada = dest.id;setSelectedLote(lotesNaArea);setShowDetalhesLote(true);setTimeout(() => window.dispatchEvent(new CustomEvent('open-movimentacao')), 100);} else
+    if (dest) {setSelectedLote(lotesNaArea);setShowDetalhesLote(true);setTimeout(() => window.dispatchEvent(new CustomEvent('open-movimentacao', { detail: { areaDestinoId: dest.id } })), 100);} else
     toast.error('Solte sobre outra área');
   }, []);
 

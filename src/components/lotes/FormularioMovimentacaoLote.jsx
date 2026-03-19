@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
-export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
+export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
   const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'fechamento_consumo', 'movimentacao'
@@ -22,7 +22,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
 
   const [formData, setFormData] = useState(() => {
-    const areaDestino = window.areaDestinoArrastada;
+    const areaDestino = areaDestinoPreSelecionada;
 
     // Agrupar lotes por categoria e pré-preencher movimentações
     const categoriasPorLote = lotesOriginais.reduce((acc, lote) => {
@@ -59,6 +59,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       sobras_cocho: {}
     };
   });
+
+  React.useEffect(() => {
+    if (!areaDestinoPreSelecionada) return;
+    setFormData((prev) => ({ ...prev, area_entrada_id: areaDestinoPreSelecionada }));
+  }, [areaDestinoPreSelecionada]);
 
   // Área de saída resolvida
   const areaSaidaResolvida = formData.area_saida_id || areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
