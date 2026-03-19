@@ -65,8 +65,9 @@ const formatDateOnly = (value) => {
 
 const formatHistoricoObservacoes = (item) => {
   const observacoes = item?.observacoes || '';
+  const motivo = item?.raw?.motivo || item?.tipo_exibicao || '';
 
-  if (item?.motivo === 'Junção de Lotes') {
+  if (motivo === 'Junção de Lotes') {
     const snapshot = getJuncaoLotesSnapshot(observacoes);
     if (snapshot?.length) {
       const origens = snapshot.map((lote) => `${lote.nome}(${Number(lote.quantidade_cabecas || 0).toLocaleString('pt-BR')})`).join(' + ');
@@ -75,7 +76,12 @@ const formatHistoricoObservacoes = (item) => {
     }
   }
 
-  return observacoes;
+  return observacoes.replace(/\b\d+\.\d+\b/g, (match) => {
+    const number = Number(match);
+    return Number.isNaN(number)
+      ? match
+      : number.toLocaleString('pt-BR', { minimumFractionDigits: match.split('.')[1]?.length || 0, maximumFractionDigits: match.split('.')[1]?.length || 0 });
+  });
 };
 
 const getTipoFluxo = (item, areaId) => {
