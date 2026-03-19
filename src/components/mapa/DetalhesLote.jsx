@@ -27,7 +27,7 @@ import RenomearLoteForm from "../lotes/RenomearLoteForm";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
-import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
+import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsxx";
 
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
