@@ -470,8 +470,8 @@ export default function DetalhesLote({ lotes, onClose }) {
         status: novaQtd > 0 ? lote.status : 'Inativo'
       });
 
-      formData.quantidade -= qtdRemover;
-      if (formData.quantidade <= 0) break;
+      quantidadeRestante -= qtdRemover;
+      if (quantidadeRestante <= 0) break;
     }
 
     toast.success('Abate registrado');
