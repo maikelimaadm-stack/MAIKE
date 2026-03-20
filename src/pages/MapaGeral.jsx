@@ -12,7 +12,6 @@ import {
 "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
-import AreaPanel from "../components/mapa/AreaPanel";
 import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
 import DetalhesTarefaMapa from "../components/mapa/DetalhesTarefaMapa";
 import MapaInsights from "../components/mapa/MapaInsights";
@@ -73,8 +72,6 @@ export default function MapaGeral() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
   const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
-  const [showDetalhesArea, setShowDetalhesArea] = useState(false);
-  const [selectedArea, setSelectedArea] = useState(null);
   const [showTarefas, setShowTarefas] = useState(false);
   const [tarefasContext, setTarefasContext] = useState({});
   const [selectedTarefa, setSelectedTarefa] = useState(null);
@@ -399,19 +396,13 @@ export default function MapaGeral() {
   const handleClickArea = useCallback((area, coords) => {
     if (selecionandoLocalTarefa) {
       handleSelectTaskLocation(coords, area);
-      return;
     }
-    setSelectedArea(area);
-    setShowDetalhesArea(true);
   }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
 
   const handleRightClickArea = useCallback((area, coords) => {
     if (selecionandoLocalTarefa) {
       handleSelectTaskLocation(coords, area);
-      return;
     }
-    setSelectedArea(area);
-    setShowDetalhesArea(true);
   }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
 
   const handleClickPontoSupl = useCallback((p) => {setSelectedPontoSupl(p);setShowDetalhesPontoSupl(true);}, []);
@@ -722,13 +713,6 @@ export default function MapaGeral() {
         <DialogContent className="bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader><DialogTitle translate="no">Detalhes do Lote</DialogTitle></DialogHeader>
           {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} onClose={() => {setShowDetalhesLote(false);setTimeout(() => refetchLotes(), 300);}} />}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
-        <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="sr-only"><DialogTitle>Detalhes da Área</DialogTitle></DialogHeader>
-          {selectedArea && <AreaPanel area={selectedArea} onClose={() => setShowDetalhesArea(false)} />}
         </DialogContent>
       </Dialog>
 

@@ -37,7 +37,7 @@ const getAreaCenter = (area) => {
   };
 };
 
-export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, initialDraft, onSubmit, onCancel }) {
+export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, initialDraft, onSubmit, onCancel, onRequestSelectLocation }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
@@ -242,7 +242,19 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
             {(formData.area_nome || formData.lote_nome) && <div className="text-xs text-slate-600"><span className="font-medium">Vinculado a:</span> {formData.area_nome || formData.lote_nome}</div>}
             {formData.coordenadas ? <div className="text-xs text-slate-600 flex items-center gap-2"><MapPin className="w-3.5 h-3.5" />{formData.coordenadas.lat.toFixed(6)}, {formData.coordenadas.lng.toFixed(6)}</div> : <div className="text-xs text-slate-500">Nenhum local marcado ainda.</div>}
-            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLocationPicker(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => {
+                if (onRequestSelectLocation) {
+                  onRequestSelectLocation(formData);
+                  return;
+                }
+                setShowLocationPicker(true);
+              }}
+            >
               <Crosshair className="w-3.5 h-3.5" />
               {formData.coordenadas ? "Alterar local no mapa" : "Marcar local no mapa"}
             </Button>
@@ -255,20 +267,22 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">{tarefa ? "Salvar" : "Criar tarefa"}</Button>
       </div>
 
-      <TaskLocationPickerDialog
-        open={showLocationPicker}
-        onOpenChange={setShowLocationPicker}
-        areas={areas}
-        initialCoordinates={formData.coordenadas}
-        onSelect={(coords, area) => {
-          setFormData((prev) => ({
-            ...prev,
-            coordenadas: coords,
-            area_id: area?.id || prev.area_id,
-            area_nome: area?.nome || prev.area_nome,
-          }));
-        }}
-      />
+      {!onRequestSelectLocation && (
+        <TaskLocationPickerDialog
+          open={showLocationPicker}
+          onOpenChange={setShowLocationPicker}
+          areas={areas}
+          initialCoordinates={formData.coordenadas}
+          onSelect={(coords, area) => {
+            setFormData((prev) => ({
+              ...prev,
+              coordenadas: coords,
+              area_id: area?.id || prev.area_id,
+              area_nome: area?.nome || prev.area_nome,
+            }));
+          }}
+        />
+      )}
     </form>
   );
 }
