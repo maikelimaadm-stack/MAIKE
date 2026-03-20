@@ -88,6 +88,10 @@ export default function MapaGeral() {
   const mapInstanceRef = useRef(null);
   const projectionOverlayRef = useRef(null);
   const firstFitDoneRef = useRef(false);
+  const longPressTimerRef = useRef(null);
+  const longPressStartRef = useRef(null);
+  const longPressTriggeredRef = useRef(false);
+  const ignoreNextMapClickRef = useRef(false);
   const renderer = useMapRenderer(mapInstanceRef);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -351,35 +355,6 @@ export default function MapaGeral() {
   }, [areas, mapReady]);
 
   // ─── Handlers ───
-  // Clique na área agora abre Dialog (igual ao lote) em vez de Sheet lateral
-  const handleSelectTaskLocation = useCallback((coords, area) => {
-    setSelecionandoLocalTarefa(false);
-    const draft = rascunhoTarefa || {};
-    setRascunhoTarefa(null);
-    abrirLancamentoTarefa(coords || draft.coordenadas || null, {
-      ...draft,
-      area_id: draft.area_id || area?.id || "",
-      area_nome: draft.area_nome || area?.nome || "",
-    });
-  }, [rascunhoTarefa, abrirLancamentoTarefa]);
-
-  const handleClickArea = useCallback((area, coords) => {
-    if (selecionandoLocalTarefa) {
-      handleSelectTaskLocation(coords, area);
-      return;
-    }
-    setSelectedArea(area);
-    setShowDetalhesArea(true);
-  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
-
-  const handleRightClickArea = useCallback((area, coords) => {
-    if (selecionandoLocalTarefa) {
-      handleSelectTaskLocation(coords, area);
-      return;
-    }
-    setSelectedArea(area);
-    setShowDetalhesArea(true);
-  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
   const detectarAreaPorCoordenada = useCallback((coords) => {
     for (const area of areas) {
       const pontosArea = area.coordenadas?.coords || [];
@@ -409,6 +384,35 @@ export default function MapaGeral() {
     });
     setShowTarefas(true);
   }, [detectarAreaPorCoordenada]);
+
+  const handleSelectTaskLocation = useCallback((coords, area) => {
+    setSelecionandoLocalTarefa(false);
+    const draft = rascunhoTarefa || {};
+    setRascunhoTarefa(null);
+    abrirLancamentoTarefa(coords || draft.coordenadas || null, {
+      ...draft,
+      area_id: draft.area_id || area?.id || "",
+      area_nome: draft.area_nome || area?.nome || "",
+    });
+  }, [rascunhoTarefa, abrirLancamentoTarefa]);
+
+  const handleClickArea = useCallback((area, coords) => {
+    if (selecionandoLocalTarefa) {
+      handleSelectTaskLocation(coords, area);
+      return;
+    }
+    setSelectedArea(area);
+    setShowDetalhesArea(true);
+  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
+
+  const handleRightClickArea = useCallback((area, coords) => {
+    if (selecionandoLocalTarefa) {
+      handleSelectTaskLocation(coords, area);
+      return;
+    }
+    setSelectedArea(area);
+    setShowDetalhesArea(true);
+  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
 
   const handleClickPontoSupl = useCallback((p) => {setSelectedPontoSupl(p);setShowDetalhesPontoSupl(true);}, []);
   const handleClickLotes = useCallback((l) => {setSelectedLote(l);setShowDetalhesLote(true);}, []);
@@ -448,17 +452,28 @@ export default function MapaGeral() {
     if (!mapReady || !mapInstanceRef.current || !mapRef.current || !projectionOverlayRef.current) return;
     const map = mapInstanceRef.current;
     const mapElement = mapRef.current;
-    let longPressTimer = null;
-    let startPoint = null;
 
-    const clearTimer = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
+    const clearLongPress = () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
       }
     };
 
-    const getCoordsFromPointer = (point) => {
+    const getPointFromEvent = (event) => {
+      if (event?.touches?.[0]) {
+        return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      }
+      if (event?.changedTouches?.[0]) {
+        return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+      }
+      if (typeof event?.clientX === 'number' && typeof event?.clientY === 'number') {
+        return { x: event.clientX, y: event.clientY };
+      }
+      return null;
+    };
+
+    const getCoordsFromPoint = (point) => {
       const projection = projectionOverlayRef.current?.getProjection?.();
       if (!projection || !point) return null;
       const rect = mapElement.getBoundingClientRect();
@@ -468,32 +483,48 @@ export default function MapaGeral() {
       return { lat: latLng.lat(), lng: latLng.lng() };
     };
 
-    const handlePointerDown = (event) => {
+    const handlePressStart = (event) => {
       if (selecionandoLocalTarefa) return;
-      startPoint = { x: event.clientX, y: event.clientY };
-      clearTimer();
-      longPressTimer = setTimeout(() => {
-        const coords = getCoordsFromPointer(startPoint);
-        if (coords) abrirLancamentoTarefa(coords);
-      }, 650);
+      const point = getPointFromEvent(event);
+      if (!point) return;
+      longPressStartRef.current = point;
+      longPressTriggeredRef.current = false;
+      clearLongPress();
+      longPressTimerRef.current = setTimeout(() => {
+        const coords = getCoordsFromPoint(point);
+        if (!coords) return;
+        longPressTriggeredRef.current = true;
+        ignoreNextMapClickRef.current = true;
+        abrirLancamentoTarefa(coords);
+      }, 550);
     };
 
-    const handlePointerMove = (event) => {
-      if (!startPoint) return;
-      const moved = Math.abs(event.clientX - startPoint.x) > 8 || Math.abs(event.clientY - startPoint.y) > 8;
-      if (moved) clearTimer();
+    const handlePressMove = (event) => {
+      if (!longPressStartRef.current) return;
+      const point = getPointFromEvent(event);
+      if (!point) return;
+      const moved = Math.abs(point.x - longPressStartRef.current.x) > 10 || Math.abs(point.y - longPressStartRef.current.y) > 10;
+      if (moved) clearLongPress();
     };
 
-    const handlePointerEnd = () => {
-      startPoint = null;
-      clearTimer();
+    const handlePressEnd = () => {
+      clearLongPress();
+      longPressStartRef.current = null;
+      if (longPressTriggeredRef.current) {
+        window.setTimeout(() => {
+          ignoreNextMapClickRef.current = false;
+        }, 350);
+      }
     };
 
-    mapElement.addEventListener('pointerdown', handlePointerDown);
-    mapElement.addEventListener('pointermove', handlePointerMove);
-    mapElement.addEventListener('pointerup', handlePointerEnd);
-    mapElement.addEventListener('pointercancel', handlePointerEnd);
-    mapElement.addEventListener('pointerleave', handlePointerEnd);
+    mapElement.addEventListener('mousedown', handlePressStart);
+    mapElement.addEventListener('mousemove', handlePressMove);
+    mapElement.addEventListener('mouseup', handlePressEnd);
+    mapElement.addEventListener('mouseleave', handlePressEnd);
+    mapElement.addEventListener('touchstart', handlePressStart, { passive: true });
+    mapElement.addEventListener('touchmove', handlePressMove, { passive: true });
+    mapElement.addEventListener('touchend', handlePressEnd);
+    mapElement.addEventListener('touchcancel', handlePressEnd);
 
     const listeners = [
       map.addListener('rightclick', (event) => {
@@ -501,7 +532,11 @@ export default function MapaGeral() {
         abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
       }),
       map.addListener('click', (event) => {
-        clearTimer();
+        clearLongPress();
+        if (ignoreNextMapClickRef.current) {
+          ignoreNextMapClickRef.current = false;
+          return;
+        }
         if (!selecionandoLocalTarefa || !event?.latLng) return;
         const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
         handleSelectTaskLocation(coords, detectarAreaPorCoordenada(coords));
@@ -509,15 +544,18 @@ export default function MapaGeral() {
     ];
 
     return () => {
-      handlePointerEnd();
-      mapElement.removeEventListener('pointerdown', handlePointerDown);
-      mapElement.removeEventListener('pointermove', handlePointerMove);
-      mapElement.removeEventListener('pointerup', handlePointerEnd);
-      mapElement.removeEventListener('pointercancel', handlePointerEnd);
-      mapElement.removeEventListener('pointerleave', handlePointerEnd);
+      handlePressEnd();
+      mapElement.removeEventListener('mousedown', handlePressStart);
+      mapElement.removeEventListener('mousemove', handlePressMove);
+      mapElement.removeEventListener('mouseup', handlePressEnd);
+      mapElement.removeEventListener('mouseleave', handlePressEnd);
+      mapElement.removeEventListener('touchstart', handlePressStart);
+      mapElement.removeEventListener('touchmove', handlePressMove);
+      mapElement.removeEventListener('touchend', handlePressEnd);
+      mapElement.removeEventListener('touchcancel', handlePressEnd);
       listeners.forEach((listener) => listener?.remove());
     };
-  }, [mapReady, selecionandoLocalTarefa, rascunhoTarefa, abrirLancamentoTarefa]);
+  }, [mapReady, selecionandoLocalTarefa, abrirLancamentoTarefa, handleSelectTaskLocation, detectarAreaPorCoordenada]);
 
   // ─── Renderização incremental ───
   useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor]);
@@ -576,7 +614,7 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
 
   useEffect(() => {
-    const h = () => {refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();};
+    const h = () => {refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();refetchTarefas();};
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
   }, []);
