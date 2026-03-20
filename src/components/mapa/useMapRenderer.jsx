@@ -99,8 +99,16 @@ export default function useMapRenderer(mapInstanceRef) {
 
       polygon.addListener('mouseover', () => polygon.setOptions({ strokeColor: '#ffffff', strokeOpacity: 1, strokeWeight: 3 }));
       polygon.addListener('mouseout', () => polygon.setOptions({ strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2 }));
-      polygon.addListener('click', (e) => { if (e.vertex === undefined) onClickArea(area); });
-      polygon.addListener('rightclick', () => onRightClickArea(area));
+      polygon.addListener('click', (e) => {
+        if (e.vertex === undefined) {
+          const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
+          onClickArea(area, coords);
+        }
+      });
+      polygon.addListener('rightclick', (e) => {
+        const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
+        onRightClickArea(area, coords);
+      });
 
       polygon.setMap(map);
       polygonsRef.current.set(area.id, polygon);

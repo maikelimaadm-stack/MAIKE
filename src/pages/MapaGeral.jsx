@@ -352,8 +352,34 @@ export default function MapaGeral() {
 
   // ─── Handlers ───
   // Clique na área agora abre Dialog (igual ao lote) em vez de Sheet lateral
-  const handleClickArea = useCallback((area) => {setSelectedArea(area);setShowDetalhesArea(true);}, []);
-  const handleRightClickArea = useCallback((area) => {setSelectedArea(area);setShowDetalhesArea(true);}, []);
+  const handleSelectTaskLocation = useCallback((coords, area) => {
+    setSelecionandoLocalTarefa(false);
+    const draft = rascunhoTarefa || {};
+    setRascunhoTarefa(null);
+    abrirLancamentoTarefa(coords || draft.coordenadas || null, {
+      ...draft,
+      area_id: draft.area_id || area?.id || "",
+      area_nome: draft.area_nome || area?.nome || "",
+    });
+  }, [rascunhoTarefa, abrirLancamentoTarefa]);
+
+  const handleClickArea = useCallback((area, coords) => {
+    if (selecionandoLocalTarefa) {
+      handleSelectTaskLocation(coords, area);
+      return;
+    }
+    setSelectedArea(area);
+    setShowDetalhesArea(true);
+  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
+
+  const handleRightClickArea = useCallback((area, coords) => {
+    if (selecionandoLocalTarefa) {
+      handleSelectTaskLocation(coords, area);
+      return;
+    }
+    setSelectedArea(area);
+    setShowDetalhesArea(true);
+  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
   const detectarAreaPorCoordenada = useCallback((coords) => {
     for (const area of areas) {
       const pontosArea = area.coordenadas?.coords || [];
@@ -477,11 +503,8 @@ export default function MapaGeral() {
       map.addListener('click', (event) => {
         clearTimer();
         if (!selecionandoLocalTarefa || !event?.latLng) return;
-        setSelecionandoLocalTarefa(false);
         const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
-        const draft = rascunhoTarefa || {};
-        setRascunhoTarefa(null);
-        abrirLancamentoTarefa(coords, draft);
+        handleSelectTaskLocation(coords, detectarAreaPorCoordenada(coords));
       }),
     ];
 
