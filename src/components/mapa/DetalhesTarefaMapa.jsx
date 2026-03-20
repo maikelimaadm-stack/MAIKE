@@ -34,6 +34,13 @@ const getDateTimeLocal = (value) => {
   return local.toISOString().slice(0, 16);
 };
 
+const formatDateBR = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("pt-BR");
+};
+
 export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequestSelectLocation }) {
   const queryClient = useQueryClient();
   const [currentTarefa, setCurrentTarefa] = useState(tarefa);
@@ -41,7 +48,6 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [eventoTipo, setEventoTipo] = useState(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
-  const [eventoStatus, setEventoStatus] = useState(tarefa.status || "Pendente");
   const [eventoData, setEventoData] = useState(getDateTimeLocal());
   const [eventoDescricao, setEventoDescricao] = useState("");
 
@@ -52,7 +58,6 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   useEffect(() => {
     if (showEvento) {
       setEventoTipo(currentTarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
-      setEventoStatus(currentTarefa.status || "Pendente");
       setEventoData(getDateTimeLocal());
       setEventoDescricao("");
     }
@@ -68,6 +73,10 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   });
 
   const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);
+  const podeRegistrar = currentTarefa.status === "Em Andamento";
+  const podeEntrarEmAndamento = !currentTarefa.data_inicio && currentTarefa.status === "Pendente";
+  const podeConcluir = currentTarefa.status !== "Concluída" && currentTarefa.status !== "Cancelada";
+  const podeCancelar = currentTarefa.status !== "Cancelada" && currentTarefa.status !== "Concluída";
 
   const registrarHistorico = async (registro, evento, descricao, dataEvento) => {
     await base44.entities.HistoricoLancamentoTarefa.create({
@@ -194,19 +203,17 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       </div>
 
       <CardSection title="Último evento da tarefa">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-1 text-[10px]">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-            <div className="text-slate-500">Status atual</div>
-            <div className="mt-1"><Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>{currentTarefa.status}</Badge></div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="font-semibold leading-tight text-slate-900">{historico[0]?.evento || "Sem eventos"}</div>
+            <span className="text-[10px] text-slate-500">{formatDateBR(historico[0]?.data_evento || historico[0]?.created_date)}</span>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-            <div className="text-slate-500">Prazo</div>
-            <div className="text-sm font-bold text-slate-900">{currentTarefa.data_prevista || "-"}</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-1 text-[10px]">
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Status: <span className="font-semibold text-slate-900">{currentTarefa.status || "-"}</span></div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Prazo: <span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
+            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Prioridade: <span className="font-semibold text-slate-900">{prioridade}</span></div>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-            <div className="text-slate-500">Prioridade</div>
-            <div className="mt-1"><Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade}</Badge></div>
-          </div>
+          {historico[0]?.descricao && <div className="break-words text-[10px] italic text-slate-500">{historico[0].descricao}</div>}
         </div>
       </CardSection>
 
@@ -218,6 +225,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área:</span><span className="font-semibold text-slate-900">{currentTarefa.area_nome || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Lote:</span><span className="font-semibold text-slate-900">{currentTarefa.lote_nome || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Coordenadas:</span><span className="font-semibold text-slate-900">{currentTarefa.coordenadas?.lat ? `${currentTarefa.coordenadas.lat.toFixed(6)}, ${currentTarefa.coordenadas.lng.toFixed(6)}` : "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prazo:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
         </div>
       </CardSection>
@@ -237,7 +245,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
-          <HistoricoTarefaPanel tarefaTitulo={currentTarefa.titulo} historico={historico} />
+          <HistoricoTarefaPanel tarefaId={currentTarefa.id} tarefaTitulo={currentTarefa.titulo} historico={historico} />
         </DialogContent>
       </Dialog>
 
@@ -250,10 +258,10 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
               <Select value={eventoTipo} onValueChange={setEventoTipo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {currentTarefa.status === "Em Andamento" && <SelectItem value="Registro" className="text-xs">Registro</SelectItem>}
-                  <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
-                  <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
-                  <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
+                  {podeRegistrar && <SelectItem value="Registro" className="text-xs">Registro</SelectItem>}
+                  {podeEntrarEmAndamento && <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>}
+                  {podeCancelar && <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>}
+                  {podeConcluir && <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>}
                 </SelectContent>
               </Select>
             </div>

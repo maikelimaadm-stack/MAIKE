@@ -208,7 +208,6 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!show) return;
     pontos.forEach(ponto => {
       const key = prefix + ponto.id;
-      if (markersRef.current.has(key)) return;
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
       const cfg = iconesConfig.find(ic => ic.id === ponto.configuracao_icone_id)
@@ -216,6 +215,16 @@ export default function useMapRenderer(mapInstanceRef) {
       const icon = cfg?.icone_url
         ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
         : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || ponto.cor || '#0066ff', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
+
+      if (markersRef.current.has(key)) {
+        const marker = markersRef.current.get(key);
+        marker.setPosition({ lat: coords.lat, lng: coords.lng });
+        marker.setTitle(ponto.nome);
+        marker.setIcon(icon);
+        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
+        return;
+      }
+
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome });
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
       marker.addListener('click', () => { new google.maps.InfoWindow({ content: `<div style="padding:10px;"><strong>${ponto.nome}</strong><br/><span style="color:#666;">${ponto.tipo}</span></div>` }).open(map, marker); });
@@ -258,7 +267,6 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!show) return;
     pontosSupl.forEach(ponto => {
       const key = prefix + ponto.id;
-      if (markersRef.current.has(key)) return;
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
       const categoriaPonto = (ponto.categoria_ponto || ponto.tipo || 'COCHO').toUpperCase().trim();
@@ -269,6 +277,16 @@ export default function useMapRenderer(mapInstanceRef) {
       const icon = iconUrl
         ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
         : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
+
+      if (markersRef.current.has(key)) {
+        const marker = markersRef.current.get(key);
+        marker.setPosition({ lat: coords.lat, lng: coords.lng });
+        marker.setTitle(ponto.nome_ponto);
+        marker.setIcon(icon);
+        if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 40);
+        return;
+      }
+
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome_ponto, zIndex: 500 });
       if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 40);
       marker.addListener('click', () => onClick(ponto));
@@ -326,6 +344,10 @@ export default function useMapRenderer(mapInstanceRef) {
         const lbl = existing.getLabel();
         if (lbl?.text !== String(totalCabecas)) existing.setLabel({ text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' });
         existing.setPosition(offsetCenter);
+        existing.setTitle(area.nome);
+        existing.setZIndex(totalAlertas > 0 ? 2000 : 1000);
+        existing.setIcon(icon);
+        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
         existing._lotesNaArea = lotesNaArea;
         existing._center = offsetCenter;
         return;
@@ -358,7 +380,6 @@ export default function useMapRenderer(mapInstanceRef) {
     const normalizar = (valor) => (valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
     tarefasMapa.forEach(t => {
       const key = prefix + t.id;
-      if (markersRef.current.has(key)) return;
 
       let position = null;
       if (t.coordenadas?.lat && t.coordenadas?.lng) {
@@ -380,12 +401,25 @@ export default function useMapRenderer(mapInstanceRef) {
       const icon = cfg?.icone_url
         ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
         : { path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z', fillColor: c, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.8, anchor: new google.maps.Point(12, 22) };
+
+      if (markersRef.current.has(key)) {
+        const marker = markersRef.current.get(key);
+        marker.setPosition(position);
+        marker.setTitle(t.titulo);
+        marker.setZIndex(t.prioridade === 'Urgente' ? 3000 : 2500);
+        marker.setIcon(icon);
+        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 36);
+        marker._tarefa = t;
+        return;
+      }
+
       const m = new google.maps.Marker({
         position, map, icon,
         title: t.titulo, zIndex: t.prioridade === 'Urgente' ? 3000 : 2500
       });
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(m, cfg.icone_url, 36);
-      m.addListener('click', () => onClickTarefa(t));
+      m._tarefa = t;
+      m.addListener('click', () => onClickTarefa(m._tarefa));
       markersRef.current.set(key, m);
     });
   }, [mapInstanceRef]);
