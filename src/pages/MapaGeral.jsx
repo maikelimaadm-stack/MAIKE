@@ -146,7 +146,7 @@ export default function MapaGeral() {
 
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery({
     queryKey: ['mapa-tarefas', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.TarefaMapa.list();return all.filter((t) => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento'));},
+    queryFn: async () => {const all = await base44.entities.LancamentoTarefa.list();return all.filter((t) => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento'));},
     enabled: !!empresaSelecionadaId, staleTime: ST
   });
 

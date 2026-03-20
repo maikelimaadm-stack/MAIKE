@@ -28,7 +28,7 @@ export default function LancamentosTarefas() {
   const { data: tarefas = [], isLoading } = useQuery({
     queryKey: ["gestao-tarefas-unificada", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.TarefaMapa.list("-updated_date");
+      const all = await base44.entities.LancamentoTarefa.list("-updated_date");
       return all.filter((item) => item.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
@@ -64,7 +64,7 @@ export default function LancamentosTarefas() {
   }, [tarefas, search, fStatus, fPrioridade, fGrupo]);
 
   const deleteMutation = useMutation({
-    mutationFn: async (tarefa) => base44.entities.TarefaMapa.delete(tarefa.id),
+    mutationFn: async (tarefa) => base44.entities.LancamentoTarefa.delete(tarefa.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });

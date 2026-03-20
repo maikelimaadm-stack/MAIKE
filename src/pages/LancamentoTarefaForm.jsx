@@ -18,7 +18,7 @@ export default function LancamentoTarefaForm() {
   const { data: tarefa = null, isLoading } = useQuery({
     queryKey: ["lancamento-tarefa-form", id],
     queryFn: async () => {
-      const all = await base44.entities.TarefaMapa.list("-updated_date");
+      const all = await base44.entities.LancamentoTarefa.list("-updated_date");
       return all.find((item) => item.id === id) || null;
     },
     enabled: !!id,
@@ -26,11 +26,12 @@ export default function LancamentoTarefaForm() {
   });
 
   const registrarHistorico = async (registro, evento, descricao) => {
-    await base44.entities.HistoricoTarefaMapa.create({
+    await base44.entities.HistoricoLancamentoTarefa.create({
       empresa_id: registro.empresa_id || empresaSelecionadaId,
       tarefa_id: registro.id,
       titulo_tarefa: registro.titulo,
       evento,
+      data_evento: new Date().toISOString(),
       status: registro.status,
       responsavel: registro.responsavel,
       descricao,
@@ -39,7 +40,7 @@ export default function LancamentoTarefaForm() {
 
   const createMutation = useMutation({
     mutationFn: async (payload) => {
-      const created = await base44.entities.TarefaMapa.create({ ...payload, empresa_id: empresaSelecionadaId });
+      const created = await base44.entities.LancamentoTarefa.create({ ...payload, empresa_id: empresaSelecionadaId });
       await registrarHistorico(created, "Criação", "Tarefa criada pela gestão de tarefas.");
       return created;
     },
@@ -55,7 +56,7 @@ export default function LancamentoTarefaForm() {
 
   const updateMutation = useMutation({
     mutationFn: async (payload) => {
-      const updated = await base44.entities.TarefaMapa.update(id, payload);
+      const updated = await base44.entities.LancamentoTarefa.update(id, payload);
       const mudouLocal = payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng;
       await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado pela gestão de tarefas." : "Tarefa atualizada pela gestão de tarefas.");
       return updated;

@@ -34,7 +34,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const { data: tarefas = [], isLoading } = useQuery({
     queryKey: ['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId],
     queryFn: async () => {
-      const all = await base44.entities.TarefaMapa.list('-created_date');
+      const all = await base44.entities.LancamentoTarefa.list('-created_date');
       let filtered = all.filter(t => t.empresa_id === empresaSelecionadaId);
       
       if (areaId) filtered = filtered.filter(t => t.area_id === areaId);
@@ -80,12 +80,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const created = await base44.entities.TarefaMapa.create(data);
-      await base44.entities.HistoricoTarefaMapa.create({
+      const created = await base44.entities.LancamentoTarefa.create(data);
+      await base44.entities.HistoricoLancamentoTarefa.create({
         empresa_id: created.empresa_id,
         tarefa_id: created.id,
         titulo_tarefa: created.titulo,
         evento: 'Criação',
+        data_evento: new Date().toISOString(),
         status: created.status,
         responsavel: created.responsavel,
         descricao: 'Tarefa criada pelo mapa.',
@@ -104,12 +105,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const updated = await base44.entities.TarefaMapa.update(id, data);
-      await base44.entities.HistoricoTarefaMapa.create({
+      const updated = await base44.entities.LancamentoTarefa.update(id, data);
+      await base44.entities.HistoricoLancamentoTarefa.create({
         empresa_id: updated.empresa_id,
         tarefa_id: updated.id,
         titulo_tarefa: updated.titulo,
         evento: 'Edição',
+        data_evento: new Date().toISOString(),
         status: updated.status,
         responsavel: updated.responsavel,
         descricao: 'Tarefa atualizada pelo mapa.',
@@ -127,7 +129,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.TarefaMapa.delete(id),
+    mutationFn: (id) => base44.entities.LancamentoTarefa.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
@@ -156,8 +158,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             <p className="text-xs text-slate-500">{areaNome || loteNome}</p>
           )}
         </div>
-        <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-          <Plus className="w-3 h-3" /> Nova Tarefa
+        <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Plus className="w-3.5 h-3.5" /> Nova Tarefa
         </Button>
       </div>
 
