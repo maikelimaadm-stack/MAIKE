@@ -131,6 +131,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   };
 
   const handleResponsavelChange = (selectedResponsavelId) => {
+    if (selectedResponsavelId === "__sem_responsavel__") {
+      setFormData((prev) => ({ ...prev, responsavel_id: "", responsavel: "" }));
+      return;
+    }
     const responsavel = funcionarios.find((item) => item.id === selectedResponsavelId);
     setFormData((prev) => ({ ...prev, responsavel_id: selectedResponsavelId, responsavel: responsavel?.nome || "" }));
   };
@@ -145,7 +149,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       toast.error("Selecione o tipo de tarefa.");
       return;
     }
-    onSubmit({ ...formData, titulo: formData.titulo.trim(), prioridade: normalizeTaskPriority(formData.prioridade) });
+    onSubmit({
+      ...formData,
+      titulo: formData.titulo.trim(),
+      prioridade: normalizeTaskPriority(formData.prioridade),
+      responsavel_id: formData.responsavel_id || "",
+      responsavel: formData.responsavel || "",
+    });
   };
 
   return (
@@ -201,9 +211,12 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Responsável pela execução</Label>
-          <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
+          <Select value={formData.responsavel_id || "__sem_responsavel__"} onValueChange={handleResponsavelChange}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
-            <SelectContent>{funcionarios.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{item.nome}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              <SelectItem value="__sem_responsavel__" className="text-xs">Sem responsável</SelectItem>
+              {funcionarios.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{item.nome}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
 

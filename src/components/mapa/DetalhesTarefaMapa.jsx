@@ -44,7 +44,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const { data: historico = [] } = useQuery({
     queryKey: ["historico-tarefa-detalhe", tarefa.id],
     queryFn: async () => {
-      const all = await base44.entities.HistoricoTarefaMapa.list("-created_date");
+      const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
       return all.filter((item) => item.tarefa_id === tarefa.id);
     },
     initialData: [],
@@ -53,7 +53,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const prioridade = normalizeTaskPriority(tarefa?.prioridade);
 
   const registrarHistorico = async (registro, evento, descricao, dataEvento) => {
-    await base44.entities.HistoricoTarefaMapa.create({
+    await base44.entities.HistoricoLancamentoTarefa.create({
       empresa_id: registro.empresa_id,
       tarefa_id: registro.id,
       titulo_tarefa: registro.titulo,
@@ -67,7 +67,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const updated = await base44.entities.TarefaMapa.update(id, data);
+      const updated = await base44.entities.LancamentoTarefa.update(id, data);
       const mudouLocal = data.coordenadas?.lat !== tarefa?.coordenadas?.lat || data.coordenadas?.lng !== tarefa?.coordenadas?.lng;
       await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado no mapa." : "Tarefa editada.", new Date().toISOString());
       return updated;
@@ -96,7 +96,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : tarefa.data_conclusao,
           observacoes_conclusao: eventoDescricao || tarefa.observacoes_conclusao || "",
         };
-        registroAtualizado = await base44.entities.TarefaMapa.update(tarefa.id, payload);
+        registroAtualizado = await base44.entities.LancamentoTarefa.update(tarefa.id, payload);
         await registrarHistorico(registroAtualizado, "Mudança de Status", eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
       } else {
         await registrarHistorico(tarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
