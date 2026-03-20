@@ -200,18 +200,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="h-8 text-xs" />
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Status</Label>
-          <Select value={formData.status} onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pendente" className="text-xs">Pendente</SelectItem>
-              <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
-              <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
-              <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Responsável pela execução</Label>

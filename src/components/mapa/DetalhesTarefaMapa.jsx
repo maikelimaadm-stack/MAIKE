@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { History } from "lucide-react";
 import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
+import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
 
 const PRIORIDADE_CORES = {
   Baixa: "bg-slate-100 text-slate-700",
@@ -34,32 +36,38 @@ const getDateTimeLocal = (value) => {
 
 export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequestSelectLocation }) {
   const queryClient = useQueryClient();
+  const [currentTarefa, setCurrentTarefa] = useState(tarefa);
   const [showEdit, setShowEdit] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
+  const [showHistorico, setShowHistorico] = useState(false);
   const [eventoTipo, setEventoTipo] = useState(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
   const [eventoStatus, setEventoStatus] = useState(tarefa.status || "Pendente");
   const [eventoData, setEventoData] = useState(getDateTimeLocal());
   const [eventoDescricao, setEventoDescricao] = useState("");
 
   useEffect(() => {
+    setCurrentTarefa(tarefa);
+  }, [tarefa]);
+
+  useEffect(() => {
     if (showEvento) {
-      setEventoTipo(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
-      setEventoStatus(tarefa.status || "Pendente");
+      setEventoTipo(currentTarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
+      setEventoStatus(currentTarefa.status || "Pendente");
       setEventoData(getDateTimeLocal());
       setEventoDescricao("");
     }
-  }, [showEvento, tarefa.status]);
+  }, [showEvento, currentTarefa.status]);
 
   const { data: historico = [] } = useQuery({
-    queryKey: ["historico-tarefa-detalhe", tarefa.id],
+    queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
       const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
-      return all.filter((item) => item.tarefa_id === tarefa.id);
+      return all.filter((item) => item.tarefa_id === currentTarefa.id);
     },
     initialData: [],
   });
 
-  const prioridade = normalizeTaskPriority(tarefa?.prioridade);
+  const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);
 
   const registrarHistorico = async (registro, evento, descricao, dataEvento) => {
     await base44.entities.HistoricoLancamentoTarefa.create({
@@ -77,8 +85,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       const updated = await base44.entities.LancamentoTarefa.update(id, data);
-      const mudouLocal = data.coordenadas?.lat !== tarefa?.coordenadas?.lat || data.coordenadas?.lng !== tarefa?.coordenadas?.lng;
-      const mudouStatus = data.status && data.status !== tarefa?.status;
+      const mudouLocal = data.coordenadas?.lat !== currentTarefa?.coordenadas?.lat || data.coordenadas?.lng !== currentTarefa?.coordenadas?.lng;
+      const mudouStatus = data.status && data.status !== currentTarefa?.status;
       const evento = mudouLocal
         ? "Mudança de Local"
         : updated.status === "Concluída" && mudouStatus
@@ -102,41 +110,42 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     },
     onSuccess: (updated) => {
       // Otimista no mapa e nas listas
-      const empresaId = updated?.empresa_id || tarefa?.empresa_id;
+      const empresaId = updated?.empresa_id || currentTarefa?.empresa_id;
       if (empresaId) {
         queryClient.setQueryData(["mapa-tarefas", empresaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
       }
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
-      queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", tarefa.id] });
+      queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", updated.id] });
+      setCurrentTarefa(updated);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa atualizada.");
       setShowEdit(false);
-      onSaved?.();
+      onSaved?.(updated);
     },
   });
 
   const eventoMutation = useMutation({
     mutationFn: async () => {
       const dataEventoIso = new Date(eventoData).toISOString();
-      let registroAtualizado = tarefa;
+      let registroAtualizado = currentTarefa;
 
       if (eventoTipo === "Registro") {
-        if (tarefa.status !== "Em Andamento") {
+        if (currentTarefa.status !== "Em Andamento") {
           toast.error("Registro só pode ser lançado depois que a tarefa estiver em andamento.");
-          return tarefa;
+          return currentTarefa;
         }
-        await registrarHistorico(tarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
+        await registrarHistorico(currentTarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
       } else {
         const novoStatus = eventoTipo;
         const payload = {
           status: novoStatus,
-          data_inicio: novoStatus === "Em Andamento" ? dataEventoIso : tarefa.data_inicio,
-          data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : tarefa.data_conclusao,
-          observacoes_conclusao: eventoDescricao || tarefa.observacoes_conclusao || "",
+          data_inicio: novoStatus === "Em Andamento" ? dataEventoIso : currentTarefa.data_inicio,
+          data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : currentTarefa.data_conclusao,
+          observacoes_conclusao: eventoDescricao || currentTarefa.observacoes_conclusao || "",
         };
-        registroAtualizado = await base44.entities.LancamentoTarefa.update(tarefa.id, payload);
+        registroAtualizado = await base44.entities.LancamentoTarefa.update(currentTarefa.id, payload);
         const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
         await registrarHistorico(registroAtualizado, evento, eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
       }
@@ -144,19 +153,20 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       return registroAtualizado;
     },
     onSuccess: (updated) => {
-      const empresaId = updated?.empresa_id || tarefa?.empresa_id;
+      const empresaId = updated?.empresa_id || currentTarefa?.empresa_id;
       if (empresaId) {
         queryClient.setQueryData(["mapa-tarefas", empresaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
       }
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
-      queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", tarefa.id] });
+      queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", updated.id] });
+      setCurrentTarefa(updated);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Evento registrado.");
       setShowEvento(false);
       setEventoDescricao("");
-      onSaved?.();
+      onSaved?.(updated);
     },
   });
 
@@ -165,69 +175,69 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       <div className="pb-2 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
-            Tarefa: {tarefa.titulo}
+            Tarefa: {currentTarefa.titulo}
           </Badge>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-3 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(true)}>
           Editar
         </Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEvento(true)}>
           Evento
         </Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>
+          <History className="w-3.5 h-3.5" />
+          Histórico
+        </Button>
       </div>
 
-      <CardSection title="Resumo da tarefa">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-          <CardInfo label="Grupo" value={tarefa.grupo_atividade_nome || "-"} />
-          <CardInfo label="Tipo" value={tarefa.tipo_tarefa_nome || tarefa.tipo || "-"} />
-          <CardInfo label="Status" value={<Badge className={`text-[10px] ${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente}`}>{tarefa.status}</Badge>} />
-          <CardInfo label="Responsável" value={tarefa.responsavel || "-"} />
-          <CardInfo label="Prazo" value={tarefa.data_prevista || "-"} />
-          <CardInfo label="Prioridade" value={<Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade}</Badge>} />
-        </div>
-        {tarefa.descricao && <div className="text-xs text-slate-700 whitespace-pre-wrap">{tarefa.descricao}</div>}
-      </CardSection>
-
-      <CardSection title="Localização">
-        <div className="space-y-1 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área:</span><span className="font-semibold text-slate-900">{tarefa.area_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Lote:</span><span className="font-semibold text-slate-900">{tarefa.lote_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Coordenadas:</span><span className="font-semibold text-slate-900">{tarefa.coordenadas?.lat ? `${tarefa.coordenadas.lat.toFixed(6)}, ${tarefa.coordenadas.lng.toFixed(6)}` : "-"}</span></div>
-        </div>
-      </CardSection>
-
-      <CardSection title="Histórico da tarefa">
-        {historico.length === 0 ? (
-          <div className="text-xs text-slate-500">Nenhum histórico registrado ainda.</div>
-        ) : (
-          <div className="space-y-1">
-            {historico.map((item) => (
-              <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                <div className="flex items-center justify-between gap-2 text-[10px]">
-                  <span className="font-semibold text-slate-900">{item.evento}</span>
-                  <span className="text-slate-500">{new Date(item.data_evento || item.created_date).toLocaleString("pt-BR")}</span>
-                </div>
-                <div className="text-[10px] text-slate-600">{item.descricao || "-"}</div>
-                <div className="text-[10px] text-slate-500">Status: {item.status || "-"} • Responsável: {item.responsavel || "-"}</div>
-              </div>
-            ))}
+      <CardSection title="Último evento da tarefa">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-1 text-[10px]">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+            <div className="text-slate-500">Status atual</div>
+            <div className="mt-1"><Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>{currentTarefa.status}</Badge></div>
           </div>
-        )}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+            <div className="text-slate-500">Prazo</div>
+            <div className="text-sm font-bold text-slate-900">{currentTarefa.data_prevista || "-"}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+            <div className="text-slate-500">Prioridade</div>
+            <div className="mt-1"><Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade}</Badge></div>
+          </div>
+        </div>
+      </CardSection>
+
+      <CardSection title="Informações da Tarefa">
+        <div className="space-y-1 text-[10px]">
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Grupo:</span><span className="font-semibold text-slate-900">{currentTarefa.grupo_atividade_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{currentTarefa.tipo_tarefa_nome || currentTarefa.tipo || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área:</span><span className="font-semibold text-slate-900">{currentTarefa.area_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Lote:</span><span className="font-semibold text-slate-900">{currentTarefa.lote_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Coordenadas:</span><span className="font-semibold text-slate-900">{currentTarefa.coordenadas?.lat ? `${currentTarefa.coordenadas.lat.toFixed(6)}, ${currentTarefa.coordenadas.lng.toFixed(6)}` : "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
+        </div>
       </CardSection>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar tarefa</DialogTitle></DialogHeader>
           <FormularioTarefaMapa
-            key={`${tarefa.id}-${tarefa.coordenadas?.lat || 'sem-lat'}-${tarefa.coordenadas?.lng || 'sem-lng'}`}
-            tarefa={tarefa}
-            onSubmit={(data) => updateMutation.mutate({ id: data.id || tarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
+            key={`${currentTarefa.id}-${currentTarefa.coordenadas?.lat || 'sem-lat'}-${currentTarefa.coordenadas?.lng || 'sem-lng'}`}
+            tarefa={currentTarefa}
+            onSubmit={(data) => updateMutation.mutate({ id: data.id || currentTarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
             onCancel={() => setShowEdit(false)}
             onRequestSelectLocation={onRequestSelectLocation}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
+        <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+          <HistoricoTarefaPanel tarefaTitulo={currentTarefa.titulo} historico={historico} />
         </DialogContent>
       </Dialog>
 
@@ -240,7 +250,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
               <Select value={eventoTipo} onValueChange={setEventoTipo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {tarefa.status === "Em Andamento" && <SelectItem value="Registro" className="text-xs">Registro</SelectItem>}
+                  {currentTarefa.status === "Em Andamento" && <SelectItem value="Registro" className="text-xs">Registro</SelectItem>}
                   <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
                   <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
                   <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
