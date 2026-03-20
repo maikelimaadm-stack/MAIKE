@@ -48,6 +48,7 @@ export default function LancamentoTarefaForm() {
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
+      queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", id] });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa salva.");
       navigate(createPageUrl("LancamentosTarefas"));
@@ -84,6 +85,7 @@ export default function LancamentoTarefaForm() {
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
+      queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", id] });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa atualizada.");
       navigate(createPageUrl("LancamentosTarefas"));

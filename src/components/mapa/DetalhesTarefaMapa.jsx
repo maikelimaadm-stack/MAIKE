@@ -94,6 +94,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
+      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", tarefa.id] });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa atualizada.");
@@ -127,6 +128,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
+      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", tarefa.id] });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Evento registrado.");

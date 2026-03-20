@@ -96,6 +96,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+      queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success('Tarefa criada!');
       setShowForm(false);
@@ -142,6 +143,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+      queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success('Tarefa atualizada!');
       setShowForm(false);
@@ -154,6 +156,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+      queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success('Tarefa excluída!');
     }
