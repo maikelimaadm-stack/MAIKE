@@ -11,6 +11,7 @@ import { History } from "lucide-react";
 import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
+import TarefaResumoVisual from "./TarefaResumoVisual";
 
 const PRIORIDADE_CORES = {
   Baixa: "bg-slate-100 text-slate-700",
@@ -67,12 +68,24 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
       const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
-      return all.filter((item) => item.tarefa_id === currentTarefa.id);
+      return all
+        .filter((item) => item.tarefa_id === currentTarefa.id)
+        .sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+    },
+    initialData: [],
+  });
+
+  const { data: iconesPrioridade = [] } = useQuery({
+    queryKey: ["icones-prioridade-detalhe-tarefa"],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === "Prioridade Tarefa");
     },
     initialData: [],
   });
 
   const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);
+  const iconePrioridade = iconesPrioridade.find((icone) => normalizeTaskPriority(icone.categoria) === prioridade);
   const podeRegistrar = currentTarefa.status === "Em Andamento";
   const podeEntrarEmAndamento = !currentTarefa.data_inicio && currentTarefa.status === "Pendente";
   const podeConcluir = currentTarefa.status !== "Concluída" && currentTarefa.status !== "Cancelada";
@@ -203,30 +216,26 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       </div>
 
       <CardSection title="Último evento da tarefa">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="font-semibold leading-tight text-slate-900">{historico[0]?.evento || "Sem eventos"}</div>
-            <span className="text-[10px] text-slate-500">{formatDateBR(historico[0]?.data_evento || historico[0]?.created_date)}</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-1 text-[10px]">
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Status: <span className="font-semibold text-slate-900">{currentTarefa.status || "-"}</span></div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Prazo: <span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Prioridade: <span className="font-semibold text-slate-900">{prioridade}</span></div>
-          </div>
-          {historico[0]?.descricao && <div className="break-words text-[10px] italic text-slate-500">{historico[0].descricao}</div>}
-        </div>
+        <TarefaResumoVisual
+          iconUrl={iconePrioridade?.sub_icone_url || iconePrioridade?.icone_url || null}
+          prazo={currentTarefa.data_prevista}
+          prioridade={prioridade}
+          status={currentTarefa.status}
+        />
       </CardSection>
 
       <CardSection title="Informações da Tarefa">
         <div className="space-y-1 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Grupo:</span><span className="font-semibold text-slate-900">{currentTarefa.grupo_atividade_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{currentTarefa.tipo_tarefa_nome || currentTarefa.tipo || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área:</span><span className="font-semibold text-slate-900">{currentTarefa.area_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Lote:</span><span className="font-semibold text-slate-900">{currentTarefa.lote_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Coordenadas:</span><span className="font-semibold text-slate-900">{currentTarefa.coordenadas?.lat ? `${currentTarefa.coordenadas.lat.toFixed(6)}, ${currentTarefa.coordenadas.lng.toFixed(6)}` : "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Solicitante:</span><span className="font-semibold text-slate-900">{currentTarefa.solicitante || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável execução:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data do Pedido:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_pedido)}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prazo:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Fazenda/Setor:</span><span className="font-semibold text-slate-900">{currentTarefa.setor_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área/Local:</span><span className="font-semibold text-slate-900">{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição da Tarefa:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel_geral || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prioridade:</span><span className="font-semibold text-slate-900">{prioridade}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.observacoes || "-"}</span></div>
         </div>
       </CardSection>
 
@@ -236,7 +245,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <FormularioTarefaMapa
             key={`${currentTarefa.id}-${currentTarefa.coordenadas?.lat || 'sem-lat'}-${currentTarefa.coordenadas?.lng || 'sem-lng'}`}
             tarefa={currentTarefa}
-            onSubmit={(data) => updateMutation.mutate({ id: data.id || currentTarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
+            onSubmit={(data) => updateMutation.mutate({ id: data.id || currentTarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade), responsavel: data.responsavel || "", responsavel_geral: data.responsavel_geral || "", observacoes: data.observacoes || "" } })}
             onCancel={() => setShowEdit(false)}
             onRequestSelectLocation={onRequestSelectLocation}
           />

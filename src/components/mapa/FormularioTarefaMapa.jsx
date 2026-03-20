@@ -78,11 +78,16 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     tipo_tarefa_nome: "",
     grupo_atividade_id: "",
     grupo_atividade_nome: "",
+    solicitante: "",
+    data_pedido: "",
+    setor_nome: "",
     prioridade: "Média",
     status: "Pendente",
     data_prevista: "",
     responsavel_id: "",
     responsavel: "",
+    responsavel_geral: "",
+    observacoes: "",
     area_id: areaId || "",
     area_nome: areaNome || "",
     lote_id: loteId || "",
@@ -102,11 +107,16 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       tipo_tarefa_nome: source.tipo_tarefa_nome || "",
       grupo_atividade_id: source.grupo_atividade_id || "",
       grupo_atividade_nome: source.grupo_atividade_nome || "",
+      solicitante: source.solicitante || "",
+      data_pedido: source.data_pedido || "",
+      setor_nome: source.setor_nome || "",
       prioridade: normalizeTaskPriority(source.prioridade || "Média"),
       status: source.status || "Pendente",
       data_prevista: source.data_prevista || "",
       responsavel_id: source.responsavel_id || "",
       responsavel: source.responsavel || "",
+      responsavel_geral: source.responsavel_geral || "",
+      observacoes: source.observacoes || "",
       area_id: source.area_id || areaId || "",
       area_nome: source.area_nome || areaNome || "",
       lote_id: source.lote_id || loteId || "",
@@ -184,6 +194,62 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
+          <Label className="text-xs">Solicitante</Label>
+          <Input value={formData.solicitante} onChange={(e) => setFormData((prev) => ({ ...prev, solicitante: e.target.value }))} className="h-8 text-xs" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Data do Pedido</Label>
+          <Input type="date" value={formData.data_pedido} onChange={(e) => setFormData((prev) => ({ ...prev, data_pedido: e.target.value }))} className="h-8 text-xs" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Prazo</Label>
+          <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="h-8 text-xs" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Fazenda/Setor</Label>
+          <Input value={formData.setor_nome} onChange={(e) => setFormData((prev) => ({ ...prev, setor_nome: e.target.value }))} className="h-8 text-xs" />
+        </div>
+
+        {!areaId && !loteId ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Área/Local</Label>
+            <Select value={formData.area_id} onValueChange={handleAreaChange}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione uma área" /></SelectTrigger>
+              <SelectContent>{areas.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Área/Local</Label>
+            <Input value={formData.area_nome || formData.lote_nome} readOnly className="h-8 text-xs bg-slate-50" />
+          </div>
+        )}
+
+        <div className="space-y-1.5 lg:col-span-2">
+          <Label className="text-xs">Descrição da Tarefa</Label>
+          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Responsável execução</Label>
+          <Select value={formData.responsavel_id || "__sem_responsavel__"} onValueChange={handleResponsavelChange}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__sem_responsavel__" className="text-xs">Sem responsável</SelectItem>
+              {funcionarios.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{item.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Responsável</Label>
+          <Input value={formData.responsavel_geral} onChange={(e) => setFormData((prev) => ({ ...prev, responsavel_geral: e.target.value }))} className="h-8 text-xs" />
+        </div>
+
+        <div className="space-y-1.5">
           <Label className="text-xs">Prioridade</Label>
           <Select value={formData.prioridade} onValueChange={(value) => setFormData((prev) => ({ ...prev, prioridade: value }))}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -195,37 +261,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Prazo</Label>
-          <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="h-8 text-xs" />
-        </div>
-
-
         <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs">Responsável pela execução</Label>
-          <Select value={formData.responsavel_id || "__sem_responsavel__"} onValueChange={handleResponsavelChange}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__sem_responsavel__" className="text-xs">Sem responsável</SelectItem>
-              {funcionarios.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{item.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Label className="text-xs">Observações</Label>
+          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs" />
         </div>
-
-        <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs">Descrição</Label>
-          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs" />
-        </div>
-
-        {!areaId && !loteId && (
-          <div className="space-y-1.5 lg:col-span-2">
-            <Label className="text-xs">Área</Label>
-            <Select value={formData.area_id} onValueChange={handleAreaChange}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione uma área" /></SelectTrigger>
-              <SelectContent>{areas.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        )}
 
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Local do problema no mapa</Label>

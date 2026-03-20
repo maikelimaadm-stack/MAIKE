@@ -110,7 +110,14 @@ export default function LancamentoTarefaForm() {
             <FormularioTarefaMapa
               tarefa={tarefa}
               onSubmit={(data) => {
-                if (isEdit) updateMutation.mutate(data); else createMutation.mutate(data);
+                const payload = {
+                  ...data,
+                  prioridade: data.prioridade,
+                  responsavel: data.responsavel || "",
+                  responsavel_geral: data.responsavel_geral || "",
+                  observacoes: data.observacoes || "",
+                };
+                if (isEdit) updateMutation.mutate(payload); else createMutation.mutate(payload);
               }}
               onCancel={() => navigate(createPageUrl("LancamentosTarefas"))}
             />
