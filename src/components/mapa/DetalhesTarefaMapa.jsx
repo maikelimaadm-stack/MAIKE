@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -36,10 +36,19 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const queryClient = useQueryClient();
   const [showEdit, setShowEdit] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
-  const [eventoTipo, setEventoTipo] = useState("Registro");
+  const [eventoTipo, setEventoTipo] = useState(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
   const [eventoStatus, setEventoStatus] = useState(tarefa.status || "Pendente");
   const [eventoData, setEventoData] = useState(getDateTimeLocal());
   const [eventoDescricao, setEventoDescricao] = useState("");
+
+  useEffect(() => {
+    if (showEvento) {
+      setEventoTipo(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
+      setEventoStatus(tarefa.status || "Pendente");
+      setEventoData(getDateTimeLocal());
+      setEventoDescricao("");
+    }
+  }, [showEvento, tarefa.status]);
 
   const { data: historico = [] } = useQuery({
     queryKey: ["historico-tarefa-detalhe", tarefa.id],
@@ -113,7 +122,13 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       const dataEventoIso = new Date(eventoData).toISOString();
       let registroAtualizado = tarefa;
 
-      if (eventoTipo !== "Registro") {
+      if (eventoTipo === "Registro") {
+        if (tarefa.status !== "Em Andamento") {
+          toast.error("Registro só pode ser lançado depois que a tarefa estiver em andamento.");
+          return tarefa;
+        }
+        await registrarHistorico(tarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
+      } else {
         const novoStatus = eventoTipo;
         const payload = {
           status: novoStatus,
@@ -124,8 +139,6 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
         registroAtualizado = await base44.entities.LancamentoTarefa.update(tarefa.id, payload);
         const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
         await registrarHistorico(registroAtualizado, evento, eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
-      } else {
-        await registrarHistorico(tarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
       }
 
       return registroAtualizado;
@@ -226,7 +239,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
               <Select value={eventoTipo} onValueChange={setEventoTipo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Registro" className="text-xs">Registro</SelectItem>
+                  {tarefa.status === "Em Andamento" && <SelectItem value="Registro" className="text-xs">Registro</SelectItem>}
                   <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
                   <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
                   <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
