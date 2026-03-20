@@ -82,6 +82,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: (data) => base44.entities.TarefaMapa.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
+      queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success('Tarefa criada!');
       setShowForm(false);
       setEditingTarefa(null);
@@ -92,6 +94,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: ({ id, data }) => base44.entities.TarefaMapa.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
+      queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success('Tarefa atualizada!');
       setShowForm(false);
       setEditingTarefa(null);
@@ -102,6 +106,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: (id) => base44.entities.TarefaMapa.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
+      queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success('Tarefa excluída!');
     }
   });
