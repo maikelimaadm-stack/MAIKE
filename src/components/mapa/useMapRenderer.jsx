@@ -73,18 +73,31 @@ export default function useMapRenderer(mapInstanceRef) {
       const cor = colorFn ? (colorFn(area) || corBase) : corBase;
 
       if (polygonsRef.current.has(area.id)) {
-        // Já existe — atualizar cor se mudou
+        const poly = polygonsRef.current.get(area.id);
         const prevCor = polyColorRef.current.get(area.id);
+
         if (prevCor !== cor) {
-          const poly = polygonsRef.current.get(area.id);
           poly.setOptions({ fillColor: cor, strokeColor: cor });
-          // Atualizar mouseover/mouseout
-          google.maps.event.clearListeners(poly, 'mouseover');
-          google.maps.event.clearListeners(poly, 'mouseout');
-          poly.addListener('mouseover', () => poly.setOptions({ strokeColor: '#ffffff', strokeOpacity: 1, strokeWeight: 3 }));
-          poly.addListener('mouseout', () => poly.setOptions({ strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2 }));
           polyColorRef.current.set(area.id, cor);
         }
+
+        google.maps.event.clearListeners(poly, 'mouseover');
+        google.maps.event.clearListeners(poly, 'mouseout');
+        google.maps.event.clearListeners(poly, 'click');
+        google.maps.event.clearListeners(poly, 'rightclick');
+
+        poly.addListener('mouseover', () => poly.setOptions({ strokeColor: '#ffffff', strokeOpacity: 1, strokeWeight: 3 }));
+        poly.addListener('mouseout', () => poly.setOptions({ strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2 }));
+        poly.addListener('click', (e) => {
+          if (e.vertex === undefined) {
+            const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
+            onClickArea(area, coords);
+          }
+        });
+        poly.addListener('rightclick', (e) => {
+          const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
+          onRightClickArea(area, coords);
+        });
         return;
       }
 

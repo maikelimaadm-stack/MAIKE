@@ -549,7 +549,7 @@ export default function MapaGeral() {
   }, [mapReady, selecionandoLocalTarefa, abrirLancamentoTarefa, handleSelectTaskLocation, detectarAreaPorCoordenada]);
 
   // ─── Renderização incremental ───
-  useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor]);
+  useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor, handleClickArea, handleRightClickArea]);
   // Função de texto extra para labels (UA/ha ou situação do pasto)
   const getLabelExtraText = useCallback((area) => {
     if (modoColoracao === 'ua_ha') {
