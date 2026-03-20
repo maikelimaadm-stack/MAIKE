@@ -145,10 +145,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       toast.error("Selecione o tipo de tarefa.");
       return;
     }
-    if (!formData.responsavel) {
-      toast.error("Selecione o responsável da tarefa.");
-      return;
-    }
     onSubmit({ ...formData, titulo: formData.titulo.trim(), prioridade: normalizeTaskPriority(formData.prioridade) });
   };
 
@@ -204,7 +200,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs">Responsável pela execução *</Label>
+          <Label className="text-xs">Responsável pela execução</Label>
           <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
             <SelectContent>{funcionarios.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{item.nome}</SelectItem>)}</SelectContent>

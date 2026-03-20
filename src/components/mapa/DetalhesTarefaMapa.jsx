@@ -7,28 +7,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 
-const PRIORIDADE_CORES = { Baixa: "bg-slate-100 text-slate-700", Média: "bg-blue-100 text-blue-700", Alta: "bg-amber-100 text-amber-700" };
-const STATUS_CORES = { Pendente: "bg-yellow-100 text-yellow-700", "Em Andamento": "bg-blue-100 text-blue-700", Concluída: "bg-emerald-100 text-emerald-700", Cancelada: "bg-slate-100 text-slate-500" };
+const PRIORIDADE_CORES = {
+  Baixa: "bg-slate-100 text-slate-700",
+  Média: "bg-blue-100 text-blue-700",
+  Alta: "bg-amber-100 text-amber-700",
+};
+
+const STATUS_CORES = {
+  Pendente: "bg-yellow-100 text-yellow-700",
+  "Em Andamento": "bg-blue-100 text-blue-700",
+  Concluída: "bg-emerald-100 text-emerald-700",
+  Cancelada: "bg-slate-100 text-slate-500",
+};
+
+const getDateTimeLocal = (value) => {
+  if (!value) return new Date().toISOString().slice(0, 16);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 16);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+};
 
 export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequestSelectLocation }) {
   const queryClient = useQueryClient();
   const [showEdit, setShowEdit] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
+  const [eventoTipo, setEventoTipo] = useState("Registro");
   const [eventoStatus, setEventoStatus] = useState(tarefa.status || "Pendente");
+  const [eventoData, setEventoData] = useState(getDateTimeLocal());
   const [eventoDescricao, setEventoDescricao] = useState("");
-
-  const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ["detalhe-icone-prioridade-tarefa"],
-    queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === "Prioridade Tarefa");
-    },
-    initialData: [],
-  });
 
   const { data: historico = [] } = useQuery({
     queryKey: ["historico-tarefa-detalhe", tarefa.id],
@@ -40,17 +51,14 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   });
 
   const prioridade = normalizeTaskPriority(tarefa?.prioridade);
-  const iconePrioridade = useMemo(() => {
-    const normalize = (value) => (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-    return iconesPrioridade.find((icone) => normalize(icone.categoria) === normalize(prioridade));
-  }, [iconesPrioridade, prioridade]);
 
-  const registrarHistorico = async (registro, evento, descricao) => {
+  const registrarHistorico = async (registro, evento, descricao, dataEvento) => {
     await base44.entities.HistoricoTarefaMapa.create({
       empresa_id: registro.empresa_id,
       tarefa_id: registro.id,
       titulo_tarefa: registro.titulo,
       evento,
+      data_evento: dataEvento,
       status: registro.status,
       responsavel: registro.responsavel,
       descricao,
@@ -61,7 +69,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     mutationFn: async ({ id, data }) => {
       const updated = await base44.entities.TarefaMapa.update(id, data);
       const mudouLocal = data.coordenadas?.lat !== tarefa?.coordenadas?.lat || data.coordenadas?.lng !== tarefa?.coordenadas?.lng;
-      await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado no mapa." : "Tarefa editada.");
+      await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado no mapa." : "Tarefa editada.", new Date().toISOString());
       return updated;
     },
     onSuccess: () => {
@@ -77,15 +85,24 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
   const eventoMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
-        status: eventoStatus,
-        data_inicio: eventoStatus === "Em Andamento" ? (tarefa.data_inicio || new Date().toISOString()) : tarefa.data_inicio,
-        data_conclusao: eventoStatus === "Concluída" ? new Date().toISOString().split("T")[0] : null,
-        observacoes_conclusao: eventoDescricao || tarefa.observacoes_conclusao || "",
-      };
-      const updated = await base44.entities.TarefaMapa.update(tarefa.id, payload);
-      await registrarHistorico(updated, "Mudança de Status", eventoDescricao || `Status alterado para ${eventoStatus}.`);
-      return updated;
+      const dataEventoIso = new Date(eventoData).toISOString();
+      let registroAtualizado = tarefa;
+
+      if (eventoTipo !== "Registro") {
+        const novoStatus = eventoTipo;
+        const payload = {
+          status: novoStatus,
+          data_inicio: novoStatus === "Em Andamento" ? dataEventoIso : tarefa.data_inicio,
+          data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : tarefa.data_conclusao,
+          observacoes_conclusao: eventoDescricao || tarefa.observacoes_conclusao || "",
+        };
+        registroAtualizado = await base44.entities.TarefaMapa.update(tarefa.id, payload);
+        await registrarHistorico(registroAtualizado, "Mudança de Status", eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
+      } else {
+        await registrarHistorico(tarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
+      }
+
+      return registroAtualizado;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
@@ -111,11 +128,9 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <div className="grid grid-cols-2 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(true)}>
-          <Pencil className="w-3.5 h-3.5" />
           Editar
         </Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEvento(true)}>
-          <ClipboardList className="w-3.5 h-3.5" />
           Evento
         </Button>
       </div>
@@ -127,7 +142,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <CardInfo label="Status" value={<Badge className={`text-[10px] ${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente}`}>{tarefa.status}</Badge>} />
           <CardInfo label="Responsável" value={tarefa.responsavel || "-"} />
           <CardInfo label="Prazo" value={tarefa.data_prevista || "-"} />
-          <CardInfo label="Prioridade" value={<div className="flex items-center gap-2">{iconePrioridade?.icone_url && <img src={iconePrioridade.icone_url} alt={prioridade} className="w-5 h-5 object-contain" />}<Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade}</Badge></div>} />
+          <CardInfo label="Prioridade" value={<Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade}</Badge>} />
         </div>
         {tarefa.descricao && <div className="text-xs text-slate-700 whitespace-pre-wrap">{tarefa.descricao}</div>}
       </CardSection>
@@ -141,15 +156,33 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       </CardSection>
 
       <CardSection title="Histórico da tarefa">
-        {historico.length === 0 ? <div className="text-xs text-slate-500">Nenhum histórico registrado ainda.</div> : (
-          <div className="space-y-1">{historico.map((item) => <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5"><div className="flex items-center justify-between gap-2 text-[10px]"><span className="font-semibold text-slate-900">{item.evento}</span><span className="text-slate-500">{item.created_date ? new Date(item.created_date).toLocaleString("pt-BR") : "-"}</span></div><div className="text-[10px] text-slate-600">{item.descricao || "-"}</div><div className="text-[10px] text-slate-500">Status: {item.status || "-"} • Responsável: {item.responsavel || "-"}</div></div>)}</div>
+        {historico.length === 0 ? (
+          <div className="text-xs text-slate-500">Nenhum histórico registrado ainda.</div>
+        ) : (
+          <div className="space-y-1">
+            {historico.map((item) => (
+              <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <div className="flex items-center justify-between gap-2 text-[10px]">
+                  <span className="font-semibold text-slate-900">{item.evento}</span>
+                  <span className="text-slate-500">{new Date(item.data_evento || item.created_date).toLocaleString("pt-BR")}</span>
+                </div>
+                <div className="text-[10px] text-slate-600">{item.descricao || "-"}</div>
+                <div className="text-[10px] text-slate-500">Status: {item.status || "-"} • Responsável: {item.responsavel || "-"}</div>
+              </div>
+            ))}
+          </div>
         )}
       </CardSection>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar tarefa</DialogTitle></DialogHeader>
-          <FormularioTarefaMapa tarefa={tarefa} onSubmit={(data) => updateMutation.mutate({ id: tarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })} onCancel={() => setShowEdit(false)} onRequestSelectLocation={onRequestSelectLocation} />
+          <FormularioTarefaMapa
+            tarefa={tarefa}
+            onSubmit={(data) => updateMutation.mutate({ id: tarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
+            onCancel={() => setShowEdit(false)}
+            onRequestSelectLocation={onRequestSelectLocation}
+          />
         </DialogContent>
       </Dialog>
 
@@ -158,10 +191,11 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <DialogHeader><DialogTitle>Registrar evento da tarefa</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs">Novo status</Label>
-              <Select value={eventoStatus} onValueChange={setEventoStatus}>
+              <Label className="text-xs">Tipo de evento</Label>
+              <Select value={eventoTipo} onValueChange={setEventoTipo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Registro" className="text-xs">Registro</SelectItem>
                   <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
                   <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
                   <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
@@ -169,15 +203,16 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Observação do evento</Label>
-              <Textarea value={eventoDescricao} onChange={(e) => setEventoDescricao(e.target.value)} className="min-h-[120px] text-xs" placeholder="Descreva o que aconteceu" />
+              <Label className="text-xs">Data do evento</Label>
+              <input type="datetime-local" value={eventoData} onChange={(e) => setEventoData(e.target.value)} className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea value={eventoDescricao} onChange={(e) => setEventoDescricao(e.target.value)} className="min-h-[120px] text-xs" placeholder="Ex: foi fazer o serviço e quebrou o trator" />
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEvento(false)}>Cancelar</Button>
-              <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => eventoMutation.mutate()}>
-                <ClipboardList className="w-3.5 h-3.5" />
-                Salvar evento
-              </Button>
+              <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => eventoMutation.mutate()}>Salvar evento</Button>
             </div>
           </div>
         </DialogContent>
