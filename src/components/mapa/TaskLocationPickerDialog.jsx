@@ -77,7 +77,7 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
       const map = mapInstanceRef.current;
       selectingRef.current = false;
 
-      polygonsRef.current.forEach((polygon) => polygon.setMap(null));
+      polygonsRef.current.forEach((item) => item.polygon?.setMap(null));
       polygonsRef.current = [];
       if (clickListenerRef.current) clickListenerRef.current.remove();
 
