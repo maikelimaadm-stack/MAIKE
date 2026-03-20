@@ -224,7 +224,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <FormularioTarefaMapa
             key={`${tarefa.id}-${tarefa.coordenadas?.lat || 'sem-lat'}-${tarefa.coordenadas?.lng || 'sem-lng'}`}
             tarefa={tarefa}
-            onSubmit={(data) => updateMutation.mutate({ id: tarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
+            onSubmit={(data) => updateMutation.mutate({ id: data.id || tarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
             onCancel={() => setShowEdit(false)}
             onRequestSelectLocation={onRequestSelectLocation}
           />

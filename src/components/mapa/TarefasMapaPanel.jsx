@@ -364,8 +364,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
                 coordenadas: data.coordenadas,
               };
-              if (editingTarefa) {
-                updateMutation.mutate({ id: editingTarefa.id, data: payload, previous: editingTarefa });
+              if (editingTarefa || data.id) {
+                updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data });
               } else {
                 createMutation.mutate({
                   ...payload,

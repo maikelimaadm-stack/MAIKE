@@ -70,6 +70,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   });
 
   const [formData, setFormData] = useState({
+    id: tarefa?.id || initialDraft?.id || "",
     titulo: "",
     descricao: "",
     tipo: "Manejo",
@@ -93,6 +94,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   useEffect(() => {
     const source = tarefa || initialDraft || {};
     setFormData({
+      id: source.id || "",
       titulo: source.titulo || "",
       descricao: source.descricao || "",
       tipo: source.tipo || inferirTipoBase(source.tipo_tarefa_nome, source.grupo_atividade_nome),
