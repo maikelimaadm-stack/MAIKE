@@ -1,7 +1,6 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import FormularioTarefaMapa from "@/components/mapa/FormularioTarefaMapa";
 import { createPageUrl } from "@/utils";
@@ -45,6 +44,7 @@ export default function LancamentoTarefaForm() {
       return created;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
@@ -56,10 +56,12 @@ export default function LancamentoTarefaForm() {
   const updateMutation = useMutation({
     mutationFn: async (payload) => {
       const updated = await base44.entities.TarefaMapa.update(id, payload);
-      await registrarHistorico(updated, payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng ? "Mudança de Local" : "Edição", "Tarefa atualizada pela gestão de tarefas.");
+      const mudouLocal = payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng;
+      await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado pela gestão de tarefas." : "Tarefa atualizada pela gestão de tarefas.");
       return updated;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
@@ -70,13 +72,10 @@ export default function LancamentoTarefaForm() {
 
   return (
     <div className="p-4 md:p-6 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar tarefa" : "Lançar tarefa"}</h1>
-          <p className="text-xs text-slate-600">Gestão unificada com o mapa</p>
-        </div>
+      <div>
+        <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar tarefa" : "Lançar tarefa"}</h1>
+        <p className="text-xs text-slate-600">Gestão unificada com o mapa</p>
       </div>
-
       <Card>
         <CardContent className="p-4">
           {isLoading ? (
@@ -85,23 +84,13 @@ export default function LancamentoTarefaForm() {
             <FormularioTarefaMapa
               tarefa={tarefa}
               onSubmit={(data) => {
-                if (isEdit) {
-                  updateMutation.mutate({ ...tarefa, ...data });
-                } else {
-                  createMutation.mutate(data);
-                }
+                if (isEdit) updateMutation.mutate(data); else createMutation.mutate(data);
               }}
               onCancel={() => navigate(createPageUrl("LancamentosTarefas"))}
             />
           )}
         </CardContent>
       </Card>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate(createPageUrl("LancamentosTarefas"))}>
-          Cancelar
-        </Button>
-      </div>
     </div>
   );
 }
