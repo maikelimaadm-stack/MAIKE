@@ -1,7 +1,7 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FormularioTarefaMapa from "@/components/mapa/FormularioTarefaMapa";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
@@ -102,8 +102,11 @@ export default function LancamentoTarefaForm() {
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar tarefa" : "Lançar tarefa"}</h1>
         <p className="text-xs text-slate-600">Gestão unificada com o mapa</p>
       </div>
-      <Card>
-        <CardContent className="p-4">
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="bg-emerald-50 border-b border-emerald-200 py-2 px-3">
+          <CardTitle className="text-sm font-bold text-emerald-900">{isEdit ? "Editar Lançamento de Tarefa" : "Lançar Tarefa"}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden">
           {isLoading ? (
             <div className="text-xs text-slate-500">Carregando...</div>
           ) : (
@@ -113,8 +116,9 @@ export default function LancamentoTarefaForm() {
                 const payload = {
                   ...data,
                   prioridade: data.prioridade,
+                  solicitante: data.solicitante || "",
                   responsavel: data.responsavel || "",
-                  responsavel_geral: data.responsavel_geral || "",
+                  responsavel_geral: data.solicitante || "",
                   observacoes: data.observacoes || "",
                 };
                 if (isEdit) updateMutation.mutate(payload); else createMutation.mutate(payload);

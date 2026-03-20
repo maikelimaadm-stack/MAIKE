@@ -217,7 +217,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <CardSection title="Último evento da tarefa">
         <TarefaResumoVisual
-          iconUrl={iconePrioridade?.sub_icone_url || iconePrioridade?.icone_url || null}
+          iconUrl={null}
           prazo={currentTarefa.data_prevista}
           prioridade={prioridade}
           status={currentTarefa.status}
@@ -226,14 +226,13 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <CardSection title="Informações da Tarefa">
         <div className="space-y-1 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Solicitante:</span><span className="font-semibold text-slate-900">{currentTarefa.solicitante || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Solicitante / Responsável:</span><span className="font-semibold text-slate-900">{currentTarefa.solicitante || currentTarefa.responsavel_geral || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável execução:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data do Pedido:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_pedido)}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prazo:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Fazenda/Setor:</span><span className="font-semibold text-slate-900">{currentTarefa.setor_nome || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área/Local:</span><span className="font-semibold text-slate-900">{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição da Tarefa:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel_geral || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prioridade:</span><span className="font-semibold text-slate-900">{prioridade}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.observacoes || "-"}</span></div>
         </div>
