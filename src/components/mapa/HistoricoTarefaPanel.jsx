@@ -52,14 +52,12 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
           ) : (
             <div className="max-h-[60vh] overflow-y-auto space-y-1">
               {historico.map((item, index) => (
-                <div key={item.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
+                <div key={item.id} className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1 hover:bg-gray-50">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
-                        {item.evento}
-                      </Badge>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <div className="text-[11px] font-bold text-slate-900">{tarefaTitulo}</div>
                       {item.status && (
-                        <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
+                        <Badge className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
                           {item.status}
                         </Badge>
                       )}
@@ -77,17 +75,10 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
                     </div>
                   </div>
 
-                  <div className="text-xs font-semibold text-slate-900">{tarefaTitulo}</div>
-
-                  {item.descricao && <div className="text-[10px] text-slate-600 break-words">{item.descricao}</div>}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-[10px]">
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">
-                      Responsável: <span className="font-semibold text-slate-900">{item.responsavel || "-"}</span>
-                    </div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">
-                      Status: <span className="font-semibold text-slate-900">{item.status || "-"}</span>
-                    </div>
+                  <div className="space-y-1 text-[10px]">
+                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Evento:</span><span className="font-semibold text-slate-900">{item.evento || "-"}</span></div>
+                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável:</span><span className="font-semibold text-slate-900">{item.responsavel || "-"}</span></div>
+                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{item.descricao || "-"}</span></div>
                   </div>
 
                   <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-200">

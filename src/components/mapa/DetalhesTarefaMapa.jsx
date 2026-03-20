@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { History } from "lucide-react";
 import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
@@ -199,6 +198,9 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
             Tarefa: {currentTarefa.titulo}
           </Badge>
+          <Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
+            {currentTarefa.status}
+          </Badge>
         </div>
       </div>
 
@@ -210,14 +212,12 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           Evento
         </Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>
-          <History className="w-3.5 h-3.5" />
           Histórico
         </Button>
       </div>
 
       <CardSection title="Último evento da tarefa">
         <TarefaResumoVisual
-          iconUrl={null}
           prazo={currentTarefa.data_prevista}
           prioridade={prioridade}
           status={currentTarefa.status}
