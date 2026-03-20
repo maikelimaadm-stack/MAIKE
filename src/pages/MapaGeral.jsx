@@ -421,7 +421,7 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, showLinhas);}, [linhas, showLinhas, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(tarefasMapa, handleClickTarefa);}, [tarefasMapa, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(tarefasMapa, areas, iconesConfig, handleClickTarefa);}, [tarefasMapa, areas, iconesConfig, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
 
   useEffect(() => {

@@ -327,23 +327,43 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Tarefas ───
-  const syncTarefas = useCallback((tarefasMapa, onClickTarefa) => {
+  const syncTarefas = useCallback((tarefasMapa, areas, iconesConfig, onClickTarefa) => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const prefix = 'tarefa_';
     const currentIds = new Set(tarefasMapa.map(t => prefix + t.id));
     markersRef.current.forEach((m, id) => { if (id.startsWith(prefix) && !currentIds.has(id)) { m.setMap(null); markersRef.current.delete(id); } });
     const cores = { 'Baixa': '#94a3b8', 'Normal': '#3b82f6', 'Alta': '#f59e0b', 'Urgente': '#ef4444' };
+    const normalizar = (valor) => (valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
     tarefasMapa.forEach(t => {
       const key = prefix + t.id;
       if (markersRef.current.has(key)) return;
-      if (!t.coordenadas?.lat || !t.coordenadas?.lng) return;
+
+      let position = null;
+      if (t.coordenadas?.lat && t.coordenadas?.lng) {
+        position = { lat: t.coordenadas.lat, lng: t.coordenadas.lng };
+      } else if (t.area_id) {
+        const area = areas.find((item) => item.id === t.area_id);
+        const coords = area?.coordenadas?.coords || [];
+        if (coords.length >= 3) {
+          const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+          const center = calcCentroid(paths);
+          position = { lat: center.lat(), lng: center.lng() };
+        }
+      }
+
+      if (!position) return;
+
       const c = cores[t.prioridade] || '#3b82f6';
+      const cfg = iconesConfig.find((icone) => icone.tipo_entidade === 'Prioridade Tarefa' && normalizar(icone.categoria) === normalizar(t.prioridade));
+      const icon = cfg?.icone_url
+        ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
+        : { path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z', fillColor: c, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.8, anchor: new google.maps.Point(12, 22) };
       const m = new google.maps.Marker({
-        position: { lat: t.coordenadas.lat, lng: t.coordenadas.lng }, map,
-        icon: { path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z', fillColor: c, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.8, anchor: new google.maps.Point(12, 22) },
+        position, map, icon,
         title: t.titulo, zIndex: t.prioridade === 'Urgente' ? 3000 : 2500
       });
+      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(m, cfg.icone_url, 36);
       m.addListener('click', () => onClickTarefa(t));
       markersRef.current.set(key, m);
     });
