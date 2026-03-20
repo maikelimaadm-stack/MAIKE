@@ -115,7 +115,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const handleAreaChange = (selectedAreaId) => {
     const selectedArea = areas.find((area) => area.id === selectedAreaId);
     const center = getAreaCenter(selectedArea);
-    setFormData((prev) => ({ ...prev, area_id: selectedAreaId, area_nome: selectedArea?.nome || "", coordenadas: prev.coordenadas || center }));
+    setFormData((prev) => ({ ...prev, area_id: selectedAreaId, area_nome: selectedArea?.nome || "", coordenadas: center || null }));
   };
 
   const handleTipoTarefaChange = (selectedTipoId) => {

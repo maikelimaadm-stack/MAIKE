@@ -25,32 +25,25 @@ export default function RelatorioGestaoTarefas() {
     busca: ""
   });
 
-  const { data: tarefasMapa = [] } = useQuery({
-    queryKey: ['tarefas-mapa-rel', empresaSelecionadaId],
+  const { data: tarefas = [] } = useQuery({
+    queryKey: ['gestao-tarefas-rel', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.TarefaMapa.list();
+      const all = await base44.entities.LancamentoTarefa.list();
       return all.filter(t => t.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: tarefasManuais = [] } = useQuery({
-    queryKey: ['tarefas-manuais-rel', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.LancamentoTarefa?.list?.() || [];
-      return all.filter(t => t.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+  const tarefasManuais = [];
 
   const normalizadas = useMemo(() => {
-    const mapa = tarefasMapa.map(t => ({
-      id: `mapa-${t.id}`,
+    return tarefas.map(t => ({
+      id: t.id,
       origem: 'Mapa',
-      titulo: t.titulo,
-      descricao: t.descricao,
-      tipo: t.tipo,
-      prioridade: t.prioridade || 'Normal',
+      titulo: t.titulo || t.descricao || 'Tarefa',
+      descricao: t.descricao || '',
+      tipo: t.tipo || t.tipo_tarefa_nome || 'Outro',
+      prioridade: t.prioridade || 'Média',
       status: t.status || 'Pendente',
       data_prevista: t.data_prevista || null,
       data_conclusao: t.data_conclusao || null,
@@ -58,24 +51,7 @@ export default function RelatorioGestaoTarefas() {
       area: t.area_nome || '',
       lote: t.lote_nome || ''
     }));
-
-    const manuais = tarefasManuais.map(t => ({
-      id: `manual-${t.id}`,
-      origem: 'Manual',
-      titulo: t.titulo || t.descricao || 'Tarefa',
-      descricao: t.descricao || '',
-      tipo: t.tipo || t.tipo_tarefa || 'Outro',
-      prioridade: t.prioridade || 'Normal',
-      status: t.status || 'Pendente',
-      data_prevista: t.data_prevista || t.data || null,
-      data_conclusao: t.data_conclusao || null,
-      responsavel: t.responsavel || t.usuario_responsavel || '',
-      area: t.area_nome || '',
-      lote: t.lote_nome || ''
-    }));
-
-    return [...mapa, ...manuais];
-  }, [tarefasMapa, tarefasManuais]);
+  }, [tarefas]);
 
   const filtradas = useMemo(() => {
     return normalizadas.filter(t => {
