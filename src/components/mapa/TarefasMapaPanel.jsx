@@ -96,6 +96,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     onSuccess: (created) => {
       queryClient.setQueryData(['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId], (old = []) => [created, ...(old || [])]);
       queryClient.setQueryData(['gestao-tarefas-unificada', empresaSelecionadaId], (old = []) => [created, ...(old || [])]);
+      queryClient.setQueryData(['mapa-tarefas', empresaSelecionadaId], (old = []) => [created, ...(old || [])]);
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
@@ -142,9 +143,10 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       });
       return updated;
     },
-    onSuccess: (updated, vars) => {
+    onSuccess: (updated) => {
       queryClient.setQueryData(['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
       queryClient.setQueryData(['gestao-tarefas-unificada', empresaSelecionadaId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
+      queryClient.setQueryData(['mapa-tarefas', empresaSelecionadaId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
@@ -160,6 +162,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     onSuccess: (_, id) => {
       queryClient.setQueryData(['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId], (old = []) => (old || []).filter(t => t.id !== id));
       queryClient.setQueryData(['gestao-tarefas-unificada', empresaSelecionadaId], (old = []) => (old || []).filter(t => t.id !== id));
+      queryClient.setQueryData(['mapa-tarefas', empresaSelecionadaId], (old = []) => (old || []).filter(t => t.id !== id));
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });

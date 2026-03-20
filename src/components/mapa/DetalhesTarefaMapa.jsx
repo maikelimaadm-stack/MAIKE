@@ -91,7 +91,12 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       await registrarHistorico(updated, evento, descricao, new Date().toISOString());
       return updated;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // Otimista no mapa e nas listas
+      const empresaId = updated?.empresa_id || tarefa?.empresa_id;
+      if (empresaId) {
+        queryClient.setQueryData(["mapa-tarefas", empresaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
+      }
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
@@ -125,7 +130,11 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       return registroAtualizado;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      const empresaId = updated?.empresa_id || tarefa?.empresa_id;
+      if (empresaId) {
+        queryClient.setQueryData(["mapa-tarefas", empresaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
+      }
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });

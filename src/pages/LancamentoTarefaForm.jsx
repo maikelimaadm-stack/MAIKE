@@ -44,7 +44,9 @@ export default function LancamentoTarefaForm() {
       await registrarHistorico(created, "Criação", "Tarefa criada pela gestão de tarefas.");
       return created;
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
+      queryClient.setQueryData(["gestao-tarefas-unificada", empresaSelecionadaId], (old = []) => [created, ...(old || [])]);
+      queryClient.setQueryData(["mapa-tarefas", empresaSelecionadaId], (old = []) => [created, ...(old || [])]);
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
@@ -52,7 +54,7 @@ export default function LancamentoTarefaForm() {
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa salva.");
       navigate(createPageUrl("LancamentosTarefas"));
-    },
+    }
   });
 
   const updateMutation = useMutation({
@@ -81,7 +83,9 @@ export default function LancamentoTarefaForm() {
       await registrarHistorico(updated, evento, descricao);
       return updated;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["gestao-tarefas-unificada", empresaSelecionadaId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
+      queryClient.setQueryData(["mapa-tarefas", empresaSelecionadaId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
@@ -89,7 +93,7 @@ export default function LancamentoTarefaForm() {
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa atualizada.");
       navigate(createPageUrl("LancamentosTarefas"));
-    },
+    }
   });
 
   return (
