@@ -86,6 +86,7 @@ export default function MapaGeral() {
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const projectionOverlayRef = useRef(null);
   const firstFitDoneRef = useRef(false);
   const renderer = useMapRenderer(mapInstanceRef);
 
@@ -323,6 +324,12 @@ export default function MapaGeral() {
         zoomControl: !mobile, disableDefaultUI: mobile, clickableIcons: false,
         minZoom: 3, maxZoom: 22
       });
+      const overlay = new google.maps.OverlayView();
+      overlay.onAdd = function () {};
+      overlay.draw = function () {};
+      overlay.onRemove = function () {};
+      overlay.setMap(map);
+      projectionOverlayRef.current = overlay;
       mapInstanceRef.current = map;
       google.maps.event.addListenerOnce(map, 'tilesloaded', () => setMapReady(true));
     }).catch(() => toast.error('Erro ao carregar mapa.'));
@@ -412,9 +419,11 @@ export default function MapaGeral() {
   }, []);
 
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current) return;
+    if (!mapReady || !mapInstanceRef.current || !mapRef.current || !projectionOverlayRef.current) return;
     const map = mapInstanceRef.current;
+    const mapElement = mapRef.current;
     let longPressTimer = null;
+    let startPoint = null;
 
     const clearTimer = () => {
       if (longPressTimer) {
@@ -423,19 +432,48 @@ export default function MapaGeral() {
       }
     };
 
-    const startLongPress = (event) => {
-      if (selecionandoLocalTarefa || !event?.latLng) return;
+    const getCoordsFromPointer = (point) => {
+      const projection = projectionOverlayRef.current?.getProjection?.();
+      if (!projection || !point) return null;
+      const rect = mapElement.getBoundingClientRect();
+      const pixel = new google.maps.Point(point.x - rect.left, point.y - rect.top);
+      const latLng = projection.fromContainerPixelToLatLng(pixel);
+      if (!latLng) return null;
+      return { lat: latLng.lat(), lng: latLng.lng() };
+    };
+
+    const handlePointerDown = (event) => {
+      if (selecionandoLocalTarefa) return;
+      startPoint = { x: event.clientX, y: event.clientY };
       clearTimer();
       longPressTimer = setTimeout(() => {
-        abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
+        const coords = getCoordsFromPointer(startPoint);
+        if (coords) abrirLancamentoTarefa(coords);
       }, 650);
     };
 
+    const handlePointerMove = (event) => {
+      if (!startPoint) return;
+      const moved = Math.abs(event.clientX - startPoint.x) > 8 || Math.abs(event.clientY - startPoint.y) > 8;
+      if (moved) clearTimer();
+    };
+
+    const handlePointerEnd = () => {
+      startPoint = null;
+      clearTimer();
+    };
+
+    mapElement.addEventListener('pointerdown', handlePointerDown);
+    mapElement.addEventListener('pointermove', handlePointerMove);
+    mapElement.addEventListener('pointerup', handlePointerEnd);
+    mapElement.addEventListener('pointercancel', handlePointerEnd);
+    mapElement.addEventListener('pointerleave', handlePointerEnd);
+
     const listeners = [
-      map.addListener('mousedown', startLongPress),
-      map.addListener('mouseup', clearTimer),
-      map.addListener('drag', clearTimer),
-      map.addListener('dragstart', clearTimer),
+      map.addListener('rightclick', (event) => {
+        if (selecionandoLocalTarefa || !event?.latLng) return;
+        abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
+      }),
       map.addListener('click', (event) => {
         clearTimer();
         if (!selecionandoLocalTarefa || !event?.latLng) return;
@@ -448,7 +486,12 @@ export default function MapaGeral() {
     ];
 
     return () => {
-      clearTimer();
+      handlePointerEnd();
+      mapElement.removeEventListener('pointerdown', handlePointerDown);
+      mapElement.removeEventListener('pointermove', handlePointerMove);
+      mapElement.removeEventListener('pointerup', handlePointerEnd);
+      mapElement.removeEventListener('pointercancel', handlePointerEnd);
+      mapElement.removeEventListener('pointerleave', handlePointerEnd);
       listeners.forEach((listener) => listener?.remove());
     };
   }, [mapReady, selecionandoLocalTarefa, rascunhoTarefa, abrirLancamentoTarefa]);

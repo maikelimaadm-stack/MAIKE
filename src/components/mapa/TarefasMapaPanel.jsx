@@ -67,10 +67,10 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   useEffect(() => {
     if (openCreateOnMount) {
-      setEditingTarefa(null);
+      setEditingTarefa(initialDraft?.id ? initialDraft : null);
       setShowForm(true);
     }
-  }, [openCreateOnMount, initialCoordinates]);
+  }, [openCreateOnMount, initialCoordinates, initialDraft]);
 
   const tarefasFiltradas = tarefas.filter(t => {
     if (filtroStatus === 'ativas') return t.status === 'Pendente' || t.status === 'Em Andamento';
