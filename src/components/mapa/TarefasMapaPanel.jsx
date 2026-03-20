@@ -104,17 +104,38 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
+    mutationFn: async ({ id, data, previous }) => {
       const updated = await base44.entities.LancamentoTarefa.update(id, data);
+      const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
+      const mudouStatus = data.status && data.status !== previous?.status;
+      const evento = mudouLocal
+        ? 'Mudança de Local'
+        : updated.status === 'Concluída' && mudouStatus
+          ? 'Conclusão'
+          : updated.status === 'Cancelada' && mudouStatus
+            ? 'Cancelamento'
+            : mudouStatus
+              ? 'Mudança de Status'
+              : 'Edição';
+      const descricao = mudouLocal
+        ? 'Local da tarefa alterado pelo mapa.'
+        : updated.status === 'Concluída' && mudouStatus
+          ? 'Tarefa concluída pelo mapa.'
+          : updated.status === 'Cancelada' && mudouStatus
+            ? 'Tarefa cancelada pelo mapa.'
+            : mudouStatus
+              ? `Status alterado para ${updated.status}.`
+              : 'Tarefa atualizada pelo mapa.';
+
       await base44.entities.HistoricoLancamentoTarefa.create({
         empresa_id: updated.empresa_id,
         tarefa_id: updated.id,
         titulo_tarefa: updated.titulo,
-        evento: 'Edição',
+        evento,
         data_evento: new Date().toISOString(),
         status: updated.status,
         responsavel: updated.responsavel,
-        descricao: 'Tarefa atualizada pelo mapa.',
+        descricao,
       });
       return updated;
     },
@@ -141,6 +162,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const handleConcluir = (tarefa) => {
     updateMutation.mutate({
       id: tarefa.id,
+      previous: tarefa,
       data: { status: 'Concluída', data_conclusao: new Date().toISOString().split('T')[0] }
     });
   };
@@ -327,7 +349,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 coordenadas: data.coordenadas,
               };
               if (editingTarefa) {
-                updateMutation.mutate({ id: editingTarefa.id, data: payload });
+                updateMutation.mutate({ id: editingTarefa.id, data: payload, previous: editingTarefa });
               } else {
                 createMutation.mutate({
                   ...payload,

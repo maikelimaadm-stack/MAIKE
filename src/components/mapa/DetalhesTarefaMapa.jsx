@@ -69,7 +69,26 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     mutationFn: async ({ id, data }) => {
       const updated = await base44.entities.LancamentoTarefa.update(id, data);
       const mudouLocal = data.coordenadas?.lat !== tarefa?.coordenadas?.lat || data.coordenadas?.lng !== tarefa?.coordenadas?.lng;
-      await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado no mapa." : "Tarefa editada.", new Date().toISOString());
+      const mudouStatus = data.status && data.status !== tarefa?.status;
+      const evento = mudouLocal
+        ? "Mudança de Local"
+        : updated.status === "Concluída" && mudouStatus
+          ? "Conclusão"
+          : updated.status === "Cancelada" && mudouStatus
+            ? "Cancelamento"
+            : mudouStatus
+              ? "Mudança de Status"
+              : "Edição";
+      const descricao = mudouLocal
+        ? "Local da tarefa alterado no mapa."
+        : updated.status === "Concluída" && mudouStatus
+          ? "Tarefa concluída pelo mapa."
+          : updated.status === "Cancelada" && mudouStatus
+            ? "Tarefa cancelada pelo mapa."
+            : mudouStatus
+              ? `Status alterado para ${updated.status}.`
+              : "Tarefa editada.";
+      await registrarHistorico(updated, evento, descricao, new Date().toISOString());
       return updated;
     },
     onSuccess: () => {
@@ -97,7 +116,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           observacoes_conclusao: eventoDescricao || tarefa.observacoes_conclusao || "",
         };
         registroAtualizado = await base44.entities.LancamentoTarefa.update(tarefa.id, payload);
-        await registrarHistorico(registroAtualizado, "Mudança de Status", eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
+        const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
+        await registrarHistorico(registroAtualizado, evento, eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
       } else {
         await registrarHistorico(tarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
       }

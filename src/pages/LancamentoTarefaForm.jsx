@@ -58,7 +58,26 @@ export default function LancamentoTarefaForm() {
     mutationFn: async (payload) => {
       const updated = await base44.entities.LancamentoTarefa.update(id, payload);
       const mudouLocal = payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng;
-      await registrarHistorico(updated, mudouLocal ? "Mudança de Local" : "Edição", mudouLocal ? "Local da tarefa alterado pela gestão de tarefas." : "Tarefa atualizada pela gestão de tarefas.");
+      const mudouStatus = payload.status && payload.status !== tarefa?.status;
+      const evento = mudouLocal
+        ? "Mudança de Local"
+        : updated.status === "Concluída" && mudouStatus
+          ? "Conclusão"
+          : updated.status === "Cancelada" && mudouStatus
+            ? "Cancelamento"
+            : mudouStatus
+              ? "Mudança de Status"
+              : "Edição";
+      const descricao = mudouLocal
+        ? "Local da tarefa alterado pela gestão de tarefas."
+        : updated.status === "Concluída" && mudouStatus
+          ? "Tarefa concluída pela gestão de tarefas."
+          : updated.status === "Cancelada" && mudouStatus
+            ? "Tarefa cancelada pela gestão de tarefas."
+            : mudouStatus
+              ? `Status alterado para ${updated.status}.`
+              : "Tarefa atualizada pela gestão de tarefas.";
+      await registrarHistorico(updated, evento, descricao);
       return updated;
     },
     onSuccess: () => {
