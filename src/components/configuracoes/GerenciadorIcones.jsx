@@ -30,7 +30,7 @@ const CATEGORIAS_SUGERIDAS = {
   "Area": ["Pasto", "Lavoura", "Reserva Legal", "APP", "Curral", "Sede", "Talhão", "Piquete"],
   "Lote": ["Bezerro 0 a 12 meses", "Bezerra 0 a 12 meses", "Garrote 13 a 24 meses", "Novilha 13 a 24 meses", "Boi 25 a 36 meses", "Vaca 25 a 36 meses", "Touro + 36 meses", "Vaca + 36 meses", "MISTO"],
   "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"],
-  "Prioridade Tarefa": ["Baixa", "Normal", "Alta", "Urgente", "Baixo", "Médio", "Alto", "Crítico"]
+  "Prioridade Tarefa": ["Baixa", "Média", "Alta"]
 };
 
 const CORES_PADRAO = [

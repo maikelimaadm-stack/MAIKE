@@ -1,23 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, CheckCircle, Clock, AlertTriangle, MapPin, Calendar, Trash2, Edit2 } from "lucide-react";
+import { Plus, CheckCircle, Clock, MapPin, Calendar, Trash2, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 
 const PRIORIDADE_CORES = {
   'Baixa': 'bg-slate-100 text-slate-700',
-  'Normal': 'bg-blue-100 text-blue-700',
-  'Alta': 'bg-amber-100 text-amber-700',
-  'Urgente': 'bg-red-100 text-red-700'
+  'Média': 'bg-blue-100 text-blue-700',
+  'Alta': 'bg-amber-100 text-amber-700'
 };
 
 const STATUS_CORES = {
@@ -27,7 +23,7 @@ const STATUS_CORES = {
   'Cancelada': 'bg-slate-100 text-slate-500'
 };
 
-export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose }) {
+export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
   const [showForm, setShowForm] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('ativas');
@@ -67,7 +63,14 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       .toLowerCase();
 
   const getIconePrioridade = (prioridade) =>
-    iconesPrioridade.find((icone) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(prioridade));
+    iconesPrioridade.find((icone) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(normalizeTaskPriority(prioridade)));
+
+  useEffect(() => {
+    if (openCreateOnMount) {
+      setEditingTarefa(null);
+      setShowForm(true);
+    }
+  }, [openCreateOnMount, initialCoordinates]);
 
   const tarefasFiltradas = tarefas.filter(t => {
     if (filtroStatus === 'ativas') return t.status === 'Pendente' || t.status === 'Em Andamento';
@@ -112,7 +115,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   const pendentes = tarefas.filter(t => t.status === 'Pendente').length;
   const emAndamento = tarefas.filter(t => t.status === 'Em Andamento').length;
-  const urgentes = tarefas.filter(t => t.prioridade === 'Urgente' && t.status !== 'Concluída').length;
+  const altas = tarefas.filter(t => normalizeTaskPriority(t.prioridade) === 'Alta' && t.status !== 'Concluída').length;
 
   return (
     <div className="space-y-4">
@@ -139,8 +142,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
           <div className="text-[10px] text-blue-600">Em Andamento</div>
         </div>
         <div className="bg-red-50 rounded p-2 text-center">
-          <div className="text-lg font-bold text-red-700">{urgentes}</div>
-          <div className="text-[10px] text-red-600">Urgentes</div>
+          <div className="text-lg font-bold text-red-700">{altas}</div>
+          <div className="text-[10px] text-red-600">Alta prioridade</div>
         </div>
       </div>
 
@@ -193,12 +196,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                         {getIconePrioridade(tarefa.prioridade)?.icone_url && (
                           <img
                             src={getIconePrioridade(tarefa.prioridade).icone_url}
-                            alt={tarefa.prioridade}
+                            alt={normalizeTaskPriority(tarefa.prioridade)}
                             className="w-4 h-4 object-contain"
                           />
                         )}
-                        <Badge className={`${PRIORIDADE_CORES[tarefa.prioridade]} text-[10px]`}>
-                          {tarefa.prioridade}
+                        <Badge className={`${PRIORIDADE_CORES[normalizeTaskPriority(tarefa.prioridade)]} text-[10px]`}>
+                          {normalizeTaskPriority(tarefa.prioridade)}
                         </Badge>
                       </div>
                     </div>
@@ -270,26 +273,33 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
           <DialogHeader>
             <DialogTitle className="text-sm">{editingTarefa ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
           </DialogHeader>
-          <FormularioTarefa
+          <FormularioTarefaMapa
             tarefa={editingTarefa}
             areaId={areaId}
             areaNome={areaNome}
             loteId={loteId}
             loteNome={loteNome}
             pontoSuplId={pontoSuplId}
+            initialCoordinates={initialCoordinates}
+            initialDraft={initialDraft}
+            onRequestSelectLocation={onRequestSelectLocation}
             onSubmit={(data) => {
+              const payload = {
+                ...data,
+                prioridade: normalizeTaskPriority(data.prioridade),
+                area_id: data.area_id || areaId,
+                area_nome: data.area_nome || areaNome,
+                lote_id: data.lote_id || loteId,
+                lote_nome: data.lote_nome || loteNome,
+                ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
+                coordenadas: data.coordenadas,
+              };
               if (editingTarefa) {
-                updateMutation.mutate({ id: editingTarefa.id, data });
+                updateMutation.mutate({ id: editingTarefa.id, data: payload });
               } else {
                 createMutation.mutate({
-                  ...data,
+                  ...payload,
                   empresa_id: empresaSelecionadaId,
-                  area_id: data.area_id || areaId,
-                  area_nome: data.area_nome || areaNome,
-                  lote_id: data.lote_id || loteId,
-                  lote_nome: data.lote_nome || loteNome,
-                  ponto_suplementacao_id: pontoSuplId,
-                  coordenadas: data.coordenadas
                 });
               }
             }}
@@ -298,224 +308,5 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, onSubmit, onCancel }) {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-  
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas-tarefas', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId && !areaId,
-  });
-
-  // Buscar área para calcular coordenadas iniciais se areaId foi passado
-  const { data: areaInicial } = useQuery({
-    queryKey: ['area-inicial', areaId],
-    queryFn: async () => {
-      if (!areaId) return null;
-      const all = await base44.entities.AreaPastagem.list();
-      return all.find(a => a.id === areaId);
-    },
-    enabled: !!areaId && !tarefa?.coordenadas,
-  });
-
-  // Calcular coordenadas iniciais baseado na área
-  const calcularCoordenadasArea = (area) => {
-    if (!area?.coordenadas?.coords || area.coordenadas.coords.length === 0) return null;
-    const lats = area.coordenadas.coords.map(c => c[0] || c.lat);
-    const lngs = area.coordenadas.coords.map(c => c[1] || c.lng);
-    return {
-      lat: lats.reduce((a, b) => a + b, 0) / lats.length,
-      lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
-    };
-  };
-
-  const coordenadasIniciais = tarefa?.coordenadas || (areaInicial ? calcularCoordenadasArea(areaInicial) : null);
-
-  const [formData, setFormData] = useState({
-    titulo: tarefa?.titulo || '',
-    descricao: tarefa?.descricao || '',
-    tipo: tarefa?.tipo || 'Manejo',
-    prioridade: tarefa?.prioridade || 'Normal',
-    status: tarefa?.status || 'Pendente',
-    data_prevista: tarefa?.data_prevista || '',
-    responsavel: tarefa?.responsavel || '',
-    area_id: tarefa?.area_id || areaId || '',
-    area_nome: tarefa?.area_nome || areaNome || '',
-    coordenadas: coordenadasIniciais
-  });
-
-  // Atualizar coordenadas quando areaInicial carregar
-  React.useEffect(() => {
-    if (areaInicial && !formData.coordenadas) {
-      const coords = calcularCoordenadasArea(areaInicial);
-      if (coords) {
-        setFormData(prev => ({ ...prev, coordenadas: coords }));
-      }
-    }
-  }, [areaInicial]);
-
-  const handleAreaChange = (selectedAreaId) => {
-    const area = areas.find(a => a.id === selectedAreaId);
-    if (area) {
-      // Calcular centro da área para as coordenadas da tarefa
-      let coords = null;
-      if (area.coordenadas?.coords && area.coordenadas.coords.length > 0) {
-        const lats = area.coordenadas.coords.map(c => c[0] || c.lat);
-        const lngs = area.coordenadas.coords.map(c => c[1] || c.lng);
-        coords = {
-          lat: lats.reduce((a, b) => a + b, 0) / lats.length,
-          lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
-        };
-      }
-      setFormData({ 
-        ...formData, 
-        area_id: selectedAreaId, 
-        area_nome: area.nome,
-        coordenadas: coords
-      });
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.titulo.trim()) {
-      toast.error('Informe o título da tarefa');
-      return;
-    }
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="space-y-1.5">
-        <Label className="text-xs">Título *</Label>
-        <Input
-          value={formData.titulo}
-          onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-          placeholder="Ex: Verificar cerca do pasto 12"
-          className="h-9 text-sm"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Tipo</Label>
-          <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Manejo" className="text-xs">Manejo</SelectItem>
-              <SelectItem value="Suplementação" className="text-xs">Suplementação</SelectItem>
-              <SelectItem value="Manutenção" className="text-xs">Manutenção</SelectItem>
-              <SelectItem value="Verificação" className="text-xs">Verificação</SelectItem>
-              <SelectItem value="Sanitário" className="text-xs">Sanitário</SelectItem>
-              <SelectItem value="Outro" className="text-xs">Outro</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">Prioridade</Label>
-          <Select value={formData.prioridade} onValueChange={(v) => setFormData({ ...formData, prioridade: v })}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Baixa" className="text-xs">Baixa</SelectItem>
-              <SelectItem value="Normal" className="text-xs">Normal</SelectItem>
-              <SelectItem value="Alta" className="text-xs">Alta</SelectItem>
-              <SelectItem value="Urgente" className="text-xs">Urgente</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Data Prevista</Label>
-          <Input
-            type="date"
-            value={formData.data_prevista}
-            onChange={(e) => setFormData({ ...formData, data_prevista: e.target.value })}
-            className="h-9 text-xs"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">Status</Label>
-          <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pendente" className="text-xs">Pendente</SelectItem>
-              <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
-              <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
-              <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs">Responsável</Label>
-        <Input
-          value={formData.responsavel}
-          onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-          placeholder="Nome do responsável"
-          className="h-9 text-sm"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs">Descrição</Label>
-        <Textarea
-          value={formData.descricao}
-          onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-          placeholder="Detalhes da tarefa..."
-          className="h-20 text-sm"
-        />
-      </div>
-
-      {!areaId && !loteId && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Vincular à Área</Label>
-              <Select value={formData.area_id} onValueChange={handleAreaChange}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Selecione uma área..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {areas.map(area => (
-                    <SelectItem key={area.id} value={area.id} className="text-xs">
-                      {area.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {(areaNome || loteNome || formData.area_nome) && (
-            <div className="bg-slate-50 rounded p-2 text-xs text-slate-600">
-              <span className="font-medium">Vinculado a:</span> {areaNome || loteNome || formData.area_nome}
-            </div>
-          )}
-
-      <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-          Cancelar
-        </Button>
-        <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
-        {tarefa ? 'Salvar' : 'Criar Tarefa'}
-        </Button>
-      </div>
-    </form>
   );
 }

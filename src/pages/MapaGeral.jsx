@@ -14,6 +14,7 @@ import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
 import AreaPanel from "../components/mapa/AreaPanel";
 import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
+import DetalhesTarefaMapa from "../components/mapa/DetalhesTarefaMapa";
 import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
@@ -76,6 +77,10 @@ export default function MapaGeral() {
   const [selectedArea, setSelectedArea] = useState(null);
   const [showTarefas, setShowTarefas] = useState(false);
   const [tarefasContext, setTarefasContext] = useState({});
+  const [selectedTarefa, setSelectedTarefa] = useState(null);
+  const [showDetalhesTarefa, setShowDetalhesTarefa] = useState(false);
+  const [selecionandoLocalTarefa, setSelecionandoLocalTarefa] = useState(false);
+  const [rascunhoTarefa, setRascunhoTarefa] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
 
@@ -342,9 +347,39 @@ export default function MapaGeral() {
   // Clique na área agora abre Dialog (igual ao lote) em vez de Sheet lateral
   const handleClickArea = useCallback((area) => {setSelectedArea(area);setShowDetalhesArea(true);}, []);
   const handleRightClickArea = useCallback((area) => {setSelectedArea(area);setShowDetalhesArea(true);}, []);
+  const detectarAreaPorCoordenada = useCallback((coords) => {
+    for (const area of areas) {
+      const pontosArea = area.coordenadas?.coords || [];
+      if (pontosArea.length < 3) continue;
+      const polygon = pontosArea.map((coord) => ({ lat: coord[0] || coord.lat, lng: coord[1] || coord.lng }));
+      if (ptInPoly(coords, polygon)) return area;
+    }
+    return null;
+  }, [areas]);
+
+  const abrirLancamentoTarefa = useCallback((coords = null, draft = {}) => {
+    const areaDetectada = coords ? detectarAreaPorCoordenada(coords) : null;
+    const draftCompleto = {
+      ...draft,
+      area_id: draft.area_id || areaDetectada?.id || "",
+      area_nome: draft.area_nome || areaDetectada?.nome || "",
+      coordenadas: coords || draft.coordenadas || null,
+    };
+    setTarefasContext({
+      areaId: draftCompleto.area_id || undefined,
+      areaNome: draftCompleto.area_nome || undefined,
+      loteId: draftCompleto.lote_id || undefined,
+      loteNome: draftCompleto.lote_nome || undefined,
+      initialCoordinates: draftCompleto.coordenadas || null,
+      initialDraft: draftCompleto,
+      openCreateOnMount: true,
+    });
+    setShowTarefas(true);
+  }, [detectarAreaPorCoordenada]);
+
   const handleClickPontoSupl = useCallback((p) => {setSelectedPontoSupl(p);setShowDetalhesPontoSupl(true);}, []);
   const handleClickLotes = useCallback((l) => {setSelectedLote(l);setShowDetalhesLote(true);}, []);
-  const handleClickTarefa = useCallback((t) => {setTarefasContext({ areaId: t.area_id, areaNome: t.area_nome });setShowTarefas(true);}, []);
+  const handleClickTarefa = useCallback((t) => {setSelectedTarefa(t);setShowDetalhesTarefa(true);}, []);
 
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
     const orig = allAreas.find((a) => a.id === areaId);
@@ -367,6 +402,56 @@ export default function MapaGeral() {
       () => toast.error('Erro ao obter localização')
     );
   }, []);
+
+  const handleRequestSelectTaskLocation = useCallback((draft) => {
+    setShowTarefas(false);
+    setShowDetalhesTarefa(false);
+    setSelecionandoLocalTarefa(true);
+    setRascunhoTarefa(draft);
+    toast.info('Toque no mapa para marcar o local da tarefa.');
+  }, []);
+
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    let longPressTimer = null;
+
+    const clearTimer = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const startLongPress = (event) => {
+      if (selecionandoLocalTarefa || !event?.latLng) return;
+      clearTimer();
+      longPressTimer = setTimeout(() => {
+        abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
+      }, 650);
+    };
+
+    const listeners = [
+      map.addListener('mousedown', startLongPress),
+      map.addListener('mouseup', clearTimer),
+      map.addListener('drag', clearTimer),
+      map.addListener('dragstart', clearTimer),
+      map.addListener('click', (event) => {
+        clearTimer();
+        if (!selecionandoLocalTarefa || !event?.latLng) return;
+        setSelecionandoLocalTarefa(false);
+        const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+        const draft = rascunhoTarefa || {};
+        setRascunhoTarefa(null);
+        abrirLancamentoTarefa(coords, draft);
+      }),
+    ];
+
+    return () => {
+      clearTimer();
+      listeners.forEach((listener) => listener?.remove());
+    };
+  }, [mapReady, selecionandoLocalTarefa, rascunhoTarefa, abrirLancamentoTarefa]);
 
   // ─── Renderização incremental ───
   useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor]);
@@ -553,7 +638,13 @@ export default function MapaGeral() {
       <Dialog open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open) refetchTarefas();}}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Tarefas do Mapa</DialogTitle></DialogHeader>
-          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} onClose={() => {setShowTarefas(false);refetchTarefas();}} />
+          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});refetchTarefas();}} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open) refetchTarefas();}}>
+        <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={() => {setShowDetalhesTarefa(false);refetchTarefas();}} />}
         </DialogContent>
       </Dialog>
 
