@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Crosshair } from "lucide-react";
+import { Crosshair, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 export const normalizeTaskPriority = (value) => {
@@ -19,6 +19,20 @@ export const normalizeTaskPriority = (value) => {
   if (["alta", "alto", "urgente", "critico", "critica", "crítico", "crítica"].includes(normalized)) return "Alta";
   if (["media", "medio", "média", "médio", "normal"].includes(normalized)) return "Média";
   return "Baixa";
+};
+
+const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
+  const texto = `${tipoNome} ${grupoNome}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (texto.includes("suplement")) return "Suplementação";
+  if (texto.includes("manutenc")) return "Manutenção";
+  if (texto.includes("verific")) return "Verificação";
+  if (texto.includes("sanit")) return "Sanitário";
+  if (texto.includes("manejo")) return "Manejo";
+  return "Outro";
 };
 
 const getAreaCenter = (area) => {
@@ -56,13 +70,36 @@ export default function FormularioTarefaMapa({
     initialData: [],
   });
 
+  const { data: tiposTarefa = [] } = useQuery({
+    queryKey: ["tipos-tarefa-mapa-form"],
+    queryFn: async () => {
+      const all = await base44.entities.TipoTarefa.list();
+      return all.filter((tipo) => tipo.ativo !== false);
+    },
+    initialData: [],
+  });
+
+  const { data: funcionarios = [] } = useQuery({
+    queryKey: ["funcionarios-tarefa-mapa-form"],
+    queryFn: async () => {
+      const all = await base44.entities.Fornecedor.list();
+      return all.filter((item) => Array.isArray(item.tipos) && item.tipos.includes("Funcionario"));
+    },
+    initialData: [],
+  });
+
   const [formData, setFormData] = useState({
     titulo: "",
     descricao: "",
     tipo: "Manejo",
+    tipo_tarefa_id: "",
+    tipo_tarefa_nome: "",
+    grupo_atividade_id: "",
+    grupo_atividade_nome: "",
     prioridade: "Média",
     status: "Pendente",
     data_prevista: "",
+    responsavel_id: "",
     responsavel: "",
     area_id: areaId || "",
     area_nome: areaNome || "",
@@ -77,10 +114,15 @@ export default function FormularioTarefaMapa({
     setFormData({
       titulo: source.titulo || "",
       descricao: source.descricao || "",
-      tipo: source.tipo || "Manejo",
+      tipo: source.tipo || inferirTipoBase(source.tipo_tarefa_nome, source.grupo_atividade_nome),
+      tipo_tarefa_id: source.tipo_tarefa_id || "",
+      tipo_tarefa_nome: source.tipo_tarefa_nome || "",
+      grupo_atividade_id: source.grupo_atividade_id || "",
+      grupo_atividade_nome: source.grupo_atividade_nome || "",
       prioridade: normalizeTaskPriority(source.prioridade || "Média"),
       status: source.status || "Pendente",
       data_prevista: source.data_prevista || "",
+      responsavel_id: source.responsavel_id || "",
       responsavel: source.responsavel || "",
       area_id: source.area_id || areaId || "",
       area_nome: source.area_nome || areaNome || "",
@@ -90,6 +132,11 @@ export default function FormularioTarefaMapa({
       coordenadas: source.coordenadas || initialCoordinates || null,
     });
   }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates]);
+
+  const tipoSelecionado = useMemo(
+    () => tiposTarefa.find((tipo) => tipo.id === formData.tipo_tarefa_id) || null,
+    [tiposTarefa, formData.tipo_tarefa_id]
+  );
 
   const handleAreaChange = (selectedAreaId) => {
     const selectedArea = areas.find((area) => area.id === selectedAreaId);
@@ -102,11 +149,42 @@ export default function FormularioTarefaMapa({
     }));
   };
 
+  const handleTipoTarefaChange = (selectedTipoId) => {
+    const selectedTipo = tiposTarefa.find((tipo) => tipo.id === selectedTipoId);
+    setFormData((prev) => ({
+      ...prev,
+      tipo_tarefa_id: selectedTipoId,
+      tipo_tarefa_nome: selectedTipo?.nome_tipo || "",
+      grupo_atividade_id: selectedTipo?.grupo_atividade_id || "",
+      grupo_atividade_nome: selectedTipo?.grupo_atividade_nome || "",
+      tipo: inferirTipoBase(selectedTipo?.nome_tipo, selectedTipo?.grupo_atividade_nome),
+    }));
+  };
+
+  const handleResponsavelChange = (selectedResponsavelId) => {
+    const responsavel = funcionarios.find((item) => item.id === selectedResponsavelId);
+    setFormData((prev) => ({
+      ...prev,
+      responsavel_id: selectedResponsavelId,
+      responsavel: responsavel?.nome || "",
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.titulo.trim()) {
       toast.error("Informe o título da tarefa.");
+      return;
+    }
+
+    if (!formData.tipo_tarefa_id) {
+      toast.error("Selecione o tipo de tarefa.");
+      return;
+    }
+
+    if (!formData.responsavel) {
+      toast.error("Selecione o responsável da tarefa.");
       return;
     }
 
@@ -131,20 +209,24 @@ export default function FormularioTarefaMapa({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Tipo</Label>
-          <Select value={formData.tipo} onValueChange={(value) => setFormData((prev) => ({ ...prev, tipo: value }))}>
+          <Label className="text-xs">Tipo de tarefa *</Label>
+          <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange}>
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
+              <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Manejo" className="text-xs">Manejo</SelectItem>
-              <SelectItem value="Suplementação" className="text-xs">Suplementação</SelectItem>
-              <SelectItem value="Manutenção" className="text-xs">Manutenção</SelectItem>
-              <SelectItem value="Verificação" className="text-xs">Verificação</SelectItem>
-              <SelectItem value="Sanitário" className="text-xs">Sanitário</SelectItem>
-              <SelectItem value="Outro" className="text-xs">Outro</SelectItem>
+              {tiposTarefa.map((tipo) => (
+                <SelectItem key={tipo.id} value={tipo.id} className="text-xs">
+                  {tipo.nome_tipo}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Grupo de atividade</Label>
+          <Input value={formData.grupo_atividade_nome} readOnly className="h-8 text-xs bg-slate-50" />
         </div>
 
         <div className="space-y-1.5">
@@ -162,7 +244,7 @@ export default function FormularioTarefaMapa({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Data prevista</Label>
+          <Label className="text-xs">Prazo</Label>
           <Input
             type="date"
             value={formData.data_prevista}
@@ -187,13 +269,19 @@ export default function FormularioTarefaMapa({
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs">Responsável</Label>
-          <Input
-            value={formData.responsavel}
-            onChange={(e) => setFormData((prev) => ({ ...prev, responsavel: e.target.value }))}
-            placeholder="Nome do responsável"
-            className="h-8 text-xs"
-          />
+          <Label className="text-xs">Responsável pela execução *</Label>
+          <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Selecione o responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              {funcionarios.map((item) => (
+                <SelectItem key={item.id} value={item.id} className="text-xs">
+                  {item.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">

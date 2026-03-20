@@ -79,7 +79,19 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.TarefaMapa.create(data),
+    mutationFn: async (data) => {
+      const created = await base44.entities.TarefaMapa.create(data);
+      await base44.entities.HistoricoTarefaMapa.create({
+        empresa_id: created.empresa_id,
+        tarefa_id: created.id,
+        titulo_tarefa: created.titulo,
+        evento: 'Criação',
+        status: created.status,
+        responsavel: created.responsavel,
+        descricao: 'Tarefa criada pelo mapa.',
+      });
+      return created;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
@@ -91,7 +103,19 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.TarefaMapa.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      const updated = await base44.entities.TarefaMapa.update(id, data);
+      await base44.entities.HistoricoTarefaMapa.create({
+        empresa_id: updated.empresa_id,
+        tarefa_id: updated.id,
+        titulo_tarefa: updated.titulo,
+        evento: 'Edição',
+        status: updated.status,
+        responsavel: updated.responsavel,
+        descricao: 'Tarefa atualizada pelo mapa.',
+      });
+      return updated;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
