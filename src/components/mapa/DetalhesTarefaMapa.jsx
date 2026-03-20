@@ -222,6 +222,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar tarefa</DialogTitle></DialogHeader>
           <FormularioTarefaMapa
+            key={`${tarefa.id}-${tarefa.coordenadas?.lat || 'sem-lat'}-${tarefa.coordenadas?.lng || 'sem-lng'}`}
             tarefa={tarefa}
             onSubmit={(data) => updateMutation.mutate({ id: tarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade) } })}
             onCancel={() => setShowEdit(false)}

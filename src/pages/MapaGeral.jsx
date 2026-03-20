@@ -366,8 +366,8 @@ export default function MapaGeral() {
     const areaDetectada = coords ? detectarAreaPorCoordenada(coords) : null;
     const draftCompleto = {
       ...draft,
-      area_id: draft.area_id || areaDetectada?.id || "",
-      area_nome: draft.area_nome || areaDetectada?.nome || "",
+      area_id: areaDetectada?.id || draft.area_id || "",
+      area_nome: areaDetectada?.nome || draft.area_nome || "",
       coordenadas: coords || draft.coordenadas || null,
     };
     setTarefasContext({
@@ -388,8 +388,8 @@ export default function MapaGeral() {
     setRascunhoTarefa(null);
     abrirLancamentoTarefa(coords || draft.coordenadas || null, {
       ...draft,
-      area_id: draft.area_id || area?.id || "",
-      area_nome: draft.area_nome || area?.nome || "",
+      area_id: area?.id || "",
+      area_nome: area?.nome || "",
     });
   }, [rascunhoTarefa, abrirLancamentoTarefa]);
 

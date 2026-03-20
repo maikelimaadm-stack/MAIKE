@@ -334,12 +334,16 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       </div>
 
       {/* Dialog de Formulário */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => {
+        setShowForm(open);
+        if (!open) setEditingTarefa(null);
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">{editingTarefa ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
           </DialogHeader>
           <FormularioTarefaMapa
+            key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
             tarefa={editingTarefa}
             areaId={areaId}
             areaNome={areaNome}
