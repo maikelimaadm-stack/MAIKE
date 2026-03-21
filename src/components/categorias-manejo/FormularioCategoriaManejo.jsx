@@ -7,18 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 
 const MESES = [
-  { label: "JAN", field: "gmd_janeiro" },
-  { label: "FEV", field: "gmd_fevereiro" },
-  { label: "MAR", field: "gmd_marco" },
-  { label: "ABR", field: "gmd_abril" },
-  { label: "MAI", field: "gmd_maio" },
-  { label: "JUN", field: "gmd_junho" },
-  { label: "JUL", field: "gmd_julho" },
-  { label: "AGO", field: "gmd_agosto" },
-  { label: "SET", field: "gmd_setembro" },
-  { label: "OUT", field: "gmd_outubro" },
-  { label: "NOV", field: "gmd_novembro" },
-  { label: "DEZ", field: "gmd_dezembro" },
+  { label: "Jan", field: "gmd_janeiro" },
+  { label: "Fev", field: "gmd_fevereiro" },
+  { label: "Mar", field: "gmd_marco" },
+  { label: "Abr", field: "gmd_abril" },
+  { label: "Mai", field: "gmd_maio" },
+  { label: "Jun", field: "gmd_junho" },
+  { label: "Jul", field: "gmd_julho" },
+  { label: "Ago", field: "gmd_agosto" },
+  { label: "Set", field: "gmd_setembro" },
+  { label: "Out", field: "gmd_outubro" },
+  { label: "Nov", field: "gmd_novembro" },
+  { label: "Dez", field: "gmd_dezembro" },
 ];
 
 const REQUIRED_FIELDS = [
@@ -127,7 +127,7 @@ export default function FormularioCategoriaManejo({
             <div className="space-y-1">
               <Label className="text-xs">Sexo *</Label>
               <Select value={formData.sexo || "__VAZIO__"} onValueChange={(value) => handleChange("sexo", value === "__VAZIO__" ? "" : value)}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className={getFieldClassName("sexo", "h-8 text-xs")}>
                   <SelectValue placeholder="SELECIONE" />
                 </SelectTrigger>
                 <SelectContent>
