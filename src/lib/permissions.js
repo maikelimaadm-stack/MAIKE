@@ -2,6 +2,7 @@ import { ACTION_OPTIONS, DEFAULT_MOBILE_MENU_ITEMS, PAGE_OPTIONS, createEmptyPer
 
 const asArray = (value) => Array.isArray(value) ? value : [];
 const ACTION_IDS = ACTION_OPTIONS.map((item) => item.id);
+const ADMIN_ONLY_PAGE_URLS = ["ConfiguracoesGerais"];
 
 export const isAdminPermission = (user, roleConfig) => {
   return user?.role === "admin" || roleConfig?.is_admin === true;
@@ -55,7 +56,9 @@ export const filterMenuByPermissions = (menuItems, roleConfig, isAdmin = false) 
 };
 
 export const canAccessPage = (currentPageName, roleConfig, isAdmin = false) => {
-  if (!currentPageName || isAdmin || !roleConfig) return true;
+  if (!currentPageName) return true;
+  if (ADMIN_ONLY_PAGE_URLS.includes(currentPageName)) return isAdmin;
+  if (isAdmin || !roleConfig) return true;
   const page = getPageOptionByUrl(currentPageName);
   if (!page) return true;
   return canViewPage(roleConfig, page.id, isAdmin);

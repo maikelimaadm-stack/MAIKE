@@ -121,9 +121,7 @@ export const SYSTEM_MENU = [
   { id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" }
 ];
 
-export const EXTRA_PERMISSION_PAGES = [
-  { id: "configuracoes-gerais", title: "Configurações Gerais", url: "ConfiguracoesGerais", icon: "Settings", categoria: "Sistema" }
-];
+export const EXTRA_PERMISSION_PAGES = [];
 
 export const ACTION_OPTIONS = [
   { id: "visualizar", title: "Visualizar" },

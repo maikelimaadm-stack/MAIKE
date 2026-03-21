@@ -383,11 +383,13 @@ export default function Layout({ children, currentPageName }) {
                 <Bell className="w-4 h-4 text-slate-600" />
               </Button>
 
-              <Link to={createPageUrl("ConfiguracoesGerais")}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
-                  <Settings className="w-4 h-4 text-slate-600" />
-                </Button>
-              </Link>
+              {adminAccess && (
+                <Link to={createPageUrl("ConfiguracoesGerais")}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+                    <Settings className="w-4 h-4 text-slate-600" />
+                  </Button>
+                </Link>
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -416,12 +418,14 @@ export default function Layout({ children, currentPageName }) {
                     <LogOut className="w-3 h-3 mr-2" />
                     Excluir conta
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-xs">
-                    <Link to={createPageUrl("ConfiguracoesGerais")}>
-                      <Settings className="w-3 h-3 mr-2" />
-                      Configuracoes
-                    </Link>
-                  </DropdownMenuItem>
+                  {adminAccess && (
+                    <DropdownMenuItem asChild className="text-xs">
+                      <Link to={createPageUrl("ConfiguracoesGerais")}>
+                        <Settings className="w-3 h-3 mr-2" />
+                        Configuracoes
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild className="text-xs">
                     <Link to={createPageUrl("EditorVisualSistema")}>
                       <Sparkles className="w-3 h-3 mr-2" />
