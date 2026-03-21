@@ -290,7 +290,7 @@ export default function TabelaLotes({
               <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null} className="text-xs">Todos</SelectItem>
+                  <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                   {motivos.map((motivo) => (
                     <SelectItem key={motivo} value={motivo} className="text-xs">{motivo}</SelectItem>
                   ))}
