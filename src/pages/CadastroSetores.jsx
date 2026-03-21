@@ -133,8 +133,8 @@ export default function CadastroSetores() {
     <div className="p-4 md:p-6 space-y-1">
       {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Cadastro de Setores / Fazendas</h1>
-          <p className="text-xs text-slate-600">Cadastro e gestão dos setores e fazendas</p>
+          <h1 className="text-lg font-bold text-slate-900">Cadastro de Setores</h1>
+          
         </div>
         <div className="flex gap-2 flex-wrap">
           {!showForm &&
@@ -146,7 +146,7 @@ export default function CadastroSetores() {
 
           
           {!showForm &&
-          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
               Novo Setor
             </Button>
           }
