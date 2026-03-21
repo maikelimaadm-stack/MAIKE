@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Settings, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import TabelaTiposTarefa from "@/components/tipos-tarefa/TabelaTiposTarefa";
@@ -119,7 +119,7 @@ export default function TiposTarefa() {
         <div className="flex flex-wrap gap-2">
           {!showForm && <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8"><Settings className="w-4 h-4" /></Button>}
           <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">Exportar</Button>
-          {!showForm && <Button onClick={() => { setShowForm(true); setEditingTipo(null); }} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Novo Tipo</Button>}
+          {!showForm && <Button onClick={() => { setShowForm(true); setEditingTipo(null); }} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700"><Plus className="w-3.5 h-3.5" />Novo Tipo</Button>}
         </div>
       </div>
 
