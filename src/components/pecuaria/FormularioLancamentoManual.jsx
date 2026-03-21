@@ -621,12 +621,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             <div className="space-y-1">
               <Label className="text-xs uppercase">Tipo *</Label>
               <Select value={formData.tipo} onValueChange={(v) => { setFormData({ ...formData, tipo: v, motivo: "" }); setInvalidFields((prev) => prev.filter((item) => item !== 'tipo')); }}>
-                <SelectTrigger className={getFieldClassName('tipo', 'h-8 text-xs')}>
+                <SelectTrigger className={getFieldClassName('tipo', 'h-8 text-xs uppercase')}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS_MOVIMENTACAO.map(tipo => (
-                    <SelectItem key={tipo.value} value={tipo.value} className="text-sm">
+                    <SelectItem key={tipo.value} value={tipo.value} className="text-xs uppercase">
                       <span className={`px-2 py-0.5 rounded ${tipo.cor}`}>{tipo.label}</span>
                     </SelectItem>
                   ))}
@@ -644,16 +644,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 }
                 setInvalidFields((prev) => prev.filter((item) => item !== 'motivo'));
               }}>
-                <SelectTrigger className={getFieldClassName('motivo', 'h-8 text-xs')}>
+                <SelectTrigger className={getFieldClassName('motivo', 'h-8 text-xs uppercase')}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   {formData.tipo === "Entrada" ? (
-                    [...MOTIVOS_ENTRADA, ...(formData.motivo && !MOTIVOS_ENTRADA.includes(formData.motivo) ? [formData.motivo] : [])].map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
+                    [...MOTIVOS_ENTRADA, ...(formData.motivo && !MOTIVOS_ENTRADA.includes(formData.motivo) ? [formData.motivo] : [])].map(m => (<SelectItem key={m} value={m} className="text-xs uppercase">{m}</SelectItem>))
                   ) : formData.tipo === "Saída" ? (
-                    [...MOTIVOS_SAIDA, ...(formData.motivo && !MOTIVOS_SAIDA.includes(formData.motivo) ? [formData.motivo] : [])].map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
+                    [...MOTIVOS_SAIDA, ...(formData.motivo && !MOTIVOS_SAIDA.includes(formData.motivo) ? [formData.motivo] : [])].map(m => (<SelectItem key={m} value={m} className="text-xs uppercase">{m}</SelectItem>))
                   ) : (
-                    <SelectItem value={null} disabled className="text-sm">Selecione o tipo primeiro</SelectItem>
+                    <SelectItem value={null} disabled className="text-xs uppercase">Selecione o tipo primeiro</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -665,7 +665,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 type="date"
                 value={formData.data_movimentacao}
                 onChange={(e) => { setFormData({ ...formData, data_movimentacao: e.target.value }); setInvalidFields((prev) => prev.filter((item) => item !== 'data_movimentacao')); }}
-                className={getFieldClassName('data_movimentacao', 'h-8 text-xs')}
+                className={getFieldClassName('data_movimentacao', 'h-8 text-xs uppercase')}
               />
             </div>
 
@@ -676,7 +676,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 min="1"
                 value={formData.quantidade_animais}
                 onChange={(e) => { setFormData({ ...formData, quantidade_animais: e.target.value }); setInvalidFields((prev) => prev.filter((item) => item !== 'quantidade_animais')); }}
-                className={getFieldClassName('quantidade_animais', 'h-8 text-xs')}
+                className={getFieldClassName('quantidade_animais', 'h-8 text-xs uppercase')}
               />
             </div>
 
@@ -721,13 +721,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   }}
                   disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
                 >
-                  <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs')}>
+                  <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs uppercase')}>
                     <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriasNoSetor.length > 0 ? (
                       categoriasNoSetor.map(item => (
-                        <SelectItem key={item.categoria} value={item.categoria} className="text-sm">
+                        <SelectItem key={item.categoria} value={item.categoria} className="text-xs uppercase">
                           <div className="flex items-center justify-between w-full gap-2">
                             <span>{item.categoria}</span>
                             <Badge variant="default" className="text-[10px] px-1.5 py-0">
@@ -754,13 +754,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   }}
                   disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
                 >
-                  <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs')}>
+                  <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs uppercase')}>
                     <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriasManejo.length > 0 ? (
                       categoriasManejo.map(cat => (
-                        <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                        <SelectItem key={cat.id} value={cat.nome} className="text-xs uppercase">
                           {cat.nome} {cat.sexo ? `(${cat.sexo})` : ''}
                         </SelectItem>
                       ))
@@ -791,13 +791,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   onValueChange={(v) => { setFormData({ ...formData, marca: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'marca')); }}
                   disabled={!formData.categoria_animal || !formData.setor_id}
                 >
-                  <SelectTrigger className={getFieldClassName('marca', 'h-8 text-xs')}>
+                  <SelectTrigger className={getFieldClassName('marca', 'h-8 text-xs uppercase')}>
                     <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
                     {marcasNoSetorCategoria.length > 0 ? (
                       marcasNoSetorCategoria.map(item => (
-                        <SelectItem key={item.marca} value={item.marca} className="text-sm">
+                        <SelectItem key={item.marca} value={item.marca} className="text-xs uppercase">
                           <div className="flex items-center justify-between w-full gap-2">
                             <span>{item.marca}</span>
                             <Badge variant="default" className="text-[10px] px-1.5 py-0">
@@ -872,7 +872,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 </SelectTrigger>
                 <SelectContent>
                   {areas.map(area => (
-                    <SelectItem key={area.id} value={area.id} className="text-sm">
+                    <SelectItem key={area.id} value={area.id} className="text-xs uppercase">
                       {area.sigla ? `${area.sigla} - ` : ''}{area.nome}
                     </SelectItem>
                   ))}
@@ -894,13 +894,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     onValueChange={(v) => { setFormData({ ...formData, categoria_animal: v, marca: "" }); setInvalidFields((prev) => prev.filter((item) => item !== 'categoria_animal')); }}
                     disabled={!formData.setor_id}
                   >
-                    <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs')}>
+                    <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs uppercase')}>
                       <SelectValue placeholder={formData.setor_id ? "De qual categoria?" : "Selecione setor primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasNoSetor.length > 0 ? (
                         categoriasNoSetor.map(item => (
-                          <SelectItem key={item.categoria} value={item.categoria} className="text-sm">
+                          <SelectItem key={item.categoria} value={item.categoria} className="text-xs uppercase">
                             <div className="flex items-center justify-between w-full gap-2">
                               <span>{item.categoria}</span>
                               <Badge variant="default" className="text-[10px] px-1.5 py-0">
@@ -930,13 +930,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     onValueChange={(v) => { setFormData({ ...formData, marca: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'marca')); }}
                     disabled={!formData.categoria_animal || !formData.setor_id}
                   >
-                    <SelectTrigger className={getFieldClassName('marca', 'h-8 text-xs')}>
+                    <SelectTrigger className={getFieldClassName('marca', 'h-8 text-xs uppercase')}>
                       <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
                       {marcasNoSetorCategoria.length > 0 ? (
                         marcasNoSetorCategoria.map(item => (
-                          <SelectItem key={item.marca} value={item.marca} className="text-sm">
+                          <SelectItem key={item.marca} value={item.marca} className="text-xs uppercase">
                             <div className="flex items-center justify-between w-full gap-2">
                               <span>{item.marca}</span>
                               <Badge variant="default" className="text-[10px] px-1.5 py-0">
@@ -966,7 +966,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     </SelectTrigger>
                     <SelectContent>
                       {areas.map(area => (
-                        <SelectItem key={area.id} value={area.id} className="text-sm">
+                        <SelectItem key={area.id} value={area.id} className="text-xs uppercase">
                           {area.sigla ? `${area.sigla} - ` : ''}{area.nome}
                         </SelectItem>
                       ))}
@@ -980,12 +980,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 <div className="space-y-1">
                   <Label className="text-xs uppercase">Nova Categoria (Para) *</Label>
                   <Select value={formData.categoria_nova} onValueChange={(v) => { setFormData({ ...formData, categoria_nova: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'categoria_nova')); }}>
-                    <SelectTrigger className={getFieldClassName('categoria_nova', 'h-8 text-xs')}>
+                    <SelectTrigger className={getFieldClassName('categoria_nova', 'h-8 text-xs uppercase')}>
                       <SelectValue placeholder="Para qual categoria?" />
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasManejo.filter(c => c.nome !== formData.categoria_animal).map(cat => (
-                        <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                        <SelectItem key={cat.id} value={cat.nome} className="text-xs uppercase">
                           {cat.nome} {cat.sexo ? `(${cat.sexo})` : ''}
                         </SelectItem>
                       ))}
@@ -1080,14 +1080,14 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 <div className="space-y-1">
                   <Label className="text-xs uppercase">Setor de Origem *</Label>
                   <Select value={formData.setor_origem_id} onValueChange={(v) => { setFormData({ ...formData, setor_origem_id: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'setor_origem_id')); }}>
-                    <SelectTrigger className={getFieldClassName('setor_origem_id', 'h-8 text-xs')}>
+                    <SelectTrigger className={getFieldClassName('setor_origem_id', 'h-8 text-xs uppercase')}>
                       <SelectValue placeholder="De onde sai" />
                     </SelectTrigger>
                     <SelectContent>
                       {setores.map(setor => {
                         const saldo = saldoPorSetor[setor.id] || 0;
                         return (
-                          <SelectItem key={setor.id} value={setor.id} className="text-sm" disabled={saldo <= 0}>
+                          <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase" disabled={saldo <= 0}>
                             <div className="flex items-center gap-2">
                               <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
                               <Badge variant={saldo > 0 ? 'default' : 'destructive'} className="text-[10px]">
@@ -1106,12 +1106,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 <div className="space-y-1">
                   <Label className="text-xs uppercase">Setor de Destino *</Label>
                   <Select value={formData.setor_destino_id} onValueChange={(v) => { setFormData({ ...formData, setor_destino_id: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'setor_destino_id')); }}>
-                    <SelectTrigger className={getFieldClassName('setor_destino_id', 'h-8 text-xs')}>
+                    <SelectTrigger className={getFieldClassName('setor_destino_id', 'h-8 text-xs uppercase')}>
                       <SelectValue placeholder="Para onde vai" />
                     </SelectTrigger>
                     <SelectContent>
                       {setores.filter(s => s.id !== formData.setor_origem_id).map(setor => (
-                        <SelectItem key={setor.id} value={setor.id} className="text-sm">
+                        <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">
                           <div className="flex items-center gap-2">
                             <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
                             <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
