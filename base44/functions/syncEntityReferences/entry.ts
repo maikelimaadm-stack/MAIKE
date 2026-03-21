@@ -281,6 +281,27 @@ const PROPAGATION_RULES = {
         categoria_entrada: 'categoria_oficial',
       },
     },
+    {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'],
+      fieldMap: {
+        categoria_animal: 'nome',
+        categoria_nova: 'nome',
+        transferencia_origem: 'nome',
+        transferencia_destino: 'nome',
+      },
+    },
+    {
+      entity: 'SuplementacaoLote',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'nome',
+      },
+    },
   ],
   Setor: [
     {
@@ -292,9 +313,19 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'AreaPastagem',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome'],
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
       entity: 'LancamentoTarefa',
-      matchType: 'id',
-      queryField: 'setor_id',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome'],
       fieldMap: {
         setor_nome: 'nome',
       },
@@ -324,6 +355,19 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'MovimentacaoMapa',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome', 'setor_origem_nome', 'setor_destino_nome', 'transferencia_origem', 'transferencia_destino'],
+      fieldMap: {
+        setor_nome: 'nome',
+        setor_origem_nome: 'nome',
+        setor_destino_nome: 'nome',
+        transferencia_origem: 'nome',
+        transferencia_destino: 'nome',
+      },
+    },
+    {
       entity: 'MovimentacaoPecuaria',
       matchType: 'id',
       queryField: 'setor_id',
@@ -345,6 +389,19 @@ const PROPAGATION_RULES = {
       queryField: 'setor_destino_id',
       fieldMap: {
         setor_destino_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome', 'setor_origem_nome', 'setor_destino_nome', 'transferencia_origem', 'transferencia_destino'],
+      fieldMap: {
+        setor_nome: 'nome',
+        setor_origem_nome: 'nome',
+        setor_destino_nome: 'nome',
+        transferencia_origem: 'nome',
+        transferencia_destino: 'nome',
       },
     },
   ],
