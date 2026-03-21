@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasLotesDialog from "@/components/lotes/ConfiguracaoColunasLotesDialog";
+import { MoreVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true },
@@ -362,36 +363,23 @@ export default function TabelaLotes({
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
-                        <TableHead key="selecao" className="text-xs py-2 px-3 w-10">
-                          <div className="flex items-center gap-1 justify-center">
-                            <Checkbox
-                              checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
-                              onCheckedChange={toggleSelectAll}
-                            />
-                          </div>
+                        <TableHead key="selecao" className="text-xs py-2 px-2">
+                          <Checkbox
+                            checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
                         </TableHead>
                       );
                     }
-
                     if (coluna.id === "acoes") {
-                      return (
-                        <TableHead key="acoes" className="text-xs py-2 px-3 w-16">
-                          <div className="flex items-center gap-1 justify-center">
-                            Ações
-                          </div>
-                        </TableHead>
-                      );
+                      return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
                     }
-
                     const isRight = coluna.align === "right";
-
                     return (
                       <TableHead
                         key={coluna.id}
                         className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
-                        onClick={() => {
-                          if (coluna.sortable) handleSort(coluna.id);
-                        }}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
                         <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
                           {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
@@ -414,7 +402,7 @@ export default function TabelaLotes({
                       {colunasOrdenadas.map((coluna) => {
                         if (coluna.id === "selecao") {
                           return (
-                            <TableCell key={`${lote.id}-selecao`} className="text-xs py-1 px-2 border border-gray-300">
+                            <TableCell key={`${lote.id}-selecao`} className="text-xs py-2 px-2">
                               <Checkbox
                                 checked={selectedItems.includes(lote.id)}
                                 onCheckedChange={(checked) => {
@@ -427,11 +415,11 @@ export default function TabelaLotes({
 
                         if (coluna.id === "acoes") {
                           return (
-                            <TableCell key={`${lote.id}-acoes`} className="text-xs py-1 px-2 border border-gray-300 text-center">
+                            <TableCell key={`${lote.id}-acoes`} className="text-xs py-2 px-2 text-center">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-7 text-xs px-2">
-                                    Ações
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
@@ -450,7 +438,7 @@ export default function TabelaLotes({
                         return (
                           <TableCell
                             key={`${lote.id}-${coluna.id}`}
-                            className={`text-xs py-1 px-3 border border-gray-300 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
+                            className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
                           >
                             {renderCell(lote, coluna.id)}
                           </TableCell>
