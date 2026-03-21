@@ -45,6 +45,7 @@ export default function Usuarios() {
         permissoes_telas: data.permissoes_telas || [],
         mobile_menu_ids: data.mobile_menu_ids || [],
         is_admin: !!data.is_admin,
+        mapa_geral_permissoes: data.mapa_geral_permissoes || {},
       };
 
       if (existente) {

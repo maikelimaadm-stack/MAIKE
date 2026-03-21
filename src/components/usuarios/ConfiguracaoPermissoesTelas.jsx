@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ACTION_KEYS, createPagePermission, getPagePermission } from "@/lib/permissions";
+import { MAPA_GERAL_PERMISSION_GROUPS, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 
 const ACTION_LABELS = {
   visualizar: "VER",
@@ -19,6 +20,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
   const modulosPermitidos = formData.modulos_permitidos || [];
   const permissoesTelas = formData.permissoes_telas || [];
   const mobileMenuIds = formData.mobile_menu_ids || [];
+  const mapaGeralPermissions = normalizeMapaGeralPermissions(formData.mapa_geral_permissoes);
 
   const handleToggleModulo = (moduleId) => {
     const nextModules = modulosPermitidos.includes(moduleId)
@@ -67,6 +69,13 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
     }
 
     onChange("mobile_menu_ids", [...mobileMenuIds, pageId]);
+  };
+
+  const handleMapaGeralPermission = (field, checked) => {
+    onChange("mapa_geral_permissoes", {
+      ...mapaGeralPermissions,
+      [field]: !!checked,
+    });
   };
 
   const modulesAtivos = modules.filter((module) => modulosPermitidos.includes(module.id));
@@ -164,6 +173,36 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
                       </label>
                     ))}
                   </div>
+
+                  {page.id === "pec-mapa-geral" && (
+                    <div className={`rounded-lg border p-3 space-y-3 ${permission.visualizar ? "bg-emerald-50 border-emerald-200" : "bg-slate-100 border-slate-200 opacity-60"}`}>
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-slate-900">Permissões internas do Mapa Geral</p>
+                        <p className="text-[11px] text-slate-500 uppercase">Ao liberar a tela, o padrão é acesso total; abaixo você escolhe o que ele vê e faz dentro dela.</p>
+                      </div>
+
+                      {MAPA_GERAL_PERMISSION_GROUPS.map((group) => (
+                        <div key={group.title} className="space-y-2">
+                          <p className="text-[11px] font-semibold uppercase text-slate-700">{group.title}</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {group.items.map((item) => (
+                              <label
+                                key={item.key}
+                                className={`flex items-center gap-2 rounded border px-2 py-1.5 ${permission.visualizar ? "bg-white" : "bg-slate-100 opacity-60"}`}
+                              >
+                                <Checkbox
+                                  checked={mapaGeralPermissions[item.key]}
+                                  disabled={!permission.visualizar}
+                                  onCheckedChange={(checked) => handleMapaGeralPermission(item.key, checked)}
+                                />
+                                <span className="text-[11px] uppercase">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

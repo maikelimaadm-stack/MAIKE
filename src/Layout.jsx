@@ -436,7 +436,7 @@ export default function Layout({ children, currentPageName }) {
   }, [currentMenuPage, normalizedPermissions, firstAllowedPage]);
 
   useEffect(() => {
-    if (!currentMenuPage) return;
+    if (!currentMenuPage || currentMenuPage.id === 'pec-mapa-geral') return;
 
     const handleBlockedActions = (event) => {
       const interactive = event.target?.closest?.("button, a, [role='button']");

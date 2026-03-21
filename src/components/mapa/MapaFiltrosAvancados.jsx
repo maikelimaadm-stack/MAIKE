@@ -93,40 +93,37 @@ export default function MapaFiltrosAvancados({
   // Dados para opções
   categorias = [],
   tiposPastagem = [],
-  sistemasProdutivos = []
+  sistemasProdutivos = [],
+  permissions = null
 }) {
   return (
     <div className="rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}
-      <div>
-        <div className="mb-3">
-          <span className="text-xs font-bold text-slate-800 uppercase">Camadas</span>
-        </div>
-        <div className="space-y-2">
-          {[
-          { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas((v) => !v), color: 'bg-black' },
-          { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v), color: 'bg-black' },
-          { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes((v) => !v), color: 'bg-black' },
-          { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v), color: 'bg-black' },
-          { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v), color: 'bg-black' },
-          { label: 'Cochos / Suplementação', checked: showPontosSuplementacao, onChange: () => setShowPontosSuplementacao((v) => !v), color: 'bg-black' },
-          { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v), color: 'bg-black' },
-          { label: 'Minha Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v), color: 'bg-black' }].
-          map((item) =>
-          <label key={item.label} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="bg-green-600 text-zinc-50 rounded-full w-2.5 h-2.5" />
-                <span className="text-xs font-medium text-slate-700">{item.label}</span>
-              </div>
-              <Switch checked={item.checked} onCheckedChange={item.onChange} className="scale-75" />
-            </label>
-          )}
-        </div>
-      </div>
+      {availableLayers.length > 0 && (
+        <>
+          <div>
+            <div className="mb-3">
+              <span className="text-xs font-bold text-slate-800 uppercase">Camadas</span>
+            </div>
+            <div className="space-y-2">
+              {availableLayers.map((item) =>
+                <label key={item.label} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-green-600 text-zinc-50 rounded-full w-2.5 h-2.5" />
+                    <span className="text-xs font-medium text-slate-700">{item.label}</span>
+                  </div>
+                  <Switch checked={item.checked} onCheckedChange={item.onChange} className="scale-75" />
+                </label>
+              )}
+            </div>
+          </div>
 
-      <Separator />
+          <Separator />
+        </>
+      )}
 
       {/* ─── Modo de Coloração das Áreas ─── */}
+      {permissions?.visualizar_areas !== false && (
       <div>
         <div className="mb-3">
           <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
@@ -181,10 +178,12 @@ export default function MapaFiltrosAvancados({
           </div>
         }
       </div>
+      )}
 
-      <Separator />
+      {permissions?.visualizar_areas !== false && <Separator />}
 
       {/* ─── Filtros de Áreas ─── */}
+      {permissions?.visualizar_areas !== false && (
       <div>
         <div className="mb-3">
           <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
@@ -218,10 +217,12 @@ export default function MapaFiltrosAvancados({
           </div>
         </div>
       </div>
+      )}
 
-      <Separator />
+      {permissions?.visualizar_lotes !== false && <Separator />}
 
       {/* ─── Filtros de Lotes ─── */}
+      {permissions?.visualizar_lotes !== false && (
       <div>
         <div className="mb-3">
           <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
@@ -278,6 +279,7 @@ export default function MapaFiltrosAvancados({
           </div>
         </div>
       </div>
+      )}
     </div>);
 
 }

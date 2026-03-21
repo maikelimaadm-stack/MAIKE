@@ -10,6 +10,7 @@ import { Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
 import ConfiguracaoPermissoesTelas from "@/components/usuarios/ConfiguracaoPermissoesTelas";
 import { DEFAULT_MENU, getMenuModules } from "@/lib/menuConfig";
+import { DEFAULT_MAPA_GERAL_PERMISSIONS } from "@/lib/mapaGeralPermissions";
 
 const MENU_MODULES = getMenuModules(DEFAULT_MENU);
 
@@ -19,6 +20,10 @@ const createInitialFormData = (initialData) => ({
   permissoes_telas: initialData?.permissoes_telas || [],
   mobile_menu_ids: initialData?.mobile_menu_ids || [],
   is_admin: initialData?.is_admin || false,
+  mapa_geral_permissoes: {
+    ...DEFAULT_MAPA_GERAL_PERMISSIONS,
+    ...(initialData?.mapa_geral_permissoes || {}),
+  },
 });
 
 export default function FormularioUsuario({ onSubmit, onCancel, initialData, usuarios }) {
