@@ -22,7 +22,7 @@ const getInitialFormData = () => ({
   area_total: "",
   capacidade_animais: "",
   observacoes: "",
-  ativo: true,
+  ativo: true
 });
 
 export default function CadastroSetores() {
@@ -40,7 +40,7 @@ export default function CadastroSetores() {
       const all = await base44.entities.Setor.list();
       return all.filter((s) => s.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const createMutation = useMutation({
@@ -59,7 +59,7 @@ export default function CadastroSetores() {
         cidade: data.cidade?.toUpperCase() || null,
         observacoes: data.observacoes?.toUpperCase() || null,
         area_total: data.area_total ? parseFloat(data.area_total) : null,
-        capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null,
+        capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null
       });
     },
     onSuccess: () => {
@@ -68,7 +68,7 @@ export default function CadastroSetores() {
       setShowForm(false);
       setEditando(null);
     },
-    onError: () => toast.error("Erro ao cadastrar setor"),
+    onError: () => toast.error("Erro ao cadastrar setor")
   });
 
   const updateMutation = useMutation({
@@ -82,7 +82,7 @@ export default function CadastroSetores() {
         cidade: data.cidade?.toUpperCase() || null,
         observacoes: data.observacoes?.toUpperCase() || null,
         area_total: data.area_total ? parseFloat(data.area_total) : null,
-        capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null,
+        capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null
       });
     },
     onSuccess: () => {
@@ -91,7 +91,7 @@ export default function CadastroSetores() {
       setShowForm(false);
       setEditando(null);
     },
-    onError: () => toast.error("Erro ao atualizar setor"),
+    onError: () => toast.error("Erro ao atualizar setor")
   });
 
   const deleteMutation = useMutation({
@@ -108,7 +108,7 @@ export default function CadastroSetores() {
     onError: (error) => {
       if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
       toast.error(error?.message || "Erro ao excluir setor");
-    },
+    }
   });
 
   const handleEdit = (setor) => {
@@ -116,7 +116,7 @@ export default function CadastroSetores() {
       ...getInitialFormData(),
       ...setor,
       area_total: setor.area_total || "",
-      capacidade_animais: setor.capacidade_animais || "",
+      capacidade_animais: setor.capacidade_animais || ""
     });
     setShowForm(true);
   };
@@ -137,40 +137,40 @@ export default function CadastroSetores() {
           <p className="text-xs text-slate-600">Cadastro e gestão dos setores e fazendas</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {!showForm && (
-            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+          {!showForm &&
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
               <Settings className="w-4 h-4" />
             </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
-            Atualizar
-          </Button>
-          {!showForm && (
-            <Button onClick={() => { setEditando(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+          }
+          
+
+          
+          {!showForm &&
+          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Novo Setor
             </Button>
-          )}
+          }
         </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {showForm ? (
-          <FormularioSetor
-            initialData={editando || getInitialFormData()}
-            isEditing={!!editando}
-            onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditando(null); }}
-          />
-        ) : (
-          <TabelaSetores
-            setores={setores}
-            isLoading={isLoading}
-            onEdit={handleEdit}
-            onDelete={(id) => { setDeletarId(id); setShowDelete(true); }}
-            showConfigColunas={showConfigColunas}
-            setShowConfigColunas={setShowConfigColunas}
-          />
-        )}
+        {showForm ?
+        <FormularioSetor
+          initialData={editando || getInitialFormData()}
+          isEditing={!!editando}
+          onSubmit={handleSubmit}
+          onCancel={() => {setShowForm(false);setEditando(null);}} /> :
+
+
+        <TabelaSetores
+          setores={setores}
+          isLoading={isLoading}
+          onEdit={handleEdit}
+          onDelete={(id) => {setDeletarId(id);setShowDelete(true);}}
+          showConfigColunas={showConfigColunas}
+          setShowConfigColunas={setShowConfigColunas} />
+
+        }
       </AnimatePresence>
 
       <ConfirmDialog
@@ -181,8 +181,8 @@ export default function CadastroSetores() {
         onConfirm={() => deleteMutation.mutate(deletarId)}
         confirmText="Excluir"
         cancelText="Cancelar"
-        variant="destructive"
-      />
-    </div>
-  );
+        variant="destructive" />
+      
+    </div>);
+
 }
