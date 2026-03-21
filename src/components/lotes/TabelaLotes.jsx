@@ -11,29 +11,29 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasLotesDialog from "@/components/lotes/ConfiguracaoColunasLotesDialog";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true },
-  { id: "acoes", label: "Ações", default: true, fixo: true },
-  { id: "codigo", label: "Código", default: true, sortable: true, align: "left" },
-  { id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
-  { id: "cabecas", label: "Cabeças", default: true, sortable: true, align: "right" },
-  { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left" },
-  { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left" },
-  { id: "peso", label: "Peso Médio", default: true, sortable: true, align: "right" },
-  { id: "area", label: "Área Entrada", default: true, sortable: true, align: "left" },
-  { id: "motivo", label: "Motivo", default: true, sortable: true, align: "left" },
-  { id: "data", label: "Data Entrada", default: true, sortable: true, align: "left" },
-  { id: "status", label: "Status", default: true, sortable: true, align: "left" },
-  { id: "valor", label: "Valor Total", default: false, sortable: true, align: "right" },
-  { id: "fornecedor", label: "Fornecedor", default: false, sortable: true, align: "left" },
-  { id: "observacoes", label: "Observações", default: false, sortable: false, align: "left" },
-];
+{ id: "selecao", label: "Seleção", default: true, fixo: true },
+{ id: "acoes", label: "Ações", default: true, fixo: true },
+{ id: "codigo", label: "Código", default: true, sortable: true, align: "left" },
+{ id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
+{ id: "cabecas", label: "Cabeças", default: true, sortable: true, align: "right" },
+{ id: "categoria", label: "Categoria", default: true, sortable: true, align: "left" },
+{ id: "sexo", label: "Sexo", default: true, sortable: true, align: "left" },
+{ id: "peso", label: "Peso Médio", default: true, sortable: true, align: "right" },
+{ id: "area", label: "Área Entrada", default: true, sortable: true, align: "left" },
+{ id: "motivo", label: "Motivo", default: true, sortable: true, align: "left" },
+{ id: "data", label: "Data Entrada", default: true, sortable: true, align: "left" },
+{ id: "status", label: "Status", default: true, sortable: true, align: "left" },
+{ id: "valor", label: "Valor Total", default: false, sortable: true, align: "right" },
+{ id: "fornecedor", label: "Fornecedor", default: false, sortable: true, align: "left" },
+{ id: "observacoes", label: "Observações", default: false, sortable: false, align: "left" }];
+
 
 const VALOR_TODOS = "__TODOS__";
 
@@ -50,7 +50,7 @@ export default function TabelaLotes({
   onEdit,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas,
+  setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroStatus, setFiltroStatus] = useState(VALOR_TODOS);
@@ -96,9 +96,9 @@ export default function TabelaLotes({
   }, [searchTerm, filtroStatus, filtroCategoria, filtroMotivo, filtroArea, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
-    const novasColunas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter((id) => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novasColunas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
     setColunasVisiveis(novasColunas);
     localStorage.setItem("colunas_visiveis_cadastro_lotes", JSON.stringify(novasColunas));
   };
@@ -113,9 +113,9 @@ export default function TabelaLotes({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id))
-      .filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
+    return colunasOrdem.
+    map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id)).
+    filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
   }, [colunasOrdem, colunasVisiveis]);
 
   const lotesFiltrados = useMemo(() => {
@@ -160,26 +160,26 @@ export default function TabelaLotes({
         bVal = String(b.data_entrada || "");
       } else {
         aVal = String(
-          sortConfig.key === "categoria"
-            ? a.categoria_entrada || a.categoria || ""
-            : sortConfig.key === "area"
-            ? a.area_entrada_nome || ""
-            : sortConfig.key === "motivo"
-            ? a.motivo_entrada || a.origem || ""
-            : sortConfig.key === "fornecedor"
-            ? a.fornecedor_nome || ""
-            : a[sortConfig.key] || ""
+          sortConfig.key === "categoria" ?
+          a.categoria_entrada || a.categoria || "" :
+          sortConfig.key === "area" ?
+          a.area_entrada_nome || "" :
+          sortConfig.key === "motivo" ?
+          a.motivo_entrada || a.origem || "" :
+          sortConfig.key === "fornecedor" ?
+          a.fornecedor_nome || "" :
+          a[sortConfig.key] || ""
         ).toLowerCase();
         bVal = String(
-          sortConfig.key === "categoria"
-            ? b.categoria_entrada || b.categoria || ""
-            : sortConfig.key === "area"
-            ? b.area_entrada_nome || ""
-            : sortConfig.key === "motivo"
-            ? b.motivo_entrada || b.origem || ""
-            : sortConfig.key === "fornecedor"
-            ? b.fornecedor_nome || ""
-            : b[sortConfig.key] || ""
+          sortConfig.key === "categoria" ?
+          b.categoria_entrada || b.categoria || "" :
+          sortConfig.key === "area" ?
+          b.area_entrada_nome || "" :
+          sortConfig.key === "motivo" ?
+          b.motivo_entrada || b.origem || "" :
+          sortConfig.key === "fornecedor" ?
+          b.fornecedor_nome || "" :
+          b[sortConfig.key] || ""
         ).toLowerCase();
       }
 
@@ -196,7 +196,7 @@ export default function TabelaLotes({
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
     }));
   };
 
@@ -205,8 +205,8 @@ export default function TabelaLotes({
       return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
-      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
-      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
 
@@ -249,7 +249,7 @@ export default function TabelaLotes({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-">
       <Card>
         <CardContent className="p-3">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
@@ -259,8 +259,8 @@ export default function TabelaLotes({
                 placeholder="Buscar lote, código, categoria..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-8 text-xs"
-              />
+                className="h-8 text-xs" />
+              
             </div>
 
             <div className="space-y-1">
@@ -284,9 +284,9 @@ export default function TabelaLotes({
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
-                  {categorias.map((categoria) => (
-                    <SelectItem key={categoria} value={categoria} className="text-xs">{categoria}</SelectItem>
-                  ))}
+                  {categorias.map((categoria) =>
+                  <SelectItem key={categoria} value={categoria} className="text-xs">{categoria}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -297,9 +297,9 @@ export default function TabelaLotes({
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                  {motivos.map((motivo) => (
-                    <SelectItem key={motivo} value={motivo} className="text-xs">{motivo}</SelectItem>
-                  ))}
+                  {motivos.map((motivo) =>
+                  <SelectItem key={motivo} value={motivo} className="text-xs">{motivo}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -310,9 +310,9 @@ export default function TabelaLotes({
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
-                  {areas.map((area) => (
-                    <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>
-                  ))}
+                  {areas.map((area) =>
+                  <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -323,8 +323,8 @@ export default function TabelaLotes({
               {lotesFiltrados.length} de {lotes.length} registros
             </div>
             <div className="flex gap-2 flex-wrap">
-              {selectedItems.length > 0 && (
-                <DropdownMenu>
+              {selectedItems.length > 0 &&
+              <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="h-7 text-xs">
                       Ações ({selectedItems.length})
@@ -342,7 +342,7 @@ export default function TabelaLotes({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
+              }
               <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
                 Limpar Filtros
               </Button>
@@ -363,10 +363,10 @@ export default function TabelaLotes({
                         <TableHead key="selecao" className="text-xs py-2 px-2">
                           <Checkbox
                             checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
-                            onCheckedChange={toggleSelectAll}
-                          />
-                        </TableHead>
-                      );
+                            onCheckedChange={toggleSelectAll} />
+                          
+                        </TableHead>);
+
                     }
                     if (coluna.id === "acoes") {
                       return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
@@ -376,43 +376,43 @@ export default function TabelaLotes({
                       <TableHead
                         key={coluna.id}
                         className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
-                        onClick={() => coluna.sortable && handleSort(coluna.id)}
-                      >
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}>
+                        
                         <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
                           {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                         </div>
-                      </TableHead>
-                    );
+                      </TableHead>);
+
                   })}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lotesPaginados.length === 0 ? (
-                  <TableRow>
+                {lotesPaginados.length === 0 ?
+                <TableRow>
                     <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                       Nenhum lote encontrado
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  lotesPaginados.map((lote) => (
-                    <TableRow key={lote.id} className="hover:bg-gray-50 border-b">
-                      {colunasOrdenadas.map((coluna) => {
-                        if (coluna.id === "selecao") {
-                          return (
-                            <TableCell key={`${lote.id}-selecao`} className="text-xs py-2 px-2">
-                              <Checkbox
-                                checked={selectedItems.includes(lote.id)}
-                                onCheckedChange={(checked) => {
-                                  setSelectedItems((prev) => checked ? [...prev, lote.id] : prev.filter((id) => id !== lote.id));
-                                }}
-                              />
-                            </TableCell>
-                          );
-                        }
+                  </TableRow> :
 
-                        if (coluna.id === "acoes") {
-                          return (
-                            <TableCell key={`${lote.id}-acoes`} className="text-xs py-2 px-2 text-center">
+                lotesPaginados.map((lote) =>
+                <TableRow key={lote.id} className="hover:bg-gray-50 border-b">
+                      {colunasOrdenadas.map((coluna) => {
+                    if (coluna.id === "selecao") {
+                      return (
+                        <TableCell key={`${lote.id}-selecao`} className="text-xs py-2 px-2">
+                              <Checkbox
+                            checked={selectedItems.includes(lote.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedItems((prev) => checked ? [...prev, lote.id] : prev.filter((id) => id !== lote.id));
+                            }} />
+                          
+                            </TableCell>);
+
+                    }
+
+                    if (coluna.id === "acoes") {
+                      return (
+                        <TableCell key={`${lote.id}-acoes`} className="text-xs py-2 px-2 text-center">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -428,22 +428,22 @@ export default function TabelaLotes({
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell>
-                          );
-                        }
+                            </TableCell>);
 
-                        return (
-                          <TableCell
-                            key={`${lote.id}-${coluna.id}`}
-                            className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
-                          >
+                    }
+
+                    return (
+                      <TableCell
+                        key={`${lote.id}-${coluna.id}`}
+                        className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>
+                        
                             {renderCell(lote, coluna.id)}
-                          </TableCell>
-                        );
-                      })}
+                          </TableCell>);
+
+                  })}
                     </TableRow>
-                  ))
-                )}
+                )
+                }
               </TableBody>
             </Table>
           </div>
@@ -451,19 +451,19 @@ export default function TabelaLotes({
           <div className="flex items-center justify-between p-3 border-t">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
-              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
                 <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                  {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-7 text-xs">
+              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">
                 Anterior
               </Button>
               <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-7 text-xs">
+              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">
                 Próxima
               </Button>
             </div>
@@ -478,8 +478,8 @@ export default function TabelaLotes({
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd}
-      />
-    </div>
-  );
+        handleDragEnd={handleDragEnd} />
+      
+    </div>);
+
 }
