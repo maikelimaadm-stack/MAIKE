@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "sonner";
 import ComboboxComNovo from "./ComboboxComNovo";
@@ -527,6 +528,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     if (!formData.quantidade_animais || formData.quantidade_animais < 1) missingFields.push('quantidade_animais');
     if (!formData.categoria_animal) missingFields.push('categoria_animal');
     if (!formData.marca) missingFields.push('marca');
+    if (formData.motivo === "Mudança de Categoria" && !formData.categoria_nova) missingFields.push('categoria_nova');
+    if (formData.motivo === "Transferência entre Setores" && !formData.setor_origem_id) missingFields.push('setor_origem_id');
+    if (formData.motivo === "Transferência entre Setores" && !formData.setor_destino_id) missingFields.push('setor_destino_id');
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
@@ -679,24 +683,24 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Peso Médio (kg)</Label>
+              <Label className="text-xs">Peso Médio (kg)</Label>
               <Input
                 type="number"
                 step="0.1"
                 value={formData.peso_medio}
                 onChange={(e) => setFormData({ ...formData, peso_medio: e.target.value })}
-                className="h-9 text-sm"
+                className="h-8 text-xs"
                 placeholder="0"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Peso Total</Label>
+              <Label className="text-xs">Peso Total</Label>
               <Input
                 type="number"
                 step="0.1"
                 value={formData.peso_total}
-                className="h-9 text-sm bg-slate-50"
+                className="h-8 text-xs bg-slate-50"
                 readOnly
               />
             </div>
@@ -718,7 +722,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   }}
                   disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
                 >
-                  <SelectTrigger className="h-9 text-sm">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -750,7 +754,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   }}
                   disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
                 >
-                  <SelectTrigger className="h-9 text-sm">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -787,7 +791,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   onValueChange={(v) => setFormData({ ...formData, marca: v })}
                   disabled={!formData.categoria_animal || !formData.setor_id}
                 >
-                  <SelectTrigger className="h-9 text-sm">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -826,21 +830,23 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 <div className="space-y-1">
                   <Label className="text-xs">Marca *</Label>
                   <ComboboxComNovo
-                    value={formData.marca}
-                    onChange={(v) => setFormData({ ...formData, marca: v })}
-                    options={marcasExistentes}
-                    placeholder="Selecione ou digite..."
-                    disabled={!formData.setor_id}
-                  />
+                                        value={formData.marca}
+                                        onChange={(v) => { setFormData({ ...formData, marca: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'marca')); }}
+                                        options={marcasExistentes}
+                                        placeholder="Selecione ou digite..."
+                                        inputClassName="h-8 text-xs pr-2"
+                                        hideIcons
+                                        disabled={!formData.setor_id}
+                                      />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Sexo</Label>
+                  <Label className="text-xs">Sexo</Label>
                   <Input
                     value={formData.sexo || ""}
                     readOnly
                     disabled
-                    className="h-9 text-sm bg-slate-100 cursor-not-allowed"
+                    className="h-8 text-xs bg-slate-100 cursor-not-allowed"
                     placeholder="Definido pela categoria"
                   />
                   <p className="text-[10px] text-slate-500">Auto-preenchido</p>
@@ -849,7 +855,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             )}
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Área</Label>
+              <Label className="text-xs">Área</Label>
               <Select 
                 value={formData.tipo === "Entrada" ? formData.area_destino_id : formData.area_origem_id} 
                 onValueChange={(v) => {
@@ -861,7 +867,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 }}
                 disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
               >
-                <SelectTrigger className="h-9 text-sm">
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -882,13 +888,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               {/* Linha 1: Categoria, Marca e Área */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Categoria Atual (De) *</Label>
+                  <Label className="text-xs">Categoria Atual (De) *</Label>
                   <Select 
                     value={formData.categoria_animal} 
                     onValueChange={(v) => setFormData({ ...formData, categoria_animal: v, marca: "" })}
                     disabled={!formData.setor_id}
                   >
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder={formData.setor_id ? "De qual categoria?" : "Selecione setor primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -924,7 +930,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     onValueChange={(v) => setFormData({ ...formData, marca: v })}
                     disabled={!formData.categoria_animal || !formData.setor_id}
                   >
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -949,13 +955,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Área</Label>
+                  <Label className="text-xs">Área</Label>
                   <Select 
                     value={formData.area_origem_id} 
                     onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}
                     disabled={!formData.setor_id}
                   >
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -972,9 +978,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               {/* Linha 2: Nova Categoria */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nova Categoria (Para) *</Label>
+                  <Label className="text-xs">Nova Categoria (Para) *</Label>
                   <Select value={formData.categoria_nova} onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}>
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Para qual categoria?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -995,7 +1001,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             <div className={`p-2 ${formData.tipo === "Entrada" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"} border rounded-lg`}>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">{formData.tipo === "Entrada" ? "Fornecedor" : "Comprador"}</Label>
+                  <Label className="text-xs">{formData.tipo === "Entrada" ? "Fornecedor" : "Comprador"}</Label>
                   <ComboboxComNovo
                     value={formData.tipo === "Entrada" ? formData.fornecedor_origem : formData.destino_venda}
                     onChange={(v) => {
@@ -1007,23 +1013,25 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     }}
                     options={formData.tipo === "Entrada" ? fornecedoresExistentes : compradoresExistentes}
                     placeholder="Selecione ou digite..."
+                    inputClassName="h-8 text-xs pr-2"
+                    hideIcons
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Vlr Unit. (R$)</Label>
-                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" placeholder="0,00" />
+                  <Label className="text-xs">Vlr Unit. (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-8 text-xs" placeholder="0,00" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Vlr Total</Label>
-                  <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
+                  <Label className="text-xs">Vlr Total</Label>
+                  <Input type="number" value={formData.valor_total} className="h-8 text-xs bg-slate-50" readOnly />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nota Fiscal</Label>
-                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                  <Label className="text-xs">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                  <Label className="text-xs">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
                 </div>
               </div>
             </div>
@@ -1034,29 +1042,31 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Comprador/Frigorífico</Label>
+                  <Label className="text-xs">Comprador/Frigorífico</Label>
                   <ComboboxComNovo
                     value={formData.destino_venda}
                     onChange={(v) => setFormData({ ...formData, destino_venda: v })}
                     options={compradoresExistentes}
                     placeholder="Selecione ou digite..."
+                    inputClassName="h-8 text-xs pr-2"
+                    hideIcons
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Vlr/@ (R$)</Label>
-                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" />
+                  <Label className="text-xs">Vlr/@ (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Vlr Total</Label>
-                  <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
+                  <Label className="text-xs">Vlr Total</Label>
+                  <Input type="number" value={formData.valor_total} className="h-8 text-xs bg-slate-50" readOnly />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nota Fiscal</Label>
-                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                  <Label className="text-xs">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                  <Label className="text-xs">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
                 </div>
               </div>
             </div>
@@ -1068,9 +1078,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               <p className="text-xs text-indigo-700 font-semibold mb-2">Transferência entre Setores/Fazendas (cria saída + entrada automaticamente)</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Setor de Origem *</Label>
+                  <Label className="text-xs">Setor de Origem *</Label>
                   <Select value={formData.setor_origem_id} onValueChange={(v) => setFormData({ ...formData, setor_origem_id: v })}>
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="De onde sai" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1094,9 +1104,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Setor de Destino *</Label>
+                  <Label className="text-xs">Setor de Destino *</Label>
                   <Select value={formData.setor_destino_id} onValueChange={(v) => setFormData({ ...formData, setor_destino_id: v })}>
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Para onde vai" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1114,12 +1124,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nota Fiscal</Label>
-                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                  <Label className="text-xs">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                  <Label className="text-xs">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
                 </div>
               </div>
             </div>
@@ -1129,12 +1139,14 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           {formData.motivo === "Morte" && (
             <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="space-y-1">
-                <Label className="text-sm font-medium">Causa da Morte</Label>
+                <Label className="text-xs">Causa da Morte</Label>
                 <ComboboxComNovo
                   value={formData.causa_morte}
                   onChange={(v) => setFormData({ ...formData, causa_morte: v })}
                   options={causasMorteExistentes}
                   placeholder="Selecione ou digite a causa..."
+                  inputClassName="h-8 text-xs pr-2"
+                  hideIcons
                 />
               </div>
             </div>
@@ -1142,8 +1154,14 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Observações */}
           <div className="space-y-1">
-            <Label className="text-sm font-medium">Observações</Label>
-            <Input value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="h-9 text-sm" placeholder="Observações adicionais..." />
+            <Label className="text-xs">Observações</Label>
+            <Textarea
+              value={formData.observacoes}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+              className="text-xs"
+              placeholder="OBSERVAÇÕES ADICIONAIS..."
+              rows={2}
+            />
           </div>
 
           {/* Botões */}

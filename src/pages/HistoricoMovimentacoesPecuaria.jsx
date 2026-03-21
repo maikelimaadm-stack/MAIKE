@@ -226,26 +226,61 @@ export default function HistoricoMovimentacoesPecuaria() {
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
       toast.success(result?.deletedCount === 2 ? 'Mudança de categoria excluída (saída + entrada)' : 'Movimentação excluída');
       setShowDelete(false);
-      setDeletarId(null);
+      setDeletarIds([]);
     },
     onError: () => {
       toast.error('Erro ao excluir movimentação');
     }
   });
 
-  const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} movimentação(ões). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      for (const id of selectedItems) {
-        try {
-          await base44.entities.MovimentacaoPecuaria.delete(id);
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+  const expandirIdsExclusao = (ids) => {
+    return Array.from(new Set(ids.flatMap((id) => {
+      const registro = movimentacoes.find((item) => item.id === id);
+      if (!registro?.vinculo_mudanca_categoria) return [id];
+      const relacionado = movimentacoes.find(
+        (item) => item.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && item.id !== id
+      );
+      return [id, relacionado?.id].filter(Boolean);
+    })));
+  };
+
+  const validarExclusaoSemSaldoNegativo = (ids) => {
+    const idsExpandidos = expandirIdsExclusao(ids);
+    const restantes = movimentacoes.filter((mov) => !idsExpandidos.includes(mov.id));
+    const saldos = {};
+
+    restantes.forEach((mov) => {
+      if (!mov.categoria_animal) return;
+      const chave = `${mov.setor_nome || 'Sem setor'}|||${mov.categoria_animal}|||${mov.marca || 'Sem marca'}`;
+      if (!saldos[chave]) {
+        saldos[chave] = {
+          setor: mov.setor_nome || 'Sem setor',
+          categoria: mov.categoria_animal,
+          marca: mov.marca || 'Sem marca',
+          saldo: 0,
+        };
       }
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      toast.success('Movimentações excluídas');
-      setSelectedItems([]);
-    }
+      saldos[chave].saldo += mov.tipo === 'Entrada' ? (Number(mov.quantidade_animais) || 0) : -(Number(mov.quantidade_animais) || 0);
+    });
+
+    const negativos = Object.values(saldos).filter((item) => item.saldo < 0);
+    if (!negativos.length) return idsExpandidos;
+
+    const detalhes = negativos
+      .slice(0, 3)
+      .map((item) => `${item.setor} / ${item.categoria} / ${item.marca}: ${item.saldo} cab`)
+      .join('; ');
+
+    emitDeleteDialog(`Não é possível excluir ${idsExpandidos.length} registro(s) porque o saldo do gado ficaria negativo em ${negativos.length} grupo(s). ${detalhes}${negativos.length > 3 ? '...' : ''}`);
+    return null;
+  };
+
+  const handleBulkDelete = () => {
+    if (!selectedItems.length) return;
+    const idsValidados = validarExclusaoSemSaldoNegativo(selectedItems);
+    if (!idsValidados) return;
+    setDeletarIds(idsValidados);
+    setShowDelete(true);
   };
 
   const toggleColuna = (colunaId) => {
@@ -474,7 +509,9 @@ export default function HistoricoMovimentacoesPecuaria() {
   };
 
   const handleDelete = (id) => {
-    setDeletarId(id);
+    const idsValidados = validarExclusaoSemSaldoNegativo([id]);
+    if (!idsValidados) return;
+    setDeletarIds(idsValidados);
     setShowDelete(true);
   };
 
@@ -491,10 +528,18 @@ export default function HistoricoMovimentacoesPecuaria() {
     });
   };
 
-  const confirmDelete = () => {
-    if (deletarId) {
-      deleteMutation.mutate(deletarId);
+  const confirmDelete = async () => {
+    if (!deletarIds.length) return;
+
+    for (const id of deletarIds) {
+      await base44.entities.MovimentacaoPecuaria.delete(id);
     }
+
+    queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+    toast.success(deletarIds.length > 1 ? 'Movimentações excluídas' : 'Movimentação excluída');
+    setShowDelete(false);
+    setDeletarIds([]);
+    setSelectedItems([]);
   };
 
   const handleExport = () => {
@@ -1161,7 +1206,7 @@ export default function HistoricoMovimentacoesPecuaria() {
       </Card>}
 
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
           </DialogHeader>
@@ -1192,7 +1237,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                     <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                       {colunasOrdem.map((colunaId, index) => {
                         const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
-                        if (!coluna) return null;
+                        if (!coluna || coluna.fixo) return null;
                         
                         return (
                           <Draggable key={colunaId} draggableId={colunaId} index={index}>

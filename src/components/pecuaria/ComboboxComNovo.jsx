@@ -10,7 +10,9 @@ export default function ComboboxComNovo({
   placeholder = "Selecione ou digite...",
   onAddNew,
   onConfirm,
-  className = ""
+  className = "",
+  inputClassName = "",
+  hideIcons = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -117,17 +119,19 @@ export default function ComboboxComNovo({
           onBlur={handleInputBlur}
           onKeyDown={handleInputKeyDown}
           placeholder={placeholder}
-          className="h-9 text-sm pr-8"
+          className={inputClassName || `h-9 text-sm ${hideIcons ? 'pr-2' : 'pr-8'}`}
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-0 top-0 h-9 w-8"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </Button>
+        {!hideIcons && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-0 top-0 h-9 w-8"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </Button>
+        )}
       </div>
 
       {isOpen && (
@@ -142,7 +146,7 @@ export default function ComboboxComNovo({
                 onClick={() => handleSelect(opt)}
               >
                 <span>{opt}</span>
-                {opt === value && <Check className="w-4 h-4 text-emerald-600" />}
+                {!hideIcons && opt === value && <Check className="w-4 h-4 text-emerald-600" />}
               </div>
             ))
           ) : (
@@ -156,7 +160,7 @@ export default function ComboboxComNovo({
               className="px-3 py-2 text-sm cursor-pointer hover:bg-emerald-50 border-t flex items-center gap-2 text-emerald-700 font-medium"
               onClick={handleAddNew}
             >
-              <Plus className="w-4 h-4" />
+              {!hideIcons && <Plus className="w-4 h-4" />}
               Adicionar "{inputValue}"
             </div>
           )}
