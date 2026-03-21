@@ -81,7 +81,6 @@ const getAllPages = (menuItems) => {
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
-  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
@@ -112,7 +111,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2026-01-11-relatorios-unificado-v2'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2026-03-21-role-permissions-v1'; // Atualizar esta versão quando adicionar novos menus
     
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {

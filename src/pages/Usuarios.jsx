@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
@@ -47,8 +47,6 @@ export default function Usuarios() {
     initialData: []
   });
 
-  const groupCodesInUse = useMemo(() => new Set(usuarios.map((user) => user.grupo_permissao_codigo).filter(Boolean)), [usuarios]);
-
   const createRoleMutation = useMutation({
     mutationFn: (payload) => base44.entities.GrupoPermissao.create(payload),
     onSuccess: () => {
@@ -89,7 +87,7 @@ export default function Usuarios() {
   });
 
   const removeUserGroupMutation = useMutation({
-    mutationFn: (userId) => base44.entities.User.update(userId, { grupo_permissao_codigo: null }),
+    mutationFn: (userId) => base44.entities.User.update(userId, { grupo_permissao_codigo: "" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       toast.success("Grupo removido do usuário!");
