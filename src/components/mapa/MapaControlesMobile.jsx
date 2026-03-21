@@ -7,7 +7,8 @@ import { createPageUrl } from "@/utils";
 export default function MapaControlesMobile({
   mapType, setMapType,
   onRefresh, onLocate,
-  onOpenTarefas, onOpenInsights, onOpenFiltros
+  onOpenTarefas, onOpenInsights, onOpenFiltros,
+  showTarefasButton = true
 }) {
   return (
     <>
@@ -18,9 +19,11 @@ export default function MapaControlesMobile({
             <X className="w-5 h-5 text-slate-700" />
           </Button>
         </Link>
-        <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Tarefas">
-          <ClipboardList className="w-5 h-5 text-slate-700" />
-        </Button>
+        {showTarefasButton && (
+          <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Tarefas">
+            <ClipboardList className="w-5 h-5 text-slate-700" />
+          </Button>
+        )}
         <Button variant="secondary" size="icon" onClick={onOpenInsights} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Insights">
           <BarChart3 className="w-5 h-5 text-slate-700" />
         </Button>

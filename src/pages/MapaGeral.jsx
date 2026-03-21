@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { canAccessModule, canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
@@ -94,6 +95,28 @@ export default function MapaGeral() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   useEffect(() => {firstFitDoneRef.current = false;}, [empresaSelecionadaId]);
 
+  const { data: currentUser = null } = useQuery({
+    queryKey: ['mapa-geral-user'],
+    queryFn: () => base44.auth.me(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: permissoes = [] } = useQuery({
+    queryKey: ['mapa-geral-permissoes'],
+    queryFn: () => base44.entities.Permissao.list(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const permissaoAtual = useMemo(() => {
+    const registro = permissoes.find((item) => item.user_email === currentUser?.email) || null;
+    return normalizePermissionRecord(registro);
+  }, [permissoes, currentUser?.email]);
+
+  const podeUsarTarefasMapa = useMemo(() => {
+    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) return true;
+    return canAccessModule(permissaoAtual, 'gestao-tarefas') && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
+  }, [currentUser?.role, permissaoAtual]);
+
   // ─── Queries ───
   const ST = 2 * 60 * 1000;
 
@@ -148,7 +171,7 @@ export default function MapaGeral() {
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery({
     queryKey: ['mapa-tarefas', empresaSelecionadaId],
     queryFn: async () => {const all = await base44.entities.LancamentoTarefa.list();return all.filter((t) => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento'));},
-    enabled: !!empresaSelecionadaId, staleTime: ST
+    enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, staleTime: ST
   });
 
   // Movimentações para calcular situação do pasto
@@ -363,6 +386,7 @@ export default function MapaGeral() {
   }, [areas]);
 
   const abrirLancamentoTarefa = useCallback((coords = null, draft = {}) => {
+    if (!podeUsarTarefasMapa) return;
     const areaDetectada = coords ? detectarAreaPorCoordenada(coords) : null;
     const draftCompleto = {
       ...draft,
@@ -380,7 +404,7 @@ export default function MapaGeral() {
       openCreateOnMount: true,
     });
     setShowTarefas(true);
-  }, [detectarAreaPorCoordenada]);
+  }, [detectarAreaPorCoordenada, podeUsarTarefasMapa]);
 
   const handleSelectTaskLocation = useCallback((coords, area) => {
     setSelecionandoLocalTarefa(false);
@@ -432,12 +456,13 @@ export default function MapaGeral() {
   }, []);
 
   const handleRequestSelectTaskLocation = useCallback((draft) => {
+    if (!podeUsarTarefasMapa) return;
     setShowTarefas(false);
     setShowDetalhesTarefa(false);
     setSelecionandoLocalTarefa(true);
     setRascunhoTarefa(draft);
     toast.info('Toque no mapa para marcar o local da tarefa.');
-  }, []);
+  }, [podeUsarTarefasMapa]);
 
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current || !mapRef.current || !projectionOverlayRef.current) return;
@@ -519,7 +544,7 @@ export default function MapaGeral() {
 
     const listeners = [
       map.addListener('rightclick', (event) => {
-        if (selecionandoLocalTarefa || !event?.latLng) return;
+        if (!podeUsarTarefasMapa || selecionandoLocalTarefa || !event?.latLng) return;
         abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
       }),
       map.addListener('click', (event) => {
@@ -546,7 +571,7 @@ export default function MapaGeral() {
       mapElement.removeEventListener('touchcancel', handlePressEnd);
       listeners.forEach((listener) => listener?.remove());
     };
-  }, [mapReady, selecionandoLocalTarefa, abrirLancamentoTarefa, handleSelectTaskLocation, detectarAreaPorCoordenada]);
+  }, [mapReady, selecionandoLocalTarefa, abrirLancamentoTarefa, handleSelectTaskLocation, detectarAreaPorCoordenada, podeUsarTarefasMapa]);
 
   // ─── Renderização incremental ───
   useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor, handleClickArea, handleRightClickArea]);
@@ -601,7 +626,7 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, showLinhas);}, [linhas, showLinhas, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, mapReady]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(tarefasMapa, areas, iconesConfig, handleClickTarefa);}, [tarefasMapa, areas, iconesConfig, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa ? tarefasMapa : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapa, areas, iconesConfig, mapReady, podeUsarTarefasMapa, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
 
   useEffect(() => {
@@ -609,6 +634,15 @@ export default function MapaGeral() {
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
   }, []);
+
+  useEffect(() => {
+    if (podeUsarTarefasMapa) return;
+    setShowTarefas(false);
+    setShowDetalhesTarefa(false);
+    setSelecionandoLocalTarefa(false);
+    setRascunhoTarefa(null);
+    setTarefasContext({});
+  }, [podeUsarTarefasMapa]);
 
   // ─── Render ───
   const totalCabecas = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
@@ -624,7 +658,8 @@ export default function MapaGeral() {
         <MapaControlesMobile
           mapType={mapType} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
-          onOpenTarefas={() => {setTarefasContext({});setShowTarefas(true);}}
+          showTarefasButton={podeUsarTarefasMapa}
+          onOpenTarefas={() => {if (!podeUsarTarefasMapa) return; setTarefasContext({}); setShowTarefas(true);}}
           onOpenInsights={() => setShowInsights(true)}
           onOpenFiltros={() => setShowFiltros(true)} />
 
