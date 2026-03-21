@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import FormularioLancamentoManual from "@/components/pecuaria/FormularioLancamentoManual";
 import SaldoCategorias from "@/components/pecuaria/SaldoCategorias";
+import { emitDeleteDialog } from "@/lib/deleteDialogBus";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -110,7 +111,7 @@ export default function HistoricoMovimentacoesPecuaria() {
   const [editando, setEditando] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [deletarId, setDeletarId] = useState(null);
+  const [deletarIds, setDeletarIds] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [showNovoLancamento, setShowNovoLancamento] = useState(false);
   const [itemEditandoManual, setItemEditandoManual] = useState(null);
@@ -155,7 +156,7 @@ export default function HistoricoMovimentacoesPecuaria() {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
 
-  const { data: movimentacoes = [], isLoading } = useQuery({
+  const { data: movimentacoes = [], isLoading, refetch } = useQuery({
     queryKey: ['movimentacoes-pecuaria', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-created_date');
@@ -888,7 +889,7 @@ export default function HistoricoMovimentacoesPecuaria() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
+    <div className="p-4 md:p-6 space-y-4">
       {!showNovoLancamento && (
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
           <div>
@@ -896,18 +897,24 @@ export default function HistoricoMovimentacoesPecuaria() {
             <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
-              Colunas
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+              <Settings className="w-4 h-4" />
             </Button>
-            <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
-              Modelo
-            </Button>
-            <Button onClick={() => setShowImportDialog(true)} variant="outline" size="sm" className="h-8 text-xs">
-              Importar
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+              Atualizar
             </Button>
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
               Exportar
             </Button>
+            <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
+              Modelo
+            </Button>
+            <label>
+              <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer" asChild>
+                <span>Importar</span>
+              </Button>
+              <input type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
+            </label>
             <Button 
               onClick={() => { setItemEditandoManual(null); setShowNovoLancamento(true); }} 
               size="sm" 
@@ -942,7 +949,7 @@ export default function HistoricoMovimentacoesPecuaria() {
       {!showNovoLancamento && (
         <Card>
           <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-9 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
               <div className="md:col-span-2 relative">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
@@ -1062,7 +1069,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                     </TableRow>
                   ) : paginatedMovimentacoes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-8 text-xs text-slate-400">Nenhuma movimentação</TableCell>
+                      <TableCell colSpan={50} className="text-center py-8 text-xs text-slate-400">Nenhuma movimentação encontrada</TableCell>
                     </TableRow>
                   ) : (
                     paginatedMovimentacoes.map((mov) => (
@@ -1082,8 +1089,8 @@ export default function HistoricoMovimentacoesPecuaria() {
                         <TableCell className="text-xs py-2 px-2 text-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                              <Button variant="outline" size="sm" className="h-6 px-2 text-xs">
+                                Ações
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
@@ -1162,8 +1169,8 @@ export default function HistoricoMovimentacoesPecuaria() {
           <div className="space-y-3 flex-1 overflow-auto">
             <div className="space-y-1">
               <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
-              <div className="grid grid-cols-3 gap-2">
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.filter(c => !c.fixo).map((coluna) => (
                   <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
                     <input
                       type="checkbox"
@@ -1294,7 +1301,7 @@ export default function HistoricoMovimentacoesPecuaria() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              Tem certeza que deseja excluir esta movimentação? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir {deletarIds.length > 1 ? `${deletarIds.length} movimentações selecionadas` : 'esta movimentação'}? Esta ação não pode ser desfeita.
             </p>
             <div className="flex justify-end gap-2">
               <Button onClick={() => setShowDelete(false)} variant="outline" size="sm" className="h-8 text-xs">
