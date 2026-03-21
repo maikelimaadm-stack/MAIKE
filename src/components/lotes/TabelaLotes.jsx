@@ -451,28 +451,26 @@ export default function TabelaLotes({
             </Table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between p-3 border-t">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Itens por página:</span>
-                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
-                  <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-7 text-xs">
-                  Anterior
-                </Button>
-                <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-7 text-xs">
-                  Próxima
-                </Button>
-              </div>
+          <div className="flex items-center justify-between p-3 border-t">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Itens por página:</span>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+                <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-7 text-xs">
+                Anterior
+              </Button>
+              <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-7 text-xs">
+                Próxima
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
