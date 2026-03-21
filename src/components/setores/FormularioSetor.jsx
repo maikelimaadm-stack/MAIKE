@@ -12,7 +12,7 @@ const TIPOS_SETOR = ["Próprio", "Arrendado", "Parceria", "Terceiros"];
 const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = ["nome", "sigla", "responsavel", "endereco", "cidade", "observacoes"];
-const REQUIRED_FIELDS = ["sigla", "endereco", "cidade", "estado"];
+const REQUIRED_FIELDS = ["nome", "sigla", "endereco", "cidade", "estado"];
 
 export default function FormularioSetor({ initialData, isEditing, onSubmit, onCancel }) {
   const [formData, setFormData] = useState(initialData);
@@ -62,6 +62,7 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
             <div className="space-y-1 lg:col-span-2">
               <Label className="text-xs">Nome do Setor/Fazenda *</Label>
               <Input
+                data-field="nome"
                 value={formData.nome}
                 onChange={(e) => handleChange("nome", e.target.value)}
                 placeholder="NOME DO SETOR / FAZENDA"
