@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -47,33 +48,33 @@ export default function TipoTarefaForm() {
       </div>
 
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-6 gap-4">
-          <div className="space-y-1 lg:col-span-2">
+        <CardContent className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-1">
             <Label className="text-xs">Tipo de Tarefa *</Label>
             <Input value={form.nome_tipo} onChange={(e)=>setForm(f=>({...f,nome_tipo:e.target.value}))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1">
             <Label className="text-xs">Grupo *</Label>
             <Select value={form.grupo_atividade_id} onValueChange={(v)=>setForm(f=>({...f,grupo_atividade_id:v}))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
               <SelectContent>
-                {grupos.map(g => <SelectItem key={g.id} value={g.id}>{g.nome_grupo}</SelectItem>)}
+                {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.nome_grupo}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 lg:col-span-1">
+          <div className="space-y-1">
             <Label className="text-xs">Ativo</Label>
             <Select value={String(form.ativo)} onValueChange={(v)=>setForm(f=>({...f,ativo:v==="true"}))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="true">Sim</SelectItem>
-                <SelectItem value="false">Não</SelectItem>
+                <SelectItem value="true" className="text-xs">Sim</SelectItem>
+                <SelectItem value="false" className="text-xs">Não</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 lg:col-span-6">
+          <div className="space-y-1 lg:col-span-2">
             <Label className="text-xs">Descrição</Label>
-            <Input value={form.descricao} onChange={(e)=>setForm(f=>({...f,descricao:e.target.value}))} className="h-8 text-xs" />
+            <Textarea value={form.descricao} onChange={(e)=>setForm(f=>({...f,descricao:e.target.value}))} className="text-xs min-h-[96px]" />
           </div>
         </CardContent>
       </Card>
