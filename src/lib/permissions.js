@@ -1,92 +1,111 @@
-import { DEFAULT_MOBILE_SHORTCUT_IDS, DEFAULT_PAGE_ACTIONS, PAGE_OPTIONS, getPageOptionById, getPageOptionByUrl } from "@/lib/navigationConfig";
+import { ACTION_OPTIONS, DEFAULT_MOBILE_MENU_ITEMS, PAGE_OPTIONS, createEmptyPermissionsMap, getPageOptionById, getPageOptionByUrl } from "@/lib/navigationConfig";
 
-const fullAccess = {
-  visualizar: true,
-  criar: true,
-  editar: true,
-  excluir: true,
-  importar: true,
-  exportar: true
+const asArray = (value) => Array.isArray(value) ? value : [];
+const ACTION_IDS = ACTION_OPTIONS.map((item) => item.id);
+
+export const isAdminPermission = (user, roleConfig) => {
+  return user?.role === "admin" || roleConfig?.is_admin === true;
 };
 
-const asObject = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
+export const normalizeRolePermissions = (roleConfig) => {
+  const base = createEmptyPermissionsMap();
+  const current = roleConfig?.permissoes || {};
 
-export const isAdminPermission = (user, permissionGroup) => {
-  return user?.role === "admin" || permissionGroup?.is_admin === true;
+  Object.entries(current).forEach(([pageId, actions]) => {
+    if (!base[pageId]) base[pageId] = {};
+    ACTION_IDS.forEach((actionId) => {
+      base[pageId][actionId] = actions?.[actionId] === true;
+    });
+  });
+
+  return base;
 };
 
-export const getGroupPermissionsMap = (permissionGroup) => {
-  return asObject(permissionGroup?.permissoes);
+export const getPagePermissionById = (roleConfig, pageId) => {
+  const permissions = normalizeRolePermissions(roleConfig);
+  return permissions[pageId] || ACTION_IDS.reduce((acc, actionId) => {
+    acc[actionId] = false;
+    return acc;
+  }, {});
 };
 
-export const getPagePermissions = (permissionGroup, pageUrlOrId, isAdmin = false) => {
-  if (isAdmin || !permissionGroup) return fullAccess;
-
-  const page = getPageOptionByUrl(pageUrlOrId) || getPageOptionById(pageUrlOrId);
-  if (!page) return fullAccess;
-
-  const stored = getGroupPermissionsMap(permissionGroup)[page.id];
-  return { ...DEFAULT_PAGE_ACTIONS, ...asObject(stored) };
+export const getPagePermissionByUrl = (roleConfig, pageUrl) => {
+  const page = getPageOptionByUrl(pageUrl);
+  if (!page) return null;
+  return getPagePermissionById(roleConfig, page.id);
 };
 
-export const hasPageAction = (permissionGroup, pageUrlOrId, action, isAdmin = false) => {
-  const permissions = getPagePermissions(permissionGroup, pageUrlOrId, isAdmin);
-  return permissions[action] === true;
+export const canViewPage = (roleConfig, pageId, isAdmin = false) => {
+  if (isAdmin || !roleConfig) return true;
+  return getPagePermissionById(roleConfig, pageId).visualizar === true;
 };
 
-const filterItem = (item, permissionGroup, isAdmin) => {
+const filterItem = (item, roleConfig, isAdmin = false) => {
   if (item.submenu?.length) {
-    const filteredChildren = item.submenu
-      .map((child) => filterItem(child, permissionGroup, isAdmin))
-      .filter(Boolean);
-
-    if (!filteredChildren.length) return null;
-    return { ...item, submenu: filteredChildren };
+    const filteredChildren = item.submenu.map((child) => filterItem(child, roleConfig, isAdmin)).filter(Boolean);
+    return filteredChildren.length ? { ...item, submenu: filteredChildren } : null;
   }
 
-  if (!item.url) return null;
-  return hasPageAction(permissionGroup, item.url, "visualizar", isAdmin) ? item : null;
+  return canViewPage(roleConfig, item.id, isAdmin) ? item : null;
 };
 
-export const filterMenuByPermissions = (menuItems, permissionGroup, isAdmin = false) => {
-  if (isAdmin || !permissionGroup) return menuItems;
-  return menuItems.map((item) => filterItem(item, permissionGroup, isAdmin)).filter(Boolean);
+export const filterMenuByPermissions = (menuItems, roleConfig, isAdmin = false) => {
+  if (isAdmin || !roleConfig) return menuItems;
+  return menuItems.map((item) => filterItem(item, roleConfig, isAdmin)).filter(Boolean);
 };
 
-export const canAccessPage = (_menuItems, currentPageName, permissionGroup, isAdmin = false) => {
-  if (!currentPageName || isAdmin || !permissionGroup) return true;
+export const canAccessPage = (currentPageName, roleConfig, isAdmin = false) => {
+  if (!currentPageName || isAdmin || !roleConfig) return true;
   const page = getPageOptionByUrl(currentPageName);
   if (!page) return true;
-  return hasPageAction(permissionGroup, page.url, "visualizar", isAdmin);
+  return canViewPage(roleConfig, page.id, isAdmin);
 };
 
-export const getAllowedMobileMenuItems = (permissionGroup, isAdmin = false) => {
-  const preferredIds = permissionGroup?.mobile?.atalhos?.length ? permissionGroup.mobile.atalhos : DEFAULT_MOBILE_SHORTCUT_IDS;
+export const getAllowedMobileMenuItems = (roleConfig, isAdmin = false) => {
+  const preferredIds = asArray(roleConfig?.mobile_atalhos);
+  const requested = preferredIds.length ? preferredIds : DEFAULT_MOBILE_MENU_ITEMS;
   const allowed = [];
 
-  const tryPush = (pageId) => {
+  const tryAdd = (pageId) => {
     const page = getPageOptionById(pageId);
     if (!page) return;
-    if (!hasPageAction(permissionGroup, page.url, "visualizar", isAdmin)) return;
+    if (!canViewPage(roleConfig, page.id, isAdmin)) return;
     if (allowed.some((item) => item.id === page.id)) return;
     allowed.push(page);
   };
 
-  preferredIds.forEach(tryPush);
-  PAGE_OPTIONS.forEach((page) => tryPush(page.id));
+  requested.forEach(tryAdd);
+  PAGE_OPTIONS.forEach((page) => tryAdd(page.id));
 
   return allowed.slice(0, 4);
 };
 
-export const getAccessSummary = (permissionGroup) => {
-  if (!permissionGroup) return { role: "SEM GRUPO", details: "ACESSO LIVRE" };
-  if (permissionGroup.is_admin) return { role: permissionGroup.nome?.toUpperCase() || "ADMINISTRADOR", details: "ACESSO TOTAL" };
+export const getAccessSummary = (roleConfig) => {
+  if (!roleConfig) {
+    return { principal: "Acesso Livre", secundario: "Sem grupo" };
+  }
 
-  const pages = Object.values(getGroupPermissionsMap(permissionGroup)).filter((entry) => entry?.visualizar).length;
-  const mobile = permissionGroup?.mobile?.atalhos?.length || DEFAULT_MOBILE_SHORTCUT_IDS.length;
+  if (roleConfig.is_admin) {
+    return { principal: "Administrador", secundario: "Acesso total" };
+  }
+
+  const permissions = normalizeRolePermissions(roleConfig);
+  const totalPages = Object.values(permissions).filter((page) => page.visualizar).length;
+  const totalActions = Object.values(permissions).reduce((sum, page) => {
+    return sum + ACTION_IDS.filter((actionId) => page[actionId]).length;
+  }, 0);
 
   return {
-    role: permissionGroup.nome?.toUpperCase() || "GRUPO",
-    details: `${pages} TELAS · ${mobile} ATALHOS`
+    principal: `${totalPages} telas`,
+    secundario: `${totalActions} ações`
   };
+};
+
+export const hasActionPermission = (roleConfig, pageUrlOrId, actionId, isAdmin = false) => {
+  if (isAdmin || !roleConfig) return true;
+
+  const page = getPageOptionByUrl(pageUrlOrId) || getPageOptionById(pageUrlOrId);
+  if (!page) return true;
+
+  return getPagePermissionById(roleConfig, page.id)?.[actionId] === true;
 };

@@ -1,43 +1,47 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { UserCog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Users } from "lucide-react";
 import { toast } from "sonner";
-import { getAccessSummary } from "@/lib/permissions";
 
-export default function FormularioUsuario({ onSubmit, onCancel, initialData, usuarios, grupos }) {
+export default function FormularioUsuario({ initialData, usuarios, grupos, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    user_email: initialData?.user_email || initialData?.email || "",
-    grupo_permissao_id: initialData?.grupo_permissao_id || "",
-    grupo_permissao_nome: initialData?.grupo_permissao_nome || ""
+    user_id: initialData?.id || "",
+    user_email: initialData?.email || "",
+    grupo_permissao_codigo: initialData?.grupo_permissao_codigo || ""
   });
 
-  const usuariosDisponiveis = useMemo(() => usuarios.filter((u) => u.email && u.full_name), [usuarios]);
-  const gruposAtivos = useMemo(() => grupos.filter((g) => g.ativo !== false), [grupos]);
-  const grupoSelecionado = grupos.find((grupo) => grupo.id === formData.grupo_permissao_id) || null;
-  const resumo = getAccessSummary(grupoSelecionado);
+  const usuariosDisponiveis = usuarios.filter((user) => user.email && user.full_name);
+  const grupoSelecionado = grupos.find((grupo) => grupo.codigo === formData.grupo_permissao_codigo);
+
+  const handleUserChange = (userId) => {
+    const user = usuarios.find((item) => item.id === userId);
+    setFormData((prev) => ({
+      ...prev,
+      user_id: user?.id || "",
+      user_email: user?.email || "",
+      grupo_permissao_codigo: user?.grupo_permissao_codigo || prev.grupo_permissao_codigo
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.user_email) {
-      toast.error("Selecione o usuário.");
+    if (!formData.user_id) {
+      toast.error("Selecione um usuário.");
       return;
     }
 
-    if (!grupoSelecionado) {
+    if (!formData.grupo_permissao_codigo) {
       toast.error("Selecione um grupo de permissão.");
       return;
     }
 
-    onSubmit({
-      ...formData,
-      grupo_permissao_nome: grupoSelecionado.nome
-    });
+    onSubmit(formData);
   };
 
   return (
@@ -45,57 +49,51 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
       <Card className="shadow-sm border-slate-300 bg-white">
         <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
           <CardTitle className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            {initialData?.user_email ? "EDITAR VÍNCULO DE USUÁRIO" : "VINCULAR USUÁRIO AO GRUPO"}
+            <UserCog className="w-4 h-4" />
+            {initialData?.id ? "Editar Vínculo do Usuário" : "Vincular Usuário ao Grupo"}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs uppercase">USUÁRIO *</Label>
-                <Select value={formData.user_email} onValueChange={(value) => setFormData((prev) => ({ ...prev, user_email: value }))} disabled={!!initialData?.user_email}>
-                  <SelectTrigger className="h-8 text-xs uppercase">
-                    <SelectValue placeholder="SELECIONE O USUÁRIO" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {usuariosDisponiveis.map((user) => (
-                      <SelectItem key={user.email} value={user.email} className="text-xs uppercase">
-                        {user.full_name} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs uppercase">Usuário *</Label>
+              <Select value={formData.user_id} onValueChange={handleUserChange} disabled={!!initialData?.id}>
+                <SelectTrigger className="h-8 text-xs uppercase">
+                  <SelectValue placeholder="Selecione um usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {usuariosDisponiveis.map((user) => (
+                    <SelectItem key={user.id} value={user.id} className="text-xs uppercase">
+                      {user.full_name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs uppercase">GRUPO DE PERMISSÃO *</Label>
-                <Select value={formData.grupo_permissao_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, grupo_permissao_id: value }))}>
-                  <SelectTrigger className="h-8 text-xs uppercase">
-                    <SelectValue placeholder="SELECIONE O GRUPO" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gruposAtivos.map((grupo) => (
-                      <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">
-                        {grupo.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs uppercase">Grupo de Permissão *</Label>
+              <Select value={formData.grupo_permissao_codigo} onValueChange={(value) => setFormData((prev) => ({ ...prev, grupo_permissao_codigo: value }))}>
+                <SelectTrigger className="h-8 text-xs uppercase">
+                  <SelectValue placeholder="Selecione um grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {grupos.map((grupo) => (
+                    <SelectItem key={grupo.id} value={grupo.codigo} className="text-xs uppercase">
+                      {grupo.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {grupoSelecionado && (
               <div className="rounded-lg border bg-slate-50 p-3 space-y-2">
-                <Label className="text-xs uppercase font-semibold flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5" />
-                  RESUMO DO GRUPO
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  <Badge className="text-xs bg-emerald-100 text-emerald-800 border-emerald-300 uppercase">{resumo.role}</Badge>
-                  <Badge variant="outline" className="text-xs uppercase">{resumo.details}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs uppercase">{grupoSelecionado.nome}</Badge>
+                  {grupoSelecionado.is_admin && <Badge className="bg-violet-100 text-violet-800 border-violet-300 text-xs">Admin</Badge>}
                 </div>
-                {grupoSelecionado.descricao && <p className="text-xs text-slate-600 uppercase">{grupoSelecionado.descricao}</p>}
+                <p className="text-xs text-slate-600">{grupoSelecionado.descricao || "Grupo configurado com permissões herdadas por tela, ações e atalhos do mobile."}</p>
               </div>
             )}
 

@@ -30,7 +30,7 @@ export const SYSTEM_MENU = [
       { id: "pec-lanc-pesagens", title: "Lançar Pesagens", url: "LancamentoPesagensIndividuais" },
       { id: "pec-mapa-cadastro", title: "Mapa - Áreas/Pontos/Linhas", url: "MapaCadastro" },
       { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
-      { id: "pec-relatorio", title: "Relatório Suplementação", url: "RelatorioSuplementacao" }
+      { id: "pec-relatorio", title: "Relatório de Suplementação", url: "RelatorioSuplementacao" }
     ]
   },
   {
@@ -121,7 +121,11 @@ export const SYSTEM_MENU = [
   { id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" }
 ];
 
-export const PAGE_ACTION_OPTIONS = [
+export const EXTRA_PERMISSION_PAGES = [
+  { id: "configuracoes-gerais", title: "Configurações Gerais", url: "ConfiguracoesGerais", icon: "Settings", categoria: "Sistema" }
+];
+
+export const ACTION_OPTIONS = [
   { id: "visualizar", title: "Visualizar" },
   { id: "criar", title: "Criar" },
   { id: "editar", title: "Editar" },
@@ -130,59 +134,58 @@ export const PAGE_ACTION_OPTIONS = [
   { id: "exportar", title: "Exportar" }
 ];
 
-export const DEFAULT_PAGE_ACTIONS = {
-  visualizar: false,
-  criar: false,
-  editar: false,
-  excluir: false,
-  importar: false,
-  exportar: false
-};
-
-export const DEFAULT_MOBILE_SHORTCUT_IDS = ["dashboard", "pesagens", "fin-lancamento", "rel-estoque"];
+export const DEFAULT_MOBILE_MENU_ITEMS = ["dashboard", "pesagens", "fin-lancamento", "rel-estoque"];
 
 const flatPages = [];
 
-const walkMenu = (items, categoria = "Principal", moduleId = null, fallbackIcon = "Home") => {
+const walkMenu = (items, categoria = "Geral", parentIcon = "Home", parentId = null) => {
   items.forEach((item) => {
-    const nextModuleId = moduleId || item.id;
-    const nextCategoria = moduleId ? categoria : item.title;
-    const nextIcon = item.icon || fallbackIcon;
+    const currentIcon = item.icon || parentIcon;
 
     if (item.url) {
       flatPages.push({
         id: item.id,
         title: item.title,
         url: item.url,
-        icon: nextIcon,
-        categoria: moduleId ? categoria : "Principal",
-        moduleId: moduleId || item.id
+        icon: currentIcon,
+        categoria: parentId ? categoria : "Principal",
+        moduleId: parentId || item.id
       });
     }
 
-    if (item.submenu?.length) {
-      walkMenu(item.submenu, item.title, item.id, nextIcon);
+    if (item.submenu) {
+      walkMenu(item.submenu, item.title, currentIcon, item.id);
     }
   });
 };
 
 walkMenu(SYSTEM_MENU);
 
-export const EXTRA_PERMISSION_PAGES = [
-  { id: "config-gerais", title: "Configurações Gerais", url: "ConfiguracoesGerais", icon: "Settings", categoria: "Sistema", moduleId: "config-gerais" }
+export const PAGE_OPTIONS = [
+  ...flatPages,
+  ...EXTRA_PERMISSION_PAGES.map((page) => ({
+    ...page,
+    moduleId: page.id
+  }))
 ];
 
-export const PAGE_OPTIONS = [...flatPages, ...EXTRA_PERMISSION_PAGES];
+export const PAGE_CATEGORY_OPTIONS = PAGE_OPTIONS.reduce((acc, page) => {
+  if (!acc[page.categoria]) acc[page.categoria] = [];
+  acc[page.categoria].push(page);
+  return acc;
+}, {});
 
 export const MOBILE_SHORTCUT_OPTIONS = PAGE_OPTIONS.filter((page) => page.url !== "Usuarios");
 
-export const getPageOptionById = (pageId) => PAGE_OPTIONS.find((page) => page.id === pageId);
 export const getPageOptionByUrl = (url) => PAGE_OPTIONS.find((page) => page.url === url);
+export const getPageOptionById = (id) => PAGE_OPTIONS.find((page) => page.id === id);
 
-export const groupPagesByCategory = () => {
+export const createEmptyPermissionsMap = () => {
   return PAGE_OPTIONS.reduce((acc, page) => {
-    if (!acc[page.categoria]) acc[page.categoria] = [];
-    acc[page.categoria].push(page);
+    acc[page.id] = ACTION_OPTIONS.reduce((actionAcc, action) => {
+      actionAcc[action.id] = false;
+      return actionAcc;
+    }, {});
     return acc;
   }, {});
 };
