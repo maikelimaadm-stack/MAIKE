@@ -198,6 +198,8 @@ export default function CadastroLotes() {
             onEdit={handleEdit}
             onDelete={handleRequestDelete}
             lotesComMovimentacoes={lotesComMovimentacoes}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas}
           />
         )}
       </AnimatePresence>
