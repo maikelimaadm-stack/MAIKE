@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasLotesDialog from "@/components/lotes/ConfiguracaoColunasLotesDialog";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true },
@@ -202,14 +202,11 @@ export default function TabelaLotes({
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
-      return <span className="text-[10px] leading-none text-slate-400">↕</span>;
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
-
-    return (
-      <span className="text-[10px] leading-none text-slate-700">
-        {sortConfig.direction === "asc" ? "↑" : "↓"}
-      </span>
-    );
+    return sortConfig.direction === "asc" ?
+      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
 

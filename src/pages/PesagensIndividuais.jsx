@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Upload, Search, Trash2, FileSpreadsheet, Download, 
-  ChevronUp, ChevronDown, RefreshCw, Filter, X, Scale,
+  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Filter, X, Scale,
   AlertTriangle, CheckCircle2, Plus, Settings, GripVertical, Edit2, MoreVertical, Layers
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -749,10 +749,12 @@ export default function PesagensIndividuais() {
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
-      return <span className="text-[10px] leading-none text-slate-400">↕</span>;
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
-  return sortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
-};
+    return sortConfig.direction === 'asc' ?
+      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-4">

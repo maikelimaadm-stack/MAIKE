@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import ConfiguracaoColunasCategoriasManejoDialog from "@/components/categorias-manejo/ConfiguracaoColunasCategoriasManejoDialog";
 
 const VALOR_TODOS = "__TODOS__";
@@ -237,14 +237,11 @@ export default function TabelaCategoriasManejo({
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
-      return <span className="text-[10px] leading-none text-slate-400">↕</span>;
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
-
-    return (
-      <span className="text-[10px] leading-none text-slate-700">
-        {sortConfig.direction === "asc" ? "↑" : "↓"}
-      </span>
-    );
+    return sortConfig.direction === "asc" ?
+      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
