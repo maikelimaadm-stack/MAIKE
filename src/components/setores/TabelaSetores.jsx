@@ -217,7 +217,7 @@ export default function TabelaSetores({
     <>
       <div className="space-y-3">
         <Card>
-          <CardContent className="p-">
+          <CardContent className="p-3">
             <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
               <div className="md:col-span-2 space-y-1">
                 <Label className="text-xs">Buscar</Label>
