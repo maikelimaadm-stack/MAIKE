@@ -405,7 +405,59 @@ export default function Layout({ children, currentPageName }) {
         .filter(i => i.id !== 'gt-planos')
         .map(i => (i.submenu ? { ...i, submenu: removePlanos(i.submenu) } : i));
     return removePlanos(filteredByPerms);
-  }, [menuItems, user?.role, userPermissions?.is_admin, userPermissions?.modulos_permitidos]);
+  }, [menuItems, normalizedPermissions]);
+
+  const currentMenuPage = React.useMemo(() => findMenuItemByUrl(menuItems, currentPageName), [menuItems, currentPageName]);
+  const firstAllowedPage = React.useMemo(() => flattenMenuPages(menuItemsFiltered)[0] || null, [menuItemsFiltered]);
+  const mobileNavPages = React.useMemo(() => {
+    const allowedPages = flattenMenuPages(menuItemsFiltered);
+    const preferredIds = normalizedPermissions?.mobile_menu_ids?.length
+      ? normalizedPermissions.mobile_menu_ids
+      : ["dashboard", "pesagens", "fin-lancamento", "rel-estoque"];
+
+    const selected = preferredIds
+      .map((id) => allowedPages.find((page) => page.id === id))
+      .filter(Boolean);
+
+    const fallback = allowedPages.filter((page) => !selected.some((item) => item.id === page.id));
+    return [...selected, ...fallback].slice(0, 4);
+  }, [menuItemsFiltered, normalizedPermissions]);
+
+  useEffect(() => {
+    if (!currentMenuPage) return;
+    if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) return;
+
+    openPermissionDialog(
+      "Tela bloqueada",
+      "Você não tem permissão para visualizar esta tela.",
+      createPageUrl(firstAllowedPage?.url || "Home")
+    );
+  }, [currentMenuPage, normalizedPermissions, firstAllowedPage]);
+
+  useEffect(() => {
+    if (!currentMenuPage) return;
+
+    const handleBlockedActions = (event) => {
+      const interactive = event.target?.closest?.("button, a, [role='button']");
+      if (!interactive || interactive.closest("nav")) return;
+
+      const label = interactive.textContent || interactive.getAttribute("aria-label") || interactive.getAttribute("title") || "";
+      const action = detectPermissionAction(label);
+      if (!action) return;
+      if (canPerformAction(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId, action)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+      }
+
+      openPermissionDialog("Ação bloqueada", `Você não tem permissão para ${ACTION_LABELS[action]} nesta tela.`);
+    };
+
+    document.addEventListener("click", handleBlockedActions, true);
+    return () => document.removeEventListener("click", handleBlockedActions, true);
+  }, [currentMenuPage, normalizedPermissions]);
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
@@ -816,6 +868,13 @@ export default function Layout({ children, currentPageName }) {
         senderName={empresaAtual?.apelido || empresaAtual?.nome || "MakGestão Pecuária"}
       />
 
+      <PermissionAlertDialog
+        open={permissionDialog.open}
+        onOpenChange={closePermissionDialog}
+        title={permissionDialog.title}
+        description={permissionDialog.description}
+      />
+
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -899,22 +958,18 @@ export default function Layout({ children, currentPageName }) {
       {!isFolha && (
         <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
           <div className="max-w-[1600px] mx-auto px-4 py-1 grid grid-cols-5 gap-1 text-xs">
-            <Link to={createPageUrl("Home")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Home")?"text-emerald-700":"text-slate-600"}`}>
-              <Home className="w-5 h-5" />
-              <span>Início</span>
-            </Link>
-            <Link to={createPageUrl("Pesagens")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Pesagens")?"text-emerald-700":"text-slate-600"}`}>
-              <Scale className="w-5 h-5" />
-              <span>Pesagens</span>
-            </Link>
-            <Link to={createPageUrl("LancamentoFinanceiro")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("LancamentoFinanceiro")?"text-emerald-700":"text-slate-600"}`}>
-              <DollarSign className="w-5 h-5" />
-              <span>Financeiro</span>
-            </Link>
-            <Link to={createPageUrl("RelatoriosEstoque")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("RelatoriosEstoque")?"text-emerald-700":"text-slate-600"}`}>
-              <FileText className="w-5 h-5" />
-              <span>Relatórios</span>
-            </Link>
+            {mobileNavPages.map((page) => {
+              const Icon = iconsMap[page.icon] || Home;
+              const isCurrent = location.pathname === createPageUrl(page.url);
+              const shortTitle = page.title.length > 12 ? page.title.split(" ")[0] : page.title;
+
+              return (
+                <Link key={page.id} to={createPageUrl(page.url)} className={`flex flex-col items-center py-1 rounded ${isCurrent ? "text-emerald-700" : "text-slate-600"}`}>
+                  <Icon className="w-5 h-5" />
+                  <span>{shortTitle}</span>
+                </Link>
+              );
+            })}
             <button onClick={() => setMobileMenuOpen(true)} className="flex flex-col items-center py-1 rounded text-slate-600">
               <Menu className="w-5 h-5" />
               <span>Menu</span>
