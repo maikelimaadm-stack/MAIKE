@@ -71,14 +71,8 @@ export default function CategoriasManejo() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.CategoriaManejo.update(id, data);
-      await base44.functions.invoke("syncEntityReferences", {
-        event: { type: "update", entity_name: "CategoriaManejo" },
-        data: updated,
-        old_data: oldData,
-      });
-      return updated;
+    mutationFn: async ({ id, data }) => {
+      return await base44.entities.CategoriaManejo.update(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });

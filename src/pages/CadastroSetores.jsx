@@ -72,8 +72,8 @@ export default function CadastroSetores() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.Setor.update(id, {
+    mutationFn: async ({ id, data }) => {
+      return await base44.entities.Setor.update(id, {
         ...data,
         nome: data.nome?.toUpperCase(),
         sigla: data.sigla?.toUpperCase() || null,
@@ -84,14 +84,6 @@ export default function CadastroSetores() {
         area_total: data.area_total ? parseFloat(data.area_total) : null,
         capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null,
       });
-
-      await base44.functions.invoke("syncEntityReferences", {
-        event: { type: "update", entity_name: "Setor" },
-        data: updated,
-        old_data: oldData,
-      });
-
-      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["setores", empresaSelecionadaId] });
