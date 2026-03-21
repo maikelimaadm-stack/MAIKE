@@ -199,9 +199,25 @@ export default function TabelaLotes({
     }));
   };
 
-  const getSortLabel = (key) => {
-    if (sortConfig.key !== key) return "";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
+  const SortIcon = ({ column }) => {
+    if (sortConfig.key !== column) {
+      return <span className="text-[10px] leading-none text-slate-400">↕</span>;
+    }
+
+    return (
+      <span className="text-[10px] leading-none text-slate-700">
+        {sortConfig.direction === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
+
+  const getHeaderClassName = (isRight = false, sortable = false, extraClass = "") => {
+    return [
+      "text-xs py-2 px-3 select-none border border-black bg-white",
+      sortable ? "cursor-pointer hover:bg-gray-50" : "",
+      isRight ? "text-right" : "text-left",
+      extraClass,
+    ].filter(Boolean).join(" ");
   };
 
   const toggleSelectAll = () => {
@@ -354,28 +370,42 @@ export default function TabelaLotes({
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
-                        <TableHead key="selecao" className="text-xs font-bold py-1 px-2 border border-black w-10">
-                          <Checkbox
-                            checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
-                            onCheckedChange={toggleSelectAll}
-                          />
+                        <TableHead key="selecao" className={getHeaderClassName(false, false, "w-10 px-2")}>
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
+                              onCheckedChange={toggleSelectAll}
+                            />
+                          </div>
                         </TableHead>
                       );
                     }
 
                     if (coluna.id === "acoes") {
-                      return <TableHead key="acoes" className="text-xs font-bold py-1 px-2 border border-black w-16"></TableHead>;
+                      return (
+                        <TableHead key="acoes" className={getHeaderClassName(false, false, "w-16 px-2")}>
+                          <div className="flex items-center justify-center">
+                            <span className="font-medium">Ações</span>
+                          </div>
+                        </TableHead>
+                      );
                     }
 
                     const isRight = coluna.align === "right";
+
                     return (
                       <TableHead
                         key={coluna.id}
-                        className={`text-xs font-bold py-1 px-3 border border-black ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
-                        onClick={() => coluna.sortable && handleSort(coluna.id)}
+                        className={getHeaderClassName(isRight, coluna.sortable)}
+                        onClick={() => {
+                          if (coluna.sortable) handleSort(coluna.id);
+                        }}
                       >
-                        <div className={`${isRight ? "text-right" : ""}`}>
-                          {coluna.label} {coluna.sortable ? getSortLabel(coluna.id) : ""}
+                        <div
+                          className={`flex items-center gap-1 ${isRight ? "justify-end" : "justify-start"}`}
+                        >
+                          <span className="font-medium">{coluna.label}</span>
+                          {coluna.sortable && <SortIcon column={coluna.id} />}
                         </div>
                       </TableHead>
                     );
