@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
+const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = [
   "nome",
   "raca_predominante",
@@ -23,6 +24,19 @@ const UPPERCASE_FIELDS = [
   "motivo_ajuste",
   "motivo_outros",
   "observacoes",
+];
+const REQUIRED_FIELDS = [
+  "nome",
+  "quantidade_cabecas",
+  "data_entrada",
+  "categoria_manejo_id",
+  "categoria",
+  "sexo",
+  "raca_predominante",
+  "peso_medio_kg",
+  "idade_media_meses",
+  "area_entrada_id",
+  "sistema_produtivo",
 ];
 
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
@@ -84,7 +98,12 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   });
 
   const getFieldClassName = (field, baseClass) => {
-    return `${baseClass} ${errors[field] ? "border-red-500 ring-1 ring-red-500" : ""}`.trim();
+    return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
+  };
+
+  const isEmptyValue = (value) => {
+    if (typeof value === "string") return value.trim() === "";
+    return value === undefined || value === null || value === "";
   };
 
   const handleChange = (field, value) => {
@@ -123,38 +142,44 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
   const validateForm = () => {
     const nextErrors = {};
-    const missing = [];
 
-    if (!formData.motivo_entrada) {
-      nextErrors.motivo_entrada = true;
-      missing.push("Motivo da Entrada");
+    REQUIRED_FIELDS.forEach((field) => {
+      if (isEmptyValue(formData?.[field])) {
+        nextErrors[field] = true;
+      }
+    });
+
+    if (formData.motivo_entrada === "Compra") {
+      [
+        "fornecedor_id",
+        "cidade_origem",
+        "estado_origem",
+        "nota_fiscal",
+        "chave_nfe",
+        "numero_gta",
+        "valor_total_compra",
+        "valor_por_cabeca",
+        "valor_frete",
+      ].forEach((field) => {
+        if (isEmptyValue(formData?.[field])) {
+          nextErrors[field] = true;
+        }
+      });
     }
-    if (!formData.nome?.trim()) {
-      nextErrors.nome = true;
-      missing.push("Nome do Lote");
-    }
-    if (!formData.quantidade_cabecas) {
-      nextErrors.quantidade_cabecas = true;
-      missing.push("Quantidade de Cabeças");
-    }
-    if (!formData.data_entrada) {
-      nextErrors.data_entrada = true;
-      missing.push("Data de Entrada");
-    }
-    if (formData.motivo_entrada === "Ajuste" && !formData.motivo_ajuste?.trim()) {
+
+    if (formData.motivo_entrada === "Ajuste" && isEmptyValue(formData?.motivo_ajuste)) {
       nextErrors.motivo_ajuste = true;
-      missing.push("Motivo do Ajuste");
     }
-    if (formData.motivo_entrada === "Outros" && !formData.motivo_outros?.trim()) {
+
+    if (formData.motivo_entrada === "Outros" && isEmptyValue(formData?.motivo_outros)) {
       nextErrors.motivo_outros = true;
-      missing.push("Motivo");
     }
 
     setErrors(nextErrors);
 
-    if (!missing.length) return true;
+    if (Object.keys(nextErrors).length === 0) return true;
 
-    toast.error(`Preencha os campos obrigatórios: ${missing.join(", ")}.`);
+    toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
     const firstField = Object.keys(nextErrors)[0];
     const element = document.querySelector(`[data-field="${firstField}"]`);
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -209,24 +234,19 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
         <CardContent className="p-4">
           <form onSubmit={handleSubmit} className="space-y-1">
             <div className="space-y-1">
-              <Label className="text-xs">Motivo da Entrada *</Label>
-              <div
-                data-field="motivo_entrada"
-                tabIndex={-1}
-                className={`grid grid-cols-2 lg:grid-cols-4 gap-1 ${errors.motivo_entrada ? "rounded border border-red-500 p-1" : ""}`}
-              >
-                {MOTIVOS_ENTRADA.map((motivo) => (
-                  <Button
-                    key={motivo}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleChange("motivo_entrada", motivo)}
-                    className={`h-8 text-xs justify-start ${formData.motivo_entrada === motivo ? "border-emerald-600 text-emerald-700 bg-emerald-50 hover:bg-emerald-50" : ""}`}
-                  >
-                    {motivo}
-                  </Button>
-                ))}
+              <Label className="text-xs">Motivo da Entrada</Label>
+              <div data-field="motivo_entrada">
+                <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="SELECIONE" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                    {MOTIVOS_ENTRADA.map((motivo) => (
+                      <SelectItem key={motivo} value={motivo} className="text-xs">{motivo.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -269,108 +289,123 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div className="space-y-1">
-                <Label className="text-xs">Categoria de Manejo</Label>
-                <Select value={formData.categoria_manejo_id || ""} onValueChange={(value) => handleChange("categoria_manejo_id", value)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriasManejo.map((item) => (
-                      <SelectItem key={item.id} value={item.id} className="text-xs">
-                        {item.nome} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Categoria de Manejo *</Label>
+                <div data-field="categoria_manejo_id">
+                  <Select value={formData.categoria_manejo_id || SELECT_EMPTY} onValueChange={(value) => handleChange("categoria_manejo_id", value === SELECT_EMPTY ? "" : value)}>
+                    <SelectTrigger className={getFieldClassName("categoria_manejo_id", "h-8 text-xs")}>
+                      <SelectValue placeholder="SELECIONE" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                      {categoriasManejo.map((item) => (
+                        <SelectItem key={item.id} value={item.id} className="text-xs">
+                          {(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Categoria</Label>
-                <Input value={formData.categoria || ""} readOnly className="h-8 text-xs bg-slate-50 uppercase" style={{ textTransform: "uppercase" }} />
+                <Label className="text-xs">Categoria *</Label>
+                <Input data-field="categoria" value={formData.categoria || ""} readOnly className={getFieldClassName("categoria", "h-8 text-xs bg-slate-50 uppercase")} style={{ textTransform: "uppercase" }} />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Sexo</Label>
-                <Select value={formData.sexo || ""} onValueChange={(value) => handleChange("sexo", value)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
-                    <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
-                    <SelectItem value="Misto" className="text-xs">Misto</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Sexo *</Label>
+                <div data-field="sexo">
+                  <Select value={formData.sexo || SELECT_EMPTY} onValueChange={(value) => handleChange("sexo", value === SELECT_EMPTY ? "" : value)}>
+                    <SelectTrigger className={getFieldClassName("sexo", "h-8 text-xs")}>
+                      <SelectValue placeholder="SELECIONE" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                      <SelectItem value="Macho" className="text-xs">MACHO</SelectItem>
+                      <SelectItem value="Fêmea" className="text-xs">FÊMEA</SelectItem>
+                      <SelectItem value="Misto" className="text-xs">MISTO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div className="space-y-1">
-                <Label className="text-xs">Raça Predominante</Label>
+                <Label className="text-xs">Raça Predominante *</Label>
                 <Input
+                  data-field="raca_predominante"
                   value={formData.raca_predominante || ""}
                   onChange={(e) => handleChange("raca_predominante", e.target.value)}
                   placeholder="RAÇA"
-                  className="h-8 text-xs uppercase"
+                  className={getFieldClassName("raca_predominante", "h-8 text-xs uppercase")}
                   style={{ textTransform: "uppercase" }}
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Peso Médio (kg)</Label>
+                <Label className="text-xs">Peso Médio (kg) *</Label>
                 <Input
+                  data-field="peso_medio_kg"
                   type="number"
                   step="0.1"
                   value={formData.peso_medio_kg || ""}
                   onChange={(e) => handleChange("peso_medio_kg", e.target.value)}
                   placeholder="0.0"
-                  className="h-8 text-xs"
+                  className={getFieldClassName("peso_medio_kg", "h-8 text-xs")}
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Idade Média (meses)</Label>
+                <Label className="text-xs">Idade Média (meses) *</Label>
                 <Input
+                  data-field="idade_media_meses"
                   type="number"
                   value={formData.idade_media_meses || ""}
                   onChange={(e) => handleChange("idade_media_meses", e.target.value)}
                   placeholder="0"
-                  className="h-8 text-xs"
+                  className={getFieldClassName("idade_media_meses", "h-8 text-xs")}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div className="space-y-1">
-                <Label className="text-xs">Área de Entrada</Label>
-                <Select value={formData.area_entrada_id || ""} onValueChange={(value) => handleChange("area_entrada_id", value)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {areas.map((item) => (
-                      <SelectItem key={item.id} value={item.id} className="text-xs">
-                        {item.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Área de Entrada *</Label>
+                <div data-field="area_entrada_id">
+                  <Select value={formData.area_entrada_id || SELECT_EMPTY} onValueChange={(value) => handleChange("area_entrada_id", value === SELECT_EMPTY ? "" : value)}>
+                    <SelectTrigger className={getFieldClassName("area_entrada_id", "h-8 text-xs")}>
+                      <SelectValue placeholder="SELECIONE" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                      {areas.map((item) => (
+                        <SelectItem key={item.id} value={item.id} className="text-xs">
+                          {(item.nome || "").toUpperCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Sistema Produtivo</Label>
-                <Select value={formData.sistema_produtivo || ""} onValueChange={(value) => handleChange("sistema_produtivo", value)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SISTEMAS.map((item) => (
-                      <SelectItem key={item} value={item} className="text-xs">
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Sistema Produtivo *</Label>
+                <div data-field="sistema_produtivo">
+                  <Select value={formData.sistema_produtivo || SELECT_EMPTY} onValueChange={(value) => handleChange("sistema_produtivo", value === SELECT_EMPTY ? "" : value)}>
+                    <SelectTrigger className={getFieldClassName("sistema_produtivo", "h-8 text-xs")}>
+                      <SelectValue placeholder="SELECIONE" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                      {SISTEMAS.map((item) => (
+                        <SelectItem key={item} value={item} className="text-xs">
+                          {item.toUpperCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
@@ -379,63 +414,66 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                 <span className="font-semibold text-sm text-slate-700">Dados da Compra</span>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                   <div className="space-y-1">
-                    <Label className="text-xs">Fornecedor</Label>
-                    <Select value={formData.fornecedor_id || ""} onValueChange={(value) => handleChange("fornecedor_id", value)}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {fornecedores.map((item) => (
-                          <SelectItem key={item.id} value={item.id} className="text-xs">
-                            {item.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-xs">Fornecedor *</Label>
+                    <div data-field="fornecedor_id">
+                      <Select value={formData.fornecedor_id || SELECT_EMPTY} onValueChange={(value) => handleChange("fornecedor_id", value === SELECT_EMPTY ? "" : value)}>
+                        <SelectTrigger className={getFieldClassName("fornecedor_id", "h-8 text-xs")}>
+                          <SelectValue placeholder="SELECIONE" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                          {fornecedores.map((item) => (
+                            <SelectItem key={item.id} value={item.id} className="text-xs">
+                              {(item.nome || "").toUpperCase()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Cidade Origem</Label>
-                    <Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-8 text-xs uppercase" style={{ textTransform: "uppercase" }} />
+                    <Label className="text-xs">Cidade Origem *</Label>
+                    <Input data-field="cidade_origem" value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className={getFieldClassName("cidade_origem", "h-8 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Estado Origem</Label>
-                    <Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-8 text-xs uppercase" style={{ textTransform: "uppercase" }} maxLength={2} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nota Fiscal</Label>
-                    <Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="NÚMERO DA NF" className="h-8 text-xs uppercase" style={{ textTransform: "uppercase" }} />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Chave NF-e</Label>
-                    <Input value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className="h-8 text-xs uppercase" style={{ textTransform: "uppercase" }} />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nº GTA</Label>
-                    <Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-8 text-xs uppercase" style={{ textTransform: "uppercase" }} />
+                    <Label className="text-xs">Estado Origem *</Label>
+                    <Input data-field="estado_origem" value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className={getFieldClassName("estado_origem", "h-8 text-xs uppercase")} style={{ textTransform: "uppercase" }} maxLength={2} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                   <div className="space-y-1">
-                    <Label className="text-xs">Valor Total (R$)</Label>
-                    <Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-8 text-xs" />
+                    <Label className="text-xs">Nota Fiscal *</Label>
+                    <Input data-field="nota_fiscal" value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="NÚMERO DA NF" className={getFieldClassName("nota_fiscal", "h-8 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Valor por Cabeça (R$)</Label>
-                    <Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-8 text-xs bg-slate-50" />
+                    <Label className="text-xs">Chave NF-e *</Label>
+                    <Input data-field="chave_nfe" value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className={getFieldClassName("chave_nfe", "h-8 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Valor Frete (R$)</Label>
-                    <Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-8 text-xs" />
+                    <Label className="text-xs">Nº GTA *</Label>
+                    <Input data-field="numero_gta" value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className={getFieldClassName("numero_gta", "h-8 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valor Total (R$) *</Label>
+                    <Input data-field="valor_total_compra" type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className={getFieldClassName("valor_total_compra", "h-8 text-xs")} />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valor por Cabeça (R$) *</Label>
+                    <Input data-field="valor_por_cabeca" type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className={getFieldClassName("valor_por_cabeca", "h-8 text-xs bg-slate-50")} />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valor Frete (R$) *</Label>
+                    <Input data-field="valor_frete" type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className={getFieldClassName("valor_frete", "h-8 text-xs")} />
                   </div>
                 </div>
               </div>
