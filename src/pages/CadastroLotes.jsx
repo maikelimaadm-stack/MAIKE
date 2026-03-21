@@ -20,7 +20,7 @@ export default function CadastroLotes() {
 
   const ORIGENS_SISTEMA = ['MOVIMENTAÇÃO', 'REVERSÃO MOVIMENTAÇÃO', 'Nascimento', 'Mudança de Categoria', 'NASCIMENTO', 'MUDANÇA DE CATEGORIA'];
 
-  const { data: lotes = [] } = useQuery({
+  const { data: lotes = [], refetch } = useQuery({
     queryKey: ['lotes-cadastro', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
