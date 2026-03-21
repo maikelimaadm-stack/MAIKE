@@ -235,9 +235,16 @@ export default function TabelaCategoriasManejo({
     }));
   };
 
-  const getSortLabel = (key) => {
-    if (sortConfig.key !== key) return "";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
+  const SortIcon = ({ column }) => {
+    if (sortConfig.key !== column) {
+      return <span className="text-[10px] leading-none text-slate-400">↕</span>;
+    }
+
+    return (
+      <span className="text-[10px] leading-none text-slate-700">
+        {sortConfig.direction === "asc" ? "↑" : "↓"}
+      </span>
+    );
   };
 
   const toggleSelectAll = () => {
@@ -380,7 +387,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="text-xs font-bold py-1 px-2 border border-black w-10">
+                          <TableHead key="selecao" className="text-xs py-2 px-2">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll}
@@ -388,20 +395,18 @@ export default function TabelaCategoriasManejo({
                           </TableHead>
                         );
                       }
-
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-xs font-bold py-1 px-2 border border-black w-10"></TableHead>;
+                        return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
                       }
-
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
                           key={coluna.id}
-                          className={`text-xs font-bold py-1 px-3 border border-black ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
+                          className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}
                         >
-                          <div className={`${isRight ? "text-right" : ""}`}>
-                            {coluna.label} {coluna.sortable ? getSortLabel(coluna.id) : ""}
+                          <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
+                            {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                           </div>
                         </TableHead>
                       );
@@ -421,7 +426,7 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                           if (coluna.id === "selecao") {
                             return (
-                              <TableCell key={`${item.id}-selecao`} className="text-xs py-1 px-2 border border-gray-300">
+                              <TableCell key={`${item.id}-selecao`} className="text-xs py-2 px-2">
                                 <Checkbox
                                   checked={selectedItems.includes(item.id)}
                                   onCheckedChange={() => {
@@ -434,7 +439,7 @@ export default function TabelaCategoriasManejo({
 
                           if (coluna.id === "acoes") {
                             return (
-                              <TableCell key={`${item.id}-acoes`} className="text-xs py-1 px-2 border border-gray-300 text-center">
+                              <TableCell key={`${item.id}-acoes`} className="text-xs py-2 px-2 text-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -458,7 +463,7 @@ export default function TabelaCategoriasManejo({
                           return (
                             <TableCell
                               key={`${item.id}-${coluna.id}`}
-                              className={`text-xs py-1 px-3 border border-gray-300 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
+                              className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
                             >
                               {renderCell(item, coluna.id)}
                             </TableCell>
