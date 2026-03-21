@@ -263,8 +263,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+            <form onSubmit={handleSubmit} className="space-y-1">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Tipo *</Label>
                   <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
@@ -297,7 +297,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Nº Documento</Label>
                   <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
@@ -333,7 +333,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Centro de Custo</Label>
                   <div className="flex gap-2">
@@ -395,7 +395,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Valor Original *</Label>
                   <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required className="h-8 text-xs" />

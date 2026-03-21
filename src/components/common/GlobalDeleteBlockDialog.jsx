@@ -31,7 +31,7 @@ export default function GlobalDeleteBlockDialog() {
 
   return (
     <AlertDialog open={dialog.open} onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}>
-      <AlertDialogContent>
+      <AlertDialogContent className="[&>button]:hidden">
         <AlertDialogHeader>
           <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
           <AlertDialogDescription>{dialog.description}</AlertDialogDescription>
