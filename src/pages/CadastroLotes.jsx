@@ -156,7 +156,7 @@ export default function CadastroLotes() {
 
   return (
     <div className="p-4 md:p-6 space-y-1">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Cadastro de Lotes</h1>
           <p className="text-xs text-slate-600">Registro fixo de entrada de lotes e manutenção do cadastro.</p>
@@ -179,7 +179,7 @@ export default function CadastroLotes() {
             </Button>
           }
         </div>
-      </div>
+      </div>}
 
       <AnimatePresence mode="wait">
         {showForm ?

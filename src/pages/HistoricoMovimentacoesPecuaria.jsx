@@ -1097,8 +1097,8 @@ export default function HistoricoMovimentacoesPecuaria() {
                         className={`text-xs py-2 px-3 ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : ''}`}
                         onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
-                        <div className={`${isRight ? 'text-right' : ''}`}>
-                          {coluna.label}
+                        <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : ''}`}>
+                          {coluna.label} {coluna.sortable && getSortIcon(coluna.id)}
                         </div>
                       </TableHead>
                     );
@@ -1133,8 +1133,8 @@ export default function HistoricoMovimentacoesPecuaria() {
                         <TableCell className="text-xs py-2 px-2 text-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-6 px-2 text-xs">
-                                Ações
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">

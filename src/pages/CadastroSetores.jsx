@@ -131,7 +131,7 @@ export default function CadastroSetores() {
 
   return (
     <div className="p-4 md:p-6 space-y-1">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Cadastro de Setores / Fazendas</h1>
           <p className="text-xs text-slate-600">Cadastro e gestão dos setores e fazendas</p>
@@ -151,7 +151,7 @@ export default function CadastroSetores() {
             </Button>
           }
         </div>
-      </div>
+      </div>}
 
       <AnimatePresence mode="wait">
         {showForm ?
