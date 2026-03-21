@@ -45,6 +45,10 @@ export default function TabelaLotes({ lotes, areas, onEdit, onDelete }) {
   const categorias = useMemo(() => [...new Set(lotes.map((item) => item.categoria_entrada || item.categoria).filter(Boolean))], [lotes]);
   const motivos = useMemo(() => [...new Set(lotes.map((item) => item.motivo_entrada || item.origem).filter(Boolean))], [lotes]);
 
+  useEffect(() => {
+    setSelecionados((prev) => prev.filter((id) => lotes.some((item) => item.id === id)));
+  }, [lotes]);
+
   const lotesFiltrados = useMemo(() => {
     return lotes.filter((lote) => {
       const termo = searchTerm.toLowerCase();
