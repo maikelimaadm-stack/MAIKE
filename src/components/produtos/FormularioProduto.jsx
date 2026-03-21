@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -43,11 +43,16 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
   const [showNovaUnidade, setShowNovaUnidade] = useState(false);
   const [showNovaCategoria, setShowNovaCategoria] = useState(false);
   const [showNovoLocal, setShowNovoLocal] = useState(false);
+  const [invalidFields, setInvalidFields] = useState([]);
   const [novaUnidade, setNovaUnidade] = useState({ sigla: "", descricao: "" });
   const [novaCategoria, setNovaCategoria] = useState({ nome: "", subcategoria: "", descricao: "" });
   const [novoLocal, setNovoLocal] = useState({ nome: "", descricao: "", capacidade: "" });
 
   const queryClient = useQueryClient();
+  const nomeProdutoRef = useRef(null);
+  const codigoInternoRef = useRef(null);
+  const pesoSacoRef = useRef(null);
+  const unidadeTriggerRef = useRef(null);
 
   const { data: unidades = [] } = useQuery({
     queryKey: ['unidades'],
@@ -126,28 +131,34 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
   const handleChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
+    setInvalidFields((prev) => prev.filter((item) => item !== field));
+  };
+
+  const getFieldClassName = (field, baseClassName = "") => {
+    const invalid = invalidFields.includes(field);
+    return `${baseClassName} ${invalid ? 'border-slate-300 bg-slate-100 focus-visible:ring-slate-400' : ''}`.trim();
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.nome_produto?.trim()) {
-      toast.error('❌ O campo Nome do Produto é obrigatório!');
-      return;
-    }
+    const missingFields = [];
 
-    if (!formData.codigo_interno?.trim()) {
-      toast.error('❌ O campo Código Interno é obrigatório!');
-      return;
-    }
-
-    if (!formData.unidade_medida?.trim()) {
-      toast.error('❌ O campo Unidade de Medida é obrigatório!');
-      return;
-    }
-
+    if (!formData.nome_produto?.trim()) missingFields.push('nome_produto');
+    if (!formData.codigo_interno?.trim()) missingFields.push('codigo_interno');
+    if (!formData.unidade_medida?.trim()) missingFields.push('unidade_medida');
     if (formData.unidade_principal_estoque === "SACO" && !formData.peso_por_saco_kg) {
-      toast.error('Informe o peso por saco quando a unidade é SACO.');
+      missingFields.push('peso_por_saco_kg');
+    }
+
+    if (missingFields.length > 0) {
+      setInvalidFields(missingFields);
+
+      const firstMissingField = missingFields[0];
+      if (firstMissingField === 'nome_produto') nomeProdutoRef.current?.focus();
+      if (firstMissingField === 'codigo_interno') codigoInternoRef.current?.focus();
+      if (firstMissingField === 'unidade_medida') unidadeTriggerRef.current?.focus();
+      if (firstMissingField === 'peso_por_saco_kg') pesoSacoRef.current?.focus();
       return;
     }
 
@@ -202,11 +213,11 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-1">
                   <Label className="text-xs">Nome do Produto *</Label>
                   <Input
+                    ref={nomeProdutoRef}
                     value={formData.nome_produto}
                     onChange={(e) => handleChange('nome_produto', e.target.value)}
                     placeholder="NOME DO PRODUTO"
-                    required
-                    className="h-8 text-xs uppercase"
+                    className={getFieldClassName('nome_produto', "h-8 text-xs uppercase")}
                     style={{ textTransform: 'uppercase' }}
                   />
                 </div>
@@ -214,11 +225,11 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-1">
                   <Label className="text-xs">Código Interno *</Label>
                   <Input
+                    ref={codigoInternoRef}
                     value={formData.codigo_interno}
                     onChange={(e) => handleChange('codigo_interno', e.target.value)}
                     placeholder="CÓDIGO INTERNO"
-                    required
-                    className="h-8 text-xs uppercase"
+                    className={getFieldClassName('codigo_interno', "h-8 text-xs uppercase")}
                     style={{ textTransform: 'uppercase' }}
                   />
                 </div>
@@ -260,7 +271,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                   <Label className="text-xs">Unidade de Medida *</Label>
                   <div className="flex gap-2">
                     <Select value={formData.unidade_medida} onValueChange={(value) => handleChange('unidade_medida', value)}>
-                      <SelectTrigger className="flex-1 h-8 text-xs">
+                      <SelectTrigger ref={unidadeTriggerRef} className={getFieldClassName('unidade_medida', "flex-1 h-8 text-xs")}>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
@@ -457,12 +468,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                     <div className="space-y-1">
                       <Label className="text-xs">Peso por saco (kg) *</Label>
                       <Input
+                        ref={pesoSacoRef}
                         type="number"
                         step="0.1"
                         value={formData.peso_por_saco_kg}
                         onChange={(e) => handleChange('peso_por_saco_kg', e.target.value)}
                         placeholder="40"
-                        className="h-8 text-xs"
+                        className={getFieldClassName('peso_por_saco_kg', "h-8 text-xs")}
                       />
                     </div>
                   )}
