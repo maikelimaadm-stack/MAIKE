@@ -11,8 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import ConfiguracaoColunasCategoriasManejoDialog from "@/components/categorias-manejo/ConfiguracaoColunasCategoriasManejoDialog";
@@ -20,36 +20,36 @@ import ConfiguracaoColunasCategoriasManejoDialog from "@/components/categorias-m
 const VALOR_TODOS = "__TODOS__";
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true },
-  { id: "acoes", label: "Ações", default: true, fixo: true },
-  { id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
-  { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left" },
-  { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left" },
-  { id: "raca", label: "Raça", default: true, sortable: true, align: "left" },
-  { id: "idade", label: "Faixa Idade", default: true, sortable: true, align: "left" },
-  { id: "especie", label: "Espécie", default: false, sortable: true, align: "left" },
-  { id: "categoria_oficial", label: "Categoria Oficial", default: true, sortable: true, align: "left" },
-  { id: "ganho_anual", label: "Ganho Anual (kg)", default: false, sortable: true, align: "right" },
-  { id: "gmd_jan", label: "GMD Jan", default: false, sortable: true, align: "right" },
-  { id: "gmd_fev", label: "GMD Fev", default: false, sortable: true, align: "right" },
-  { id: "gmd_mar", label: "GMD Mar", default: false, sortable: true, align: "right" },
-  { id: "gmd_abr", label: "GMD Abr", default: false, sortable: true, align: "right" },
-  { id: "gmd_mai", label: "GMD Mai", default: false, sortable: true, align: "right" },
-  { id: "gmd_jun", label: "GMD Jun", default: false, sortable: true, align: "right" },
-  { id: "gmd_jul", label: "GMD Jul", default: false, sortable: true, align: "right" },
-  { id: "gmd_ago", label: "GMD Ago", default: false, sortable: true, align: "right" },
-  { id: "gmd_set", label: "GMD Set", default: false, sortable: true, align: "right" },
-  { id: "gmd_out", label: "GMD Out", default: false, sortable: true, align: "right" },
-  { id: "gmd_nov", label: "GMD Nov", default: false, sortable: true, align: "right" },
-  { id: "gmd_dez", label: "GMD Dez", default: false, sortable: true, align: "right" },
-];
+{ id: "selecao", label: "Seleção", default: true, fixo: true },
+{ id: "acoes", label: "Ações", default: true, fixo: true },
+{ id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
+{ id: "sigla", label: "Sigla", default: true, sortable: true, align: "left" },
+{ id: "sexo", label: "Sexo", default: true, sortable: true, align: "left" },
+{ id: "raca", label: "Raça", default: true, sortable: true, align: "left" },
+{ id: "idade", label: "Faixa Idade", default: true, sortable: true, align: "left" },
+{ id: "especie", label: "Espécie", default: false, sortable: true, align: "left" },
+{ id: "categoria_oficial", label: "Categoria Oficial", default: true, sortable: true, align: "left" },
+{ id: "ganho_anual", label: "Ganho Anual (kg)", default: false, sortable: true, align: "right" },
+{ id: "gmd_jan", label: "GMD Jan", default: false, sortable: true, align: "right" },
+{ id: "gmd_fev", label: "GMD Fev", default: false, sortable: true, align: "right" },
+{ id: "gmd_mar", label: "GMD Mar", default: false, sortable: true, align: "right" },
+{ id: "gmd_abr", label: "GMD Abr", default: false, sortable: true, align: "right" },
+{ id: "gmd_mai", label: "GMD Mai", default: false, sortable: true, align: "right" },
+{ id: "gmd_jun", label: "GMD Jun", default: false, sortable: true, align: "right" },
+{ id: "gmd_jul", label: "GMD Jul", default: false, sortable: true, align: "right" },
+{ id: "gmd_ago", label: "GMD Ago", default: false, sortable: true, align: "right" },
+{ id: "gmd_set", label: "GMD Set", default: false, sortable: true, align: "right" },
+{ id: "gmd_out", label: "GMD Out", default: false, sortable: true, align: "right" },
+{ id: "gmd_nov", label: "GMD Nov", default: false, sortable: true, align: "right" },
+{ id: "gmd_dez", label: "GMD Dez", default: false, sortable: true, align: "right" }];
+
 
 export default function TabelaCategoriasManejo({
   categorias,
   onEdit,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas,
+  setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroSexo, setFiltroSexo] = useState(VALOR_TODOS);
@@ -94,9 +94,9 @@ export default function TabelaCategoriasManejo({
   const categoriasOficiais = useMemo(() => [...new Set(categorias.map((item) => item.categoria_oficial).filter(Boolean))].sort(), [categorias]);
 
   const toggleColuna = (colunaId) => {
-    const novasColunas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter((id) => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novasColunas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
 
     setColunasVisiveis(novasColunas);
     localStorage.setItem("colunas_visiveis_categorias_manejo", JSON.stringify(novasColunas));
@@ -114,20 +114,20 @@ export default function TabelaCategoriasManejo({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id))
-      .filter((c) => c && colunasVisiveis.includes(c.id));
+    return colunasOrdem.
+    map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).
+    filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis]);
 
   const categoriasFiltradas = useMemo(() => {
     return categorias.filter((item) => {
       const termo = searchTerm.toLowerCase();
       const matchSearch =
-        !termo ||
-        item.nome?.toLowerCase().includes(termo) ||
-        item.sigla?.toLowerCase().includes(termo) ||
-        item.raca?.toLowerCase().includes(termo) ||
-        item.categoria_oficial?.toLowerCase().includes(termo);
+      !termo ||
+      item.nome?.toLowerCase().includes(termo) ||
+      item.sigla?.toLowerCase().includes(termo) ||
+      item.raca?.toLowerCase().includes(termo) ||
+      item.categoria_oficial?.toLowerCase().includes(termo);
       const matchSexo = filtroSexo === VALOR_TODOS || item.sexo === filtroSexo;
       const matchEspecie = filtroEspecie === VALOR_TODOS || item.especie === filtroEspecie;
       const matchCategoriaOficial = filtroCategoriaOficial === VALOR_TODOS || item.categoria_oficial === filtroCategoriaOficial;
@@ -231,7 +231,7 @@ export default function TabelaCategoriasManejo({
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
     }));
   };
 
@@ -240,8 +240,8 @@ export default function TabelaCategoriasManejo({
       return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
-      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
-      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -293,18 +293,18 @@ export default function TabelaCategoriasManejo({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Card>
           <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
               <div className="md:col-span-2 space-y-1">
                 <Label className="text-xs">Buscar</Label>
                 <Input
                   placeholder="Buscar categoria, sigla, raça..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8 text-xs"
-                />
+                  className="h-8 text-xs" />
+                
               </div>
 
               <div className="space-y-1">
@@ -325,9 +325,9 @@ export default function TabelaCategoriasManejo({
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
-                    {especies.map((item) => (
-                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
-                    ))}
+                    {especies.map((item) =>
+                    <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -338,9 +338,9 @@ export default function TabelaCategoriasManejo({
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
-                    {categoriasOficiais.map((item) => (
-                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
-                    ))}
+                    {categoriasOficiais.map((item) =>
+                    <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -351,8 +351,8 @@ export default function TabelaCategoriasManejo({
                 {categoriasFiltradas.length} de {categorias.length} registros
               </div>
               <div className="flex gap-2 flex-wrap">
-                {selectedItems.length > 0 && (
-                  <DropdownMenu>
+                {selectedItems.length > 0 &&
+                <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-7 text-xs">
                         Ações ({selectedItems.length})
@@ -366,7 +366,7 @@ export default function TabelaCategoriasManejo({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
+                }
                 <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
                   Limpar Filtros
                 </Button>
@@ -387,10 +387,10 @@ export default function TabelaCategoriasManejo({
                           <TableHead key="selecao" className="text-xs py-2 px-2">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
-                              onCheckedChange={toggleSelectAll}
-                            />
-                          </TableHead>
-                        );
+                              onCheckedChange={toggleSelectAll} />
+                            
+                          </TableHead>);
+
                       }
                       if (coluna.id === "acoes") {
                         return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
@@ -400,43 +400,43 @@ export default function TabelaCategoriasManejo({
                         <TableHead
                           key={coluna.id}
                           className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
-                          onClick={() => coluna.sortable && handleSort(coluna.id)}
-                        >
+                          onClick={() => coluna.sortable && handleSort(coluna.id)}>
+                          
                           <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
                             {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                           </div>
-                        </TableHead>
-                      );
+                        </TableHead>);
+
                     })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {categoriasPaginadas.length === 0 ? (
-                    <TableRow>
+                  {categoriasPaginadas.length === 0 ?
+                  <TableRow>
                       <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                         Nenhuma categoria encontrada
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    categoriasPaginadas.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-gray-50 border-b">
-                        {colunasOrdenadas.map((coluna) => {
-                          if (coluna.id === "selecao") {
-                            return (
-                              <TableCell key={`${item.id}-selecao`} className="text-xs py-2 px-2">
-                                <Checkbox
-                                  checked={selectedItems.includes(item.id)}
-                                  onCheckedChange={() => {
-                                    setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                                  }}
-                                />
-                              </TableCell>
-                            );
-                          }
+                    </TableRow> :
 
-                          if (coluna.id === "acoes") {
-                            return (
-                              <TableCell key={`${item.id}-acoes`} className="text-xs py-2 px-2 text-center">
+                  categoriasPaginadas.map((item) =>
+                  <TableRow key={item.id} className="hover:bg-gray-50 border-b">
+                        {colunasOrdenadas.map((coluna) => {
+                      if (coluna.id === "selecao") {
+                        return (
+                          <TableCell key={`${item.id}-selecao`} className="text-xs py-2 px-2">
+                                <Checkbox
+                              checked={selectedItems.includes(item.id)}
+                              onCheckedChange={() => {
+                                setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
+                              }} />
+                            
+                              </TableCell>);
+
+                      }
+
+                      if (coluna.id === "acoes") {
+                        return (
+                          <TableCell key={`${item.id}-acoes`} className="text-xs py-2 px-2 text-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -453,22 +453,22 @@ export default function TabelaCategoriasManejo({
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                              </TableCell>
-                            );
-                          }
+                              </TableCell>);
 
-                          return (
-                            <TableCell
-                              key={`${item.id}-${coluna.id}`}
-                              className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
-                            >
+                      }
+
+                      return (
+                        <TableCell
+                          key={`${item.id}-${coluna.id}`}
+                          className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>
+                          
                               {renderCell(item, coluna.id)}
-                            </TableCell>
-                          );
-                        })}
+                            </TableCell>);
+
+                    })}
                       </TableRow>
-                    ))
-                  )}
+                  )
+                  }
                 </TableBody>
               </Table>
             </div>
@@ -476,19 +476,19 @@ export default function TabelaCategoriasManejo({
             <div className="flex items-center justify-between p-3 border-t">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Itens por página:</span>
-                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+                <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
                   <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                    {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-7 text-xs">
+                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">
                   Anterior
                 </Button>
                 <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-7 text-xs">
+                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">
                   Próxima
                 </Button>
               </div>
@@ -504,8 +504,8 @@ export default function TabelaCategoriasManejo({
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd}
-      />
-    </>
-  );
+        handleDragEnd={handleDragEnd} />
+      
+    </>);
+
 }
