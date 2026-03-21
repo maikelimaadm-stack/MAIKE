@@ -410,11 +410,20 @@ async function listRecordsForRule(base44, rule, sourceData, oldData) {
   const entityApi = base44.asServiceRole.entities?.[rule.entity];
   if (!entityApi) return [];
 
+  const empresaFilter = sourceData?.empresa_id ? { empresa_id: sourceData.empresa_id } : null;
+
   if (rule.matchType === 'id') {
+    const query = {
+      ...(empresaFilter || {}),
+      [rule.queryField]: sourceData.id,
+    };
+
     try {
-      return await entityApi.filter({ [rule.queryField]: sourceData.id }, '-created_date', 5000);
+      return await entityApi.filter(query, '-created_date', 5000);
     } catch {
-      const fallback = await entityApi.list('-created_date', 5000);
+      const fallback = empresaFilter
+        ? await entityApi.filter(empresaFilter, '-created_date', 5000)
+        : await entityApi.list('-created_date', 5000);
       return fallback.filter((record) => record?.[rule.queryField] === sourceData.id);
     }
   }
@@ -422,7 +431,10 @@ async function listRecordsForRule(base44, rule, sourceData, oldData) {
   const oldValue = normalizeValue(getSourceFieldValue(oldData, rule.sourceField));
   if (!oldValue) return [];
 
-  const records = await entityApi.list('-created_date', 5000);
+  const records = empresaFilter
+    ? await entityApi.filter(empresaFilter, '-created_date', 5000)
+    : await entityApi.list('-created_date', 5000);
+
   return records.filter((record) => {
     if (sourceData?.empresa_id && record?.empresa_id && record.empresa_id !== sourceData.empresa_id) {
       return false;
@@ -508,9 +520,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results = await Promise.all(
-      rules.map((rule) => propagateRule(base44, rule, sourceData, oldData))
-    );
+    const results = [];
+    for (const rule of rules) {
+      const result = await propagateRule(base44, rule, sourceData, oldData);
+      results.push(result);
+    }
 
     const totalUpdated = results.reduce((sum, item) => sum + (item.updated_count || 0), 0);
 
