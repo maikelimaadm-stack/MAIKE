@@ -1,188 +1,258 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 import FormularioUsuario from "../components/usuarios/FormularioUsuario";
 import TabelaUsuarios from "../components/usuarios/TabelaUsuarios";
+import FormularioGrupoPermissao from "../components/usuarios/FormularioGrupoPermissao";
+import TabelaGruposPermissao from "../components/usuarios/TabelaGruposPermissao";
 
 export default function Usuarios() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingUsuario, setEditingUsuario] = useState(null);
-
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("usuarios");
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(null);
 
   const { data: currentUser } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me(),
+    queryKey: ["currentUser"],
+    queryFn: () => base44.auth.me()
   });
 
-  const { data: usuarios, isLoading } = useQuery({
-    queryKey: ['usuarios'],
-    queryFn: async () => {
-      try {
-        return await base44.entities.User.list('-created_date');
-      } catch (error) {
-        return [];
-      }
-    },
-    initialData: [],
+  const { data: usuarios = [], isLoading: usersLoading } = useQuery({
+    queryKey: ["usuarios"],
+    queryFn: async () => base44.entities.User.list("-created_date"),
+    initialData: []
   });
 
-  const { data: permissoes = [] } = useQuery({
-    queryKey: ['permissoes'],
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["user-group-assignments"],
     queryFn: () => base44.entities.Permissao.list(),
-    initialData: [],
+    initialData: []
   });
 
-  const updatePermissaoMutation = useMutation({
-    mutationFn: async ({ user_email, modulos, paginas, acoes, mobileMenuItems, is_admin }) => {
-      const existente = permissoes.find(p => p.user_email === user_email);
-      const payload = {
-        modulos_permitidos: modulos,
-        paginas_permitidas: paginas,
-        acoes_permitidas: acoes,
-        mobile_menu_items: mobileMenuItems,
-        is_admin: is_admin
-      };
+  const { data: grupos = [], isLoading: groupsLoading } = useQuery({
+    queryKey: ["permission-groups"],
+    queryFn: () => base44.entities.GrupoPermissao.list("-updated_date"),
+    initialData: []
+  });
 
-      if (existente) {
-        return base44.entities.Permissao.update(existente.id, payload);
-      } else {
-        return base44.entities.Permissao.create({
-          user_email: user_email,
-          ...payload
-        });
+  const groupMap = useMemo(() => grupos.reduce((acc, grupo) => {
+    acc[grupo.id] = grupo;
+    return acc;
+  }, {}), [grupos]);
+
+  const saveAssignmentMutation = useMutation({
+    mutationFn: async (payload) => {
+      const existing = assignments.find((item) => item.user_email === payload.user_email);
+      if (existing) {
+        return base44.entities.Permissao.update(existing.id, payload);
+      }
+      return base44.entities.Permissao.create(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-group-assignments"] });
+      setShowUserForm(false);
+      setEditingAssignment(null);
+      toast.success("Vínculo salvo com sucesso!");
+    }
+  });
+
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: async (userEmail) => {
+      const existing = assignments.find((item) => item.user_email === userEmail);
+      if (existing) {
+        await base44.entities.Permissao.delete(existing.id);
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permissoes'] });
-      setShowForm(false);
-      setEditingUsuario(null);
-      toast.success('Permissões atualizadas!');
+      queryClient.invalidateQueries({ queryKey: ["user-group-assignments"] });
+      toast.success("Vínculo removido!");
+    }
+  });
+
+  const saveGroupMutation = useMutation({
+    mutationFn: async (payload) => {
+      const existing = grupos.find((item) => item.codigo?.toUpperCase() === payload.codigo?.toUpperCase() && item.id !== editingGroup?.id);
+      if (existing) {
+        throw new Error("Já existe um grupo com este código.");
+      }
+
+      if (editingGroup?.id) {
+        return base44.entities.GrupoPermissao.update(editingGroup.id, payload);
+      }
+      return base44.entities.GrupoPermissao.create(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["permission-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["user-group-assignments"] });
+      setShowGroupForm(false);
+      setEditingGroup(null);
+      toast.success("Grupo salvo com sucesso!");
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao salvar permissões.');
+      toast.error(error.message || "Erro ao salvar grupo.");
     }
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      // Não pode excluir usuários pela entidade User (gerenciado pelo Base44)
-      // Apenas remove as permissões
-      const permissao = permissoes.find(p => p.user_email === id);
-      if (permissao) {
-        await base44.entities.Permissao.delete(permissao.id);
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (grupo) => {
+      const linkedUsers = assignments.filter((item) => item.grupo_permissao_id === grupo.id);
+      if (linkedUsers.length > 0) {
+        throw new Error("Este grupo possui usuários vinculados.");
       }
-      toast.info('Permissões removidas. Usuário ainda existe no sistema.');
+      await base44.entities.GrupoPermissao.delete(grupo.id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permissoes'] });
+      queryClient.invalidateQueries({ queryKey: ["permission-groups"] });
+      toast.success("Grupo excluído!");
     },
-    onError: () => {
-      toast.error('Erro ao remover permissões.');
+    onError: (error) => {
+      toast.error(error.message || "Erro ao excluir grupo.");
     }
   });
 
-  const handleSubmit = async (data) => {
-    try {
-      await updatePermissaoMutation.mutateAsync({
-        user_email: data.user_email,
-        modulos: data.modulos_permitidos,
-        paginas: data.paginas_permitidas,
-        acoes: data.acoes_permitidas,
-        mobileMenuItems: data.mobile_menu_items,
-        is_admin: data.is_admin
-      });
-    } catch (error) {
-      console.error('Erro:', error);
-    }
-  };
-
-  const handleEdit = (usuario) => {
-    const permissao = permissoes.find(p => p.user_email === usuario.email);
-    setEditingUsuario({
+  const handleEditAssignment = (usuario) => {
+    const assignment = assignments.find((item) => item.user_email === usuario.email);
+    setEditingAssignment({
       ...usuario,
-      modulos_permitidos: permissao?.modulos_permitidos || [],
-      paginas_permitidas: permissao?.paginas_permitidas || [],
-      acoes_permitidas: permissao?.acoes_permitidas || [],
-      mobile_menu_items: permissao?.mobile_menu_items || [],
-      is_admin: permissao?.is_admin || false
+      user_email: usuario.email,
+      grupo_permissao_id: assignment?.grupo_permissao_id || "",
+      grupo_permissao_nome: assignment?.grupo_permissao_nome || ""
     });
-    setShowForm(true);
+    setShowUserForm(true);
+    setActiveTab("usuarios");
   };
 
-  const handleDelete = async (userEmail) => {
+  const handleSaveAssignment = async (payload) => {
+    await saveAssignmentMutation.mutateAsync(payload);
+  };
+
+  const handleDeleteAssignment = async (userEmail) => {
     if (currentUser?.email === userEmail) {
-      toast.error('Você não pode remover suas próprias permissões!');
+      toast.error("Você não pode remover o seu próprio vínculo.");
       return;
     }
-    if (window.confirm('⚠️ Remover permissões deste usuário?')) {
-      await deleteMutation.mutateAsync(userEmail);
-    }
+    await deleteAssignmentMutation.mutateAsync(userEmail);
+  };
+
+  const handleEditGroup = (grupo) => {
+    setEditingGroup(grupo);
+    setShowGroupForm(true);
+    setActiveTab("grupos");
+  };
+
+  const handleSaveGroup = async (payload) => {
+    await saveGroupMutation.mutateAsync(payload);
+  };
+
+  const handleDeleteGroup = async (grupo) => {
+    await deleteGroupMutation.mutateAsync(grupo);
+  };
+
+  const closeForms = () => {
+    setShowUserForm(false);
+    setShowGroupForm(false);
+    setEditingAssignment(null);
+    setEditingGroup(null);
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
-      {!showForm && (
+    <div className="p-4 md:p-6 space-y-1">
+      {!showUserForm && !showGroupForm && (
         <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Usuários e Permissões</h1>
-              <p className="text-xs text-slate-600">Gerenciar acessos ao sistema</p>
+              <h1 className="text-lg font-bold text-slate-900">Usuários e Permissões</h1>
+              <p className="text-xs text-slate-600">Controle completo por grupo, tela, ação e atalhos do mobile</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                Configurar Permissões
-              </Button>
+            <div className="flex flex-wrap gap-2">
+              {activeTab === "usuarios" ? (
+                <Button onClick={() => { setEditingAssignment(null); setShowUserForm(true); }} size="sm" className="h-8 text-xs bg-lime-500 text-primary-foreground shadow hover:bg-emerald-700">
+                  Vincular Usuário
+                </Button>
+              ) : (
+                <Button onClick={() => { setEditingGroup(null); setShowGroupForm(true); }} size="sm" className="h-8 text-xs bg-lime-500 text-primary-foreground shadow hover:bg-emerald-700">
+                  Novo Grupo
+                </Button>
+              )}
             </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex gap-3">
-              <div className="text-blue-600 mt-0.5">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-sm text-blue-900 mb-1">ℹ️ Como convidar novos usuários</h4>
-                <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
-                  <li><strong>Novos usuários</strong> devem ser convidados via <strong>Base44 Dashboard</strong> (não é feito aqui no sistema)</li>
-                  <li>Após o usuário aceitar o convite e fazer login, ele aparecerá na lista abaixo</li>
-                  <li>Aqui você configura as <strong>permissões</strong> de cada usuário por módulo, tela, ações e atalhos do mobile</li>
-                  <li>Usuários sem permissões configuradas terão acesso total ao sistema</li>
-                </ul>
-              </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-sm text-blue-900 mb-1">Como funciona o sistema</h4>
+              <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
+                <li>Você cria grupos de permissão com acesso por tela e por ação</li>
+                <li>Depois vincula cada usuário a um grupo para herdar automaticamente as regras</li>
+                <li>O menu desktop, o menu mobile, o acesso às rotas e os atalhos respeitam o grupo configurado</li>
+              </ul>
             </div>
           </div>
         </>
       )}
 
-      <AnimatePresence>
-        {showForm && (
-          <FormularioUsuario
-            onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingUsuario(null); }}
-            initialData={editingUsuario}
-            usuarios={usuarios}
-          />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+        {!showUserForm && !showGroupForm && (
+          <TabsList className="grid w-full max-w-[360px] grid-cols-2 h-8">
+            <TabsTrigger value="usuarios" className="text-xs">Usuários</TabsTrigger>
+            <TabsTrigger value="grupos" className="text-xs">Grupos</TabsTrigger>
+          </TabsList>
         )}
-      </AnimatePresence>
 
-      {!showForm && (
-        <TabelaUsuarios
-          usuarios={usuarios}
-          permissoes={permissoes}
-          currentUser={currentUser}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          isLoading={isLoading}
-        />
-      )}
+        <TabsContent value="usuarios" className="space-y-3 mt-0">
+          <AnimatePresence>
+            {showUserForm ? (
+              <FormularioUsuario
+                key="form-usuario"
+                initialData={editingAssignment}
+                usuarios={usuarios}
+                grupos={grupos}
+                onSubmit={handleSaveAssignment}
+                onCancel={closeForms}
+              />
+            ) : (
+              <TabelaUsuarios
+                key="table-usuarios"
+                usuarios={usuarios}
+                assignments={assignments}
+                grupos={grupos}
+                currentUser={currentUser}
+                onEdit={handleEditAssignment}
+                onDelete={handleDeleteAssignment}
+                isLoading={usersLoading}
+              />
+            )}
+          </AnimatePresence>
+        </TabsContent>
+
+        <TabsContent value="grupos" className="space-y-3 mt-0">
+          <AnimatePresence>
+            {showGroupForm ? (
+              <FormularioGrupoPermissao
+                key="form-grupo"
+                initialData={editingGroup}
+                onSubmit={handleSaveGroup}
+                onCancel={closeForms}
+              />
+            ) : (
+              <TabelaGruposPermissao
+                key="table-grupos"
+                grupos={grupos}
+                assignments={assignments}
+                onEdit={handleEditGroup}
+                onDelete={handleDeleteGroup}
+                isLoading={groupsLoading}
+              />
+            )}
+          </AnimatePresence>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
