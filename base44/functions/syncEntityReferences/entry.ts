@@ -214,6 +214,54 @@ const PROPAGATION_RULES = {
       },
     },
   ],
+  GrupoAtividade: [
+    {
+      entity: 'TipoTarefa',
+      matchType: 'id',
+      queryField: 'grupo_atividade_id',
+      fieldMap: {
+        grupo_atividade_nome: 'nome_grupo',
+      },
+    },
+    {
+      entity: 'LancamentoTarefa',
+      matchType: 'id',
+      queryField: 'grupo_atividade_id',
+      fieldMap: {
+        grupo_atividade_nome: 'nome_grupo',
+      },
+    },
+    {
+      entity: 'TarefaMapa',
+      matchType: 'id',
+      queryField: 'grupo_atividade_id',
+      fieldMap: {
+        grupo_atividade_nome: 'nome_grupo',
+      },
+    },
+  ],
+  TipoTarefa: [
+    {
+      entity: 'LancamentoTarefa',
+      matchType: 'id',
+      queryField: 'tipo_tarefa_id',
+      fieldMap: {
+        tipo_tarefa_nome: 'nome_tipo',
+        grupo_atividade_id: 'grupo_atividade_id',
+        grupo_atividade_nome: 'grupo_atividade_nome',
+      },
+    },
+    {
+      entity: 'TarefaMapa',
+      matchType: 'id',
+      queryField: 'tipo_tarefa_id',
+      fieldMap: {
+        tipo_tarefa_nome: 'nome_tipo',
+        grupo_atividade_id: 'grupo_atividade_id',
+        grupo_atividade_nome: 'grupo_atividade_nome',
+      },
+    },
+  ],
 };
 
 function normalizeValue(value) {
