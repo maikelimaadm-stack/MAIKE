@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
-  Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
+  Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, Map, ClipboardList,
   BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles, Mail
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +53,13 @@ const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
   FileText, Shield, Package, Users, Settings
 };
+
+const FIXED_MOBILE_NAV_ITEMS = [
+  { id: "dashboard", url: "Home", category: "DASHBOARD", Icon: Home },
+  { id: "pec-mapa-geral", url: "MapaGeral", category: "MAPA GERAL MANEJO", Icon: Map },
+  { id: "gt-lancamentos", url: "LancamentosTarefas", category: "LANCAMENTOS TAREFAS", Icon: ClipboardList },
+  { id: "pec-lanc-pesagens", url: "LancamentoPesagensIndividuais", category: "LANCAMENTO PESAGENS", Icon: Scale },
+];
 
 const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
@@ -285,6 +292,16 @@ export default function Layout({ children, currentPageName }) {
     refetchOnWindowFocus: false,
   });
 
+  const { data: mobileMenuIcons = [] } = useQuery({
+    queryKey: ['mobile-menu-icons'],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === 'Icone Menu Mobile');
+    },
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   // Ocultar splash somente após 5s mínimos + dados prontos
   useEffect(() => {
     if (minTimePassed && !authLoading && !empresasLoading) {
@@ -410,19 +427,18 @@ export default function Layout({ children, currentPageName }) {
 
   const currentMenuPage = React.useMemo(() => findMenuItemByUrl(menuItems, currentPageName), [menuItems, currentPageName]);
   const firstAllowedPage = React.useMemo(() => flattenMenuPages(menuItemsFiltered)[0] || null, [menuItemsFiltered]);
-  const mobileNavPages = React.useMemo(() => {
-    const allowedPages = flattenMenuPages(menuItemsFiltered);
-    const preferredIds = normalizedPermissions?.mobile_menu_ids?.length
-      ? normalizedPermissions.mobile_menu_ids
-      : ["dashboard", "pesagens", "fin-lancamento", "rel-estoque"];
+  const fixedMobileNavPages = React.useMemo(() => {
+    const allPages = flattenMenuPages(menuItems);
 
-    const selected = preferredIds
-      .map((id) => allowedPages.find((page) => page.id === id))
-      .filter(Boolean);
-
-    const fallback = allowedPages.filter((page) => !selected.some((item) => item.id === page.id));
-    return [...selected, ...fallback].slice(0, 4);
-  }, [menuItemsFiltered, normalizedPermissions]);
+    return FIXED_MOBILE_NAV_ITEMS.map((item) => {
+      const existingPage = allPages.find((page) => page.id === item.id);
+      return {
+        ...item,
+        title: existingPage?.title || item.id,
+        url: existingPage?.url || item.url,
+      };
+    });
+  }, [menuItems]);
 
   useEffect(() => {
     if (!currentMenuPage) return;
@@ -964,23 +980,26 @@ export default function Layout({ children, currentPageName }) {
       {/* Mobile bottom navigation */}
       {!isFolha && (
         <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
-          <div className="max-w-[1600px] mx-auto px-4 py-1 grid grid-cols-5 gap-1 text-xs">
-            {mobileNavPages.map((page) => {
-              const Icon = iconsMap[page.icon] || Home;
+          <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-4 gap-3">
+            {fixedMobileNavPages.map((page) => {
               const isCurrent = location.pathname === createPageUrl(page.url);
-              const shortTitle = page.title.length > 12 ? page.title.split(" ")[0] : page.title;
+              const configuredIcon = mobileMenuIcons.find((item) => (item.categoria || '').trim().toUpperCase() === page.category);
+              const Icon = page.Icon;
 
               return (
-                <Link key={page.id} to={createPageUrl(page.url)} className={`flex flex-col items-center py-1 rounded ${isCurrent ? "text-emerald-700" : "text-slate-600"}`}>
-                  <Icon className="w-5 h-5" />
-                  <span>{shortTitle}</span>
+                <Link
+                  key={page.id}
+                  to={createPageUrl(page.url)}
+                  className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                >
+                  {configuredIcon?.icone_url ? (
+                    <img src={configuredIcon.icone_url} alt={page.title} className="w-6 h-6 object-contain" />
+                  ) : (
+                    <Icon className="w-6 h-6" />
+                  )}
                 </Link>
               );
             })}
-            <button onClick={() => setMobileMenuOpen(true)} className="flex flex-col items-center py-1 rounded text-slate-600">
-              <Menu className="w-5 h-5" />
-              <span>Menu</span>
-            </button>
           </div>
         </nav>
       )}

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Image, Upload, Save, X, Edit2, Trash2, Plus } from "lucide-react";
+import { Image, Upload, Edit2, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -22,7 +22,8 @@ const TIPOS_ENTIDADE = [
   { value: "Area", label: "Área/Polígono" },
   { value: "Lote", label: "Lote de Gado" },
   { value: "Linha", label: "Linha/Estrada" },
-  { value: "Prioridade Tarefa", label: "Prioridade de Tarefa" }
+  { value: "Prioridade Tarefa", label: "Prioridade de Tarefa" },
+  { value: "Icone Menu Mobile", label: "Ícone Menu Mobile" }
 ];
 
 const CATEGORIAS_SUGERIDAS = {
@@ -30,7 +31,8 @@ const CATEGORIAS_SUGERIDAS = {
   "Area": ["Pasto", "Lavoura", "Reserva Legal", "APP", "Curral", "Sede", "Talhão", "Piquete"],
   "Lote": ["Bezerro 0 a 12 meses", "Bezerra 0 a 12 meses", "Garrote 13 a 24 meses", "Novilha 13 a 24 meses", "Boi 25 a 36 meses", "Vaca 25 a 36 meses", "Touro + 36 meses", "Vaca + 36 meses", "MISTO"],
   "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"],
-  "Prioridade Tarefa": ["Baixa", "Média", "Alta"]
+  "Prioridade Tarefa": ["Baixa", "Média", "Alta"],
+  "Icone Menu Mobile": ["Dashboard", "Mapa Geral Manejo", "Lançamentos Tarefas", "Lançamento Pesagens"]
 };
 
 const CORES_PADRAO = [
