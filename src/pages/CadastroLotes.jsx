@@ -14,6 +14,7 @@ export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
