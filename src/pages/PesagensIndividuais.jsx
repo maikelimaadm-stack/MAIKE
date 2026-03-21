@@ -749,8 +749,7 @@ export default function PesagensIndividuais() {
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
-      return <ChevronUp className="w-3 h-3 opacity-30" />;
-    }
+      return <span className="text-[10px] leading-none text-slate-400">↕</span>;    }
     return sortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
   };
 
