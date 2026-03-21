@@ -277,7 +277,7 @@ export default function TabelaLotes({
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null} className="text-xs">Todas</SelectItem>
+                  <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                   {categorias.map((categoria) => (
                     <SelectItem key={categoria} value={categoria} className="text-xs">{categoria}</SelectItem>
                   ))}
@@ -303,7 +303,7 @@ export default function TabelaLotes({
               <Select value={filtroArea} onValueChange={setFiltroArea}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null} className="text-xs">Todas</SelectItem>
+                  <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                   {areas.map((area) => (
                     <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>
                   ))}
