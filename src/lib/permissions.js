@@ -37,7 +37,8 @@ export const getPagePermissionByUrl = (roleConfig, pageUrl) => {
 };
 
 export const canViewPage = (roleConfig, pageId, isAdmin = false) => {
-  if (isAdmin || !roleConfig) return true;
+  if (isAdmin) return true;
+  if (!roleConfig) return false;
   return getPagePermissionById(roleConfig, pageId).visualizar === true;
 };
 
@@ -51,14 +52,16 @@ const filterItem = (item, roleConfig, isAdmin = false) => {
 };
 
 export const filterMenuByPermissions = (menuItems, roleConfig, isAdmin = false) => {
-  if (isAdmin || !roleConfig) return menuItems;
+  if (isAdmin) return menuItems;
+  if (!roleConfig) return [];
   return menuItems.map((item) => filterItem(item, roleConfig, isAdmin)).filter(Boolean);
 };
 
 export const canAccessPage = (currentPageName, roleConfig, isAdmin = false) => {
   if (!currentPageName) return true;
   if (ADMIN_ONLY_PAGE_URLS.includes(currentPageName)) return isAdmin;
-  if (isAdmin || !roleConfig) return true;
+  if (isAdmin) return true;
+  if (!roleConfig) return false;
   const page = getPageOptionByUrl(currentPageName);
   if (!page) return true;
   return canViewPage(roleConfig, page.id, isAdmin);
@@ -85,7 +88,7 @@ export const getAllowedMobileMenuItems = (roleConfig, isAdmin = false) => {
 
 export const getAccessSummary = (roleConfig) => {
   if (!roleConfig) {
-    return { principal: "Acesso Livre", secundario: "Sem grupo" };
+    return { principal: "Sem acesso", secundario: "Sem grupo" };
   }
 
   if (roleConfig.is_admin) {
@@ -105,7 +108,8 @@ export const getAccessSummary = (roleConfig) => {
 };
 
 export const hasActionPermission = (roleConfig, pageUrlOrId, actionId, isAdmin = false) => {
-  if (isAdmin || !roleConfig) return true;
+  if (isAdmin) return true;
+  if (!roleConfig) return false;
 
   const page = getPageOptionByUrl(pageUrlOrId) || getPageOptionById(pageUrlOrId);
   if (!page) return true;
