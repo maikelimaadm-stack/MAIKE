@@ -1,6 +1,7 @@
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
 import { applyDeleteGuards } from '@/lib/entityDeleteGuards';
+import { installTextNormalization } from '@/lib/textNormalization';
 
 const { appId, serverUrl, token, functionsVersion } = appParams;
 
@@ -12,6 +13,7 @@ const base44Client = createClient({
   requiresAuth: false
 });
 
+installTextNormalization(base44Client);
 applyDeleteGuards(base44Client);
 
 export const base44 = base44Client;
