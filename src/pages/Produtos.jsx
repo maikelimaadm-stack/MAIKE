@@ -165,7 +165,7 @@ export default function Produtos() {
       const movimentacoesRelacionadas = todasMovimentacoes.filter(m => m.produto_id === id);
       
       if (movimentacoesRelacionadas.length > 0) {
-        throw new Error(`❌ Possui ${movimentacoesRelacionadas.length} movimentação(ões). Não é possível excluir.`);
+        throw new Error(`Possui ${movimentacoesRelacionadas.length} movimentação(ões). Não é possível excluir.`);
       }
 
       // Verificar se existem custos de safra relacionados
@@ -173,7 +173,7 @@ export default function Produtos() {
       const custosRelacionados = todosCustos.filter(c => c.produto_id === id);
       
       if (custosRelacionados.length > 0) {
-        throw new Error(`❌ Possui ${custosRelacionados.length} custo(s) de safra. Não é possível excluir.`);
+        throw new Error(`Possui ${custosRelacionados.length} custo(s) de safra. Não é possível excluir.`);
       }
 
       return base44.entities.Produto.delete(id);
