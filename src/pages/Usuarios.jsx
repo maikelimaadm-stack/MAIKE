@@ -20,7 +20,13 @@ export default function Usuarios() {
 
   const { data: usuarios = [], isLoading } = useQuery({
     queryKey: ["usuarios"],
-    queryFn: () => base44.entities.User.list("-created_date"),
+    queryFn: async () => {
+      try {
+        return await base44.entities.User.list("-created_date");
+      } catch {
+        return [];
+      }
+    },
     initialData: [],
   });
 
