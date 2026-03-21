@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const getNextNumero = async () => {
@@ -87,6 +88,8 @@ export default function CentrosCusto() {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
   
@@ -250,12 +253,14 @@ export default function CentrosCusto() {
   };
 
   const handleDelete = async (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ Excluir centro?')) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error) {
-        console.error('Erro:', error);
-      }
+    if (!skipConfirm) {
+      setDeleteConfirmId(id);
+      return;
+    }
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (error) {
+      console.error('Erro:', error);
     }
   };
 
@@ -329,26 +334,29 @@ export default function CentrosCusto() {
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} centro(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      for (const id of selectedItems) {
-        try {
-          await handleDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: selectedItems.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+    setBulkDeleteConfirm(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirm(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selectedItems.length });
+    
+    let deleted = 0;
+    for (const id of selectedItems) {
+      try {
+        await handleDelete(id, true);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selectedItems.length });
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
       }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelectedItems([]);
+    }, 500);
   };
 
   const deleteProgressPercentage = deleteProgress.total > 0 
@@ -698,6 +706,31 @@ export default function CentrosCusto() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          handleDelete(deleteConfirmId, true);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={() => setBulkDeleteConfirm(false)}
+        title="Confirmar exclusão"
+        description={`Tem certeza que deseja excluir ${selectedItems.length} item(ns)? Esta ação não pode ser desfeita.`}
+        onConfirm={executeBulkDelete}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
