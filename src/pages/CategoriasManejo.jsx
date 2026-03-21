@@ -235,7 +235,170 @@ export default function CategoriasManejo() {
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-...
+          <DialogHeader>
+            <DialogTitle>{editando ? 'Editar' : 'Nova'} Categoria de Manejo</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome da Categoria *</Label>
+              <Input
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                placeholder="Bezerro, Novilha..."
+                className="h-8 text-xs uppercase"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Sigla *</Label>
+              <Input
+                value={formData.sigla}
+                onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+                placeholder="BEZ, NOV..."
+                className="h-8 text-xs uppercase"
+                required
+                maxLength={10}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Sexo</Label>
+              <Select value={formData.sexo} onValueChange={(v) => setFormData({ ...formData, sexo: v })}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
+                  <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Raça</Label>
+              <Input
+                value={formData.raca}
+                onChange={(e) => setFormData({ ...formData, raca: e.target.value })}
+                placeholder="NELORE, ANGUS..."
+                className="h-8 text-xs uppercase"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Espécie</Label>
+                <Select value={formData.especie} onValueChange={(v) => setFormData({ ...formData, especie: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Bovinos" className="text-xs">Bovinos</SelectItem>
+                    <SelectItem value="Ovinos" className="text-xs">Ovinos</SelectItem>
+                    <SelectItem value="Suínos" className="text-xs">Suínos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Idade Mínima (meses)</Label>
+                <Input
+                  type="number"
+                  value={formData.idade_minima_meses}
+                  onChange={(e) => setFormData({ ...formData, idade_minima_meses: e.target.value })}
+                  placeholder="0"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Idade Máxima (meses)</Label>
+                <Input
+                  type="number"
+                  value={formData.idade_maxima_meses}
+                  onChange={(e) => setFormData({ ...formData, idade_maxima_meses: e.target.value })}
+                  placeholder="12"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Categoria Oficial (ícone)</Label>
+                <Select 
+                  value={formData.categoria_oficial} 
+                  onValueChange={(v) => setFormData({ ...formData, categoria_oficial: v })}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Opcional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoriasOficiaisDisponiveis.map(cat => (
+                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Ganho de Peso Anual (kg)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.ganho_peso_anual_kg}
+                onChange={(e) => setFormData({ ...formData, ganho_peso_anual_kg: e.target.value })}
+                className="h-8 text-xs"
+                placeholder="0"
+              />
+            </div>
+
+            <div className="border-t pt-3">
+              <Label className="text-xs font-semibold text-slate-900 mb-3 block">
+                Previsão de Ganho de Peso Mensal (GMD em kg)
+              </Label>
+              <div className="grid grid-cols-6 gap-3">
+                {[
+                  { label: 'Jan', field: 'gmd_janeiro' },
+                  { label: 'Fev', field: 'gmd_fevereiro' },
+                  { label: 'Mar', field: 'gmd_marco' },
+                  { label: 'Abr', field: 'gmd_abril' },
+                  { label: 'Mai', field: 'gmd_maio' },
+                  { label: 'Jun', field: 'gmd_junho' },
+                  { label: 'Jul', field: 'gmd_julho' },
+                  { label: 'Ago', field: 'gmd_agosto' },
+                  { label: 'Set', field: 'gmd_setembro' },
+                  { label: 'Out', field: 'gmd_outubro' },
+                  { label: 'Nov', field: 'gmd_novembro' },
+                  { label: 'Dez', field: 'gmd_dezembro' }
+                ].map(mes => (
+                  <div key={mes.field} className="space-y-1">
+                    <Label className="text-xs">{mes.label}</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData[mes.field]}
+                      onChange={(e) => setFormData({ ...formData, [mes.field]: e.target.value })}
+                      className="h-8 text-xs"
+                      placeholder="GMD"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">
+                <X className="w-3 h-3 mr-1" />
+                Cancelar
+              </Button>
+              <Button type="submit" size="sm" className="h-8 text-xs">
+                {editando ? 'Atualizar' : 'Salvar'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
