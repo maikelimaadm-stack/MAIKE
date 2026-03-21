@@ -43,9 +43,32 @@ export default function FormularioCategoriaManejo({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const missingFields = [];
-    if (!formData.nome?.trim()) missingFields.push("nome");
-    if (!formData.sigla?.trim()) missingFields.push("sigla");
+const missingFields = [];
+
+if (!formData.nome?.trim()) missingFields.push("nome");
+if (!formData.sigla?.trim()) missingFields.push("sigla");
+if (!formData.especie?.trim()) missingFields.push("especie");
+if (!formData.sexo?.trim()) missingFields.push("sexo");
+if (!formData.raca?.trim()) missingFields.push("raca");
+if (!formData.categoria_oficial?.trim()) missingFields.push("categoria_oficial");
+
+if (!formData.idade_minima_meses) missingFields.push("idade_minima_meses");
+if (!formData.idade_maxima_meses) missingFields.push("idade_maxima_meses");
+if (!formData.ganho_peso_anual_kg) missingFields.push("ganho_peso_anual_kg");
+
+// GMD meses
+if (!formData.gmd_janeiro) missingFields.push("gmd_janeiro");
+if (!formData.gmd_fevereiro) missingFields.push("gmd_fevereiro");
+if (!formData.gmd_marco) missingFields.push("gmd_marco");
+if (!formData.gmd_abril) missingFields.push("gmd_abril");
+if (!formData.gmd_maio) missingFields.push("gmd_maio");
+if (!formData.gmd_junho) missingFields.push("gmd_junho");
+if (!formData.gmd_julho) missingFields.push("gmd_julho");
+if (!formData.gmd_agosto) missingFields.push("gmd_agosto");
+if (!formData.gmd_setembro) missingFields.push("gmd_setembro");
+if (!formData.gmd_outubro) missingFields.push("gmd_outubro");
+if (!formData.gmd_novembro) missingFields.push("gmd_novembro");
+if (!formData.gmd_dezembro) missingFields.push("gmd_dezembro");
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
