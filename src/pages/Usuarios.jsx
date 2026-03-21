@@ -39,19 +39,22 @@ export default function Usuarios() {
   });
 
   const updatePermissaoMutation = useMutation({
-    mutationFn: async ({ user_email, modulos, is_admin }) => {
+    mutationFn: async ({ user_email, modulos, paginas, acoes, mobileMenuItems, is_admin }) => {
       const existente = permissoes.find(p => p.user_email === user_email);
-      
+      const payload = {
+        modulos_permitidos: modulos,
+        paginas_permitidas: paginas,
+        acoes_permitidas: acoes,
+        mobile_menu_items: mobileMenuItems,
+        is_admin: is_admin
+      };
+
       if (existente) {
-        return base44.entities.Permissao.update(existente.id, {
-          modulos_permitidos: modulos,
-          is_admin: is_admin
-        });
+        return base44.entities.Permissao.update(existente.id, payload);
       } else {
         return base44.entities.Permissao.create({
           user_email: user_email,
-          modulos_permitidos: modulos,
-          is_admin: is_admin
+          ...payload
         });
       }
     },
@@ -89,6 +92,9 @@ export default function Usuarios() {
       await updatePermissaoMutation.mutateAsync({
         user_email: data.user_email,
         modulos: data.modulos_permitidos,
+        paginas: data.paginas_permitidas,
+        acoes: data.acoes_permitidas,
+        mobileMenuItems: data.mobile_menu_items,
         is_admin: data.is_admin
       });
     } catch (error) {
@@ -101,6 +107,9 @@ export default function Usuarios() {
     setEditingUsuario({
       ...usuario,
       modulos_permitidos: permissao?.modulos_permitidos || [],
+      paginas_permitidas: permissao?.paginas_permitidas || [],
+      acoes_permitidas: permissao?.acoes_permitidas || [],
+      mobile_menu_items: permissao?.mobile_menu_items || [],
       is_admin: permissao?.is_admin || false
     });
     setShowForm(true);
@@ -144,7 +153,7 @@ export default function Usuarios() {
                 <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
                   <li><strong>Novos usuários</strong> devem ser convidados via <strong>Base44 Dashboard</strong> (não é feito aqui no sistema)</li>
                   <li>Após o usuário aceitar o convite e fazer login, ele aparecerá na lista abaixo</li>
-                  <li>Aqui você configura as <strong>permissões</strong> de cada usuário (quais módulos ele pode acessar)</li>
+                  <li>Aqui você configura as <strong>permissões</strong> de cada usuário por módulo, tela, ações e atalhos do mobile</li>
                   <li>Usuários sem permissões configuradas terão acesso total ao sistema</li>
                 </ul>
               </div>
