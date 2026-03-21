@@ -292,6 +292,14 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'LancamentoTarefa',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
       entity: 'MovimentacaoMapa',
       matchType: 'id',
       queryField: 'setor_id',
@@ -309,6 +317,30 @@ const PROPAGATION_RULES = {
     },
     {
       entity: 'MovimentacaoMapa',
+      matchType: 'id',
+      queryField: 'setor_destino_id',
+      fieldMap: {
+        setor_destino_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'id',
+      queryField: 'setor_origem_id',
+      fieldMap: {
+        setor_origem_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoPecuaria',
       matchType: 'id',
       queryField: 'setor_destino_id',
       fieldMap: {
