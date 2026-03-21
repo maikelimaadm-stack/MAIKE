@@ -22,7 +22,7 @@ export default function LancamentoTarefaForm() {
       return all.find((item) => item.id === id) || null;
     },
     enabled: !!id,
-    initialData: null,
+    initialData: null
   });
 
   const registrarHistorico = async (registro, evento, descricao) => {
@@ -34,7 +34,7 @@ export default function LancamentoTarefaForm() {
       data_evento: new Date().toISOString(),
       status: registro.status,
       responsavel: registro.responsavel,
-      descricao,
+      descricao
     });
   };
 
@@ -62,30 +62,30 @@ export default function LancamentoTarefaForm() {
       const updated = await base44.entities.LancamentoTarefa.update(id, payload);
       const mudouLocal = payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng;
       const mudouStatus = payload.status && payload.status !== tarefa?.status;
-      const evento = mudouLocal
-        ? "Mudança de Local"
-        : updated.status === "Concluída" && mudouStatus
-          ? "Conclusão"
-          : updated.status === "Cancelada" && mudouStatus
-            ? "Cancelamento"
-            : mudouStatus
-              ? "Mudança de Status"
-              : "Edição";
-      const descricao = mudouLocal
-        ? "Local da tarefa alterado pela gestão de tarefas."
-        : updated.status === "Concluída" && mudouStatus
-          ? "Tarefa concluída pela gestão de tarefas."
-          : updated.status === "Cancelada" && mudouStatus
-            ? "Tarefa cancelada pela gestão de tarefas."
-            : mudouStatus
-              ? `Status alterado para ${updated.status}.`
-              : "Tarefa atualizada pela gestão de tarefas.";
+      const evento = mudouLocal ?
+      "Mudança de Local" :
+      updated.status === "Concluída" && mudouStatus ?
+      "Conclusão" :
+      updated.status === "Cancelada" && mudouStatus ?
+      "Cancelamento" :
+      mudouStatus ?
+      "Mudança de Status" :
+      "Edição";
+      const descricao = mudouLocal ?
+      "Local da tarefa alterado pela gestão de tarefas." :
+      updated.status === "Concluída" && mudouStatus ?
+      "Tarefa concluída pela gestão de tarefas." :
+      updated.status === "Cancelada" && mudouStatus ?
+      "Tarefa cancelada pela gestão de tarefas." :
+      mudouStatus ?
+      `Status alterado para ${updated.status}.` :
+      "Tarefa atualizada pela gestão de tarefas.";
       await registrarHistorico(updated, evento, descricao);
       return updated;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(["gestao-tarefas-unificada", empresaSelecionadaId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
-      queryClient.setQueryData(["mapa-tarefas", empresaSelecionadaId], (old = []) => (old || []).map(t => t.id === updated.id ? updated : t));
+      queryClient.setQueryData(["gestao-tarefas-unificada", empresaSelecionadaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
+      queryClient.setQueryData(["mapa-tarefas", empresaSelecionadaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
@@ -98,36 +98,36 @@ export default function LancamentoTarefaForm() {
 
   return (
     <div className="p-4 md:p-6 space-y-1">
-      <div className="bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
-        <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar tarefa" : "Lançar tarefa"}</h1>
-        <p className="text-xs text-slate-600">Gestão unificada com o mapa</p>
-      </div>
+      
+
+
+      
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="bg-emerald-50 border-b border-emerald-200 py-2 px-3">
           <CardTitle className="text-sm font-bold text-emerald-900">{isEdit ? "Editar Lançamento de Tarefa" : "Lançar Tarefa"}</CardTitle>
         </CardHeader>
         <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden">
-          {isLoading ? (
-            <div className="text-xs text-slate-500">Carregando...</div>
-          ) : (
-            <FormularioTarefaMapa
-              tarefa={tarefa}
-              onSubmit={(data) => {
-                const payload = {
-                  ...data,
-                  prioridade: data.prioridade,
-                  solicitante: data.solicitante || "",
-                  responsavel: data.responsavel || "",
-                  responsavel_geral: data.solicitante || "",
-                  observacoes: data.observacoes || "",
-                };
-                if (isEdit) updateMutation.mutate(payload); else createMutation.mutate(payload);
-              }}
-              onCancel={() => navigate(createPageUrl("LancamentosTarefas"))}
-            />
-          )}
+          {isLoading ?
+          <div className="text-xs text-slate-500">Carregando...</div> :
+
+          <FormularioTarefaMapa
+            tarefa={tarefa}
+            onSubmit={(data) => {
+              const payload = {
+                ...data,
+                prioridade: data.prioridade,
+                solicitante: data.solicitante || "",
+                responsavel: data.responsavel || "",
+                responsavel_geral: data.solicitante || "",
+                observacoes: data.observacoes || ""
+              };
+              if (isEdit) updateMutation.mutate(payload);else createMutation.mutate(payload);
+            }}
+            onCancel={() => navigate(createPageUrl("LancamentosTarefas"))} />
+
+          }
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>);
+
 }
