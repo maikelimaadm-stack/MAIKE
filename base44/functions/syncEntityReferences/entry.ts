@@ -282,6 +282,40 @@ const PROPAGATION_RULES = {
       },
     },
   ],
+  Setor: [
+    {
+      entity: 'AreaPastagem',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoMapa',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoMapa',
+      matchType: 'id',
+      queryField: 'setor_origem_id',
+      fieldMap: {
+        setor_origem_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoMapa',
+      matchType: 'id',
+      queryField: 'setor_destino_id',
+      fieldMap: {
+        setor_destino_nome: 'nome',
+      },
+    },
+  ],
   Lote: [
     {
       entity: 'MovimentacaoMapa',
