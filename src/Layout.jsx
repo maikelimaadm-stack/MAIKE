@@ -55,10 +55,10 @@ const iconsMap = {
 };
 
 const FIXED_MOBILE_NAV_ITEMS = [
-  { id: "dashboard", url: "Home", category: "DASHBOARD", Icon: Home },
-  { id: "pec-mapa-geral", url: "MapaGeral", category: "MAPA GERAL MANEJO", Icon: Map },
-  { id: "gt-lancamentos", url: "LancamentosTarefas", category: "LANCAMENTOS TAREFAS", Icon: ClipboardList },
-  { id: "pec-lanc-pesagens", url: "LancamentoPesagensIndividuais", category: "LANCAMENTO PESAGENS", Icon: Scale },
+  { id: "dashboard", url: "Home", moduleId: "dashboard", Icon: Home, label: "Dashboard" },
+  { id: "pec-mapa-geral", url: "MapaGeral", moduleId: "pecuaria", Icon: Map, label: "Mapa Geral" },
+  { id: "gt-lancamentos", url: "LancamentosTarefas", moduleId: "gestao-tarefas", Icon: ClipboardList, label: "Tarefas" },
+  { id: "pec-lanc-pesagens", url: "LancamentoPesagensIndividuais", moduleId: "pecuaria", Icon: Scale, label: "Pesagens" },
 ];
 
 const DEFAULT_MENU = [
@@ -292,15 +292,6 @@ export default function Layout({ children, currentPageName }) {
     refetchOnWindowFocus: false,
   });
 
-  const { data: mobileMenuIcons = [] } = useQuery({
-    queryKey: ['mobile-menu-icons'],
-    queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === 'Icone Menu Mobile');
-    },
-    staleTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
 
   // Ocultar splash somente após 5s mínimos + dados prontos
   useEffect(() => {
@@ -983,21 +974,28 @@ export default function Layout({ children, currentPageName }) {
           <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-4 gap-3">
             {fixedMobileNavPages.map((page) => {
               const isCurrent = location.pathname === createPageUrl(page.url);
-              const configuredIcon = mobileMenuIcons.find((item) => (item.categoria || '').trim().toUpperCase() === page.category);
+              const hasAccess = canAccessPage(normalizedPermissions, page.id, page.moduleId);
               const Icon = page.Icon;
 
-              return (
+              return hasAccess ? (
                 <Link
                   key={page.id}
                   to={createPageUrl(page.url)}
+                  aria-label={page.label}
                   className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}
                 >
-                  {configuredIcon?.icone_url ? (
-                    <img src={configuredIcon.icone_url} alt={page.title} className="w-6 h-6 object-contain" />
-                  ) : (
-                    <Icon className="w-6 h-6" />
-                  )}
+                  <Icon className="w-6 h-6" />
                 </Link>
+              ) : (
+                <button
+                  key={page.id}
+                  type="button"
+                  aria-label={page.label}
+                  onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
+                  className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-300"
+                >
+                  <Icon className="w-6 h-6" />
+                </button>
               );
             })}
           </div>
