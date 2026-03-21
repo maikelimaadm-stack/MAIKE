@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Beaker, Package } from "lucide-react";
 import { toast } from "sonner";
 import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import {
@@ -214,8 +213,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+            <form onSubmit={handleSubmit} className="space-y-1">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Nome do Produto *</Label>
                   <Input
@@ -251,10 +250,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Categoria</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Select value={formData.categoria} onValueChange={(value) => handleChange('categoria', value)}>
                       <SelectTrigger className="flex-1 h-8 text-xs">
                         <SelectValue placeholder="Selecione" />
@@ -267,15 +266,15 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-8 w-8">
-                      <Plus className="w-3.5 h-3.5" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowNovaCategoria(true)} className="h-8 px-2 text-xs">
+                      Novo
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs">Unidade de Medida *</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Select value={formData.unidade_medida} onValueChange={(value) => handleChange('unidade_medida', value)}>
                       <SelectTrigger ref={unidadeTriggerRef} className={getFieldClassName('unidade_medida', "flex-1 h-8 text-xs")}>
                         <SelectValue placeholder="Selecione" />
@@ -288,15 +287,15 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-8 w-8">
-                      <Plus className="w-3.5 h-3.5" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowNovaUnidade(true)} className="h-8 px-2 text-xs">
+                      Novo
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs">Local de Estoque</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
                       <SelectTrigger className="flex-1 h-8 text-xs">
                         <SelectValue placeholder="Selecione" />
@@ -309,14 +308,14 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)} className="h-8 w-8">
-                      <Plus className="w-3.5 h-3.5" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowNovoLocal(true)} className="h-8 px-2 text-xs">
+                      Novo
                     </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <div className="space-y-1">
                   <Label className="text-xs">Preço de Custo</Label>
                   <Input
@@ -354,7 +353,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 pt-1">
                 <Label className="text-xs">Descrição</Label>
                 <Textarea
                   value={formData.descricao}
@@ -368,12 +367,9 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
               {/* Seção de Suplementação - visível quando categoria é SUPLEMENTAÇÃO */}
               {formData.categoria?.toUpperCase()?.includes("SUPLEMENTA") && (
-                <div className="border border-indigo-200 bg-indigo-50/50 rounded-lg p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Beaker className="w-4 h-4 text-indigo-600" />
-                      <span className="font-semibold text-sm text-indigo-900">Configuração de Suplementação</span>
-                    </div>
+                <div className="border border-indigo-200 bg-indigo-50/50 rounded-lg p-3 space-y-1">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1">
+                    <span className="font-semibold text-sm text-slate-700">Configuração de Suplementação</span>
                     {!formData.percentual_consumo_pv && formData.nome_produto && (
                       <Button
                         type="button"
@@ -401,7 +397,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Tipo de consumo</Label>
                       <Select value={formData.tipo_consumo || ""} onValueChange={(value) => handleChange('tipo_consumo', value)}>
@@ -454,12 +450,11 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               )}
 
               {/* Seção de Unidade de Estoque */}
-              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-slate-600" />
+              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-3 space-y-1">
+                <div>
                   <span className="font-semibold text-sm text-slate-700">Unidade de Estoque</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
                   <div className="space-y-1">
                     <Label className="text-xs">Unidade principal de estoque</Label>
                     <Select value={formData.unidade_principal_estoque || "KG"} onValueChange={(value) => handleChange('unidade_principal_estoque', value)}>
@@ -487,7 +482,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 pt-1">
                 <Label className="text-xs">Observações</Label>
                 <Textarea
                   value={formData.observacoes}
@@ -499,7 +494,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
                 <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
