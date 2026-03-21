@@ -24,38 +24,38 @@ export default function CadastroLotes() {
     queryKey: ['lotes-cadastro', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter(l => 
-        l.empresa_id === empresaSelecionadaId && 
-        !ORIGENS_SISTEMA.includes(l.origem)
+      return all.filter((l) =>
+      l.empresa_id === empresaSelecionadaId &&
+      !ORIGENS_SISTEMA.includes(l.origem)
       );
     },
     enabled: !!empresaSelecionadaId,
-    initialData: [],
+    initialData: []
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
-    initialData: [],
+    initialData: []
   });
 
   const { data: lotesComMovimentacoes = [] } = useQuery({
     queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
     queryFn: async () => {
       const [movsPecuaria, movsMapa] = await Promise.all([
-        base44.entities.MovimentacaoPecuaria.list(),
-        base44.entities.MovimentacaoMapa.list()
-      ]);
-      const idsPecuaria = movsPecuaria.filter(m => m.empresa_id === empresaSelecionadaId && m.lote_id).map(m => m.lote_id);
-      const idsMapa = movsMapa.filter(m => m.empresa_id === empresaSelecionadaId && m.lote_id).map(m => m.lote_id);
+      base44.entities.MovimentacaoPecuaria.list(),
+      base44.entities.MovimentacaoMapa.list()]
+      );
+      const idsPecuaria = movsPecuaria.filter((m) => m.empresa_id === empresaSelecionadaId && m.lote_id).map((m) => m.lote_id);
+      const idsMapa = movsMapa.filter((m) => m.empresa_id === empresaSelecionadaId && m.lote_id).map((m) => m.lote_id);
       return [...new Set([...idsPecuaria, ...idsMapa])];
     },
     enabled: !!empresaSelecionadaId,
-    initialData: [],
+    initialData: []
   });
 
   const createLoteMutation = useMutation({
@@ -74,7 +74,7 @@ export default function CadastroLotes() {
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote cadastrado!');
-    },
+    }
   });
 
   const updateLoteMutation = useMutation({
@@ -83,7 +83,7 @@ export default function CadastroLotes() {
       await base44.functions.invoke('syncEntityReferences', {
         event: { type: 'update', entity_name: 'Lote' },
         data: updated,
-        old_data: oldData,
+        old_data: oldData
       });
       return updated;
     },
@@ -92,11 +92,11 @@ export default function CadastroLotes() {
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote atualizado!');
-    },
+    }
   });
 
   const deleteLoteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Lote.delete(id),
+    mutationFn: (id) => base44.entities.Lote.delete(id)
   });
 
   const handleSubmit = (data) => {
@@ -139,13 +139,13 @@ export default function CadastroLotes() {
 
   const handleExport = () => {
     const csv = [
-      ['Código', 'Nome', 'Qtd Entrada', 'Motivo', 'Categoria Entrada', 'Sexo', 'Raça', 'Peso Entrada', 'Área Entrada', 'Status', 'Valor Total'].join(';'),
-      ...lotes.map(l => [
-        l.numero_lote, l.nome, l.quantidade_entrada || l.quantidade_cabecas, l.motivo_entrada || l.origem || '',
-        l.categoria_entrada || l.categoria, l.sexo || '', l.raca_predominante || '', l.peso_entrada_kg || l.peso_medio_kg || '', 
-        l.area_entrada_nome || '', l.status, l.valor_total_compra || ''
-      ].join(';'))
-    ].join('\n');
+    ['Código', 'Nome', 'Qtd Entrada', 'Motivo', 'Categoria Entrada', 'Sexo', 'Raça', 'Peso Entrada', 'Área Entrada', 'Status', 'Valor Total'].join(';'),
+    ...lotes.map((l) => [
+    l.numero_lote, l.nome, l.quantidade_entrada || l.quantidade_cabecas, l.motivo_entrada || l.origem || '',
+    l.categoria_entrada || l.categoria, l.sexo || '', l.raca_predominante || '', l.peso_entrada_kg || l.peso_medio_kg || '',
+    l.area_entrada_nome || '', l.status, l.valor_total_compra || ''].
+    join(';'))].
+    join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -155,53 +155,53 @@ export default function CadastroLotes() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-1">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Cadastro de Lotes</h1>
           <p className="text-xs text-slate-600">Registro fixo de entrada de lotes e manutenção do cadastro.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!showForm && (
-            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+          {!showForm &&
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
               <Settings className="w-4 h-4" />
             </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
-            Atualizar
-          </Button>
+          }
+          
+
+          
           <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
             Exportar
           </Button>
-          {!showForm && (
-            <Button onClick={() => { setShowForm(true); setEditingLote(null); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+          {!showForm &&
+          <Button onClick={() => {setShowForm(true);setEditingLote(null);}} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Novo Lote
             </Button>
-          )}
+          }
         </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {showForm ? (
-          <FormularioLote
-            key="form"
-            initialData={editingLote}
-            isEditing={!!editingLote}
-            onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingLote(null); }}
-          />
-        ) : (
-          <TabelaLotes
-            key="table"
-            lotes={lotes}
-            areas={areas}
-            onEdit={handleEdit}
-            onDelete={handleRequestDelete}
-            lotesComMovimentacoes={lotesComMovimentacoes}
-            showConfigColunas={showConfigColunas}
-            setShowConfigColunas={setShowConfigColunas}
-          />
-        )}
+        {showForm ?
+        <FormularioLote
+          key="form"
+          initialData={editingLote}
+          isEditing={!!editingLote}
+          onSubmit={handleSubmit}
+          onCancel={() => {setShowForm(false);setEditingLote(null);}} /> :
+
+
+        <TabelaLotes
+          key="table"
+          lotes={lotes}
+          areas={areas}
+          onEdit={handleEdit}
+          onDelete={handleRequestDelete}
+          lotesComMovimentacoes={lotesComMovimentacoes}
+          showConfigColunas={showConfigColunas}
+          setShowConfigColunas={setShowConfigColunas} />
+
+        }
       </AnimatePresence>
 
       <ConfirmDialog
@@ -212,8 +212,8 @@ export default function CadastroLotes() {
         confirmText="Excluir"
         cancelText="Cancelar"
         variant="destructive"
-        onConfirm={handleConfirmDelete}
-      />
-    </div>
-  );
+        onConfirm={handleConfirmDelete} />
+      
+    </div>);
+
 }
