@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -41,11 +41,6 @@ export default function Usuarios() {
     queryFn: () => base44.entities.GrupoPermissao.list("-updated_date"),
     initialData: []
   });
-
-  const groupMap = useMemo(() => grupos.reduce((acc, grupo) => {
-    acc[grupo.id] = grupo;
-    return acc;
-  }, {}), [grupos]);
 
   const saveAssignmentMutation = useMutation({
     mutationFn: async (payload) => {
