@@ -92,11 +92,8 @@ export default function Empresa() {
     setShowForm(true);
   };
 
-  const handleDelete = (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ Excluir empresa?')) {
-      return deleteMutation.mutateAsync(id);
-    }
-    return Promise.reject('Cancelado');
+  const handleDelete = (id) => {
+    return deleteMutation.mutateAsync(id);
   };
 
   return (
@@ -108,7 +105,7 @@ export default function Empresa() {
               <h1 className="text-xl font-bold text-slate-900">Empresas</h1>
               <p className="text-xs text-slate-600">Gerenciar empresas</p>
             </div>
-            <Button onClick={() => { setEditingEmpresa(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+            <Button onClick={() => { setEditingEmpresa(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Nova Empresa
             </Button>

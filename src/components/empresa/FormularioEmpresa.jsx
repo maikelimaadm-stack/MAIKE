@@ -138,7 +138,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Apelido *</Label>
                 <Input
@@ -176,7 +176,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
             </div>
 
             {formData.tipo_pessoa === 'Física' && (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">CPF *</Label>
                   <Input
@@ -200,7 +200,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
             )}
 
             {formData.tipo_pessoa === 'Jurídica' && (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">CNPJ *</Label>
                   <Input
@@ -223,7 +223,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Telefone</Label>
                 <Input
@@ -245,7 +245,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="col-span-3 space-y-1">
                 <Label className="text-xs">Endereço Completo</Label>
                 <Input
@@ -258,7 +258,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Cidade</Label>
                 <Input

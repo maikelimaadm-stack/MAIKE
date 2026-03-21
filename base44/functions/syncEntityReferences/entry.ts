@@ -65,11 +65,169 @@ const PROPAGATION_RULES = {
       },
     },
   ],
+  Fornecedor: [
+    {
+      entity: 'CustoSafra',
+      matchType: 'id',
+      queryField: 'fornecedor_id',
+      fieldMap: {
+        fornecedor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'HistoricoEntrega',
+      matchType: 'id',
+      queryField: 'fornecedor_id',
+      fieldMap: {
+        fornecedor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoEstoque',
+      matchType: 'id',
+      queryField: 'fornecedor_id',
+      fieldMap: {
+        fornecedor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'LancamentoFinanceiro',
+      matchType: 'id',
+      queryField: 'fornecedor_id',
+      fieldMap: {
+        fornecedor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'id',
+      queryField: 'fornecedor_id',
+      fieldMap: {
+        fornecedor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'AtivoFixo',
+      matchType: 'id',
+      queryField: 'fornecedor_id',
+      fieldMap: {
+        fornecedor_nome: 'nome',
+      },
+    },
+  ],
+  Safra: [
+    {
+      entity: 'MovimentacaoEstoque',
+      matchType: 'id',
+      queryField: 'safra_id',
+      fieldMap: {
+        safra_nome: '__safra_label__',
+      },
+    },
+    {
+      entity: 'LancamentoFinanceiro',
+      matchType: 'id',
+      queryField: 'safra_id',
+      fieldMap: {
+        safra_nome: '__safra_label__',
+      },
+    },
+  ],
+  UnidadeMedida: [
+    {
+      entity: 'Produto',
+      matchType: 'value',
+      sourceField: 'sigla',
+      matchFields: ['unidade_medida'],
+      fieldMap: {
+        unidade_medida: 'sigla',
+      },
+    },
+    {
+      entity: 'MovimentacaoEstoque',
+      matchType: 'value',
+      sourceField: 'sigla',
+      matchFields: ['unidade_medida'],
+      fieldMap: {
+        unidade_medida: 'sigla',
+      },
+    },
+  ],
+  Categoria: [
+    {
+      entity: 'Produto',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'nome',
+      },
+    },
+  ],
+  LocalEstoque: [
+    {
+      entity: 'Produto',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['local_estoque'],
+      fieldMap: {
+        local_estoque: 'nome',
+      },
+    },
+    {
+      entity: 'LancamentoFinanceiro',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['local_estoque'],
+      fieldMap: {
+        local_estoque: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoEstoque',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['local_origem', 'local_destino', 'local_estoque_origem', 'local_estoque_destino'],
+      fieldMap: {
+        local_origem: 'nome',
+        local_destino: 'nome',
+        local_estoque_origem: 'nome',
+        local_estoque_destino: 'nome',
+      },
+    },
+  ],
+  CentroCusto: [
+    {
+      entity: 'LancamentoFinanceiro',
+      matchType: 'id',
+      queryField: 'centro_custo_id',
+      fieldMap: {
+        centro_custo_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoEstoque',
+      matchType: 'id',
+      queryField: 'centro_custo_id',
+      fieldMap: {
+        centro_custo_nome: 'nome',
+      },
+    },
+  ],
 };
 
 function normalizeValue(value) {
   if (value === null || value === undefined) return '';
   return String(value).trim().toLowerCase();
+}
+
+function getSourceFieldValue(data, sourceField) {
+  if (!data) return null;
+  if (sourceField === '__safra_label__') {
+    if (data.ano_inicio && data.ano_fim) return `${data.ano_inicio}/${data.ano_fim}`;
+    return data.descricao || null;
+  }
+  return data?.[sourceField] ?? null;
 }
 
 async function readPayload(req) {
@@ -93,7 +251,7 @@ async function listRecordsForRule(base44, rule, sourceData, oldData) {
     }
   }
 
-  const oldValue = normalizeValue(oldData?.[rule.sourceField]);
+  const oldValue = normalizeValue(getSourceFieldValue(oldData, rule.sourceField));
   if (!oldValue) return [];
 
   const records = await entityApi.list('-created_date', 5000);
@@ -110,8 +268,8 @@ function buildPatchForRecord(record, rule, sourceData, oldData) {
   const patch = {};
 
   Object.entries(rule.fieldMap || {}).forEach(([targetField, sourceField]) => {
-    const newValue = sourceData?.[sourceField] ?? null;
-    const oldValue = oldData?.[sourceField] ?? null;
+    const newValue = getSourceFieldValue(sourceData, sourceField);
+    const oldValue = getSourceFieldValue(oldData, sourceField);
     const currentValue = record?.[targetField] ?? null;
 
     if (newValue === oldValue) return;

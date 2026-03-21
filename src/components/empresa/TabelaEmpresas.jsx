@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const COLUNAS_DISPONIVEIS = [
@@ -69,6 +70,8 @@ export default function TabelaEmpresas({ empresas = [], onEdit, onDelete, isLoad
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
@@ -182,26 +185,29 @@ export default function TabelaEmpresas({ empresas = [], onEdit, onDelete, isLoad
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} empresa(s) selecionada(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      for (const id of selectedItems) {
-        try {
-          await onDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: selectedItems.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+    setBulkDeleteConfirm(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirm(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selectedItems.length });
+    
+    let deleted = 0;
+    for (const id of selectedItems) {
+      try {
+        await onDelete(id, true);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selectedItems.length });
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
       }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelectedItems([]);
+    }, 500);
   };
 
   const deleteProgressPercentage = deleteProgress.total > 0 
@@ -361,7 +367,7 @@ export default function TabelaEmpresas({ empresas = [], onEdit, onDelete, isLoad
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => onDelete(empresa.id)} className="text-xs text-red-600">
+                              <DropdownMenuItem onClick={() => setDeleteConfirmId(empresa.id)} className="text-xs text-red-600">
                                 Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -483,6 +489,31 @@ export default function TabelaEmpresas({ empresas = [], onEdit, onDelete, isLoad
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir esta empresa? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          onDelete(deleteConfirmId, true);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={() => setBulkDeleteConfirm(false)}
+        title="Confirmar exclusão"
+        description={`Tem certeza que deseja excluir ${selectedItems.length} empresa(s)? Esta ação não pode ser desfeita.`}
+        onConfirm={executeBulkDelete}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
