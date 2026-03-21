@@ -249,10 +249,10 @@ export default function TabelaLotes({
   };
 
   return (
-    <div className="space-y-">
+    <div className="space-y-3">
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
             <div className="md:col-span-2 space-y-1">
               <Label className="text-xs">Buscar</Label>
               <Input
