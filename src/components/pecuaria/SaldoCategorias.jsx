@@ -10,7 +10,7 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
   });
 
   const toggle = () => {
-    setIsVisible(prev => {
+    setIsVisible((prev) => {
       const newValue = !prev;
       localStorage.setItem('saldo_categoria_visivel', JSON.stringify(newValue));
       return newValue;
@@ -24,9 +24,9 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
     const categoriasSet = new Set();
 
     // Filtrar apenas movimentações manuais (sem lote_id)
-    const movimentacoesManuais = movimentacoes.filter(m => !m.lote_id);
+    const movimentacoesManuais = movimentacoes.filter((m) => !m.lote_id);
 
-    movimentacoesManuais.forEach(mov => {
+    movimentacoesManuais.forEach((mov) => {
       const categoria = mov.categoria_animal;
       const marca = mov.marca || 'Sem Marca';
       if (!categoria) return;
@@ -52,15 +52,15 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
 
     // Calcular totais por marca
     const totaisMarca = {};
-    marcasArray.forEach(m => { totaisMarca[m] = 0; });
-    
+    marcasArray.forEach((m) => {totaisMarca[m] = 0;});
+
     // Calcular totais por categoria
     const totaisCategoria = {};
-    categoriasArray.forEach(c => { totaisCategoria[c] = 0; });
+    categoriasArray.forEach((c) => {totaisCategoria[c] = 0;});
 
     let total = 0;
 
-    Object.values(matriz).forEach(item => {
+    Object.values(matriz).forEach((item) => {
       totaisMarca[item.marca] = (totaisMarca[item.marca] || 0) + item.saldo;
       totaisCategoria[item.categoria] = (totaisCategoria[item.categoria] || 0) + item.saldo;
       total += item.saldo;
@@ -94,22 +94,22 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
           Saldo por Categoria / Marca
         </CardTitle>
         <div className="flex items-center gap-2">
-          <div className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">
-            Total: {totalGeral.toLocaleString('pt-BR')} cab
-          </div>
+          
+
+            
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggle}
-            className="h-7 text-xs"
-          >
+              variant="ghost"
+              size="sm"
+              onClick={toggle}
+              className="h-7 text-xs">
+              
             {isVisible ? 'Ocultar' : 'Mostrar'}
           </Button>
         </div>
       </div>
     </CardHeader>
-      {isVisible && (
-        <CardContent className="p-0">
+      {isVisible &&
+      <CardContent className="p-0">
           <div className="overflow-auto">
             <Table className="text-xs">
               <TableHeader>
@@ -117,55 +117,55 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
                   <TableHead className="font-bold border-r border-slate-300 sticky left-0 bg-slate-100 z-20 min-w-[140px] py-1.5">
                     Categoria de Manejo
                   </TableHead>
-                  {marcas.map(marca => (
-                    <TableHead key={marca} className="font-semibold text-center border-r border-slate-200 min-w-[70px] whitespace-nowrap py-1.5">
+                  {marcas.map((marca) =>
+                <TableHead key={marca} className="font-semibold text-center border-r border-slate-200 min-w-[70px] whitespace-nowrap py-1.5">
                       {marca}
                     </TableHead>
-                  ))}
+                )}
                   <TableHead className="font-bold text-center bg-yellow-100 text-yellow-900 min-w-[90px] py-1.5">
                     Total Cabeças
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categorias.map((categoria, idx) => (
-                  <TableRow key={categoria} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                {categorias.map((categoria, idx) =>
+              <TableRow key={categoria} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                     <TableCell className="font-medium border-r border-slate-300 sticky left-0 bg-inherit z-10 py-1">
                       {categoria}
                     </TableCell>
-                    {marcas.map(marca => {
-                      const saldo = getSaldo(categoria, marca);
-                      return (
-                        <TableCell 
-                          key={marca} 
-                          className={`text-center font-mono border-r border-slate-200 py-1 ${
-                            saldo > 0 ? 'text-slate-900' : saldo < 0 ? 'text-red-600 font-semibold' : ''
-                          }`}
-                        >
+                    {marcas.map((marca) => {
+                  const saldo = getSaldo(categoria, marca);
+                  return (
+                    <TableCell
+                      key={marca}
+                      className={`text-center font-mono border-r border-slate-200 py-1 ${
+                      saldo > 0 ? 'text-slate-900' : saldo < 0 ? 'text-red-600 font-semibold' : ''}`
+                      }>
+                      
                           {saldo !== 0 ? saldo.toLocaleString('pt-BR') : ''}
-                        </TableCell>
-                      );
-                    })}
+                        </TableCell>);
+
+                })}
                     <TableCell className="text-center font-mono font-bold bg-yellow-50 text-yellow-900 py-1">
                       {totaisPorCategoria[categoria]?.toLocaleString('pt-BR') || 0}
                     </TableCell>
                   </TableRow>
-                ))}
+              )}
                 {/* Linha de Total por Marca */}
                 <TableRow className="bg-emerald-50 border-t-2 border-slate-400">
                   <TableCell className="font-bold border-r border-slate-300 sticky left-0 bg-emerald-50 z-10 py-1.5">
                     TOTAL POR MARCA
                   </TableCell>
-                  {marcas.map(marca => (
-                    <TableCell 
-                      key={marca} 
-                      className={`text-center font-mono font-bold border-r border-slate-200 py-1.5 ${
-                        totaisPorMarca[marca] > 0 ? 'text-emerald-800' : totaisPorMarca[marca] < 0 ? 'text-red-600' : ''
-                      }`}
-                    >
+                  {marcas.map((marca) =>
+                <TableCell
+                  key={marca}
+                  className={`text-center font-mono font-bold border-r border-slate-200 py-1.5 ${
+                  totaisPorMarca[marca] > 0 ? 'text-emerald-800' : totaisPorMarca[marca] < 0 ? 'text-red-600' : ''}`
+                  }>
+                  
                       {totaisPorMarca[marca] !== 0 ? totaisPorMarca[marca]?.toLocaleString('pt-BR') : ''}
                     </TableCell>
-                  ))}
+                )}
                   <TableCell className="text-center font-mono font-bold bg-emerald-100 text-emerald-900 py-1.5">
                     {totalGeral.toLocaleString('pt-BR')}
                   </TableCell>
@@ -174,7 +174,7 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
             </Table>
           </div>
         </CardContent>
-      )}
-    </Card>
-  );
+      }
+    </Card>);
+
 }
