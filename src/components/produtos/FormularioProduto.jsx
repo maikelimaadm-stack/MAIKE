@@ -139,6 +139,12 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     return `${baseClassName} ${invalid ? 'border-slate-300 bg-slate-100 focus-visible:ring-slate-400' : ''}`.trim();
   };
 
+  const scrollToField = (element) => {
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => element.focus?.(), 250);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -155,10 +161,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       setInvalidFields(missingFields);
 
       const firstMissingField = missingFields[0];
-      if (firstMissingField === 'nome_produto') nomeProdutoRef.current?.focus();
-      if (firstMissingField === 'codigo_interno') codigoInternoRef.current?.focus();
-      if (firstMissingField === 'unidade_medida') unidadeTriggerRef.current?.focus();
-      if (firstMissingField === 'peso_por_saco_kg') pesoSacoRef.current?.focus();
+      if (firstMissingField === 'nome_produto') scrollToField(nomeProdutoRef.current);
+      if (firstMissingField === 'codigo_interno') scrollToField(codigoInternoRef.current);
+      if (firstMissingField === 'unidade_medida') scrollToField(unidadeTriggerRef.current);
+      if (firstMissingField === 'peso_por_saco_kg') scrollToField(pesoSacoRef.current);
       return;
     }
 
