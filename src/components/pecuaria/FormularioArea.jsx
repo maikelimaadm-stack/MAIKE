@@ -5,15 +5,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
 export default function FormularioArea({ onSubmit, onCancel, initialData, isEditing }) {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [formData, setFormData] = useState(initialData || {
     nome: "",
+    setor_id: "",
+    setor_nome: "",
     tamanho_hectares: "",
     capacidade_maxima: "",
     tipo_pastagem: "",
     observacoes: ""
+  });
+
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores-form-area-pecuaria', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter((setor) => setor.empresa_id === empresaSelecionadaId && setor.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: [],
   });
 
   const handleChange = (field, value) => {
@@ -33,8 +49,15 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
       return;
     }
 
+    if (!formData.setor_id) {
+      toast.error('Setor é obrigatório!');
+      return;
+    }
+
     const data = {
       nome: formData.nome?.toUpperCase(),
+      setor_id: formData.setor_id,
+      setor_nome: formData.setor_nome,
       tamanho_hectares: parseFloat(formData.tamanho_hectares) || 0,
       capacidade_maxima: parseFloat(formData.capacidade_maxima) || 0,
       tipo_pastagem: formData.tipo_pastagem?.toUpperCase() || undefined,
@@ -95,7 +118,26 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
                   className="h-8 text-xs"
                 />
               </div>
-            </div>
+              </div>
+
+              <div className="space-y-1">
+              <Label className="text-xs">Setor *</Label>
+              <Select
+                value={formData.setor_id || "__none__"}
+                onValueChange={(value) => {
+                  const setor = setores.find((item) => item.id === value);
+                  setFormData({ ...formData, setor_id: value === "__none__" ? "" : value, setor_nome: setor?.nome || "" });
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione o setor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Selecione</SelectItem>
+                  {setores.map((setor) => <SelectItem key={setor.id} value={setor.id}>{setor.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              </div>
 
             <div className="space-y-1">
               <Label className="text-xs">Tipo de Pastagem</Label>

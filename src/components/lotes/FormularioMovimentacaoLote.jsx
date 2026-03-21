@@ -482,7 +482,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                 <SelectContent>
                   {areasOrdenadas.map((area) =>
                   <SelectItem key={area.id} value={area.id} className="text-xs">
-                      {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
+                      {area.setor_nome ? `${area.setor_nome} • ` : ''}{area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
                     </SelectItem>
                   )}
                 </SelectContent>
@@ -503,7 +503,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   filter((a) => a.id !== formData.area_saida_id).
                   map((area) =>
                   <SelectItem key={area.id} value={area.id} className="text-xs">
-                        {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
+                        {area.setor_nome ? `${area.setor_nome} • ` : ''}{area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
                       </SelectItem>
                   )}
                 </SelectContent>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +42,6 @@ const CORES_DISPONIVEIS = [
 
 export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-  const queryClient = useQueryClient();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
 
@@ -54,6 +53,8 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     nome: item?.nome || "",
     sigla: item?.sigla || "",
     numero_area: item?.numero_area || "",
+    setor_id: item?.setor_id || "",
+    setor_nome: item?.setor_nome || "",
     area_total: item?.tamanho_hectares?.toString() || "",
     area_pastejada: item?.area_pastejada?.toString() || "",
     aproveitamento: item?.aproveitamento_classificacao || "Média",
@@ -63,7 +64,15 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     observacoes: item?.observacoes || ""
   });
 
-
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores-form-area', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter((setor) => setor.empresa_id === empresaSelecionadaId && setor.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: [],
+  });
 
   const createAreaMutation = useMutation({
     mutationFn: async (data) => {
@@ -131,6 +140,10 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       toast.error('Preencha o nome da área!');
       return;
     }
+    if (!formData.setor_id) {
+      toast.error('Selecione o setor da área!');
+      return;
+    }
     // Calcular área
     const coords = coordenadasGPS || coordenadas;
     let tamanhoHectares = 0;
@@ -146,6 +159,8 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       nome: formData.nome,
       sigla: formData.sigla,
       numero_area: formData.numero_area?.toString().trim() || undefined,
+      setor_id: formData.setor_id,
+      setor_nome: formData.setor_nome,
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
       tipo_pastagem: formData.tipo_pastagem,
@@ -204,6 +219,27 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           inputMode="numeric"
         />
         <p className="text-xs text-slate-500">Deixe em branco para gerar automaticamente</p>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Setor *</Label>
+        <Select
+          value={formData.setor_id || "__none__"}
+          onValueChange={(value) => {
+            const setor = setores.find((item) => item.id === value);
+            setFormData({ ...formData, setor_id: value === "__none__" ? "" : value, setor_nome: setor?.nome || "" });
+          }}
+        >
+          <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
+            <SelectValue placeholder="Selecione o setor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__" className="text-sm">Selecione</SelectItem>
+            {setores.map((setor) => (
+              <SelectItem key={setor.id} value={setor.id} className="text-sm">{setor.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1">
