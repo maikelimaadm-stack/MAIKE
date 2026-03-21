@@ -262,8 +262,7 @@ export default function TabelaLotes({
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos_vazio" className="hidden">Todos</SelectItem>
-                  <SelectItem value={null} className="text-xs">Todos</SelectItem>
+                  <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                   <SelectItem value="Ativo" className="text-xs">Ativo</SelectItem>
                   <SelectItem value="Inativo" className="text-xs">Inativo</SelectItem>
                   <SelectItem value="Vendido" className="text-xs">Vendido</SelectItem>
