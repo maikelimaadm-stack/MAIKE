@@ -443,9 +443,10 @@ export default function MapaGeral() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchTarefas();refetchEstoqueLotes();
+    refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
+    if (podeUsarTarefasMapa) refetchTarefas();
     toast.success('Mapa atualizado');
-  }, []);
+  }, [podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -630,10 +631,13 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
 
   useEffect(() => {
-    const h = () => {refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();refetchTarefas();};
+    const h = () => {
+      refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
+      if (podeUsarTarefasMapa) refetchTarefas();
+    };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
-  }, []);
+  }, [podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   useEffect(() => {
     if (podeUsarTarefasMapa) return;
@@ -758,17 +762,17 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open) refetchTarefas();}}>
+      <Dialog open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Tarefas do Mapa</DialogTitle></DialogHeader>
-          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});refetchTarefas();}} />
+          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open) refetchTarefas();}}>
+      <Dialog open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}}>
         <DialogContent className="bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="sr-only"><DialogTitle>Detalhes da tarefa</DialogTitle></DialogHeader>
-          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => { if (updated) setSelectedTarefa(updated); refetchTarefas(); }} />}
+          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => { if (updated) setSelectedTarefa(updated); if (podeUsarTarefasMapa) refetchTarefas(); }} />}
         </DialogContent>
       </Dialog>
 
