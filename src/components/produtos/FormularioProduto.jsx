@@ -135,7 +135,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
   const getFieldClassName = (field, baseClassName = "") => {
     const invalid = invalidFields.includes(field);
-    return `${baseClassName} ${invalid ? 'border-slate-300 bg-slate-100 focus-visible:ring-slate-400' : ''}`.trim();
+    return `${baseClassName} ${invalid ? 'border-red-500 bg-red-50 focus-visible:ring-red-500' : ''}`.trim();
   };
 
   const scrollToField = (element) => {

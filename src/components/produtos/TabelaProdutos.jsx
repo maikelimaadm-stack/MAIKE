@@ -1,220 +1,261 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect, useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, GripVertical, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import ConfiguracaoColunasProdutosDialog from "@/components/produtos/ConfiguracaoColunasProdutosDialog";
+import { MoreVertical, Loader2 } from "lucide-react";
 
-const formatarNumero = (numero) => {
-  if (!numero && numero !== 0) return "0,00";
-  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-};
+const VALOR_TODOS = "__TODOS__";
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'numero', label: 'Nº', default: true, sortable: true },
-  { id: 'nome', label: 'Nome do Produto', default: true, sortable: true },
-  { id: 'codigo', label: 'Código Interno', default: true, sortable: true },
-  { id: 'categoria', label: 'Categoria', default: true, sortable: true },
-  { id: 'unidade', label: 'Unidade', default: true, sortable: true },
-  { id: 'preco_custo', label: 'Preço Custo', default: true, sortable: true },
-  { id: 'preco_venda', label: 'Preço Venda', default: true, sortable: true },
-  { id: 'estoque', label: 'Estoque Atual', default: true, sortable: true },
-  { id: 'estoque_min', label: 'Estoque Mínimo', default: false, sortable: true },
-  { id: 'barras', label: 'Cód. Barras', default: false, sortable: true },
+  { id: "selecao", label: "Seleção", default: true, fixo: true },
+  { id: "acoes", label: "Ações", default: true, fixo: true },
+  { id: "numero", label: "Nº", default: true, sortable: true, align: "left" },
+  { id: "nome", label: "Nome do Produto", default: true, sortable: true, align: "left" },
+  { id: "codigo", label: "Código Interno", default: true, sortable: true, align: "left" },
+  { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left" },
+  { id: "unidade", label: "Unidade", default: true, sortable: true, align: "left" },
+  { id: "preco_custo", label: "Preço Custo", default: true, sortable: true, align: "right" },
+  { id: "preco_venda", label: "Preço Venda", default: true, sortable: true, align: "right" },
+  { id: "estoque", label: "Estoque Atual", default: true, sortable: true, align: "right" },
+  { id: "estoque_min", label: "Estoque Mínimo", default: false, sortable: true, align: "right" },
+  { id: "barras", label: "Cód. Barras", default: false, sortable: true, align: "left" },
+  { id: "local", label: "Local Estoque", default: false, sortable: true, align: "left" },
+  { id: "tipo_consumo", label: "Tipo Consumo", default: false, sortable: true, align: "left" },
 ];
 
-const ITEMS_PER_PAGE = 50;
+const formatarNumero = (numero) => {
+  if (numero === null || numero === undefined || numero === "") return "0,00";
+  return Number(numero).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
 
-export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrint, isLoading }) {
+export default function TabelaProdutos({
+  produtos = [],
+  onEdit,
+  onDelete,
+  onPrint,
+  isLoading,
+  showConfigColunas,
+  setShowConfigColunas,
+}) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState(VALOR_TODOS);
+  const [filtroUnidade, setFiltroUnidade] = useState(VALOR_TODOS);
+  const [filtroLocal, setFiltroLocal] = useState(VALOR_TODOS);
+  const [filtroTipoConsumo, setFiltroTipoConsumo] = useState(VALOR_TODOS);
+  const [filtroEstoque, setFiltroEstoque] = useState(VALOR_TODOS);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-  
-  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const saved = localStorage.getItem('colunas_produtos');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
-      }
-    }
-    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
-  });
-
-  const [colunasOrdem, setColunasOrdem] = useState(() => {
-    const saved = localStorage.getItem('colunas_ordem_produtos');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return COLUNAS_DISPONIVEIS.map(c => c.id);
-      }
-    }
-    return COLUNAS_DISPONIVEIS.map(c => c.id);
-  });
-  
-  const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem("colunas_produtos");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+  });
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem("colunas_ordem_produtos");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map((c) => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map((c) => c.id);
+  });
+
+  useEffect(() => {
+    setSelectedItems((prev) => prev.filter((id) => produtos.some((item) => item.id === id)));
+  }, [produtos]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filtroCategoria, filtroUnidade, filtroLocal, filtroTipoConsumo, filtroEstoque, itemsPerPage]);
+
+  const categorias = useMemo(() => [...new Set(produtos.map((item) => item.categoria).filter(Boolean))].sort(), [produtos]);
+  const unidades = useMemo(() => [...new Set(produtos.map((item) => item.unidade_medida).filter(Boolean))].sort(), [produtos]);
+  const locais = useMemo(() => [...new Set(produtos.map((item) => item.local_estoque).filter(Boolean))].sort(), [produtos]);
+  const tiposConsumo = useMemo(() => [...new Set(produtos.map((item) => item.tipo_consumo).filter(Boolean))].sort(), [produtos]);
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => {
-      const novasColunas = prev.includes(colunaId)
-        ? prev.filter(id => id !== colunaId)
-        : [...prev, colunaId];
-      
-      localStorage.setItem('colunas_produtos', JSON.stringify(novasColunas));
-      
-      return novasColunas;
-    });
+    const novasColunas = colunasVisiveis.includes(colunaId)
+      ? colunasVisiveis.filter((id) => id !== colunaId)
+      : [...colunasVisiveis, colunaId];
+
+    setColunasVisiveis(novasColunas);
+    localStorage.setItem("colunas_produtos", JSON.stringify(novasColunas));
   };
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
-    
+
     const items = Array.from(colunasOrdem);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    
+
     setColunasOrdem(items);
-    localStorage.setItem('colunas_ordem_produtos', JSON.stringify(items));
+    localStorage.setItem("colunas_ordem_produtos", JSON.stringify(items));
   };
 
-  const colunasOrdenadas = colunasOrdem
-    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
-    .filter(c => c && colunasVisiveis.includes(c.id));
+  const colunasOrdenadas = useMemo(() => {
+    return colunasOrdem
+      .map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id))
+      .filter((c) => c && colunasVisiveis.includes(c.id));
+  }, [colunasOrdem, colunasVisiveis]);
 
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+  const produtosFiltrados = useMemo(() => {
+    return produtos.filter((produto) => {
+      const termo = searchTerm.toLowerCase();
+      const estoqueAtual = Number(produto.estoque_atual || 0);
+      const estoqueMinimo = Number(produto.estoque_minimo || 0);
+      const matchSearch =
+        !termo ||
+        produto.nome_produto?.toLowerCase().includes(termo) ||
+        produto.categoria?.toLowerCase().includes(termo) ||
+        produto.codigo_interno?.toLowerCase().includes(termo) ||
+        produto.codigo_barras?.toLowerCase().includes(termo) ||
+        produto.numero_produto?.toLowerCase().includes(termo);
+      const matchCategoria = filtroCategoria === VALOR_TODOS || produto.categoria === filtroCategoria;
+      const matchUnidade = filtroUnidade === VALOR_TODOS || produto.unidade_medida === filtroUnidade;
+      const matchLocal = filtroLocal === VALOR_TODOS || produto.local_estoque === filtroLocal;
+      const matchTipoConsumo = filtroTipoConsumo === VALOR_TODOS || produto.tipo_consumo === filtroTipoConsumo;
+      const matchEstoque =
+        filtroEstoque === VALOR_TODOS ||
+        (filtroEstoque === "baixo" && estoqueAtual <= estoqueMinimo) ||
+        (filtroEstoque === "ok" && estoqueAtual > estoqueMinimo);
+
+      return matchSearch && matchCategoria && matchUnidade && matchLocal && matchTipoConsumo && matchEstoque;
+    });
+  }, [produtos, searchTerm, filtroCategoria, filtroUnidade, filtroLocal, filtroTipoConsumo, filtroEstoque]);
+
+  const produtosOrdenados = useMemo(() => {
+    const sorted = [...produtosFiltrados];
+    sorted.sort((a, b) => {
+      let aValue;
+      let bValue;
+
+      switch (sortConfig.key) {
+        case "numero":
+          aValue = parseInt(a.numero_produto) || 0;
+          bValue = parseInt(b.numero_produto) || 0;
+          break;
+        case "preco_custo":
+          aValue = Number(a.preco_custo || 0);
+          bValue = Number(b.preco_custo || 0);
+          break;
+        case "preco_venda":
+          aValue = Number(a.preco_venda || 0);
+          bValue = Number(b.preco_venda || 0);
+          break;
+        case "estoque":
+          aValue = Number(a.estoque_atual || 0);
+          bValue = Number(b.estoque_atual || 0);
+          break;
+        case "estoque_min":
+          aValue = Number(a.estoque_minimo || 0);
+          bValue = Number(b.estoque_minimo || 0);
+          break;
+        case "codigo":
+          aValue = String(a.codigo_interno || "").toLowerCase();
+          bValue = String(b.codigo_interno || "").toLowerCase();
+          break;
+        case "categoria":
+          aValue = String(a.categoria || "").toLowerCase();
+          bValue = String(b.categoria || "").toLowerCase();
+          break;
+        case "unidade":
+          aValue = String(a.unidade_medida || "").toLowerCase();
+          bValue = String(b.unidade_medida || "").toLowerCase();
+          break;
+        case "barras":
+          aValue = String(a.codigo_barras || "").toLowerCase();
+          bValue = String(b.codigo_barras || "").toLowerCase();
+          break;
+        case "local":
+          aValue = String(a.local_estoque || "").toLowerCase();
+          bValue = String(b.local_estoque || "").toLowerCase();
+          break;
+        case "tipo_consumo":
+          aValue = String(a.tipo_consumo || "").toLowerCase();
+          bValue = String(b.tipo_consumo || "").toLowerCase();
+          break;
+        case "nome":
+        default:
+          aValue = String(a.nome_produto || "").toLowerCase();
+          bValue = String(b.nome_produto || "").toLowerCase();
+          break;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [produtosFiltrados, sortConfig]);
+
+  const totalPages = Math.max(1, Math.ceil(produtosOrdenados.length / itemsPerPage));
+  const paginatedProdutos = produtosOrdenados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
   };
 
-  const getSortIcon = (field) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3 h-3 ml-1" />
-      : <ArrowDown className="w-3 h-3 ml-1" />;
+  const getSortLabel = (key) => {
+    if (sortConfig.key !== key) return "";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
   };
-
-  const filteredProdutos = produtos.filter(produto => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      produto.nome_produto?.toLowerCase().includes(searchLower) ||
-      produto.categoria?.toLowerCase().includes(searchLower) ||
-      produto.codigo_interno?.toLowerCase().includes(searchLower) ||
-      produto.codigo_barras?.includes(searchLower) ||
-      produto.numero_produto?.includes(searchLower)
-    );
-  });
-
-  const sortedProdutos = [...filteredProdutos].sort((a, b) => {
-    if (!sortField) return 0;
-
-    let aValue, bValue;
-
-    switch (sortField) {
-      case 'numero':
-        aValue = parseInt(a.numero_produto) || 0;
-        bValue = parseInt(b.numero_produto) || 0;
-        break;
-      case 'nome':
-        aValue = a.nome_produto;
-        bValue = b.nome_produto;
-        break;
-      case 'codigo':
-        aValue = a.codigo_interno || '';
-        bValue = b.codigo_interno || '';
-        break;
-      case 'categoria':
-        aValue = a.categoria || '';
-        bValue = b.categoria || '';
-        break;
-      case 'unidade':
-        aValue = a.unidade_medida || '';
-        bValue = b.unidade_medida || '';
-        break;
-      case 'preco_custo':
-        aValue = a.preco_custo || 0;
-        bValue = b.preco_custo || 0;
-        break;
-      case 'preco_venda':
-        aValue = a.preco_venda || 0;
-        bValue = b.preco_venda || 0;
-        break;
-      case 'estoque':
-        aValue = a.estoque_atual || 0;
-        bValue = b.estoque_atual || 0;
-        break;
-      case 'estoque_min':
-        aValue = a.estoque_minimo || 0;
-        bValue = b.estoque_minimo || 0;
-        break;
-      case 'barras':
-        aValue = a.codigo_barras || '';
-        bValue = b.codigo_barras || '';
-        break;
-      default:
-        return 0;
-    }
-
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const totalPages = Math.ceil(sortedProdutos.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedProdutos = sortedProdutos.slice(startIndex, endIndex);
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === paginatedProdutos.length && paginatedProdutos.length > 0) {
+    if (selectedItems.length === produtosFiltrados.length && produtosFiltrados.length > 0) {
       setSelectedItems([]);
-    } else {
-      setSelectedItems(paginatedProdutos.map(p => p.id));
+      return;
     }
+    setSelectedItems(produtosFiltrados.map((item) => item.id));
   };
 
   const toggleSelectItem = (id) => {
-    setSelectedItems(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    setSelectedItems((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const limparFiltros = () => {
+    setSearchTerm("");
+    setFiltroCategoria(VALOR_TODOS);
+    setFiltroUnidade(VALOR_TODOS);
+    setFiltroLocal(VALOR_TODOS);
+    setFiltroTipoConsumo(VALOR_TODOS);
+    setFiltroEstoque(VALOR_TODOS);
   };
 
   const handleBulkDelete = async () => {
@@ -225,18 +266,17 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
     setBulkDeleteConfirm(false);
     setIsDeletingBulk(true);
     setDeleteProgress({ current: 0, total: selectedItems.length });
-    
+
     let deleted = 0;
     for (const id of selectedItems) {
       try {
         await onDelete(id, true);
-        deleted++;
+        deleted += 1;
         setDeleteProgress({ current: deleted, total: selectedItems.length });
-      } catch (error) {
-        console.error('Erro ao excluir:', error);
+      } catch {
       }
     }
-    
+
     setTimeout(() => {
       setIsDeletingBulk(false);
       setSelectedItems([]);
@@ -244,81 +284,136 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
   };
 
   const handleBulkPrint = () => {
-    selectedItems.forEach(id => {
-      const produto = produtos.find(p => p.id === id);
+    selectedItems.forEach((id) => {
+      const produto = produtos.find((item) => item.id === id);
       if (produto) onPrint(produto);
     });
   };
 
-  const deleteProgressPercentage = deleteProgress.total > 0 
-    ? Math.round((deleteProgress.current / deleteProgress.total) * 100) 
+  const deleteProgressPercentage = deleteProgress.total > 0
+    ? Math.round((deleteProgress.current / deleteProgress.total) * 100)
     : 0;
 
-  const renderCell = (coluna, produto) => {
-    const estoqueAbaixoMinimo = (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
-    
-    switch (coluna.id) {
-      case 'numero':
-        return <TableCell className="text-xs border-r border-slate-200">{produto.numero_produto || '-'}</TableCell>;
-      case 'nome':
-        return <TableCell className="text-xs font-semibold border-r border-slate-200">{produto.nome_produto}</TableCell>;
-      case 'codigo':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{produto.codigo_interno || '-'}</TableCell>;
-      case 'categoria':
-        return (
-          <TableCell className="border-r border-slate-200">
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-xs">
-              {produto.categoria || 'Sem categoria'}
-            </Badge>
-          </TableCell>
-        );
-      case 'unidade':
-        return <TableCell className="text-xs border-r border-slate-200">{produto.unidade_medida}</TableCell>;
-      case 'preco_custo':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">R$ {formatarNumero(produto.preco_custo || 0)}</TableCell>;
-      case 'preco_venda':
-        return <TableCell className="text-right font-mono text-xs font-semibold text-green-700 border-r border-slate-200">R$ {formatarNumero(produto.preco_venda || 0)}</TableCell>;
-      case 'estoque':
-        return (
-          <TableCell className="text-right border-r border-slate-200">
-            <div className="flex items-center justify-end gap-1">
-              {estoqueAbaixoMinimo && <AlertTriangle className="w-3 h-3 text-orange-600" />}
-              <span className={`text-xs font-bold ${estoqueAbaixoMinimo ? 'text-orange-700' : 'text-slate-900'}`}>
-                {formatarNumero(produto.estoque_atual || 0)}
-              </span>
-            </div>
-          </TableCell>
-        );
-      case 'estoque_min':
-        return <TableCell className="text-right text-xs border-r border-slate-200">{formatarNumero(produto.estoque_minimo || 0)}</TableCell>;
-      case 'barras':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{produto.codigo_barras || '-'}</TableCell>;
-      default:
-        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+  const renderCell = (produto, colunaId) => {
+    const estoqueAbaixoMinimo = Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0);
+
+    if (colunaId === "numero") return produto.numero_produto || "-";
+    if (colunaId === "nome") return produto.nome_produto || "-";
+    if (colunaId === "codigo") return produto.codigo_interno || "-";
+    if (colunaId === "categoria") return produto.categoria || "-";
+    if (colunaId === "unidade") return produto.unidade_medida || "-";
+    if (colunaId === "preco_custo") return `R$ ${formatarNumero(produto.preco_custo || 0)}`;
+    if (colunaId === "preco_venda") return `R$ ${formatarNumero(produto.preco_venda || 0)}`;
+    if (colunaId === "estoque") {
+      return (
+        <span className={estoqueAbaixoMinimo ? "text-red-600 font-semibold" : "font-semibold"}>
+          {formatarNumero(produto.estoque_atual || 0)}
+        </span>
+      );
     }
+    if (colunaId === "estoque_min") return formatarNumero(produto.estoque_minimo || 0);
+    if (colunaId === "barras") return produto.codigo_barras || "-";
+    if (colunaId === "local") return produto.local_estoque || "-";
+    if (colunaId === "tipo_consumo") return produto.tipo_consumo || "-";
+    return "-";
   };
 
   return (
     <>
-      <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              Produtos ({produtos.length})
-            </CardTitle>
-            <div className="flex gap-2 items-center">
-              {selectedItems.length > 0 && (
-                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
-                  <span className="text-xs font-semibold text-slate-800">
-                    {selectedItems.length} selecionado(s)
-                  </span>
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              <div className="md:col-span-2 space-y-1">
+                <Label className="text-xs">Buscar</Label>
+                <Input
+                  placeholder="Buscar produto, código, categoria..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Categoria</Label>
+                <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
+                    {categorias.map((item) => (
+                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Unidade</Label>
+                <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
+                    {unidades.map((item) => (
+                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Local</Label>
+                <Select value={filtroLocal} onValueChange={setFiltroLocal}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
+                    {locais.map((item) => (
+                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo Consumo</Label>
+                <Select value={filtroTipoConsumo} onValueChange={setFiltroTipoConsumo}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
+                    {tiposConsumo.map((item) => (
+                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Estoque</Label>
+                <Select value={filtroEstoque} onValueChange={setFiltroEstoque}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
+                    <SelectItem value="baixo" className="text-xs">Estoque Baixo</SelectItem>
+                    <SelectItem value="ok" className="text-xs">Estoque OK</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
+              <div className="text-xs text-slate-500">
+                {produtosFiltrados.length} de {produtos.length} registros
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {selectedItems.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
-                        <MoreVertical className="w-4 h-4 text-slate-700" />
+                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                        Ações ({selectedItems.length})
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent>
                       <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleBulkPrint} className="text-xs">
@@ -326,220 +421,167 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
-                        Excluir Todos
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
-                        Limpar
+                        Excluir Selecionados
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </div>
-              )}
-              
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
+                )}
+                <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
+                  Limpar Filtros
+                </Button>
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
-                Colunas
-              </Button>
             </div>
-          </div>
-        </CardHeader>
+          </CardContent>
+        </Card>
 
-        <CardContent className="p-0">
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-8 text-xs border-r border-slate-200">
-                    <Checkbox
-                      checked={selectedItems.length === paginatedProdutos.length && paginatedProdutos.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
-                  {colunasOrdenadas.map((coluna) => {
-                    return (
-                      <TableHead 
-                        key={coluna.id}
-                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
-                        onClick={() => coluna.sortable && handleSort(coluna.id)}
-                      >
-                        <div className="flex items-center">
-                          {coluna.label}
-                          {coluna.sortable && getSortIcon(coluna.id)}
-                        </div>
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <AnimatePresence>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-auto max-h-[500px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-white border-b">
+                    {colunasOrdenadas.map((coluna) => {
+                      if (coluna.id === "selecao") {
+                        return (
+                          <TableHead key="selecao" className="text-xs font-bold py-1 px-2 border border-black w-10">
+                            <Checkbox
+                              checked={selectedItems.length === produtosFiltrados.length && produtosFiltrados.length > 0}
+                              onCheckedChange={toggleSelectAll}
+                            />
+                          </TableHead>
+                        );
+                      }
+
+                      if (coluna.id === "acoes") {
+                        return <TableHead key="acoes" className="text-xs font-bold py-1 px-2 border border-black w-10"></TableHead>;
+                      }
+
+                      const isRight = coluna.align === "right";
+                      return (
+                        <TableHead
+                          key={coluna.id}
+                          className={`text-xs font-bold py-1 px-3 border border-black ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
+                          onClick={() => coluna.sortable && handleSort(coluna.id)}
+                        >
+                          <div className={`${isRight ? "text-right" : ""}`}>
+                            {coluna.label} {coluna.sortable ? getSortLabel(coluna.id) : ""}
+                          </div>
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                      <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                        Carregando...
+                      </TableCell>
                     </TableRow>
                   ) : paginatedProdutos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum produto</TableCell>
+                      <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                        Nenhum produto encontrado
+                      </TableCell>
                     </TableRow>
                   ) : (
                     paginatedProdutos.map((produto) => {
-                      const estoqueAbaixoMinimo = (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
-                      
+                      const estoqueAbaixoMinimo = Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0);
+
                       return (
-                        <motion.tr 
-                          key={produto.id}
-                          initial={{ opacity: 0 }} 
-                          animate={{ opacity: 1 }} 
-                          exit={{ opacity: 0 }} 
-                          className={`hover:bg-slate-50 transition-colors border-b ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
-                        >
-                          <TableCell className="border-r border-slate-200">
-                            <Checkbox
-                              checked={selectedItems.includes(produto.id)}
-                              onCheckedChange={() => toggleSelectItem(produto.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-center border-r border-slate-200">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                <DropdownMenuItem onClick={() => onEdit(produto)} className="text-xs">
-                                  Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onPrint(produto)} className="text-xs">
-                                  Imprimir Ficha
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setDeleteConfirm(produto)} className="text-xs text-red-600">
-                                  Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                          {colunasOrdenadas.map(coluna => (
-                            <React.Fragment key={coluna.id}>
-                              {renderCell(coluna, produto)}
-                            </React.Fragment>
-                          ))}
-                        </motion.tr>
+                        <TableRow key={produto.id} className={`hover:bg-gray-50 border-b ${estoqueAbaixoMinimo ? "bg-red-50/40" : ""}`}>
+                          {colunasOrdenadas.map((coluna) => {
+                            if (coluna.id === "selecao") {
+                              return (
+                                <TableCell key={`${produto.id}-selecao`} className="text-xs py-1 px-2 border border-gray-300">
+                                  <Checkbox
+                                    checked={selectedItems.includes(produto.id)}
+                                    onCheckedChange={() => toggleSelectItem(produto.id)}
+                                  />
+                                </TableCell>
+                              );
+                            }
+
+                            if (coluna.id === "acoes") {
+                              return (
+                                <TableCell key={`${produto.id}-acoes`} className="text-xs py-1 px-2 border border-gray-300 text-center">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                      <DropdownMenuItem onClick={() => onEdit(produto)} className="text-xs">
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => onPrint(produto)} className="text-xs">
+                                        Imprimir Ficha
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => setDeleteConfirm(produto)} className="text-xs text-red-600">
+                                        Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              );
+                            }
+
+                            return (
+                              <TableCell
+                                key={`${produto.id}-${coluna.id}`}
+                                className={`text-xs py-1 px-3 border border-gray-300 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
+                              >
+                                {renderCell(produto, coluna.id)}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
                       );
                     })
                   )}
-                </AnimatePresence>
-              </TableBody>
-            </Table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-              <div className="text-xs text-slate-600">
-                Mostrando {startIndex + 1} a {Math.min(endIndex, sortedProdutos.length)} de {sortedProdutos.length} registros
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="h-7 text-xs"
-                >
-                  Anterior
-                </Button>
-                <span className="text-xs text-slate-600">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="h-7 text-xs"
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-3 flex-1 overflow-auto">
-            <div className="space-y-1">
-              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
-              <div className="grid grid-cols-2 gap-2">
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.includes(coluna.id)}
-                      onChange={() => toggleColuna(coluna.id)}
-                      className="rounded"
-                    />
-                    <span>{coluna.label}</span>
-                  </label>
-                ))}
-              </div>
+                </TableBody>
+              </Table>
             </div>
 
-            <div className="border-t pt-3">
-              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="colunas">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
-                      {colunasOrdem.map((colunaId, index) => {
-                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
-                        if (!coluna) return null;
-                        
-                        return (
-                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
-                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
-                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
-                              >
-                                <GripVertical className="w-4 h-4 text-slate-400" />
-                                <span className="flex-1">{coluna.label}</span>
-                                {colunasVisiveis.includes(colunaId) && (
-                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
-                                )}
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            </div>
-          </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between p-3 border-t">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Itens por página:</span>
+                  <Select value={String(itemsPerPage)} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
+                    <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[25, 50, 100, 200].map((numero) => (
+                        <SelectItem key={numero} value={String(numero)}>{numero}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((prev) => prev - 1)} className="h-7 text-xs">
+                    Anterior
+                  </Button>
+                  <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((prev) => prev + 1)} className="h-7 text-xs">
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t">
-            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfiguracaoColunasProdutosDialog
+        open={showConfigColunas}
+        onOpenChange={setShowConfigColunas}
+        colunasDisponiveis={COLUNAS_DISPONIVEIS}
+        colunasVisiveis={colunasVisiveis}
+        colunasOrdem={colunasOrdem}
+        toggleColuna={toggleColuna}
+        handleDragEnd={handleDragEnd}
+      />
 
       <ConfirmDialog
         open={!!deleteConfirm}

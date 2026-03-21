@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
+import { Settings, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -56,6 +56,7 @@ export default function Produtos() {
   const [editingProduto, setEditingProduto] = useState(null);
   const [fichaProduto, setFichaProduto] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const [showErrorDialog, setShowErrorDialog] = useState(false);
@@ -67,7 +68,7 @@ export default function Produtos() {
   // Pegar empresa selecionada
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const { data: produtos, isLoading } = useQuery({
+  const { data: produtos, isLoading, refetch } = useQuery({
     queryKey: ['produtos', empresaSelecionadaId],
     queryFn: async () => {
       const allProdutos = await base44.entities.Produto.list('-created_date');
@@ -133,7 +134,7 @@ export default function Produtos() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
+    mutationFn: async ({ id, data, oldData }) => {
       // Validar se já existe produto com mesmo nome E mesma empresa
       const existente = produtos.find(p => 
         p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
@@ -145,7 +146,13 @@ export default function Produtos() {
         throw new Error('Já existe produto com este nome!');
       }
       
-      return base44.entities.Produto.update(id, data);
+      const updated = await base44.entities.Produto.update(id, data);
+      await base44.functions.invoke('syncEntityReferences', {
+        event: { type: 'update', entity_name: 'Produto' },
+        data: updated,
+        old_data: oldData,
+      });
+      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
@@ -160,20 +167,29 @@ export default function Produtos() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      // Verificar se existem movimentações relacionadas
+      const produto = produtos.find((item) => item.id === id);
+
+      const abrirBloqueio = (description) => {
+        window.dispatchEvent(new CustomEvent('base44:delete-dialog', {
+          detail: {
+            title: 'Não é possível excluir',
+            description,
+          },
+        }));
+      };
+
       const todasMovimentacoes = await base44.entities.MovimentacaoEstoque.list();
-      const movimentacoesRelacionadas = todasMovimentacoes.filter(m => m.produto_id === id);
-      
+      const movimentacoesRelacionadas = todasMovimentacoes.filter((m) => m.produto_id === id);
       if (movimentacoesRelacionadas.length > 0) {
-        throw new Error(`Possui ${movimentacoesRelacionadas.length} movimentação(ões). Não é possível excluir.`);
+        abrirBloqueio(`O produto ${produto?.nome_produto || ''} já possui ${movimentacoesRelacionadas.length} registro(s) lançados em movimentações de estoque e não pode ser excluído.`);
+        throw new Error('DELETE_BLOCKED');
       }
 
-      // Verificar se existem custos de safra relacionados
       const todosCustos = await base44.entities.CustoSafra.list();
-      const custosRelacionados = todosCustos.filter(c => c.produto_id === id);
-      
+      const custosRelacionados = todosCustos.filter((c) => c.produto_id === id);
       if (custosRelacionados.length > 0) {
-        throw new Error(`Possui ${custosRelacionados.length} custo(s) de safra. Não é possível excluir.`);
+        abrirBloqueio(`O produto ${produto?.nome_produto || ''} já possui ${custosRelacionados.length} registro(s) lançados em custos de safra e não pode ser excluído.`);
+        throw new Error('DELETE_BLOCKED');
       }
 
       return base44.entities.Produto.delete(id);
@@ -183,6 +199,7 @@ export default function Produtos() {
       toast.success('Produto excluído!');
     },
     onError: (error) => {
+      if (error.message === 'DELETE_BLOCKED') return;
       toast.error(error.message || 'Erro.');
     }
   });
@@ -198,7 +215,7 @@ export default function Produtos() {
       }
       
       if (editingProduto) {
-        await updateMutation.mutateAsync({ id: editingProduto.id, data });
+        await updateMutation.mutateAsync({ id: editingProduto.id, data, oldData: editingProduto });
       } else {
         await createMutation.mutateAsync(data);
       }
@@ -440,33 +457,37 @@ export default function Produtos() {
     : 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
+    <div className="p-4 md:p-6 space-y-4">
       {!showForm && (
-        <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">Produtos</h1>
-              <p className="text-xs text-slate-600">Gerenciar produtos e estoque</p>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
-                Exportar
-              </Button>
-              <div>
-                <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-produtos" />
-                <Button onClick={() => document.getElementById('import-produtos').click()} variant="outline" size="sm" className="h-8 text-xs" disabled={showImportProgress}>
-                  Importar
-                </Button>
-              </div>
-              <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
-                Modelo
-              </Button>
-              <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                Novo Produto
-              </Button>
-            </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">Produtos</h1>
+            <p className="text-xs text-slate-600">Cadastro, importação e gestão de produtos</p>
           </div>
-        </>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+              Atualizar
+            </Button>
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
+              Exportar
+            </Button>
+            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
+              Modelo
+            </Button>
+            <label>
+              <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer" asChild>
+                <span>Importar</span>
+              </Button>
+              <input type="file" accept=".csv" onChange={handleImport} className="hidden" disabled={showImportProgress} />
+            </label>
+            <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              Novo Produto
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Formulário */}
@@ -489,6 +510,8 @@ export default function Produtos() {
           onDelete={handleDelete}
           onPrint={handlePrint}
           isLoading={isLoading}
+          showConfigColunas={showConfigColunas}
+          setShowConfigColunas={setShowConfigColunas}
         />
       )}
 
