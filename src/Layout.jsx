@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
-  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, 
+  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Search, X, ChevronRight, EyeOff, Eye, Sparkles, Mail
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles, Mail
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   DropdownMenu,
@@ -43,9 +43,6 @@ import {
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
 import SendEmailDialog from "@/components/email/SendEmailDialog";
-import AccessDeniedCard from "@/components/common/AccessDeniedCard";
-import { filterMenuByPermissions, canAccessPage, getAllowedMobileMenuItems, isAdminPermission } from "@/lib/permissions";
-import { SYSTEM_MENU } from "@/lib/navigationConfig";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -54,7 +51,130 @@ const iconsMap = {
   FileText, Shield, Package, Users, Settings
 };
 
-const DEFAULT_MENU = SYSTEM_MENU;
+const DEFAULT_MENU = [
+  { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
+  { id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
+  { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
+  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  {
+    id: "cotacoes",
+    title: "Cotacoes",
+    icon: "DollarSign",
+    submenu: [
+      { id: "cot-produtos", title: "Cotacoes de Produtos", url: "CotacoesPecuaria" },
+      { id: "cot-lotes", title: "Lotes de Animais", url: "LotesAnimaisCotacao" },
+      { id: "cot-aplicacoes", title: "Aplicacoes de Medicamentos", url: "AplicacoesMedicamentos" },
+      { id: "cot-simulacao", title: "Simulacao de Resultados", url: "SimulacaoResultados" },
+    ],
+  },
+  {
+      id: "pecuaria",
+      title: "Pecuaria",
+      icon: "Package",
+      submenu: [
+        { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
+        { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
+        { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
+        { id: "pec-mov-lotes", title: "Movimentações de Lotes", url: "MovimentacoesLote" },
+        { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
+
+      { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
+      { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
+      { id: "pec-pesagens-ind", title: "Pesagens Individuais", url: "PesagensIndividuais" },
+            { id: "pec-lanc-pesagens", title: "Lançar Pesagens", url: "LancamentoPesagensIndividuais" },
+      { id: "pec-mapa-cadastro", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
+      { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
+      { id: "pec-relatorio", title: "Relatorio Suplementacao", url: "RelatorioSuplementacao" },
+    ],
+  },
+  {
+    id: "maquinas",
+    title: "Maquinas",
+    icon: "Package",
+    submenu: [
+      { id: "maq-cadastro", title: "Cadastro de Maquinas", url: "CadastroMaquinas" },
+      { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
+      { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
+      { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
+      { id: "maq-ficha-impressao", title: "Imprimir Fichas", url: "FichaOperadorImpressao" },
+            { id: "maq-ficha-combustivel", title: "Ficha Controle Combustível", url: "FichaControleCombustivel" },
+    ],
+  },
+  {
+    id: "gestao-tarefas",
+    title: "Gestão de Tarefas",
+    icon: "FolderOpen",
+    submenu: [
+      { id: "gt-grupos", title: "Grupos de Atividades", url: "GruposAtividades" },
+      { id: "gt-tipos", title: "Tipos de Tarefa", url: "TiposTarefa" },
+      { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" },
+    ],
+  },
+
+  {
+    id: "financeiro",
+    title: "Financeiro",
+    icon: "DollarSign",
+    submenu: [
+      { id: "fin-lancamento", title: "Lancamento Financeiro", url: "LancamentoFinanceiro" },
+      { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
+      { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
+      { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
+      { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
+      { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
+      { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" },
+    ],
+  },
+  {
+    id: "fiscal",
+    title: "Fiscal",
+    icon: "BookOpen",
+    submenu: [
+      { id: "fiscal-livros", title: "Livros Fiscais", url: "LivrosFiscais" },
+    ],
+  },
+  {
+    id: "cadastros",
+    title: "Cadastros",
+    icon: "FolderOpen",
+    submenu: [
+      { id: "cad-empresa", title: "Empresa", url: "Empresa" },
+      { id: "cad-mapa", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
+      { id: "cad-safras", title: "Safras", url: "GerenciarSafras" },
+      { id: "cad-fornecedores", title: "Fornecedores/Clientes", url: "Fornecedores" },
+      { id: "cad-produtos", title: "Produtos", url: "Produtos" },
+      { id: "cad-ativos", title: "Ativos Fixos", url: "AtivosFixos" },
+      { id: "cad-cidades", title: "Cidades", url: "GerenciarCidades" },
+      { id: "cad-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
+      { id: "cad-categorias", title: "Categorias", url: "Categorias" },
+      { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
+      { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" },
+    ],
+  },
+  {
+    id: "relatorios",
+    title: "Relatorios",
+    icon: "FileText",
+    submenu: [
+      { id: "rel-estoque", title: "Estoque", url: "RelatoriosEstoque" },
+      { id: "rel-pesagens", title: "Pesagens", url: "RelatorioPesagens" },
+      { id: "rel-custos-safra", title: "Custos Safra", url: "RelatorioCustosSafra" },
+      { id: "rel-entregas", title: "Historico Entregas", url: "RelatorioHistoricoEntregas" },
+      { id: "rel-financeiro", title: "Financeiro", url: "RelatorioFinanceiro" },
+      { id: "rel-fornecedores", title: "Fornecedores", url: "RelatorioFornecedores" },
+      { id: "rel-produtos", title: "Produtos", url: "RelatorioProdutos" },
+      { id: "rel-suplementacao", title: "Suplementacao", url: "RelatorioSuplementacao" },
+      { id: "rel-movimentacoes-pecuaria", title: "Movimentacoes Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
+      { id: "rel-pesagens-ind", title: "Pesagens Individuais", url: "RelatorioPesagensIndividuais" },
+      { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
+            { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" },
+            { id: "rel-pecuaria-lotacao", title: "Lotação Pecuária", url: "RelatorioPecuariaLotacao" },
+            { id: "rel-gestao-tarefas", title: "Gestão de Tarefas", url: "RelatorioGestaoTarefas" }
+                  ],
+  },
+  { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
+  { id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" },
+];
 
 const getAllPages = (menuItems) => {
   const pages = [];
@@ -81,6 +201,7 @@ const getAllPages = (menuItems) => {
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
@@ -111,7 +232,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2026-03-21-role-permissions-v1'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2026-01-11-relatorios-unificado-v2'; // Atualizar esta versão quando adicionar novos menus
     
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
@@ -192,13 +313,13 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
         
-        // Carregar grupo de permissões do usuário
+        // Carregar permissões do usuário
         try {
-          const allGroups = await base44.entities.GrupoPermissao.list();
-          const grupo = allGroups.find((item) => item.codigo === currentUser.grupo_permissao_codigo && item.ativo !== false);
-          setUserPermissions(grupo || null);
+          const allPermissoes = await base44.entities.Permissao.list();
+          const permissao = allPermissoes.find(p => p.user_email === currentUser.email);
+          setUserPermissions(permissao);
         } catch (error) {
-          console.error("Erro ao carregar grupo de permissões:", error);
+          console.error("Erro ao carregar permissões:", error);
           setUserPermissions(null);
         }
       } catch (error) {
@@ -238,25 +359,40 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const adminAccess = React.useMemo(() => isAdminPermission(user, userPermissions), [user, userPermissions]);
+  const hasAccess = (itemId) => {
+    // Admin sempre tem acesso
+    if (user?.role === 'admin' || userPermissions?.is_admin) return true;
+    
+    // Se não tem permissões configuradas, libera tudo (comportamento padrão)
+    if (!userPermissions) return true;
+    
+    // Verifica se o módulo está nas permissões
+    return userPermissions.modulos_permitidos?.includes(itemId);
+  };
+
+  const filterMenuByPermissions = (items) => {
+    return items
+      .filter(item => hasAccess(item.id))
+      .map(item => {
+        if (item.submenu) {
+          const filteredSubmenu = filterMenuByPermissions(item.submenu);
+          if (filteredSubmenu.length === 0) return null;
+          return { ...item, submenu: filteredSubmenu };
+        }
+        return item;
+      })
+      .filter(Boolean);
+  };
 
   const menuItemsFiltered = React.useMemo(() => {
     if (!menuItems) return [];
-    const filteredByPerms = filterMenuByPermissions(menuItems, userPermissions, adminAccess);
+    const filteredByPerms = filterMenuByPermissions(menuItems);
     const removePlanos = (items) =>
       items
         .filter(i => i.id !== 'gt-planos')
         .map(i => (i.submenu ? { ...i, submenu: removePlanos(i.submenu) } : i));
     return removePlanos(filteredByPerms);
-  }, [menuItems, userPermissions, adminAccess]);
-
-  const pageAccessAllowed = React.useMemo(() => {
-    return canAccessPage(currentPageName, userPermissions, adminAccess);
-  }, [currentPageName, userPermissions, adminAccess]);
-
-  const mobileShortcutItems = React.useMemo(() => {
-    return getAllowedMobileMenuItems(userPermissions, adminAccess);
-  }, [userPermissions, adminAccess]);
+  }, [menuItems, user?.role, userPermissions?.is_admin, userPermissions?.modulos_permitidos]);
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
@@ -383,13 +519,11 @@ export default function Layout({ children, currentPageName }) {
                 <Bell className="w-4 h-4 text-slate-600" />
               </Button>
 
-              {adminAccess && (
-                <Link to={createPageUrl("ConfiguracoesGerais")}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
-                    <Settings className="w-4 h-4 text-slate-600" />
-                  </Button>
-                </Link>
-              )}
+              <Link to={createPageUrl("ConfiguracoesGerais")}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+                  <Settings className="w-4 h-4 text-slate-600" />
+                </Button>
+              </Link>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -418,14 +552,12 @@ export default function Layout({ children, currentPageName }) {
                     <LogOut className="w-3 h-3 mr-2" />
                     Excluir conta
                   </DropdownMenuItem>
-                  {adminAccess && (
-                    <DropdownMenuItem asChild className="text-xs">
-                      <Link to={createPageUrl("ConfiguracoesGerais")}>
-                        <Settings className="w-3 h-3 mr-2" />
-                        Configuracoes
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem asChild className="text-xs">
+                    <Link to={createPageUrl("ConfiguracoesGerais")}>
+                      <Settings className="w-3 h-3 mr-2" />
+                      Configuracoes
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild className="text-xs">
                     <Link to={createPageUrl("EditorVisualSistema")}>
                       <Sparkles className="w-3 h-3 mr-2" />
@@ -745,7 +877,7 @@ export default function Layout({ children, currentPageName }) {
             exit={{ x: -20, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            {pageAccessAllowed ? children : <AccessDeniedCard />}
+            {children}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -754,20 +886,25 @@ export default function Layout({ children, currentPageName }) {
       {!isFolha && (
         <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
           <div className="max-w-[1600px] mx-auto px-4 py-1 grid grid-cols-5 gap-1 text-xs">
-            {mobileShortcutItems.map((item) => {
-              const Icon = iconsMap[item.icon] || Home;
-              const active = location.pathname === createPageUrl(item.url);
-
-              return (
-                <Link key={item.url} to={createPageUrl(item.url)} className={`flex min-w-0 flex-col items-center py-1 rounded ${active ? "text-emerald-700" : "text-slate-600"}`}>
-                  <Icon className="w-5 h-5" />
-                  <span className="max-w-full truncate text-[10px] leading-tight">{item.title}</span>
-                </Link>
-              );
-            })}
+            <Link to={createPageUrl("Home")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Home")?"text-emerald-700":"text-slate-600"}`}>
+              <Home className="w-5 h-5" />
+              <span>Início</span>
+            </Link>
+            <Link to={createPageUrl("Pesagens")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Pesagens")?"text-emerald-700":"text-slate-600"}`}>
+              <Scale className="w-5 h-5" />
+              <span>Pesagens</span>
+            </Link>
+            <Link to={createPageUrl("LancamentoFinanceiro")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("LancamentoFinanceiro")?"text-emerald-700":"text-slate-600"}`}>
+              <DollarSign className="w-5 h-5" />
+              <span>Financeiro</span>
+            </Link>
+            <Link to={createPageUrl("RelatoriosEstoque")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("RelatoriosEstoque")?"text-emerald-700":"text-slate-600"}`}>
+              <FileText className="w-5 h-5" />
+              <span>Relatórios</span>
+            </Link>
             <button onClick={() => setMobileMenuOpen(true)} className="flex flex-col items-center py-1 rounded text-slate-600">
               <Menu className="w-5 h-5" />
-              <span className="text-[10px] leading-tight">Menu</span>
+              <span>Menu</span>
             </button>
           </div>
         </nav>

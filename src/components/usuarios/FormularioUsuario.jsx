@@ -1,69 +1,93 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { UserCog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Shield, Users, Lock } from "lucide-react";
 import { toast } from "sonner";
 
-export default function FormularioUsuario({ initialData, usuarios, grupos, onSubmit, onCancel }) {
-  const [formData, setFormData] = useState({
-    user_id: initialData?.id || "",
-    user_email: initialData?.email || "",
-    grupo_permissao_codigo: initialData?.grupo_permissao_codigo || ""
+const MODULOS_SISTEMA = [
+  { id: "dashboard", title: "Dashboard", icon: "Home" },
+  { id: "pesagens", title: "Pesagens", icon: "Scale" },
+  { id: "custos", title: "Custos de Safra", icon: "TrendingUp" },
+  { id: "movimentacoes", title: "Movimentações Estoque", icon: "ArrowRightLeft" },
+  { id: "pecuaria", title: "Pecuária (Todos)", icon: "Package" },
+  { id: "financeiro", title: "Financeiro (Todos)", icon: "DollarSign" },
+  { id: "fiscal", title: "Fiscal (Todos)", icon: "BookOpen" },
+  { id: "cadastros", title: "Cadastros (Todos)", icon: "FolderOpen" },
+  { id: "relatorios", title: "Relatórios (Todos)", icon: "FileText" },
+  { id: "usuarios", title: "Usuários", icon: "Shield" },
+];
+
+export default function FormularioUsuario({ onSubmit, onCancel, initialData, usuarios }) {
+  const [formData, setFormData] = useState(initialData || {
+    user_email: "",
+    modulos_permitidos: [],
+    is_admin: false
   });
 
-  const usuariosDisponiveis = usuarios.filter((user) => user.email && user.full_name);
-  const grupoSelecionado = grupos.find((grupo) => grupo.codigo === formData.grupo_permissao_codigo);
+  const handleChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
 
-  const handleUserChange = (userId) => {
-    const user = usuarios.find((item) => item.id === userId);
-    setFormData((prev) => ({
-      ...prev,
-      user_id: user?.id || "",
-      user_email: user?.email || "",
-      grupo_permissao_codigo: user?.grupo_permissao_codigo || prev.grupo_permissao_codigo
-    }));
+  const handleToggleModulo = (moduloId) => {
+    const modulos = formData.modulos_permitidos || [];
+    if (modulos.includes(moduloId)) {
+      handleChange('modulos_permitidos', modulos.filter(m => m !== moduloId));
+    } else {
+      handleChange('modulos_permitidos', [...modulos, moduloId]);
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.user_id) {
-      toast.error("Selecione um usuário.");
+    if (!formData.user_email?.trim()) {
+      toast.error('Selecione um usuário!');
       return;
     }
 
-    if (!formData.grupo_permissao_codigo) {
-      toast.error("Selecione um grupo de permissão.");
+    if (!formData.is_admin && formData.modulos_permitidos.length === 0) {
+      toast.error('Selecione pelo menos um módulo ou marque como Admin!');
       return;
     }
 
     onSubmit(formData);
   };
 
+  const usuariosDisponiveis = usuarios.filter(u => u.email && u.full_name);
+
   return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+    >
       <Card className="shadow-sm border-slate-300 bg-white">
         <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
           <CardTitle className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <UserCog className="w-4 h-4" />
-            {initialData?.id ? "Editar Vínculo do Usuário" : "Vincular Usuário ao Grupo"}
+            <Shield className="w-4 h-4" />
+            {initialData?.user_email ? 'Editar Permissões' : 'Configurar Permissões de Usuário'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
-              <Label className="text-xs uppercase">Usuário *</Label>
-              <Select value={formData.user_id} onValueChange={handleUserChange} disabled={!!initialData?.id}>
-                <SelectTrigger className="h-8 text-xs uppercase">
+              <Label className="text-xs">Usuário *</Label>
+              <Select 
+                value={formData.user_email} 
+                onValueChange={(v) => handleChange('user_email', v)}
+                disabled={!!initialData?.user_email}
+              >
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Selecione um usuário" />
                 </SelectTrigger>
                 <SelectContent>
                   {usuariosDisponiveis.map((user) => (
-                    <SelectItem key={user.id} value={user.id} className="text-xs uppercase">
+                    <SelectItem key={user.email} value={user.email} className="text-xs">
                       {user.full_name} ({user.email})
                     </SelectItem>
                   ))}
@@ -71,35 +95,71 @@ export default function FormularioUsuario({ initialData, usuarios, grupos, onSub
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs uppercase">Grupo de Permissão *</Label>
-              <Select value={formData.grupo_permissao_codigo} onValueChange={(value) => setFormData((prev) => ({ ...prev, grupo_permissao_codigo: value }))}>
-                <SelectTrigger className="h-8 text-xs uppercase">
-                  <SelectValue placeholder="Selecione um grupo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {grupos.map((grupo) => (
-                    <SelectItem key={grupo.id} value={grupo.codigo} className="text-xs uppercase">
-                      {grupo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="border rounded-lg p-3 bg-slate-50">
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-xs font-semibold flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5" />
+                  Nível de Acesso
+                </Label>
+              </div>
+              
+              <label className="flex items-center gap-2 p-2 rounded bg-white border cursor-pointer hover:bg-violet-50 transition-colors">
+                <Checkbox
+                  checked={formData.is_admin}
+                  onCheckedChange={(checked) => handleChange('is_admin', checked)}
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-violet-100 text-violet-800 border-violet-300 text-xs">
+                      Administrador
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1">Acesso total a todos os módulos do sistema</p>
+                </div>
+              </label>
             </div>
 
-            {grupoSelecionado && (
-              <div className="rounded-lg border bg-slate-50 p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs uppercase">{grupoSelecionado.nome}</Badge>
-                  {grupoSelecionado.is_admin && <Badge className="bg-violet-100 text-violet-800 border-violet-300 text-xs">Admin</Badge>}
+            {!formData.is_admin && (
+              <div className="border rounded-lg p-3 bg-slate-50">
+                <Label className="text-xs font-semibold mb-3 block flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" />
+                  Módulos Permitidos *
+                </Label>
+                <div className="space-y-2">
+                  {MODULOS_SISTEMA.map((modulo) => (
+                    <label 
+                      key={modulo.id}
+                      className="flex items-center gap-2 p-2 rounded bg-white border cursor-pointer hover:bg-emerald-50 transition-colors"
+                    >
+                      <Checkbox
+                        checked={formData.modulos_permitidos?.includes(modulo.id)}
+                        onCheckedChange={() => handleToggleModulo(modulo.id)}
+                      />
+                      <span className="text-xs flex-1">{modulo.title}</span>
+                      {formData.modulos_permitidos?.includes(modulo.id) && (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">
+                          Permitido
+                        </Badge>
+                      )}
+                    </label>
+                  ))}
                 </div>
-                <p className="text-xs text-slate-600">{grupoSelecionado.descricao || "Grupo configurado com permissões herdadas por tela, ações e atalhos do mobile."}</p>
               </div>
             )}
 
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-800">
+                💡 <strong>Importante:</strong> Módulos não selecionados ficarão ocultos no menu e inacessíveis para este usuário.
+              </p>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button>
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Salvar Vínculo</Button>
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+                Cancelar
+              </Button>
+              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                Salvar Permissões
+              </Button>
             </div>
           </form>
         </CardContent>

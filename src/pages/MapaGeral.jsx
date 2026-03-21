@@ -129,12 +129,8 @@ export default function MapaGeral() {
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['mapa-icones'],
-    queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((i) => i.ativo !== false);
-    },
-    staleTime: 10 * 60 * 1000,
-    initialData: []
+    queryFn: async () => {const all = await base44.entities.ConfiguracaoIcone.list();return all.filter((i) => i.ativo !== false);},
+    staleTime: 10 * 60 * 1000
   });
 
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery({

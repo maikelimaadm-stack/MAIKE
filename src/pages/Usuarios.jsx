@@ -1,223 +1,179 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence } from "framer-motion";
-import { Shield, Users } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Plus, Users } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
-import FormularioGrupoPermissao from "@/components/usuarios/FormularioGrupoPermissao";
-import TabelaGruposPermissao from "@/components/usuarios/TabelaGruposPermissao";
-import FormularioUsuario from "@/components/usuarios/FormularioUsuario";
-import TabelaUsuarios from "@/components/usuarios/TabelaUsuarios";
+
+import FormularioUsuario from "../components/usuarios/FormularioUsuario";
+import TabelaUsuarios from "../components/usuarios/TabelaUsuarios";
 
 export default function Usuarios() {
+  const [showForm, setShowForm] = useState(false);
+  const [editingUsuario, setEditingUsuario] = useState(null);
+
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("grupos");
-  const [showRoleForm, setShowRoleForm] = useState(false);
-  const [showUserForm, setShowUserForm] = useState(false);
-  const [editingRole, setEditingRole] = useState(null);
-  const [editingUser, setEditingUser] = useState(null);
-  const [deleteRoleState, setDeleteRoleState] = useState({ open: false, role: null });
 
   const { data: currentUser } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: () => base44.auth.me()
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
   });
 
-  const { data: usuarios = [], isLoading: usersLoading } = useQuery({
-    queryKey: ["usuarios"],
+  const { data: usuarios, isLoading } = useQuery({
+    queryKey: ['usuarios'],
     queryFn: async () => {
       try {
-        return await base44.entities.User.list("-created_date");
-      } catch {
+        return await base44.entities.User.list('-created_date');
+      } catch (error) {
         return [];
       }
     },
-    initialData: []
+    initialData: [],
   });
 
-  const { data: grupos = [], isLoading: groupsLoading } = useQuery({
-    queryKey: ["grupos-permissao"],
-    queryFn: async () => {
-      const all = await base44.entities.GrupoPermissao.list("nome");
-      return all.filter((grupo) => grupo.ativo !== false);
+  const { data: permissoes = [] } = useQuery({
+    queryKey: ['permissoes'],
+    queryFn: () => base44.entities.Permissao.list(),
+    initialData: [],
+  });
+
+  const updatePermissaoMutation = useMutation({
+    mutationFn: async ({ user_email, modulos, is_admin }) => {
+      const existente = permissoes.find(p => p.user_email === user_email);
+      
+      if (existente) {
+        return base44.entities.Permissao.update(existente.id, {
+          modulos_permitidos: modulos,
+          is_admin: is_admin
+        });
+      } else {
+        return base44.entities.Permissao.create({
+          user_email: user_email,
+          modulos_permitidos: modulos,
+          is_admin: is_admin
+        });
+      }
     },
-    initialData: []
-  });
-
-  const createRoleMutation = useMutation({
-    mutationFn: (payload) => base44.entities.GrupoPermissao.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grupos-permissao"] });
-      setShowRoleForm(false);
-      setEditingRole(null);
-      toast.success("Grupo criado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['permissoes'] });
+      setShowForm(false);
+      setEditingUsuario(null);
+      toast.success('Permissões atualizadas!');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao salvar permissões.');
     }
   });
 
-  const updateRoleMutation = useMutation({
-    mutationFn: ({ id, payload }) => base44.entities.GrupoPermissao.update(id, payload),
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      // Não pode excluir usuários pela entidade User (gerenciado pelo Base44)
+      // Apenas remove as permissões
+      const permissao = permissoes.find(p => p.user_email === id);
+      if (permissao) {
+        await base44.entities.Permissao.delete(permissao.id);
+      }
+      toast.info('Permissões removidas. Usuário ainda existe no sistema.');
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grupos-permissao"] });
-      setShowRoleForm(false);
-      setEditingRole(null);
-      toast.success("Grupo atualizado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['permissoes'] });
+    },
+    onError: () => {
+      toast.error('Erro ao remover permissões.');
     }
   });
 
-  const deleteRoleMutation = useMutation({
-    mutationFn: (id) => base44.entities.GrupoPermissao.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grupos-permissao"] });
-      setDeleteRoleState({ open: false, role: null });
-      toast.success("Grupo removido com sucesso!");
+  const handleSubmit = async (data) => {
+    try {
+      await updatePermissaoMutation.mutateAsync({
+        user_email: data.user_email,
+        modulos: data.modulos_permitidos,
+        is_admin: data.is_admin
+      });
+    } catch (error) {
+      console.error('Erro:', error);
     }
-  });
-
-  const updateUserGroupMutation = useMutation({
-    mutationFn: ({ userId, grupoCodigo }) => base44.entities.User.update(userId, { grupo_permissao_codigo: grupoCodigo }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
-      setShowUserForm(false);
-      setEditingUser(null);
-      toast.success("Usuário vinculado ao grupo com sucesso!");
-    }
-  });
-
-  const removeUserGroupMutation = useMutation({
-    mutationFn: (userId) => base44.entities.User.update(userId, { grupo_permissao_codigo: "" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
-      toast.success("Grupo removido do usuário!");
-    }
-  });
-
-  const handleSubmitRole = (payload) => {
-    if (editingRole?.id) {
-      updateRoleMutation.mutate({ id: editingRole.id, payload });
-      return;
-    }
-    createRoleMutation.mutate(payload);
   };
 
-  const handleDeleteRole = (role) => {
-    const linkedUsers = usuarios.filter((user) => user.grupo_permissao_codigo === role.codigo).length;
-    if (linkedUsers > 0) {
-      toast.error("Este grupo está vinculado a usuários e não pode ser excluído agora.");
-      return;
-    }
-    setDeleteRoleState({ open: true, role });
+  const handleEdit = (usuario) => {
+    const permissao = permissoes.find(p => p.user_email === usuario.email);
+    setEditingUsuario({
+      ...usuario,
+      modulos_permitidos: permissao?.modulos_permitidos || [],
+      is_admin: permissao?.is_admin || false
+    });
+    setShowForm(true);
   };
 
-  const handleSubmitUser = (data) => {
-    updateUserGroupMutation.mutate({ userId: data.user_id, grupoCodigo: data.grupo_permissao_codigo });
-  };
-
-  const handleRemoveUserGroup = (user) => {
-    if (currentUser?.email === user.email) {
-      toast.error("Você não pode remover o seu próprio grupo por aqui.");
+  const handleDelete = async (userEmail) => {
+    if (currentUser?.email === userEmail) {
+      toast.error('Você não pode remover suas próprias permissões!');
       return;
     }
-    removeUserGroupMutation.mutate(user.id);
+    if (window.confirm('⚠️ Remover permissões deste usuário?')) {
+      await deleteMutation.mutateAsync(userEmail);
+    }
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-1">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900">Usuários e Permissões</h1>
-          <p className="text-xs text-slate-600">Controle completo por grupos, telas, ações e menu mobile</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {activeTab === "grupos" && !showRoleForm && (
-            <Button onClick={() => { setEditingRole(null); setShowRoleForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              Novo Grupo
-            </Button>
-          )}
-          {activeTab === "usuarios" && !showUserForm && (
-            <Button onClick={() => { setEditingUser(null); setShowUserForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              Vincular Usuário
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-2">
+      {!showForm && (
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Usuários e Permissões</h1>
+              <p className="text-xs text-slate-600">Gerenciar acessos ao sistema</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                Configurar Permissões
+              </Button>
+            </div>
+          </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
-          <li>Crie grupos com permissões detalhadas por tela e por ação.</li>
-          <li>Vincule cada usuário a um grupo para herdar automaticamente seus acessos.</li>
-          <li>Defina quais telas aparecem no menu inferior do mobile, com limite de até 4 atalhos.</li>
-          <li>Admins Base44 continuam com acesso total automaticamente.</li>
-        </ul>
-      </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex gap-3">
+              <div className="text-blue-600 mt-0.5">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm text-blue-900 mb-1">ℹ️ Como convidar novos usuários</h4>
+                <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
+                  <li><strong>Novos usuários</strong> devem ser convidados via <strong>Base44 Dashboard</strong> (não é feito aqui no sistema)</li>
+                  <li>Após o usuário aceitar o convite e fazer login, ele aparecerá na lista abaixo</li>
+                  <li>Aqui você configura as <strong>permissões</strong> de cada usuário (quais módulos ele pode acessar)</li>
+                  <li>Usuários sem permissões configuradas terão acesso total ao sistema</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="grupos" className="text-xs gap-2"><Shield className="w-3.5 h-3.5" />Grupos</TabsTrigger>
-          <TabsTrigger value="usuarios" className="text-xs gap-2"><Users className="w-3.5 h-3.5" />Usuários</TabsTrigger>
-        </TabsList>
+      <AnimatePresence>
+        {showForm && (
+          <FormularioUsuario
+            onSubmit={handleSubmit}
+            onCancel={() => { setShowForm(false); setEditingUsuario(null); }}
+            initialData={editingUsuario}
+            usuarios={usuarios}
+          />
+        )}
+      </AnimatePresence>
 
-        <TabsContent value="grupos" className="space-y-4">
-          <AnimatePresence>
-            {showRoleForm && (
-              <FormularioGrupoPermissao
-                initialData={editingRole}
-                grupos={grupos}
-                onSubmit={handleSubmitRole}
-                onCancel={() => { setShowRoleForm(false); setEditingRole(null); }}
-              />
-            )}
-          </AnimatePresence>
-
-          {!showRoleForm && (
-            <TabelaGruposPermissao
-              grupos={grupos}
-              usuarios={usuarios}
-              onEdit={(role) => { setEditingRole(role); setShowRoleForm(true); }}
-              onDelete={handleDeleteRole}
-              isLoading={groupsLoading}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="usuarios" className="space-y-4">
-          <AnimatePresence>
-            {showUserForm && (
-              <FormularioUsuario
-                initialData={editingUser}
-                usuarios={usuarios}
-                grupos={grupos}
-                onSubmit={handleSubmitUser}
-                onCancel={() => { setShowUserForm(false); setEditingUser(null); }}
-              />
-            )}
-          </AnimatePresence>
-
-          {!showUserForm && (
-            <TabelaUsuarios
-              usuarios={usuarios}
-              grupos={grupos}
-              currentUser={currentUser}
-              onEdit={(user) => { setEditingUser(user); setShowUserForm(true); }}
-              onRemoveGroup={handleRemoveUserGroup}
-              isLoading={usersLoading}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
-
-      <ConfirmDialog
-        open={deleteRoleState.open}
-        onOpenChange={(open) => !open && setDeleteRoleState({ open: false, role: null })}
-        title="Confirmar exclusão"
-        description={deleteRoleState.role ? `Deseja realmente excluir o grupo ${deleteRoleState.role.nome}?` : "Deseja realmente excluir este grupo?"}
-        onConfirm={() => deleteRoleState.role && deleteRoleMutation.mutate(deleteRoleState.role.id)}
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="destructive"
-      />
+      {!showForm && (
+        <TabelaUsuarios
+          usuarios={usuarios}
+          permissoes={permissoes}
+          currentUser={currentUser}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   );
 }
