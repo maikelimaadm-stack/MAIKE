@@ -211,14 +211,6 @@ export default function TabelaLotes({
     );
   };
 
-  const getHeaderClassName = (isRight = false, sortable = false, extraClass = "") => {
-    return [
-      "text-xs py-2 px-3 select-none border border-black bg-white",
-      sortable ? "cursor-pointer hover:bg-gray-50" : "",
-      isRight ? "text-right" : "text-left",
-      extraClass,
-    ].filter(Boolean).join(" ");
-  };
 
   const toggleSelectAll = () => {
     if (selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0) {
@@ -370,8 +362,8 @@ export default function TabelaLotes({
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
-                        <TableHead key="selecao" className={getHeaderClassName(false, false, "w-10 px-2")}>
-                          <div className="flex items-center justify-center">
+                        <TableHead key="selecao" className="text-xs py-2 px-3 w-10">
+                          <div className="flex items-center gap-1 justify-center">
                             <Checkbox
                               checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
                               onCheckedChange={toggleSelectAll}
@@ -383,9 +375,9 @@ export default function TabelaLotes({
 
                     if (coluna.id === "acoes") {
                       return (
-                        <TableHead key="acoes" className={getHeaderClassName(false, false, "w-16 px-2")}>
-                          <div className="flex items-center justify-center">
-                            <span className="font-medium">Ações</span>
+                        <TableHead key="acoes" className="text-xs py-2 px-3 w-16">
+                          <div className="flex items-center gap-1 justify-center">
+                            Ações
                           </div>
                         </TableHead>
                       );
@@ -396,16 +388,13 @@ export default function TabelaLotes({
                     return (
                       <TableHead
                         key={coluna.id}
-                        className={getHeaderClassName(isRight, coluna.sortable)}
+                        className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
                         onClick={() => {
                           if (coluna.sortable) handleSort(coluna.id);
                         }}
                       >
-                        <div
-                          className={`flex items-center gap-1 ${isRight ? "justify-end" : "justify-start"}`}
-                        >
-                          <span className="font-medium">{coluna.label}</span>
-                          {coluna.sortable && <SortIcon column={coluna.id} />}
+                        <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
+                          {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                         </div>
                       </TableHead>
                     );
