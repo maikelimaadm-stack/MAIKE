@@ -14,30 +14,30 @@ const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
 const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = [
-  "nome",
-  "raca_predominante",
-  "cidade_origem",
-  "estado_origem",
-  "nota_fiscal",
-  "chave_nfe",
-  "numero_gta",
-  "motivo_ajuste",
-  "motivo_outros",
-  "observacoes",
-];
+"nome",
+"raca_predominante",
+"cidade_origem",
+"estado_origem",
+"nota_fiscal",
+"chave_nfe",
+"numero_gta",
+"motivo_ajuste",
+"motivo_outros",
+"observacoes"];
+
 const REQUIRED_FIELDS = [
-  "nome",
-  "quantidade_cabecas",
-  "data_entrada",
-  "categoria_manejo_id",
-  "categoria",
-  "sexo",
-  "raca_predominante",
-  "peso_medio_kg",
-  "idade_media_meses",
-  "area_entrada_id",
-  "sistema_produtivo",
-];
+"nome",
+"quantidade_cabecas",
+"data_entrada",
+"categoria_manejo_id",
+"categoria",
+"sexo",
+"raca_predominante",
+"peso_medio_kg",
+"idade_media_meses",
+"area_entrada_id",
+"sistema_produtivo"];
+
 
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -67,7 +67,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     valor_frete: "",
     motivo_ajuste: "",
     motivo_outros: "",
-    observacoes: "",
+    observacoes: ""
   });
 
   const { data: areas = [] } = useQuery({
@@ -76,7 +76,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
       const all = await base44.entities.AreaPastagem.list();
       return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: categoriasManejo = [] } = useQuery({
@@ -85,7 +85,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
       const all = await base44.entities.CategoriaManejo.list();
       return all.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: fornecedores = [] } = useQuery({
@@ -94,7 +94,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
       const all = await base44.entities.Fornecedor.list();
       return all.filter((f) => f.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const getFieldClassName = (field, baseClass) => {
@@ -151,16 +151,16 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
     if (formData.motivo_entrada === "Compra") {
       [
-        "fornecedor_id",
-        "cidade_origem",
-        "estado_origem",
-        "nota_fiscal",
-        "chave_nfe",
-        "numero_gta",
-        "valor_total_compra",
-        "valor_por_cabeca",
-        "valor_frete",
-      ].forEach((field) => {
+      "fornecedor_id",
+      "cidade_origem",
+      "estado_origem",
+      "nota_fiscal",
+      "chave_nfe",
+      "numero_gta",
+      "valor_total_compra",
+      "valor_por_cabeca",
+      "valor_frete"].
+      forEach((field) => {
         if (isEmptyValue(formData?.[field])) {
           nextErrors[field] = true;
         }
@@ -216,8 +216,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
         peso_entrada_kg: peso,
         categoria_entrada: formData.categoria || "",
         categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
-        categoria_manejo_entrada_nome: categoriaManejo?.nome || "",
-      } : {}),
+        categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
+      } : {})
     };
 
     onSubmit(dataToSave);
@@ -242,9 +242,9 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {MOTIVOS_ENTRADA.map((motivo) => (
-                      <SelectItem key={motivo} value={motivo} className="text-xs">{motivo.toUpperCase()}</SelectItem>
-                    ))}
+                    {MOTIVOS_ENTRADA.map((motivo) =>
+                    <SelectItem key={motivo} value={motivo} className="text-xs">{motivo.toUpperCase()}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -259,8 +259,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   onChange={(e) => handleChange("nome", e.target.value)}
                   placeholder="NOME DO LOTE"
                   className={getFieldClassName("nome", "h-8 text-xs uppercase")}
-                  style={{ textTransform: "uppercase" }}
-                />
+                  style={{ textTransform: "uppercase" }} />
+                
               </div>
 
               <div className="space-y-1">
@@ -271,8 +271,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   value={formData.quantidade_cabecas || ""}
                   onChange={(e) => handleChange("quantidade_cabecas", e.target.value)}
                   placeholder="0"
-                  className={getFieldClassName("quantidade_cabecas", "h-8 text-xs")}
-                />
+                  className={getFieldClassName("quantidade_cabecas", "h-8 text-xs")} />
+                
               </div>
 
               <div className="space-y-1">
@@ -282,8 +282,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   type="date"
                   value={formData.data_entrada || ""}
                   onChange={(e) => handleChange("data_entrada", e.target.value)}
-                  className={getFieldClassName("data_entrada", "h-8 text-xs")}
-                />
+                  className={getFieldClassName("data_entrada", "h-8 text-xs")} />
+                
               </div>
             </div>
 
@@ -297,11 +297,11 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {categoriasManejo.map((item) => (
-                        <SelectItem key={item.id} value={item.id} className="text-xs">
+                      {categoriasManejo.map((item) =>
+                      <SelectItem key={item.id} value={item.id} className="text-xs">
                           {(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -339,8 +339,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   onChange={(e) => handleChange("raca_predominante", e.target.value)}
                   placeholder="RAÇA"
                   className={getFieldClassName("raca_predominante", "h-8 text-xs uppercase")}
-                  style={{ textTransform: "uppercase" }}
-                />
+                  style={{ textTransform: "uppercase" }} />
+                
               </div>
 
               <div className="space-y-1">
@@ -352,8 +352,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   value={formData.peso_medio_kg || ""}
                   onChange={(e) => handleChange("peso_medio_kg", e.target.value)}
                   placeholder="0.0"
-                  className={getFieldClassName("peso_medio_kg", "h-8 text-xs")}
-                />
+                  className={getFieldClassName("peso_medio_kg", "h-8 text-xs")} />
+                
               </div>
 
               <div className="space-y-1">
@@ -364,8 +364,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   value={formData.idade_media_meses || ""}
                   onChange={(e) => handleChange("idade_media_meses", e.target.value)}
                   placeholder="0"
-                  className={getFieldClassName("idade_media_meses", "h-8 text-xs")}
-                />
+                  className={getFieldClassName("idade_media_meses", "h-8 text-xs")} />
+                
               </div>
             </div>
 
@@ -379,11 +379,11 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {areas.map((item) => (
-                        <SelectItem key={item.id} value={item.id} className="text-xs">
+                      {areas.map((item) =>
+                      <SelectItem key={item.id} value={item.id} className="text-xs">
                           {(item.nome || "").toUpperCase()}
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -398,19 +398,19 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {SISTEMAS.map((item) => (
-                        <SelectItem key={item} value={item} className="text-xs">
+                      {SISTEMAS.map((item) =>
+                      <SelectItem key={item} value={item} className="text-xs">
                           {item.toUpperCase()}
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </div>
 
-            {formData.motivo_entrada === "Compra" && (
-              <div className="border rounded-lg p-3 space-y-1 bg-slate-50/50">
+            {formData.motivo_entrada === "Compra" &&
+            <div className="border rounded-lg p-3 space-y-1 bg-slate-50/50">
                 <span className="font-semibold text-sm text-slate-700">Dados da Compra</span>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                   <div className="space-y-1">
@@ -422,11 +422,11 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                          {fornecedores.map((item) => (
-                            <SelectItem key={item.id} value={item.id} className="text-xs">
+                          {fornecedores.map((item) =>
+                        <SelectItem key={item.id} value={item.id} className="text-xs">
                               {(item.nome || "").toUpperCase()}
                             </SelectItem>
-                          ))}
+                        )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -477,43 +477,43 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   </div>
                 </div>
               </div>
-            )}
+            }
 
-            {formData.motivo_entrada === "Ajuste" && (
-              <div className="space-y-1 pt-1 border-t">
+            {formData.motivo_entrada === "Ajuste" &&
+            <div className="space-y-1 pt-1 border-t">
                 <Label className="text-xs">Motivo do Ajuste *</Label>
                 <Textarea
-                  data-field="motivo_ajuste"
-                  value={formData.motivo_ajuste || ""}
-                  onChange={(e) => handleChange("motivo_ajuste", e.target.value)}
-                  placeholder="DESCREVA O MOTIVO DO AJUSTE"
-                  className={getFieldClassName("motivo_ajuste", "text-xs uppercase")}
-                  style={{ textTransform: "uppercase" }}
-                  rows={2}
-                />
+                data-field="motivo_ajuste"
+                value={formData.motivo_ajuste || ""}
+                onChange={(e) => handleChange("motivo_ajuste", e.target.value)}
+                placeholder="DESCREVA O MOTIVO DO AJUSTE"
+                className={getFieldClassName("motivo_ajuste", "text-xs uppercase")}
+                style={{ textTransform: "uppercase" }}
+                rows={2} />
+              
               </div>
-            )}
+            }
 
-            {formData.motivo_entrada === "Outros" && (
-              <div className="space-y-1 pt-1 border-t">
+            {formData.motivo_entrada === "Outros" &&
+            <div className="space-y-1 pt-1 border-t">
                 <Label className="text-xs">Motivo *</Label>
                 <Textarea
-                  data-field="motivo_outros"
-                  value={formData.motivo_outros || ""}
-                  onChange={(e) => handleChange("motivo_outros", e.target.value)}
-                  placeholder="DESCREVA O MOTIVO"
-                  className={getFieldClassName("motivo_outros", "text-xs uppercase")}
-                  style={{ textTransform: "uppercase" }}
-                  rows={2}
-                />
+                data-field="motivo_outros"
+                value={formData.motivo_outros || ""}
+                onChange={(e) => handleChange("motivo_outros", e.target.value)}
+                placeholder="DESCREVA O MOTIVO"
+                className={getFieldClassName("motivo_outros", "text-xs uppercase")}
+                style={{ textTransform: "uppercase" }}
+                rows={2} />
+              
               </div>
-            )}
+            }
 
-            {formData.motivo_entrada === "Inventário" && (
-              <div className="border rounded-lg p-3 bg-slate-50 text-xs text-slate-600">
+            {formData.motivo_entrada === "Inventário" &&
+            <div className="border rounded-lg p-3 bg-slate-50 text-xs text-slate-600">
                 Registro de inventário para contagem e conferência do rebanho.
               </div>
-            )}
+            }
 
             <div className="space-y-1 pt-1">
               <Label className="text-xs">Observações</Label>
@@ -523,21 +523,21 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                 placeholder="OBSERVAÇÕES GERAIS..."
                 className="text-xs uppercase"
                 style={{ textTransform: "uppercase" }}
-                rows={2}
-              />
+                rows={2} />
+              
             </div>
 
             <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" size="sm" className="bg-yellow-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
                 {isEditing ? "Atualizar" : "Salvar"}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
