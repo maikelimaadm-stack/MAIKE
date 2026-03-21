@@ -719,10 +719,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   onValueChange={(v) => {
                     const catEncontrada = categoriasManejo.find(c => c.nome === v);
                     setFormData({ ...formData, categoria_animal: v, marca: "", sexo: catEncontrada?.sexo || "" });
+                    setInvalidFields((prev) => prev.filter((item) => item !== 'categoria_animal'));
                   }}
                   disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs')}>
                     <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -751,10 +752,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   onValueChange={(v) => {
                     const catEncontrada = categoriasManejo.find(c => c.nome === v);
                     setFormData({ ...formData, categoria_animal: v, sexo: catEncontrada?.sexo || formData.sexo });
+                    setInvalidFields((prev) => prev.filter((item) => item !== 'categoria_animal'));
                   }}
                   disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs')}>
                     <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -788,10 +790,10 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 <Label className="text-xs">Marca *</Label>
                 <Select 
                   value={formData.marca} 
-                  onValueChange={(v) => setFormData({ ...formData, marca: v })}
+                  onValueChange={(v) => { setFormData({ ...formData, marca: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'marca')); }}
                   disabled={!formData.categoria_animal || !formData.setor_id}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className={getFieldClassName('marca', 'h-8 text-xs')}>
                     <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -891,10 +893,10 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   <Label className="text-xs">Categoria Atual (De) *</Label>
                   <Select 
                     value={formData.categoria_animal} 
-                    onValueChange={(v) => setFormData({ ...formData, categoria_animal: v, marca: "" })}
+                    onValueChange={(v) => { setFormData({ ...formData, categoria_animal: v, marca: "" }); setInvalidFields((prev) => prev.filter((item) => item !== 'categoria_animal')); }}
                     disabled={!formData.setor_id}
                   >
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className={getFieldClassName('categoria_animal', 'h-8 text-xs')}>
                       <SelectValue placeholder={formData.setor_id ? "De qual categoria?" : "Selecione setor primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -927,10 +929,10 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   <Label className="text-xs">Marca *</Label>
                   <Select 
                     value={formData.marca} 
-                    onValueChange={(v) => setFormData({ ...formData, marca: v })}
+                    onValueChange={(v) => { setFormData({ ...formData, marca: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'marca')); }}
                     disabled={!formData.categoria_animal || !formData.setor_id}
                   >
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className={getFieldClassName('marca', 'h-8 text-xs')}>
                       <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -979,8 +981,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Nova Categoria (Para) *</Label>
-                  <Select value={formData.categoria_nova} onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}>
-                    <SelectTrigger className="h-8 text-xs">
+                  <Select value={formData.categoria_nova} onValueChange={(v) => { setFormData({ ...formData, categoria_nova: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'categoria_nova')); }}>
+                    <SelectTrigger className={getFieldClassName('categoria_nova', 'h-8 text-xs')}>
                       <SelectValue placeholder="Para qual categoria?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1079,8 +1081,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Setor de Origem *</Label>
-                  <Select value={formData.setor_origem_id} onValueChange={(v) => setFormData({ ...formData, setor_origem_id: v })}>
-                    <SelectTrigger className="h-8 text-xs">
+                  <Select value={formData.setor_origem_id} onValueChange={(v) => { setFormData({ ...formData, setor_origem_id: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'setor_origem_id')); }}>
+                    <SelectTrigger className={getFieldClassName('setor_origem_id', 'h-8 text-xs')}>
                       <SelectValue placeholder="De onde sai" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1105,8 +1107,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Setor de Destino *</Label>
-                  <Select value={formData.setor_destino_id} onValueChange={(v) => setFormData({ ...formData, setor_destino_id: v })}>
-                    <SelectTrigger className="h-8 text-xs">
+                  <Select value={formData.setor_destino_id} onValueChange={(v) => { setFormData({ ...formData, setor_destino_id: v }); setInvalidFields((prev) => prev.filter((item) => item !== 'setor_destino_id')); }}>
+                    <SelectTrigger className={getFieldClassName('setor_destino_id', 'h-8 text-xs')}>
                       <SelectValue placeholder="Para onde vai" />
                     </SelectTrigger>
                     <SelectContent>

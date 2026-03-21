@@ -1097,9 +1097,8 @@ export default function HistoricoMovimentacoesPecuaria() {
                         className={`text-xs py-2 px-3 ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : ''}`}
                         onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
-                        <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`${isRight ? 'text-right' : ''}`}>
                           {coluna.label}
-                          {coluna.sortable && getSortIcon(coluna.id)}
                         </div>
                       </TableHead>
                     );
