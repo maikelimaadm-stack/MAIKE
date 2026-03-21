@@ -43,6 +43,8 @@ import {
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
 import SendEmailDialog from "@/components/email/SendEmailDialog";
+import AccessDeniedCard from "@/components/common/AccessDeniedCard";
+import { filterMenuByPermissions, canAccessPage, getAllowedMobileMenuItems, isAdminPermission } from "@/lib/permissions";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -359,40 +361,25 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const hasAccess = (itemId) => {
-    // Admin sempre tem acesso
-    if (user?.role === 'admin' || userPermissions?.is_admin) return true;
-    
-    // Se não tem permissões configuradas, libera tudo (comportamento padrão)
-    if (!userPermissions) return true;
-    
-    // Verifica se o módulo está nas permissões
-    return userPermissions.modulos_permitidos?.includes(itemId);
-  };
-
-  const filterMenuByPermissions = (items) => {
-    return items
-      .filter(item => hasAccess(item.id))
-      .map(item => {
-        if (item.submenu) {
-          const filteredSubmenu = filterMenuByPermissions(item.submenu);
-          if (filteredSubmenu.length === 0) return null;
-          return { ...item, submenu: filteredSubmenu };
-        }
-        return item;
-      })
-      .filter(Boolean);
-  };
+  const adminAccess = React.useMemo(() => isAdminPermission(user, userPermissions), [user, userPermissions]);
 
   const menuItemsFiltered = React.useMemo(() => {
     if (!menuItems) return [];
-    const filteredByPerms = filterMenuByPermissions(menuItems);
+    const filteredByPerms = filterMenuByPermissions(menuItems, userPermissions, adminAccess);
     const removePlanos = (items) =>
       items
         .filter(i => i.id !== 'gt-planos')
         .map(i => (i.submenu ? { ...i, submenu: removePlanos(i.submenu) } : i));
     return removePlanos(filteredByPerms);
-  }, [menuItems, user?.role, userPermissions?.is_admin, userPermissions?.modulos_permitidos]);
+  }, [menuItems, userPermissions, adminAccess]);
+
+  const pageAccessAllowed = React.useMemo(() => {
+    return canAccessPage(menuItems, currentPageName, userPermissions, adminAccess);
+  }, [menuItems, currentPageName, userPermissions, adminAccess]);
+
+  const mobileShortcutItems = React.useMemo(() => {
+    return getAllowedMobileMenuItems(userPermissions, adminAccess);
+  }, [userPermissions, adminAccess]);
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
@@ -877,7 +864,7 @@ export default function Layout({ children, currentPageName }) {
             exit={{ x: -20, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            {children}
+            {pageAccessAllowed ? children : <AccessDeniedCard />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -886,25 +873,20 @@ export default function Layout({ children, currentPageName }) {
       {!isFolha && (
         <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
           <div className="max-w-[1600px] mx-auto px-4 py-1 grid grid-cols-5 gap-1 text-xs">
-            <Link to={createPageUrl("Home")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Home")?"text-emerald-700":"text-slate-600"}`}>
-              <Home className="w-5 h-5" />
-              <span>Início</span>
-            </Link>
-            <Link to={createPageUrl("Pesagens")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("Pesagens")?"text-emerald-700":"text-slate-600"}`}>
-              <Scale className="w-5 h-5" />
-              <span>Pesagens</span>
-            </Link>
-            <Link to={createPageUrl("LancamentoFinanceiro")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("LancamentoFinanceiro")?"text-emerald-700":"text-slate-600"}`}>
-              <DollarSign className="w-5 h-5" />
-              <span>Financeiro</span>
-            </Link>
-            <Link to={createPageUrl("RelatoriosEstoque")} className={`flex flex-col items-center py-1 rounded ${location.pathname===createPageUrl("RelatoriosEstoque")?"text-emerald-700":"text-slate-600"}`}>
-              <FileText className="w-5 h-5" />
-              <span>Relatórios</span>
-            </Link>
+            {mobileShortcutItems.map((item) => {
+              const Icon = iconsMap[item.icon] || Home;
+              const active = location.pathname === createPageUrl(item.url);
+
+              return (
+                <Link key={item.url} to={createPageUrl(item.url)} className={`flex min-w-0 flex-col items-center py-1 rounded ${active ? "text-emerald-700" : "text-slate-600"}`}>
+                  <Icon className="w-5 h-5" />
+                  <span className="max-w-full truncate text-[10px] leading-tight">{item.title}</span>
+                </Link>
+              );
+            })}
             <button onClick={() => setMobileMenuOpen(true)} className="flex flex-col items-center py-1 rounded text-slate-600">
               <Menu className="w-5 h-5" />
-              <span>Menu</span>
+              <span className="text-[10px] leading-tight">Menu</span>
             </button>
           </div>
         </nav>

@@ -46,7 +46,7 @@ export const canAccessPage = (menuItems, currentPageName, permission, isAdmin = 
     return hasModulePermission(permission, topLevelItem.id) || hasPagePermission(permission, currentPageName);
   }
 
-  return false;
+  return true;
 };
 
 export const getAllowedMobileMenuItems = (permission, isAdmin = false) => {
