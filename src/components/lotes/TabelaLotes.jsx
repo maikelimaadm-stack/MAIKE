@@ -200,13 +200,10 @@ export default function TabelaLotes({
     }));
   };
 
-  // Renderizar ícone de ordenação
   const SortIcon = ({ column }) => {
-    if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortDirection === 'asc' ?
-    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
-    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
-  };
+    if (sortConfig.key !== column) {
+      return <span className="text-[10px] leading-none text-slate-400">↕</span>;
+    }
 
     return (
       <span className="text-[10px] leading-none text-slate-700">
