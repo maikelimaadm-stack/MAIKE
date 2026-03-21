@@ -322,7 +322,7 @@ export default function AtivosFixos() {
                     <TableCell className="text-center">
                       <div className="flex justify-center gap-1">
                         <Button onClick={() => handleEdit(ativo)} variant="ghost" size="icon" className="h-7 w-7"><Edit className="w-3.5 h-3.5" /></Button>
-                        <Button onClick={() => handleDelete(ativo.id)} variant="ghost" size="icon" className="h-7 w-7 text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
+                        <Button onClick={() => setDeleteConfirmId(ativo.id)} variant="ghost" size="icon" className="h-7 w-7 text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>

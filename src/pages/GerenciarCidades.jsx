@@ -614,7 +614,7 @@ export default function GerenciarCidades() {
                     <SelectValue placeholder="UF" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={null} className="text-xs">Todos</SelectItem>
+                    <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                     {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
                       <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
                     ))}
