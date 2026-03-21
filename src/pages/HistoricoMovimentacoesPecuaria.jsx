@@ -293,7 +293,6 @@ export default function HistoricoMovimentacoesPecuaria() {
   const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo).filter(Boolean))].sort();
   const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal).filter(Boolean))].sort();
   const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca).filter(Boolean))].sort();
-  const setoresUnicos = [...new Set(movimentacoes.map(m => m.setor_nome).filter(Boolean))].sort();
 
   const filteredMovimentacoes = movimentacoes.filter(mov => {
     const searchLower = searchTerm.toLowerCase();
@@ -314,7 +313,10 @@ export default function HistoricoMovimentacoesPecuaria() {
     if (filtroMotivo && mov.motivo !== filtroMotivo) return false;
     if (filtroCategoria && mov.categoria_animal !== filtroCategoria) return false;
     if (filtroMarca && mov.marca !== filtroMarca) return false;
-    if (filtroSetor && mov.setor_nome !== filtroSetor) return false;
+    if (filtroSetor) {
+      if (filtroSetor.startsWith('id:') && mov.setor_id !== filtroSetor.slice(3)) return false;
+      if (filtroSetor.startsWith('name:') && mov.setor_nome !== filtroSetor.slice(5)) return false;
+    }
     if (filtroDataInicio && mov.data_movimentacao?.split('T')[0] < filtroDataInicio) return false;
     if (filtroDataFim && mov.data_movimentacao?.split('T')[0] > filtroDataFim) return false;
     
@@ -807,6 +809,23 @@ export default function HistoricoMovimentacoesPecuaria() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const setorOptions = React.useMemo(() => {
+    const cadastrados = setores
+      .filter(setor => setor.nome)
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+      .map(setor => ({ value: `id:${setor.id}`, label: setor.nome }));
+
+    const avulsos = [...new Set(
+      movimentacoes
+        .filter(mov => !mov.setor_id && mov.setor_nome)
+        .map(mov => mov.setor_nome)
+    )]
+      .sort((a, b) => a.localeCompare(b))
+      .map(nome => ({ value: `name:${nome}`, label: nome }));
+
+    return [...cadastrados, ...avulsos];
+  }, [setores, movimentacoes]);
+
   const renderCell = (coluna, mov) => {
     switch (coluna.id) {
       case 'numero':
@@ -961,7 +980,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Setor" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Todos Setores</SelectItem>
-                  {setoresUnicos.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {setorOptions.map(setor => <SelectItem key={setor.value} value={setor.value}>{setor.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="h-8 text-xs" placeholder="Data início" />

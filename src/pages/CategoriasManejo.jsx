@@ -8,6 +8,7 @@ import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
+import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 
 const getInitialFormData = () => ({
   nome: "",
@@ -89,20 +90,7 @@ export default function CategoriasManejo() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      const categoria = categorias.find((item) => item.id === id);
-      const lotes = await base44.entities.Lote.list();
-      const vinculados = lotes.filter((item) => item.categoria_manejo_id === id || item.categoria_manejo_entrada_id === id);
-
-      if (vinculados.length > 0) {
-        window.dispatchEvent(new CustomEvent("base44:delete-dialog", {
-          detail: {
-            title: "Não é possível excluir",
-            description: `A categoria ${categoria?.nome || ""} já possui ${vinculados.length} registro(s) lançados e não pode ser excluída.`,
-          },
-        }));
-        throw new Error("DELETE_BLOCKED");
-      }
-
+      await ensureDeleteAllowed(base44, "CategoriaManejo", id);
       return base44.entities.CategoriaManejo.delete(id);
     },
     onSuccess: () => {
