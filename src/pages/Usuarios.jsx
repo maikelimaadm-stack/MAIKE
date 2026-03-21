@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -12,106 +11,93 @@ import TabelaUsuarios from "../components/usuarios/TabelaUsuarios";
 export default function Usuarios() {
   const [showForm, setShowForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
-
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: ["currentUser"],
     queryFn: () => base44.auth.me(),
   });
 
-  const { data: usuarios, isLoading } = useQuery({
-    queryKey: ['usuarios'],
-    queryFn: async () => {
-      try {
-        return await base44.entities.User.list('-created_date');
-      } catch (error) {
-        return [];
-      }
-    },
+  const { data: usuarios = [], isLoading } = useQuery({
+    queryKey: ["usuarios"],
+    queryFn: () => base44.entities.User.list("-created_date"),
     initialData: [],
   });
 
   const { data: permissoes = [] } = useQuery({
-    queryKey: ['permissoes'],
+    queryKey: ["permissoes"],
     queryFn: () => base44.entities.Permissao.list(),
     initialData: [],
   });
 
   const updatePermissaoMutation = useMutation({
-    mutationFn: async ({ user_email, modulos, is_admin }) => {
-      const existente = permissoes.find(p => p.user_email === user_email);
-      
+    mutationFn: async (data) => {
+      const existente = permissoes.find((item) => item.user_email === data.user_email);
+      const payload = {
+        user_email: data.user_email,
+        modulos_permitidos: data.modulos_permitidos || [],
+        permissoes_telas: data.permissoes_telas || [],
+        mobile_menu_ids: data.mobile_menu_ids || [],
+        is_admin: !!data.is_admin,
+      };
+
       if (existente) {
-        return base44.entities.Permissao.update(existente.id, {
-          modulos_permitidos: modulos,
-          is_admin: is_admin
-        });
-      } else {
-        return base44.entities.Permissao.create({
-          user_email: user_email,
-          modulos_permitidos: modulos,
-          is_admin: is_admin
-        });
+        return base44.entities.Permissao.update(existente.id, payload);
       }
+
+      return base44.entities.Permissao.create(payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permissoes'] });
+      queryClient.invalidateQueries({ queryKey: ["permissoes"] });
       setShowForm(false);
       setEditingUsuario(null);
-      toast.success('Permissões atualizadas!');
+      toast.success("Permissões atualizadas!");
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao salvar permissões.');
-    }
+      toast.error(error.message || "Erro ao salvar permissões.");
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      // Não pode excluir usuários pela entidade User (gerenciado pelo Base44)
-      // Apenas remove as permissões
-      const permissao = permissoes.find(p => p.user_email === id);
+    mutationFn: async (userEmail) => {
+      const permissao = permissoes.find((item) => item.user_email === userEmail);
       if (permissao) {
         await base44.entities.Permissao.delete(permissao.id);
       }
-      toast.info('Permissões removidas. Usuário ainda existe no sistema.');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permissoes'] });
+      queryClient.invalidateQueries({ queryKey: ["permissoes"] });
+      toast.success("Permissões removidas!");
     },
     onError: () => {
-      toast.error('Erro ao remover permissões.');
-    }
+      toast.error("Erro ao remover permissões.");
+    },
   });
 
   const handleSubmit = async (data) => {
-    try {
-      await updatePermissaoMutation.mutateAsync({
-        user_email: data.user_email,
-        modulos: data.modulos_permitidos,
-        is_admin: data.is_admin
-      });
-    } catch (error) {
-      console.error('Erro:', error);
-    }
+    await updatePermissaoMutation.mutateAsync(data);
   };
 
   const handleEdit = (usuario) => {
-    const permissao = permissoes.find(p => p.user_email === usuario.email);
+    const permissao = permissoes.find((item) => item.user_email === usuario.email);
     setEditingUsuario({
       ...usuario,
+      user_email: usuario.email,
       modulos_permitidos: permissao?.modulos_permitidos || [],
-      is_admin: permissao?.is_admin || false
+      permissoes_telas: permissao?.permissoes_telas || [],
+      mobile_menu_ids: permissao?.mobile_menu_ids || [],
+      is_admin: permissao?.is_admin || false,
     });
     setShowForm(true);
   };
 
   const handleDelete = async (userEmail) => {
     if (currentUser?.email === userEmail) {
-      toast.error('Você não pode remover suas próprias permissões!');
+      toast.error("Você não pode remover suas próprias permissões.");
       return;
     }
-    if (window.confirm('⚠️ Remover permissões deste usuário?')) {
+
+    if (window.confirm("REMOVER TODAS AS PERMISSÕES DESTE USUÁRIO?")) {
       await deleteMutation.mutateAsync(userEmail);
     }
   };
@@ -122,8 +108,8 @@ export default function Usuarios() {
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Usuários e Permissões</h1>
-              <p className="text-xs text-slate-600">Gerenciar acessos ao sistema</p>
+              <h1 className="text-lg font-bold text-slate-900">Usuários e Permissões</h1>
+              <p className="text-xs text-slate-600">Configurar módulos, telas, ações e menu mobile por usuário</p>
             </div>
             <div className="flex gap-2">
               <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
@@ -140,12 +126,12 @@ export default function Usuarios() {
                 </svg>
               </div>
               <div className="flex-1">
-                <h4 className="font-semibold text-sm text-blue-900 mb-1">ℹ️ Como convidar novos usuários</h4>
+                <h4 className="font-semibold text-sm text-blue-900 mb-1">Como funciona agora</h4>
                 <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
-                  <li><strong>Novos usuários</strong> devem ser convidados via <strong>Base44 Dashboard</strong> (não é feito aqui no sistema)</li>
-                  <li>Após o usuário aceitar o convite e fazer login, ele aparecerá na lista abaixo</li>
-                  <li>Aqui você configura as <strong>permissões</strong> de cada usuário (quais módulos ele pode acessar)</li>
-                  <li>Usuários sem permissões configuradas terão acesso total ao sistema</li>
+                  <li>Você libera primeiro os módulos do menu.</li>
+                  <li>Depois escolhe tela por tela o que o usuário pode visualizar e fazer.</li>
+                  <li>Também dá para escolher quais telas aparecem no menu inferior do mobile.</li>
+                  <li>Se o usuário não tiver permissão de ação, o sistema bloqueia e mostra um aviso.</li>
                 </ul>
               </div>
             </div>
