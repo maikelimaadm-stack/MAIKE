@@ -155,4 +155,13 @@ button:focus-visible {
   body {
     @apply bg-background text-foreground;
   }
+
+  input[aria-invalid="true"],
+  textarea[aria-invalid="true"],
+  select[aria-invalid="true"],
+  input:required:invalid,
+  textarea:required:invalid,
+  select:required:invalid {
+    @apply border-red-500 bg-red-50 focus-visible:ring-red-500;
+  }
 }

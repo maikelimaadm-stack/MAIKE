@@ -15,12 +15,7 @@ import {
   MoreVertical, Save, X, Landmark
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,7 +115,7 @@ export default function CadastroSetores() {
       setShowDelete(false);
       setDeletarId(null);
     },
-    onError: () => toast.error('Erro ao excluir setor')
+    onError: (error) => toast.error(error?.message || 'Erro ao excluir setor')
   });
 
   const resetForm = () => {
@@ -466,31 +461,16 @@ export default function CadastroSetores() {
         </CardContent>
       </Card>
 
-      {/* Dialog Confirmar Exclusão */}
-        <Dialog open={showDelete} onOpenChange={setShowDelete}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-sm">Confirmar Exclusão</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Tem certeza que deseja excluir este setor? Esta ação não pode ser desfeita.
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button onClick={() => setShowDelete(false)} variant="outline" size="sm" className="h-8 text-xs">
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={() => deleteMutation.mutate(deletarId)} 
-                  size="sm" 
-                  className="h-8 text-xs bg-red-600 hover:bg-red-700"
-                >
-                  Excluir
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+      <ConfirmDialog
+        open={showDelete}
+        onOpenChange={setShowDelete}
+        title="Confirmar exclusão"
+        description="Se este setor possuir registros vinculados, a exclusão será bloqueada automaticamente."
+        onConfirm={() => deleteMutation.mutate(deletarId)}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
         </div>
     );
