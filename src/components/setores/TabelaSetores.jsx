@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import ConfiguracaoColunasSetoresDialog from "@/components/setores/ConfiguracaoColunasSetoresDialog";
 
 const VALOR_TODOS = "__TODOS__";
@@ -171,9 +171,13 @@ export default function TabelaSetores({
     }));
   };
 
-  const getSortLabel = (key) => {
-    if (sortConfig.key !== key) return "";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
+  const SortIcon = ({ column }) => {
+    if (sortConfig.key !== column) {
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    }
+    return sortConfig.direction === "asc" ?
+      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -282,6 +286,10 @@ export default function TabelaSetores({
                       <DropdownMenuItem onClick={handleExcluirSelecionados} className="text-xs text-red-600">
                         Excluir Selecionados
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
+                        Limpar Seleção
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -322,8 +330,8 @@ export default function TabelaSetores({
                           className={`text-xs font-bold py-1 px-3 border border-black ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}
                         >
-                          <div className={`${isRight ? "text-right" : ""}`}>
-                            {coluna.label} {coluna.sortable ? getSortLabel(coluna.id) : ""}
+                          <div className={`flex items-center gap-1 ${isRight ? "justify-end" : "justify-start"}`}>
+                            {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                           </div>
                         </TableHead>
                       );
@@ -399,30 +407,28 @@ export default function TabelaSetores({
               </Table>
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between p-3 border-t">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Itens por página:</span>
-                  <Select value={String(itemsPerPage)} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
-                    <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {[25, 50, 100, 200].map((numero) => (
-                        <SelectItem key={numero} value={String(numero)}>{numero}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((prev) => prev - 1)} className="h-7 text-xs">
-                    Anterior
-                  </Button>
-                  <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-                  <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((prev) => prev + 1)} className="h-7 text-xs">
-                    Próxima
-                  </Button>
-                </div>
+            <div className="flex items-center justify-between p-3 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Itens por página:</span>
+                <Select value={String(itemsPerPage)} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
+                  <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[25, 50, 100, 200].map((numero) => (
+                      <SelectItem key={numero} value={String(numero)}>{numero}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((prev) => prev - 1)} className="h-7 text-xs">
+                  Anterior
+                </Button>
+                <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((prev) => prev + 1)} className="h-7 text-xs">
+                  Próxima
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -10,14 +10,25 @@ import { toast } from "sonner";
 
 const TIPOS_SETOR = ["Próprio", "Arrendado", "Parceria", "Terceiros"];
 const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+const SELECT_EMPTY = "__VAZIO__";
+const UPPERCASE_FIELDS = ["nome", "sigla", "responsavel", "endereco", "cidade", "observacoes"];
+const REQUIRED_FIELDS = ["sigla", "endereco", "cidade", "estado"];
 
 export default function FormularioSetor({ initialData, isEditing, onSubmit, onCancel }) {
   const [formData, setFormData] = useState(initialData);
   const [invalidFields, setInvalidFields] = useState([]);
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string"
+      ? value.toUpperCase()
+      : value;
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
     setInvalidFields((prev) => prev.filter((item) => item !== field));
+  };
+
+  const isEmptyValue = (value) => {
+    if (typeof value === "string") return value.trim() === "";
+    return value === undefined || value === null || value === "";
   };
 
   const getFieldClassName = (field, baseClass = "") => {
@@ -27,13 +38,11 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const missingFields = [];
-    if (!formData.nome?.trim()) missingFields.push("nome");
-    if (!formData.tipo?.trim()) missingFields.push("tipo");
+    const missingFields = REQUIRED_FIELDS.filter((field) => isEmptyValue(formData?.[field]));
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
-      toast.error("Preencha os campos obrigatórios.");
+      toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
       return;
     }
 
@@ -62,12 +71,13 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Sigla</Label>
+              <Label className="text-xs">Sigla *</Label>
               <Input
+                data-field="sigla"
                 value={formData.sigla}
-                onChange={(e) => handleChange("sigla", e.target.value.toUpperCase())}
+                onChange={(e) => handleChange("sigla", e.target.value)}
                 placeholder="SIGLA"
-                className="h-8 text-xs uppercase"
+                className={getFieldClassName("sigla", "h-8 text-xs uppercase")}
                 style={{ textTransform: "uppercase" }}
                 maxLength={10}
               />
@@ -143,23 +153,25 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
             <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">Endereço</Label>
+              <Label className="text-xs">Endereço *</Label>
               <Input
+                data-field="endereco"
                 value={formData.endereco}
                 onChange={(e) => handleChange("endereco", e.target.value)}
                 placeholder="ENDEREÇO COMPLETO"
-                className="h-8 text-xs uppercase"
+                className={getFieldClassName("endereco", "h-8 text-xs uppercase")}
                 style={{ textTransform: "uppercase" }}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Cidade</Label>
+              <Label className="text-xs">Cidade *</Label>
               <Input
+                data-field="cidade"
                 value={formData.cidade}
                 onChange={(e) => handleChange("cidade", e.target.value)}
                 placeholder="CIDADE"
-                className="h-8 text-xs uppercase"
+                className={getFieldClassName("cidade", "h-8 text-xs uppercase")}
                 style={{ textTransform: "uppercase" }}
               />
             </div>
@@ -167,18 +179,20 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
             <div className="space-y-1">
-              <Label className="text-xs">Estado</Label>
-              <Select value={formData.estado || "__VAZIO__"} onValueChange={(value) => handleChange("estado", value === "__VAZIO__" ? "" : value)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__VAZIO__" className="text-xs">Selecione</SelectItem>
-                  {ESTADOS_BR.map((uf) => (
-                    <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs">Estado *</Label>
+              <div data-field="estado">
+                <Select value={formData.estado || SELECT_EMPTY} onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
+                  <SelectTrigger className={getFieldClassName("estado", "h-8 text-xs")}>
+                    <SelectValue placeholder="SELECIONE" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                    {ESTADOS_BR.map((uf) => (
+                      <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
