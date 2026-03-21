@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    const maxUpdates = Number(payload?.maxUpdates || 25);
     let updated = 0;
+    let remaining = 0;
 
     for (const mov of movimentacoes) {
       const patch = {};
@@ -75,11 +77,16 @@ Deno.serve(async (req) => {
 
       if (!Object.keys(patch).length) continue;
 
+      if (updated >= maxUpdates) {
+        remaining += 1;
+        continue;
+      }
+
       await base44.asServiceRole.entities.MovimentacaoPecuaria.update(mov.id, patch);
       updated += 1;
     }
 
-    return Response.json({ success: true, updated, total: movimentacoes.length });
+    return Response.json({ success: true, updated, remaining, total: movimentacoes.length, hasMore: remaining > 0 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
