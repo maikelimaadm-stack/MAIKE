@@ -214,10 +214,10 @@ export default function TabelaLotes({
 
   const limparFiltros = () => {
     setSearchTerm("");
-    setFiltroStatus("");
-    setFiltroCategoria("");
-    setFiltroMotivo("");
-    setFiltroArea("");
+    setFiltroStatus(VALOR_TODOS);
+    setFiltroCategoria(VALOR_TODOS);
+    setFiltroMotivo(VALOR_TODOS);
+    setFiltroArea(VALOR_TODOS);
   };
 
   const formatarValor = (valor) => {
