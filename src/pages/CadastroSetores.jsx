@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaSetores from "@/components/setores/TabelaSetores";
 import FormularioSetor from "@/components/setores/FormularioSetor";
+import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 import { AnimatePresence } from "framer-motion";
 
 const getInitialFormData = () => ({
@@ -103,36 +104,7 @@ export default function CadastroSetores() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      const setor = setores.find((item) => item.id === id);
-      const [areas, movimentacoesMapa] = await Promise.all([
-        base44.entities.AreaPastagem.list(),
-        base44.entities.MovimentacaoMapa.list(),
-      ]);
-
-      const areasRelacionadas = areas.filter((item) => item.setor_id === id);
-      if (areasRelacionadas.length > 0) {
-        window.dispatchEvent(new CustomEvent("base44:delete-dialog", {
-          detail: {
-            title: "Não é possível excluir",
-            description: `O setor ${setor?.nome || ""} já possui ${areasRelacionadas.length} registro(s) lançados e não pode ser excluído.`,
-          },
-        }));
-        throw new Error("DELETE_BLOCKED");
-      }
-
-      const movimentacoesRelacionadas = movimentacoesMapa.filter(
-        (item) => item.setor_id === id || item.setor_origem_id === id || item.setor_destino_id === id
-      );
-      if (movimentacoesRelacionadas.length > 0) {
-        window.dispatchEvent(new CustomEvent("base44:delete-dialog", {
-          detail: {
-            title: "Não é possível excluir",
-            description: `O setor ${setor?.nome || ""} já possui ${movimentacoesRelacionadas.length} registro(s) lançados e não pode ser excluído.`,
-          },
-        }));
-        throw new Error("DELETE_BLOCKED");
-      }
-
+      await ensureDeleteAllowed(base44, "Setor", id);
       return base44.entities.Setor.delete(id);
     },
     onSuccess: () => {
@@ -142,7 +114,7 @@ export default function CadastroSetores() {
       setDeletarId(null);
     },
     onError: (error) => {
-      if (error.message === "DELETE_BLOCKED") return;
+      if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
       toast.error(error?.message || "Erro ao excluir setor");
     },
   });
