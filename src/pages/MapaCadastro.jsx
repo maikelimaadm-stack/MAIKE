@@ -228,19 +228,19 @@ export default function MapaCadastro() {
             <>
               <Button onClick={() => handleNovoItem('area', false)} variant="outline" size="sm" className="h-8 text-xs">Desenhar no Mapa</Button>
               <Button onClick={() => setShowSelecaoMapa(true)} variant="outline" size="sm" className="h-8 text-xs">Selecionar no Mapa</Button>
-              <Button onClick={() => handleNovoItem('area', true)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Usar GPS</Button>
+              <Button onClick={() => handleNovoItem('area', true)} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Usar GPS</Button>
             </>
           )}
           {abaAtiva === "pontos" && (
             <>
               <Button onClick={() => handleNovoItem('ponto', false)} variant="outline" size="sm" className="h-8 text-xs">Marcar no Mapa</Button>
-              <Button onClick={() => handleNovoItem('ponto', true)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Usar GPS</Button>
+              <Button onClick={() => handleNovoItem('ponto', true)} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Usar GPS</Button>
             </>
           )}
           {abaAtiva === "linhas" && (
             <>
               <Button onClick={() => handleNovoItem('linha', false)} variant="outline" size="sm" className="h-8 text-xs">Desenhar no Mapa</Button>
-              <Button onClick={() => handleNovoItem('linha', true)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Usar GPS</Button>
+              <Button onClick={() => handleNovoItem('linha', true)} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Usar GPS</Button>
             </>
           )}
         </div>

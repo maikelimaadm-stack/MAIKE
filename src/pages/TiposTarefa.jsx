@@ -1,214 +1,157 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Settings } from "lucide-react";
+import { toast } from "sonner";
+import { AnimatePresence } from "framer-motion";
+import TabelaTiposTarefa from "@/components/tipos-tarefa/TabelaTiposTarefa";
+import FormularioTipoTarefa from "@/components/tipos-tarefa/FormularioTipoTarefa";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Plus, Search } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 
 export default function TiposTarefa() {
-  const [selected, setSelected] = useState([]);
-  const [search, setSearch] = useState("");
-  const [grupoFiltro, setGrupoFiltro] = useState("todos");
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingTipo, setEditingTipo] = useState(null);
+  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: grupos = [] } = useQuery({
     queryKey: ["grupos-atividades"],
     queryFn: () => base44.entities.GrupoAtividade.list(),
     initialData: [],
   });
-  const { data: tipos = [], isLoading, refetch } = useQuery({
+
+  const { data: tipos = [] } = useQuery({
     queryKey: ["tipos-tarefa"],
     queryFn: () => base44.entities.TipoTarefa.list("-updated_date"),
     initialData: [],
   });
 
-  const filtered = useMemo(() => {
-    const termo = search.trim().toLowerCase();
-    return tipos.filter((tipo) => {
-      if (grupoFiltro !== "todos" && tipo.grupo_atividade_id !== grupoFiltro) return false;
-      if (!termo) return true;
-      return [tipo.nome_tipo, tipo.grupo_atividade_nome, tipo.descricao].some((value) => (value || "").toLowerCase().includes(termo));
-    });
-  }, [tipos, search, grupoFiltro]);
+  const createTipoMutation = useMutation({
+    mutationFn: (data) => base44.entities.TipoTarefa.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
+      setShowForm(false);
+      setEditingTipo(null);
+      toast.success("Tipo cadastrado!");
+    },
+  });
 
-  const toggleAll = (v) => setSelected(v ? filtered.map((t) => t.id) : []);
-  const toggleOne = (id, v) => setSelected((prev) => (v ? [...prev, id] : prev.filter((x) => x !== id)));
+  const updateTipoMutation = useMutation({
+    mutationFn: async ({ id, data, oldData }) => {
+      const updated = await base44.entities.TipoTarefa.update(id, data);
+      await base44.functions.invoke("syncEntityReferences", {
+        event: { type: "update", entity_name: "TipoTarefa" },
+        data: updated,
+        old_data: oldData,
+      });
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
+      setShowForm(false);
+      setEditingTipo(null);
+      toast.success("Tipo atualizado!");
+    },
+  });
 
-  const excluir = async (id) => {
-    await base44.entities.TipoTarefa.delete(id);
-    await refetch();
+  const deleteTipoMutation = useMutation({
+    mutationFn: (id) => base44.entities.TipoTarefa.delete(id),
+  });
+
+  const handleSubmit = (data) => {
+    if (editingTipo) updateTipoMutation.mutate({ id: editingTipo.id, data, oldData: editingTipo });
+    else createTipoMutation.mutate(data);
   };
-  const excluirSelecionados = async () => {
-    for (const id of selected) await base44.entities.TipoTarefa.delete(id);
-    setSelected([]);
-    await refetch();
+
+  const handleEdit = (tipo) => {
+    setEditingTipo(tipo);
+    setShowForm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const ids = deleteState.ids;
+    setDeleteState({ open: false, ids: [] });
+    let deletedCount = 0;
+    for (const id of ids) {
+      try {
+        await ensureDeleteAllowed(base44, "TipoTarefa", id);
+        await deleteTipoMutation.mutateAsync(id);
+        deletedCount += 1;
+      } catch {
+      }
+    }
+    if (deletedCount > 0) {
+      queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
+      toast.success(deletedCount === 1 ? "Tipo excluído!" : `${deletedCount} tipos excluídos!`);
+    }
+  };
+
+  const handleExport = () => {
+    const csv = [
+      ["Tipo", "Grupo", "Ativo", "Descrição", "Criado em", "Atualizado em"].join(";"),
+      ...tipos.map((t) => [
+        t.nome_tipo || "",
+        t.grupo_atividade_nome || grupos.find((g) => g.id === t.grupo_atividade_id)?.nome_grupo || "",
+        t.ativo ? "SIM" : "NÃO",
+        t.descricao || "",
+        t.created_date || "",
+        t.updated_date || "",
+      ].join(";")),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `tipos_tarefa_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    toast.success("Exportado!");
   };
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-1">
+    <div className="p-4 md:p-6 space-y-1">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Tipos de Tarefa</h1>
           <p className="text-xs text-slate-600">Modelos e regras para lançamentos</p>
         </div>
-        <div className="flex gap-2">
-          <Link to={createPageUrl("TipoTarefaForm")}>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-3.5 h-3.5" />
-              Novo
-            </Button>
-          </Link>
+        <div className="flex flex-wrap gap-2">
+          {!showForm && <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8"><Settings className="w-4 h-4" /></Button>}
+          <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">Exportar</Button>
+          {!showForm && <Button onClick={() => { setShowForm(true); setEditingTipo(null); }} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Novo Tipo</Button>}
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <div className="space-y-1 md:col-span-3">
-              <Label className="text-xs">Buscar</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-xs pl-8" placeholder="Tipo, grupo ou descrição" />
-              </div>
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <Label className="text-xs">Grupo</Label>
-              <Select value={grupoFiltro} onValueChange={setGrupoFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {grupos.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{grupo.nome_grupo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end md:col-span-1">
-              <Button variant="outline" size="sm" className="h-8 text-xs w-full" onClick={() => { setSearch(""); setGrupoFiltro("todos"); }}>Limpar Filtros</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-slate-900">Tipos ({filtered.length})</div>
-              <div className="flex gap-2">
-                {selected.length > 0 && (
-                  <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => setBulkDeleteOpen(true)}>
-                    Excluir Selecionados
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs font-bold py-1 border border-black w-8">
-                    <Checkbox
-                      checked={selected.length === filtered.length && filtered.length > 0}
-                      onCheckedChange={(v) => toggleAll(!!v)}
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black text-center w-8"></TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-xs py-1 border border-gray-300 text-center">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-xs py-1 border border-gray-300 text-center">
-                      Nenhum registro
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((t) => (
-                    <TableRow key={t.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300 w-8">
-                        <Checkbox
-                          checked={selected.includes(t.id)}
-                          onCheckedChange={(v) => toggleOne(t.id, !!v)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center text-xs py-1 border border-gray-300 w-12">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem asChild className="text-xs">
-                              <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>Editar</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setDeleteConfirmId(t.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{t.nome_tipo}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">
-                        {t.grupo_atividade_nome || grupos.find((g) => g.id === t.grupo_atividade_id)?.nome_grupo || "-"}
-                      </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{t.ativo ? "Sim" : "Não"}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">
-                        {new Date(t.created_date).toLocaleString("pt-BR")}
-                      </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">
-                        {new Date(t.updated_date).toLocaleString("pt-BR")}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <AnimatePresence mode="wait">
+        {showForm ? (
+          <FormularioTipoTarefa
+            key="form"
+            initialData={editingTipo}
+            grupos={grupos}
+            isEditing={!!editingTipo}
+            onSubmit={handleSubmit}
+            onCancel={() => { setShowForm(false); setEditingTipo(null); }}
+          />
+        ) : (
+          <TabelaTiposTarefa
+            key="table"
+            tipos={tipos}
+            grupos={grupos}
+            onEdit={handleEdit}
+            onDelete={(ids) => setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] })}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas}
+          />
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
-        open={!!deleteConfirmId}
-        onOpenChange={() => setDeleteConfirmId(null)}
+        open={deleteState.open}
+        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
         title="Confirmar exclusão"
-        description="Tem certeza que deseja excluir este tipo de tarefa? Esta ação não pode ser desfeita."
-        onConfirm={() => {
-          excluir(deleteConfirmId);
-          setDeleteConfirmId(null);
-        }}
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="destructive"
-      />
-
-      <ConfirmDialog
-        open={bulkDeleteOpen}
-        onOpenChange={setBulkDeleteOpen}
-        title="Confirmar exclusão"
-        description={`Tem certeza que deseja excluir ${selected.length} registro(s)? Esta ação não pode ser desfeita.`}
-        onConfirm={excluirSelecionados}
+        description={deleteState.ids.length > 1 ? `Deseja realmente excluir ${deleteState.ids.length} tipos selecionados?` : "Deseja realmente excluir este tipo de tarefa?"}
+        onConfirm={handleConfirmDelete}
         confirmText="Excluir"
         cancelText="Cancelar"
         variant="destructive"
