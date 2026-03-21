@@ -187,7 +187,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
         </CardHeader>
         <CardContent className="p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Tipo de Pessoa *</Label>
                 <Select value={tipoPessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)} required>
@@ -201,7 +201,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                 </Select>
               </div>
 
-              <div className="col-span-2 space-y-1">
+              <div className="lg:col-span-2 space-y-1">
                 <Label className="text-xs">Nome {isPessoaFisica ? 'Completo' : 'Fantasia'} *</Label>
                 <Input
                   value={formData.nome}
@@ -215,7 +215,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
             </div>
 
             {isPessoaFisica && (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">CPF</Label>
                   <Input
@@ -249,7 +249,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
 
             {!isPessoaFisica && (
               <>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Razão Social</Label>
                     <Input
@@ -293,7 +293,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               </>
             )}
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Telefone</Label>
                 <Input
@@ -303,7 +303,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   className="h-8 text-xs"
                 />
               </div>
-              <div className="col-span-2 space-y-1">
+              <div className="lg:col-span-2 space-y-1">
                 <Label className="text-xs">E-mail</Label>
                 <Input
                   type="email"
@@ -326,7 +326,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Estado</Label>
                 <Select value={formData.estado} onValueChange={(v) => handleChange('estado', v)}>

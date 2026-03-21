@@ -609,7 +609,7 @@ export default function GerenciarCidades() {
                   </div>
                 )}
                 
-                <Select value={estadoFiltro} onValueChange={setEstadoFiltro}>
+                <Select value={estadoFiltro || 'todos'} onValueChange={(value) => setEstadoFiltro(value === 'todos' ? '' : value)}>
                   <SelectTrigger className="h-8 w-20 text-xs">
                     <SelectValue placeholder="UF" />
                   </SelectTrigger>

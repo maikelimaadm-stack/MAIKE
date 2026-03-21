@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { getEmpresaSelecionada } from "@/Layout";
 
 const formatarMoeda = (valor) => {
@@ -22,6 +23,7 @@ const formatarMoeda = (valor) => {
 export default function AtivosFixos() {
   const [showForm, setShowForm] = useState(false);
   const [editingAtivo, setEditingAtivo] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const empresaSelecionadaId = getEmpresaSelecionada();
 
   const [formData, setFormData] = useState({
@@ -124,10 +126,12 @@ export default function AtivosFixos() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Deseja realmente excluir este ativo?')) {
-      deleteMutation.mutate(id);
+  const handleDelete = (id, skipConfirm = false) => {
+    if (!skipConfirm) {
+      setDeleteConfirmId(id);
+      return;
     }
+    deleteMutation.mutate(id);
   };
 
   const resetForm = () => {
@@ -153,8 +157,8 @@ export default function AtivosFixos() {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Ativos Fixos</h1>
           <p className="text-sm text-slate-600">Gerencie veículos, máquinas e equipamentos</p>
@@ -173,7 +177,7 @@ export default function AtivosFixos() {
               </CardHeader>
               <CardContent className="p-4">
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Tipo *</Label>
                       <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
@@ -191,7 +195,7 @@ export default function AtivosFixos() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Marca</Label>
                       <Input value={formData.marca} onChange={(e) => setFormData({ ...formData, marca: e.target.value })} className="h-8 text-xs uppercase" />
@@ -206,7 +210,7 @@ export default function AtivosFixos() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Placa/Chassi</Label>
                       <Input value={formData.placa_chassi} onChange={(e) => setFormData({ ...formData, placa_chassi: e.target.value })} className="h-8 text-xs uppercase" />
@@ -217,7 +221,7 @@ export default function AtivosFixos() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Valor Aquisição *</Label>
                       <Input value={formData.valor_aquisicao} onChange={(e) => setFormData({ ...formData, valor_aquisicao: e.target.value })} placeholder="0,00" className="h-8 text-xs" required />
@@ -228,7 +232,7 @@ export default function AtivosFixos() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Vida Útil (anos)</Label>
                       <Input type="number" value={formData.vida_util_anos} onChange={(e) => setFormData({ ...formData, vida_util_anos: e.target.value })} className="h-8 text-xs" />
@@ -270,6 +274,20 @@ export default function AtivosFixos() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este ativo? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          handleDelete(deleteConfirmId, true);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Card className="shadow-sm border-slate-300">
         <CardContent className="p-0">
