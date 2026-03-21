@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
+import {
   ArrowRightLeft, X, Edit2, Trash2, Search, Calendar,
   TrendingUp, FileText, Filter, Settings, MoreVertical, GripVertical,
-  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload, FileSpreadsheet, AlertTriangle, Copy
-} from "lucide-react";
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload, FileSpreadsheet, AlertTriangle, Copy } from
+"lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,8 +20,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogTitle } from
+"@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
@@ -29,8 +29,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,42 +68,42 @@ const formatarDataSimples = (dataString) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'numero', label: 'Nº', default: true, sortable: true },
-  { id: 'data', label: 'Data', default: true, sortable: true },
-  { id: 'tipo', label: 'Tipo', default: true, sortable: true },
-  { id: 'motivo', label: 'Motivo', default: true, sortable: true },
-  { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
-  { id: 'categoria', label: 'Categoria', default: true, sortable: true },
-  { id: 'categoria_nova', label: 'Cat. Nova', default: false, sortable: true },
-  { id: 'marca', label: 'Marca', default: true, sortable: true },
-  { id: 'sexo', label: 'Sexo', default: false, sortable: true },
-  { id: 'peso_medio', label: 'Peso Médio', default: false, sortable: true },
-  { id: 'peso_total', label: 'Peso Total', default: false, sortable: true },
-  { id: 'area', label: 'Área', default: true, sortable: true },
-  { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: true },
-  { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: true },
-  { id: 'fornecedor', label: 'Fornec./Comprador', default: false, sortable: true },
-  { id: 'nota_fiscal', label: 'Nota Fiscal', default: false, sortable: true },
-  { id: 'gta', label: 'GTA', default: false, sortable: true },
-  { id: 'causa_morte', label: 'Causa Morte', default: false, sortable: true },
-  { id: 'destino_abate', label: 'Frigorífico', default: false, sortable: true },
-  { id: 'transferencia_origem', label: 'Transf. Origem', default: false, sortable: true },
-  { id: 'transferencia_destino', label: 'Transf. Destino', default: false, sortable: true },
-  { id: 'observacoes', label: 'Observações', default: false, sortable: true },
-  { id: 'responsavel', label: 'Responsável', default: false, sortable: true },
-];
+{ id: 'numero', label: 'Nº', default: true, sortable: true },
+{ id: 'data', label: 'Data', default: true, sortable: true },
+{ id: 'tipo', label: 'Tipo', default: true, sortable: true },
+{ id: 'motivo', label: 'Motivo', default: true, sortable: true },
+{ id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
+{ id: 'categoria', label: 'Categoria', default: true, sortable: true },
+{ id: 'categoria_nova', label: 'Cat. Nova', default: false, sortable: true },
+{ id: 'marca', label: 'Marca', default: true, sortable: true },
+{ id: 'sexo', label: 'Sexo', default: false, sortable: true },
+{ id: 'peso_medio', label: 'Peso Médio', default: false, sortable: true },
+{ id: 'peso_total', label: 'Peso Total', default: false, sortable: true },
+{ id: 'area', label: 'Área', default: true, sortable: true },
+{ id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: true },
+{ id: 'valor_total', label: 'Vlr. Total', default: false, sortable: true },
+{ id: 'fornecedor', label: 'Fornec./Comprador', default: false, sortable: true },
+{ id: 'nota_fiscal', label: 'Nota Fiscal', default: false, sortable: true },
+{ id: 'gta', label: 'GTA', default: false, sortable: true },
+{ id: 'causa_morte', label: 'Causa Morte', default: false, sortable: true },
+{ id: 'destino_abate', label: 'Frigorífico', default: false, sortable: true },
+{ id: 'transferencia_origem', label: 'Transf. Origem', default: false, sortable: true },
+{ id: 'transferencia_destino', label: 'Transf. Destino', default: false, sortable: true },
+{ id: 'observacoes', label: 'Observações', default: false, sortable: true },
+{ id: 'responsavel', label: 'Responsável', default: false, sortable: true }];
+
 
 const DEFAULT_ITEMS_PER_PAGE = 50;
 
 const tipoColors = {
   'Entrada': 'bg-green-100 text-green-800 border-green-300',
-  'Saída': 'bg-red-100 text-red-800 border-red-300',
+  'Saída': 'bg-red-100 text-red-800 border-red-300'
 };
 
 export default function HistoricoMovimentacoesPecuaria() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
@@ -135,10 +135,10 @@ export default function HistoricoMovimentacoesPecuaria() {
       try {
         return JSON.parse(saved);
       } catch {
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
       }
     }
-    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+    return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
   });
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
@@ -147,10 +147,10 @@ export default function HistoricoMovimentacoesPecuaria() {
       try {
         return JSON.parse(saved);
       } catch {
-        return COLUNAS_DISPONIVEIS.map(c => c.id);
+        return COLUNAS_DISPONIVEIS.map((c) => c.id);
       }
     }
-    return COLUNAS_DISPONIVEIS.map(c => c.id);
+    return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
 
   const [sortField, setSortField] = useState(null);
@@ -160,34 +160,34 @@ export default function HistoricoMovimentacoesPecuaria() {
     queryKey: ['movimentacoes-pecuaria', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-created_date');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+      return all.filter((m) => m.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       // Buscar o registro para verificar se é mudança de categoria
-      const registro = movimentacoes.find(m => m.id === id);
-      
+      const registro = movimentacoes.find((m) => m.id === id);
+
       await base44.entities.MovimentacaoPecuaria.update(id, data);
-      
+
       // Se tem vínculo de mudança de categoria, atualizar também o registro vinculado
       if (registro?.vinculo_mudanca_categoria && data.quantidade_animais !== undefined) {
         const registroVinculado = movimentacoes.find(
-          m => m.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && m.id !== id
+          (m) => m.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && m.id !== id
         );
-        
+
         if (registroVinculado) {
           await base44.entities.MovimentacaoPecuaria.update(registroVinculado.id, {
             quantidade_animais: data.quantidade_animais,
             peso_medio: data.peso_medio,
-            peso_total: data.peso_total,
+            peso_total: data.peso_total
           });
         }
         return { updatedCount: 2 };
       }
-      
+
       return { updatedCount: 1 };
     },
     onSuccess: (result) => {
@@ -204,22 +204,22 @@ export default function HistoricoMovimentacoesPecuaria() {
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       // Buscar o registro para verificar se é mudança de categoria
-      const registro = movimentacoes.find(m => m.id === id);
-      
+      const registro = movimentacoes.find((m) => m.id === id);
+
       if (registro?.vinculo_mudanca_categoria) {
         // Se tem vínculo, excluir também o registro vinculado
         const registroVinculado = movimentacoes.find(
-          m => m.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && m.id !== id
+          (m) => m.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && m.id !== id
         );
-        
+
         await base44.entities.MovimentacaoPecuaria.delete(id);
-        
+
         if (registroVinculado) {
           await base44.entities.MovimentacaoPecuaria.delete(registroVinculado.id);
         }
         return { deletedCount: registroVinculado ? 2 : 1 };
       }
-      
+
       return await base44.entities.MovimentacaoPecuaria.delete(id);
     },
     onSuccess: (result) => {
@@ -257,19 +257,19 @@ export default function HistoricoMovimentacoesPecuaria() {
           setor: mov.setor_nome || 'Sem setor',
           categoria: mov.categoria_animal,
           marca: mov.marca || 'Sem marca',
-          saldo: 0,
+          saldo: 0
         };
       }
-      saldos[chave].saldo += mov.tipo === 'Entrada' ? (Number(mov.quantidade_animais) || 0) : -(Number(mov.quantidade_animais) || 0);
+      saldos[chave].saldo += mov.tipo === 'Entrada' ? Number(mov.quantidade_animais) || 0 : -(Number(mov.quantidade_animais) || 0);
     });
 
     const negativos = Object.values(saldos).filter((item) => item.saldo < 0);
     if (!negativos.length) return idsExpandidos;
 
-    const detalhes = negativos
-      .slice(0, 3)
-      .map((item) => `${item.setor} / ${item.categoria} / ${item.marca}: ${item.saldo} cab`)
-      .join('; ');
+    const detalhes = negativos.
+    slice(0, 3).
+    map((item) => `${item.setor} / ${item.categoria} / ${item.marca}: ${item.saldo} cab`).
+    join('; ');
 
     emitDeleteDialog(`Não é possível excluir ${idsExpandidos.length} registro(s) porque o saldo do gado ficaria negativo em ${negativos.length} grupo(s). ${detalhes}${negativos.length > 3 ? '...' : ''}`);
     return null;
@@ -284,11 +284,11 @@ export default function HistoricoMovimentacoesPecuaria() {
   };
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => {
-      const novasColunas = prev.includes(colunaId)
-        ? prev.filter(id => id !== colunaId)
-        : [...prev, colunaId];
-      
+    setColunasVisiveis((prev) => {
+      const novasColunas = prev.includes(colunaId) ?
+      prev.filter((id) => id !== colunaId) :
+      [...prev, colunaId];
+
       localStorage.setItem('colunas_movimentacoes_pecuaria', JSON.stringify(novasColunas));
       return novasColunas;
     });
@@ -296,18 +296,18 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
-    
+
     const items = Array.from(colunasOrdem);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    
+
     setColunasOrdem(items);
     localStorage.setItem('colunas_ordem_movimentacoes_pecuaria', JSON.stringify(items));
   };
 
-  const colunasOrdenadas = colunasOrdem
-    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
-    .filter(c => c && colunasVisiveis.includes(c.id));
+  const colunasOrdenadas = colunasOrdem.
+  map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).
+  filter((c) => c && colunasVisiveis.includes(c.id));
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -320,31 +320,31 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const getSortIcon = (field) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortDirection === 'asc'
-      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
-      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    return sortDirection === 'asc' ?
+    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   // Valores únicos para filtros
-  const tiposUnicos = [...new Set(movimentacoes.map(m => m.tipo).filter(Boolean))].sort();
-  const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo).filter(Boolean))].sort();
-  const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal).filter(Boolean))].sort();
-  const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca).filter(Boolean))].sort();
+  const tiposUnicos = [...new Set(movimentacoes.map((m) => m.tipo).filter(Boolean))].sort();
+  const motivosUnicos = [...new Set(movimentacoes.map((m) => m.motivo).filter(Boolean))].sort();
+  const categoriasUnicas = [...new Set(movimentacoes.map((m) => m.categoria_animal).filter(Boolean))].sort();
+  const marcasUnicas = [...new Set(movimentacoes.map((m) => m.marca).filter(Boolean))].sort();
 
-  const filteredMovimentacoes = movimentacoes.filter(mov => {
+  const filteredMovimentacoes = movimentacoes.filter((mov) => {
     const searchLower = searchTerm.toLowerCase();
-    
+
     // Busca textual
     if (searchTerm && !(
-      mov.tipo?.toLowerCase().includes(searchLower) ||
-      mov.categoria_animal?.toLowerCase().includes(searchLower) ||
-      mov.marca?.toLowerCase().includes(searchLower) ||
-      mov.setor_nome?.toLowerCase().includes(searchLower) ||
-      mov.area_origem_nome?.toLowerCase().includes(searchLower) ||
-      mov.area_destino_nome?.toLowerCase().includes(searchLower) ||
-      mov.observacoes?.toLowerCase().includes(searchLower)
-    )) return false;
-    
+    mov.tipo?.toLowerCase().includes(searchLower) ||
+    mov.categoria_animal?.toLowerCase().includes(searchLower) ||
+    mov.marca?.toLowerCase().includes(searchLower) ||
+    mov.setor_nome?.toLowerCase().includes(searchLower) ||
+    mov.area_origem_nome?.toLowerCase().includes(searchLower) ||
+    mov.area_destino_nome?.toLowerCase().includes(searchLower) ||
+    mov.observacoes?.toLowerCase().includes(searchLower)))
+    return false;
+
     // Filtros específicos
     if (filtroTipo && mov.tipo !== filtroTipo) return false;
     if (filtroMotivo && mov.motivo !== filtroMotivo) return false;
@@ -356,7 +356,7 @@ export default function HistoricoMovimentacoesPecuaria() {
     }
     if (filtroDataInicio && mov.data_movimentacao?.split('T')[0] < filtroDataInicio) return false;
     if (filtroDataFim && mov.data_movimentacao?.split('T')[0] > filtroDataFim) return false;
-    
+
     return true;
   });
 
@@ -493,13 +493,13 @@ export default function HistoricoMovimentacoesPecuaria() {
     if (selectedItems.length === paginatedMovimentacoes.length && paginatedMovimentacoes.length > 0) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(paginatedMovimentacoes.map(m => m.id));
+      setSelectedItems(paginatedMovimentacoes.map((m) => m.id));
     }
   };
 
   const toggleSelectItem = (id) => {
-    setSelectedItems(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    setSelectedItems((prev) =>
+    prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
@@ -547,29 +547,29 @@ export default function HistoricoMovimentacoesPecuaria() {
     const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Peso Total', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
     csvRows.push(headers.join(';'));
 
-    filteredMovimentacoes.forEach(m => {
+    filteredMovimentacoes.forEach((m) => {
       const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
       const row = [
-        formatarDataSimples(m.data_movimentacao),
-        m.tipo || '',
-        m.motivo || '',
-        m.quantidade_animais || '',
-        m.categoria_animal || '',
-        m.marca || '',
-        m.sexo || '',
-        m.peso_medio || '',
-        m.peso_total || '',
-        areaExibir || '',
-        m.fornecedor_origem || m.destino_venda || '',
-        m.valor_unitario || '',
-        m.valor_total || '',
-        m.nota_fiscal || '',
-        m.gta || '',
-        m.causa_morte || '',
-        m.transferencia_origem || '',
-        m.transferencia_destino || '',
-        m.observacoes || ''
-      ];
+      formatarDataSimples(m.data_movimentacao),
+      m.tipo || '',
+      m.motivo || '',
+      m.quantidade_animais || '',
+      m.categoria_animal || '',
+      m.marca || '',
+      m.sexo || '',
+      m.peso_medio || '',
+      m.peso_total || '',
+      areaExibir || '',
+      m.fornecedor_origem || m.destino_venda || '',
+      m.valor_unitario || '',
+      m.valor_total || '',
+      m.nota_fiscal || '',
+      m.gta || '',
+      m.causa_morte || '',
+      m.transferencia_origem || '',
+      m.transferencia_destino || '',
+      m.observacoes || ''];
+
       csvRows.push(row.join(';'));
     });
 
@@ -585,7 +585,7 @@ export default function HistoricoMovimentacoesPecuaria() {
   const handleDownloadTemplate = () => {
     const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Setor', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
     const exemplo = ['01/01/2025', 'Entrada', 'Compra', '50', 'Bezerro(a)', 'NELORE', 'Macho', '180', 'Fazenda Santa Maria', 'Pasto 1', 'Fazenda XYZ', '1500', '75000', '12345', '67890', '', '', '', 'Lote de bezerros'];
-    
+
     const csvRows = [headers.join(';'), exemplo.join(';')];
     const csvString = csvRows.join('\n');
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
@@ -603,21 +603,21 @@ export default function HistoricoMovimentacoesPecuaria() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result;
-      const lines = text.split('\n').filter(line => line.trim());
-      
+      const lines = text.split('\n').filter((line) => line.trim());
+
       if (lines.length < 2) {
         toast.error('Arquivo vazio ou sem dados');
         return;
       }
 
-      const headers = lines[0].split(';').map(h => h.trim().toLowerCase());
+      const headers = lines[0].split(';').map((h) => h.trim().toLowerCase());
       const dataLines = lines.slice(1);
-      
+
       const errors = [];
       const validRecords = [];
 
       for (let i = 0; i < dataLines.length; i++) {
-        const values = dataLines[i].split(';').map(v => v.trim().replace(/^"|"$/g, ''));
+        const values = dataLines[i].split(';').map((v) => v.trim().replace(/^"|"$/g, ''));
         const lineNum = i + 2;
 
         try {
@@ -678,8 +678,8 @@ export default function HistoricoMovimentacoesPecuaria() {
             marca: values[headers.indexOf('marca')] || null,
             sexo: values[headers.indexOf('sexo')] || null,
             peso_medio: parseFloat(values[headers.indexOf('peso médio')]) || null,
-            fornecedor_origem: tipo === 'Entrada' ? (values[headers.indexOf('fornecedor/comprador')] || null) : null,
-            destino_venda: tipo === 'Saída' ? (values[headers.indexOf('fornecedor/comprador')] || null) : null,
+            fornecedor_origem: tipo === 'Entrada' ? values[headers.indexOf('fornecedor/comprador')] || null : null,
+            destino_venda: tipo === 'Saída' ? values[headers.indexOf('fornecedor/comprador')] || null : null,
             valor_unitario: parseFloat(values[headers.indexOf('valor unitário')]) || null,
             valor_total: parseFloat(values[headers.indexOf('valor total')]) || null,
             nota_fiscal: values[headers.indexOf('nf')] || null,
@@ -687,15 +687,15 @@ export default function HistoricoMovimentacoesPecuaria() {
             causa_morte: values[headers.indexOf('causa morte')] || null,
             transferencia_origem: values[headers.indexOf('transferência origem')] || null,
             transferencia_destino: values[headers.indexOf('transferência destino')] || null,
-            observacoes: values[headers.indexOf('observações')] || null,
+            observacoes: values[headers.indexOf('observações')] || null
           };
 
           // Buscar setor pelo nome
           const setorNome = values[headers.indexOf('setor')] || '';
           if (setorNome) {
-            const setor = setores.find(s => 
-              s.nome?.trim().toLowerCase() === setorNome.trim().toLowerCase() || 
-              s.sigla?.trim().toLowerCase() === setorNome.trim().toLowerCase()
+            const setor = setores.find((s) =>
+            s.nome?.trim().toLowerCase() === setorNome.trim().toLowerCase() ||
+            s.sigla?.trim().toLowerCase() === setorNome.trim().toLowerCase()
             );
             if (setor) {
               record.setor_id = setor.id;
@@ -709,9 +709,9 @@ export default function HistoricoMovimentacoesPecuaria() {
           // Buscar área
           const areaNome = values[headers.indexOf('área')] || '';
           if (areaNome) {
-            const area = areas.find(a => 
-              a.nome?.toLowerCase() === areaNome.toLowerCase() || 
-              a.sigla?.toLowerCase() === areaNome.toLowerCase()
+            const area = areas.find((a) =>
+            a.nome?.toLowerCase() === areaNome.toLowerCase() ||
+            a.sigla?.toLowerCase() === areaNome.toLowerCase()
             );
             if (area) {
               if (tipo === 'Entrada') {
@@ -737,7 +737,7 @@ export default function HistoricoMovimentacoesPecuaria() {
 
       if (validRecords.length > 0) {
         setImportProgress({ current: 0, total: validRecords.length, isImporting: true });
-        
+
         const allMovs = await base44.entities.MovimentacaoPecuaria.list();
         let maxNum = allMovs.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
 
@@ -747,9 +747,9 @@ export default function HistoricoMovimentacoesPecuaria() {
             await base44.entities.MovimentacaoPecuaria.create({
               ...validRecords[i],
               empresa_id: empresaSelecionadaId,
-              numero_movimentacao: String(maxNum),
+              numero_movimentacao: String(maxNum)
             });
-            setImportProgress(prev => ({ ...prev, current: i + 1 }));
+            setImportProgress((prev) => ({ ...prev, current: i + 1 }));
           } catch (err) {
             console.error('Erro ao importar:', err);
           }
@@ -769,7 +769,7 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const handleExportErrors = () => {
     const csvRows = ['Linha;Erro;Dados'];
-    importErrors.forEach(err => {
+    importErrors.forEach((err) => {
       csvRows.push(`${err.linha};"${err.erro}";"${err.dados}"`);
     });
     const csvString = csvRows.join('\n');
@@ -838,37 +838,37 @@ export default function HistoricoMovimentacoesPecuaria() {
   const { data: empresas = [] } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
-    initialData: [],
+    initialData: []
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas-pastagem'],
     queryFn: () => base44.entities.AreaPastagem.list(),
-    initialData: [],
+    initialData: []
   });
 
   const { data: setores = [] } = useQuery({
     queryKey: ['setores', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Setor.list();
-      return all.filter(s => s.empresa_id === empresaSelecionadaId);
+      return all.filter((s) => s.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const setorOptions = React.useMemo(() => {
-    const cadastrados = setores
-      .filter(setor => setor.nome)
-      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-      .map(setor => ({ value: `id:${setor.id}`, label: setor.nome }));
+    const cadastrados = setores.
+    filter((setor) => setor.nome).
+    sort((a, b) => (a.nome || '').localeCompare(b.nome || '')).
+    map((setor) => ({ value: `id:${setor.id}`, label: setor.nome }));
 
     const avulsos = [...new Set(
-      movimentacoes
-        .filter(mov => !mov.setor_id && mov.setor_nome)
-        .map(mov => mov.setor_nome)
-    )]
-      .sort((a, b) => a.localeCompare(b))
-      .map(nome => ({ value: `name:${nome}`, label: nome }));
+      movimentacoes.
+      filter((mov) => !mov.setor_id && mov.setor_nome).
+      map((mov) => mov.setor_nome)
+    )].
+    sort((a, b) => a.localeCompare(b)).
+    map((nome) => ({ value: `name:${nome}`, label: nome }));
 
     return [...cadastrados, ...avulsos];
   }, [setores, movimentacoes]);
@@ -885,8 +885,8 @@ export default function HistoricoMovimentacoesPecuaria() {
             <Badge variant="outline" className={`${tipoColors[mov.tipo] || 'bg-slate-100 text-slate-800'} text-xs`}>
               {mov.tipo}
             </Badge>
-          </TableCell>
-        );
+          </TableCell>);
+
       case 'motivo':
         return <TableCell className="text-xs py-2 px-3 font-medium">{mov.motivo || '-'}</TableCell>;
       case 'quantidade':
@@ -935,8 +935,8 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      {!showNovoLancamento && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+      {!showNovoLancamento &&
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
           <div>
             <h1 className="text-lg font-bold text-slate-900">Histórico de Movimentações</h1>
             <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
@@ -960,83 +960,83 @@ export default function HistoricoMovimentacoesPecuaria() {
               </Button>
               <input type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
             </label>
-            <Button 
-              onClick={() => { setItemEditandoManual(null); setShowNovoLancamento(true); }} 
-              size="sm" 
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-            >
+            <Button
+            onClick={() => {setItemEditandoManual(null);setShowNovoLancamento(true);}}
+            size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
+            
+            
               Novo Lançamento
             </Button>
           </div>
         </div>
-      )}
+      }
 
       <AnimatePresence mode="wait">
-        {showNovoLancamento && (
-          <FormularioLancamentoManual
-            item={itemEditandoManual}
-            onSave={() => {
-              setShowNovoLancamento(false);
-              setItemEditandoManual(null);
-              queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-            }}
-            onCancel={() => {
-              setShowNovoLancamento(false);
-              setItemEditandoManual(null);
-            }}
-          />
-        )}
+        {showNovoLancamento &&
+        <FormularioLancamentoManual
+          item={itemEditandoManual}
+          onSave={() => {
+            setShowNovoLancamento(false);
+            setItemEditandoManual(null);
+            queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+          }}
+          onCancel={() => {
+            setShowNovoLancamento(false);
+            setItemEditandoManual(null);
+          }} />
+
+        }
         </AnimatePresence>
 
         {!showNovoLancamento && <SaldoCategorias movimentacoes={movimentacoes} categoriasManejo={[]} />}
 
       {/* Filtros */}
-      {!showNovoLancamento && (
-        <Card>
+      {!showNovoLancamento &&
+      <Card>
           <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
               <div className="md:col-span-2 relative">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  placeholder="Buscar..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8 text-xs pl-8"
-                />
+                placeholder="Buscar..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8 text-xs pl-8" />
+              
               </div>
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Todos Tipos</SelectItem>
-                  {tiposUnicos.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {tiposUnicos.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Motivo" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Todos Motivos</SelectItem>
-                  {motivosUnicos.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  {motivosUnicos.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Todas Categ.</SelectItem>
-                  {categoriasUnicas.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {categoriasUnicas.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filtroMarca} onValueChange={setFiltroMarca}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Marca" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Todas Marcas</SelectItem>
-                  {marcasUnicas.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  {marcasUnicas.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filtroSetor} onValueChange={setFiltroSetor}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Setor" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Todos Setores</SelectItem>
-                  {setorOptions.map(setor => <SelectItem key={setor.value} value={setor.value}>{setor.label}</SelectItem>)}
+                  {setorOptions.map((setor) => <SelectItem key={setor.value} value={setor.value}>{setor.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="h-8 text-xs" placeholder="Data início" />
@@ -1047,8 +1047,8 @@ export default function HistoricoMovimentacoesPecuaria() {
                 {filteredMovimentacoes.length} de {movimentacoes.length} registros
               </div>
               <div className="flex gap-2 flex-wrap">
-                {selectedItems.length > 0 && (
-                  <DropdownMenu>
+                {selectedItems.length > 0 &&
+              <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-7 text-xs">
                         Ações ({selectedItems.length})
@@ -1066,7 +1066,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
+              }
                 <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
                   Limpar Filtros
                 </Button>
@@ -1074,7 +1074,7 @@ export default function HistoricoMovimentacoesPecuaria() {
             </div>
           </CardContent>
         </Card>
-      )}
+      }
 
       {!showNovoLancamento && <Card>
         <CardContent className="p-0">
@@ -1085,50 +1085,50 @@ export default function HistoricoMovimentacoesPecuaria() {
                   <TableHead className="text-xs py-2 px-2">
                     <Checkbox
                       checked={selectedItems.length === paginatedMovimentacoes.length && paginatedMovimentacoes.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
+                      onCheckedChange={toggleSelectAll} />
+                    
                   </TableHead>
                   <TableHead className="text-xs py-2 px-2"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isRight = ['quantidade', 'peso_medio', 'peso_total', 'valor_unitario', 'valor_total'].includes(coluna.id);
                     return (
-                      <TableHead 
+                      <TableHead
                         key={coluna.id}
                         className={`text-xs py-2 px-3 ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : ''}`}
-                        onClick={() => coluna.sortable && handleSort(coluna.id)}
-                      >
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}>
+                        
                         <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : ''}`}>
                           {coluna.label} {coluna.sortable && getSortIcon(coluna.id)}
                         </div>
-                      </TableHead>
-                    );
+                      </TableHead>);
+
                   })}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <AnimatePresence>
-                  {isLoading ? (
-                    <TableRow>
+                  {isLoading ?
+                  <TableRow>
                       <TableCell colSpan={50} className="text-center py-8 text-xs text-slate-400">Carregando...</TableCell>
-                    </TableRow>
-                  ) : paginatedMovimentacoes.length === 0 ? (
-                    <TableRow>
+                    </TableRow> :
+                  paginatedMovimentacoes.length === 0 ?
+                  <TableRow>
                       <TableCell colSpan={50} className="text-center py-8 text-xs text-slate-400">Nenhuma movimentação encontrada</TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedMovimentacoes.map((mov) => (
-                      <motion.tr 
-                        key={mov.id}
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        exit={{ opacity: 0 }} 
-                        className="hover:bg-gray-50 border-b"
-                      >
+                    </TableRow> :
+
+                  paginatedMovimentacoes.map((mov) =>
+                  <motion.tr
+                    key={mov.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="hover:bg-gray-50 border-b">
+                    
                         <TableCell className="text-xs py-2 px-2">
                           <Checkbox
-                            checked={selectedItems.includes(mov.id)}
-                            onCheckedChange={() => toggleSelectItem(mov.id)}
-                          />
+                        checked={selectedItems.includes(mov.id)}
+                        onCheckedChange={() => toggleSelectItem(mov.id)} />
+                      
                         </TableCell>
                         <TableCell className="text-xs py-2 px-2 text-center">
                           <DropdownMenu>
@@ -1138,27 +1138,27 @@ export default function HistoricoMovimentacoesPecuaria() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
-                              <DropdownMenuItem 
-                                onClick={() => { 
-                                  setItemEditandoManual(mov); 
-                                  setShowNovoLancamento(true); 
-                                }} 
-                                className="text-xs"
-                              >
+                              <DropdownMenuItem
+                            onClick={() => {
+                              setItemEditandoManual(mov);
+                              setShowNovoLancamento(true);
+                            }}
+                            className="text-xs">
+                            
                                 Editar Completo
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEdit(mov)} className="text-xs">
                                 Editar Rápido
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => { 
-                                  const { id, numero_movimentacao, created_date, updated_date, created_by, ...dadosDuplicados } = mov;
-                                  setItemEditandoManual({ ...dadosDuplicados, data_movimentacao: new Date().toISOString(), _isDuplicate: true }); 
-                                  setShowNovoLancamento(true); 
-                                }} 
-                                className="text-xs"
-                              >
+                              <DropdownMenuItem
+                            onClick={() => {
+                              const { id, numero_movimentacao, created_date, updated_date, created_by, ...dadosDuplicados } = mov;
+                              setItemEditandoManual({ ...dadosDuplicados, data_movimentacao: new Date().toISOString(), _isDuplicate: true });
+                              setShowNovoLancamento(true);
+                            }}
+                            className="text-xs">
+                            
                                 Duplicar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -1168,14 +1168,14 @@ export default function HistoricoMovimentacoesPecuaria() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                        {colunasOrdenadas.map(coluna => (
-                          <React.Fragment key={coluna.id}>
+                        {colunasOrdenadas.map((coluna) =>
+                    <React.Fragment key={coluna.id}>
                             {renderCell(coluna, mov)}
                           </React.Fragment>
-                        ))}
+                    )}
                       </motion.tr>
-                    ))
-                  )}
+                  )
+                  }
                 </AnimatePresence>
               </TableBody>
             </Table>
@@ -1184,19 +1184,19 @@ export default function HistoricoMovimentacoesPecuaria() {
           <div className="flex items-center justify-between p-3 border-t">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
-              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
                 <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                  {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="h-7 text-xs">
+              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="h-7 text-xs">
                 Anterior
               </Button>
               <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="h-7 text-xs">
+              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="h-7 text-xs">
                 Próxima
               </Button>
             </div>
@@ -1214,17 +1214,17 @@ export default function HistoricoMovimentacoesPecuaria() {
             <div className="space-y-1">
               <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
               <div className="grid grid-cols-2 gap-2">
-                {COLUNAS_DISPONIVEIS.filter(c => !c.fixo).map((coluna) => (
-                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                {COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).map((coluna) =>
+                <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
                     <input
-                      type="checkbox"
-                      checked={colunasVisiveis.includes(coluna.id)}
-                      onChange={() => toggleColuna(coluna.id)}
-                      className="rounded"
-                    />
+                    type="checkbox"
+                    checked={colunasVisiveis.includes(coluna.id)}
+                    onChange={() => toggleColuna(coluna.id)}
+                    className="rounded" />
+                  
                     <span>{coluna.label}</span>
                   </label>
-                ))}
+                )}
               </div>
             </div>
 
@@ -1232,36 +1232,36 @@ export default function HistoricoMovimentacoesPecuaria() {
               <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="colunas">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                  {(provided) =>
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                       {colunasOrdem.map((colunaId, index) => {
-                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
-                        if (!coluna || coluna.fixo) return null;
-                        
-                        return (
-                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
-                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
-                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
-                              >
+                      const coluna = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId);
+                      if (!coluna || coluna.fixo) return null;
+
+                      return (
+                        <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) =>
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                            snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'} ${
+                            !colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}>
+                            
                                 <GripVertical className="w-4 h-4 text-slate-400" />
                                 <span className="flex-1">{coluna.label}</span>
-                                {colunasVisiveis.includes(colunaId) && (
-                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
-                                )}
+                                {colunasVisiveis.includes(colunaId) &&
+                            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                            }
                               </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
+                          }
+                          </Draggable>);
+
+                    })}
                       {provided.placeholder}
                     </div>
-                  )}
+                  }
                 </Droppable>
               </DragDropContext>
             </div>
@@ -1278,51 +1278,51 @@ export default function HistoricoMovimentacoesPecuaria() {
           <DialogHeader>
             <DialogTitle>Editar Movimentação</DialogTitle>
           </DialogHeader>
-          {editando && (
-            <div className="space-y-3">
+          {editando &&
+          <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Data</Label>
                   <Input
-                    type="date"
-                    value={editando.data_movimentacao?.split('T')[0] || ''}
-                    onChange={(e) => setEditando({ ...editando, data_movimentacao: e.target.value })}
-                    className="h-8 text-xs"
-                  />
+                  type="date"
+                  value={editando.data_movimentacao?.split('T')[0] || ''}
+                  onChange={(e) => setEditando({ ...editando, data_movimentacao: e.target.value })}
+                  className="h-8 text-xs" />
+                
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs">Quantidade de Animais</Label>
                   <Input
-                    type="number"
-                    value={editando.quantidade_animais || ''}
-                    onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })}
-                    className="h-8 text-xs"
-                  />
+                  type="number"
+                  value={editando.quantidade_animais || ''}
+                  onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })}
+                  className="h-8 text-xs" />
+                
                 </div>
               </div>
 
-              {editando.peso_medio !== undefined && (
-                <div className="space-y-1">
+              {editando.peso_medio !== undefined &&
+            <div className="space-y-1">
                   <Label className="text-xs">Peso Médio (kg)</Label>
                   <Input
-                    type="number"
-                    step="0.1"
-                    value={editando.peso_medio || ''}
-                    onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })}
-                    className="h-8 text-xs"
-                  />
+                type="number"
+                step="0.1"
+                value={editando.peso_medio || ''}
+                onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })}
+                className="h-8 text-xs" />
+              
                 </div>
-              )}
+            }
 
               <div className="space-y-1">
                 <Label className="text-xs">Observações</Label>
                 <Textarea
-                  value={editando.observacoes || ''}
-                  onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })}
-                  className="text-xs"
-                  rows={3}
-                />
+                value={editando.observacoes || ''}
+                onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })}
+                className="text-xs"
+                rows={3} />
+              
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t">
@@ -1334,7 +1334,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                 </Button>
               </div>
             </div>
-          )}
+          }
         </DialogContent>
       </Dialog>
 
@@ -1374,8 +1374,8 @@ export default function HistoricoMovimentacoesPecuaria() {
                 type="file"
                 accept=".csv"
                 onChange={handleImportFile}
-                className="w-full text-xs"
-              />
+                className="w-full text-xs" />
+              
             </div>
             <div className="text-xs text-slate-500">
               <strong>Colunas obrigatórias:</strong> Tipo, Quantidade
@@ -1408,13 +1408,13 @@ export default function HistoricoMovimentacoesPecuaria() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {importErrors.map((err, idx) => (
-                  <TableRow key={idx}>
+                {importErrors.map((err, idx) =>
+                <TableRow key={idx}>
                     <TableCell className="text-xs font-mono">{err.linha}</TableCell>
                     <TableCell className="text-xs text-red-600">{err.erro}</TableCell>
                     <TableCell className="text-xs max-w-[200px] truncate" title={err.dados}>{err.dados}</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
@@ -1444,14 +1444,14 @@ export default function HistoricoMovimentacoesPecuaria() {
                   {importProgress.current} de {importProgress.total}
                 </span>
               </div>
-              <Progress value={(importProgress.current / importProgress.total) * 100} className="h-3" />
+              <Progress value={importProgress.current / importProgress.total * 100} className="h-3" />
               <p className="text-center text-sm font-medium text-emerald-600">
-                {Math.round((importProgress.current / importProgress.total) * 100)}%
+                {Math.round(importProgress.current / importProgress.total * 100)}%
               </p>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
