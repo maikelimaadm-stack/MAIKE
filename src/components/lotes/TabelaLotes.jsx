@@ -52,10 +52,10 @@ export default function TabelaLotes({
   setShowConfigColunas,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("");
-  const [filtroCategoria, setFiltroCategoria] = useState("");
-  const [filtroMotivo, setFiltroMotivo] = useState("");
-  const [filtroArea, setFiltroArea] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState(VALOR_TODOS);
+  const [filtroCategoria, setFiltroCategoria] = useState(VALOR_TODOS);
+  const [filtroMotivo, setFiltroMotivo] = useState(VALOR_TODOS);
+  const [filtroArea, setFiltroArea] = useState(VALOR_TODOS);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
