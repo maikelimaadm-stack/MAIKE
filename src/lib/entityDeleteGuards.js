@@ -222,7 +222,9 @@ export async function ensureDeleteAllowed(base44, entityName, id) {
   if (!blockedBy) return true;
 
   const entityLabel = ENTITY_LABELS[entityName] || "registro";
-  throw new Error(`Não é possível excluir este ${entityLabel} porque existem registros vinculados em ${blockedBy.label}.`);
+  const total = blockedBy.linkedCount;
+  const registroTexto = total === 1 ? "1 registro vinculado" : `${total} registros vinculados`;
+  throw new Error(`Não é possível excluir este ${entityLabel} porque existem ${registroTexto} em ${blockedBy.label}.`);
 }
 
 export function applyDeleteGuards(base44) {

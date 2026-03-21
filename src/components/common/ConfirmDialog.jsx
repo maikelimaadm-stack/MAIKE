@@ -9,7 +9,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Trash2, AlertCircle } from "lucide-react";
 
 export default function ConfirmDialog({ 
   open, 
@@ -21,23 +20,11 @@ export default function ConfirmDialog({
   cancelText = "Cancelar",
   variant = "default" // "default", "destructive", "warning"
 }) {
-  const getIcon = () => {
-    switch (variant) {
-      case "destructive":
-        return <Trash2 className="w-5 h-5 text-red-600" />;
-      case "warning":
-        return <AlertTriangle className="w-5 h-5 text-orange-600" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-blue-600" />;
-    }
-  };
-
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2 text-base">
-            {getIcon()}
+          <AlertDialogTitle className="text-base">
             {title}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-sm text-slate-600 pt-2">
