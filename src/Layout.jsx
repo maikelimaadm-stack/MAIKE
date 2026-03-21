@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
@@ -43,6 +43,9 @@ import {
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
 import SendEmailDialog from "@/components/email/SendEmailDialog";
+import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
+import { flattenMenuPages, findMenuItemByUrl, getAllPages as getConfiguredPages } from "@/lib/menuConfig";
+import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -201,6 +204,7 @@ const getAllPages = (menuItems) => {
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -210,6 +214,8 @@ export default function Layout({ children, currentPageName }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
+  const [permissionDialog, setPermissionDialog] = useState({ open: false, title: "", description: "" });
+  const permissionRedirectRef = useRef(null);
   const isChangingEmpresa = useRef(false);
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
@@ -359,26 +365,33 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const hasAccess = (itemId) => {
-    // Admin sempre tem acesso
-    if (user?.role === 'admin' || userPermissions?.is_admin) return true;
-    
-    // Se não tem permissões configuradas, libera tudo (comportamento padrão)
-    if (!userPermissions) return true;
-    
-    // Verifica se o módulo está nas permissões
-    return userPermissions.modulos_permitidos?.includes(itemId);
+  const normalizedPermissions = React.useMemo(() => normalizePermissionRecord(userPermissions), [userPermissions]);
+
+  const openPermissionDialog = (title, description, redirectTo = null) => {
+    permissionRedirectRef.current = redirectTo;
+    setPermissionDialog({ open: true, title, description });
   };
 
-  const filterMenuByPermissions = (items) => {
+  const closePermissionDialog = (open) => {
+    setPermissionDialog((prev) => ({ ...prev, open }));
+    if (!open && permissionRedirectRef.current) {
+      navigate(permissionRedirectRef.current);
+      permissionRedirectRef.current = null;
+    }
+  };
+
+  const filterMenuByPermissions = (items, parentModuleId = null) => {
     return items
-      .filter(item => hasAccess(item.id))
-      .map(item => {
-        if (item.submenu) {
-          const filteredSubmenu = filterMenuByPermissions(item.submenu);
-          if (filteredSubmenu.length === 0) return null;
+      .map((item) => {
+        const moduleId = parentModuleId || item.id;
+
+        if (item.submenu?.length) {
+          const filteredSubmenu = filterMenuByPermissions(item.submenu, item.id);
+          if (!canAccessModule(normalizedPermissions, item.id) || filteredSubmenu.length === 0) return null;
           return { ...item, submenu: filteredSubmenu };
         }
+
+        if (!canAccessPage(normalizedPermissions, item.id, moduleId)) return null;
         return item;
       })
       .filter(Boolean);
@@ -404,7 +417,7 @@ export default function Layout({ children, currentPageName }) {
     return false;
   };
 
-  const allPages = getAllPages(menuItemsFiltered);
+  const allPages = getConfiguredPages(menuItemsFiltered);
   const filteredPages = searchTerm 
     ? allPages.filter(p => 
         p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
