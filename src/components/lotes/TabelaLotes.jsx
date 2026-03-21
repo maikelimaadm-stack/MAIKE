@@ -127,10 +127,10 @@ export default function TabelaLotes({
       const motivo = (lote.motivo_entrada || lote.origem || "").toLowerCase();
 
       const matchSearch = !termo || nome.includes(termo) || codigo.includes(termo) || categoria.includes(termo) || area.includes(termo) || motivo.includes(termo);
-      const matchStatus = !filtroStatus || lote.status === filtroStatus;
-      const matchCategoria = !filtroCategoria || (lote.categoria_entrada || lote.categoria) === filtroCategoria;
-      const matchMotivo = !filtroMotivo || (lote.motivo_entrada || lote.origem) === filtroMotivo;
-      const matchArea = !filtroArea || lote.area_entrada_id === filtroArea;
+      const matchStatus = filtroStatus === VALOR_TODOS || lote.status === filtroStatus;
+      const matchCategoria = filtroCategoria === VALOR_TODOS || (lote.categoria_entrada || lote.categoria) === filtroCategoria;
+      const matchMotivo = filtroMotivo === VALOR_TODOS || (lote.motivo_entrada || lote.origem) === filtroMotivo;
+      const matchArea = filtroArea === VALOR_TODOS || lote.area_entrada_id === filtroArea;
 
       return matchSearch && matchStatus && matchCategoria && matchMotivo && matchArea;
     });
