@@ -21,7 +21,18 @@ const MESES = [
   { label: "DEZ", field: "gmd_dezembro" },
 ];
 
-const REQUIRED_FIELDS = ["nome", "sigla"];
+const REQUIRED_FIELDS = [
+  "nome",
+  "sigla",
+  "especie",
+  "sexo",
+  "raca",
+  "categoria_oficial",
+  "idade_minima_meses",
+  "idade_maxima_meses",
+  "ganho_peso_anual_kg",
+  ...MESES.map((mes) => mes.field),
+];
 const UPPERCASE_FIELDS = ["nome", "sigla", "raca"];
 
 export default function FormularioCategoriaManejo({
@@ -47,10 +58,15 @@ export default function FormularioCategoriaManejo({
     return `${baseClass} ${invalidFields.includes(field) ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
   };
 
+  const isEmptyValue = (value) => {
+    if (typeof value === "string") return value.trim() === "";
+    return value === undefined || value === null || value === "";
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const missingFields = REQUIRED_FIELDS.filter((field) => !formData?.[field]?.trim());
+    const missingFields = REQUIRED_FIELDS.filter((field) => isEmptyValue(formData?.[field]));
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
@@ -64,15 +80,15 @@ export default function FormularioCategoriaManejo({
   return (
     <Card className="shadow-sm border-slate-300 bg-white">
       <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
-        <CardTitle className="text-sm font-semibold text-slate-900 uppercase">
-          {isEditing ? "EDITAR CATEGORIA DE MANEJO" : "NOVA CATEGORIA DE MANEJO"}
+        <CardTitle className="text-sm font-semibold text-slate-900">
+          {isEditing ? "Editar Categoria de Manejo" : "Nova Categoria de Manejo"}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs uppercase">NOME DA CATEGORIA *</Label>
+              <Label className="text-xs">Nome da Categoria *</Label>
               <Input
                 value={formData.nome || ""}
                 onChange={(e) => handleChange("nome", e.target.value)}
@@ -82,7 +98,7 @@ export default function FormularioCategoriaManejo({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs uppercase">SIGLA *</Label>
+              <Label className="text-xs">Sigla *</Label>
               <Input
                 value={formData.sigla || ""}
                 onChange={(e) => handleChange("sigla", e.target.value)}
@@ -93,9 +109,9 @@ export default function FormularioCategoriaManejo({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs uppercase">ESPÉCIE</Label>
+              <Label className="text-xs">Espécie *</Label>
               <Select value={formData.especie || "Bovinos"} onValueChange={(value) => handleChange("especie", value)}>
-                <SelectTrigger className="h-8 text-xs uppercase">
+                <SelectTrigger className={getFieldClassName("especie", "h-8 text-xs")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -109,7 +125,7 @@ export default function FormularioCategoriaManejo({
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs uppercase">SEXO</Label>
+              <Label className="text-xs">Sexo *</Label>
               <Select value={formData.sexo || "__VAZIO__"} onValueChange={(value) => handleChange("sexo", value === "__VAZIO__" ? "" : value)}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="SELECIONE" />
@@ -123,19 +139,19 @@ export default function FormularioCategoriaManejo({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs uppercase">RAÇA</Label>
+              <Label className="text-xs">Raça *</Label>
               <Input
                 value={formData.raca || ""}
                 onChange={(e) => handleChange("raca", e.target.value)}
                 placeholder="RAÇA"
-                className="h-8 text-xs uppercase"
+                className={getFieldClassName("raca", "h-8 text-xs uppercase")}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs uppercase">CATEGORIA OFICIAL</Label>
+              <Label className="text-xs">Categoria Oficial *</Label>
               <Select value={formData.categoria_oficial || "__VAZIO__"} onValueChange={(value) => handleChange("categoria_oficial", value === "__VAZIO__" ? "" : value)}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className={getFieldClassName("categoria_oficial", "h-8 text-xs")}>
                   <SelectValue placeholder="SELECIONE" />
                 </SelectTrigger>
                 <SelectContent>
@@ -150,55 +166,55 @@ export default function FormularioCategoriaManejo({
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs uppercase">IDADE MÍNIMA (MESES)</Label>
+              <Label className="text-xs">Idade Mínima (meses) *</Label>
               <Input
                 type="number"
                 value={formData.idade_minima_meses}
                 onChange={(e) => handleChange("idade_minima_meses", e.target.value)}
                 placeholder="0"
-                className="h-8 text-xs"
+                className={getFieldClassName("idade_minima_meses", "h-8 text-xs")}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs uppercase">IDADE MÁXIMA (MESES)</Label>
+              <Label className="text-xs">Idade Máxima (meses) *</Label>
               <Input
                 type="number"
                 value={formData.idade_maxima_meses}
                 onChange={(e) => handleChange("idade_maxima_meses", e.target.value)}
                 placeholder="0"
-                className="h-8 text-xs"
+                className={getFieldClassName("idade_maxima_meses", "h-8 text-xs")}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs uppercase">GANHO DE PESO ANUAL (KG)</Label>
+              <Label className="text-xs">Ganho de Peso Anual (kg) *</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={formData.ganho_peso_anual_kg}
                 onChange={(e) => handleChange("ganho_peso_anual_kg", e.target.value)}
                 placeholder="0,00"
-                className="h-8 text-xs"
+                className={getFieldClassName("ganho_peso_anual_kg", "h-8 text-xs")}
               />
             </div>
           </div>
 
           <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-3 space-y-1">
             <div>
-              <span className="font-semibold text-sm text-slate-700 uppercase">PREVISÃO DE GANHO DE PESO MENSAL (GMD)</span>
+              <span className="font-semibold text-sm text-slate-700">Previsão de Ganho de Peso Mensal (GMD)</span>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-1">
               {MESES.map((mes) => (
                 <div key={mes.field} className="space-y-1">
-                  <Label className="text-xs uppercase">{mes.label}</Label>
+                  <Label className="text-xs">{mes.label} *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData[mes.field]}
                     onChange={(e) => handleChange(mes.field, e.target.value)}
                     placeholder="0,00"
-                    className="h-8 text-xs"
+                    className={getFieldClassName(mes.field, "h-8 text-xs")}
                   />
                 </div>
               ))}
@@ -207,10 +223,10 @@ export default function FormularioCategoriaManejo({
 
           <div className="flex flex-col-reverse lg:flex-row justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-              CANCELAR
+              Cancelar
             </Button>
             <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              {isEditing ? "ATUALIZAR" : "SALVAR"}
+              {isEditing ? "Atualizar" : "Salvar"}
             </Button>
           </div>
         </form>
