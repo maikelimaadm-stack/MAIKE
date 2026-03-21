@@ -31,7 +31,7 @@ const getInitialFormData = () => ({
   gmd_setembro: "",
   gmd_outubro: "",
   gmd_novembro: "",
-  gmd_dezembro: ""
+  gmd_dezembro: "",
 });
 
 export default function CategoriasManejo() {
@@ -48,7 +48,7 @@ export default function CategoriasManejo() {
       const all = await base44.entities.CategoriaManejo.list();
       return all.filter((c) => c.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -57,7 +57,7 @@ export default function CategoriasManejo() {
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.tipo_entidade === "Lote" && i.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
   });
 
   const createMutation = useMutation({
@@ -67,7 +67,7 @@ export default function CategoriasManejo() {
       setShowForm(false);
       setEditando(null);
       toast.success("Categoria cadastrada!");
-    }
+    },
   });
 
   const updateMutation = useMutation({
@@ -79,7 +79,7 @@ export default function CategoriasManejo() {
       setShowForm(false);
       setEditando(null);
       toast.success("Categoria atualizada!");
-    }
+    },
   });
 
   const deleteMutation = useMutation({
@@ -94,25 +94,25 @@ export default function CategoriasManejo() {
     onError: (error) => {
       if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
       toast.error(error.message || "Erro ao excluir.");
-    }
+    },
   });
 
   const categoriasOficiaisDisponiveis = useMemo(() => {
     const categoriasPadrao = [
-    "Bezerro 0 a 12 meses",
-    "Bezerra 0 a 12 meses",
-    "Garrote 13 a 24 meses",
-    "Novilha 13 a 24 meses",
-    "Boi 25 a 36 meses",
-    "Vaca 25 a 36 meses",
-    "Touro + 36 meses",
-    "Vaca + 36 meses"];
+      "Bezerro 0 a 12 meses",
+      "Bezerra 0 a 12 meses",
+      "Garrote 13 a 24 meses",
+      "Novilha 13 a 24 meses",
+      "Boi 25 a 36 meses",
+      "Vaca 25 a 36 meses",
+      "Touro + 36 meses",
+      "Vaca + 36 meses",
+    ];
 
-
-    const categoriasIcones = iconesConfig.
-    filter((ic) => ic.tipo_entidade === "Lote").
-    map((ic) => ic.categoria).
-    filter((cat) => cat && cat.toUpperCase() !== "MISTO");
+    const categoriasIcones = iconesConfig
+      .filter((ic) => ic.tipo_entidade === "Lote")
+      .map((ic) => ic.categoria)
+      .filter((cat) => cat && cat.toUpperCase() !== "MISTO");
 
     return [...new Set([...categoriasPadrao, ...categoriasIcones])].sort();
   }, [iconesConfig]);
@@ -146,7 +146,7 @@ export default function CategoriasManejo() {
       gmd_outubro: formData.gmd_outubro ? parseFloat(formData.gmd_outubro) : null,
       gmd_novembro: formData.gmd_novembro ? parseFloat(formData.gmd_novembro) : null,
       gmd_dezembro: formData.gmd_dezembro ? parseFloat(formData.gmd_dezembro) : null,
-      ativo: true
+      ativo: true,
     };
 
     if (editando) {
@@ -159,64 +159,64 @@ export default function CategoriasManejo() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+        <div>
+          <h1 className="text-lg font-bold text-slate-900">Categorias de Manejo</h1>
+          <p className="text-xs text-slate-600">Cadastro e gestão das categorias de manejo</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {!showForm && (
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+            Atualizar
+          </Button>
+          {!showForm && (
+            <Button onClick={() => { setEditando(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              Nova Categoria
+            </Button>
+          )}
+        </div>
+      </div>
 
       <AnimatePresence mode="wait">
-        {showForm ?
-        <FormularioCategoriaManejo
-          initialData={editando ? {
-            ...getInitialFormData(),
-            ...editando,
-            idade_minima_meses: editando.idade_minima_meses || "",
-            idade_maxima_meses: editando.idade_maxima_meses || "",
-            ganho_peso_anual_kg: editando.ganho_peso_anual_kg || "",
-            gmd_janeiro: editando.gmd_janeiro || "",
-            gmd_fevereiro: editando.gmd_fevereiro || "",
-            gmd_marco: editando.gmd_marco || "",
-            gmd_abril: editando.gmd_abril || "",
-            gmd_maio: editando.gmd_maio || "",
-            gmd_junho: editando.gmd_junho || "",
-            gmd_julho: editando.gmd_julho || "",
-            gmd_agosto: editando.gmd_agosto || "",
-            gmd_setembro: editando.gmd_setembro || "",
-            gmd_outubro: editando.gmd_outubro || "",
-            gmd_novembro: editando.gmd_novembro || "",
-            gmd_dezembro: editando.gmd_dezembro || ""
-          } : getInitialFormData()}
-          isEditing={!!editando}
-          onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditando(null);}}
-          categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis} /> :
-
-
-        <TabelaCategoriasManejo
-          categorias={categorias}
-          onEdit={handleEdit}
-          onDelete={(id) => setDeleteConfirmId(id)}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas} />
-
-        }
+        {showForm ? (
+          <FormularioCategoriaManejo
+            initialData={editando ? {
+              ...getInitialFormData(),
+              ...editando,
+              idade_minima_meses: editando.idade_minima_meses || "",
+              idade_maxima_meses: editando.idade_maxima_meses || "",
+              ganho_peso_anual_kg: editando.ganho_peso_anual_kg || "",
+              gmd_janeiro: editando.gmd_janeiro || "",
+              gmd_fevereiro: editando.gmd_fevereiro || "",
+              gmd_marco: editando.gmd_marco || "",
+              gmd_abril: editando.gmd_abril || "",
+              gmd_maio: editando.gmd_maio || "",
+              gmd_junho: editando.gmd_junho || "",
+              gmd_julho: editando.gmd_julho || "",
+              gmd_agosto: editando.gmd_agosto || "",
+              gmd_setembro: editando.gmd_setembro || "",
+              gmd_outubro: editando.gmd_outubro || "",
+              gmd_novembro: editando.gmd_novembro || "",
+              gmd_dezembro: editando.gmd_dezembro || "",
+            } : getInitialFormData()}
+            isEditing={!!editando}
+            onSubmit={handleSubmit}
+            onCancel={() => { setShowForm(false); setEditando(null); }}
+            categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis}
+          />
+        ) : (
+          <TabelaCategoriasManejo
+            categorias={categorias}
+            onEdit={handleEdit}
+            onDelete={(id) => setDeleteConfirmId(id)}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas}
+          />
+        )}
       </AnimatePresence>
 
       <ConfirmDialog
@@ -230,8 +230,8 @@ export default function CategoriasManejo() {
         }}
         confirmText="Excluir"
         cancelText="Cancelar"
-        variant="destructive" />
-      
-    </div>);
-
+        variant="destructive"
+      />
+    </div>
+  );
 }
