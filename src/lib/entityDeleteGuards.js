@@ -1,3 +1,5 @@
+import { emitDeleteDialog } from "@/lib/deleteDialogBus";
+
 const ENTITY_LABELS = {
   Empresa: "empresa",
   Setor: "setor",
@@ -224,7 +226,9 @@ export async function ensureDeleteAllowed(base44, entityName, id) {
   const entityLabel = ENTITY_LABELS[entityName] || "registro";
   const total = blockedBy.linkedCount;
   const registroTexto = total === 1 ? "1 registro vinculado" : `${total} registros vinculados`;
-  throw new Error(`Não é possível excluir este ${entityLabel} porque existem ${registroTexto} em ${blockedBy.label}.`);
+  const message = `Não é possível excluir este ${entityLabel} porque existem ${registroTexto} em ${blockedBy.label}.`;
+  emitDeleteDialog(message);
+  throw new Error(message);
 }
 
 export function applyDeleteGuards(base44) {
