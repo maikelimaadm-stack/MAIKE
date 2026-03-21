@@ -7,10 +7,13 @@ import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
   const [editingLote, setEditingLote] = useState(null);
+  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -39,7 +42,6 @@ export default function CadastroLotes() {
     initialData: [],
   });
 
-  // Busca movimentações de AMBAS as fontes para saber quais lotes têm registros filhos
   const { data: lotesComMovimentacoes = [] } = useQuery({
     queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
     queryFn: async () => {
@@ -67,7 +69,7 @@ export default function CadastroLotes() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote cadastrado!');
@@ -75,9 +77,17 @@ export default function CadastroLotes() {
   });
 
   const updateLoteMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Lote.update(id, data),
+    mutationFn: async ({ id, data, oldData }) => {
+      const updated = await base44.entities.Lote.update(id, data);
+      await base44.functions.invoke('syncEntityReferences', {
+        event: { type: 'update', entity_name: 'Lote' },
+        data: updated,
+        old_data: oldData,
+      });
+      return updated;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote atualizado!');
@@ -86,36 +96,43 @@ export default function CadastroLotes() {
 
   const deleteLoteMutation = useMutation({
     mutationFn: (id) => base44.entities.Lote.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      toast.success('Lote excluído!');
-    },
   });
 
   const handleSubmit = (data) => {
     if (editingLote) {
-      updateLoteMutation.mutate({ id: editingLote.id, data });
+      updateLoteMutation.mutate({ id: editingLote.id, data, oldData: editingLote });
     } else {
       createLoteMutation.mutate(data);
     }
   };
 
   const handleEdit = (lote) => {
-    if (lotesComMovimentacoes.includes(lote.id)) {
-      toast.error('Este lote possui movimentações registradas e não pode ser editado.');
-      return;
-    }
     setEditingLote(lote);
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (lotesComMovimentacoes.includes(id)) {
-      toast.error('Este lote possui movimentações registradas e não pode ser excluído.');
-      return;
+  const handleRequestDelete = (ids) => {
+    setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
+  };
+
+  const handleConfirmDelete = async () => {
+    const ids = deleteState.ids;
+    setDeleteState({ open: false, ids: [] });
+
+    let deletedCount = 0;
+
+    for (const id of ids) {
+      try {
+        await ensureDeleteAllowed(base44, 'Lote', id);
+        await deleteLoteMutation.mutateAsync(id);
+        deletedCount += 1;
+      } catch {
+      }
     }
-    if (window.confirm('Deseja realmente excluir este lote?')) {
-      deleteLoteMutation.mutate(id);
+
+    if (deletedCount > 0) {
+      queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      toast.success(deletedCount === 1 ? 'Lote excluído!' : `${deletedCount} lotes excluídos!`);
     }
   };
 
@@ -137,19 +154,19 @@ export default function CadastroLotes() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Cadastro de Lotes</h1>
-          <p className="text-xs text-slate-600">Registro fixo de entrada de lotes — dados não são alterados por movimentações</p>
+          <h1 className="text-lg font-bold text-slate-900">Cadastro de Lotes</h1>
+          <p className="text-xs text-slate-600">Registro fixo de entrada de lotes e manutenção do cadastro.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
-            <Download className="w-3.5 h-3.5 mr-1" /> Exportar
+            <Download className="w-3.5 h-3.5" /> Exportar
           </Button>
           {!showForm && (
             <Button onClick={() => { setShowForm(true); setEditingLote(null); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Novo Lote
+              <Plus className="w-3.5 h-3.5" /> Novo Lote
             </Button>
           )}
         </div>
@@ -170,11 +187,22 @@ export default function CadastroLotes() {
             lotes={lotes}
             areas={areas}
             onEdit={handleEdit}
-            onDelete={handleDelete}
+            onDelete={handleRequestDelete}
             lotesComMovimentacoes={lotesComMovimentacoes}
           />
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={deleteState.open}
+        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
+        title="Confirmar exclusão"
+        description={deleteState.ids.length > 1 ? `Deseja realmente excluir ${deleteState.ids.length} lotes selecionados?` : 'Deseja realmente excluir este lote?'}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

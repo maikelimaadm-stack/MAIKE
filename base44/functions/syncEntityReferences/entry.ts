@@ -262,6 +262,40 @@ const PROPAGATION_RULES = {
       },
     },
   ],
+  Lote: [
+    {
+      entity: 'MovimentacaoMapa',
+      matchType: 'id',
+      queryField: 'lote_id',
+      fieldMap: {
+        lote: 'nome',
+      },
+    },
+    {
+      entity: 'SuplementacaoLote',
+      matchType: 'id',
+      queryField: 'lote_id',
+      fieldMap: {
+        lote_nome: 'nome',
+      },
+    },
+    {
+      entity: 'LancamentoTarefa',
+      matchType: 'id',
+      queryField: 'lote_id',
+      fieldMap: {
+        lote_nome: 'nome',
+      },
+    },
+    {
+      entity: 'TarefaMapa',
+      matchType: 'id',
+      queryField: 'lote_id',
+      fieldMap: {
+        lote_nome: 'nome',
+      },
+    },
+  ],
 };
 
 function normalizeValue(value) {
