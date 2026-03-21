@@ -34,6 +34,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: "observacoes", label: "Observações", default: false, sortable: false, align: "left" },
 ];
 
+const VALOR_TODOS = "__TODOS__";
+
 const formatarData = (data) => {
   if (!data) return "-";
   const [ano, mes, dia] = String(data).split("T")[0].split("-");
