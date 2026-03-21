@@ -188,6 +188,31 @@ export default function TiposTarefa() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este tipo de tarefa? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          excluir(deleteConfirmId);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Confirmar exclusão"
+        description={`Tem certeza que deseja excluir ${selected.length} registro(s)? Esta ação não pode ser desfeita.`}
+        onConfirm={excluirSelecionados}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 }

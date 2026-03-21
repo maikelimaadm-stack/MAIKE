@@ -136,6 +136,20 @@ export default function LancamentosTarefas() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTask}
+        onOpenChange={() => setDeleteTask(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          deleteMutation.mutate(deleteTask);
+          setDeleteTask(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 }
