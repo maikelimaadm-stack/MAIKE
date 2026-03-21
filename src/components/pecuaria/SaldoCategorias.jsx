@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Scale, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function SaldoCategorias({ movimentacoes = [] }) {
   const [isVisible, setIsVisible] = useState(() => {
@@ -89,28 +88,26 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
 
   return (
     <Card className="shadow-sm border-slate-200 mb-4">
-      <CardHeader className="bg-slate-50 border-b py-2 px-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Scale className="w-4 h-4" />
-            Saldo por Categoria / Marca
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">
-              Total: {totalGeral.toLocaleString('pt-BR')} cab
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggle}
-              className="h-7 gap-1 text-xs"
-            >
-              {isVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {isVisible ? 'Ocultar' : 'Mostrar'}
-            </Button>
+    <CardHeader className="bg-slate-50 border-b py-2 px-4">
+      <div className="flex items-center justify-between">
+        <CardTitle className="text-sm font-semibold text-slate-900">
+          Saldo por Categoria / Marca
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <div className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">
+            Total: {totalGeral.toLocaleString('pt-BR')} cab
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggle}
+            className="h-7 text-xs"
+          >
+            {isVisible ? 'Ocultar' : 'Mostrar'}
+          </Button>
         </div>
-      </CardHeader>
+      </div>
+    </CardHeader>
       {isVisible && (
         <CardContent className="p-0">
           <div className="overflow-auto">

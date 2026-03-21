@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Save, X, Plus, AlertTriangle } from "lucide-react";
+
 import { toast } from "sonner";
 import ComboboxComNovo from "./ComboboxComNovo";
 
@@ -41,6 +41,8 @@ const MOTIVOS_SAIDA = [
 export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
+
+  const [invalidFields, setInvalidFields] = useState([]);
 
   const [formData, setFormData] = useState({
     tipo: item?.tipo || "",
@@ -510,28 +512,25 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     }
   });
 
+  const getFieldClassName = (field, baseClass = "") => {
+    return `${baseClass} ${invalidFields.includes(field) ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validar setor (obrigatório exceto para transferência entre setores)
-    if (formData.motivo !== "Transferência entre Setores" && !formData.setor_id) {
-      toast.error('Selecione o setor/fazenda');
-      return;
-    }
-    if (!formData.tipo) {
-      toast.error('Selecione o tipo de movimentação');
-      return;
-    }
-    if (!formData.quantidade_animais || formData.quantidade_animais < 1) {
-      toast.error('Informe a quantidade de animais');
-      return;
-    }
-    if (!formData.categoria_animal) {
-      toast.error('Selecione a categoria');
-      return;
-    }
-    if (!formData.marca) {
-      toast.error('Selecione a marca');
+    const missingFields = [];
+    if (formData.motivo !== "Transferência entre Setores" && !formData.setor_id) missingFields.push('setor_id');
+    if (!formData.tipo) missingFields.push('tipo');
+    if (!formData.motivo) missingFields.push('motivo');
+    if (!formData.data_movimentacao) missingFields.push('data_movimentacao');
+    if (!formData.quantidade_animais || formData.quantidade_animais < 1) missingFields.push('quantidade_animais');
+    if (!formData.categoria_animal) missingFields.push('categoria_animal');
+    if (!formData.marca) missingFields.push('marca');
+
+    if (missingFields.length > 0) {
+      setInvalidFields(missingFields);
+      toast.error('PREENCHA OS CAMPOS OBRIGATÓRIOS.');
       return;
     }
 
@@ -550,30 +549,30 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       }
     }
 
+    setInvalidFields([]);
     createMutation.mutate(formData);
   };
 
   return (
-    <Card className="shadow-lg border-slate-200">
+    <Card className="shadow-sm border-slate-300">
       <CardHeader className="bg-slate-50 border-b py-3 px-4">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Plus className="w-4 h-4" />
+        <CardTitle className="text-sm font-semibold text-slate-700">
           {item ? 'Editar Movimentação' : 'Novo Lançamento Manual'}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-1">
           {/* Linha 0: Setor - OBRIGATÓRIO */}
           {formData.motivo !== "Transferência entre Setores" && (
             <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1 md:col-span-2">
-                  <Label className="text-sm font-medium">Setor / Fazenda *</Label>
+                  <Label className="text-xs">Setor / Fazenda *</Label>
                   <Select 
                     value={formData.setor_id} 
-                    onValueChange={(v) => setFormData({ ...formData, setor_id: v, categoria_animal: "", marca: "" })}
+                    onValueChange={(v) => { setFormData({ ...formData, setor_id: v, categoria_animal: "", marca: "" }); setInvalidFields((prev) => prev.filter((item) => item !== 'setor_id')); }}
                   >
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className={getFieldClassName('setor_id', 'h-8 text-xs')}>
                       <SelectValue placeholder="Selecione o setor primeiro" />
                     </SelectTrigger>
                     <SelectContent>
@@ -616,11 +615,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           )}
 
           {/* Linha 1: Tipo, Motivo, Data, Quantidade */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Tipo *</Label>
-              <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v, motivo: "" })}>
-                <SelectTrigger className="h-9 text-sm">
+              <Label className="text-xs">Tipo *</Label>
+              <Select value={formData.tipo} onValueChange={(v) => { setFormData({ ...formData, tipo: v, motivo: "" }); setInvalidFields((prev) => prev.filter((item) => item !== 'tipo')); }}>
+                <SelectTrigger className={getFieldClassName('tipo', 'h-8 text-xs')}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -634,16 +633,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Motivo *</Label>
+              <Label className="text-xs">Motivo *</Label>
               <Select value={formData.motivo} onValueChange={(v) => {
-                // Se for transferência entre setores, puxar o setor já selecionado como origem
                 if (v === "Transferência entre Setores" && formData.setor_id) {
                   setFormData({ ...formData, motivo: v, setor_origem_id: formData.setor_id });
                 } else {
                   setFormData({ ...formData, motivo: v });
                 }
+                setInvalidFields((prev) => prev.filter((item) => item !== 'motivo'));
               }}>
-                <SelectTrigger className="h-9 text-sm">
+                <SelectTrigger className={getFieldClassName('motivo', 'h-8 text-xs')}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -659,25 +658,23 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Data *</Label>
+              <Label className="text-xs">Data *</Label>
               <Input
                 type="date"
                 value={formData.data_movimentacao}
-                onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })}
-                className="h-9 text-sm"
-                required
+                onChange={(e) => { setFormData({ ...formData, data_movimentacao: e.target.value }); setInvalidFields((prev) => prev.filter((item) => item !== 'data_movimentacao')); }}
+                className={getFieldClassName('data_movimentacao', 'h-8 text-xs')}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Qtd Animais *</Label>
+              <Label className="text-xs">Qtd Animais *</Label>
               <Input
                 type="number"
                 min="1"
                 value={formData.quantidade_animais}
-                onChange={(e) => setFormData({ ...formData, quantidade_animais: e.target.value })}
-                className="h-9 text-sm"
-                required
+                onChange={(e) => { setFormData({ ...formData, quantidade_animais: e.target.value }); setInvalidFields((prev) => prev.filter((item) => item !== 'quantidade_animais')); }}
+                className={getFieldClassName('quantidade_animais', 'h-8 text-xs')}
               />
             </div>
 
@@ -710,7 +707,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           {formData.motivo !== "Mudança de Categoria" && (
           <div className={`grid grid-cols-2 ${formData.tipo === "Entrada" ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Categoria *</Label>
+              <Label className="text-xs">Categoria *</Label>
               {formData.tipo === "Saída" ? (
                 // Na saída, mostrar apenas categorias que têm saldo > 0 NO SETOR SELECIONADO
                 <Select 
@@ -784,7 +781,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             {/* Marca na Saída - baseado no SETOR + CATEGORIA selecionados */}
             {formData.tipo === "Saída" && (
               <div className="space-y-1">
-                <Label className="text-sm font-medium">Marca *</Label>
+                <Label className="text-xs">Marca *</Label>
                 <Select 
                   value={formData.marca} 
                   onValueChange={(v) => setFormData({ ...formData, marca: v })}
@@ -827,7 +824,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             {formData.tipo === "Entrada" && (
               <>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Marca *</Label>
+                  <Label className="text-xs">Marca *</Label>
                   <ComboboxComNovo
                     value={formData.marca}
                     onChange={(v) => setFormData({ ...formData, marca: v })}
@@ -921,7 +918,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 </div>
                 
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Marca *</Label>
+                  <Label className="text-xs">Marca *</Label>
                   <Select 
                     value={formData.marca} 
                     onValueChange={(v) => setFormData({ ...formData, marca: v })}

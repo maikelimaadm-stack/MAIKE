@@ -92,7 +92,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'responsavel', label: 'Responsável', default: false, sortable: true },
 ];
 
-const ITEMS_PER_PAGE = 50;
+const DEFAULT_ITEMS_PER_PAGE = 50;
 
 const tipoColors = {
   'Entrada': 'bg-green-100 text-green-800 border-green-300',
@@ -105,6 +105,7 @@ export default function HistoricoMovimentacoesPecuaria() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [editando, setEditando] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
@@ -283,9 +284,9 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const getSortIcon = (field) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3 h-3 ml-1" />
-      : <ArrowDown className="w-3 h-3 ml-1" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   // Valores únicos para filtros
@@ -447,9 +448,9 @@ export default function HistoricoMovimentacoesPecuaria() {
     return 0;
   });
 
-  const totalPages = Math.ceil(sortedMovimentacoes.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const totalPages = Math.max(1, Math.ceil(sortedMovimentacoes.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
   const paginatedMovimentacoes = sortedMovimentacoes.slice(startIndex, endIndex);
 
   const toggleSelectAll = () => {
@@ -829,72 +830,75 @@ export default function HistoricoMovimentacoesPecuaria() {
   const renderCell = (coluna, mov) => {
     switch (coluna.id) {
       case 'numero':
-        return <TableCell className="text-xs font-mono font-bold text-slate-700 border-r border-slate-200">{mov.numero_movimentacao || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 font-mono font-bold text-slate-700">{mov.numero_movimentacao || '-'}</TableCell>;
       case 'data':
-        return <TableCell className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_movimentacao)}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{formatarDataSimples(mov.data_movimentacao)}</TableCell>;
       case 'tipo':
         return (
-          <TableCell className="border-r border-slate-200">
+          <TableCell className="text-xs py-2 px-3">
             <Badge variant="outline" className={`${tipoColors[mov.tipo] || 'bg-slate-100 text-slate-800'} text-xs`}>
               {mov.tipo}
             </Badge>
           </TableCell>
         );
       case 'motivo':
-        return <TableCell className="text-xs font-medium border-r border-slate-200">{mov.motivo || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 font-medium">{mov.motivo || '-'}</TableCell>;
       case 'quantidade':
-        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{mov.quantidade_animais} cab</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 text-right font-mono font-semibold text-emerald-700">{mov.quantidade_animais} cab</TableCell>;
       case 'categoria':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.categoria_animal || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.categoria_animal || '-'}</TableCell>;
       case 'categoria_nova':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.categoria_nova || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.categoria_nova || '-'}</TableCell>;
       case 'marca':
-        return <TableCell className="text-xs font-semibold text-blue-700 border-r border-slate-200">{mov.marca || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 font-semibold text-blue-700">{mov.marca || '-'}</TableCell>;
       case 'sexo':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.sexo || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.sexo || '-'}</TableCell>;
       case 'peso_medio':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? `${formatarNumero(mov.peso_medio)} kg` : '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 text-right font-mono">{mov.peso_medio ? `${formatarNumero(mov.peso_medio)} kg` : '-'}</TableCell>;
       case 'peso_total':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_total ? `${formatarNumero(mov.peso_total)} kg` : '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 text-right font-mono">{mov.peso_total ? `${formatarNumero(mov.peso_total)} kg` : '-'}</TableCell>;
       case 'area':
         const areaExibir = mov.tipo === 'Entrada' ? mov.area_destino_nome : mov.area_origem_nome;
-        return <TableCell className="text-xs border-r border-slate-200">{areaExibir || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{areaExibir || '-'}</TableCell>;
       case 'valor_unitario':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.valor_unitario ? `R$ ${mov.valor_unitario.toFixed(2)}` : '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 text-right font-mono">{mov.valor_unitario ? `R$ ${mov.valor_unitario.toFixed(2)}` : '-'}</TableCell>;
       case 'valor_total':
-        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{mov.valor_total ? `R$ ${mov.valor_total.toFixed(2)}` : '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 text-right font-mono font-semibold text-emerald-700">{mov.valor_total ? `R$ ${mov.valor_total.toFixed(2)}` : '-'}</TableCell>;
       case 'fornecedor':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_origem || mov.destino_venda || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.fornecedor_origem || mov.destino_venda || '-'}</TableCell>;
       case 'nota_fiscal':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.nota_fiscal || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 font-mono">{mov.nota_fiscal || '-'}</TableCell>;
       case 'gta':
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.gta || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 font-mono">{mov.gta || '-'}</TableCell>;
       case 'causa_morte':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.causa_morte || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.causa_morte || '-'}</TableCell>;
       case 'destino_abate':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.destino_abate || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.destino_abate || '-'}</TableCell>;
       case 'transferencia_origem':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.transferencia_origem || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.transferencia_origem || '-'}</TableCell>;
       case 'transferencia_destino':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.transferencia_destino || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.transferencia_destino || '-'}</TableCell>;
       case 'observacoes':
-        return <TableCell className="text-xs border-r border-slate-200 max-w-[200px] truncate" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3 max-w-[200px] truncate" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':
-        return <TableCell className="text-xs border-r border-slate-200">{mov.created_by || '-'}</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">{mov.created_by || '-'}</TableCell>;
       default:
-        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+        return <TableCell className="text-xs py-2 px-3">-</TableCell>;
     }
   };
 
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showNovoLancamento && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Histórico de Movimentações</h1>
+            <h1 className="text-lg font-bold text-slate-900">Histórico de Movimentações</h1>
             <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
+              Colunas
+            </Button>
             <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
               Modelo
             </Button>
@@ -986,11 +990,11 @@ export default function HistoricoMovimentacoesPecuaria() {
               <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="h-8 text-xs" placeholder="Data início" />
               <Input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} className="h-8 text-xs" placeholder="Data fim" />
             </div>
-            <div className="flex justify-between items-center mt-2">
+            <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
               <div className="text-xs text-slate-500">
                 {filteredMovimentacoes.length} de {movimentacoes.length} registros
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {selectedItems.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -998,11 +1002,11 @@ export default function HistoricoMovimentacoesPecuaria() {
                         Ações ({selectedItems.length})
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent>
                       <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
-                        Excluir Todos
+                        Excluir Selecionados
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
@@ -1020,40 +1024,28 @@ export default function HistoricoMovimentacoesPecuaria() {
         </Card>
       )}
 
-      {!showNovoLancamento && <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              Movimentações ({filteredMovimentacoes.length})
-            </CardTitle>
-            <div className="flex gap-2 items-center">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
-                Colunas
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-
+      {!showNovoLancamento && <Card>
         <CardContent className="p-0">
-          <div className="overflow-auto">
+          <div className="overflow-auto max-h-[500px]">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-8 text-xs border-r border-slate-200">
+                <TableRow className="bg-white border-b">
+                  <TableHead className="text-xs py-2 px-2">
                     <Checkbox
                       checked={selectedItems.length === paginatedMovimentacoes.length && paginatedMovimentacoes.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  <TableHead className="text-xs py-2 px-2"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
+                    const isRight = ['quantidade', 'peso_medio', 'peso_total', 'valor_unitario', 'valor_total'].includes(coluna.id);
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        className={`text-xs py-2 px-3 ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : ''}`}
                         onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
-                        <div className="flex items-center">
+                        <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : 'justify-start'}`}>
                           {coluna.label}
                           {coluna.sortable && getSortIcon(coluna.id)}
                         </div>
@@ -1066,11 +1058,11 @@ export default function HistoricoMovimentacoesPecuaria() {
                 <AnimatePresence>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                      <TableCell colSpan={50} className="text-center py-8 text-xs text-slate-400">Carregando...</TableCell>
                     </TableRow>
                   ) : paginatedMovimentacoes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhuma movimentação</TableCell>
+                      <TableCell colSpan={50} className="text-center py-8 text-xs text-slate-400">Nenhuma movimentação</TableCell>
                     </TableRow>
                   ) : (
                     paginatedMovimentacoes.map((mov) => (
@@ -1079,15 +1071,15 @@ export default function HistoricoMovimentacoesPecuaria() {
                         initial={{ opacity: 0 }} 
                         animate={{ opacity: 1 }} 
                         exit={{ opacity: 0 }} 
-                        className="hover:bg-slate-50 transition-colors border-b"
+                        className="hover:bg-gray-50 border-b"
                       >
-                        <TableCell className="border-r border-slate-200">
+                        <TableCell className="text-xs py-2 px-2">
                           <Checkbox
                             checked={selectedItems.includes(mov.id)}
                             onCheckedChange={() => toggleSelectItem(mov.id)}
                           />
                         </TableCell>
-                        <TableCell className="text-center border-r border-slate-200">
+                        <TableCell className="text-xs py-2 px-2 text-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -1110,14 +1102,12 @@ export default function HistoricoMovimentacoesPecuaria() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => { 
-                                  // Duplicar: copia os dados sem o id para abrir no formulário como novo
                                   const { id, numero_movimentacao, created_date, updated_date, created_by, ...dadosDuplicados } = mov;
                                   setItemEditandoManual({ ...dadosDuplicados, data_movimentacao: new Date().toISOString(), _isDuplicate: true }); 
                                   setShowNovoLancamento(true); 
                                 }} 
                                 className="text-xs"
                               >
-                                <Copy className="w-3 h-3 mr-1" />
                                 Duplicar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -1140,35 +1130,26 @@ export default function HistoricoMovimentacoesPecuaria() {
             </Table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-end px-4 py-3 border-t border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-600 mr-2">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="h-7 text-xs"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="h-7 text-xs"
-                >
-                  Próxima
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+          <div className="flex items-center justify-between p-3 border-t">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Itens por página:</span>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+                <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="h-7 text-xs">
+                Anterior
+              </Button>
+              <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="h-7 text-xs">
+                Próxima
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>}
 
