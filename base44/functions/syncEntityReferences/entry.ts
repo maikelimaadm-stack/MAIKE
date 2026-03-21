@@ -294,12 +294,33 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'value',
+      sourceField: 'categoria_oficial',
+      matchFields: ['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'],
+      fieldMap: {
+        categoria_animal: 'categoria_oficial',
+        categoria_nova: 'categoria_oficial',
+        transferencia_origem: 'categoria_oficial',
+        transferencia_destino: 'categoria_oficial',
+      },
+    },
+    {
       entity: 'SuplementacaoLote',
       matchType: 'value',
       sourceField: 'nome',
       matchFields: ['categoria'],
       fieldMap: {
         categoria: 'nome',
+      },
+    },
+    {
+      entity: 'SuplementacaoLote',
+      matchType: 'value',
+      sourceField: 'categoria_oficial',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'categoria_oficial',
       },
     },
   ],
