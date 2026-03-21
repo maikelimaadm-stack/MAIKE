@@ -11,8 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import ConfiguracaoColunasSetoresDialog from "@/components/setores/ConfiguracaoColunasSetoresDialog";
@@ -20,18 +20,18 @@ import ConfiguracaoColunasSetoresDialog from "@/components/setores/ConfiguracaoC
 const VALOR_TODOS = "__TODOS__";
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true },
-  { id: "acoes", label: "Ações", default: true, fixo: true },
-  { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left" },
-  { id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
-  { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left" },
-  { id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
-  { id: "cidade", label: "Cidade/UF", default: true, sortable: true, align: "left" },
-  { id: "area_total", label: "Área (ha)", default: true, sortable: true, align: "right" },
-  { id: "capacidade_animais", label: "Capacidade", default: true, sortable: true, align: "right" },
-  { id: "telefone", label: "Telefone", default: false, sortable: true, align: "left" },
-  { id: "ativo", label: "Status", default: true, sortable: true, align: "left" },
-];
+{ id: "selecao", label: "Seleção", default: true, fixo: true },
+{ id: "acoes", label: "Ações", default: true, fixo: true },
+{ id: "sigla", label: "Sigla", default: true, sortable: true, align: "left" },
+{ id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
+{ id: "tipo", label: "Tipo", default: true, sortable: true, align: "left" },
+{ id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
+{ id: "cidade", label: "Cidade/UF", default: true, sortable: true, align: "left" },
+{ id: "area_total", label: "Área (ha)", default: true, sortable: true, align: "right" },
+{ id: "capacidade_animais", label: "Capacidade", default: true, sortable: true, align: "right" },
+{ id: "telefone", label: "Telefone", default: false, sortable: true, align: "left" },
+{ id: "ativo", label: "Status", default: true, sortable: true, align: "left" }];
+
 
 export default function TabelaSetores({
   setores,
@@ -39,7 +39,7 @@ export default function TabelaSetores({
   onEdit,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas,
+  setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(VALOR_TODOS);
@@ -84,9 +84,9 @@ export default function TabelaSetores({
   const estados = useMemo(() => [...new Set(setores.map((item) => item.estado).filter(Boolean))].sort(), [setores]);
 
   const toggleColuna = (colunaId) => {
-    const novasColunas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter((id) => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novasColunas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
     setColunasVisiveis(novasColunas);
     localStorage.setItem("colunas_visiveis_setores", JSON.stringify(novasColunas));
   };
@@ -101,26 +101,26 @@ export default function TabelaSetores({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id))
-      .filter((c) => c && colunasVisiveis.includes(c.id));
+    return colunasOrdem.
+    map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).
+    filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis]);
 
   const setoresFiltrados = useMemo(() => {
     return setores.filter((item) => {
       const termo = searchTerm.toLowerCase();
       const matchSearch =
-        !termo ||
-        item.nome?.toLowerCase().includes(termo) ||
-        item.sigla?.toLowerCase().includes(termo) ||
-        item.tipo?.toLowerCase().includes(termo) ||
-        item.cidade?.toLowerCase().includes(termo);
+      !termo ||
+      item.nome?.toLowerCase().includes(termo) ||
+      item.sigla?.toLowerCase().includes(termo) ||
+      item.tipo?.toLowerCase().includes(termo) ||
+      item.cidade?.toLowerCase().includes(termo);
       const matchTipo = filtroTipo === VALOR_TODOS || item.tipo === filtroTipo;
       const matchEstado = filtroEstado === VALOR_TODOS || item.estado === filtroEstado;
       const matchStatus =
-        filtroStatus === VALOR_TODOS ||
-        (filtroStatus === "Ativo" && item.ativo !== false) ||
-        (filtroStatus === "Inativo" && item.ativo === false);
+      filtroStatus === VALOR_TODOS ||
+      filtroStatus === "Ativo" && item.ativo !== false ||
+      filtroStatus === "Inativo" && item.ativo === false;
       return matchSearch && matchTipo && matchEstado && matchStatus;
     });
   }, [setores, searchTerm, filtroTipo, filtroEstado, filtroStatus]);
@@ -167,7 +167,7 @@ export default function TabelaSetores({
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
     }));
   };
 
@@ -176,8 +176,8 @@ export default function TabelaSetores({
       return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
-      <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
-      <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -215,18 +215,18 @@ export default function TabelaSetores({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Card>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <CardContent className="p-">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
               <div className="md:col-span-2 space-y-1">
                 <Label className="text-xs">Buscar</Label>
                 <Input
                   placeholder="Buscar setor, sigla, cidade..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8 text-xs"
-                />
+                  className="h-8 text-xs" />
+                
               </div>
 
               <div className="space-y-1">
@@ -235,9 +235,9 @@ export default function TabelaSetores({
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    {tipos.map((item) => (
-                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
-                    ))}
+                    {tipos.map((item) =>
+                    <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -248,9 +248,9 @@ export default function TabelaSetores({
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    {estados.map((item) => (
-                      <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
-                    ))}
+                    {estados.map((item) =>
+                    <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -273,8 +273,8 @@ export default function TabelaSetores({
                 {setoresFiltrados.length} de {setores.length} registros
               </div>
               <div className="flex gap-2 flex-wrap">
-                {selectedItems.length > 0 && (
-                  <DropdownMenu>
+                {selectedItems.length > 0 &&
+                <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-7 text-xs">
                         Ações ({selectedItems.length})
@@ -292,7 +292,7 @@ export default function TabelaSetores({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
+                }
                 <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
                   Limpar Filtros
                 </Button>
@@ -313,10 +313,10 @@ export default function TabelaSetores({
                           <TableHead key="selecao" className="text-xs py-2 px-2">
                             <Checkbox
                               checked={selectedItems.length === setoresFiltrados.length && setoresFiltrados.length > 0}
-                              onCheckedChange={toggleSelectAll}
-                            />
-                          </TableHead>
-                        );
+                              onCheckedChange={toggleSelectAll} />
+                            
+                          </TableHead>);
+
                       }
 
                       if (coluna.id === "acoes") {
@@ -328,49 +328,49 @@ export default function TabelaSetores({
                         <TableHead
                           key={coluna.id}
                           className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
-                          onClick={() => coluna.sortable && handleSort(coluna.id)}
-                        >
+                          onClick={() => coluna.sortable && handleSort(coluna.id)}>
+                          
                           <div className={`flex items-center gap-1 ${isRight ? "justify-end" : "justify-start"}`}>
                             {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                           </div>
-                        </TableHead>
-                      );
+                        </TableHead>);
+
                     })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow>
+                  {isLoading ?
+                  <TableRow>
                       <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400">
                         Carregando...
                       </TableCell>
-                    </TableRow>
-                  ) : setoresPaginados.length === 0 ? (
-                    <TableRow>
+                    </TableRow> :
+                  setoresPaginados.length === 0 ?
+                  <TableRow>
                       <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400">
                         Nenhum setor encontrado
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    setoresPaginados.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-gray-50 border-b">
-                        {colunasOrdenadas.map((coluna) => {
-                          if (coluna.id === "selecao") {
-                            return (
-                              <TableCell key={`${item.id}-selecao`} className="text-xs py-2 px-2">
-                                <Checkbox
-                                  checked={selectedItems.includes(item.id)}
-                                  onCheckedChange={() => {
-                                    setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                                  }}
-                                />
-                              </TableCell>
-                            );
-                          }
+                    </TableRow> :
 
-                          if (coluna.id === "acoes") {
-                            return (
-                              <TableCell key={`${item.id}-acoes`} className="text-xs py-2 px-2 text-center">
+                  setoresPaginados.map((item) =>
+                  <TableRow key={item.id} className="hover:bg-gray-50 border-b">
+                        {colunasOrdenadas.map((coluna) => {
+                      if (coluna.id === "selecao") {
+                        return (
+                          <TableCell key={`${item.id}-selecao`} className="text-xs py-2 px-2">
+                                <Checkbox
+                              checked={selectedItems.includes(item.id)}
+                              onCheckedChange={() => {
+                                setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
+                              }} />
+                            
+                              </TableCell>);
+
+                      }
+
+                      if (coluna.id === "acoes") {
+                        return (
+                          <TableCell key={`${item.id}-acoes`} className="text-xs py-2 px-2 text-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -387,22 +387,22 @@ export default function TabelaSetores({
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                              </TableCell>
-                            );
-                          }
+                              </TableCell>);
 
-                          return (
-                            <TableCell
-                              key={`${item.id}-${coluna.id}`}
-                              className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
-                            >
+                      }
+
+                      return (
+                        <TableCell
+                          key={`${item.id}-${coluna.id}`}
+                          className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>
+                          
                               {renderCell(item, coluna.id)}
-                            </TableCell>
-                          );
-                        })}
+                            </TableCell>);
+
+                    })}
                       </TableRow>
-                    ))
-                  )}
+                  )
+                  }
                 </TableBody>
               </Table>
             </div>
@@ -410,12 +410,12 @@ export default function TabelaSetores({
             <div className="flex items-center justify-between p-3 border-t">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Itens por página:</span>
-                <Select value={String(itemsPerPage)} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
+                <Select value={String(itemsPerPage)} onValueChange={(value) => {setItemsPerPage(Number(value));setCurrentPage(1);}}>
                   <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[25, 50, 100, 200].map((numero) => (
-                      <SelectItem key={numero} value={String(numero)}>{numero}</SelectItem>
-                    ))}
+                    {[25, 50, 100, 200].map((numero) =>
+                    <SelectItem key={numero} value={String(numero)}>{numero}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -440,8 +440,8 @@ export default function TabelaSetores({
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd}
-      />
-    </>
-  );
+        handleDragEnd={handleDragEnd} />
+      
+    </>);
+
 }
