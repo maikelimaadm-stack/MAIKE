@@ -440,6 +440,10 @@ export default function Layout({ children, currentPageName }) {
     });
   }, [menuItems]);
 
+  const allowedMobilePageIds = React.useMemo(() => {
+    return new Set(flattenMenuPages(menuItemsFiltered).map((page) => page.id));
+  }, [menuItemsFiltered]);
+
   useEffect(() => {
     if (!currentMenuPage) return;
     if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) return;
@@ -978,7 +982,7 @@ export default function Layout({ children, currentPageName }) {
           <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-5 gap-3">
             {fixedMobileNavPages.map((page) => {
             const isCurrent = location.pathname === createPageUrl(page.url);
-            const hasAccess = canAccessPage(normalizedPermissions, page.id, page.moduleId);
+            const hasAccess = allowedMobilePageIds.has(page.id);
             const Icon = page.Icon;
 
             return hasAccess ? (
