@@ -162,12 +162,20 @@ export default function CadastroLotes() {
           <p className="text-xs text-slate-600">Registro fixo de entrada de lotes e manutenção do cadastro.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!showForm && (
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+            Atualizar
+          </Button>
           <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
-            <Download className="w-3.5 h-3.5" /> Exportar
+            Exportar
           </Button>
           {!showForm && (
             <Button onClick={() => { setShowForm(true); setEditingLote(null); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-3.5 h-3.5" /> Novo Lote
+              Novo Lote
             </Button>
           )}
         </div>
