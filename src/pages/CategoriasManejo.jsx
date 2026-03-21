@@ -170,11 +170,11 @@ export default function CategoriasManejo() {
               <Settings className="w-4 h-4" />
             </Button>
           }
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
-            Atualizar
-          </Button>
+          
+
+          
           {!showForm &&
-          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
               Nova Categoria
             </Button>
           }
