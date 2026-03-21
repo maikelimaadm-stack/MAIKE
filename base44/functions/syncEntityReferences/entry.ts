@@ -282,6 +282,26 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'Lote',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['categoria_manejo_nome', 'categoria_manejo_entrada_nome'],
+      fieldMap: {
+        categoria_manejo_nome: 'nome',
+        categoria_manejo_entrada_nome: 'nome',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'value',
+      sourceField: 'categoria_oficial',
+      matchFields: ['categoria', 'categoria_entrada'],
+      fieldMap: {
+        categoria: 'categoria_oficial',
+        categoria_entrada: 'categoria_oficial',
+      },
+    },
+    {
       entity: 'MovimentacaoPecuaria',
       matchType: 'value',
       sourceField: 'nome',
@@ -303,6 +323,42 @@ const PROPAGATION_RULES = {
         categoria_nova: 'categoria_oficial',
         transferencia_origem: 'categoria_oficial',
         transferencia_destino: 'categoria_oficial',
+      },
+    },
+    {
+      entity: 'ManejoTecnicoRebanho',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'nome',
+      },
+    },
+    {
+      entity: 'ManejoTecnicoRebanho',
+      matchType: 'value',
+      sourceField: 'categoria_oficial',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'categoria_oficial',
+      },
+    },
+    {
+      entity: 'FatorConsumoCategoria',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'nome',
+      },
+    },
+    {
+      entity: 'FatorConsumoCategoria',
+      matchType: 'value',
+      sourceField: 'categoria_oficial',
+      matchFields: ['categoria'],
+      fieldMap: {
+        categoria: 'categoria_oficial',
       },
     },
     {
