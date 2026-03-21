@@ -149,6 +149,10 @@ export default function useMapRenderer(mapInstanceRef) {
 
     areas.forEach(area => {
       const extraText = extraTextFn ? extraTextFn(area) : null;
+      const hectares = Number(area.area_pastejada || area.tamanho_hectares || 0);
+      const hectaresText = hectares > 0
+        ? `ha ${hectares.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : null;
 
       // Se já existe, atualizar apenas o texto extra
       if (labelsRef.current.has(area.id)) {
@@ -175,6 +179,7 @@ export default function useMapRenderer(mapInstanceRef) {
       labelDiv.innerHTML = `
         <div style="color:white;text-align:center;white-space:nowrap;text-shadow:1px 1px 3px rgba(0,0,0,0.8);pointer-events:none;font-family:Arial,sans-serif;">
           <div style="font-size:11px;font-weight:700;">${area.nome || ''}</div>
+          <div style="font-size:10px;font-weight:400;opacity:0.95;${hectaresText ? '' : 'display:none;'}">${hectaresText || ''}</div>
           <div class="label-extra" style="font-size:10px;font-weight:600;color:#fef08a;${extraText ? '' : 'display:none;'}">${extraText || ''}</div>
         </div>`;
 
