@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Plus, Search, Edit, Trash2, Upload, Loader2, X, Download, CheckCircle, AlertCircle, MoreVertical, Settings, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -72,6 +73,8 @@ export default function GerenciarCidades() {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
@@ -221,12 +224,14 @@ export default function GerenciarCidades() {
   };
 
   const handleDelete = async (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('Deseja realmente excluir esta cidade?')) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error) {
-        console.error('Erro:', error);
-      }
+    if (!skipConfirm) {
+      setDeleteConfirmId(id);
+      return;
+    }
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (error) {
+      console.error('Erro:', error);
     }
   };
 
@@ -421,26 +426,29 @@ export default function GerenciarCidades() {
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} cidade(s) selecionada(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      for (const id of selectedItems) {
-        try {
-          await handleDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: selectedItems.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+    setBulkDeleteConfirm(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirm(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selectedItems.length });
+    
+    let deleted = 0;
+    for (const id of selectedItems) {
+      try {
+        await handleDelete(id, true);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selectedItems.length });
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
       }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelectedItems([]);
+    }, 500);
   };
 
   const deleteProgressPercentage = deleteProgress.total > 0 
@@ -494,7 +502,7 @@ export default function GerenciarCidades() {
                 <Download className="w-3.5 h-3.5" />
                 Modelo
               </Button>
-              <Button onClick={handleNovo} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={handleNovo} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-3.5 h-3.5" />
                 Nova Cidade
               </Button>
@@ -514,7 +522,7 @@ export default function GerenciarCidades() {
               </CardHeader>
               <CardContent className="p-4">
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Estado *</Label>
                       <Select value={formData.estado} onValueChange={(v) => setFormData({ ...formData, estado: v })}>
@@ -690,7 +698,7 @@ export default function GerenciarCidades() {
                                   Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleDelete(cidade.id)} className="text-xs text-red-600">
+                                <DropdownMenuItem onClick={() => setDeleteConfirmId(cidade.id)} className="text-xs text-red-600">
                                   Excluir
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -744,6 +752,31 @@ export default function GerenciarCidades() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir esta cidade? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          handleDelete(deleteConfirmId, true);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={() => setBulkDeleteConfirm(false)}
+        title="Confirmar exclusão"
+        description={`Tem certeza que deseja excluir ${selectedItems.length} cidade(s)? Esta ação não pode ser desfeita.`}
+        onConfirm={executeBulkDelete}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
