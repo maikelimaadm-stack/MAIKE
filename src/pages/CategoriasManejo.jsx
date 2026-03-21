@@ -1,63 +1,60 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X } from "lucide-react";
+import { Settings } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
-import { AnimatePresence } from "framer-motion";
+import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
+
+const getInitialFormData = () => ({
+  nome: "",
+  sigla: "",
+  especie: "Bovinos",
+  sexo: "",
+  raca: "",
+  idade_minima_meses: "",
+  idade_maxima_meses: "",
+  categoria_oficial: "",
+  ganho_peso_anual_kg: "",
+  gmd_janeiro: "",
+  gmd_fevereiro: "",
+  gmd_marco: "",
+  gmd_abril: "",
+  gmd_maio: "",
+  gmd_junho: "",
+  gmd_julho: "",
+  gmd_agosto: "",
+  gmd_setembro: "",
+  gmd_outubro: "",
+  gmd_novembro: "",
+  gmd_dezembro: "",
+});
 
 export default function CategoriasManejo() {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [editando, setEditando] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    nome: "",
-    sigla: "",
-    especie: "Bovinos",
-    sexo: "",
-    raca: "",
-    idade_minima_meses: "",
-    idade_maxima_meses: "",
-    categoria_oficial: "",
-    ganho_peso_anual_kg: "",
-    gmd_janeiro: "",
-    gmd_fevereiro: "",
-    gmd_marco: "",
-    gmd_abril: "",
-    gmd_maio: "",
-    gmd_junho: "",
-    gmd_julho: "",
-    gmd_agosto: "",
-    gmd_setembro: "",
-    gmd_outubro: "",
-    gmd_novembro: "",
-    gmd_dezembro: ""
-  });
-
-  const { data: categorias = [] } = useQuery({
-    queryKey: ['categorias-manejo', empresaSelecionadaId],
+  const { data: categorias = [], refetch } = useQuery({
+    queryKey: ["categorias-manejo", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.CategoriaManejo.list();
-      return all.filter(c => c.empresa_id === empresaSelecionadaId);
+      return all.filter((c) => c.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
 
   const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryKey: ["configuracao-icones", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.tipo_entidade === 'Lote' && i.ativo !== false);
+      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.tipo_entidade === "Lote" && i.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -65,93 +62,85 @@ export default function CategoriasManejo() {
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.CategoriaManejo.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categorias-manejo'] });
-      resetForm();
-      toast.success('Categoria cadastrada!');
+      queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
+      setShowForm(false);
+      setEditando(null);
+      toast.success("Categoria cadastrada!");
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.CategoriaManejo.update(id, data),
+    mutationFn: async ({ id, data, oldData }) => {
+      const updated = await base44.entities.CategoriaManejo.update(id, data);
+      await base44.functions.invoke("syncEntityReferences", {
+        event: { type: "update", entity_name: "CategoriaManejo" },
+        data: updated,
+        old_data: oldData,
+      });
+      return updated;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categorias-manejo'] });
-      resetForm();
-      toast.success('Categoria atualizada!');
+      queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
+      setShowForm(false);
+      setEditando(null);
+      toast.success("Categoria atualizada!");
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.CategoriaManejo.delete(id),
+    mutationFn: async (id) => {
+      const categoria = categorias.find((item) => item.id === id);
+      const lotes = await base44.entities.Lote.list();
+      const vinculados = lotes.filter((item) => item.categoria_manejo_id === id || item.categoria_manejo_entrada_id === id);
+
+      if (vinculados.length > 0) {
+        window.dispatchEvent(new CustomEvent("base44:delete-dialog", {
+          detail: {
+            title: "Não é possível excluir",
+            description: `A categoria ${categoria?.nome || ""} já possui ${vinculados.length} registro(s) lançados e não pode ser excluída.`,
+          },
+        }));
+        throw new Error("DELETE_BLOCKED");
+      }
+
+      return base44.entities.CategoriaManejo.delete(id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categorias-manejo'] });
-      toast.success('Categoria excluída!');
+      queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
+      toast.success("Categoria excluída!");
+    },
+    onError: (error) => {
+      if (error.message === "DELETE_BLOCKED") return;
+      toast.error(error.message || "Erro ao excluir.");
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      nome: "",
-      sigla: "",
-      especie: "Bovinos",
-      sexo: "",
-      raca: "",
-      idade_minima_meses: "",
-      idade_maxima_meses: "",
-      categoria_oficial: "",
-      ganho_peso_anual_kg: "",
-      gmd_janeiro: "",
-      gmd_fevereiro: "",
-      gmd_marco: "",
-      gmd_abril: "",
-      gmd_maio: "",
-      gmd_junho: "",
-      gmd_julho: "",
-      gmd_agosto: "",
-      gmd_setembro: "",
-      gmd_outubro: "",
-      gmd_novembro: "",
-      gmd_dezembro: ""
-    });
-    setShowForm(false);
-    setEditando(null);
-  };
+  const categoriasOficiaisDisponiveis = useMemo(() => {
+    const categoriasPadrao = [
+      "Bezerro 0 a 12 meses",
+      "Bezerra 0 a 12 meses",
+      "Garrote 13 a 24 meses",
+      "Novilha 13 a 24 meses",
+      "Boi 25 a 36 meses",
+      "Vaca 25 a 36 meses",
+      "Touro + 36 meses",
+      "Vaca + 36 meses",
+    ];
 
-  const handleEdit = (cat) => {
-    setFormData({
-      nome: cat.nome || "",
-      sigla: cat.sigla || "",
-      especie: cat.especie || "Bovinos",
-      sexo: cat.sexo || "",
-      raca: cat.raca || "",
-      idade_minima_meses: cat.idade_minima_meses || "",
-      idade_maxima_meses: cat.idade_maxima_meses || "",
-      categoria_oficial: cat.categoria_oficial || "",
-      ganho_peso_anual_kg: cat.ganho_peso_anual_kg || "",
-      gmd_janeiro: cat.gmd_janeiro || "",
-      gmd_fevereiro: cat.gmd_fevereiro || "",
-      gmd_marco: cat.gmd_marco || "",
-      gmd_abril: cat.gmd_abril || "",
-      gmd_maio: cat.gmd_maio || "",
-      gmd_junho: cat.gmd_junho || "",
-      gmd_julho: cat.gmd_julho || "",
-      gmd_agosto: cat.gmd_agosto || "",
-      gmd_setembro: cat.gmd_setembro || "",
-      gmd_outubro: cat.gmd_outubro || "",
-      gmd_novembro: cat.gmd_novembro || "",
-      gmd_dezembro: cat.gmd_dezembro || ""
-    });
-    setEditando(cat);
+    const categoriasIcones = iconesConfig
+      .filter((ic) => ic.tipo_entidade === "Lote")
+      .map((ic) => ic.categoria)
+      .filter((cat) => cat && cat.toUpperCase() !== "MISTO");
+
+    return [...new Set([...categoriasPadrao, ...categoriasIcones])].sort();
+  }, [iconesConfig]);
+
+  const handleEdit = (categoria) => {
+    setEditando(categoria);
     setShowForm(true);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!formData.nome || !formData.sigla) {
-      toast.error('Preencha nome e sigla!');
-      return;
-    }
-
+  const handleSubmit = (formData) => {
     const data = {
       empresa_id: empresaSelecionadaId,
       nome: formData.nome.toUpperCase(),
@@ -175,236 +164,84 @@ export default function CategoriasManejo() {
       gmd_outubro: formData.gmd_outubro ? parseFloat(formData.gmd_outubro) : null,
       gmd_novembro: formData.gmd_novembro ? parseFloat(formData.gmd_novembro) : null,
       gmd_dezembro: formData.gmd_dezembro ? parseFloat(formData.gmd_dezembro) : null,
-      ativo: true
+      ativo: true,
     };
 
     if (editando) {
-      updateMutation.mutate({ id: editando.id, data });
-    } else {
-      createMutation.mutate(data);
+      updateMutation.mutate({ id: editando.id, data, oldData: editando });
+      return;
     }
+
+    createMutation.mutate(data);
   };
-
-
-
-  // Categorias oficiais padrão do sistema (igual nos parâmetros)
-  const CATEGORIAS_OFICIAIS_PADRAO = [
-    "Bezerro 0 a 12 meses", 
-    "Bezerra 0 a 12 meses", 
-    "Garrote 13 a 24 meses", 
-    "Novilha 13 a 24 meses", 
-    "Boi 25 a 36 meses", 
-    "Vaca 25 a 36 meses", 
-    "Touro + 36 meses", 
-    "Vaca + 36 meses"
-  ];
-  
-  // Pega categorias dos ícones cadastrados + categorias padrão
-  const categoriasDoIcones = iconesConfig
-    .filter(ic => ic.tipo_entidade === 'Lote')
-    .map(ic => ic.categoria)
-    .filter(cat => cat && cat.toUpperCase() !== 'MISTO');
-  
-  const categoriasOficiaisDisponiveis = [
-    ...new Set([...CATEGORIAS_OFICIAIS_PADRAO, ...categoriasDoIcones])
-  ].sort();
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Categorias de Manejo</h1>
-          <p className="text-xs text-slate-600">Crie categorias customizadas vinculadas às categorias oficiais</p>
+          <h1 className="text-lg font-bold text-slate-900">Categorias de Manejo</h1>
+          <p className="text-xs text-slate-600">Cadastro e gestão das categorias de manejo</p>
         </div>
-        <Button onClick={() => setShowForm(true)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-          Nova Categoria
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {!showForm && (
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+            Atualizar
+          </Button>
+          {!showForm && (
+            <Button onClick={() => { setEditando(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              Nova Categoria
+            </Button>
+          )}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {!showForm && (
+        {showForm ? (
+          <FormularioCategoriaManejo
+            initialData={editando ? {
+              ...getInitialFormData(),
+              ...editando,
+              idade_minima_meses: editando.idade_minima_meses || "",
+              idade_maxima_meses: editando.idade_maxima_meses || "",
+              ganho_peso_anual_kg: editando.ganho_peso_anual_kg || "",
+              gmd_janeiro: editando.gmd_janeiro || "",
+              gmd_fevereiro: editando.gmd_fevereiro || "",
+              gmd_marco: editando.gmd_marco || "",
+              gmd_abril: editando.gmd_abril || "",
+              gmd_maio: editando.gmd_maio || "",
+              gmd_junho: editando.gmd_junho || "",
+              gmd_julho: editando.gmd_julho || "",
+              gmd_agosto: editando.gmd_agosto || "",
+              gmd_setembro: editando.gmd_setembro || "",
+              gmd_outubro: editando.gmd_outubro || "",
+              gmd_novembro: editando.gmd_novembro || "",
+              gmd_dezembro: editando.gmd_dezembro || "",
+            } : getInitialFormData()}
+            isEditing={!!editando}
+            onSubmit={handleSubmit}
+            onCancel={() => { setShowForm(false); setEditando(null); }}
+            categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis}
+          />
+        ) : (
           <TabelaCategoriasManejo
             categorias={categorias}
             onEdit={handleEdit}
             onDelete={(id) => setDeleteConfirmId(id)}
-            iconesConfig={iconesConfig}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas}
           />
         )}
       </AnimatePresence>
-
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editando ? 'Editar' : 'Nova'} Categoria de Manejo</DialogTitle>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-1">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Nome da Categoria *</Label>
-              <Input
-                value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                placeholder="Bezerro, Novilha..."
-                className="h-8 text-xs uppercase"
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Sigla *</Label>
-              <Input
-                value={formData.sigla}
-                onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
-                placeholder="BEZ, NOV..."
-                className="h-8 text-xs uppercase"
-                required
-                maxLength={10}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Sexo</Label>
-              <Select value={formData.sexo} onValueChange={(v) => setFormData({ ...formData, sexo: v })}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
-                  <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Raça</Label>
-              <Input
-                value={formData.raca}
-                onChange={(e) => setFormData({ ...formData, raca: e.target.value })}
-                placeholder="NELORE, ANGUS..."
-                className="h-8 text-xs uppercase"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Espécie</Label>
-                <Select value={formData.especie} onValueChange={(v) => setFormData({ ...formData, especie: v })}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Bovinos" className="text-xs">Bovinos</SelectItem>
-                    <SelectItem value="Ovinos" className="text-xs">Ovinos</SelectItem>
-                    <SelectItem value="Suínos" className="text-xs">Suínos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Idade Mínima (meses)</Label>
-                <Input
-                  type="number"
-                  value={formData.idade_minima_meses}
-                  onChange={(e) => setFormData({ ...formData, idade_minima_meses: e.target.value })}
-                  placeholder="0"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Idade Máxima (meses)</Label>
-                <Input
-                  type="number"
-                  value={formData.idade_maxima_meses}
-                  onChange={(e) => setFormData({ ...formData, idade_maxima_meses: e.target.value })}
-                  placeholder="12"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Categoria Oficial (ícone)</Label>
-                <Select 
-                  value={formData.categoria_oficial} 
-                  onValueChange={(v) => setFormData({ ...formData, categoria_oficial: v })}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Opcional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriasOficiaisDisponiveis.map(cat => (
-                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Ganho de Peso Anual (kg)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.ganho_peso_anual_kg}
-                onChange={(e) => setFormData({ ...formData, ganho_peso_anual_kg: e.target.value })}
-                className="h-8 text-xs"
-                placeholder="0"
-              />
-            </div>
-
-            <div className="border-t pt-3">
-              <Label className="text-xs font-semibold text-slate-900 mb-3 block">
-                Previsão de Ganho de Peso Mensal (GMD em kg)
-              </Label>
-              <div className="grid grid-cols-6 gap-1">
-                {[
-                  { label: 'Jan', field: 'gmd_janeiro' },
-                  { label: 'Fev', field: 'gmd_fevereiro' },
-                  { label: 'Mar', field: 'gmd_marco' },
-                  { label: 'Abr', field: 'gmd_abril' },
-                  { label: 'Mai', field: 'gmd_maio' },
-                  { label: 'Jun', field: 'gmd_junho' },
-                  { label: 'Jul', field: 'gmd_julho' },
-                  { label: 'Ago', field: 'gmd_agosto' },
-                  { label: 'Set', field: 'gmd_setembro' },
-                  { label: 'Out', field: 'gmd_outubro' },
-                  { label: 'Nov', field: 'gmd_novembro' },
-                  { label: 'Dez', field: 'gmd_dezembro' }
-                ].map(mes => (
-                  <div key={mes.field} className="space-y-1">
-                    <Label className="text-xs">{mes.label}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData[mes.field]}
-                      onChange={(e) => setFormData({ ...formData, [mes.field]: e.target.value })}
-                      className="h-8 text-xs"
-                      placeholder="GMD"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
-              <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                {editando ? 'Atualizar' : 'Salvar'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <ConfirmDialog
         open={!!deleteConfirmId}
         onOpenChange={(open) => !open && setDeleteConfirmId(null)}
         title="Excluir categoria de manejo"
-        description="Se esta categoria possuir registros vinculados, a exclusão será bloqueada automaticamente."
+        description="Se esta categoria possuir registros lançados, a exclusão será bloqueada automaticamente."
         onConfirm={() => {
           deleteMutation.mutate(deleteConfirmId);
           setDeleteConfirmId(null);

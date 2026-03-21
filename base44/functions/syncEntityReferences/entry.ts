@@ -262,6 +262,26 @@ const PROPAGATION_RULES = {
       },
     },
   ],
+  CategoriaManejo: [
+    {
+      entity: 'Lote',
+      matchType: 'id',
+      queryField: 'categoria_manejo_id',
+      fieldMap: {
+        categoria_manejo_nome: 'nome',
+        categoria: 'categoria_oficial',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'id',
+      queryField: 'categoria_manejo_entrada_id',
+      fieldMap: {
+        categoria_manejo_entrada_nome: 'nome',
+        categoria_entrada: 'categoria_oficial',
+      },
+    },
+  ],
   Lote: [
     {
       entity: 'MovimentacaoMapa',
