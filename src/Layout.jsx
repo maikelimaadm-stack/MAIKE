@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { 
-  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
+import {
+  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud,
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, Map, ClipboardList,
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles, Mail
-} from "lucide-react";
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Loader2, Sparkles, Mail } from
+"lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -15,8 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,21 +24,21 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue } from
+"@/components/ui/select";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  SheetTrigger } from
+"@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogTitle } from
+"@/components/ui/dialog";
 
 import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
@@ -50,147 +50,147 @@ import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detect
 import { AnimatePresence, motion } from "framer-motion";
 
 const iconsMap = {
-  Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
+  Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen,
   FileText, Shield, Package, Users, Settings
 };
 
 const FIXED_MOBILE_NAV_ITEMS = [
-  { id: "dashboard", url: "Home", moduleId: "dashboard", Icon: Home, label: "Dashboard" },
-  { id: "pec-mapa-geral", url: "MapaGeral", moduleId: "pecuaria", Icon: Map, label: "Mapa Geral" },
-  { id: "gt-lancamentos", url: "LancamentosTarefas", moduleId: "gestao-tarefas", Icon: ClipboardList, label: "Tarefas" },
-  { id: "pec-lanc-pesagens", url: "LancamentoPesagensIndividuais", moduleId: "pecuaria", Icon: Scale, label: "Pesagens" },
-];
+{ id: "dashboard", url: "Home", category: "DASHBOARD", Icon: Home },
+{ id: "pec-mapa-geral", url: "MapaGeral", category: "MAPA GERAL MANEJO", Icon: Map },
+{ id: "gt-lancamentos", url: "LancamentosTarefas", category: "LANCAMENTOS TAREFAS", Icon: ClipboardList },
+{ id: "pec-lanc-pesagens", url: "LancamentoPesagensIndividuais", category: "LANCAMENTO PESAGENS", Icon: Scale }];
+
 
 const DEFAULT_MENU = [
-  { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
-  { id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
-  { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
-  {
-    id: "cotacoes",
-    title: "Cotacoes",
-    icon: "DollarSign",
-    submenu: [
-      { id: "cot-produtos", title: "Cotacoes de Produtos", url: "CotacoesPecuaria" },
-      { id: "cot-lotes", title: "Lotes de Animais", url: "LotesAnimaisCotacao" },
-      { id: "cot-aplicacoes", title: "Aplicacoes de Medicamentos", url: "AplicacoesMedicamentos" },
-      { id: "cot-simulacao", title: "Simulacao de Resultados", url: "SimulacaoResultados" },
-    ],
-  },
-  {
-      id: "pecuaria",
-      title: "Pecuaria",
-      icon: "Package",
-      submenu: [
-        { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
-        { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
-        { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
-        { id: "pec-mov-lotes", title: "Movimentações de Lotes", url: "MovimentacoesLote" },
-        { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
+{ id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
+{ id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
+{ id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
+{ id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+{
+  id: "cotacoes",
+  title: "Cotacoes",
+  icon: "DollarSign",
+  submenu: [
+  { id: "cot-produtos", title: "Cotacoes de Produtos", url: "CotacoesPecuaria" },
+  { id: "cot-lotes", title: "Lotes de Animais", url: "LotesAnimaisCotacao" },
+  { id: "cot-aplicacoes", title: "Aplicacoes de Medicamentos", url: "AplicacoesMedicamentos" },
+  { id: "cot-simulacao", title: "Simulacao de Resultados", url: "SimulacaoResultados" }]
 
-      { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
-      { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
-      { id: "pec-pesagens-ind", title: "Pesagens Individuais", url: "PesagensIndividuais" },
-            { id: "pec-lanc-pesagens", title: "Lançar Pesagens", url: "LancamentoPesagensIndividuais" },
-      { id: "pec-mapa-cadastro", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
-      { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
-      { id: "pec-relatorio", title: "Relatorio Suplementacao", url: "RelatorioSuplementacao" },
-    ],
-  },
-  {
-    id: "maquinas",
-    title: "Maquinas",
-    icon: "Package",
-    submenu: [
-      { id: "maq-cadastro", title: "Cadastro de Maquinas", url: "CadastroMaquinas" },
-      { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
-      { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
-      { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
-      { id: "maq-ficha-impressao", title: "Imprimir Fichas", url: "FichaOperadorImpressao" },
-            { id: "maq-ficha-combustivel", title: "Ficha Controle Combustível", url: "FichaControleCombustivel" },
-    ],
-  },
-  {
-    id: "gestao-tarefas",
-    title: "Gestão de Tarefas",
-    icon: "FolderOpen",
-    submenu: [
-      { id: "gt-grupos", title: "Grupos de Atividades", url: "GruposAtividades" },
-      { id: "gt-tipos", title: "Tipos de Tarefa", url: "TiposTarefa" },
-      { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" },
-    ],
-  },
+},
+{
+  id: "pecuaria",
+  title: "Pecuaria",
+  icon: "Package",
+  submenu: [
+  { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
+  { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
+  { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
+  { id: "pec-mov-lotes", title: "Movimentações de Lotes", url: "MovimentacoesLote" },
+  { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
 
-  {
-    id: "financeiro",
-    title: "Financeiro",
-    icon: "DollarSign",
-    submenu: [
-      { id: "fin-lancamento", title: "Lancamento Financeiro", url: "LancamentoFinanceiro" },
-      { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
-      { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
-      { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
-      { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
-      { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
-      { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" },
-    ],
-  },
-  {
-    id: "fiscal",
-    title: "Fiscal",
-    icon: "BookOpen",
-    submenu: [
-      { id: "fiscal-livros", title: "Livros Fiscais", url: "LivrosFiscais" },
-    ],
-  },
-  {
-    id: "cadastros",
-    title: "Cadastros",
-    icon: "FolderOpen",
-    submenu: [
-      { id: "cad-empresa", title: "Empresa", url: "Empresa" },
-      { id: "cad-mapa", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
-      { id: "cad-safras", title: "Safras", url: "GerenciarSafras" },
-      { id: "cad-fornecedores", title: "Fornecedores/Clientes", url: "Fornecedores" },
-      { id: "cad-produtos", title: "Produtos", url: "Produtos" },
-      { id: "cad-ativos", title: "Ativos Fixos", url: "AtivosFixos" },
-      { id: "cad-cidades", title: "Cidades", url: "GerenciarCidades" },
-      { id: "cad-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
-      { id: "cad-categorias", title: "Categorias", url: "Categorias" },
-      { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
-      { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" },
-    ],
-  },
-  {
-    id: "relatorios",
-    title: "Relatorios",
-    icon: "FileText",
-    submenu: [
-      { id: "rel-estoque", title: "Estoque", url: "RelatoriosEstoque" },
-      { id: "rel-pesagens", title: "Pesagens", url: "RelatorioPesagens" },
-      { id: "rel-custos-safra", title: "Custos Safra", url: "RelatorioCustosSafra" },
-      { id: "rel-entregas", title: "Historico Entregas", url: "RelatorioHistoricoEntregas" },
-      { id: "rel-financeiro", title: "Financeiro", url: "RelatorioFinanceiro" },
-      { id: "rel-fornecedores", title: "Fornecedores", url: "RelatorioFornecedores" },
-      { id: "rel-produtos", title: "Produtos", url: "RelatorioProdutos" },
-      { id: "rel-suplementacao", title: "Suplementacao", url: "RelatorioSuplementacao" },
-      { id: "rel-movimentacoes-pecuaria", title: "Movimentacoes Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
-      { id: "rel-pesagens-ind", title: "Pesagens Individuais", url: "RelatorioPesagensIndividuais" },
-      { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
-            { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" },
-            { id: "rel-pecuaria-lotacao", title: "Lotação Pecuária", url: "RelatorioPecuariaLotacao" },
-            { id: "rel-gestao-tarefas", title: "Gestão de Tarefas", url: "RelatorioGestaoTarefas" }
-                  ],
-  },
-  { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
-  { id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" },
-];
+  { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
+  { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
+  { id: "pec-pesagens-ind", title: "Pesagens Individuais", url: "PesagensIndividuais" },
+  { id: "pec-lanc-pesagens", title: "Lançar Pesagens", url: "LancamentoPesagensIndividuais" },
+  { id: "pec-mapa-cadastro", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
+  { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
+  { id: "pec-relatorio", title: "Relatorio Suplementacao", url: "RelatorioSuplementacao" }]
+
+},
+{
+  id: "maquinas",
+  title: "Maquinas",
+  icon: "Package",
+  submenu: [
+  { id: "maq-cadastro", title: "Cadastro de Maquinas", url: "CadastroMaquinas" },
+  { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
+  { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
+  { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
+  { id: "maq-ficha-impressao", title: "Imprimir Fichas", url: "FichaOperadorImpressao" },
+  { id: "maq-ficha-combustivel", title: "Ficha Controle Combustível", url: "FichaControleCombustivel" }]
+
+},
+{
+  id: "gestao-tarefas",
+  title: "Gestão de Tarefas",
+  icon: "FolderOpen",
+  submenu: [
+  { id: "gt-grupos", title: "Grupos de Atividades", url: "GruposAtividades" },
+  { id: "gt-tipos", title: "Tipos de Tarefa", url: "TiposTarefa" },
+  { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" }]
+
+},
+
+{
+  id: "financeiro",
+  title: "Financeiro",
+  icon: "DollarSign",
+  submenu: [
+  { id: "fin-lancamento", title: "Lancamento Financeiro", url: "LancamentoFinanceiro" },
+  { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
+  { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
+  { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
+  { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
+  { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
+  { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" }]
+
+},
+{
+  id: "fiscal",
+  title: "Fiscal",
+  icon: "BookOpen",
+  submenu: [
+  { id: "fiscal-livros", title: "Livros Fiscais", url: "LivrosFiscais" }]
+
+},
+{
+  id: "cadastros",
+  title: "Cadastros",
+  icon: "FolderOpen",
+  submenu: [
+  { id: "cad-empresa", title: "Empresa", url: "Empresa" },
+  { id: "cad-mapa", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
+  { id: "cad-safras", title: "Safras", url: "GerenciarSafras" },
+  { id: "cad-fornecedores", title: "Fornecedores/Clientes", url: "Fornecedores" },
+  { id: "cad-produtos", title: "Produtos", url: "Produtos" },
+  { id: "cad-ativos", title: "Ativos Fixos", url: "AtivosFixos" },
+  { id: "cad-cidades", title: "Cidades", url: "GerenciarCidades" },
+  { id: "cad-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
+  { id: "cad-categorias", title: "Categorias", url: "Categorias" },
+  { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
+  { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" }]
+
+},
+{
+  id: "relatorios",
+  title: "Relatorios",
+  icon: "FileText",
+  submenu: [
+  { id: "rel-estoque", title: "Estoque", url: "RelatoriosEstoque" },
+  { id: "rel-pesagens", title: "Pesagens", url: "RelatorioPesagens" },
+  { id: "rel-custos-safra", title: "Custos Safra", url: "RelatorioCustosSafra" },
+  { id: "rel-entregas", title: "Historico Entregas", url: "RelatorioHistoricoEntregas" },
+  { id: "rel-financeiro", title: "Financeiro", url: "RelatorioFinanceiro" },
+  { id: "rel-fornecedores", title: "Fornecedores", url: "RelatorioFornecedores" },
+  { id: "rel-produtos", title: "Produtos", url: "RelatorioProdutos" },
+  { id: "rel-suplementacao", title: "Suplementacao", url: "RelatorioSuplementacao" },
+  { id: "rel-movimentacoes-pecuaria", title: "Movimentacoes Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
+  { id: "rel-pesagens-ind", title: "Pesagens Individuais", url: "RelatorioPesagensIndividuais" },
+  { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
+  { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" },
+  { id: "rel-pecuaria-lotacao", title: "Lotação Pecuária", url: "RelatorioPecuariaLotacao" },
+  { id: "rel-gestao-tarefas", title: "Gestão de Tarefas", url: "RelatorioGestaoTarefas" }]
+
+},
+{ id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
+{ id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" }];
+
 
 const getAllPages = (menuItems) => {
   const pages = [];
-  
+
   const traverse = (items, categoria = '') => {
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.url) {
         pages.push({
           id: item.id,
@@ -204,7 +204,7 @@ const getAllPages = (menuItems) => {
       }
     });
   };
-  
+
   traverse(menuItems);
   return pages;
 };
@@ -241,26 +241,26 @@ export default function Layout({ children, currentPageName }) {
     return () => clearTimeout(t);
   }, []);
 
-  
+
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
     const CURRENT_VERSION = '2026-01-11-relatorios-unificado-v2'; // Atualizar esta versão quando adicionar novos menus
-    
+
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
       localStorage.setItem('custom_menu', JSON.stringify(DEFAULT_MENU));
       localStorage.setItem('menu_version', CURRENT_VERSION);
       return DEFAULT_MENU;
     }
-    
+
     try {
       return JSON.parse(saved);
     } catch {
       return DEFAULT_MENU;
     }
   });
-  
+
   const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
@@ -279,7 +279,7 @@ export default function Layout({ children, currentPageName }) {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
@@ -289,9 +289,18 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
+  const { data: mobileMenuIcons = [] } = useQuery({
+    queryKey: ['mobile-menu-icons'],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === 'Icone Menu Mobile');
+    },
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false
+  });
 
   // Ocultar splash somente após 5s mínimos + dados prontos
   useEffect(() => {
@@ -302,7 +311,7 @@ export default function Layout({ children, currentPageName }) {
 
   const empresaAtual = React.useMemo(() => {
     if (!empresaSelecionada || !empresas.length) return null;
-    return empresas.find(e => e.id === empresaSelecionada) || null;
+    return empresas.find((e) => e.id === empresaSelecionada) || null;
   }, [empresaSelecionada, empresas]);
 
   // Selecionar primeira empresa SOMENTE UMA VEZ
@@ -326,11 +335,11 @@ export default function Layout({ children, currentPageName }) {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
-        
+
         // Carregar permissões do usuário
         try {
           const allPermissoes = await base44.entities.Permissao.list();
-          const permissao = allPermissoes.find(p => p.user_email === currentUser.email);
+          const permissao = allPermissoes.find((p) => p.user_email === currentUser.email);
           setUserPermissions(permissao);
         } catch (error) {
           console.error("Erro ao carregar permissões:", error);
@@ -355,7 +364,7 @@ export default function Layout({ children, currentPageName }) {
         const data = await response.json();
         setWeather({
           temperature: Math.round(data.current.temperature_2m),
-          precipitation: data.current.precipitation > 0,
+          precipitation: data.current.precipitation > 0
         });
       } catch (error) {
         console.error("Erro clima:", error);
@@ -390,29 +399,29 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const filterMenuByPermissions = (items, parentModuleId = null) => {
-    return items
-      .map((item) => {
-        const moduleId = parentModuleId || item.id;
+    return items.
+    map((item) => {
+      const moduleId = parentModuleId || item.id;
 
-        if (item.submenu?.length) {
-          const filteredSubmenu = filterMenuByPermissions(item.submenu, item.id);
-          if (!canAccessModule(normalizedPermissions, item.id) || filteredSubmenu.length === 0) return null;
-          return { ...item, submenu: filteredSubmenu };
-        }
+      if (item.submenu?.length) {
+        const filteredSubmenu = filterMenuByPermissions(item.submenu, item.id);
+        if (!canAccessModule(normalizedPermissions, item.id) || filteredSubmenu.length === 0) return null;
+        return { ...item, submenu: filteredSubmenu };
+      }
 
-        if (!canAccessPage(normalizedPermissions, item.id, moduleId)) return null;
-        return item;
-      })
-      .filter(Boolean);
+      if (!canAccessPage(normalizedPermissions, item.id, moduleId)) return null;
+      return item;
+    }).
+    filter(Boolean);
   };
 
   const menuItemsFiltered = React.useMemo(() => {
     if (!menuItems) return [];
     const filteredByPerms = filterMenuByPermissions(menuItems);
     const removePlanos = (items) =>
-      items
-        .filter(i => i.id !== 'gt-planos')
-        .map(i => (i.submenu ? { ...i, submenu: removePlanos(i.submenu) } : i));
+    items.
+    filter((i) => i.id !== 'gt-planos').
+    map((i) => i.submenu ? { ...i, submenu: removePlanos(i.submenu) } : i);
     return removePlanos(filteredByPerms);
   }, [menuItems, normalizedPermissions]);
 
@@ -426,7 +435,7 @@ export default function Layout({ children, currentPageName }) {
       return {
         ...item,
         title: existingPage?.title || item.id,
-        url: existingPage?.url || item.url,
+        url: existingPage?.url || item.url
       };
     });
   }, [menuItems]);
@@ -469,21 +478,21 @@ export default function Layout({ children, currentPageName }) {
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
-    if (item.submenu) return item.submenu.some(sub => {
+    if (item.submenu) return item.submenu.some((sub) => {
       if (sub.url) return location.pathname === createPageUrl(sub.url);
-      if (sub.submenu) return sub.submenu.some(subsub => subsub.url && location.pathname === createPageUrl(subsub.url));
+      if (sub.submenu) return sub.submenu.some((subsub) => subsub.url && location.pathname === createPageUrl(subsub.url));
       return false;
     });
     return false;
   };
 
   const allPages = getConfiguredPages(menuItemsFiltered);
-  const filteredPages = searchTerm 
-    ? allPages.filter(p => 
-        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : allPages;
+  const filteredPages = searchTerm ?
+  allPages.filter((p) =>
+  p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+  ) :
+  allPages;
 
   const pagesByCategory = filteredPages.reduce((acc, page) => {
     if (!acc[page.categoria]) acc[page.categoria] = [];
@@ -503,7 +512,7 @@ export default function Layout({ children, currentPageName }) {
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
       <SplashScreen visible={showSplash} logoUrl="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/9d03282ce_IMG_8919.png" />
-      {!isFolha && (
+      {!isFolha &&
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
@@ -519,14 +528,14 @@ export default function Layout({ children, currentPageName }) {
             </div>
 
             <div className="hidden lg:flex items-center gap-6">
-              {weather && (
-                <>
+              {weather &&
+              <>
                   <div className="flex items-center gap-2">
-                    {weather.precipitation ? (
-                      <CloudRain className="w-4 h-4 text-blue-500" />
-                    ) : (
-                      <CloudOff className="w-4 h-4 text-slate-400" />
-                    )}
+                    {weather.precipitation ?
+                  <CloudRain className="w-4 h-4 text-blue-500" /> :
+
+                  <CloudOff className="w-4 h-4 text-slate-400" />
+                  }
                     <span className="text-xs text-slate-700 font-medium">
                       {weather.precipitation ? 'Chuva' : 'Sem chuva'}
                     </span>
@@ -546,7 +555,7 @@ export default function Layout({ children, currentPageName }) {
                     </span>
                   </div>
                 </>
-              )}
+              }
 
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -555,32 +564,32 @@ export default function Layout({ children, currentPageName }) {
             </div>
 
             <div className="flex items-center gap-2">
-              {empresas.length > 0 && (
-                <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
+              {empresas.length > 0 &&
+              <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
                   <SelectTrigger className="h-8 w-[160px] text-xs hidden lg:flex border-slate-300">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {empresas.map((empresa) => (
-                      <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
+                    {empresas.map((empresa) =>
+                  <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
                         {empresa.apelido || empresa.nome}
                       </SelectItem>
-                    ))}
+                  )}
                   </SelectContent>
                 </Select>
-              )}
+              }
 
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
                 onClick={() => {
                   const novoEstado = !menuOculto;
                   setMenuOculto(novoEstado);
                   localStorage.setItem('menu_oculto', novoEstado.toString());
                 }}
-                title={menuOculto ? "Mostrar menu" : "Ocultar menu"}
-              >
+                title={menuOculto ? "Mostrar menu" : "Ocultar menu"}>
+                
                 {menuOculto ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
               </Button>
 
@@ -592,13 +601,13 @@ export default function Layout({ children, currentPageName }) {
                 <Bell className="w-4 h-4 text-slate-600" />
               </Button>
 
-              {isAdminUser && (
-                <Link to={createPageUrl("ConfiguracoesGerais")}>
+              {isAdminUser &&
+              <Link to={createPageUrl("ConfiguracoesGerais")}>
                   <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
                     <Settings className="w-4 h-4 text-slate-600" />
                   </Button>
                 </Link>
-              )}
+              }
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -627,8 +636,8 @@ export default function Layout({ children, currentPageName }) {
                     <LogOut className="w-3 h-3 mr-2" />
                     Excluir conta
                   </DropdownMenuItem>
-                  {isAdminUser && (
-                    <>
+                  {isAdminUser &&
+                  <>
                       <DropdownMenuItem asChild className="text-xs">
                         <Link to={createPageUrl("ConfiguracoesGerais")}>
                           <Settings className="w-3 h-3 mr-2" />
@@ -642,7 +651,7 @@ export default function Layout({ children, currentPageName }) {
                         </Link>
                       </DropdownMenuItem>
                     </>
-                  )}
+                  }
                   <DropdownMenuItem className="text-xs" onClick={() => setShowEmailDialog(true)}>
                     <Mail className="w-3 h-3 mr-2" />
                     Enviar e-mail
@@ -667,28 +676,28 @@ export default function Layout({ children, currentPageName }) {
                   </SheetHeader>
                   
                   {/* Seletor de Empresa no Mobile */}
-                  {empresas.length > 0 && (
-                    <div className="mt-4 px-2">
+                  {empresas.length > 0 &&
+                  <div className="mt-4 px-2">
                       <label className="text-xs text-slate-500 mb-1 block">Empresa</label>
                       <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
                         <SelectTrigger className="h-9 text-xs w-full border-slate-300">
                           <SelectValue placeholder="Selecione a empresa" />
                         </SelectTrigger>
                         <SelectContent>
-                          {empresas.map((empresa) => (
-                            <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
+                          {empresas.map((empresa) =>
+                        <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
                               {empresa.apelido || empresa.nome}
                             </SelectItem>
-                          ))}
+                        )}
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
+                  }
                   
                   <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
                     {menuItemsFiltered.map((item) => {
                       const Icon = iconsMap[item.icon] || Home;
-                      
+
                       if (item.submenu) {
                         return (
                           <div key={item.id} className="space-y-1">
@@ -703,60 +712,60 @@ export default function Layout({ children, currentPageName }) {
                                   return (
                                     <div key={sub.id} className="space-y-0.5">
                                       <div className="px-2 py-1 text-xs font-medium text-slate-500">{sub.title}</div>
-                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
-                                        <Link 
-                                          key={subsub.id}
-                                          to={createPageUrl(subsub.url)}
-                                          onClick={() => setMobileMenuOpen(false)}
-                                          className={`block px-4 py-1.5 text-xs rounded ${
-                                            location.pathname === createPageUrl(subsub.url)
-                                              ? 'bg-emerald-100 text-emerald-800 font-medium'
-                                              : 'text-slate-600 hover:bg-slate-50'
-                                          }`}
-                                        >
+                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) =>
+                                      <Link
+                                        key={subsub.id}
+                                        to={createPageUrl(subsub.url)}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className={`block px-4 py-1.5 text-xs rounded ${
+                                        location.pathname === createPageUrl(subsub.url) ?
+                                        'bg-emerald-100 text-emerald-800 font-medium' :
+                                        'text-slate-600 hover:bg-slate-50'}`
+                                        }>
+                                        
                                           {subsub.title}
                                         </Link>
-                                      ))}
-                                    </div>
-                                  );
+                                      )}
+                                    </div>);
+
                                 }
                                 // Item normal com URL
                                 if (!sub.url) return null;
                                 return (
-                                  <Link 
+                                  <Link
                                     key={sub.id}
                                     to={createPageUrl(sub.url)}
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`block px-2 py-1.5 text-xs rounded ${
-                                      location.pathname === createPageUrl(sub.url)
-                                        ? 'bg-emerald-100 text-emerald-800 font-medium'
-                                        : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
-                                  >
+                                    location.pathname === createPageUrl(sub.url) ?
+                                    'bg-emerald-100 text-emerald-800 font-medium' :
+                                    'text-slate-600 hover:bg-slate-50'}`
+                                    }>
+                                    
                                     {sub.title}
-                                  </Link>
-                                );
+                                  </Link>);
+
                               })}
                             </div>
-                          </div>
-                        );
+                          </div>);
+
                       }
 
                       return (
-                        <Link 
+                        <Link
                           key={item.id}
                           to={createPageUrl(item.url)}
                           onClick={() => setMobileMenuOpen(false)}
                           className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded ${
-                            location.pathname === createPageUrl(item.url)
-                              ? 'bg-emerald-100 text-emerald-800 font-medium'
-                              : 'text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
+                          location.pathname === createPageUrl(item.url) ?
+                          'bg-emerald-100 text-emerald-800 font-medium' :
+                          'text-slate-600 hover:bg-slate-50'}`
+                          }>
+                          
                           <Icon className="w-3.5 h-3.5" />
                           {item.title}
-                        </Link>
-                      );
+                        </Link>);
+
                     })}
                   </div>
                 </SheetContent>
@@ -765,9 +774,9 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </div>
-      )}
+      }
 
-      {!isFolha && (
+      {!isFolha &&
       <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'h-0 overflow-hidden border-0 py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
@@ -779,16 +788,16 @@ export default function Layout({ children, currentPageName }) {
                 if (item.submenu) {
                   return (
                     <div key={item.id} className="relative group">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                          active 
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
+                        active ?
+                        'bg-emerald-600 text-white hover:bg-emerald-700' :
+                        'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
+                        }>
+                        
+                        
                         {item.title}
                         <ChevronDown className="w-3 h-3 opacity-50" />
                       </Button>
@@ -800,10 +809,10 @@ export default function Layout({ children, currentPageName }) {
                               return (
                                 <div key={sub.id} className="relative group/sub">
                                   <div className={`flex items-center justify-between px-4 py-2 text-xs hover:bg-slate-50 cursor-pointer ${
-                                    sub.url && location.pathname === createPageUrl(sub.url)
-                                      ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                      : 'text-slate-700'
-                                  }`}>
+                                  sub.url && location.pathname === createPageUrl(sub.url) ?
+                                  'bg-emerald-50 text-emerald-800 font-medium' :
+                                  'text-slate-700'}`
+                                  }>
                                     <span>{sub.title}</span>
                                     <ChevronRight className="w-3 h-3 opacity-50" />
                                   </div>
@@ -813,81 +822,81 @@ export default function Layout({ children, currentPageName }) {
                                       {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => {
                                         if (!subsub.url) return null;
                                         return (
-                                          <Link 
+                                          <Link
                                             key={subsub.id}
                                             to={createPageUrl(subsub.url)}
                                             className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                              location.pathname === createPageUrl(subsub.url)
-                                                ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                                : 'text-slate-700'
-                                            }`}
-                                          >
+                                            location.pathname === createPageUrl(subsub.url) ?
+                                            'bg-emerald-50 text-emerald-800 font-medium' :
+                                            'text-slate-700'}`
+                                            }>
+                                            
                                             {subsub.title}
-                                          </Link>
-                                        );
+                                          </Link>);
+
                                       })}
                                     </div>
                                   </div>
-                                </div>
-                              );
+                                </div>);
+
                             }
 
                             return (
-                              <Link 
+                              <Link
                                 key={sub.id}
                                 to={createPageUrl(sub.url)}
                                 className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                  location.pathname === createPageUrl(sub.url)
-                                    ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                    : 'text-slate-700'
-                                }`}
-                              >
+                                location.pathname === createPageUrl(sub.url) ?
+                                'bg-emerald-50 text-emerald-800 font-medium' :
+                                'text-slate-700'}`
+                                }>
+                                
                                 {sub.title}
-                              </Link>
-                            );
+                              </Link>);
+
                           })}
                         </div>
                       </div>
-                    </div>
-                  );
+                    </div>);
+
                 }
 
                 return (
                   <Link key={item.id} to={createPageUrl(item.url)}>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                        active 
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
+                      active ?
+                      'bg-emerald-600 text-white hover:bg-emerald-700' :
+                      'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
+                      }>
+                      
+                      
                       {item.title}
                     </Button>
-                  </Link>
-                );
+                  </Link>);
+
               })}
             </div>
           </div>
         </div>
       </nav>
-      )}
+      }
 
       <SendEmailDialog
         open={showEmailDialog}
         onOpenChange={setShowEmailDialog}
         senderEmail="suporte@makestaopecuaria.com"
-        senderName={empresaAtual?.apelido || empresaAtual?.nome || "MakGestão Pecuária"}
-      />
+        senderName={empresaAtual?.apelido || empresaAtual?.nome || "MakGestão Pecuária"} />
+      
 
       <PermissionAlertDialog
         open={permissionDialog.open}
         onOpenChange={closePermissionDialog}
         title={permissionDialog.title}
-        description={permissionDialog.description}
-      />
+        description={permissionDialog.description} />
+      
 
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -900,55 +909,55 @@ export default function Layout({ children, currentPageName }) {
           
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
+            <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Digite para buscar paginas..."
               className="pl-10 h-10"
-              autoFocus
-            />
-            {searchTerm && (
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
-                onClick={() => setSearchTerm("")}
-              >
+              autoFocus />
+            
+            {searchTerm &&
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+              onClick={() => setSearchTerm("")}>
+              
                 <X className="w-4 h-4" />
               </Button>
-            )}
+            }
           </div>
 
           <div className="flex-1 overflow-auto mt-4">
-            {Object.keys(pagesByCategory).length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
+            {Object.keys(pagesByCategory).length === 0 ?
+            <div className="text-center py-12 text-slate-500">
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">Nenhuma pagina encontrada</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(pagesByCategory)
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([categoria, pages]) => (
-                  <div key={categoria}>
+              </div> :
+
+            <div className="space-y-4">
+                {Object.entries(pagesByCategory).
+              sort(([a], [b]) => a.localeCompare(b)).
+              map(([categoria, pages]) =>
+              <div key={categoria}>
                     <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2 px-2">{categoria}</h3>
                     <div className="space-y-1">
-                      {pages.sort((a, b) => a.title.localeCompare(b.title)).map((page) => (
-                        <Link
-                          key={page.id}
-                          to={createPageUrl(page.url)}
-                          onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
-                          className="block px-3 py-2 text-sm hover:bg-emerald-50 rounded-md transition-colors"
-                        >
+                      {pages.sort((a, b) => a.title.localeCompare(b.title)).map((page) =>
+                  <Link
+                    key={page.id}
+                    to={createPageUrl(page.url)}
+                    onClick={() => {setSearchOpen(false);setSearchTerm("");}}
+                    className="block px-3 py-2 text-sm hover:bg-emerald-50 rounded-md transition-colors">
+                    
                           <div className="font-medium text-slate-900">{page.title}</div>
                           <div className="text-xs text-slate-500">{categoria}</div>
                         </Link>
-                      ))}
+                  )}
                     </div>
                   </div>
-                ))}
+              )}
               </div>
-            )}
+            }
           </div>
         </DialogContent>
       </Dialog>
@@ -961,50 +970,43 @@ export default function Layout({ children, currentPageName }) {
             initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -20, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
+            transition={{ duration: 0.2, ease: "easeOut" }}>
+            
             {children}
           </motion.div>
         </AnimatePresence>
       </main>
 
       {/* Mobile bottom navigation */}
-      {!isFolha && (
-        <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
+      {!isFolha &&
+      <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
           <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-4 gap-3">
             {fixedMobileNavPages.map((page) => {
-              const isCurrent = location.pathname === createPageUrl(page.url);
-              const hasAccess = canAccessPage(normalizedPermissions, page.id, page.moduleId);
-              const Icon = page.Icon;
+            const isCurrent = location.pathname === createPageUrl(page.url);
+            const configuredIcon = mobileMenuIcons.find((item) => (item.categoria || '').trim().toUpperCase() === page.category);
+            const Icon = page.Icon;
 
-              return hasAccess ? (
-                <Link
-                  key={page.id}
-                  to={createPageUrl(page.url)}
-                  aria-label={page.label}
-                  className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}
-                >
-                  <Icon className="w-6 h-6" />
-                </Link>
-              ) : (
-                <button
-                  key={page.id}
-                  type="button"
-                  aria-label={page.label}
-                  onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
-                  className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-300"
-                >
-                  <Icon className="w-6 h-6" />
-                </button>
-              );
-            })}
+            return (
+              <Link
+                key={page.id}
+                to={createPageUrl(page.url)}
+                className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                
+                  {configuredIcon?.icone_url ?
+                <img src={configuredIcon.icone_url} alt={page.title} className="w-6 h-6 object-contain" /> :
+
+                <Icon className="w-6 h-6" />
+                }
+                </Link>);
+
+          })}
           </div>
         </nav>
-      )}
-
-      </div>
-      );
       }
+
+      </div>);
+
+}
 
 export const getEmpresaSelecionada = () => {
   return localStorage.getItem('empresa_selecionada_id');
