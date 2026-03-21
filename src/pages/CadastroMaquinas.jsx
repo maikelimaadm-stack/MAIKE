@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Edit2, Trash2, Truck, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Eye } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Truck, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Eye, Loader2 } from "lucide-react";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -35,6 +37,10 @@ export default function CadastroMaquinas() {
   const [sortField, setSortField] = useState('nome');
   const [sortDirection, setSortDirection] = useState('asc');
   const [selecionados, setSelecionados] = useState([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
   const queryClient = useQueryClient();
 
   const { data: maquinas = [], isLoading } = useQuery({
@@ -107,17 +113,24 @@ export default function CadastroMaquinas() {
     );
   };
 
-  const handleExcluirEmMassa = async () => {
-    if (selecionados.length === 0) {
-      toast.error('Selecione ao menos uma máquina!');
-      return;
-    }
-    if (window.confirm(`Excluir ${selecionados.length} máquina(s)?`)) {
-      for (const id of selecionados) {
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirm(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selecionados.length });
+    let deleted = 0;
+    for (const id of selecionados) {
+      try {
         await deleteMutation.mutateAsync(id);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selecionados.length });
+      } catch (error) {
+        console.error('Erro:', error);
       }
-      setSelecionados([]);
     }
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelecionados([]);
+    }, 500);
   };
 
   // Resumo
@@ -125,7 +138,7 @@ export default function CadastroMaquinas() {
   const totalManutencao = maquinas.filter(m => m.status === 'Em Manutenção').length;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm ? (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -139,7 +152,7 @@ export default function CadastroMaquinas() {
           </div>
 
           {/* Resumo */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
             <Card className="bg-slate-50 border-slate-200">
               <CardContent className="p-3 text-center">
                 <div className="text-lg font-bold text-slate-700">{maquinas.length}</div>
@@ -188,13 +201,11 @@ export default function CadastroMaquinas() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
-                            <Trash2 className="w-3.5 h-3.5 mr-2" />
-                            Excluir
+                          <DropdownMenuItem onClick={() => setBulkDeleteConfirm(true)} className="text-xs text-red-600">
+                            Excluir Todos
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
-                            <X className="w-3.5 h-3.5 mr-2" />
                             Limpar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -293,18 +304,13 @@ export default function CadastroMaquinas() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
                                   <DropdownMenuItem onClick={() => { setSelectedMaquina(maquina); setShowFicha(true); }} className="text-xs">
-                                    <Eye className="w-3.5 h-3.5 mr-2" />
                                     Ver Ficha
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => { setEditingMaquina(maquina); setShowForm(true); }} className="text-xs">
-                                    <Edit2 className="w-3.5 h-3.5 mr-2" />
                                     Editar
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => {
-                                    if (confirm('Excluir esta máquina?')) deleteMutation.mutate(maquina.id);
-                                  }} className="text-xs text-red-600">
-                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                  <DropdownMenuItem onClick={() => setDeleteConfirmId(maquina.id)} className="text-xs text-red-600">
                                     Excluir
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -329,6 +335,31 @@ export default function CadastroMaquinas() {
               </div>
             </CardContent>
           </Card>
+
+          <ConfirmDialog
+            open={!!deleteConfirmId}
+            onOpenChange={() => setDeleteConfirmId(null)}
+            title="Confirmar exclusão"
+            description="Tem certeza que deseja excluir esta máquina? Esta ação não pode ser desfeita."
+            onConfirm={() => {
+              deleteMutation.mutate(deleteConfirmId);
+              setDeleteConfirmId(null);
+            }}
+            confirmText="Excluir"
+            cancelText="Cancelar"
+            variant="destructive"
+          />
+
+          <ConfirmDialog
+            open={bulkDeleteConfirm}
+            onOpenChange={() => setBulkDeleteConfirm(false)}
+            title="Confirmar exclusão"
+            description={`Tem certeza que deseja excluir ${selecionados.length} máquina(s)? Esta ação não pode ser desfeita.`}
+            onConfirm={executeBulkDelete}
+            confirmText="Excluir"
+            cancelText="Cancelar"
+            variant="destructive"
+          />
 
           {/* Dialog Ficha */}
           <Dialog open={showFicha} onOpenChange={setShowFicha}>

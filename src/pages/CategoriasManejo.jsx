@@ -216,8 +216,7 @@ export default function CategoriasManejo() {
           <h1 className="text-xl font-bold text-slate-900">Categorias de Manejo</h1>
           <p className="text-xs text-slate-600">Crie categorias customizadas vinculadas às categorias oficiais</p>
         </div>
-        <Button onClick={() => setShowForm(true)} size="sm" className="h-8 text-xs">
-          <Plus className="w-3.5 h-3.5 mr-1" />
+        <Button onClick={() => setShowForm(true)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
           Nova Categoria
         </Button>
       </div>
@@ -239,8 +238,8 @@ export default function CategoriasManejo() {
             <DialogTitle>{editando ? 'Editar' : 'Nova'} Categoria de Manejo</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <form onSubmit={handleSubmit} className="space-y-1">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
             <div className="space-y-1">
               <Label className="text-xs">Nome da Categoria *</Label>
               <Input
@@ -288,7 +287,7 @@ export default function CategoriasManejo() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-1">
             <div className="space-y-1">
               <Label className="text-xs">Espécie</Label>
                 <Select value={formData.especie} onValueChange={(v) => setFormData({ ...formData, especie: v })}>
@@ -359,7 +358,7 @@ export default function CategoriasManejo() {
               <Label className="text-xs font-semibold text-slate-900 mb-3 block">
                 Previsão de Ganho de Peso Mensal (GMD em kg)
               </Label>
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-6 gap-1">
                 {[
                   { label: 'Jan', field: 'gmd_janeiro' },
                   { label: 'Fev', field: 'gmd_fevereiro' },
@@ -391,10 +390,9 @@ export default function CategoriasManejo() {
 
             <div className="flex justify-end gap-2 pt-3 border-t">
               <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">
-                <X className="w-3 h-3 mr-1" />
                 Cancelar
               </Button>
-              <Button type="submit" size="sm" className="h-8 text-xs">
+              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 {editando ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>

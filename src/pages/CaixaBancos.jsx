@@ -14,6 +14,7 @@ import { Plus, Edit, Trash2, Search, Settings, MoreVertical, ArrowUpDown, ArrowU
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { getEmpresaSelecionada } from "@/Layout";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -224,13 +225,18 @@ export default function CaixaBancos() {
     setShowForm(true);
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+
   const handleDelete = async (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('Deseja realmente excluir esta conta?')) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error) {
-        console.error('Erro:', error);
-      }
+    if (!skipConfirm) {
+      setDeleteConfirmId(id);
+      return;
+    }
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (error) {
+      console.error('Erro:', error);
     }
   };
 
@@ -312,27 +318,26 @@ export default function CaixaBancos() {
     );
   };
 
-  const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} conta(s) selecionada(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      for (const id of selectedItems) {
-        try {
-          await handleDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: selectedItems.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirmOpen(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selectedItems.length });
+    
+    let deleted = 0;
+    for (const id of selectedItems) {
+      try {
+        await handleDelete(id, true);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selectedItems.length });
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
       }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelectedItems([]);
+    }, 500);
   };
 
   const deleteProgressPercentage = deleteProgress.total > 0 
@@ -375,8 +380,7 @@ export default function CaixaBancos() {
               <h1 className="text-xl font-bold text-slate-900">Caixa & Bancos</h1>
               <p className="text-xs text-slate-600">Gerencie contas bancárias e caixa</p>
             </div>
-            <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-              <Plus className="w-3.5 h-3.5" />
+            <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Nova Conta
             </Button>
           </div>
@@ -393,8 +397,8 @@ export default function CaixaBancos() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
+                <form onSubmit={handleSubmit} className="space-y-1">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Tipo *</Label>
                       <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
@@ -414,7 +418,7 @@ export default function CaixaBancos() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Banco</Label>
                       <Input value={formData.banco} onChange={(e) => setFormData({ ...formData, banco: e.target.value })} className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
@@ -429,7 +433,7 @@ export default function CaixaBancos() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">CPF/CNPJ</Label>
                       <Input value={formData.documento_titular} onChange={(e) => setFormData({ ...formData, documento_titular: e.target.value })} className="h-8 text-xs" />
@@ -463,7 +467,7 @@ export default function CaixaBancos() {
 
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">Cancelar</Button>
-                    <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">Salvar</Button>
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Salvar</Button>
                   </div>
                 </form>
               </CardContent>
@@ -494,7 +498,7 @@ export default function CaixaBancos() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
+                        <DropdownMenuItem onClick={() => setBulkDeleteConfirmOpen(true)} className="text-xs text-red-600">
                           Excluir Todos
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -510,8 +514,7 @@ export default function CaixaBancos() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
                 </div>
-                <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
-                  <Settings className="w-3.5 h-3.5" />
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
                   Colunas
                 </Button>
               </div>
@@ -583,7 +586,7 @@ export default function CaixaBancos() {
                                   Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleDelete(conta.id)} className="text-xs text-red-600">
+                                <DropdownMenuItem onClick={() => setDeleteConfirmId(conta.id)} className="text-xs text-red-600">
                                   Excluir
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -706,6 +709,31 @@ export default function CaixaBancos() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir esta conta? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          handleDelete(deleteConfirmId, true);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        onOpenChange={() => setBulkDeleteConfirmOpen(false)}
+        title="Confirmar exclusão"
+        description={`Tem certeza que deseja excluir ${selectedItems.length} conta(s)? Esta ação não pode ser desfeita.`}
+        onConfirm={executeBulkDelete}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">

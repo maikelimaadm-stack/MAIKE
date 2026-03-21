@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,12 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, CreditCard, Search } from "lucide-react";
+import { Plus, Edit, Trash2, CreditCard, Search, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.FormaPagamento.list();
@@ -25,6 +32,7 @@ export default function FormasPagamento() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [formData, setFormData] = useState({
     descricao: "",
     tipo: "Dinheiro",
@@ -160,8 +168,8 @@ export default function FormasPagamento() {
                 <CardTitle className="text-sm">{editingItem ? 'Editar Forma' : 'Nova Forma'}</CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <form onSubmit={handleSubmit} className="space-y-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Descrição *</Label>
                       <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
@@ -185,8 +193,8 @@ export default function FormasPagamento() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                    <div className="space-y-1">
                       <Label className="text-xs">Prazo Padrão (Dias)</Label>
                       <Input type="number" min="0" value={formData.prazo_padrao_dias} onChange={(e) => setFormData({ ...formData, prazo_padrao_dias: e.target.value })} className="h-8 text-xs" />
                     </div>
@@ -267,12 +275,18 @@ export default function FormasPagamento() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(forma)} className="h-7 w-7">
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(forma.id)} className="h-7 w-7 text-red-600 hover:bg-red-50">
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => handleEdit(forma)} className="text-xs">Editar</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDeleteConfirmId(forma.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -283,6 +297,19 @@ export default function FormasPagamento() {
           </CardContent>
         </Card>
       )}
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir esta forma de pagamento? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          deleteMutation.mutate(deleteConfirmId);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 }

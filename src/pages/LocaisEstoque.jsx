@@ -378,8 +378,8 @@ export default function LocaisEstoque() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
+                <form onSubmit={handleSubmit} className="space-y-1">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Nome *</Label>
                       <Input value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value.toUpperCase() })} placeholder="GALPÃO 1" required className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
@@ -446,10 +446,9 @@ export default function LocaisEstoque() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
                 </div>
-                <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
-                  <Settings className="w-3.5 h-3.5" />
-                  Colunas
-                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
+                     Colunas
+                   </Button>
               </div>
             </div>
           </CardHeader>

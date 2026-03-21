@@ -7,7 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Download, Plus } from "lucide-react"; // Added icons
+import { Download, Plus } from "lucide-react";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
@@ -448,10 +449,10 @@ export default function LancamentoFinanceiro() {
     }
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const handleDelete = (id) => {
-    if (window.confirm('Deseja realmente excluir este lançamento?')) {
-      deleteMutation.mutate(id);
-    }
+    setDeleteConfirmId(id);
   };
 
   const handleEdit = (lanc) => { // New handler for TabelaFinanceiro onEdit
@@ -502,10 +503,10 @@ export default function LancamentoFinanceiro() {
     }
   };
 
+  const [cancelarBaixaConfirmId, setCancelarBaixaConfirmId] = useState(null);
+
   const handleCancelarBaixa = (lancamento) => {
-    if (window.confirm('Deseja cancelar a baixa deste lançamento?')) {
-      cancelarBaixaMutation.mutate(lancamento.id);
-    }
+    setCancelarBaixaConfirmId(lancamento.id);
   };
 
   const handleImportarXMLSuccess = (dadosImportados) => {
@@ -642,7 +643,36 @@ export default function LancamentoFinanceiro() {
         produtos={produtos}
       />
 
-      <Dialog open={showSaveProgress} onOpenChange={() => {}}> {/* Updated state name */}
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          deleteMutation.mutate(deleteConfirmId);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={!!cancelarBaixaConfirmId}
+        onOpenChange={() => setCancelarBaixaConfirmId(null)}
+        title="Cancelar baixa"
+        description="Deseja cancelar a baixa deste lançamento? O valor pago será zerado."
+        onConfirm={() => {
+          cancelarBaixaMutation.mutate(cancelarBaixaConfirmId);
+          setCancelarBaixaConfirmId(null);
+        }}
+        confirmText="Cancelar Baixa"
+        cancelText="Voltar"
+        variant="warning"
+      />
+
+      <Dialog open={showSaveProgress} onOpenChange={() => {}}>
+ {/* Updated state name */}
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Salvando...</DialogTitle>

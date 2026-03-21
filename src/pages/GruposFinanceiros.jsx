@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Save, X, Edit2, Trash2, ChevronRight, ChevronDown, FolderTree } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 const GRUPOS_PADRAO = {
   Despesa: [
@@ -51,6 +52,7 @@ export default function GruposFinanceiros() {
   const [expandedNodes, setExpandedNodes] = useState({});
   const [tipoFiltro, setTipoFiltro] = useState("Despesa");
   
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [formData, setFormData] = useState({
     codigo: "",
     descricao: "",
@@ -240,11 +242,7 @@ export default function GruposFinanceiros() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                if (window.confirm('⚠️ Excluir este grupo?')) {
-                  deleteMutation.mutate(node.id);
-                }
-              }}
+              onClick={() => setDeleteConfirmId(node.id)}
               className="h-7 w-7"
             >
               <Trash2 className="w-3 h-3 text-red-600" />
@@ -314,8 +312,8 @@ export default function GruposFinanceiros() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
+              <form onSubmit={handleSubmit} className="space-y-1">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                   <div className="space-y-1">
                     <Label className="text-xs">Código *</Label>
                     <Input value={formData.codigo} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} placeholder="1.1" className="h-8 text-xs" />
@@ -326,7 +324,7 @@ export default function GruposFinanceiros() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                   <div className="space-y-1">
                     <Label className="text-xs">Tipo *</Label>
                     <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v, grupo_pai_id: "" })}>
@@ -398,6 +396,19 @@ export default function GruposFinanceiros() {
           )}
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este grupo financeiro? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          deleteMutation.mutate(deleteConfirmId);
+          setDeleteConfirmId(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 }
