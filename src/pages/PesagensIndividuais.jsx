@@ -128,35 +128,35 @@ export default function PesagensIndividuais() {
   const COLUNAS_DISPONIVEIS = [
     { id: 'selecao', label: 'Seleção', default: true, fixo: true },
     { id: 'acoes', label: 'Ações', default: true, fixo: true },
-    { id: 'data_pesagem', label: 'Data', default: true },
-    { id: 'tipo_manejo', label: 'Tipo', default: true },
-    { id: 'motivo_saida', label: 'Tipo de Saída', default: true },
-    { id: 'numero_animal', label: 'Animal', default: true },
-    { id: 'sexo', label: 'Sexo', default: true },
-    { id: 'raca', label: 'Raça', default: true },
-    { id: 'era', label: 'Era', default: true },
-    { id: 'peso', label: 'Peso', default: true },
-    { id: 'nome_lote', label: 'Lote', default: true },
-    { id: 'nome_apartacao', label: 'Apartação', default: true },
-    { id: 'valor_pago_cabeca', label: 'Valor Compra', default: false },
-    { id: 'origem_animal', label: 'Origem', default: false },
-    { id: 'comprador', label: 'Comprador', default: false },
-    { id: 'destino_venda', label: 'Destino', default: false },
-    { id: 'valor_venda_total', label: 'Valor Venda', default: false },
-    { id: 'valor_arroba', label: 'Valor @', default: false },
-    { id: 'quantidade_arrobas', label: 'Qtd @', default: false },
-    { id: 'frigorifico', label: 'Frigorífico', default: false },
-    { id: 'embarque_nome', label: 'Embarque', default: false },
-    { id: 'documento_tipo', label: 'Doc', default: false },
-    { id: 'documento_numero', label: 'Nº Doc', default: false },
-    { id: 'motorista_nome', label: 'Motorista', default: false },
-    { id: 'placa_carreta', label: 'Placa', default: false },
-    { id: 'doc_qtd', label: 'Qtd Doc (Dia)', default: false },
-    { id: 'dias', label: 'Dias', default: false },
-    { id: 'ganho', label: 'Ganho', default: false },
-    { id: 'gmd', label: 'GMD', default: true },
-    { id: 'marca', label: 'Marca', default: false },
-    { id: 'observacao', label: 'Observação', default: false },
+    { id: 'data_pesagem', label: 'Data', default: true, sortable: true, align: 'left' },
+    { id: 'tipo_manejo', label: 'Tipo', default: true, sortable: true, align: 'left' },
+    { id: 'motivo_saida', label: 'Tipo de Saída', default: true, sortable: true, align: 'left' },
+    { id: 'numero_animal', label: 'Animal', default: true, sortable: true, align: 'left' },
+    { id: 'sexo', label: 'Sexo', default: true, sortable: true, align: 'left' },
+    { id: 'raca', label: 'Raça', default: true, sortable: true, align: 'left' },
+    { id: 'era', label: 'Era', default: true, sortable: true, align: 'left' },
+    { id: 'peso', label: 'Peso', default: true, sortable: true, align: 'right' },
+    { id: 'nome_lote', label: 'Lote', default: true, sortable: true, align: 'left' },
+    { id: 'nome_apartacao', label: 'Apartação', default: true, sortable: true, align: 'left' },
+    { id: 'valor_pago_cabeca', label: 'Valor Compra', default: false, sortable: true, align: 'right' },
+    { id: 'origem_animal', label: 'Origem', default: false, sortable: true, align: 'left' },
+    { id: 'comprador', label: 'Comprador', default: false, sortable: true, align: 'left' },
+    { id: 'destino_venda', label: 'Destino', default: false, sortable: true, align: 'left' },
+    { id: 'valor_venda_total', label: 'Valor Venda', default: false, sortable: true, align: 'right' },
+    { id: 'valor_arroba', label: 'Valor @', default: false, sortable: true, align: 'right' },
+    { id: 'quantidade_arrobas', label: 'Qtd @', default: false, sortable: true, align: 'right' },
+    { id: 'frigorifico', label: 'Frigorífico', default: false, sortable: true, align: 'left' },
+    { id: 'embarque_nome', label: 'Embarque', default: false, sortable: true, align: 'left' },
+    { id: 'documento_tipo', label: 'Doc', default: false, sortable: true, align: 'left' },
+    { id: 'documento_numero', label: 'Nº Doc', default: false, sortable: true, align: 'left' },
+    { id: 'motorista_nome', label: 'Motorista', default: false, sortable: true, align: 'left' },
+    { id: 'placa_carreta', label: 'Placa', default: false, sortable: true, align: 'left' },
+    { id: 'doc_qtd', label: 'Qtd Doc (Dia)', default: false, sortable: true, align: 'right' },
+    { id: 'dias', label: 'Dias', default: false, sortable: true, align: 'right' },
+    { id: 'ganho', label: 'Ganho', default: false, sortable: true, align: 'right' },
+    { id: 'gmd', label: 'GMD', default: true, sortable: true, align: 'right' },
+    { id: 'marca', label: 'Marca', default: false, sortable: true, align: 'left' },
+    { id: 'observacao', label: 'Observação', default: false, sortable: true, align: 'left' },
   ];
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
@@ -951,15 +951,15 @@ export default function PesagensIndividuais() {
                     if (coluna.id === 'acoes') {
                       return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
                     }
-                    const isRight = ['peso', 'dias', 'ganho', 'gmd'].includes(coluna.id);
+                    const isRight = coluna.align === 'right';
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs py-2 px-3 cursor-pointer hover:bg-gray-50 ${isRight ? 'text-right' : ''}`}
-                        onClick={() => handleSort(coluna.id)}
+                        className={`text-xs py-2 px-3 ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : ''}`}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
-                        <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : ''}`}>
-                          {coluna.label} <SortIcon column={coluna.id} />
+                        <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : 'justify-start'}`}>
+                          {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                         </div>
                       </TableHead>
                     );
