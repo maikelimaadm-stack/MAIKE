@@ -98,7 +98,7 @@ export default function CategoriasManejo() {
       toast.success("Categoria excluída!");
     },
     onError: (error) => {
-      if (error.message === "DELETE_BLOCKED") return;
+      if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
       toast.error(error.message || "Erro ao excluir.");
     },
   });
