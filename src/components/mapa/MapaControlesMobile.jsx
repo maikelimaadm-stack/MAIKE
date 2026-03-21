@@ -1,8 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { X, Layers, Target, RefreshCw, ClipboardList, BarChart3 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
 
 export default function MapaControlesMobile({
   mapType, setMapType,
@@ -12,15 +11,20 @@ export default function MapaControlesMobile({
   showInsightsButton = true,
   showFiltrosButton = true
 }) {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Top-left: voltar + ações */}
       <div className="absolute top-3 left-3 z-20 flex gap-1.5">
-        <Link to={createPageUrl("Home")}>
-          <Button variant="secondary" size="icon" className="h-10 w-10 rounded-full bg-white/95 shadow-md">
-            <X className="w-5 h-5 text-slate-700" />
-          </Button>
-        </Link>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-10 w-10 rounded-full bg-white/95 shadow-md"
+          onClick={() => navigate(-1)}
+        >
+          <X className="w-5 h-5 text-slate-700" />
+        </Button>
         {showTarefasButton && (
           <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Tarefas">
             <ClipboardList className="w-5 h-5 text-slate-700" />

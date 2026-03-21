@@ -124,7 +124,10 @@ export default function MapaGeral() {
     );
   }, [currentUser?.role, permissaoAtual]);
 
-  const podeUsarTarefasMapa = mapaGeralPermissions.visualizar_tarefas;
+  const podeUsarTarefasMapa = useMemo(() => {
+    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) return mapaGeralPermissions.visualizar_tarefas;
+    return mapaGeralPermissions.visualizar_tarefas && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
+  }, [currentUser?.role, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
 
   // ─── Queries ───
   const ST = 2 * 60 * 1000;
