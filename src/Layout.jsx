@@ -366,6 +366,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const normalizedPermissions = React.useMemo(() => normalizePermissionRecord(userPermissions), [userPermissions]);
+  const isAdminUser = React.useMemo(() => Boolean(user?.role === 'admin' || normalizedPermissions?.is_admin), [user?.role, normalizedPermissions]);
 
   const openPermissionDialog = (title, description, redirectTo = null) => {
     permissionRedirectRef.current = redirectTo;
@@ -584,11 +585,13 @@ export default function Layout({ children, currentPageName }) {
                 <Bell className="w-4 h-4 text-slate-600" />
               </Button>
 
-              <Link to={createPageUrl("ConfiguracoesGerais")}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
-                  <Settings className="w-4 h-4 text-slate-600" />
-                </Button>
-              </Link>
+              {isAdminUser && (
+                <Link to={createPageUrl("ConfiguracoesGerais")}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+                    <Settings className="w-4 h-4 text-slate-600" />
+                  </Button>
+                </Link>
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -617,18 +620,22 @@ export default function Layout({ children, currentPageName }) {
                     <LogOut className="w-3 h-3 mr-2" />
                     Excluir conta
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-xs">
-                    <Link to={createPageUrl("ConfiguracoesGerais")}>
-                      <Settings className="w-3 h-3 mr-2" />
-                      Configuracoes
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-xs">
-                    <Link to={createPageUrl("EditorVisualSistema")}>
-                      <Sparkles className="w-3 h-3 mr-2" />
-                      Editor Visual
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdminUser && (
+                    <>
+                      <DropdownMenuItem asChild className="text-xs">
+                        <Link to={createPageUrl("ConfiguracoesGerais")}>
+                          <Settings className="w-3 h-3 mr-2" />
+                          Configuracoes
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild className="text-xs">
+                        <Link to={createPageUrl("EditorVisualSistema")}>
+                          <Sparkles className="w-3 h-3 mr-2" />
+                          Editor Visual
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem className="text-xs" onClick={() => setShowEmailDialog(true)}>
                     <Mail className="w-3 h-3 mr-2" />
                     Enviar e-mail

@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -142,6 +144,25 @@ export default function ConfiguracoesGerais() {
     const saved = localStorage.getItem('custom_menu');
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
   });
+
+  const { data: currentUser = null, isLoading: isLoadingUser } = useQuery({
+    queryKey: ['configuracoes-gerais-user'],
+    queryFn: () => base44.auth.me(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: permissoes = [], isLoading: isLoadingPermissoes } = useQuery({
+    queryKey: ['configuracoes-gerais-permissoes'],
+    queryFn: () => base44.entities.Permissao.list(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const permissaoAtual = useMemo(
+    () => permissoes.find((item) => item.user_email === currentUser?.email) || null,
+    [permissoes, currentUser?.email]
+  );
+
+  const isAdmin = currentUser?.role === 'admin' || permissaoAtual?.is_admin === true;
 
   const [expandedMenus, setExpandedMenus] = useState({});
   const [showAddMenuItem, setShowAddMenuItem] = useState(false);
@@ -306,6 +327,31 @@ export default function ConfiguracoesGerais() {
     setEditingItem({ ...item });
     setShowEditMenuItem(true);
   };
+
+  if (isLoadingUser || isLoadingPermissoes) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Card className="shadow-sm">
+          <CardContent className="p-6 text-xs text-slate-500">Carregando configurações...</CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Card className="shadow-sm border-amber-200 bg-amber-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-amber-900">Acesso restrito</CardTitle>
+            <CardDescription className="text-xs text-amber-700">
+              As configurações e parâmetros do sistema são exibidos apenas para administrador.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-4">
