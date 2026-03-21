@@ -248,7 +248,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs uppercase">Descrição da Tarefa</Label>
-          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
+          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs" />
         </div>
 
         <div className="space-y-1.5">
@@ -276,7 +276,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs uppercase">Observações</Label>
-          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs uppercase" />
+          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs" />
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">
@@ -288,7 +288,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 text-xs uppercase"
+              className="h-8 text-xs"
               onClick={() => {
                 if (onRequestSelectLocation) {
                   onRequestSelectLocation(formData);

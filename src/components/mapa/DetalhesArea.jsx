@@ -112,7 +112,7 @@ export default function DetalhesArea({ area, onClose }) {
             <span className="text-sm font-bold text-slate-900">{area.nome}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
-            <span>{area.tamanho_hectares || 0} ha total</span>
+            <span>HA {Number(area.tamanho_hectares || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             {area.area_pastejada > 0 && (
               <>
                 <span>•</span>

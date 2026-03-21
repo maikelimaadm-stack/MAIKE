@@ -665,11 +665,6 @@ export default function Layout({ children, currentPageName }) {
               </DropdownMenu>
 
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
-                    <Menu className="w-5 h-5" />
-                  </Button>
-                </SheetTrigger>
                 <SheetContent side="right" className="w-72 flex flex-col">
                   <SheetHeader>
                     <SheetTitle className="text-left text-sm">Menu</SheetTitle>
@@ -980,26 +975,39 @@ export default function Layout({ children, currentPageName }) {
       {/* Mobile bottom navigation */}
       {!isFolha &&
       <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
-          <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-4 gap-3">
+          <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-5 gap-3">
             {fixedMobileNavPages.map((page) => {
             const isCurrent = location.pathname === createPageUrl(page.url);
-            const configuredIcon = mobileMenuIcons.find((item) => (item.categoria || '').trim().toUpperCase() === page.category);
+            const hasAccess = canAccessPage(normalizedPermissions, page.id, page.moduleId);
             const Icon = page.Icon;
 
-            return (
+            return hasAccess ? (
               <Link
                 key={page.id}
                 to={createPageUrl(page.url)}
+                aria-label={page.label}
                 className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
-                
-                  {configuredIcon?.icone_url ?
-                <img src={configuredIcon.icone_url} alt={page.title} className="w-6 h-6 object-contain" /> :
-
                 <Icon className="w-6 h-6" />
-                }
-                </Link>);
+                </Link>
+            ) : (
+              <button
+                key={page.id}
+                type="button"
+                aria-label={page.label}
+                onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
+                className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-300">
+                <Icon className="w-6 h-6" />
+              </button>
+            );
 
           })}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Menu"
+              className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-600">
+              <Menu className="w-6 h-6" />
+            </button>
           </div>
         </nav>
       }
