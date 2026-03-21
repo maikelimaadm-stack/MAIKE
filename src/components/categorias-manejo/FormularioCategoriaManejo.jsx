@@ -37,19 +37,40 @@ export default function FormularioCategoriaManejo({
   };
 
   const getFieldClassName = (field, baseClass = "") => {
-    return `${baseClass} ${invalidFields.includes(field) ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
+    return `${baseClass} ${
+      invalidFields.includes(field)
+        ? "border-red-500 bg-red-50 focus-visible:ring-red-500"
+        : ""
+    }`.trim();
+  };
+
+  const isEmpty = (value) => {
+    return value === undefined || value === null || value === "";
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const missingFields = [];
-    if (!formData.nome?.trim()) missingFields.push("nome");
-    if (!formData.sigla?.trim()) missingFields.push("sigla");
+    const requiredFields = [
+      "nome",
+      "sigla",
+      "especie",
+      "sexo",
+      "raca",
+      "categoria_oficial",
+      "idade_minima_meses",
+      "idade_maxima_meses",
+      "ganho_peso_anual_kg",
+      ...MESES.map((m) => m.field),
+    ];
+
+    const missingFields = requiredFields.filter((field) =>
+      isEmpty(formData[field])
+    );
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
-      toast.error("Preencha os campos obrigatórios.");
+      toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -63,154 +84,180 @@ export default function FormularioCategoriaManejo({
           {isEditing ? "Editar Categoria de Manejo" : "Nova Categoria de Manejo"}
         </CardTitle>
       </CardHeader>
+
       <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-1">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-2">
+
+          {/* LINHA 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+
+            <div>
               <Label className="text-xs">Nome da Categoria *</Label>
               <Input
                 value={formData.nome}
                 onChange={(e) => handleChange("nome", e.target.value)}
-                placeholder="NOME DA CATEGORIA"
-                className={getFieldClassName("nome", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
+                className={getFieldClassName("nome", "h-8 text-xs")}
               />
             </div>
 
-            <div className="space-y-1">
+            <div>
               <Label className="text-xs">Sigla *</Label>
               <Input
                 value={formData.sigla}
                 onChange={(e) => handleChange("sigla", e.target.value)}
-                placeholder="SIGLA"
-                className={getFieldClassName("sigla", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
-                maxLength={10}
+                className={getFieldClassName("sigla", "h-8 text-xs")}
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Espécie</Label>
-              <Select value={formData.especie || "Bovinos"} onValueChange={(value) => handleChange("especie", value)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Bovinos" className="text-xs">Bovinos</SelectItem>
-                  <SelectItem value="Ovinos" className="text-xs">Ovinos</SelectItem>
-                  <SelectItem value="Suínos" className="text-xs">Suínos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Sexo</Label>
-              <Select value={formData.sexo || "__VAZIO__"} onValueChange={(value) => handleChange("sexo", value === "__VAZIO__" ? "" : value)}>
-                <SelectTrigger className="h-8 text-xs">
+            <div>
+              <Label className="text-xs">Espécie *</Label>
+              <Select
+                value={formData.especie || ""}
+                onValueChange={(value) => handleChange("especie", value)}
+              >
+                <SelectTrigger className={getFieldClassName("especie", "h-8 text-xs")}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__VAZIO__" className="text-xs">Selecione</SelectItem>
-                  <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
-                  <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
+                  <SelectItem value="">Selecione</SelectItem>
+                  <SelectItem value="Bovinos">Bovinos</SelectItem>
+                  <SelectItem value="Ovinos">Ovinos</SelectItem>
+                  <SelectItem value="Suínos">Suínos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Raça</Label>
+          </div>
+
+          {/* LINHA 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+
+            <div>
+              <Label className="text-xs">Sexo *</Label>
+              <Select
+                value={formData.sexo || ""}
+                onValueChange={(value) => handleChange("sexo", value)}
+              >
+                <SelectTrigger className={getFieldClassName("sexo", "h-8 text-xs")}>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Selecione</SelectItem>
+                  <SelectItem value="Macho">Macho</SelectItem>
+                  <SelectItem value="Fêmea">Fêmea</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs">Raça *</Label>
               <Input
                 value={formData.raca}
                 onChange={(e) => handleChange("raca", e.target.value)}
-                placeholder="RAÇA"
-                className="h-8 text-xs uppercase"
-                style={{ textTransform: "uppercase" }}
+                className={getFieldClassName("raca", "h-8 text-xs")}
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Categoria Oficial</Label>
-              <Select value={formData.categoria_oficial || "__VAZIO__"} onValueChange={(value) => handleChange("categoria_oficial", value === "__VAZIO__" ? "" : value)}>
-                <SelectTrigger className="h-8 text-xs">
+            <div>
+              <Label className="text-xs">Categoria Oficial *</Label>
+              <Select
+                value={formData.categoria_oficial || ""}
+                onValueChange={(value) =>
+                  handleChange("categoria_oficial", value)
+                }
+              >
+                <SelectTrigger className={getFieldClassName("categoria_oficial", "h-8 text-xs")}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__VAZIO__" className="text-xs">Selecione</SelectItem>
+                  <SelectItem value="">Selecione</SelectItem>
                   {categoriasOficiaisDisponiveis.map((cat) => (
-                    <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Idade Mínima (meses)</Label>
+          {/* LINHA 3 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+
+            <div>
+              <Label className="text-xs">Idade Mínima (meses) *</Label>
               <Input
                 type="number"
                 value={formData.idade_minima_meses}
-                onChange={(e) => handleChange("idade_minima_meses", e.target.value)}
-                placeholder="0"
-                className="h-8 text-xs"
+                onChange={(e) =>
+                  handleChange("idade_minima_meses", e.target.value)
+                }
+                className={getFieldClassName("idade_minima_meses", "h-8 text-xs")}
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Idade Máxima (meses)</Label>
+            <div>
+              <Label className="text-xs">Idade Máxima (meses) *</Label>
               <Input
                 type="number"
                 value={formData.idade_maxima_meses}
-                onChange={(e) => handleChange("idade_maxima_meses", e.target.value)}
-                placeholder="0"
-                className="h-8 text-xs"
+                onChange={(e) =>
+                  handleChange("idade_maxima_meses", e.target.value)
+                }
+                className={getFieldClassName("idade_maxima_meses", "h-8 text-xs")}
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Ganho de Peso Anual (kg)</Label>
+            <div>
+              <Label className="text-xs">Ganho de Peso Anual (kg) *</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={formData.ganho_peso_anual_kg}
-                onChange={(e) => handleChange("ganho_peso_anual_kg", e.target.value)}
-                placeholder="0,00"
-                className="h-8 text-xs"
+                onChange={(e) =>
+                  handleChange("ganho_peso_anual_kg", e.target.value)
+                }
+                className={getFieldClassName("ganho_peso_anual_kg", "h-8 text-xs")}
               />
             </div>
+
           </div>
 
-          <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-3 space-y-1">
-            <div>
-              <span className="font-semibold text-sm text-slate-700">Previsão de Ganho de Peso Mensal (GMD)</span>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-1">
+          {/* GMD */}
+          <div className="border rounded-lg p-3">
+            <span className="text-sm font-semibold">
+              GMD Mensal *
+            </span>
+
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 mt-2">
               {MESES.map((mes) => (
-                <div key={mes.field} className="space-y-1">
-                  <Label className="text-xs">{mes.label}</Label>
+                <div key={mes.field}>
+                  <Label className="text-xs">{mes.label} *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData[mes.field]}
-                    onChange={(e) => handleChange(mes.field, e.target.value)}
-                    placeholder="0,00"
-                    className="h-8 text-xs"
+                    onChange={(e) =>
+                      handleChange(mes.field, e.target.value)
+                    }
+                    className={getFieldClassName(mes.field, "h-8 text-xs")}
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+          {/* BOTÕES */}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" className="bg-emerald-600">
               {isEditing ? "Atualizar" : "Salvar"}
             </Button>
           </div>
+
         </form>
       </CardContent>
     </Card>
