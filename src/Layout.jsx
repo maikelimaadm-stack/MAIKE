@@ -44,6 +44,7 @@ import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
 import SendEmailDialog from "@/components/email/SendEmailDialog";
 import AccessDeniedCard from "@/components/common/AccessDeniedCard";
+import { PermissionProvider } from "@/lib/PermissionContext";
 import { filterMenuByPermissions, canAccessPage, getAllowedMobileMenuItems, isAdminPermission } from "@/lib/permissions";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -314,12 +315,19 @@ export default function Layout({ children, currentPageName }) {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
-        
-        // Carregar permissões do usuário
+
         try {
-          const allPermissoes = await base44.entities.Permissao.list();
-          const permissao = allPermissoes.find(p => p.user_email === currentUser.email);
-          setUserPermissions(permissao);
+          const [allAssignments, allGroups] = await Promise.all([
+            base44.entities.Permissao.list(),
+            base44.entities.GrupoPermissao.list()
+          ]);
+
+          const assignment = allAssignments.find((item) => item.user_email === currentUser.email);
+          const permissionGroup = assignment?.grupo_permissao_id
+            ? allGroups.find((group) => group.id === assignment.grupo_permissao_id)
+            : null;
+
+          setUserPermissions(permissionGroup || null);
         } catch (error) {
           console.error("Erro ao carregar permissões:", error);
           setUserPermissions(null);
@@ -855,24 +863,26 @@ export default function Layout({ children, currentPageName }) {
       </Dialog>
 
 
-      <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " pb-16 md:pb-0"}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ x: 30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -20, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            {pageAccessAllowed ? children : <AccessDeniedCard />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+      <PermissionProvider permissionGroup={userPermissions} isAdmin={adminAccess}>
+        <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " pb-16 md:pb-0"}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ x: 30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -20, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              {pageAccessAllowed ? children : <AccessDeniedCard />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </PermissionProvider>
 
       {/* Mobile bottom navigation */}
       {!isFolha && (
         <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
-          <div className="max-w-[1600px] mx-auto px-4 py-1 grid grid-cols-5 gap-1 text-xs">
+          <div className="max-w-[1600px] mx-auto px-4 py-1 grid gap-1 text-xs" style={{ gridTemplateColumns: `repeat(${mobileShortcutItems.length + 1}, minmax(0, 1fr))` }}>
             {mobileShortcutItems.map((item) => {
               const Icon = iconsMap[item.icon] || Home;
               const active = location.pathname === createPageUrl(item.url);
