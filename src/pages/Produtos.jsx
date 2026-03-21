@@ -213,13 +213,11 @@ export default function Produtos() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ Excluir produto?')) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error) {
-        console.error('Erro:', error);
-      }
+  const handleDelete = async (id) => {
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (error) {
+      console.error('Erro:', error);
     }
   };
 

@@ -14,10 +14,10 @@ import { AlertTriangle, Trash2, AlertCircle } from "lucide-react";
 export default function ConfirmDialog({ 
   open, 
   onOpenChange, 
-  title, 
-  description, 
+  title = "Confirmar exclusão", 
+  description = "Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.", 
   onConfirm,
-  confirmText = "Confirmar",
+  confirmText = "Excluir",
   cancelText = "Cancelar",
   variant = "default" // "default", "destructive", "warning"
 }) {

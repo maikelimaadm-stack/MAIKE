@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const formatarNumero = (numero) => {
@@ -50,6 +51,8 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_produtos');
@@ -215,26 +218,29 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} produto(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      for (const id of selectedItems) {
-        try {
-          await onDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: selectedItems.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+    setBulkDeleteConfirm(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirm(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selectedItems.length });
+    
+    let deleted = 0;
+    for (const id of selectedItems) {
+      try {
+        await onDelete(id, true);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selectedItems.length });
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
       }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelectedItems([]);
+    }, 500);
   };
 
   const handleBulkPrint = () => {
@@ -413,7 +419,7 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                                   Imprimir Ficha
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => onDelete(produto.id)} className="text-xs text-red-600">
+                                <DropdownMenuItem onClick={() => setDeleteConfirm(produto)} className="text-xs text-red-600">
                                   Excluir
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -534,6 +540,31 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={() => setDeleteConfirm(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          onDelete(deleteConfirm.id);
+          setDeleteConfirm(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={() => setBulkDeleteConfirm(false)}
+        title="Confirmar exclusão"
+        description={`Tem certeza que deseja excluir ${selectedItems.length} item(ns)? Esta ação não pode ser desfeita.`}
+        onConfirm={executeBulkDelete}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
