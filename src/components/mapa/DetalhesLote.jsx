@@ -29,7 +29,7 @@ import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
 
-export default function DetalhesLote({ lotes, onClose }) {
+export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showMovimentacao, setShowMovimentacao] = useState(false);
   const [showMorte, setShowMorte] = useState(false);
@@ -690,53 +690,59 @@ export default function DetalhesLote({ lotes, onClose }) {
       <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>
-        <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Pesar</Button>
-        <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mudar Categoria</Button>
-        <Button onClick={() => setShowNascimento(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Nascimento</Button>
-        <Button onClick={() => setShowMorte(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Morte</Button>
-        <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Abate</Button>
+        {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>}
+        {permissions.pesar_lotes !== false && <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Pesar</Button>}
+        {permissions.mudar_categoria_lotes !== false && <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mudar Categoria</Button>}
+        {permissions.registrar_nascimento !== false && <Button onClick={() => setShowNascimento(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Nascimento</Button>}
+        {permissions.registrar_morte !== false && <Button onClick={() => setShowMorte(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Morte</Button>}
+        {permissions.registrar_abate !== false && <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Abate</Button>}
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button 
-          onClick={() => setShowHistorico(true)}
-          variant="outline"
-          className="h-9 text-[11px] font-semibold border-slate-300"
-          translate="no"
-        >
-          Histórico Movimentações
-        </Button>
-        <Button 
-          onClick={() => setShowHistoricoSupl(true)}
-          variant="outline"
-          className="h-9 text-[11px] font-semibold border-slate-300"
-          translate="no"
-        >
-          Histórico Suplementação
-        </Button>
+        {permissions.visualizar_historico_movimentacoes_lote !== false && (
+          <Button 
+            onClick={() => setShowHistorico(true)}
+            variant="outline"
+            className="h-9 text-[11px] font-semibold border-slate-300"
+            translate="no"
+          >
+            Histórico Movimentações
+          </Button>
+        )}
+        {permissions.visualizar_historico_suplementacao_lote !== false && (
+          <Button 
+            onClick={() => setShowHistoricoSupl(true)}
+            variant="outline"
+            className="h-9 text-[11px] font-semibold border-slate-300"
+            translate="no"
+          >
+            Histórico Suplementação
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button 
-          onClick={() => {
-            if (lotes.length === 1) {
-              setLoteParaRenomear(lotes[0]);
-              setNovoNomeLote(lotes[0].nome);
-              setShowRenomear(true);
-            } else {
-              // Mostrar lista para escolher qual renomear
-              setLoteParaRenomear(null);
-              setShowRenomear(true);
-            }
-          }}
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs font-semibold border-slate-300"
-        >
-          Renomear Lote
-        </Button>
-        {lotes.length > 1 && (() => {
+        {permissions.renomear_lotes !== false && (
+          <Button 
+            onClick={() => {
+              if (lotes.length === 1) {
+                setLoteParaRenomear(lotes[0]);
+                setNovoNomeLote(lotes[0].nome);
+                setShowRenomear(true);
+              } else {
+                // Mostrar lista para escolher qual renomear
+                setLoteParaRenomear(null);
+                setShowRenomear(true);
+              }
+            }}
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs font-semibold border-slate-300"
+          >
+            Renomear Lote
+          </Button>
+        )}
+        {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
           // Agrupar por categoria para ver quais categorias têm mais de 1 lote
           const porCategoria = {};
           lotes.forEach(l => {

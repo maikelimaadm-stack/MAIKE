@@ -41,7 +41,7 @@ const diffLocalDays = (start, end = new Date()) => {
   return Math.max(0, Math.floor((fimDia - inicioDia) / 86400000));
 };
 
-export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
+export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions = {} }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [showLancamento, setShowLancamento] = useState(false);
@@ -163,7 +163,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   };
 
   if (isDeposito) {
-    return <DetalhesDepositoSuplementacao deposito={ponto} onClose={onClose} />;
+    return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;
   }
 
   return (
@@ -175,8 +175,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       </div>
 
       <div className="grid grid-cols-2 gap-1">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
+        {permissions.lancar_suplementacao !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>}
+        {permissions.visualizar_historico_cocho !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
       {/* Saldo estimado no cocho */}

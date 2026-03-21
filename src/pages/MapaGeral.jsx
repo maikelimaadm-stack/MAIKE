@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { canAccessModule, canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
+import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
+import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
@@ -112,10 +113,18 @@ export default function MapaGeral() {
     return normalizePermissionRecord(registro);
   }, [permissoes, currentUser?.email]);
 
-  const podeUsarTarefasMapa = useMemo(() => {
-    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) return true;
-    return canAccessModule(permissaoAtual, 'gestao-tarefas') && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
+  const mapaGeralPermissions = useMemo(() => {
+    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) {
+      return normalizeMapaGeralPermissions({}, true);
+    }
+
+    return normalizeMapaGeralPermissions(
+      permissaoAtual?.mapa_geral_permissoes,
+      canAccessPage(permissaoAtual, 'pec-mapa-geral', 'pecuaria')
+    );
   }, [currentUser?.role, permissaoAtual]);
+
+  const podeUsarTarefasMapa = mapaGeralPermissions.visualizar_tarefas;
 
   // ─── Queries ───
   const ST = 2 * 60 * 1000;
@@ -429,18 +438,29 @@ export default function MapaGeral() {
     }
   }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
 
-  const handleClickPontoSupl = useCallback((p) => {setSelectedPontoSupl(p);setShowDetalhesPontoSupl(true);}, []);
-  const handleClickLotes = useCallback((l) => {setSelectedLote(l);setShowDetalhesLote(true);}, []);
+  const handleClickPontoSupl = useCallback((p) => {
+    if (!mapaGeralPermissions.visualizar_detalhes_cochos) return;
+    setSelectedPontoSupl(p);
+    setShowDetalhesPontoSupl(true);
+  }, [mapaGeralPermissions.visualizar_detalhes_cochos]);
+
+  const handleClickLotes = useCallback((l) => {
+    if (!mapaGeralPermissions.visualizar_detalhes_lotes) return;
+    setSelectedLote(l);
+    setShowDetalhesLote(true);
+  }, [mapaGeralPermissions.visualizar_detalhes_lotes]);
+
   const handleClickTarefa = useCallback((t) => {setSelectedTarefa(t);setShowDetalhesTarefa(true);}, []);
 
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
+    if (!mapaGeralPermissions.mover_lotes) return;
     const orig = allAreas.find((a) => a.id === areaId);
     if (orig) {const ps = orig.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));if (ptInPoly(newPos, ps)) {toast.error('Arraste para outra área');return;}}
     let dest = null;
     for (const a of allAreas) {if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue;if (ptInPoly(newPos, a.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })))) {dest = a;break;}}
     if (dest) {setSelectedLote(lotesNaArea);setShowDetalhesLote(true);setTimeout(() => window.dispatchEvent(new CustomEvent('open-movimentacao', { detail: { areaDestinoId: dest.id } })), 100);} else
     toast.error('Solte sobre outra área');
-  }, []);
+  }, [mapaGeralPermissions.mover_lotes]);
 
   const handleRefresh = useCallback(() => {
     refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
@@ -501,7 +521,7 @@ export default function MapaGeral() {
     };
 
     const handlePressStart = (event) => {
-      if (selecionandoLocalTarefa) return;
+      if (!podeUsarTarefasMapa || selecionandoLocalTarefa) return;
       const point = getPointFromEvent(event);
       if (!point) return;
       longPressStartRef.current = point;
@@ -575,7 +595,7 @@ export default function MapaGeral() {
   }, [mapReady, selecionandoLocalTarefa, abrirLancamentoTarefa, handleSelectTaskLocation, detectarAreaPorCoordenada, podeUsarTarefasMapa]);
 
   // ─── Renderização incremental ───
-  useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor, handleClickArea, handleRightClickArea]);
+  useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, mapaGeralPermissions.visualizar_areas && showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor, handleClickArea, handleRightClickArea, mapaGeralPermissions.visualizar_areas]);
   // Função de texto extra para labels (UA/ha ou situação do pasto)
   const getLabelExtraText = useCallback((area) => {
     if (modoColoracao === 'ua_ha') {
@@ -605,15 +625,15 @@ export default function MapaGeral() {
       // Limpar labels existentes para forçar recriação com texto extra
       renderer.syncLabels([], false);
       setTimeout(() => {
-        renderer.syncLabels(areasFiltradas, showNomesAreas && showAreas, getLabelExtraText);
+        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, getLabelExtraText);
       }, 50);
     } else if (mapReady) {
       renderer.syncLabels([], false);
       setTimeout(() => {
-        renderer.syncLabels(areasFiltradas, showNomesAreas && showAreas, null);
+        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, null);
       }, 50);
     }
-  }, [areasFiltradas, showNomesAreas, showAreas, mapReady, modoColoracao, getLabelExtraText]);
+  }, [areasFiltradas, showNomesAreas, showAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
     if (showPontosSuplementacao) return pontos;
@@ -623,12 +643,12 @@ export default function MapaGeral() {
     });
   }, [pontos, showPontosSuplementacao]);
 
-  useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady]);
-  useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, showLinhas);}, [linhas, showLinhas, mapReady]);
-  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, mapReady]);
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, showLotes, iconesConfig, handleClickLotes, handleDragLotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_pontos_referencia]);
+  useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
+  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoDecorados, mapaGeralPermissions.visualizar_cochos_suplementacao && showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa ? tarefasMapa : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapa, areas, iconesConfig, mapReady, podeUsarTarefasMapa, handleClickTarefa]);
-  useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, showUserLocation);}, [userLocation, showUserLocation, mapReady]);
+  useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
     const h = () => {
@@ -638,6 +658,19 @@ export default function MapaGeral() {
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
   }, [podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+
+  useEffect(() => {
+    if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
+    if (!mapaGeralPermissions.visualizar_nomes_areas) setShowNomesAreas(false);
+    if (!mapaGeralPermissions.visualizar_pontos_referencia) setShowPontos(false);
+    if (!mapaGeralPermissions.visualizar_linhas) setShowLinhas(false);
+    if (!mapaGeralPermissions.visualizar_lotes) setShowLotes(false);
+    if (!mapaGeralPermissions.visualizar_cochos_suplementacao) setShowPontosSuplementacao(false);
+    if (!mapaGeralPermissions.visualizar_alertas) setShowAlertas(false);
+    if (!mapaGeralPermissions.visualizar_localizacao) setShowUserLocation(false);
+    if (!mapaGeralPermissions.visualizar_filtros_camadas) setShowFiltros(false);
+    if (!mapaGeralPermissions.visualizar_insights) setShowInsights(false);
+  }, [mapaGeralPermissions]);
 
   useEffect(() => {
     if (podeUsarTarefasMapa) return;
@@ -663,9 +696,11 @@ export default function MapaGeral() {
           mapType={mapType} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
           showTarefasButton={podeUsarTarefasMapa}
+          showInsightsButton={mapaGeralPermissions.visualizar_insights}
+          showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={() => {if (!podeUsarTarefasMapa) return; setTarefasContext({}); setShowTarefas(true);}}
-          onOpenInsights={() => setShowInsights(true)}
-          onOpenFiltros={() => setShowFiltros(true)} />
+          onOpenInsights={() => {if (!mapaGeralPermissions.visualizar_insights) return; setShowInsights(true);}}
+          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return; setShowFiltros(true);}} />
 
 
         {/* Legenda */}
@@ -699,9 +734,11 @@ export default function MapaGeral() {
                 <div className="text-slate-500">Alertas</div>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowInsights(true)} className="h-6 text-[10px] gap-1 text-emerald-700 px-2">
-              <BarChart3 className="w-3 h-3" /> Insights
-            </Button>
+            {mapaGeralPermissions.visualizar_insights && (
+              <Button variant="ghost" size="sm" onClick={() => setShowInsights(true)} className="h-6 text-[10px] gap-1 text-emerald-700 px-2">
+                <BarChart3 className="w-3 h-3" /> Insights
+              </Button>
+            )}
           </div>
         </div>
 
@@ -741,7 +778,8 @@ export default function MapaGeral() {
               modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
               categorias={categorias}
               tiposPastagem={tiposPastagem}
-              sistemasProdutivos={sistemasProdutivos} />
+              sistemasProdutivos={sistemasProdutivos}
+              permissions={mapaGeralPermissions} />
 
           </div>
         </SheetContent>
@@ -751,14 +789,14 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) setTimeout(() => refetchLotes(), 300);}}>
         <DialogContent className="bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader><DialogTitle translate="no">Detalhes do Lote</DialogTitle></DialogHeader>
-          {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} onClose={() => {setShowDetalhesLote(false);setTimeout(() => refetchLotes(), 300);}} />}
+          {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesLote(false);setTimeout(() => refetchLotes(), 300);}} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}}>
         <DialogContent className="bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'}</DialogTitle></DialogHeader>
-          {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} onClose={() => {setShowDetalhesPontoSupl(false);setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}} />}
+          {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesPontoSupl(false);setTimeout(() => {refetchEventosSupl();refetchLotes();refetchPontosSupl();}, 300);}} />}
         </DialogContent>
       </Dialog>
 

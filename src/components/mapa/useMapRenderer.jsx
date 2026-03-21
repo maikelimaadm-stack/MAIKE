@@ -295,7 +295,7 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Lotes (agrupados por área) ───
-  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes) => {
+  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes, canDragLotes = true) => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const prefix = 'lote_area_';
@@ -346,6 +346,7 @@ export default function useMapRenderer(mapInstanceRef) {
         existing.setPosition(offsetCenter);
         existing.setTitle(area.nome);
         existing.setZIndex(totalAlertas > 0 ? 2000 : 1000);
+        existing.setDraggable(!!canDragLotes);
         existing.setIcon(icon);
         if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
         existing._lotesNaArea = lotesNaArea;
@@ -356,7 +357,7 @@ export default function useMapRenderer(mapInstanceRef) {
       const marker = new google.maps.Marker({
         position: offsetCenter, map, icon,
         label: { text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' },
-        title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: true
+        title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: !!canDragLotes
       });
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
       marker._lotesNaArea = lotesNaArea;

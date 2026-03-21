@@ -13,7 +13,7 @@ import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 
-export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
+export default function DetalhesDepositoSuplementacao({ deposito, onClose, permissions = {} }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
@@ -137,9 +137,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose }) {
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-3 gap-1">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setTransferDirection("entrada");setShowTransferencia(true);}}>Entrada</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setTransferDirection("saida");setShowTransferencia(true);}}>Saída</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
+        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setTransferDirection("entrada");setShowTransferencia(true);}}>Entrada</Button>}
+        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setTransferDirection("saida");setShowTransferencia(true);}}>Saída</Button>}
+        {permissions.visualizar_historico_cocho !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
       <div className="space-y-1 text-[10px]">

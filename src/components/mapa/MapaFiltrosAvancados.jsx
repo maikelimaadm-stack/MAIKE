@@ -96,6 +96,17 @@ export default function MapaFiltrosAvancados({
   sistemasProdutivos = [],
   permissions = null
 }) {
+  const availableLayers = [
+    permissions?.visualizar_areas !== false && { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
+    permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
+    permissions?.visualizar_lotes !== false && { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
+    permissions?.visualizar_pontos_referencia !== false && { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v) },
+    permissions?.visualizar_linhas !== false && { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v) },
+    permissions?.visualizar_cochos_suplementacao !== false && { label: 'Cochos / Suplementação', checked: showPontosSuplementacao, onChange: () => setShowPontosSuplementacao((v) => !v) },
+    permissions?.visualizar_alertas !== false && { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v) },
+    permissions?.visualizar_localizacao !== false && { label: 'Minha Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) },
+  ].filter(Boolean);
+
   return (
     <div className="rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}

@@ -94,6 +94,7 @@ export default function Usuarios() {
       permissoes_telas: permissao?.permissoes_telas || [],
       mobile_menu_ids: permissao?.mobile_menu_ids || [],
       is_admin: permissao?.is_admin || false,
+      mapa_geral_permissoes: permissao?.mapa_geral_permissoes || {},
     });
     setShowForm(true);
   };
