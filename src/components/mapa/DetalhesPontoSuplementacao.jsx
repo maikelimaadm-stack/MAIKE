@@ -84,6 +84,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ["areas-ponto-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
   const iconePonto = useMemo(() => {
     const categoriaPonto = normalizeText(ponto?.categoria_ponto || "");
@@ -109,6 +118,13 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     : ponto.area_vinculada_id
       ? [ponto.area_vinculada_id]
       : [];
+  const areaNomesRelacionadas = useMemo(() => {
+    const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
+    const nomesPorIds = areaIdsRelacionadas.map((id) => nomesPorId.get(id)).filter(Boolean);
+    if (nomesPorIds.length > 0) return nomesPorIds;
+    if (Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0) return ponto.area_vinculada_nomes.filter(Boolean);
+    return ponto.area_vinculada_nome ? [ponto.area_vinculada_nome] : [];
+  }, [areas, areaIdsRelacionadas, ponto.area_vinculada_nomes, ponto.area_vinculada_nome]);
   const lotesRelacionados = useMemo(() => {
     return lotes.filter((lote) => areaIdsRelacionadas.includes(lote.area_atual_id));
   }, [lotes, areaIdsRelacionadas]);
