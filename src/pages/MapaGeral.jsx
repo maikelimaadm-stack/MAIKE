@@ -204,7 +204,7 @@ export default function MapaGeral() {
   });
 
   // Movimentações para calcular situação do pasto
-  const { data: movimentacoes = [] } = useQuery({
+  const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery({
     queryKey: ['mapa-movimentacoes', empresaSelecionadaId],
     queryFn: async () => {const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao', 500);return all.filter((m) => m.empresa_id === empresaSelecionadaId);},
     enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto',
@@ -484,9 +484,10 @@ export default function MapaGeral() {
 
   const handleRefresh = useCallback(() => {
     refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
+    if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
     if (podeUsarTarefasMapa) refetchTarefas();
     toast.success('Mapa atualizado');
-  }, [podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -673,11 +674,12 @@ export default function MapaGeral() {
   useEffect(() => {
     const h = () => {
       refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
+      if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
       if (podeUsarTarefasMapa) refetchTarefas();
     };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
-  }, [podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   useEffect(() => {
     if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
