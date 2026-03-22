@@ -1,6 +1,6 @@
 // IndexedDB Manager para persistência offline
 const DB_NAME = 'pesagens_offline_db';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 const STORES = {
   PESAGENS: 'pesagens_individuais',
@@ -14,6 +14,8 @@ const STORES = {
   PENDING_SANIDADE: 'pending_sanidade',
   PENDING_UPDATES: 'pending_updates',
   SYNC_QUEUE: 'sync_queue',
+  ENTITY_CACHE: 'entity_cache',
+  ENTITY_QUEUE: 'entity_queue',
 };
 
 let db = null;
@@ -116,6 +118,20 @@ export const initDB = () => {
         const syncStore = database.createObjectStore(STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
         syncStore.createIndex('type', 'type', { unique: false });
         syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+
+      if (!database.objectStoreNames.contains(STORES.ENTITY_CACHE)) {
+        const entityCacheStore = database.createObjectStore(STORES.ENTITY_CACHE, { keyPath: 'cache_key' });
+        entityCacheStore.createIndex('entity_name', 'entity_name', { unique: false });
+        entityCacheStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+      }
+
+      if (!database.objectStoreNames.contains(STORES.ENTITY_QUEUE)) {
+        const entityQueueStore = database.createObjectStore(STORES.ENTITY_QUEUE, { keyPath: 'id', autoIncrement: true });
+        entityQueueStore.createIndex('entity_name', 'entity_name', { unique: false });
+        entityQueueStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+        entityQueueStore.createIndex('operation', 'operation', { unique: false });
+        entityQueueStore.createIndex('created_at', 'created_at', { unique: false });
       }
     };
   });
