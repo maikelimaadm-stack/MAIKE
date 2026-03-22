@@ -65,6 +65,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ["areas-deposito-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ["movimentacoes-deposito-detalhe", deposito.id],
     queryFn: async () => {
@@ -235,9 +244,16 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
           <div className="space-y-2">
               {cochosVinculados.map((cocho) => {
-            const pastosAtendidos = Array.isArray(cocho.area_vinculada_nomes) && cocho.area_vinculada_nomes.length > 0
-              ? cocho.area_vinculada_nomes.join(', ')
-              : cocho.area_vinculada_nome || 'Sem pasto vinculado';
+            const areaIds = Array.isArray(cocho.area_vinculada_ids) && cocho.area_vinculada_ids.length > 0
+              ? cocho.area_vinculada_ids
+              : (cocho.area_vinculada_id ? [cocho.area_vinculada_id] : []);
+            const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
+            const nomesResolvidos = areaIds.map((id) => nomesPorId.get(id)).filter(Boolean);
+            const pastosAtendidos = nomesResolvidos.length > 0
+              ? nomesResolvidos.join(', ')
+              : Array.isArray(cocho.area_vinculada_nomes) && cocho.area_vinculada_nomes.length > 0
+                ? cocho.area_vinculada_nomes.join(', ')
+                : cocho.area_vinculada_nome || 'Sem pasto vinculado';
             return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
                   <div className="text-[10px] text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
@@ -252,10 +268,25 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Informações do Depósito</div>
           <div className="space-y-1 text-[10px]">
+            {subIconePonto && (
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
+                <img src={subIconePonto} alt={deposito.nome_ponto} className="w-10 h-10 object-contain" />
+                <div>
+                  <div className="font-semibold text-slate-900">{deposito.nome_ponto}</div>
+                  <div className="text-slate-500">{deposito.categoria_ponto || 'DEPOSITO'} • {deposito.status || 'Ativo'}</div>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Número:</span><span className="font-semibold text-slate-900">{deposito.numero_ponto || '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sigla:</span><span className="font-semibold text-slate-900">{deposito.sigla || '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{deposito.tipo || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Local de estoque:</span><span className="font-semibold text-slate-900">{deposito.local_estoque_nome || '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{deposito.produto_padrao || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Capacidade:</span><span className="font-semibold text-slate-900">{deposito.capacidade_cocho_kg ? formatKg(deposito.capacidade_cocho_kg) : '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Estoque mínimo:</span><span className="font-semibold text-slate-900">{deposito.estoque_minimo_kg ? formatKg(deposito.estoque_minimo_kg) : '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência padrão:</span><span className="font-semibold text-slate-900">{deposito.frequencia_esperada_dias ? `${deposito.frequencia_esperada_dias} dia(s)` : '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cochos vinculados:</span><span className="font-semibold text-slate-900">{cochosVinculados.length}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{deposito.observacoes || '-'}</span></div>
           </div>
         </CardContent>
       </Card>
