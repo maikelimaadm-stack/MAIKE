@@ -508,5 +508,12 @@ export default {
   deletePendingUpdate,
   getPendingCounts,
   clearAllPending,
+  getEntityCacheRecord,
+  getEntityCacheItems,
+  setEntityCacheItems,
+  queueEntitySyncOperation,
+  getEntitySyncQueue,
+  updateEntitySyncQueueItem,
+  deleteEntitySyncQueueItem,
   STORES_NAMES,
 };
