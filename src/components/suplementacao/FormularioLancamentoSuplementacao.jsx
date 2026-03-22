@@ -651,7 +651,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                             <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
                             <Badge variant="outline" className="text-[10px]">{avaliacaoLote?.status === 'dentro_ideal' ? 'Dentro do ideal' : 'Validar'}</Badge>
                           </div>
-                          <div className="text-[10px] text-slate-600">Área: {lote.area_atual_nome || areaNomesVinculados.join(', ') || ponto.area_vinculada_nome || '-'}</div>
+                          <div className="text-[10px] text-slate-600">Área: {lote.area_atual_nome || areaNomesResolvidos.join(', ') || ponto.area_vinculada_nome || '-'}</div>
                           <div className="grid grid-cols-3 gap-1 text-[10px]">
                             <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
                             <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : '-'}</div></div>
