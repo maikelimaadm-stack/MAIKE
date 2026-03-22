@@ -637,37 +637,33 @@ export default function Layout({ children, currentPageName }) {
                     <div className="text-slate-500 font-normal">{user?.email}</div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  
-
-
-                  
-                  
-
-
-                  
-                  {isAdminUser &&
-                  <>
+                  <DropdownMenuItem className="text-xs">
+                    <User className="w-3 h-3 mr-2" />
+                    Meu Perfil
+                  </DropdownMenuItem>
+                  {isAdminUser && (
+                    <>
                       <DropdownMenuItem asChild className="text-xs">
-                        
-
-
-                      
+                        <Link to={createPageUrl("ConfiguracoesGerais")}>
+                          <Settings className="w-3 h-3 mr-2" />
+                          Configuracoes
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild className="text-xs">
-                        
-
-
-                      
+                        <Link to={createPageUrl("EditorVisualSistema")}>
+                          <Sparkles className="w-3 h-3 mr-2" />
+                          Editor Visual
+                        </Link>
                       </DropdownMenuItem>
                     </>
-                  }
-                  
-
-
-                  
+                  )}
+                  <DropdownMenuItem className="text-xs" onClick={() => setShowEmailDialog(true)}>
+                    <Mail className="w-3 h-3 mr-2" />
+                    Enviar e-mail
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
-                    
+                    <LogOut className="w-3 h-3 mr-2" />
                     Sair
                   </DropdownMenuItem>
                 </DropdownMenuContent>
