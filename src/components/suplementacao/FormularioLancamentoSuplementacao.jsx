@@ -66,6 +66,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     return nomes.length ? nomes : (ponto?.area_vinculada_nome ? [ponto.area_vinculada_nome] : []);
   }, [ponto]);
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ["areas-vinculadas-suplementacao", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const areaNomesResolvidos = useMemo(() => {
+    const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
+    const nomes = areaIdsVinculados.map((id) => nomesPorId.get(id)).filter(Boolean);
+    if (nomes.length > 0) return nomes;
+    if (areaNomesVinculados.length > 0) return areaNomesVinculados;
+    return ponto?.area_vinculada_nome ? [ponto.area_vinculada_nome] : [];
+  }, [areas, areaIdsVinculados, areaNomesVinculados, ponto?.area_vinculada_nome]);
+
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
     queryKey: ["lotes-area", areaIdsVinculados.join("|")],
     queryFn: async () => {
@@ -361,7 +378,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           localOrigemId: depositoVinculado.local_estoque_id,
           localOrigemNome: depositoVinculado.local_estoque_nome,
           areaId: areaIdsVinculados[0] || ponto.area_vinculada_id,
-          areaNome: areaNomesVinculados.join(", ") || ponto.area_vinculada_nome,
+          areaNome: areaNomesResolvidos.join(", ") || ponto.area_vinculada_nome,
           observacoes: `Saída automática para o cocho ${ponto.nome_ponto}${formData.observacoes ? ` - ${formData.observacoes}` : ""}`,
           lotesNota,
           depositoId: depositoVinculado.id,
@@ -378,9 +395,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         ponto_suplementacao_id: ponto.id,
         ponto_nome: ponto.nome_ponto,
         area_id: areaIdsVinculados[0] || ponto.area_vinculada_id,
-        area_nome: areaNomesVinculados.join(", ") || ponto.area_vinculada_nome,
+        area_nome: areaNomesResolvidos.join(", ") || ponto.area_vinculada_nome,
         area_ids: areaIdsVinculados,
-        area_nomes: areaNomesVinculados,
+        area_nomes: areaNomesResolvidos,
         data_lancamento: formData.data_lancamento,
         produto: formData.produto,
         produto_id: produtoSelecionado?.id || null,
@@ -454,7 +471,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {/* Resumo do ponto */}
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2 text-[11px] space-y-1">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Áreas: <span className="font-semibold text-slate-900">{areaNomesVinculados.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Áreas: <span className="font-semibold text-slate-900">{areaNomesResolvidos.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Depósito: <span className="font-semibold text-slate-900">{depositoVinculado?.nome_ponto || "Não vinculado"}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Lotes: <span className="font-semibold text-slate-900">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</span></div>

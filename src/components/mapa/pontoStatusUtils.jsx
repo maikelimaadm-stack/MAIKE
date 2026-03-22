@@ -79,8 +79,11 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
     .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
 
   const necessidadeEstimada = cochosRelacionados.reduce((total, cocho) => {
+    const areaIds = Array.isArray(cocho.area_vinculada_ids) && cocho.area_vinculada_ids.length > 0
+      ? cocho.area_vinculada_ids
+      : (cocho.area_vinculada_id ? [cocho.area_vinculada_id] : []);
     const cabecas = lotes
-      .filter((lote) => lote.area_atual_id === cocho.area_vinculada_id && lote.status === "Ativo")
+      .filter((lote) => areaIds.includes(lote.area_atual_id) && lote.status === "Ativo")
       .reduce((soma, lote) => soma + (lote.quantidade_cabecas || 0), 0);
     const consumo = (cocho.consumo_ideal_por_cabeca_kg || 0) * cabecas * (cocho.frequencia_esperada_dias || 1);
     return total + consumo;
