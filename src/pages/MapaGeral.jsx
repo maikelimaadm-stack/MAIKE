@@ -98,7 +98,15 @@ export default function MapaGeral() {
 
   const { data: currentUser = null } = useQuery({
     queryKey: ['mapa-geral-user'],
-    queryFn: () => base44.auth.me(),
+    queryFn: async () => {
+      if (navigator.onLine) {
+        const me = await base44.auth.me();
+        localStorage.setItem('offline_current_user', JSON.stringify(me));
+        return me;
+      }
+      const cachedUser = localStorage.getItem('offline_current_user');
+      return cachedUser ? JSON.parse(cachedUser) : null;
+    },
     staleTime: 5 * 60 * 1000,
   });
 
@@ -167,6 +175,15 @@ export default function MapaGeral() {
     queryFn: async () => {const all = await base44.entities.ConfiguracaoIcone.list();return all.filter((i) => i.ativo !== false);},
     staleTime: 10 * 60 * 1000
   });
+
+  useEffect(() => {
+    iconesConfig.forEach((icone) => {
+      [icone.icone_url, icone.sub_icone_url].filter(Boolean).forEach((url) => {
+        const image = new Image();
+        image.src = url;
+      });
+    });
+  }, [iconesConfig]);
 
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery({
     queryKey: ['mapa-eventos-supl', empresaSelecionadaId],

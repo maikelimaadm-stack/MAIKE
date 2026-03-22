@@ -157,6 +157,25 @@ const updateCachedEntityRecord = async (entityName, updater, empresaId = getEmpr
   return nextItems;
 };
 
+const replaceMappedIds = (value, idMap) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => replaceMappedIds(item, idMap));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => {
+        if (typeof entryValue === "string" && idMap[entryValue]) {
+          return [key, idMap[entryValue]];
+        }
+        return [key, replaceMappedIds(entryValue, idMap)];
+      })
+    );
+  }
+
+  return value;
+};
+
 const removeQueuedCreateForRecord = async (entityName, recordId, empresaId = getEmpresaId()) => {
   const queue = await getQueuedEntityOperations();
   const item = queue.find(
@@ -329,7 +348,8 @@ export const syncOfflineEntityQueue = async (base44Client, onProgress) => {
 
     try {
       if (item.operation === "create") {
-        const { id, _isOffline, ...payload } = item.data || {};
+        const { id, _isOffline, ...rawPayload } = item.data || {};
+        const payload = replaceMappedIds(rawPayload, idMap);
         const created = await originals.create(payload);
         idMap[item.record_id] = created.id;
         await updateCachedEntityRecord(item.entity_name, (items) => items.map((entry) => entry.id === item.record_id ? created : entry), item.empresa_id);
@@ -338,7 +358,7 @@ export const syncOfflineEntityQueue = async (base44Client, onProgress) => {
       if (item.operation === "update") {
         const targetId = idMap[item.record_id] || item.record_id;
         if (!isOfflineId(targetId)) {
-          const updated = await originals.update(targetId, item.data || {});
+          const updated = await originals.update(targetId, replaceMappedIds(item.data || {}, idMap));
           await updateCachedEntityRecord(item.entity_name, (items) => items.map((entry) => entry.id === targetId ? { ...entry, ...updated } : entry), item.empresa_id);
         }
       }
