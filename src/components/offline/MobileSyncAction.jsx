@@ -37,25 +37,28 @@ export default function MobileSyncAction({ onAfterSync }) {
     }
 
     setSyncing(true);
-    const empresaId = localStorage.getItem("empresa_selecionada_id");
 
-    const genericResult = await syncOfflineEntityQueue(base44);
-    window.dispatchEvent(new CustomEvent("offline-sync-requested"));
+    try {
+      const empresaId = localStorage.getItem("empresa_selecionada_id");
+      const genericResult = await syncOfflineEntityQueue(base44);
+      window.dispatchEvent(new CustomEvent("offline-sync-requested"));
 
-    if (empresaId) {
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+      if (empresaId) {
+        window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+      }
+
+      await loadPending();
+      onAfterSync?.();
+
+      if (genericResult?.success === false && genericResult?.message) {
+        toast.error(genericResult.message);
+        return;
+      }
+
+      toast.success("Sincronização iniciada.");
+    } finally {
+      setSyncing(false);
     }
-
-    await loadPending();
-    onAfterSync?.();
-    setSyncing(false);
-
-    if (genericResult?.success === false && genericResult?.message) {
-      toast.error(genericResult.message);
-      return;
-    }
-
-    toast.success("Sincronização iniciada.");
   };
 
   return (
