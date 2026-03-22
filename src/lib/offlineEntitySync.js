@@ -20,11 +20,18 @@ const OFFLINE_ENABLED_ENTITIES = [
   "SuplementacaoLote",
   "EstoqueLoteNota",
   "MovimentacaoMapa",
+  "MovimentacaoEstoque",
   "TipoTarefa",
   "Fornecedor",
   "Produto",
   "Permissao",
   "Setor",
+  "Empresa",
+  "AplicacaoMedicamento",
+  "EventoSanitario",
+  "ManejoTecnicoRebanho",
+  "LocalEstoque",
+  "CategoriaManejo",
 ];
 
 const GLOBAL_EMPRESA_KEY = "__GLOBAL__";

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { getPendingCounts } from "@/components/offline/IndexedDBManager";
 import { base44 } from "@/api/base44Client";
 import { getOfflineSyncEventName, syncOfflineEntityQueue } from "@/lib/offlineEntitySync";
+import { syncAll } from "@/components/offline/SyncManager";
 
 export default function MobileSyncAction({ onAfterSync }) {
   const [syncing, setSyncing] = useState(false);
@@ -41,12 +42,16 @@ export default function MobileSyncAction({ onAfterSync }) {
     try {
       const empresaId = localStorage.getItem("empresa_selecionada_id");
       const genericResult = await syncOfflineEntityQueue(base44);
-      window.dispatchEvent(new CustomEvent("offline-sync-requested"));
 
       if (empresaId) {
+        const legacyResult = await syncAll(empresaId);
+        if (legacyResult?.success === false && legacyResult?.message) {
+          toast.error(legacyResult.message);
+        }
         window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       }
 
+      window.dispatchEvent(new CustomEvent("offline-sync-requested"));
       await loadPending();
       onAfterSync?.();
 
