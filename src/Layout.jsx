@@ -366,17 +366,19 @@ export default function Layout({ children, currentPageName }) {
 
   useEffect(() => {
     const fetchWeather = async () => {
+      if (!navigator.onLine) return;
       try {
         const response = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
         );
+        if (!response.ok) return;
         const data = await response.json();
         setWeather({
           temperature: Math.round(data.current.temperature_2m),
           precipitation: data.current.precipitation > 0
         });
-      } catch (error) {
-        console.error("Erro clima:", error);
+      } catch {
+        return;
       }
     };
     fetchWeather();
