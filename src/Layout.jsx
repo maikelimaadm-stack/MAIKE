@@ -44,6 +44,7 @@ import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
 import SendEmailDialog from "@/components/email/SendEmailDialog";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
+import MobileSyncAction from "@/components/offline/MobileSyncAction";
 import { flattenMenuPages, findMenuItemByUrl, getAllPages as getConfiguredPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 
@@ -333,13 +334,21 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        let currentUser = null;
+        if (navigator.onLine) {
+          currentUser = await base44.auth.me();
+          localStorage.setItem('offline_current_user', JSON.stringify(currentUser));
+        } else {
+          const cachedUser = localStorage.getItem('offline_current_user');
+          currentUser = cachedUser ? JSON.parse(cachedUser) : null;
+        }
+
         setUser(currentUser);
 
         // Carregar permissões do usuário
         try {
           const allPermissoes = await base44.entities.Permissao.list();
-          const permissao = allPermissoes.find((p) => p.user_email === currentUser.email);
+          const permissao = allPermissoes.find((p) => p.user_email === currentUser?.email);
           setUserPermissions(permissao);
         } catch (error) {
           console.error("Erro ao carregar permissões:", error);
@@ -693,6 +702,8 @@ export default function Layout({ children, currentPageName }) {
                       </Select>
                     </div>
                   }
+
+                  <MobileSyncAction onAfterSync={() => setMobileMenuOpen(false)} />
                   
                   <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
                     {menuItemsFiltered.map((item) => {

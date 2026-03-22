@@ -385,9 +385,51 @@ export const deletePendingUpdate = async (offlineId) => {
   return deleteItem(STORES.PENDING_UPDATES, offlineId);
 };
 
+export const getEntityCacheRecord = async (entityName, empresaId) => {
+  const cacheKey = `${entityName}::${empresaId || '__GLOBAL__'}`;
+  return getItem(STORES.ENTITY_CACHE, cacheKey);
+};
+
+export const getEntityCacheItems = async (entityName, empresaId) => {
+  const record = await getEntityCacheRecord(entityName, empresaId);
+  return record?.items || [];
+};
+
+export const setEntityCacheItems = async (entityName, empresaId, items) => {
+  const cacheKey = `${entityName}::${empresaId || '__GLOBAL__'}`;
+  return putItem(STORES.ENTITY_CACHE, {
+    cache_key: cacheKey,
+    entity_name: entityName,
+    empresa_id: empresaId || '__GLOBAL__',
+    items,
+    updated_at: new Date().toISOString(),
+  });
+};
+
+export const queueEntitySyncOperation = async (payload) => {
+  return addItem(STORES.ENTITY_QUEUE, {
+    ...payload,
+    created_at: payload.created_at || new Date().toISOString(),
+  });
+};
+
+export const getEntitySyncQueue = async () => {
+  return getAllItems(STORES.ENTITY_QUEUE);
+};
+
+export const updateEntitySyncQueueItem = async (id, payload) => {
+  const current = await getItem(STORES.ENTITY_QUEUE, id);
+  if (!current) return null;
+  return putItem(STORES.ENTITY_QUEUE, { ...current, ...payload, id });
+};
+
+export const deleteEntitySyncQueueItem = async (id) => {
+  return deleteItem(STORES.ENTITY_QUEUE, id);
+};
+
 // Função para obter contagem de pendentes
 export const getPendingCounts = async () => {
-  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes, cachedEmb, cachedDocs] = await Promise.all([
+  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes, cachedEmb, cachedDocs, entityQueue] = await Promise.all([
     getAllItems(STORES.PENDING_PESAGENS),
     getAllItems(STORES.PENDING_APARTACOES),
     getAllItems(STORES.PENDING_LOTES),
@@ -397,6 +439,7 @@ export const getPendingCounts = async () => {
     getAllItems(STORES.LOTES),
     getAllItems(STORES.EMBARQUES),
     getAllItems(STORES.DOCUMENTOS_EMBARQUE),
+    getAllItems(STORES.ENTITY_QUEUE),
   ]);
 
   // Contar também entidades offline no cache
@@ -413,7 +456,8 @@ export const getPendingCounts = async () => {
     documentos: offlineDocs.length,
     sanidade: sanidade.length,
     updates: updates.length,
-    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length + offlineEmb.length + offlineDocs.length,
+    entity_queue: entityQueue.length,
+    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length + offlineEmb.length + offlineDocs.length + entityQueue.length,
   };
 };
 
