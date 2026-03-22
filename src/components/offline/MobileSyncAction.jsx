@@ -4,18 +4,15 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getPendingCounts } from "@/components/offline/IndexedDBManager";
 import { base44 } from "@/api/base44Client";
-import { getOfflineSyncEventName, getPendingOfflineEntityCount, syncOfflineEntityQueue } from "@/lib/offlineEntitySync";
+import { getOfflineSyncEventName, syncOfflineEntityQueue } from "@/lib/offlineEntitySync";
 
 export default function MobileSyncAction({ onAfterSync }) {
   const [syncing, setSyncing] = useState(false);
   const [pendingTotal, setPendingTotal] = useState(0);
 
   const loadPending = async () => {
-    const [legacy, generic] = await Promise.all([
-      getPendingCounts().catch(() => ({ total: 0 })),
-      getPendingOfflineEntityCount().catch(() => 0),
-    ]);
-    setPendingTotal((legacy?.total || 0) + (generic || 0));
+    const legacy = await getPendingCounts().catch(() => ({ total: 0 }));
+    setPendingTotal(legacy?.total || 0);
   };
 
   useEffect(() => {
