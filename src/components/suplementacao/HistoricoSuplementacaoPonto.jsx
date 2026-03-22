@@ -112,6 +112,13 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   {/* Produto */}
                   <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
 
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Áreas</div><div className="font-semibold text-slate-900">{Array.isArray(evento.area_nomes) && evento.area_nomes.length > 0 ? evento.area_nomes.join(', ') : evento.area_nome || '-'}</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Cabeças</div><div className="font-semibold text-slate-900">{evento.total_cabecas_afetadas || 0}</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Peso médio</div><div className="font-semibold text-slate-900">{evento.peso_medio_lotes_kg ? `${Number(evento.peso_medio_lotes_kg).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : '-'}</div></div>
+                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Unidade</div><div className="font-semibold text-slate-900">{evento.unidade_lancamento || 'KG'}</div></div>
+                  </div>
+
                   {/* Métricas organizadas por seção */}
                   <CardMetricaEvento evento={evento} showProjecao={true} />
 

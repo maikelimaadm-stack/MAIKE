@@ -125,8 +125,18 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                   <div>
                     <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
                     <div className="grid grid-cols-2 gap-1 text-[10px]">
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{movimentacao.local_origem || "-"}</div></div>
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{movimentacao.local_origem || movimentacao.local_estoque_origem || "-"}</div></div>
                       <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{destinoLabel}</div></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Saldos e custos</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Saldo antes</div><div className="font-semibold text-slate-900">{movimentacao.saldo_antes != null ? formatKg(movimentacao.saldo_antes) : '-'}</div></div>
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Saldo depois</div><div className="font-semibold text-slate-900">{movimentacao.saldo_depois != null ? formatKg(movimentacao.saldo_depois) : '-'}</div></div>
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Valor total</div><div className="font-semibold text-slate-900">{movimentacao.valor_total != null ? Number(movimentacao.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-'}</div></div>
+                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Custo médio</div><div className="font-semibold text-slate-900">{movimentacao.custo_medio_depois != null ? Number(movimentacao.custo_medio_depois).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-'}</div></div>
                     </div>
                   </div>
                 </div>
