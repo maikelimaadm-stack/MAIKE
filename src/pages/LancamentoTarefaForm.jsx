@@ -106,7 +106,7 @@ export default function LancamentoTarefaForm() {
         <CardHeader className="bg-emerald-50 border-b border-emerald-200 py-2 px-3">
           <CardTitle className="text-sm font-bold text-emerald-900">{isEdit ? "Editar Lançamento de Tarefa" : "Lançar Tarefa"}</CardTitle>
         </CardHeader>
-        <CardContent className="p-2 overflow-visible">
+        <CardContent className="p- overflow-visible">
           {isLoading ?
           <div className="text-xs text-slate-500">Carregando...</div> :
 
