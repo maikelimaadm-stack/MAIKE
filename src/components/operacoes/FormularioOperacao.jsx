@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import useSetorAreas from "@/hooks/useSetorAreas";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [formData, setFormData] = useState({
     tipo_operacao: operacao?.tipo_operacao || '',
+    setor_id: operacao?.setor_id || '',
     area_id: operacao?.area_id || '',
     maquina_id: operacao?.maquina_id || '',
     implemento_id: operacao?.implemento_id || '',
@@ -44,14 +46,7 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
     observacoes: operacao?.observacoes || '',
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas-operacao', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: maquinas = [] } = useQuery({
     queryKey: ['maquinas-operacao', empresaSelecionadaId],
@@ -82,6 +77,14 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
 
   const implementos = maquinas.filter(m => m.tipo === 'Implemento');
   const maquinaSelecionada = maquinas.find(m => m.id === formData.maquina_id);
+  const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
+
+  useEffect(() => {
+    const areaSelecionada = areas.find((item) => item.id === formData.area_id);
+    if (areaSelecionada && formData.setor_id !== areaSelecionada.setor_id) {
+      setFormData((prev) => ({ ...prev, setor_id: areaSelecionada.setor_id || "" }));
+    }
+  }, [areas, formData.area_id, formData.setor_id]);
 
   // Buscar último valor do combustível pelo tipo de combustível da máquina
   const getValorCombustivel = () => {
@@ -187,6 +190,7 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
       const payload = {
         ...data,
         empresa_id: empresaSelecionadaId,
+        setor_nome: area?.setor_nome || '',
         area_nome: area?.nome || '',
         maquina_nome: maquina?.nome || '',
         implemento_nome: implemento?.nome || '',
@@ -224,8 +228,8 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.tipo_operacao || !formData.area_id) {
-      toast.error('Preencha tipo e área');
+    if (!formData.tipo_operacao || !formData.setor_id || !formData.area_id) {
+      toast.error('Preencha tipo, setor e área');
       return;
     }
     mutation.mutate(formData);
@@ -263,16 +267,32 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label className="text-xs">Área *</Label>
-          <Select value={formData.area_id} onValueChange={(v) => setFormData({ ...formData, area_id: v })}>
+          <Label className="text-xs">Setor *</Label>
+          <Select value={formData.setor_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_id: v === '__none__' ? '' : v, area_id: '' })}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Selecione a área" />
+              <SelectValue placeholder="Selecione o setor" />
             </SelectTrigger>
             <SelectContent>
-              {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome} ({a.tamanho_hectares}ha)</SelectItem>)}
+              <SelectItem value="__none__">Selecione</SelectItem>
+              {setores.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs">Área *</Label>
+          <Select value={formData.area_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, area_id: v === '__none__' ? '' : v })} disabled={!formData.setor_id}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={formData.setor_id ? 'Selecione a área' : 'Selecione o setor primeiro'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Selecione</SelectItem>
+              {areasDoSetor.map(a => <SelectItem key={a.id} value={a.id}>{a.nome} ({a.tamanho_hectares}ha)</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label className="text-xs">Safra</Label>
           <Select value={formData.safra_id} onValueChange={(v) => setFormData({ ...formData, safra_id: v })}>

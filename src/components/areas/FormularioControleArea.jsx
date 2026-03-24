@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import useSetorAreas from "@/hooks/useSetorAreas";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ const CULTURAS = ["Soja", "Milho", "Algodão", "Feijão", "Sorgo", "Milheto", "G
 export default function FormularioControleArea({ controle, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [formData, setFormData] = useState({
+    setor_id: controle?.setor_id || '',
     area_id: controle?.area_id || '',
     safra_id: controle?.safra_id || '',
     cultura: controle?.cultura || '',
@@ -35,14 +37,7 @@ export default function FormularioControleArea({ controle, onSave, onCancel }) {
     observacoes: controle?.observacoes || '',
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas-controle', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: safras = [] } = useQuery({
     queryKey: ['safras-controle', empresaSelecionadaId],
@@ -52,6 +47,15 @@ export default function FormularioControleArea({ controle, onSave, onCancel }) {
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  React.useEffect(() => {
+    const areaSelecionada = areas.find((item) => item.id === formData.area_id);
+    if (areaSelecionada && formData.setor_id !== areaSelecionada.setor_id) {
+      setFormData((prev) => ({ ...prev, setor_id: areaSelecionada.setor_id || "" }));
+    }
+  }, [areas, formData.area_id, formData.setor_id]);
+
+  const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
   const mutation = useMutation({
     mutationFn: async (data) => {
@@ -79,6 +83,7 @@ export default function FormularioControleArea({ controle, onSave, onCancel }) {
       const payload = {
         ...data,
         empresa_id: empresaSelecionadaId,
+        setor_nome: area?.setor_nome || '',
         area_nome: area?.nome || '',
         safra_nome: safra ? `${safra.ano_inicio}/${safra.ano_fim}` : '',
         area_plantada_ha: data.area_plantada_ha ? parseFloat(data.area_plantada_ha) : null,
@@ -109,6 +114,10 @@ export default function FormularioControleArea({ controle, onSave, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.setor_id) {
+      toast.error('Selecione o setor');
+      return;
+    }
     if (!formData.area_id) {
       toast.error('Selecione a área');
       return;
@@ -120,16 +129,32 @@ export default function FormularioControleArea({ controle, onSave, onCancel }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label className="text-xs">Área *</Label>
-          <Select value={formData.area_id} onValueChange={(v) => setFormData({ ...formData, area_id: v })}>
+          <Label className="text-xs">Setor *</Label>
+          <Select value={formData.setor_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_id: v === '__none__' ? '' : v, area_id: '' })}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Selecione a área" />
+              <SelectValue placeholder="Selecione o setor" />
             </SelectTrigger>
             <SelectContent>
-              {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
+              <SelectItem value="__none__">Selecione</SelectItem>
+              {setores.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs">Área *</Label>
+          <Select value={formData.area_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, area_id: v === '__none__' ? '' : v })} disabled={!formData.setor_id}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={formData.setor_id ? 'Selecione a área' : 'Selecione o setor primeiro'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Selecione</SelectItem>
+              {areasDoSetor.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label className="text-xs">Safra</Label>
           <Select value={formData.safra_id} onValueChange={(v) => setFormData({ ...formData, safra_id: v })}>
