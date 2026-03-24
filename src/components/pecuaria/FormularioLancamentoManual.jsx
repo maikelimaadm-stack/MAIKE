@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "sonner";
 import ComboboxComNovo from "./ComboboxComNovo";
+import { ordenarPorNomeNumerico } from "@/hooks/useSetorAreas";
 
 const TIPOS_MOVIMENTACAO = [
 { value: "Entrada", label: "Entrada", cor: "bg-green-100 text-green-800" },
@@ -96,12 +97,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     queryKey: ['setores', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Setor.list();
-      return all.filter((s) => s.empresa_id === empresaSelecionadaId && s.ativo !== false);
+      return ordenarPorNomeNumerico(all.filter((s) => s.empresa_id === empresaSelecionadaId && s.ativo !== false));
     },
     enabled: !!empresaSelecionadaId
   });
 
-
+  const areasOrdenadas = useMemo(() => ordenarPorNomeNumerico(areas), [areas]);
+  const areasDoSetor = useMemo(() => areasOrdenadas.filter((area) => area.setor_id === formData.setor_id), [areasOrdenadas, formData.setor_id]);
 
   // Carregar todas as movimentações MANUAIS para extrair dados únicos
   const { data: movimentacoes = [] } = useQuery({
@@ -574,7 +576,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   <Label className="text-xs uppercase">SETOR / FAZENDA *</Label>
                   <Select
                   value={formData.setor_id}
-                  onValueChange={(v) => {setFormData({ ...formData, setor_id: v, categoria_animal: "", marca: "" });setInvalidFields((prev) => prev.filter((item) => item !== 'setor_id'));}}>
+                  onValueChange={(v) => {setFormData({ ...formData, setor_id: v, categoria_animal: "", marca: "", area_origem_id: "", area_destino_id: "" });setInvalidFields((prev) => prev.filter((item) => item !== 'setor_id'));}}>
                   
                     <SelectTrigger className={getFieldClassName('setor_id', 'h-8 text-xs uppercase')}>
                       <SelectValue placeholder="SELECIONE O SETOR PRIMEIRO" />

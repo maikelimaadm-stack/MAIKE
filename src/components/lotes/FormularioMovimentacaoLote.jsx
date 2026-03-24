@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import useSetorAreas from "@/hooks/useSetorAreas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -62,8 +63,22 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   React.useEffect(() => {
     if (!areaDestinoPreSelecionada) return;
-    setFormData((prev) => ({ ...prev, area_entrada_id: areaDestinoPreSelecionada }));
-  }, [areaDestinoPreSelecionada]);
+    const areaDestino = areas.find((item) => item.id === areaDestinoPreSelecionada);
+    setFormData((prev) => ({ ...prev, area_entrada_id: areaDestinoPreSelecionada, setor_entrada_id: areaDestino?.setor_id || prev.setor_entrada_id }));
+  }, [areaDestinoPreSelecionada, areas]);
+
+  React.useEffect(() => {
+    const areaSaida = areas.find((item) => item.id === formData.area_saida_id);
+    const areaEntrada = areas.find((item) => item.id === formData.area_entrada_id);
+    setFormData((prev) => ({
+      ...prev,
+      setor_saida_id: areaSaida?.setor_id || prev.setor_saida_id,
+      setor_entrada_id: areaEntrada?.setor_id || prev.setor_entrada_id,
+    }));
+  }, [areas, formData.area_saida_id, formData.area_entrada_id]);
+
+  const areasSaida = formData.setor_saida_id ? getAreasBySetor(formData.setor_saida_id) : [];
+  const areasEntrada = formData.setor_entrada_id ? getAreasBySetor(formData.setor_entrada_id).filter((item) => item.id !== formData.area_saida_id) : [];
 
   // Área de saída resolvida
   const areaSaidaResolvida = formData.area_saida_id || areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
@@ -124,27 +139,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     enabled: !!empresaSelecionadaId
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId
-  });
-
-  const areasOrdenadas = React.useMemo(() => {
-    const parseNum = (v) => {
-      const n = parseInt(String(v || '').replace(/\D/g, ''), 10);
-      return Number.isNaN(n) ? Infinity : n;
-    };
-    return [...areas].sort((a, b) => {
-      const na = parseNum(a.numero_area);
-      const nb = parseNum(b.numero_area);
-      if (na !== nb) return na - nb;
-      return (a.nome || '').localeCompare(b.nome || '');
-    });
-  }, [areas]);
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: todosLotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
@@ -471,19 +466,51 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Área e módulo de saída *</Label>
-              <Select
-                value={formData.area_saida_id}
-                onValueChange={(v) => setFormData({ ...formData, area_saida_id: v })}>
-
+              <Label className="text-xs">Setor de saída *</Label>
+              <Select value={formData.setor_saida_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_saida_id: v === '__none__' ? '' : v, area_saida_id: '' })}>
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione a área de saída" />
+                  <SelectValue placeholder="Selecione o setor de saída" />
                 </SelectTrigger>
                 <SelectContent>
-                  {areasOrdenadas.map((area) =>
+                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                  {setores.map((setor) =>
+                  <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Área e módulo de saída *</Label>
+              <Select
+                value={formData.area_saida_id || '__none__'}
+                onValueChange={(v) => setFormData({ ...formData, area_saida_id: v === '__none__' ? '' : v })}
+                disabled={!formData.setor_saida_id}>
+
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder={formData.setor_saida_id ? 'Selecione a área de saída' : 'Selecione o setor primeiro'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                  {areasSaida.map((area) =>
                   <SelectItem key={area.id} value={area.id} className="text-xs">
-                      {area.setor_nome ? `${area.setor_nome} • ` : ''}{area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
+                      {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
                     </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Setor de entrada *</Label>
+              <Select value={formData.setor_entrada_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_entrada_id: v === '__none__' ? '' : v, area_entrada_id: '' })}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione o setor de entrada" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                  {setores.map((setor) =>
+                  <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -492,18 +519,18 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             <div className="space-y-1">
               <Label className="text-xs">Área e módulo de entrada *</Label>
               <Select
-                value={formData.area_entrada_id}
-                onValueChange={(v) => setFormData({ ...formData, area_entrada_id: v })}>
+                value={formData.area_entrada_id || '__none__'}
+                onValueChange={(v) => setFormData({ ...formData, area_entrada_id: v === '__none__' ? '' : v })}
+                disabled={!formData.setor_entrada_id}>
 
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione a área de entrada" />
+                  <SelectValue placeholder={formData.setor_entrada_id ? 'Selecione a área de entrada' : 'Selecione o setor primeiro'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {areasOrdenadas.
-                  filter((a) => a.id !== formData.area_saida_id).
-                  map((area) =>
+                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                  {areasEntrada.map((area) =>
                   <SelectItem key={area.id} value={area.id} className="text-xs">
-                        {area.setor_nome ? `${area.setor_nome} • ` : ''}{area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
+                        {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
                       </SelectItem>
                   )}
                 </SelectContent>
