@@ -153,12 +153,12 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   }, [areas, formData.area_id, formData.setor_nome, setorSelecionadoId]);
 
   const areasDoSetor = setorSelecionadoId ? getAreasBySetor(setorSelecionadoId) : [];
-  const tiposTarefaFiltrados = formData.grupo_atividade_id
-    ? tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id)
-    : [];
-  const usuariosOrdenados = usuariosSistema
-    .filter((user) => !isExcludedSystemUser(user))
-    .sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)));
+  const tiposTarefaFiltrados = formData.grupo_atividade_id ?
+  tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id) :
+  [];
+  const usuariosOrdenados = usuariosSistema.
+  filter((user) => !isExcludedSystemUser(user)).
+  sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)));
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -253,8 +253,8 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               setFormData((prev) => ({ ...prev, titulo: e.target.value }));
             }}
             placeholder="Ex: Cerca quebrada na lateral"
-            className={getFieldClassName("titulo", "h-8 text-xs uppercase")}
-          />
+            className={getFieldClassName("titulo", "h-8 text-xs uppercase")} />
+          
         </div>
 
         <div className="space-y-1.5">
@@ -295,18 +295,18 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
                 <SelectValue placeholder="Selecione o grupo" />
               </SelectTrigger>
               <SelectContent>
-                {gruposAtividade.map((grupo) => (
-                  <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>
-                ))}
+                {gruposAtividade.map((grupo) =>
+                <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Serviço</Label>
-          <Input value={formData.tipo} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
-        </div>
+        
+
+
+        
 
         <div className="space-y-1.5">
           <Label className="text-xs">Tipo de tarefa *</Label>
@@ -316,9 +316,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
                 <SelectValue placeholder={formData.grupo_atividade_id ? "Selecione o tipo" : "Selecione o grupo primeiro"} />
               </SelectTrigger>
               <SelectContent>
-                {tiposTarefaFiltrados.map((tipo) => (
-                  <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>
-                ))}
+                {tiposTarefaFiltrados.map((tipo) =>
+                <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
