@@ -11,11 +11,13 @@ import { toast } from "sonner";
 import ConfiguracaoPermissoesTelas from "@/components/usuarios/ConfiguracaoPermissoesTelas";
 import { DEFAULT_MENU, getMenuModules } from "@/lib/menuConfig";
 import { DEFAULT_MAPA_GERAL_PERMISSIONS } from "@/lib/mapaGeralPermissions";
+import { getUserDisplayName } from "@/lib/userDisplayName";
 
 const MENU_MODULES = getMenuModules(DEFAULT_MENU);
 
 const createInitialFormData = (initialData) => ({
   user_email: initialData?.user_email || initialData?.email || "",
+  user_nome: initialData?.user_nome || initialData?.nome || initialData?.full_name || "",
   modulos_permitidos: initialData?.modulos_permitidos || [],
   permissoes_telas: initialData?.permissoes_telas || [],
   mobile_menu_ids: initialData?.mobile_menu_ids || [],
@@ -30,7 +32,7 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
   const [formData, setFormData] = useState(createInitialFormData(initialData));
 
   const usuariosDisponiveis = useMemo(
-    () => usuarios.filter((user) => user.email && user.full_name),
+    () => usuarios.filter((user) => user.email),
     [usuarios]
   );
 
@@ -43,6 +45,11 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
 
     if (!formData.user_email?.trim()) {
       toast.error("Selecione um usuário.");
+      return;
+    }
+
+    if (!formData.user_nome?.trim()) {
+      toast.error("Informe o nome do usuário.");
       return;
     }
 
@@ -69,7 +76,14 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
               <Label className="text-xs uppercase">USUÁRIO *</Label>
               <Select
                 value={formData.user_email}
-                onValueChange={(value) => handleChange("user_email", value)}
+                onValueChange={(value) => {
+                  const selectedUser = usuariosDisponiveis.find((user) => user.email === value);
+                  setFormData((prev) => ({
+                    ...prev,
+                    user_email: value,
+                    user_nome: prev.user_nome || getUserDisplayName(selectedUser),
+                  }));
+                }}
                 disabled={!!initialData?.user_email}
               >
                 <SelectTrigger className="h-8 text-xs uppercase">
@@ -78,11 +92,21 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
                 <SelectContent>
                   {usuariosDisponiveis.map((user) => (
                     <SelectItem key={user.email} value={user.email} className="text-xs uppercase">
-                      {user.full_name} ({user.email})
+                      {getUserDisplayName(user)} ({user.email})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs uppercase">NOME DO USUÁRIO *</Label>
+              <input
+                value={formData.user_nome}
+                onChange={(e) => handleChange("user_nome", e.target.value.toUpperCase())}
+                className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-2 text-xs uppercase shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="NOME EXIBIDO NO SISTEMA"
+              />
             </div>
 
             <div className="border rounded-lg p-3 bg-slate-50">

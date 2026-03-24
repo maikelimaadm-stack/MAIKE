@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { getPermissionDisplayName, getUserDisplayName } from "@/lib/userDisplayName";
 
 import FormularioUsuario from "../components/usuarios/FormularioUsuario";
 import TabelaUsuarios from "../components/usuarios/TabelaUsuarios";
@@ -39,8 +40,16 @@ export default function Usuarios() {
   const updatePermissaoMutation = useMutation({
     mutationFn: async (data) => {
       const existente = permissoes.find((item) => item.user_email === data.user_email);
+      const usuario = usuarios.find((item) => item.email === data.user_email);
+      const userNome = (data.user_nome || getPermissionDisplayName(existente, usuario) || getUserDisplayName(usuario)).trim();
+
+      if (usuario?.id && userNome && userNome !== (usuario.nome || "")) {
+        await base44.entities.User.update(usuario.id, { nome: userNome });
+      }
+
       const payload = {
         user_email: data.user_email,
+        user_nome: userNome,
         modulos_permitidos: data.modulos_permitidos || [],
         permissoes_telas: data.permissoes_telas || [],
         mobile_menu_ids: data.mobile_menu_ids || [],
@@ -56,6 +65,7 @@ export default function Usuarios() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["permissoes"] });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       setShowForm(false);
       setEditingUsuario(null);
       toast.success("Permissões atualizadas!");

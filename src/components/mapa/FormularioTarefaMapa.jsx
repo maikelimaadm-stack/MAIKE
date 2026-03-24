@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Crosshair, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
 import useSetorAreas from "@/hooks/useSetorAreas";
+import { getUserDisplayName } from "@/lib/userDisplayName";
 
 export const normalizeTaskPriority = (value) => {
   const normalized = (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -65,15 +66,19 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     initialData: []
   });
 
-  const { data: funcionarios = [] } = useQuery({
-    queryKey: ["funcionarios-tarefa-mapa-form"],
-    queryFn: async () => {
-      const all = await base44.entities.Fornecedor.list();
-      return all.filter((item) => Array.isArray(item.tipos) && item.tipos.includes("Funcionario"));
-    },
+  const { data: usuariosSistema = [] } = useQuery({
+    queryKey: ["usuarios-tarefa-mapa-form"],
+    queryFn: () => base44.entities.User.list("nome", 200),
     initialData: []
   });
 
+  const { data: usuarioAtual = null } = useQuery({
+    queryKey: ["usuario-atual-tarefa-mapa-form"],
+    queryFn: () => base44.auth.me(),
+    initialData: null
+  });
+
+  const nomeUsuarioAtual = useMemo(() => getUserDisplayName(usuarioAtual), [usuarioAtual]);
 
   const [formData, setFormData] = useState({
     id: tarefa?.id || initialDraft?.id || "",
@@ -86,10 +91,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     grupo_atividade_nome: "",
     solicitante: "",
     data_pedido: "",
+    data_conclusao: "",
     setor_nome: "",
     prioridade: "Média",
     status: "Pendente",
-    data_prevista: "",
     responsavel_id: "",
     responsavel: "",
     responsavel_geral: "",
@@ -115,15 +120,15 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       tipo_tarefa_nome: source.tipo_tarefa_nome || "",
       grupo_atividade_id: source.grupo_atividade_id || "",
       grupo_atividade_nome: source.grupo_atividade_nome || "",
-      solicitante: source.solicitante || source.responsavel_geral || "",
+      solicitante: source.solicitante || source.responsavel_geral || nomeUsuarioAtual || "",
       data_pedido: source.data_pedido || "",
+      data_conclusao: source.data_conclusao || "",
       setor_nome: source.setor_nome || areaSelecionada?.setor_nome || "",
       prioridade: normalizeTaskPriority(source.prioridade || "Média"),
       status: source.status || "Pendente",
-      data_prevista: source.data_prevista || "",
       responsavel_id: source.responsavel_id || "",
       responsavel: source.responsavel || "",
-      responsavel_geral: source.responsavel_geral || source.solicitante || "",
+      responsavel_geral: source.responsavel_geral || source.solicitante || nomeUsuarioAtual || "",
       observacoes: source.observacoes || "",
       area_id: source.area_id || areaId || "",
       area_nome: source.area_nome || areaNome || "",
@@ -134,7 +139,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     });
     setSetorSelecionadoId(areaSelecionada?.setor_id || "");
     setErrors({});
-  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas]);
+  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas, nomeUsuarioAtual]);
 
   useEffect(() => {
     const areaSelecionada = areas.find((item) => item.id === formData.area_id);
@@ -151,6 +156,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const tiposTarefaFiltrados = formData.grupo_atividade_id
     ? tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id)
     : [];
+  const usuariosOrdenados = [...usuariosSistema].sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)));
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -213,8 +219,8 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       setFormData((prev) => ({ ...prev, responsavel_id: "", responsavel: "" }));
       return;
     }
-    const responsavel = funcionarios.find((item) => item.id === selectedResponsavelId);
-    setFormData((prev) => ({ ...prev, responsavel_id: selectedResponsavelId, responsavel: responsavel?.nome || "" }));
+    const responsavel = usuariosOrdenados.find((item) => item.id === selectedResponsavelId);
+    setFormData((prev) => ({ ...prev, responsavel_id: selectedResponsavelId, responsavel: getUserDisplayName(responsavel) }));
   };
 
   const handleSubmit = (e) => {
@@ -249,7 +255,37 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           />
         </div>
 
-        <div className="space-y-1.5 lg:order-1">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Fazenda</Label>
+          <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
+            const setor = setores.find((item) => item.id === value);
+            setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
+            setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" }));
+          }} disabled={Boolean(areaId || loteId)}>
+            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione a fazenda" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__sem_setor__" className="text-xs uppercase">Sem fazenda</SelectItem>
+              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {!areaId && !loteId ?
+        <div className="space-y-1.5">
+            <Label className="text-xs">Local / Pasto</Label>
+            <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
+              <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione o local" : "Selecione a fazenda primeiro"} /></SelectTrigger>
+              <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
+            </Select>
+          </div> :
+
+        <div className="space-y-1.5">
+            <Label className="text-xs">Local / Pasto</Label>
+            <Input value={formData.area_nome || formData.lote_nome} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
+          </div>
+        }
+
+        <div className="space-y-1.5">
           <Label className="text-xs">Grupo de atividade *</Label>
           <div data-field="grupo_atividade_id">
             <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
@@ -265,7 +301,12 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
 
-        <div className="space-y-1.5 lg:order-2">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Serviço</Label>
+          <Input value={formData.tipo} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
+        </div>
+
+        <div className="space-y-1.5">
           <Label className="text-xs">Tipo de tarefa *</Label>
           <div data-field="tipo_tarefa_id">
             <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
@@ -281,65 +322,25 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Solicitante / Responsável</Label>
-                    <Input value={formData.solicitante} onChange={(e) => setFormData((prev) => ({ ...prev, solicitante: e.target.value, responsavel_geral: e.target.value }))} className="h-8 text-xs uppercase" />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">Data do Pedido</Label>
-          <Input type="date" value={formData.data_pedido} onChange={(e) => setFormData((prev) => ({ ...prev, data_pedido: e.target.value }))} className="h-8 text-xs uppercase" />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">Prazo</Label>
-          <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="h-8 text-xs uppercase" />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">Fazenda/Setor</Label>
-          <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
-            const setor = setores.find((item) => item.id === value);
-            setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
-            setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" }));
-          }} disabled={Boolean(areaId || loteId)}>
-            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__sem_setor__" className="text-xs uppercase">Sem setor</SelectItem>
-              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {!areaId && !loteId ?
-        <div className="space-y-1.5">
-            <Label className="text-xs">Área/Local</Label>
-            <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
-              <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione uma área" : "Selecione o setor primeiro"} /></SelectTrigger>
-              <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
-            </Select>
-          </div> :
-
-        <div className="space-y-1.5">
-            <Label className="text-xs">Área/Local</Label>
-            <Input value={formData.area_nome || formData.lote_nome} readOnly className="h-8 text-xs bg-slate-50" />
-          </div>
-        }
-
         <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs">Descrição da Tarefa</Label>
-          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs" />
+          <Label className="text-xs">Descrição da tarefa</Label>
+          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Responsável execução</Label>
+          <Label className="text-xs">Responsável</Label>
           <Select value={formData.responsavel_id || "__sem_responsavel__"} onValueChange={handleResponsavelChange}>
             <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__sem_responsavel__" className="text-xs uppercase">Sem responsável</SelectItem>
-              {funcionarios.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{item.nome}</SelectItem>)}
+              {usuariosOrdenados.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getUserDisplayName(item)}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Solicitante</Label>
+          <Input value={formData.solicitante} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
         </div>
 
         <div className="space-y-1.5">
@@ -354,9 +355,32 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </Select>
         </div>
 
+        <div className="space-y-1.5">
+          <Label className="text-xs">Status</Label>
+          <Select value={formData.status} onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}>
+            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Pendente" className="text-xs uppercase">Pendente</SelectItem>
+              <SelectItem value="Em Andamento" className="text-xs uppercase">Em andamento</SelectItem>
+              <SelectItem value="Concluída" className="text-xs uppercase">Concluída</SelectItem>
+              <SelectItem value="Cancelada" className="text-xs uppercase">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Data do pedido</Label>
+          <Input type="date" value={formData.data_pedido} onChange={(e) => setFormData((prev) => ({ ...prev, data_pedido: e.target.value }))} className="h-8 text-xs uppercase" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Data de conclusão</Label>
+          <Input type="date" value={formData.data_conclusao} onChange={(e) => setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }))} className="h-8 text-xs uppercase" />
+        </div>
+
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Observações</Label>
-          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs" />
+          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs uppercase" />
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">

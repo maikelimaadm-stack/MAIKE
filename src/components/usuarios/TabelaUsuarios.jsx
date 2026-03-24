@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getPermissionDisplayName } from "@/lib/userDisplayName";
 
 export default function TabelaUsuarios({ usuarios = [], permissoes = [], currentUser, onEdit, onDelete, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -21,7 +22,9 @@ export default function TabelaUsuarios({ usuarios = [], permissoes = [], current
 
   const filteredUsuarios = usuarios.filter((usuario) => {
     const searchLower = searchTerm.toLowerCase();
+    const nomeExibido = getPermissionDisplayName(getPermissaoUsuario(usuario.email), usuario).toLowerCase();
     return (
+      nomeExibido.includes(searchLower) ||
       usuario.full_name?.toLowerCase().includes(searchLower) ||
       usuario.email?.toLowerCase().includes(searchLower)
     );
@@ -97,7 +100,7 @@ export default function TabelaUsuarios({ usuarios = [], permissoes = [], current
                         <TableCell className="text-xs font-semibold border-r border-slate-200">
                           <div className="flex items-center gap-2">
                             <User className="w-3.5 h-3.5 text-slate-400" />
-                            {usuario.full_name}
+                            {getPermissionDisplayName(permissao, usuario)}
                             {isCurrentUser && (
                               <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-300">
                                 Você
