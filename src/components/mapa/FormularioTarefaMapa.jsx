@@ -320,11 +320,15 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           areas={areas}
           initialCoordinates={formData.coordenadas}
           onSelect={(coords, area) => {
+            if (area?.setor_id) {
+              setSetorSelecionadoId(area.setor_id);
+            }
             setFormData((prev) => ({
               ...prev,
               coordenadas: coords,
               area_id: area?.id || prev.area_id,
               area_nome: area?.nome || prev.area_nome,
+              setor_nome: area?.setor_nome || prev.setor_nome,
             }));
           }}
         />
