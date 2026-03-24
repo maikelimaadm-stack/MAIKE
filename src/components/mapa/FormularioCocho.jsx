@@ -7,26 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import useSetorAreas from "@/hooks/useSetorAreas";
 
 const TIPOS_SUPLEMENTO = ["Sal Mineral", "Proteinado", "Ração", "Núcleo", "Outro"];
 
 export default function FormularioCocho({ coordenadas, item, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const [formData, setFormData] = useState({
     nome_ponto: "",
     tipo: "Sal Mineral",
     produto_padrao: "",
     capacidade_cocho_kg: "",
+    setor_id: "",
     area_vinculada_id: "",
     consumo_ideal_por_cabeca_kg: "",
     limite_minimo_consumo: "",
@@ -57,6 +52,15 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
       });
     }
   }, [item]);
+
+  const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
+
+  useEffect(() => {
+    const areaSelecionada = areas.find((area) => area.id === formData.area_vinculada_id);
+    if (areaSelecionada && formData.setor_id !== areaSelecionada.setor_id) {
+      setFormData((prev) => ({ ...prev, setor_id: areaSelecionada.setor_id || "" }));
+    }
+  }, [areas, formData.area_vinculada_id, formData.setor_id]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
@@ -95,8 +99,8 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.nome_ponto || !formData.area_vinculada_id) {
-      toast.error('Preencha nome e área vinculada');
+    if (!formData.nome_ponto || !formData.setor_id || !formData.area_vinculada_id) {
+      toast.error('Preencha nome, setor e área vinculada');
       return;
     }
 
@@ -104,6 +108,8 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
 
     const data = {
     empresa_id: empresaSelecionadaId,
+    setor_id: formData.setor_id,
+    setor_nome: areaVinculada?.setor_nome || setores.find((item) => item.id === formData.setor_id)?.nome || '',
     nome_ponto: formData.nome_ponto,
     tipo: formData.tipo,
     produto_padrao: formData.produto_padrao || null,
@@ -157,13 +163,29 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs">Área Vinculada *</Label>
-        <Select value={formData.area_vinculada_id} onValueChange={(v) => setFormData({ ...formData, area_vinculada_id: v })}>
+        <Label className="text-xs">Setor *</Label>
+        <Select value={formData.setor_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_id: v === '__none__' ? '' : v, area_vinculada_id: '' })}>
           <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Selecione a área" />
+            <SelectValue placeholder="Selecione o setor" />
           </SelectTrigger>
           <SelectContent>
-            {areas.map(area => (
+            <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+            {setores.map(setor => (
+              <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Área Vinculada *</Label>
+        <Select value={formData.area_vinculada_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, area_vinculada_id: v === '__none__' ? '' : v })} disabled={!formData.setor_id}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder={formData.setor_id ? 'Selecione a área' : 'Selecione o setor primeiro'} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+            {areasDoSetor.map(area => (
               <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>
             ))}
           </SelectContent>

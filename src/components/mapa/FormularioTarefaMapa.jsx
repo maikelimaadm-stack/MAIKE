@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Crosshair, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
+import useSetorAreas from "@/hooks/useSetorAreas";
 
 export const normalizeTaskPriority = (value) => {
   const normalized = (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -40,16 +41,9 @@ const getAreaCenter = (area) => {
 export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, initialDraft, onSubmit, onCancel, onRequestSelectLocation }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [setorSelecionadoId, setSetorSelecionadoId] = useState("");
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ["areas-tarefa-mapa", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-    initialData: [],
-  });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: tiposTarefa = [] } = useQuery({
     queryKey: ["tipos-tarefa-mapa-form"],
@@ -69,15 +63,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     initialData: [],
   });
 
-  const { data: setores = [] } = useQuery({
-    queryKey: ["setores-tarefa-form", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Setor.list();
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-    initialData: [],
-  });
 
   const [formData, setFormData] = useState({
     id: tarefa?.id || initialDraft?.id || "",
@@ -108,6 +93,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   useEffect(() => {
     const source = tarefa || initialDraft || {};
+    const areaSelecionada = areas.find((item) => item.id === (source.area_id || areaId || ""));
     setFormData({
       id: source.id || "",
       titulo: source.titulo || "",
@@ -119,7 +105,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       grupo_atividade_nome: source.grupo_atividade_nome || "",
       solicitante: source.solicitante || source.responsavel_geral || "",
       data_pedido: source.data_pedido || "",
-      setor_nome: source.setor_nome || "",
+      setor_nome: source.setor_nome || areaSelecionada?.setor_nome || "",
       prioridade: normalizeTaskPriority(source.prioridade || "Média"),
       status: source.status || "Pendente",
       data_prevista: source.data_prevista || "",
@@ -134,12 +120,26 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       ponto_suplementacao_id: source.ponto_suplementacao_id || pontoSuplId || "",
       coordenadas: source.coordenadas || initialCoordinates || null,
     });
-  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates]);
+    setSetorSelecionadoId(areaSelecionada?.setor_id || "");
+  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas]);
+
+  useEffect(() => {
+    const areaSelecionada = areas.find((item) => item.id === formData.area_id);
+    if (!areaSelecionada) return;
+    if (setorSelecionadoId !== areaSelecionada.setor_id) {
+      setSetorSelecionadoId(areaSelecionada.setor_id || "");
+    }
+    if (formData.setor_nome !== areaSelecionada.setor_nome) {
+      setFormData((prev) => ({ ...prev, setor_nome: areaSelecionada.setor_nome || "" }));
+    }
+  }, [areas, formData.area_id, formData.setor_nome, setorSelecionadoId]);
+
+  const areasDoSetor = setorSelecionadoId ? getAreasBySetor(setorSelecionadoId) : [];
 
   const handleAreaChange = (selectedAreaId) => {
     const selectedArea = areas.find((area) => area.id === selectedAreaId);
     const center = getAreaCenter(selectedArea);
-    setFormData((prev) => ({ ...prev, area_id: selectedAreaId, area_nome: selectedArea?.nome || "", coordenadas: center || null }));
+    setFormData((prev) => ({ ...prev, area_id: selectedAreaId, area_nome: selectedArea?.nome || "", setor_nome: selectedArea?.setor_nome || prev.setor_nome, coordenadas: center || null }));
   };
 
   const handleTipoTarefaChange = (selectedTipoId) => {
@@ -222,11 +222,15 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="space-y-1.5">
           <Label className="text-xs uppercase">Fazenda/Setor</Label>
-          <Select value={formData.setor_nome || "__sem_setor__"} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : value }))}>
+          <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
+            const setor = setores.find((item) => item.id === value);
+            setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
+            setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" }));
+          }} disabled={Boolean(areaId || loteId)}>
             <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__sem_setor__" className="text-xs uppercase">Sem setor</SelectItem>
-              {setores.map((setor) => <SelectItem key={setor.id} value={setor.nome} className="text-xs uppercase">{setor.nome}</SelectItem>)}
+              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -234,9 +238,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         {!areaId && !loteId ? (
           <div className="space-y-1.5">
             <Label className="text-xs uppercase">Área/Local</Label>
-            <Select value={formData.area_id} onValueChange={handleAreaChange}>
-              <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione uma área" /></SelectTrigger>
-              <SelectContent>{areas.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
+            <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
+              <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione uma área" : "Selecione o setor primeiro"} /></SelectTrigger>
+              <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         ) : (
