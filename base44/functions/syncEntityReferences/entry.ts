@@ -734,6 +734,25 @@ function getSourceFieldValue(data, sourceField) {
   return data?.[sourceField] ?? null;
 }
 
+function getRelevantSourceFields(rules) {
+  const fields = new Set();
+
+  rules.forEach((rule) => {
+    Object.values(rule.fieldMap || {}).forEach((sourceField) => {
+      if (!sourceField || sourceField === 'id') return;
+      if (sourceField === '__safra_label__') {
+        fields.add('ano_inicio');
+        fields.add('ano_fim');
+        fields.add('descricao');
+        return;
+      }
+      fields.add(sourceField);
+    });
+  });
+
+  return [...fields];
+}
+
 async function readPayload(req) {
   try {
     return await req.json();
@@ -799,27 +818,16 @@ async function listRecordsForRule(base44, rule, sourceData, oldData, cache) {
   if (!entityApi) return [];
 
   const empresaFilter = sourceData?.empresa_id ? { empresa_id: sourceData.empresa_id } : null;
+  const cachedRecords = await getCachedEntityRecords(base44, rule.entity, sourceData?.empresa_id || null, cache);
 
   if (rule.matchType === 'id') {
-    const query = {
-      ...(empresaFilter || {}),
-      [rule.queryField]: sourceData.id,
-    };
-
-    try {
-      return await entityApi.filter(query, '-created_date', 5000);
-    } catch {
-      const fallback = await getCachedEntityRecords(base44, rule.entity, sourceData?.empresa_id || null, cache);
-      return fallback.filter((record) => record?.[rule.queryField] === sourceData.id);
-    }
+    return cachedRecords.filter((record) => record?.[rule.queryField] === sourceData.id);
   }
 
   const oldValue = normalizeValue(getSourceFieldValue(oldData, rule.sourceField));
   if (!oldValue) return [];
 
-  const records = await getCachedEntityRecords(base44, rule.entity, sourceData?.empresa_id || null, cache);
-
-  return records.filter((record) => {
+  return cachedRecords.filter((record) => {
     if (sourceData?.empresa_id && record?.empresa_id && record.empresa_id !== sourceData.empresa_id) {
       return false;
     }
@@ -876,15 +884,26 @@ async function propagateRulesForEntity(base44, entityName, rules, sourceData, ol
   }
 
   let updatedCount = 0;
+  let haltedDueToRateLimit = false;
 
   for (const [recordId, patch] of patchesByRecordId.entries()) {
-    await updateRecordWithRetry(entityApi, recordId, patch);
-    updatedCount += 1;
+    try {
+      await updateRecordWithRetry(entityApi, recordId, patch);
+      updatedCount += 1;
+    } catch (error) {
+      if (isRateLimitError(error)) {
+        haltedDueToRateLimit = true;
+        break;
+      }
+      throw error;
+    }
   }
 
   return {
     entity: entityName,
     updated_count: updatedCount,
+    halted_due_to_rate_limit: haltedDueToRateLimit,
+    pending_count: Math.max(0, patchesByRecordId.size - updatedCount),
   };
 }
 
@@ -915,6 +934,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    const changedFields = Array.isArray(payload?.changed_fields) ? payload.changed_fields : [];
+    const relevantSourceFields = getRelevantSourceFields(rules);
+    if (changedFields.length && !changedFields.some((field) => relevantSourceFields.includes(field))) {
+      return Response.json({
+        success: true,
+        skipped: true,
+        reason: 'Update sem alterações relevantes para propagação.',
+      });
+    }
+
     const rulesByEntity = Object.entries(
       rules.reduce((acc, rule) => {
         if (!acc[rule.entity]) acc[rule.entity] = [];
@@ -932,12 +961,16 @@ Deno.serve(async (req) => {
     }
 
     const totalUpdated = results.reduce((sum, item) => sum + (item.updated_count || 0), 0);
+    const haltedDueToRateLimit = results.some((item) => item.halted_due_to_rate_limit);
+    const pendingCount = results.reduce((sum, item) => sum + (item.pending_count || 0), 0);
 
     return Response.json({
       success: true,
       source_entity: sourceEntity,
       source_id: sourceData.id,
       total_updated: totalUpdated,
+      halted_due_to_rate_limit: haltedDueToRateLimit,
+      pending_count: pendingCount,
       results,
     });
   } catch (error) {
