@@ -17,7 +17,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ordenarPorNomeNumerico } from "@/hooks/useSetorAreas";
 import { toast } from "sonner";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 
@@ -59,6 +60,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
   const [filtroUso, setFiltroUso] = useState(VALOR_TODOS);
   const [filtroCultura, setFiltroCultura] = useState(VALOR_TODOS);
   const [filtroStatus, setFiltroStatus] = useState(VALOR_TODOS);
+  const [filtroSetor, setFiltroSetor] = useState(VALOR_TODOS);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,7 +68,17 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
   const [batchType, setBatchType] = useState(null);
   const [batchValue, setBatchValue] = useState("");
   const [startNumber, setStartNumber] = useState("");
+  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
+  const { data: setores = [] } = useQuery({
+    queryKey: ["setores-areas-geo", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return ordenarPorNomeNumerico(all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false));
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: [],
+  });
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_areas_geo");
     if (saved) {
@@ -84,7 +96,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroUso, filtroCultura, filtroStatus, itemsPerPage]);
+  }, [searchTerm, filtroUso, filtroCultura, filtroStatus, filtroSetor, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId)
@@ -107,12 +119,13 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
 
   const areasFiltradas = useMemo(() => areas.filter((area) => {
     const termo = searchTerm.toLowerCase();
-    const matchSearch = !termo || area.nome?.toLowerCase().includes(termo) || area.tipo_pastagem?.toLowerCase().includes(termo) || area.tipo_cultura?.toLowerCase().includes(termo) || area.numero_area?.toLowerCase().includes(termo) || area.sigla?.toLowerCase().includes(termo);
+    const matchSearch = !termo || area.nome?.toLowerCase().includes(termo) || area.setor_nome?.toLowerCase().includes(termo) || area.tipo_pastagem?.toLowerCase().includes(termo) || area.tipo_cultura?.toLowerCase().includes(termo) || area.numero_area?.toLowerCase().includes(termo) || area.sigla?.toLowerCase().includes(termo);
+    const matchSetor = filtroSetor === VALOR_TODOS || area.setor_id === filtroSetor;
     const matchUso = filtroUso === VALOR_TODOS || area.tipo_cultura === filtroUso;
     const matchCultura = filtroCultura === VALOR_TODOS || area.tipo_pastagem === filtroCultura;
     const matchStatus = filtroStatus === VALOR_TODOS || area.status_ocupacao === filtroStatus;
-    return matchSearch && matchUso && matchCultura && matchStatus;
-  }), [areas, searchTerm, filtroUso, filtroCultura, filtroStatus]);
+    return matchSearch && matchSetor && matchUso && matchCultura && matchStatus;
+  }), [areas, searchTerm, filtroSetor, filtroUso, filtroCultura, filtroStatus]);
 
   const areasOrdenadas = useMemo(() => {
     const sorted = [...areasFiltradas];
@@ -171,13 +184,17 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
   const getSortLabel = (key) => (sortConfig.key !== key ? "" : sortConfig.direction === "asc" ? "↑" : "↓");
   const handleSelecionarTodos = () => setSelecionados(selecionados.length === areasFiltradas.length && areasFiltradas.length > 0 ? [] : areasFiltradas.map((a) => a.id));
   const handleToggleSelecao = (id) => setSelecionados((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]);
-  const limparFiltros = () => { setSearchTerm(""); setFiltroUso(VALOR_TODOS); setFiltroCultura(VALOR_TODOS); setFiltroStatus(VALOR_TODOS); };
+  const limparFiltros = () => { setSearchTerm(""); setFiltroSetor(VALOR_TODOS); setFiltroUso(VALOR_TODOS); setFiltroCultura(VALOR_TODOS); setFiltroStatus(VALOR_TODOS); };
 
   const aplicarLote = async () => {
     if (selecionados.length === 0) { toast.error("Selecione ao menos uma área!"); return; }
     try {
       if (batchType === "aproveitamento") {
         await Promise.all(selecionados.map((id) => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
+      } else if (batchType === "setor") {
+        const setorSelecionado = setores.find((setor) => setor.id === batchValue);
+        if (!setorSelecionado) { toast.error("Selecione um setor válido"); return; }
+        await Promise.all(selecionados.map((id) => base44.entities.AreaPastagem.update(id, { setor_id: setorSelecionado.id, setor_nome: setorSelecionado.nome })));
       } else if (batchType === "cultura") {
         await Promise.all(selecionados.map((id) => base44.entities.AreaPastagem.update(id, { tipo_pastagem: batchValue })));
       } else if (batchType === "uso") {
@@ -235,6 +252,16 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                 <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar áreas..." className="h-8 text-xs" />
               </div>
               <div className="space-y-1">
+                <Label className="text-xs">Setor</Label>
+                <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
+                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">Uso</Label>
                 <Select value={filtroUso} onValueChange={setFiltroUso}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -276,6 +303,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                     <DropdownMenuContent>
                       <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                       <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => { setBatchType('setor'); setBatchValue(''); }} className="text-xs">Definir Setor</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { setBatchType('aproveitamento'); setBatchValue('Alta'); }} className="text-xs">Definir Aproveitamento</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { setBatchType('cultura'); setBatchValue('Brachiaria'); }} className="text-xs">Definir Tipo de Cultura</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { setBatchType('uso'); setBatchValue('Pastagem'); }} className="text-xs">Definir Tipo de Uso</DropdownMenuItem>
@@ -329,8 +357,9 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
       <Dialog open={!!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(''); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-sm">{batchType === 'aproveitamento' ? 'Definir Aproveitamento' : batchType === 'cultura' ? 'Definir Tipo de Cultura' : batchType === 'uso' ? 'Definir Tipo de Uso' : batchType === 'cor' ? 'Definir Cor no Mapa' : 'Reatribuir Códigos'}</DialogTitle>
+            <DialogTitle className="text-sm">{batchType === 'setor' ? 'Definir Setor' : batchType === 'aproveitamento' ? 'Definir Aproveitamento' : batchType === 'cultura' ? 'Definir Tipo de Cultura' : batchType === 'uso' ? 'Definir Tipo de Uso' : batchType === 'cor' ? 'Definir Cor no Mapa' : 'Reatribuir Códigos'}</DialogTitle>
           </DialogHeader>
+          {batchType === 'setor' && <div className="space-y-2"><Label className="text-xs">Setor</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue}>Aplicar</Button></div></div>}
           {batchType === 'aproveitamento' && <div className="space-y-2"><Label className="text-xs">Aproveitamento</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{APROVEITAMENTO.map((v) => <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button></div></div>}
           {batchType === 'cultura' && <div className="space-y-2"><Label className="text-xs">Tipo de Cultura</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{TIPOS_CULTURAS.map((v) => <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button></div></div>}
           {batchType === 'uso' && <div className="space-y-2"><Label className="text-xs">Tipo de Uso</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{TIPOS_USO.map((v) => <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button></div></div>}
