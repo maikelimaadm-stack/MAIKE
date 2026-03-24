@@ -35,7 +35,37 @@ export default function RelatorioGestaoTarefas() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas-relatorio-gestao-tarefas', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: lotes = [] } = useQuery({
+    queryKey: ['lotes-relatorio-gestao-tarefas', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: tiposTarefa = [] } = useQuery({
+    queryKey: ['tipos-relatorio-gestao-tarefas', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.TipoTarefa.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const tarefasManuais = [];
+  const areasById = useMemo(() => buildByIdMap(areas), [areas]);
+  const lotesById = useMemo(() => buildByIdMap(lotes), [lotes]);
+  const tiposById = useMemo(() => buildByIdMap(tiposTarefa), [tiposTarefa]);
 
   const normalizadas = useMemo(() => {
     return tarefas.map(t => ({
@@ -43,16 +73,16 @@ export default function RelatorioGestaoTarefas() {
       origem: 'Mapa',
       titulo: t.titulo || t.descricao || 'Tarefa',
       descricao: t.descricao || '',
-      tipo: t.tipo || t.tipo_tarefa_nome || 'Outro',
+      tipo: tiposById.get(t.tipo_tarefa_id)?.nome_tipo || t.tipo || t.tipo_tarefa_nome || 'Outro',
       prioridade: t.prioridade || 'Média',
       status: t.status || 'Pendente',
       data_prevista: t.data_prevista || null,
       data_conclusao: t.data_conclusao || null,
       responsavel: t.responsavel || '',
-      area: t.area_nome || '',
-      lote: t.lote_nome || ''
+      area: areasById.get(t.area_id)?.nome || t.area_nome || '',
+      lote: lotesById.get(t.lote_id)?.nome || t.lote_nome || ''
     }));
-  }, [tarefas]);
+  }, [tarefas, areasById, lotesById, tiposById]);
 
   const filtradas = useMemo(() => {
     return normalizadas.filter(t => {

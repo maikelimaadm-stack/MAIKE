@@ -44,8 +44,44 @@ export default function RelatorioSuplementacao() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas-relatorio-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: produtos = [] } = useQuery({
+    queryKey: ['produtos-relatorio-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const pontosById = useMemo(() => buildByIdMap(pontos), [pontos]);
+  const areasById = useMemo(() => buildByIdMap(areas), [areas]);
+  const produtosById = useMemo(() => buildByIdMap(produtos), [produtos]);
+
+  const eventosNormalizados = useMemo(() => {
+    return eventos.map((evento) => {
+      const areaNomesAtuais = (evento.area_ids || []).map((id) => areasById.get(id)?.nome).filter(Boolean);
+
+      return {
+        ...evento,
+        ponto_nome: pontosById.get(evento.ponto_suplementacao_id)?.nome_ponto || evento.ponto_nome || '',
+        area_nome: areasById.get(evento.area_id)?.nome || (areaNomesAtuais.length ? areaNomesAtuais.join(', ') : evento.area_nome || ''),
+        area_nomes: areaNomesAtuais.length ? areaNomesAtuais : (evento.area_nomes || []),
+        produto: produtosById.get(evento.produto_id)?.nome_produto || evento.produto || '',
+      };
+    });
+  }, [eventos, pontosById, areasById, produtosById]);
+
   const eventosFiltrados = useMemo(() => {
-    return eventos.filter(e => {
+    return eventosNormalizados.filter(e => {
       const dataEvento = new Date(e.data_lancamento);
       if (dataInicio && dataEvento < new Date(dataInicio)) return false;
       if (dataFim && dataEvento > new Date(dataFim)) return false;
@@ -53,7 +89,7 @@ export default function RelatorioSuplementacao() {
       if (produtoFiltro && !e.produto.toLowerCase().includes(produtoFiltro.toLowerCase())) return false;
       return true;
     }).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
-  }, [eventos, dataInicio, dataFim, pontoFiltro, produtoFiltro]);
+  }, [eventosNormalizados, dataInicio, dataFim, pontoFiltro, produtoFiltro]);
 
   const dadosAgrupados = useMemo(() => {
     const grupos = {};

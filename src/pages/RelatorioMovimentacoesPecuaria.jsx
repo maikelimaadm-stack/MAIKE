@@ -166,11 +166,61 @@ export default function RelatorioMovimentacoesPecuaria() {
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores-relatorio-mov-pecuaria', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas-relatorio-mov-pecuaria', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
+  const { data: categoriasManejo = [] } = useQuery({
+    queryKey: ['categorias-relatorio-mov-pecuaria', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CategoriaManejo.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
+  const setoresById = useMemo(() => buildByIdMap(setores), [setores]);
+  const areasById = useMemo(() => buildByIdMap(areas), [areas]);
+  const categoriaAliasMap = useMemo(() => buildCategoryAliasMap(categoriasManejo), [categoriasManejo]);
+
+  const movimentacoesNormalizadas = useMemo(() => {
+    return movimentacoes.map((movimentacao) => ({
+      ...movimentacao,
+      setor_nome: setoresById.get(movimentacao.setor_id)?.nome || movimentacao.setor_nome || '',
+      setor_origem_nome: setoresById.get(movimentacao.setor_origem_id)?.nome || movimentacao.setor_origem_nome || '',
+      setor_destino_nome: setoresById.get(movimentacao.setor_destino_id)?.nome || movimentacao.setor_destino_nome || '',
+      area_origem_nome: areasById.get(movimentacao.area_origem_id)?.nome || movimentacao.area_origem_nome || '',
+      area_destino_nome: areasById.get(movimentacao.area_destino_id)?.nome || movimentacao.area_destino_nome || '',
+      categoria_animal: resolveCategoryName(movimentacao.categoria_animal, categoriaAliasMap),
+      categoria_nova: resolveCategoryName(movimentacao.categoria_nova, categoriaAliasMap),
+      transferencia_origem: movimentacao.setor_origem_id
+        ? setoresById.get(movimentacao.setor_origem_id)?.nome || movimentacao.transferencia_origem || ''
+        : resolveCategoryName(movimentacao.transferencia_origem, categoriaAliasMap),
+      transferencia_destino: movimentacao.setor_destino_id
+        ? setoresById.get(movimentacao.setor_destino_id)?.nome || movimentacao.transferencia_destino || ''
+        : resolveCategoryName(movimentacao.transferencia_destino, categoriaAliasMap),
+    }));
+  }, [movimentacoes, setoresById, areasById, categoriaAliasMap]);
+
   const tiposUnicos = ['Entrada', 'Saída'];
-  const categoriasUnicas = [...new Set(movimentacoes.map((m) => m.categoria_animal))].filter(Boolean).sort();
-  const marcasUnicas = [...new Set(movimentacoes.map((m) => m.marca))].filter(Boolean).sort();
-  const motivosUnicos = [...new Set(movimentacoes.map((m) => m.motivo))].filter(Boolean).sort();
-  const setoresUnicos = [...new Set(movimentacoes.map((m) => m.setor_nome))].filter(Boolean).sort();
+  const categoriasUnicas = [...new Set(movimentacoesNormalizadas.map((m) => m.categoria_animal))].filter(Boolean).sort();
+  const marcasUnicas = [...new Set(movimentacoesNormalizadas.map((m) => m.marca))].filter(Boolean).sort();
+  const motivosUnicos = [...new Set(movimentacoesNormalizadas.map((m) => m.motivo))].filter(Boolean).sort();
+  const setoresUnicos = [...new Set(movimentacoesNormalizadas.map((m) => m.setor_nome))].filter(Boolean).sort();
 
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
@@ -182,7 +232,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   };
 
   const movimentacoesFiltradas = useMemo(() => {
-    let filtered = movimentacoes.filter((m) => {
+    let filtered = movimentacoesNormalizadas.filter((m) => {
       if (dataInicio && m.data_movimentacao) {
         const mDate = new Date(m.data_movimentacao);
         const iDate = new Date(dataInicio);
@@ -216,7 +266,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     });
 
     return filtered;
-  }, [movimentacoes, dataInicio, dataFim, tiposSelecionados, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, setoresSelecionados, ordenacao]);
+  }, [movimentacoesNormalizadas, dataInicio, dataFim, tiposSelecionados, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, setoresSelecionados, ordenacao]);
 
   const movimentacoesAgrupadas = useMemo(() => {
     if (agrupamentosAtivos.length === 0) {
@@ -827,7 +877,7 @@ export default function RelatorioMovimentacoesPecuaria() {
               if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
               return true;
             };
-            const anteriores = inicio ? movimentacoes.filter((m) => matchesCommon(m) && new Date(m.data_movimentacao || 0) < new Date(dataInicio)) : [];
+            const anteriores = inicio ? movimentacoesNormalizadas.filter((m) => matchesCommon(m) && new Date(m.data_movimentacao || 0) < new Date(dataInicio)) : [];
             const saldoInicial = anteriores.reduce((s, m) => s + (m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0), 0);
             const linhas = [];
             let saldo = saldoInicial;

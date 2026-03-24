@@ -399,6 +399,38 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'PontoSuplementacao',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'ControleArea',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'OperacaoAgricola',
+      matchType: 'id',
+      queryField: 'setor_id',
+      fieldMap: {
+        setor_nome: 'nome',
+      },
+    },
+    {
       entity: 'LancamentoTarefa',
       matchType: 'value',
       sourceField: 'nome',
@@ -479,6 +511,98 @@ const PROPAGATION_RULES = {
         setor_destino_nome: 'nome',
         transferencia_origem: 'nome',
         transferencia_destino: 'nome',
+      },
+    },
+  ],
+  AreaPastagem: [
+    {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'id',
+      queryField: 'area_origem_id',
+      fieldMap: {
+        area_origem_nome: 'nome',
+      },
+    },
+    {
+      entity: 'MovimentacaoPecuaria',
+      matchType: 'id',
+      queryField: 'area_destino_id',
+      fieldMap: {
+        area_destino_nome: 'nome',
+      },
+    },
+    {
+      entity: 'SuplementacaoEvento',
+      matchType: 'id',
+      queryField: 'area_id',
+      fieldMap: {
+        area_nome: 'nome',
+      },
+    },
+    {
+      entity: 'LancamentoTarefa',
+      matchType: 'id',
+      queryField: 'area_id',
+      fieldMap: {
+        area_nome: 'nome',
+      },
+    },
+    {
+      entity: 'TarefaMapa',
+      matchType: 'id',
+      queryField: 'area_id',
+      fieldMap: {
+        area_nome: 'nome',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'id',
+      queryField: 'area_entrada_id',
+      fieldMap: {
+        area_entrada_nome: 'nome',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'id',
+      queryField: 'area_atual_id',
+      fieldMap: {
+        area_atual_nome: 'nome',
+      },
+    },
+    {
+      entity: 'ControleArea',
+      matchType: 'id',
+      queryField: 'area_id',
+      fieldMap: {
+        area_nome: 'nome',
+      },
+    },
+    {
+      entity: 'OperacaoAgricola',
+      matchType: 'id',
+      queryField: 'area_id',
+      fieldMap: {
+        area_nome: 'nome',
+      },
+    },
+    {
+      entity: 'PontoSuplementacao',
+      matchType: 'id',
+      queryField: 'area_vinculada_id',
+      fieldMap: {
+        area_vinculada_nome: 'nome',
+      },
+    },
+  ],
+  PontoSuplementacao: [
+    {
+      entity: 'SuplementacaoEvento',
+      matchType: 'id',
+      queryField: 'ponto_suplementacao_id',
+      fieldMap: {
+        ponto_nome: 'nome_ponto',
       },
     },
   ],
