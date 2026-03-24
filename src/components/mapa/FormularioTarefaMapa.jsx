@@ -193,7 +193,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Tipo de tarefa *</Label>
+<Label className="text-xs">Tipo de tarefa *</Label>
           <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange}>
             <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>{tiposTarefa.map((tipo) => <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>)}</SelectContent>
@@ -201,13 +201,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Grupo de atividade</Label>
-          <Input value={formData.grupo_atividade_nome} readOnly className="h-8 text-xs bg-slate-50" />
+                    <Label className="text-xs">Grupo de atividade</Label>
+                              <Input value={formData.grupo_atividade_nome} readOnly className="h-8 text-xs bg-slate-50" />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Solicitante / Responsável</Label>
-          <Input value={formData.solicitante} onChange={(e) => setFormData((prev) => ({ ...prev, solicitante: e.target.value, responsavel_geral: e.target.value }))} className="h-8 text-xs uppercase" />
+          <Label className="text-xs">Solicitante / Responsável</Label>
+                    <Input value={formData.solicitante} onChange={(e) => setFormData((prev) => ({ ...prev, solicitante: e.target.value, responsavel_geral: e.target.value }))} className="h-8 text-xs uppercase" />
         </div>
 
         <div className="space-y-1.5">
