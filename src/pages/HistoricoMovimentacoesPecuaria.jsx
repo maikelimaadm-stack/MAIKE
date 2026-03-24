@@ -36,7 +36,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import FormularioLancamentoManual from "@/components/pecuaria/FormularioLancamentoManual";
 import SaldoCategorias from "@/components/pecuaria/SaldoCategorias";
-import { emitDeleteDialog } from "@/lib/deleteDialogBus";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -244,42 +243,9 @@ export default function HistoricoMovimentacoesPecuaria() {
     })));
   };
 
-  const validarExclusaoSemSaldoNegativo = (ids) => {
-    const idsExpandidos = expandirIdsExclusao(ids);
-    const restantes = movimentacoes.filter((mov) => !idsExpandidos.includes(mov.id));
-    const saldos = {};
-
-    restantes.forEach((mov) => {
-      if (!mov.categoria_animal) return;
-      const chave = `${mov.setor_nome || 'Sem setor'}|||${mov.categoria_animal}|||${mov.marca || 'Sem marca'}`;
-      if (!saldos[chave]) {
-        saldos[chave] = {
-          setor: mov.setor_nome || 'Sem setor',
-          categoria: mov.categoria_animal,
-          marca: mov.marca || 'Sem marca',
-          saldo: 0
-        };
-      }
-      saldos[chave].saldo += mov.tipo === 'Entrada' ? Number(mov.quantidade_animais) || 0 : -(Number(mov.quantidade_animais) || 0);
-    });
-
-    const negativos = Object.values(saldos).filter((item) => item.saldo < 0);
-    if (!negativos.length) return idsExpandidos;
-
-    const detalhes = negativos.
-    slice(0, 3).
-    map((item) => `${item.setor} / ${item.categoria} / ${item.marca}: ${item.saldo} cab`).
-    join('; ');
-
-    emitDeleteDialog(`Não é possível excluir ${idsExpandidos.length} registro(s) porque o saldo do gado ficaria negativo em ${negativos.length} grupo(s). ${detalhes}${negativos.length > 3 ? '...' : ''}`);
-    return null;
-  };
-
   const handleBulkDelete = () => {
     if (!selectedItems.length) return;
-    const idsValidados = validarExclusaoSemSaldoNegativo(selectedItems);
-    if (!idsValidados) return;
-    setDeletarIds(idsValidados);
+    setDeletarIds(expandirIdsExclusao(selectedItems));
     setShowDelete(true);
   };
 
@@ -509,9 +475,7 @@ export default function HistoricoMovimentacoesPecuaria() {
   };
 
   const handleDelete = (id) => {
-    const idsValidados = validarExclusaoSemSaldoNegativo([id]);
-    if (!idsValidados) return;
-    setDeletarIds(idsValidados);
+    setDeletarIds(expandirIdsExclusao([id]));
     setShowDelete(true);
   };
 
