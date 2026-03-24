@@ -13,6 +13,7 @@ import SelecaoAreasMapa from "./SelecaoAreasMapa";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
+import useSetorAreas from "@/hooks/useSetorAreas";
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -50,6 +51,7 @@ const createEmptyForm = () => ({
   observacoes: "",
   produto_padrao: "",
   capacidade_cocho_kg: "",
+  setor_id: "",
   area_vinculada_id: "",
   area_vinculada_ids: [],
   deposito_origem_id: "",
@@ -84,14 +86,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     enabled: true,
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ["areas", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: pontosSuplementacao = [] } = useQuery({
     queryKey: ["pontos-suplementacao-form", empresaSelecionadaId],
@@ -128,6 +123,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       observacoes: item.observacoes || pontoSuplementacaoExistente?.observacoes || "",
       produto_padrao: pontoSuplementacaoExistente?.produto_padrao || "",
       capacidade_cocho_kg: pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
+      setor_id: pontoSuplementacaoExistente?.setor_id || areas.find((area) => area.id === pontoSuplementacaoExistente?.area_vinculada_id)?.setor_id || "",
       area_vinculada_id: pontoSuplementacaoExistente?.area_vinculada_id || "",
       area_vinculada_ids: Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length
         ? pontoSuplementacaoExistente.area_vinculada_ids
@@ -167,6 +163,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   };
 
   useEffect(() => {
+    const areaPrincipal = areas.find((area) => area.id === formData.area_vinculada_id);
+    if (areaPrincipal && formData.setor_id !== areaPrincipal.setor_id) {
+      setFormData((prev) => ({ ...prev, setor_id: areaPrincipal.setor_id || "" }));
+    }
+  }, [areas, formData.area_vinculada_id, formData.setor_id]);
+
+  useEffect(() => {
     const pontoCoords = coordenadasGPS || coordenadas;
     if (!pontoCoords || !areas.length) return;
 
@@ -199,6 +202,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
+  const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
@@ -262,9 +266,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       }
 
       const depositoSelecionado = depositosDisponiveis.find((ponto) => ponto.id === data.deposito_origem_id);
+      const setorSelecionado = setores.find((setor) => setor.id === data.setor_id);
       const payloadSuplementacao = {
         empresa_id: empresaSelecionadaId,
         numero_ponto: pontoSuplementacaoExistente?.numero_ponto || `${prefixo}-${String(maiorNumero + 1).padStart(4, "0")}`,
+        setor_id: data.setor_id || null,
+        setor_nome: setorSelecionado?.nome || null,
         nome_ponto: data.nome,
         sigla: data.sigla,
         categoria_ponto: data.tipo_categoria,
@@ -334,6 +341,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
 
+    if ((ehCocho || ehDeposito) && !formData.setor_id) {
+      toast.error("Selecione o setor do ponto.");
+      return;
+    }
+
     if (ehCocho && !(formData.area_vinculada_ids || []).length) {
       toast.error("Selecione pelo menos uma área do cocho.");
       return;
@@ -385,6 +397,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       tipo: formData.tipo,
       configuracao_icone_id: formData.configuracao_icone_id,
       observacoes: formData.observacoes?.toUpperCase(),
+      setor_id: formData.setor_id,
       produto_padrao: ehCocho ? formData.produto_padrao : null,
       capacidade_cocho_kg: formData.capacidade_cocho_kg,
       area_vinculada_id: ehCocho ? (formData.area_vinculada_ids?.[0] || "") : null,
@@ -468,6 +481,17 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Setor *</Label>
+                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-1 lg:col-span-2">
                 <Label className="text-xs">Áreas vinculadas *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
@@ -476,7 +500,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                     <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {areas.map((area) => {
+                    {areasDoSetor.map((area) => {
                       const checked = formData.area_vinculada_ids?.includes(area.id);
                       return (
                         <label key={area.id} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:bg-slate-50">
@@ -545,6 +569,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             <div className="text-sm font-semibold text-slate-700">Depósito de Suplementação</div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Setor *</Label>
+                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">Capacidade do depósito (kg) *</Label>
                 <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
