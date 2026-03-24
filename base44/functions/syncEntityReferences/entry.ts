@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 const PROPAGATION_RULES = {
   Produto: [
@@ -540,6 +540,33 @@ async function readPayload(req) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function updateRecordWithRetry(entityApi, recordId, patch) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      await entityApi.update(recordId, patch);
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || '').toLowerCase();
+      const isRateLimit = message.includes('429') || message.includes('rate limit');
+
+      if (!isRateLimit || attempt === 4) {
+        throw error;
+      }
+
+      await sleep(250 * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
 async function listRecordsForRule(base44, rule, sourceData, oldData) {
   const entityApi = base44.asServiceRole.entities?.[rule.entity];
   if (!entityApi) return [];
@@ -617,7 +644,7 @@ async function propagateRule(base44, rule, sourceData, oldData) {
     const patch = buildPatchForRecord(record, rule, sourceData, oldData);
     if (!Object.keys(patch).length) continue;
 
-    await entityApi.update(record.id, patch);
+    await updateRecordWithRetry(entityApi, record.id, patch);
     updatedCount += 1;
   }
 

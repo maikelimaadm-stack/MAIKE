@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Printer, Download, Filter, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { buildByIdMap } from "@/lib/reportNameResolvers";
 
 export default function RelatorioSuplementacao() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');

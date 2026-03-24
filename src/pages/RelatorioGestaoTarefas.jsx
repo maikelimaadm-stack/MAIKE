@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+import { buildByIdMap } from "@/lib/reportNameResolvers";
 
 const STATUS = ["Pendente", "Em Andamento", "Concluída", "Cancelada"]; 
 const PRIORIDADES = ["Baixa", "Normal", "Alta", "Urgente"];

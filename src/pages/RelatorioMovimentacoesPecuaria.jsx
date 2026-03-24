@@ -24,6 +24,7 @@ import {
   PopoverTrigger } from
 "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { buildByIdMap, buildCategoryAliasMap, resolveCategoryName } from "@/lib/reportNameResolvers";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "";
