@@ -21,6 +21,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'fechamento_consumo', 'movimentacao'
   const [eventosAbertos, setEventosAbertos] = useState([]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const [formData, setFormData] = useState(() => {
     const areaDestino = areaDestinoPreSelecionada;
@@ -54,7 +55,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     return {
       data_movimentacao: getTodayLocalDate(),
       mover_todos: 'sim',
+      setor_saida_id: areaOrigem?.setor_id || '',
       area_saida_id: areaSaidaId,
+      setor_entrada_id: '',
       area_entrada_id: areaDestino || '',
       movimentacoes: movimentacoesPre,
       sobras_cocho: {}
@@ -138,8 +141,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     },
     enabled: !!empresaSelecionadaId
   });
-
-  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: todosLotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],

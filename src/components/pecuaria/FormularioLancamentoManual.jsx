@@ -967,7 +967,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {areas.map((area) =>
+                      {areasDoSetor.map((area) =>
                     <SelectItem key={area.id} value={area.id} className="text-xs uppercase">
                           {area.sigla ? `${area.sigla} - ` : ''}{area.nome}
                         </SelectItem>
