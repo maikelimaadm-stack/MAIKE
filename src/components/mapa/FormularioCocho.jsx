@@ -51,7 +51,7 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
         observacoes: item.observacoes || ""
       });
     }
-  }, [item]);
+  }, [item, areas]);
 
   const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
