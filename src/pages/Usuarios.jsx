@@ -100,6 +100,7 @@ export default function Usuarios() {
     setEditingUsuario({
       ...usuario,
       user_email: usuario.email,
+      user_nome: getPermissionDisplayName(permissao, usuario) || getUserDisplayName(usuario),
       modulos_permitidos: permissao?.modulos_permitidos || [],
       permissoes_telas: permissao?.permissoes_telas || [],
       mobile_menu_ids: permissao?.mobile_menu_ids || [],
