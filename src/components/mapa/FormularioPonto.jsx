@@ -142,7 +142,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       estoque_minimo_kg: pontoSuplementacaoExistente?.estoque_minimo_kg || "",
       alerta_sem_lancamento_dias: pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10",
     });
-  }, [item, pontoSuplementacaoExistente]);
+  }, [item, pontoSuplementacaoExistente, areas]);
 
   const handleCapturaGPS = (localizacao) => {
     setCoordenadasGPS(localizacao);
