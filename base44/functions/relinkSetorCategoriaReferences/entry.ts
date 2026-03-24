@@ -5,6 +5,11 @@ function normalizeValue(value) {
   return String(value).trim().toLowerCase();
 }
 
+function isRateLimitError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('429') || message.includes('rate limit');
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -19,14 +24,13 @@ async function updateWithRetry(entityApi, id, patch) {
       return;
     } catch (error) {
       lastError = error;
-      const message = String(error?.message || '').toLowerCase();
-      const isRateLimit = message.includes('429') || message.includes('rate limit');
+      const isRateLimit = isRateLimitError(error);
 
       if (!isRateLimit || attempt === 8) {
         throw error;
       }
 
-      await sleep(500 * attempt + Math.floor(Math.random() * 250));
+      await sleep(900 * attempt + Math.floor(Math.random() * 300));
     }
   }
 
@@ -65,6 +69,7 @@ function pushPatchIfChanged(patch, field, nextValue, currentValue) {
 }
 
 async function relinkSetores(base44, empresaId, maxUpdates) {
+  let haltedDueToRateLimit = false;
   const setorApi = base44.asServiceRole.entities.Setor;
   const targetConfigs = [
     { entity: 'AreaPastagem', links: [{ idField: 'setor_id', nameField: 'setor_nome' }] },
@@ -132,9 +137,17 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
       if (!Object.keys(patch).length) continue;
       if (updated >= maxUpdates) continue;
 
-      await updateWithRetry(entityApi, record.id, patch);
-      updated += 1;
-      entityUpdated += 1;
+      try {
+        await updateWithRetry(entityApi, record.id, patch);
+        updated += 1;
+        entityUpdated += 1;
+      } catch (error) {
+        if (isRateLimitError(error)) {
+          haltedDueToRateLimit = true;
+          break;
+        }
+        throw error;
+      }
     }
 
     results.push({ entity: config.entity, updated_count: entityUpdated });
@@ -144,6 +157,7 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
 }
 
 async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
+  let haltedDueToRateLimit = false;
   const categoriaApi = base44.asServiceRole.entities.CategoriaManejo;
   const targetConfigs = [
     {
@@ -230,9 +244,17 @@ async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
       if (!Object.keys(patch).length) continue;
       if (updated >= maxUpdates) continue;
 
-      await updateWithRetry(entityApi, record.id, patch);
-      updated += 1;
-      entityUpdated += 1;
+      try {
+        await updateWithRetry(entityApi, record.id, patch);
+        updated += 1;
+        entityUpdated += 1;
+      } catch (error) {
+        if (isRateLimitError(error)) {
+          haltedDueToRateLimit = true;
+          break;
+        }
+        throw error;
+      }
     }
 
     results.push({ entity: config.entity, updated_count: entityUpdated });
@@ -252,7 +274,7 @@ Deno.serve(async (req) => {
 
     const payload = await req.json().catch(() => ({}));
     const empresaId = payload?.empresaId || null;
-    const maxUpdates = Number(payload?.maxUpdates || 1500);
+    const maxUpdates = Number(payload?.maxUpdates || 100);
 
     const setorResult = await relinkSetores(base44, empresaId, maxUpdates);
     const categoriaResult = await relinkCategorias(base44, empresaId, maxUpdates, setorResult.updated);
@@ -262,6 +284,7 @@ Deno.serve(async (req) => {
       empresaId,
       maxUpdates,
       total_updated: categoriaResult.updated,
+      halted_due_to_rate_limit: Boolean(setorResult.halted_due_to_rate_limit || categoriaResult.halted_due_to_rate_limit),
       setor_results: setorResult.results,
       categoria_results: categoriaResult.results,
     });
