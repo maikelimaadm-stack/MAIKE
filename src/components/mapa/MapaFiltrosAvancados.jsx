@@ -86,6 +86,7 @@ export default function MapaFiltrosAvancados({
   filtroPesoMin, setFiltroPesoMin,
   filtroPesoMax, setFiltroPesoMax,
   // Filtros de área
+  filtroSetor, setFiltroSetor,
   filtroTipoCultura, setFiltroTipoCultura,
   filtroTipoPastagem, setFiltroTipoPastagem,
   // Coloração
@@ -93,6 +94,7 @@ export default function MapaFiltrosAvancados({
   // Dados para opções
   categorias = [],
   tiposPastagem = [],
+  setores = [],
   sistemasProdutivos = [],
   permissions = null
 }) {
@@ -200,6 +202,18 @@ export default function MapaFiltrosAvancados({
           <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
         </div>
         <div className="space-y-2.5 px-1">
+          <div>
+            <Label className="text-[10px] text-slate-600">Setor</Label>
+            <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                {setores.map((setor) =>
+                <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-[10px] text-slate-600">Tipo de Cultura</Label>
             <Select value={filtroTipoCultura} onValueChange={setFiltroTipoCultura}>

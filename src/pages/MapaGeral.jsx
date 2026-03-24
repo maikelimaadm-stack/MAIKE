@@ -24,6 +24,7 @@ import MapaFiltrosAvancados, {
 "../components/mapa/MapaFiltrosAvancados";
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
+import useSetorAreas from "@/hooks/useSetorAreas";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 
@@ -65,6 +66,7 @@ export default function MapaGeral() {
   const [filtroSistema, setFiltroSistema] = useState('todos');
   const [filtroTipoCultura, setFiltroTipoCultura] = useState('todas');
   const [filtroTipoPastagem, setFiltroTipoPastagem] = useState('todas');
+  const [filtroSetor, setFiltroSetor] = useState('todos');
   const [filtroPesoMin, setFiltroPesoMin] = useState(null);
   const [filtroPesoMax, setFiltroPesoMax] = useState(null);
   const [modoColoracao, setModoColoracao] = useState('padrao');
@@ -94,6 +96,7 @@ export default function MapaGeral() {
   const renderer = useMapRenderer(mapInstanceRef);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const { setores } = useSetorAreas(empresaSelecionadaId);
   useEffect(() => {firstFitDoneRef.current = false;}, [empresaSelecionadaId]);
 
   const { data: currentUser = null } = useQuery({
@@ -249,13 +252,17 @@ export default function MapaGeral() {
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {
+    if (filtroSetor !== 'todos' && a.setor_id !== filtroSetor) return false;
     if (filtroTipoCultura !== 'todas' && a.tipo_cultura !== filtroTipoCultura) return false;
     if (filtroTipoPastagem !== 'todas' && a.tipo_pastagem !== filtroTipoPastagem) return false;
     return true;
-  }), [areas, filtroTipoCultura, filtroTipoPastagem]);
+  }), [areas, filtroSetor, filtroTipoCultura, filtroTipoPastagem]);
+
+  const areaIdsFiltrados = useMemo(() => new Set(areasFiltradas.map((area) => area.id)), [areasFiltradas]);
 
   // Filtrar lotes
   const lotesFiltrados = useMemo(() => lotesComAlerta.filter((lote) => {
+    if (filtroSetor !== 'todos' && !areaIdsFiltrados.has(lote.area_atual_id)) return false;
     if (filtroCategoria !== 'todas' && lote.categoria !== filtroCategoria) return false;
     if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
     if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
@@ -263,7 +270,25 @@ export default function MapaGeral() {
     if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroCategoria, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
+  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
+
+  const pontosSuplementacaoFiltrados = useMemo(() => {
+    if (filtroSetor === 'todos') return pontosSuplementacaoDecorados;
+    return pontosSuplementacaoDecorados.filter((ponto) => {
+      const areaIds = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length
+        ? ponto.area_vinculada_ids
+        : ponto.area_vinculada_id
+          ? [ponto.area_vinculada_id]
+          : [];
+      return areaIds.some((id) => areaIdsFiltrados.has(id));
+    });
+  }, [filtroSetor, pontosSuplementacaoDecorados, areaIdsFiltrados]);
+
+  const tarefasMapaFiltradas = useMemo(() => {
+    if (filtroSetor === 'todos') return tarefasMapa;
+    const setorAtual = setores.find((setor) => setor.id === filtroSetor);
+    return tarefasMapa.filter((tarefa) => areaIdsFiltrados.has(tarefa.area_id) || tarefa.setor_nome === setorAtual?.nome);
+  }, [filtroSetor, tarefasMapa, setores, areaIdsFiltrados]);
 
   // Mapa de cores para categorias de manejo e pastagem
   const categoriasGadoCores = useMemo(() => {
@@ -666,9 +691,9 @@ export default function MapaGeral() {
 
   useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_pontos_referencia]);
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
-  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoDecorados, mapaGeralPermissions.visualizar_cochos_suplementacao && showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoDecorados, showPontosSuplementacao, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
+  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoFiltrados, mapaGeralPermissions.visualizar_cochos_suplementacao && showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoFiltrados, showPontosSuplementacao, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, handleClickLotes, handleDragLotes]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa ? tarefasMapa : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapa, areas, iconesConfig, mapReady, podeUsarTarefasMapa, handleClickTarefa]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
@@ -793,6 +818,7 @@ export default function MapaGeral() {
               filtroCategoria={filtroCategoria} setFiltroCategoria={setFiltroCategoria}
               filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus}
               filtroSistema={filtroSistema} setFiltroSistema={setFiltroSistema}
+              filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor}
               filtroTipoCultura={filtroTipoCultura} setFiltroTipoCultura={setFiltroTipoCultura}
               filtroTipoPastagem={filtroTipoPastagem} setFiltroTipoPastagem={setFiltroTipoPastagem}
               filtroPesoMin={filtroPesoMin} setFiltroPesoMin={setFiltroPesoMin}
@@ -800,6 +826,7 @@ export default function MapaGeral() {
               modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
               categorias={categorias}
               tiposPastagem={tiposPastagem}
+              setores={setores}
               sistemasProdutivos={sistemasProdutivos}
               permissions={mapaGeralPermissions} />
 

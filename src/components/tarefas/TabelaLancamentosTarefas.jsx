@@ -61,6 +61,7 @@ export default function TabelaLancamentosTarefas({
   const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
   const [filtroPrioridade, setFiltroPrioridade] = useState("__TODOS__");
   const [filtroGrupo, setFiltroGrupo] = useState("__TODOS__");
+  const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -86,7 +87,7 @@ export default function TabelaLancamentosTarefas({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, itemsPerPage]);
+  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroSetor, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId)
@@ -111,20 +112,23 @@ export default function TabelaLancamentosTarefas({
       .filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
   }, [colunasOrdem, colunasVisiveis]);
 
+  const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+
   const tarefasFiltradas = useMemo(() => {
     return tarefas.filter((tarefa) => {
       const termo = searchTerm.toLowerCase();
       const prioridade = normalizeTaskPriority(tarefa.prioridade);
       const matchSearch =
         !termo ||
-        [tarefa.titulo, tarefa.tipo_tarefa_nome, tarefa.grupo_atividade_nome, tarefa.area_nome, tarefa.responsavel, tarefa.solicitante]
+        [tarefa.titulo, tarefa.tipo_tarefa_nome, tarefa.grupo_atividade_nome, tarefa.area_nome, tarefa.responsavel, tarefa.solicitante, tarefa.setor_nome]
           .some((value) => String(value || "").toLowerCase().includes(termo));
       const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
       const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
       const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
-      return matchSearch && matchStatus && matchPrioridade && matchGrupo;
+      const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
+      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchSetor;
     });
-  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, normalizeTaskPriority]);
+  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroSetor, normalizeTaskPriority]);
 
   const tarefasOrdenadas = useMemo(() => {
     const sorted = [...tarefasFiltradas];
@@ -170,6 +174,7 @@ export default function TabelaLancamentosTarefas({
     setFiltroStatus("__TODOS__");
     setFiltroPrioridade("__TODOS__");
     setFiltroGrupo("__TODOS__");
+    setFiltroSetor("__TODOS__");
   };
 
   const renderCell = (tarefa, colunaId) => {
@@ -228,6 +233,16 @@ export default function TabelaLancamentosTarefas({
                 <SelectContent>
                   <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
                   {grupos.map((grupo) => <SelectItem key={grupo} value={grupo} className="text-xs">{grupo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Setor</Label>
+              <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
+                  {setores.map((setor) => <SelectItem key={setor} value={setor} className="text-xs">{setor}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
