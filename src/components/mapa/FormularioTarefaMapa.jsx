@@ -188,7 +188,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs uppercase">Título *</Label>
+                    <Label className="text-xs">Título *</Label>
           <Input value={formData.titulo} onChange={(e) => setFormData((prev) => ({ ...prev, titulo: e.target.value }))} placeholder="Ex: Cerca quebrada na lateral" className="h-8 text-xs uppercase" />
         </div>
 
