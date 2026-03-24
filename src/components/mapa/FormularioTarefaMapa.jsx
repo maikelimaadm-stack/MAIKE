@@ -10,7 +10,7 @@ import { Crosshair, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
 import useSetorAreas from "@/hooks/useSetorAreas";
-import { getUserDisplayName } from "@/lib/userDisplayName";
+import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 
 export const normalizeTaskPriority = (value) => {
   const normalized = (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -156,7 +156,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const tiposTarefaFiltrados = formData.grupo_atividade_id
     ? tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id)
     : [];
-  const usuariosOrdenados = [...usuariosSistema].sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)));
+  const usuariosOrdenados = usuariosSistema
+    .filter((user) => !isExcludedSystemUser(user))
+    .sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)));
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();

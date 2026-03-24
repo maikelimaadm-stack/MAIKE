@@ -42,8 +42,9 @@ export default function Usuarios() {
       const existente = permissoes.find((item) => item.user_email === data.user_email);
       const usuario = usuarios.find((item) => item.email === data.user_email);
       const userNome = (data.user_nome || getPermissionDisplayName(existente, usuario) || getUserDisplayName(usuario)).trim();
+      const nomeAtualUsuario = getUserDisplayName(usuario);
 
-      if (usuario?.id && userNome && userNome !== (usuario.nome || "")) {
+      if (usuario?.id && userNome && userNome !== nomeAtualUsuario) {
         await base44.entities.User.update(usuario.id, { nome: userNome });
       }
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +12,7 @@ import { toast } from "sonner";
 import ConfiguracaoPermissoesTelas from "@/components/usuarios/ConfiguracaoPermissoesTelas";
 import { DEFAULT_MENU, getMenuModules } from "@/lib/menuConfig";
 import { DEFAULT_MAPA_GERAL_PERMISSIONS } from "@/lib/mapaGeralPermissions";
-import { getUserDisplayName } from "@/lib/userDisplayName";
+import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 
 const MENU_MODULES = getMenuModules(DEFAULT_MENU);
 
@@ -32,7 +33,7 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
   const [formData, setFormData] = useState(createInitialFormData(initialData));
 
   const usuariosDisponiveis = useMemo(
-    () => usuarios.filter((user) => user.email),
+    () => usuarios.filter((user) => user.email && !isExcludedSystemUser(user)),
     [usuarios]
   );
 
@@ -101,10 +102,10 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
 
             <div className="space-y-1">
               <Label className="text-xs uppercase">NOME DO USUÁRIO *</Label>
-              <input
+              <Input
                 value={formData.user_nome}
                 onChange={(e) => handleChange("user_nome", e.target.value.toUpperCase())}
-                className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-2 text-xs uppercase shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
+                className="h-8 text-xs uppercase"
                 placeholder="NOME EXIBIDO NO SISTEMA"
               />
             </div>
