@@ -19,7 +19,7 @@ export const normalizeTaskPriority = (value) => {
   return "Baixa";
 };
 
-const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id"];
+const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "solicitante", "data_pedido", "responsavel_id"];
 
 const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
   const texto = `${tipoNome} ${grupoNome}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -173,6 +173,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       }
     });
 
+    if (formData.status === "Concluída" && !String(formData.data_conclusao || "").trim()) {
+      nextErrors.data_conclusao = true;
+    }
+
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length === 0) return true;
@@ -216,12 +220,14 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     }));
   };
 
+  const handleSolicitanteChange = (selectedSolicitante) => {
+    setErrors((prev) => ({ ...prev, solicitante: false }));
+    setFormData((prev) => ({ ...prev, solicitante: selectedSolicitante, responsavel_geral: selectedSolicitante }));
+  };
+
   const handleResponsavelChange = (selectedResponsavelId) => {
-    if (selectedResponsavelId === "__sem_responsavel__") {
-      setFormData((prev) => ({ ...prev, responsavel_id: "", responsavel: "" }));
-      return;
-    }
     const responsavel = usuariosOrdenados.find((item) => item.id === selectedResponsavelId);
+    setErrors((prev) => ({ ...prev, responsavel_id: false }));
     setFormData((prev) => ({ ...prev, responsavel_id: selectedResponsavelId, responsavel: getUserDisplayName(responsavel) }));
   };
 
@@ -330,19 +336,30 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Responsável</Label>
-          <Select value={formData.responsavel_id || "__sem_responsavel__"} onValueChange={handleResponsavelChange}>
-            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__sem_responsavel__" className="text-xs uppercase">Sem responsável</SelectItem>
-              {usuariosOrdenados.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getUserDisplayName(item)}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Label className="text-xs">Responsável *</Label>
+          <div data-field="responsavel_id">
+            <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
+              <SelectTrigger className={getFieldClassName("responsavel_id", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+              <SelectContent>
+                {usuariosOrdenados.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getUserDisplayName(item)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Solicitante</Label>
-          <Input value={formData.solicitante} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
+          <Label className="text-xs">Solicitante *</Label>
+          <div data-field="solicitante">
+            <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
+              <SelectTrigger className={getFieldClassName("solicitante", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
+              <SelectContent>
+                {usuariosOrdenados.map((item) => {
+                  const nome = getUserDisplayName(item);
+                  return <SelectItem key={item.id} value={nome} className="text-xs uppercase">{nome}</SelectItem>;
+                })}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-1.5">
@@ -359,7 +376,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="space-y-1.5">
           <Label className="text-xs">Status</Label>
-          <Select value={formData.status} onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}>
+          <Select value={formData.status} onValueChange={(value) => {
+            setErrors((prev) => ({ ...prev, data_conclusao: false }));
+            setFormData((prev) => ({ ...prev, status: value }));
+          }}>
             <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="Pendente" className="text-xs uppercase">Pendente</SelectItem>
@@ -371,13 +391,23 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Data do pedido</Label>
-          <Input type="date" value={formData.data_pedido} onChange={(e) => setFormData((prev) => ({ ...prev, data_pedido: e.target.value }))} className="h-8 text-xs uppercase" />
+          <Label className="text-xs">Data do pedido *</Label>
+          <div data-field="data_pedido">
+            <Input type="date" value={formData.data_pedido} onChange={(e) => {
+              setErrors((prev) => ({ ...prev, data_pedido: false }));
+              setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
+            }} className={getFieldClassName("data_pedido", "h-8 text-xs uppercase")} />
+          </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Data de conclusão</Label>
-          <Input type="date" value={formData.data_conclusao} onChange={(e) => setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }))} className="h-8 text-xs uppercase" />
+          <Label className="text-xs">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
+          <div data-field="data_conclusao">
+            <Input type="date" value={formData.data_conclusao} onChange={(e) => {
+              setErrors((prev) => ({ ...prev, data_conclusao: false }));
+              setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
+            }} className={getFieldClassName("data_conclusao", "h-8 text-xs uppercase")} />
+          </div>
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">
