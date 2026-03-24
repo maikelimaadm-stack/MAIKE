@@ -18,6 +18,8 @@ export const normalizeTaskPriority = (value) => {
   return "Baixa";
 };
 
+const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id"];
+
 const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
   const texto = `${tipoNome} ${grupoNome}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (texto.includes("suplement")) return "Suplementação";
@@ -44,6 +46,15 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const [setorSelecionadoId, setSetorSelecionadoId] = useState("");
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
+
+  const { data: gruposAtividade = [] } = useQuery({
+    queryKey: ["grupos-atividade-mapa-form"],
+    queryFn: async () => {
+      const all = await base44.entities.GrupoAtividade.list();
+      return all.filter((grupo) => grupo.ativo !== false);
+    },
+    initialData: []
+  });
 
   const { data: tiposTarefa = [] } = useQuery({
     queryKey: ["tipos-tarefa-mapa-form"],
@@ -90,6 +101,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     ponto_suplementacao_id: pontoSuplId || "",
     coordenadas: initialCoordinates || null
   });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     const source = tarefa || initialDraft || {};
@@ -121,6 +133,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       coordenadas: source.coordenadas || initialCoordinates || null
     });
     setSetorSelecionadoId(areaSelecionada?.setor_id || "");
+    setErrors({});
   }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas]);
 
   useEffect(() => {
@@ -135,6 +148,35 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   }, [areas, formData.area_id, formData.setor_nome, setorSelecionadoId]);
 
   const areasDoSetor = setorSelecionadoId ? getAreasBySetor(setorSelecionadoId) : [];
+  const tiposTarefaFiltrados = formData.grupo_atividade_id
+    ? tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id)
+    : [];
+
+  const getFieldClassName = (field, baseClass) => {
+    return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+
+    REQUIRED_FIELDS.forEach((field) => {
+      if (!String(formData?.[field] || "").trim()) {
+        nextErrors[field] = true;
+      }
+    });
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length === 0) return true;
+
+    toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
+    const firstField = Object.keys(nextErrors)[0];
+    const element = document.querySelector(`[data-field="${firstField}"]`);
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = element?.querySelector("input, textarea, button, [role='combobox']");
+    focusable?.focus?.();
+    return false;
+  };
 
   const handleAreaChange = (selectedAreaId) => {
     const selectedArea = areas.find((area) => area.id === selectedAreaId);
@@ -142,15 +184,27 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     setFormData((prev) => ({ ...prev, area_id: selectedAreaId, area_nome: selectedArea?.nome || "", setor_nome: selectedArea?.setor_nome || prev.setor_nome, coordenadas: center || null }));
   };
 
+  const handleGrupoAtividadeChange = (selectedGrupoId) => {
+    const grupoSelecionado = gruposAtividade.find((grupo) => grupo.id === selectedGrupoId);
+    setErrors((prev) => ({ ...prev, grupo_atividade_id: false, tipo_tarefa_id: false }));
+    setFormData((prev) => ({
+      ...prev,
+      grupo_atividade_id: selectedGrupoId,
+      grupo_atividade_nome: grupoSelecionado?.nome_grupo || "",
+      tipo_tarefa_id: "",
+      tipo_tarefa_nome: "",
+      tipo: inferirTipoBase("", grupoSelecionado?.nome_grupo || "")
+    }));
+  };
+
   const handleTipoTarefaChange = (selectedTipoId) => {
-    const selectedTipo = tiposTarefa.find((tipo) => tipo.id === selectedTipoId);
+    const selectedTipo = tiposTarefaFiltrados.find((tipo) => tipo.id === selectedTipoId);
+    setErrors((prev) => ({ ...prev, tipo_tarefa_id: false }));
     setFormData((prev) => ({
       ...prev,
       tipo_tarefa_id: selectedTipoId,
       tipo_tarefa_nome: selectedTipo?.nome_tipo || "",
-      grupo_atividade_id: selectedTipo?.grupo_atividade_id || "",
-      grupo_atividade_nome: selectedTipo?.grupo_atividade_nome || "",
-      tipo: inferirTipoBase(selectedTipo?.nome_tipo, selectedTipo?.grupo_atividade_nome)
+      tipo: inferirTipoBase(selectedTipo?.nome_tipo, prev.grupo_atividade_nome || selectedTipo?.grupo_atividade_nome)
     }));
   };
 
@@ -165,14 +219,8 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.titulo.trim()) {
-      toast.error("Informe o título da tarefa.");
-      return;
-    }
-    if (!formData.tipo_tarefa_id) {
-      toast.error("Selecione o tipo de tarefa.");
-      return;
-    }
+    if (!validateForm()) return;
+
     onSubmit({
       ...formData,
       titulo: formData.titulo.trim(),
@@ -188,21 +236,45 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
         <div className="space-y-1.5 lg:col-span-2">
-                    <Label className="text-xs">Título *</Label>
-          <Input value={formData.titulo} onChange={(e) => setFormData((prev) => ({ ...prev, titulo: e.target.value }))} placeholder="Ex: Cerca quebrada na lateral" className="h-8 text-xs uppercase" />
+          <Label className="text-xs">Título *</Label>
+          <Input
+            data-field="titulo"
+            value={formData.titulo}
+            onChange={(e) => {
+              setErrors((prev) => ({ ...prev, titulo: false }));
+              setFormData((prev) => ({ ...prev, titulo: e.target.value }));
+            }}
+            placeholder="Ex: Cerca quebrada na lateral"
+            className={getFieldClassName("titulo", "h-8 text-xs uppercase")}
+          />
         </div>
 
         <div className="space-y-1.5">
-<Label className="text-xs">Tipo de tarefa *</Label>
-          <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange}>
-            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>{tiposTarefa.map((tipo) => <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>)}</SelectContent>
-          </Select>
+          <Label className="text-xs">Grupo de atividade *</Label>
+          <div data-field="grupo_atividade_id">
+            <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
+              <SelectTrigger className={getFieldClassName("grupo_atividade_id", "h-8 text-xs uppercase")}>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {gruposAtividade.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-1.5">
-                    <Label className="text-xs">Grupo de atividade</Label>
-                              <Input value={formData.grupo_atividade_nome} readOnly className="h-8 text-xs bg-slate-50" />
+          <Label className="text-xs">Tipo de tarefa *</Label>
+          <div data-field="tipo_tarefa_id">
+            <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
+              <SelectTrigger className={getFieldClassName("tipo_tarefa_id", "h-8 text-xs uppercase")}>
+                <SelectValue placeholder={formData.grupo_atividade_id ? "Selecione" : "Selecione o grupo primeiro"} />
+              </SelectTrigger>
+              <SelectContent>
+                {tiposTarefaFiltrados.map((tipo) => <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-1.5">
