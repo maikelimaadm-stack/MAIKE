@@ -100,6 +100,7 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
     : await setorApi.list('-created_date', 5000);
 
   const setoresEmpresa = setores.filter((item) => sameEmpresa(item, empresaId));
+  const setorById = new Map(setoresEmpresa.map((setor) => [setor.id, setor]));
   const setorByName = buildUniqueMap(setoresEmpresa, (setor) => [normalizeValue(setor?.nome)]);
 
   let updated = 0;
@@ -121,15 +122,13 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
 
       for (const link of config.links) {
         const nameKey = normalizeValue(record?.[link.nameField]);
-        if (!nameKey) continue;
-
-        const matchedSetor = setorByName.get(nameKey);
+        const matchedSetor = setorById.get(record?.[link.idField]) || setorByName.get(nameKey);
         if (!matchedSetor) continue;
 
         pushPatchIfChanged(patch, link.idField, matchedSetor.id, record?.[link.idField] ?? null);
         pushPatchIfChanged(patch, link.nameField, matchedSetor.nome, record?.[link.nameField] ?? null);
 
-        if (link.transferField && record?.[link.transferField]) {
+        if (link.transferField && record?.[link.transferField] !== undefined) {
           pushPatchIfChanged(patch, link.transferField, matchedSetor.nome, record?.[link.transferField] ?? null);
         }
       }
@@ -200,6 +199,7 @@ async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
     : await categoriaApi.list('-created_date', 5000);
 
   const categoriasEmpresa = categorias.filter((item) => sameEmpresa(item, empresaId));
+  const categoriaById = new Map(categoriasEmpresa.map((categoria) => [categoria.id, categoria]));
   const categoriaByAlias = buildUniqueMap(categoriasEmpresa, (categoria) => [
     normalizeValue(categoria?.nome),
     normalizeValue(categoria?.categoria_oficial),
@@ -225,7 +225,7 @@ async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
       for (const link of config.links || []) {
         const keyFromName = normalizeValue(record?.[link.nameField]);
         const keyFromOficial = normalizeValue(record?.[link.oficialField]);
-        const matchedCategoria = categoriaByAlias.get(keyFromName) || categoriaByAlias.get(keyFromOficial);
+        const matchedCategoria = categoriaById.get(record?.[link.idField]) || categoriaByAlias.get(keyFromName) || categoriaByAlias.get(keyFromOficial);
         if (!matchedCategoria) continue;
 
         pushPatchIfChanged(patch, link.idField, matchedCategoria.id, record?.[link.idField] ?? null);
