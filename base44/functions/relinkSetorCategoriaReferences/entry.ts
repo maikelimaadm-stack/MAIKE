@@ -68,7 +68,7 @@ function pushPatchIfChanged(patch, field, nextValue, currentValue) {
   patch[field] = nextValue;
 }
 
-async function relinkSetores(base44, empresaId, maxUpdates) {
+async function relinkSetores(base44, empresaId, maxUpdates, entityTargets = null) {
   let haltedDueToRateLimit = false;
   const setorApi = base44.asServiceRole.entities.Setor;
   const targetConfigs = [
@@ -95,6 +95,10 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
     },
   ];
 
+  const filteredConfigs = entityTargets?.size
+    ? targetConfigs.filter((config) => entityTargets.has(config.entity))
+    : targetConfigs;
+
   const setores = empresaId
     ? await setorApi.filter({ empresa_id: empresaId }, '-created_date', 5000)
     : await setorApi.list('-created_date', 5000);
@@ -106,7 +110,7 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
   let updated = 0;
   const results = [];
 
-  for (const config of targetConfigs) {
+  for (const config of filteredConfigs) {
     const entityApi = base44.asServiceRole.entities[config.entity];
     if (!entityApi) continue;
 
@@ -157,7 +161,7 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
   return { updated, results, halted_due_to_rate_limit: haltedDueToRateLimit };
 }
 
-async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
+async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated, entityTargets = null) {
   let haltedDueToRateLimit = false;
   const categoriaApi = base44.asServiceRole.entities.CategoriaManejo;
   const targetConfigs = [
@@ -194,6 +198,10 @@ async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
     },
   ];
 
+  const filteredConfigs = entityTargets?.size
+    ? targetConfigs.filter((config) => entityTargets.has(config.entity))
+    : targetConfigs;
+
   const categorias = empresaId
     ? await categoriaApi.filter({ empresa_id: empresaId }, '-created_date', 5000)
     : await categoriaApi.list('-created_date', 5000);
@@ -208,7 +216,7 @@ async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
   let updated = currentUpdated;
   const results = [];
 
-  for (const config of targetConfigs) {
+  for (const config of filteredConfigs) {
     const entityApi = base44.asServiceRole.entities[config.entity];
     if (!entityApi) continue;
 
@@ -279,9 +287,12 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
     const empresaId = payload?.empresaId || null;
     const maxUpdates = Number(payload?.maxUpdates || 100);
+    const entityTargets = Array.isArray(payload?.entityTargets) && payload.entityTargets.length
+      ? new Set(payload.entityTargets)
+      : null;
 
-    const setorResult = await relinkSetores(base44, empresaId, maxUpdates);
-    const categoriaResult = await relinkCategorias(base44, empresaId, maxUpdates, setorResult.updated);
+    const setorResult = await relinkSetores(base44, empresaId, maxUpdates, entityTargets);
+    const categoriaResult = await relinkCategorias(base44, empresaId, maxUpdates, setorResult.updated, entityTargets);
 
     return Response.json({
       success: true,
