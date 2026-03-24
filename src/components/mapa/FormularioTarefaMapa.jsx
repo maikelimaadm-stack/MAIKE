@@ -249,29 +249,33 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 lg:order-1">
           <Label className="text-xs">Grupo de atividade *</Label>
           <div data-field="grupo_atividade_id">
             <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
               <SelectTrigger className={getFieldClassName("grupo_atividade_id", "h-8 text-xs uppercase")}>
-                <SelectValue placeholder="Selecione" />
+                <SelectValue placeholder="Selecione o grupo" />
               </SelectTrigger>
               <SelectContent>
-                {gruposAtividade.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>)}
+                {gruposAtividade.map((grupo) => (
+                  <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 lg:order-2">
           <Label className="text-xs">Tipo de tarefa *</Label>
           <div data-field="tipo_tarefa_id">
             <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
               <SelectTrigger className={getFieldClassName("tipo_tarefa_id", "h-8 text-xs uppercase")}>
-                <SelectValue placeholder={formData.grupo_atividade_id ? "Selecione" : "Selecione o grupo primeiro"} />
+                <SelectValue placeholder={formData.grupo_atividade_id ? "Selecione o tipo" : "Selecione o grupo primeiro"} />
               </SelectTrigger>
               <SelectContent>
-                {tiposTarefaFiltrados.map((tipo) => <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>)}
+                {tiposTarefaFiltrados.map((tipo) => (
+                  <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
