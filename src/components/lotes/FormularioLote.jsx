@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import useSetorAreas from "@/hooks/useSetorAreas";
 import { toast } from "sonner";
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
@@ -35,6 +36,7 @@ const REQUIRED_FIELDS = [
 "raca_predominante",
 "peso_medio_kg",
 "idade_media_meses",
+"setor_id",
 "area_entrada_id",
 "sistema_produtivo"];
 
@@ -50,6 +52,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     sexo: "",
     peso_medio_kg: "",
     idade_media_meses: "",
+    setor_id: initialData?.setor_id || "",
     area_entrada_id: "",
     raca_predominante: "",
     sistema_produtivo: "",
@@ -70,14 +73,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     observacoes: ""
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ["areas", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId
-  });
+  const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: categoriasManejo = [] } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
@@ -96,6 +92,15 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     },
     enabled: !!empresaSelecionadaId
   });
+
+  React.useEffect(() => {
+    const areaSelecionada = areas.find((item) => item.id === formData.area_entrada_id);
+    if (areaSelecionada && formData.setor_id !== areaSelecionada.setor_id) {
+      setFormData((prev) => ({ ...prev, setor_id: areaSelecionada.setor_id || "" }));
+    }
+  }, [areas, formData.area_entrada_id, formData.setor_id]);
+
+  const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -371,15 +376,34 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div className="space-y-1">
-                <Label className="text-xs">Área de Entrada *</Label>
-                <div data-field="area_entrada_id">
-                  <Select value={formData.area_entrada_id || SELECT_EMPTY} onValueChange={(value) => handleChange("area_entrada_id", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className={getFieldClassName("area_entrada_id", "h-8 text-xs")}>
+                <Label className="text-xs">Setor *</Label>
+                <div data-field="setor_id">
+                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => { const novoSetor = value === SELECT_EMPTY ? "" : value; setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" })); setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false })); }}>
+                    <SelectTrigger className={getFieldClassName("setor_id", "h-8 text-xs")}>
                       <SelectValue placeholder="SELECIONE" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {areas.map((item) =>
+                      {setores.map((item) =>
+                      <SelectItem key={item.id} value={item.id} className="text-xs">
+                          {(item.nome || "").toUpperCase()}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Área de Entrada *</Label>
+                <div data-field="area_entrada_id">
+                  <Select value={formData.area_entrada_id || SELECT_EMPTY} onValueChange={(value) => handleChange("area_entrada_id", value === SELECT_EMPTY ? "" : value)} disabled={!formData.setor_id}>
+                    <SelectTrigger className={getFieldClassName("area_entrada_id", "h-8 text-xs")}>
+                      <SelectValue placeholder={formData.setor_id ? "SELECIONE" : "SELECIONE O SETOR PRIMEIRO"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                      {areasDoSetor.map((item) =>
                       <SelectItem key={item.id} value={item.id} className="text-xs">
                           {(item.nome || "").toUpperCase()}
                         </SelectItem>
