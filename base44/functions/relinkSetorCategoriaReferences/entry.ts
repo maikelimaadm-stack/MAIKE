@@ -151,9 +151,11 @@ async function relinkSetores(base44, empresaId, maxUpdates) {
     }
 
     results.push({ entity: config.entity, updated_count: entityUpdated });
+    if (haltedDueToRateLimit || updated >= maxUpdates) break;
+    await sleep(500);
   }
 
-  return { updated, results };
+  return { updated, results, halted_due_to_rate_limit: haltedDueToRateLimit };
 }
 
 async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
@@ -258,9 +260,11 @@ async function relinkCategorias(base44, empresaId, maxUpdates, currentUpdated) {
     }
 
     results.push({ entity: config.entity, updated_count: entityUpdated });
+    if (haltedDueToRateLimit || updated >= maxUpdates) break;
+    await sleep(500);
   }
 
-  return { updated, results };
+  return { updated, results, halted_due_to_rate_limit: haltedDueToRateLimit };
 }
 
 Deno.serve(async (req) => {
