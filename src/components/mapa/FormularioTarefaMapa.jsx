@@ -411,7 +411,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       </div>
 
       <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" size="sm" className="h-8 text-xs uppercase" onClick={onCancel}>Cancelar</Button>
+        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">{tarefa ? "Salvar" : "Criar tarefa"}</Button>
       </div>
 
