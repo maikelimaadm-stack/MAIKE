@@ -746,31 +746,55 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isRateLimitError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('429') || message.includes('rate limit');
+}
+
 async function updateRecordWithRetry(entityApi, recordId, patch) {
   let lastError = null;
 
-  for (let attempt = 1; attempt <= 8; attempt += 1) {
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
     try {
       await entityApi.update(recordId, patch);
-      await sleep(120);
+      await sleep(180);
       return;
     } catch (error) {
       lastError = error;
-      const message = String(error?.message || '').toLowerCase();
-      const isRateLimit = message.includes('429') || message.includes('rate limit');
+      const isRateLimit = isRateLimitError(error);
 
-      if (!isRateLimit || attempt === 8) {
+      if (!isRateLimit || attempt === 10) {
         throw error;
       }
 
-      await sleep(600 * attempt + Math.floor(Math.random() * 250));
+      await sleep(900 * attempt + Math.floor(Math.random() * 350));
     }
   }
 
   throw lastError;
 }
 
-async function listRecordsForRule(base44, rule, sourceData, oldData) {
+async function getCachedEntityRecords(base44, entityName, empresaId, cache) {
+  const cacheKey = `${entityName}:${empresaId || 'all'}`;
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
+  }
+
+  const entityApi = base44.asServiceRole.entities?.[entityName];
+  if (!entityApi) {
+    cache.set(cacheKey, []);
+    return [];
+  }
+
+  const records = empresaId
+    ? await entityApi.filter({ empresa_id: empresaId }, '-created_date', 5000)
+    : await entityApi.list('-created_date', 5000);
+
+  cache.set(cacheKey, records);
+  return records;
+}
+
+async function listRecordsForRule(base44, rule, sourceData, oldData, cache) {
   const entityApi = base44.asServiceRole.entities?.[rule.entity];
   if (!entityApi) return [];
 
@@ -785,9 +809,7 @@ async function listRecordsForRule(base44, rule, sourceData, oldData) {
     try {
       return await entityApi.filter(query, '-created_date', 5000);
     } catch {
-      const fallback = empresaFilter
-        ? await entityApi.filter(empresaFilter, '-created_date', 5000)
-        : await entityApi.list('-created_date', 5000);
+      const fallback = await getCachedEntityRecords(base44, rule.entity, sourceData?.empresa_id || null, cache);
       return fallback.filter((record) => record?.[rule.queryField] === sourceData.id);
     }
   }
@@ -795,9 +817,7 @@ async function listRecordsForRule(base44, rule, sourceData, oldData) {
   const oldValue = normalizeValue(getSourceFieldValue(oldData, rule.sourceField));
   if (!oldValue) return [];
 
-  const records = empresaFilter
-    ? await entityApi.filter(empresaFilter, '-created_date', 5000)
-    : await entityApi.list('-created_date', 5000);
+  const records = await getCachedEntityRecords(base44, rule.entity, sourceData?.empresa_id || null, cache);
 
   return records.filter((record) => {
     if (sourceData?.empresa_id && record?.empresa_id && record.empresa_id !== sourceData.empresa_id) {
@@ -834,29 +854,36 @@ function buildPatchForRecord(record, rule, sourceData, oldData) {
   return patch;
 }
 
-async function propagateRule(base44, rule, sourceData, oldData) {
-  const entityApi = base44.asServiceRole.entities?.[rule.entity];
+async function propagateRulesForEntity(base44, entityName, rules, sourceData, oldData, cache) {
+  const entityApi = base44.asServiceRole.entities?.[entityName];
   if (!entityApi) {
-    return { entity: rule.entity, updated_count: 0 };
+    return { entity: entityName, updated_count: 0 };
   }
 
-  const records = await listRecordsForRule(base44, rule, sourceData, oldData);
-  if (!records.length) {
-    return { entity: rule.entity, updated_count: 0 };
+  const patchesByRecordId = new Map();
+
+  for (const rule of rules) {
+    const records = await listRecordsForRule(base44, rule, sourceData, oldData, cache);
+    if (!records.length) continue;
+
+    for (const record of records) {
+      const patch = buildPatchForRecord(record, rule, sourceData, oldData);
+      if (!Object.keys(patch).length) continue;
+
+      const existing = patchesByRecordId.get(record.id) || {};
+      patchesByRecordId.set(record.id, { ...existing, ...patch });
+    }
   }
 
   let updatedCount = 0;
 
-  for (const record of records) {
-    const patch = buildPatchForRecord(record, rule, sourceData, oldData);
-    if (!Object.keys(patch).length) continue;
-
-    await updateRecordWithRetry(entityApi, record.id, patch);
+  for (const [recordId, patch] of patchesByRecordId.entries()) {
+    await updateRecordWithRetry(entityApi, recordId, patch);
     updatedCount += 1;
   }
 
   return {
-    entity: rule.entity,
+    entity: entityName,
     updated_count: updatedCount,
   };
 }
@@ -888,10 +915,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rulesByEntity = Object.entries(
+      rules.reduce((acc, rule) => {
+        if (!acc[rule.entity]) acc[rule.entity] = [];
+        acc[rule.entity].push(rule);
+        return acc;
+      }, {})
+    );
+
+    const entityCache = new Map();
     const results = [];
-    for (const rule of rules) {
-      const result = await propagateRule(base44, rule, sourceData, oldData);
+    for (const [entityName, entityRules] of rulesByEntity) {
+      const result = await propagateRulesForEntity(base44, entityName, entityRules, sourceData, oldData, entityCache);
       results.push(result);
+      await sleep(250);
     }
 
     const totalUpdated = results.reduce((sum, item) => sum + (item.updated_count || 0), 0);
