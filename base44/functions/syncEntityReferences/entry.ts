@@ -289,6 +289,12 @@ const PROPAGATION_RULES = {
       fieldMap: {
         categoria_manejo_nome: 'nome',
         categoria_manejo_entrada_nome: 'nome',
+        categoria_manejo_id: 'id',
+        categoria_manejo_entrada_id: 'id',
+      },
+      targetMatchFieldMap: {
+        categoria_manejo_id: 'categoria_manejo_nome',
+        categoria_manejo_entrada_id: 'categoria_manejo_entrada_nome',
       },
     },
     {
@@ -396,6 +402,10 @@ const PROPAGATION_RULES = {
       matchFields: ['setor_nome'],
       fieldMap: {
         setor_nome: 'nome',
+        setor_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
       },
     },
     {
@@ -407,11 +417,37 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'PontoSuplementacao',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome'],
+      fieldMap: {
+        setor_nome: 'nome',
+        setor_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
+      },
+    },
+    {
       entity: 'Lote',
       matchType: 'id',
       queryField: 'setor_id',
       fieldMap: {
         setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'Lote',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome'],
+      fieldMap: {
+        setor_nome: 'nome',
+        setor_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
       },
     },
     {
@@ -423,11 +459,37 @@ const PROPAGATION_RULES = {
       },
     },
     {
+      entity: 'ControleArea',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome'],
+      fieldMap: {
+        setor_nome: 'nome',
+        setor_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
+      },
+    },
+    {
       entity: 'OperacaoAgricola',
       matchType: 'id',
       queryField: 'setor_id',
       fieldMap: {
         setor_nome: 'nome',
+      },
+    },
+    {
+      entity: 'OperacaoAgricola',
+      matchType: 'value',
+      sourceField: 'nome',
+      matchFields: ['setor_nome'],
+      fieldMap: {
+        setor_nome: 'nome',
+        setor_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
       },
     },
     {
@@ -474,6 +536,14 @@ const PROPAGATION_RULES = {
         setor_destino_nome: 'nome',
         transferencia_origem: 'nome',
         transferencia_destino: 'nome',
+        setor_id: 'id',
+        setor_origem_id: 'id',
+        setor_destino_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
+        setor_origem_id: 'setor_origem_nome',
+        setor_destino_id: 'setor_destino_nome',
       },
     },
     {
@@ -511,6 +581,14 @@ const PROPAGATION_RULES = {
         setor_destino_nome: 'nome',
         transferencia_origem: 'nome',
         transferencia_destino: 'nome',
+        setor_id: 'id',
+        setor_origem_id: 'id',
+        setor_destino_id: 'id',
+      },
+      targetMatchFieldMap: {
+        setor_id: 'setor_nome',
+        setor_origem_id: 'setor_origem_nome',
+        setor_destino_id: 'setor_destino_nome',
       },
     },
   ],
@@ -671,20 +749,21 @@ function sleep(ms) {
 async function updateRecordWithRetry(entityApi, recordId, patch) {
   let lastError = null;
 
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
     try {
       await entityApi.update(recordId, patch);
+      await sleep(120);
       return;
     } catch (error) {
       lastError = error;
       const message = String(error?.message || '').toLowerCase();
       const isRateLimit = message.includes('429') || message.includes('rate limit');
 
-      if (!isRateLimit || attempt === 4) {
+      if (!isRateLimit || attempt === 8) {
         throw error;
       }
 
-      await sleep(250 * attempt);
+      await sleep(600 * attempt + Math.floor(Math.random() * 250));
     }
   }
 
@@ -736,10 +815,14 @@ function buildPatchForRecord(record, rule, sourceData, oldData) {
     const newValue = getSourceFieldValue(sourceData, sourceField);
     const oldValue = getSourceFieldValue(oldData, sourceField);
     const currentValue = record?.[targetField] ?? null;
+    const comparisonField = rule.matchType === 'value'
+      ? rule.targetMatchFieldMap?.[targetField] || targetField
+      : targetField;
+    const comparisonValue = record?.[comparisonField] ?? null;
 
     if (newValue === oldValue) return;
 
-    if (rule.matchType === 'value' && normalizeValue(currentValue) !== normalizeValue(oldValue)) {
+    if (rule.matchType === 'value' && normalizeValue(comparisonValue) !== normalizeValue(oldValue)) {
       return;
     }
 
