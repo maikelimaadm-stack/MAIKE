@@ -69,6 +69,17 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const getIconePrioridade = (prioridade) =>
     iconesPrioridade.find((icone) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(normalizeTaskPriority(prioridade)));
 
+  const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
+
+  const handleCardTouch = (tarefa, event) => {
+    const now = Date.now();
+    if (lastTapRef.current.id === tarefa.id && now - lastTapRef.current.time < 300) {
+      event.preventDefault();
+      abrirDetalhe(tarefa);
+    }
+    lastTapRef.current = { id: tarefa.id, time: now };
+  };
+
   useEffect(() => {
     if (openCreateOnMount) {
       setEditingTarefa(initialDraft?.id ? initialDraft : null);
@@ -255,29 +266,34 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             <p className="text-sm">Nenhuma tarefa encontrada</p>
           </div>
         ) : (
-          tarefasFiltradas.map(tarefa => (
-            <Card key={tarefa.id} className="shadow-sm">
+          tarefasFiltradas.map(tarefa => {
+            const prioridade = normalizeTaskPriority(tarefa.prioridade);
+            const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
+
+            return (
+            <Card key={tarefa.id} className="shadow-sm cursor-pointer" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm text-slate-900 truncate">{tarefa.titulo}</span>
-                      <div className="flex items-center gap-1">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-medium text-sm text-slate-900 break-words">{tarefa.titulo}</span>
+                      <div className="flex items-center gap-1 flex-wrap">
                         {getIconePrioridade(tarefa.prioridade)?.icone_url && (
                           <img
                             src={getIconePrioridade(tarefa.prioridade).icone_url}
-                            alt={normalizeTaskPriority(tarefa.prioridade)}
+                            alt={prioridade}
                             className="w-4 h-4 object-contain"
                           />
                         )}
-                        <Badge className={`${PRIORIDADE_CORES[normalizeTaskPriority(tarefa.prioridade)]} text-[10px]`}>
-                          {normalizeTaskPriority(tarefa.prioridade)}
+                        <Badge className={`${prioridadeClassName} text-[10px]`}>
+                          {prioridade}
                         </Badge>
+                        <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px]`}>{tarefa.status}</Badge>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
-                      <Badge variant="outline" className="text-[10px]">{tarefa.tipo}</Badge>
-                      <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px]`}>{tarefa.status}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{tarefa.grupo_atividade_nome || '-'}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</Badge>
                       {tarefa.data_prevista && (
                         <span className="flex items-center gap-0.5">
                           <Calendar className="w-3 h-3" />
@@ -292,10 +308,15 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                       )}
                     </div>
                     {tarefa.descricao && (
-                      <p className="text-xs text-slate-600 mt-1 line-clamp-2">{tarefa.descricao}</p>
+                      <p className="text-xs text-slate-600 break-words">{tarefa.descricao}</p>
                     )}
+                    <div className="space-y-0.5 text-[10px] text-slate-500">
+                      <div><span className="font-medium">Solicitante:</span> {tarefa.solicitante || '-'}</div>
+                      <div><span className="font-medium">Responsável:</span> {tarefa.responsavel || '-'}</div>
+                      <div><span className="font-medium">Observações:</span> {tarefa.observacoes || '-'}</div>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
                     {tarefa.status !== 'Concluída' && (
                       <Button 
                         variant="ghost" 
@@ -333,9 +354,16 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 </div>
               </CardContent>
             </Card>
-          ))
+          )})
         )}
       </div>
+
+      <TarefaDetalhesDialog
+        open={!!detalheTarefa}
+        onOpenChange={(open) => !open && setDetalheTarefa(null)}
+        tarefa={detalheTarefa}
+        onSaved={(updated) => setDetalheTarefa(updated)}
+      />
 
       {/* Dialog de Formulário */}
       <Dialog open={showForm} onOpenChange={(open) => {
