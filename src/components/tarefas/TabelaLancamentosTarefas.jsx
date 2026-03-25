@@ -127,6 +127,19 @@ export default function TabelaLancamentosTarefas({
   }, [colunasOrdem, colunasVisiveis]);
 
   const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+  const tiposTarefa = useMemo(() => [...new Set(tarefas.map((item) => item.tipo_tarefa_nome || item.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+  const areas = useMemo(() => [...new Set(tarefas.map((item) => item.area_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+
+  const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
+
+  const handleRowTouch = (tarefa, event) => {
+    const now = Date.now();
+    if (lastTapRef.current.id === tarefa.id && now - lastTapRef.current.time < 300) {
+      event.preventDefault();
+      abrirDetalhe(tarefa);
+    }
+    lastTapRef.current = { id: tarefa.id, time: now };
+  };
 
   const tarefasFiltradas = useMemo(() => {
     return tarefas.filter((tarefa) => {
@@ -134,15 +147,28 @@ export default function TabelaLancamentosTarefas({
       const prioridade = normalizeTaskPriority(tarefa.prioridade);
       const matchSearch =
       !termo ||
-      [tarefa.titulo, tarefa.tipo_tarefa_nome, tarefa.grupo_atividade_nome, tarefa.area_nome, tarefa.responsavel, tarefa.solicitante, tarefa.setor_nome].
-      some((value) => String(value || "").toLowerCase().includes(termo));
+      [
+        tarefa.titulo,
+        tarefa.descricao,
+        tarefa.tipo,
+        tarefa.tipo_tarefa_nome,
+        tarefa.grupo_atividade_nome,
+        tarefa.area_nome,
+        tarefa.responsavel,
+        tarefa.solicitante,
+        tarefa.setor_nome,
+        tarefa.observacoes,
+        tarefa.observacoes_conclusao
+      ].some((value) => String(value || "").toLowerCase().includes(termo));
       const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
       const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
       const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
+      const matchTipoTarefa = filtroTipoTarefa === "__TODOS__" || (tarefa.tipo_tarefa_nome || tarefa.tipo) === filtroTipoTarefa;
+      const matchArea = filtroArea === "__TODOS__" || tarefa.area_nome === filtroArea;
       const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
-      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchSetor;
+      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor;
     });
-  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroSetor, normalizeTaskPriority]);
+  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, normalizeTaskPriority]);
 
   const tarefasOrdenadas = useMemo(() => {
     const sorted = [...tarefasFiltradas];
@@ -188,21 +214,30 @@ export default function TabelaLancamentosTarefas({
     setFiltroStatus("__TODOS__");
     setFiltroPrioridade("__TODOS__");
     setFiltroGrupo("__TODOS__");
+    setFiltroTipoTarefa("__TODOS__");
+    setFiltroArea("__TODOS__");
     setFiltroSetor("__TODOS__");
   };
 
   const renderCell = (tarefa, colunaId) => {
     const prioridade = normalizeTaskPriority(tarefa.prioridade);
+    const prioridadeClassName = tarefa.status === "Concluída" ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
     if (colunaId === "titulo") return tarefa.titulo || "-";
+    if (colunaId === "descricao") return tarefa.descricao || "-";
     if (colunaId === "status") return <Badge className={`text-[10px] ${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente}`}>{tarefa.status || "-"}</Badge>;
-    if (colunaId === "prioridade") return <div className="flex items-center gap-2"><Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade || "-"}</Badge></div>;
+    if (colunaId === "prioridade") return <div className="flex items-center gap-2"><Badge className={`text-[10px] ${prioridadeClassName}`}>{prioridade || "-"}</Badge></div>;
     if (colunaId === "grupo_atividade_nome") return tarefa.grupo_atividade_nome || "-";
+    if (colunaId === "tipo") return tarefa.tipo || "-";
     if (colunaId === "tipo_tarefa_nome") return tarefa.tipo_tarefa_nome || tarefa.tipo || "-";
+    if (colunaId === "setor_nome") return tarefa.setor_nome || "-";
     if (colunaId === "area_nome") return tarefa.area_nome || "-";
     if (colunaId === "responsavel") return tarefa.responsavel || "-";
+    if (colunaId === "data_pedido") return tarefa.data_pedido || "-";
     if (colunaId === "data_prevista") return tarefa.data_prevista || "-";
+    if (colunaId === "data_conclusao") return tarefa.data_conclusao || "-";
     if (colunaId === "solicitante") return tarefa.solicitante || "-";
     if (colunaId === "observacoes") return tarefa.observacoes || "-";
+    if (colunaId === "observacoes_conclusao") return tarefa.observacoes_conclusao || "-";
     return "-";
   };
 
