@@ -50,7 +50,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
   };
 
   const handlePagePermission = (module, page, field, checked) => {
-    const current = getPagePermission({ permissoes_telas: permissoesTelas }, page.id) || createPagePermission(module.id, module.title, page);
+    const current = getPagePermission({ permissoes_telas: permissoesTelas }, page.id) || createRestrictedPagePermission(module.id, module.title, page);
     const nextPermission = { ...current, [field]: !!checked };
     const nextPermissions = permissoesTelas.some((item) => item.tela_id === page.id)
       ? permissoesTelas.map((item) => (item.tela_id === page.id ? nextPermission : item))
@@ -187,7 +187,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
                     <div className={`rounded-lg border p-3 space-y-3 ${permission.visualizar ? "bg-emerald-50 border-emerald-200" : "bg-slate-100 border-slate-200 opacity-60"}`}>
                       <div>
                         <p className="text-xs font-semibold uppercase text-slate-900">Permissões internas do Mapa Geral</p>
-                        <p className="text-[11px] text-slate-500 uppercase">Ao liberar a tela, o padrão é acesso total; abaixo você escolhe o que ele vê e faz dentro dela.</p>
+                        <p className="text-[11px] text-slate-500 uppercase">Ao liberar a tela, tudo continua bloqueado; abaixo você escolhe o que ele vê e faz dentro dela.</p>
                       </div>
 
                       {MAPA_GERAL_PERMISSION_GROUPS.map((group) => (
