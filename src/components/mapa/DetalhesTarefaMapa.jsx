@@ -13,9 +13,10 @@ import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
 import TarefaResumoVisual from "./TarefaResumoVisual";
 
 const PRIORIDADE_CORES = {
-  Baixa: "bg-slate-100 text-slate-700",
-  Média: "bg-blue-100 text-blue-700",
-  Alta: "bg-amber-100 text-amber-700",
+  Baixa: "bg-blue-100 text-blue-700",
+  Média: "bg-orange-100 text-orange-700",
+  Alta: "bg-red-100 text-red-700",
+  Concluida: "bg-slate-100 text-slate-500",
 };
 
 const STATUS_CORES = {
@@ -84,6 +85,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   });
 
   const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);
+  const prioridadeClassName = currentTarefa.status === "Concluída" ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
   const iconePrioridade = iconesPrioridade.find((icone) => normalizeTaskPriority(icone.categoria) === prioridade);
   const podeRegistrar = currentTarefa.status === "Em Andamento";
   const podeEntrarEmAndamento = !currentTarefa.data_inicio && currentTarefa.status === "Pendente";
@@ -201,6 +203,9 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
             {currentTarefa.status}
           </Badge>
+          <Badge className={`text-[10px] ${prioridadeClassName}`}>
+            Prioridade: {prioridade}
+          </Badge>
         </div>
       </div>
 
@@ -226,15 +231,39 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <CardSection title="Informações da Tarefa">
         <div className="space-y-1 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Solicitante / Responsável:</span><span className="font-semibold text-slate-900">{currentTarefa.solicitante || currentTarefa.responsavel_geral || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável execução:</span><span className="font-semibold text-slate-900">{currentTarefa.responsavel || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data do Pedido:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_pedido)}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Grupo:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.grupo_atividade_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo base:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.tipo || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo de tarefa:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.tipo_tarefa_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Solicitante / Responsável:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.solicitante || currentTarefa.responsavel_geral || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável execução:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.responsavel || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data do pedido:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_pedido)}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prazo:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Fazenda/Setor:</span><span className="font-semibold text-slate-900">{currentTarefa.setor_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área/Local:</span><span className="font-semibold text-slate-900">{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição da Tarefa:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prioridade:</span><span className="font-semibold text-slate-900">{prioridade}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data de início:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_inicio)}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data de conclusão:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_conclusao)}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Fazenda/Setor:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.setor_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área/Local:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.observacoes || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Obs. conclusão:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.observacoes_conclusao || "-"}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Coordenadas:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.coordenadas ? `${currentTarefa.coordenadas.lat?.toFixed?.(6) || currentTarefa.coordenadas.lat}, ${currentTarefa.coordenadas.lng?.toFixed?.(6) || currentTarefa.coordenadas.lng}` : "-"}</span></div>
+        </div>
+      </CardSection>
+
+      <CardSection title="Últimos eventos">
+        <div className="space-y-2 text-[10px]">
+          {historico.length === 0 ? (
+            <div className="text-slate-500">Nenhum evento registrado.</div>
+          ) : (
+            historico.slice(0, 3).map((item) => (
+              <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-900">{item.evento || "-"}</span>
+                  <span className="text-slate-500">{formatDateBR(item.data_evento || item.created_date)}</span>
+                </div>
+                <div className="text-slate-700 break-words">{item.descricao || "-"}</div>
+              </div>
+            ))
+          )}
         </div>
       </CardSection>
 
