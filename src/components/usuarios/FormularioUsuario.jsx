@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import ConfiguracaoPermissoesTelas from "@/components/usuarios/ConfiguracaoPermissoesTelas";
 import { DEFAULT_MENU, getMenuModules } from "@/lib/menuConfig";
 import { DEFAULT_MAPA_GERAL_PERMISSIONS } from "@/lib/mapaGeralPermissions";
+import { createRestrictedPagePermission } from "@/lib/permissions";
 import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 
 const MENU_MODULES = getMenuModules(DEFAULT_MENU);

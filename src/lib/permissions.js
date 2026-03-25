@@ -51,19 +51,25 @@ export const canPerformAction = (permission, pageId, moduleId, action) => {
   return pagePermission[action] !== false;
 };
 
-export const createPagePermission = (moduleId, moduleTitle, page) => ({
+const createBasePagePermission = (moduleId, moduleTitle, page, defaultValue) => ({
   modulo_id: moduleId,
   modulo_nome: moduleTitle,
   tela_id: page.id,
   tela_nome: page.title,
-  visualizar: true,
-  novo: true,
-  salvar: true,
-  editar: true,
-  excluir: true,
-  importar: true,
-  exportar: true,
+  visualizar: defaultValue,
+  novo: defaultValue,
+  salvar: defaultValue,
+  editar: defaultValue,
+  excluir: defaultValue,
+  importar: defaultValue,
+  exportar: defaultValue,
 });
+
+export const createPagePermission = (moduleId, moduleTitle, page) =>
+  createBasePagePermission(moduleId, moduleTitle, page, true);
+
+export const createRestrictedPagePermission = (moduleId, moduleTitle, page) =>
+  createBasePagePermission(moduleId, moduleTitle, page, false);
 
 export const detectPermissionAction = (text = "") => {
   const normalized = text

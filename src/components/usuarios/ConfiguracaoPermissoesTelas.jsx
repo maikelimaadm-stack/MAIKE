@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ACTION_KEYS, createPagePermission, getPagePermission } from "@/lib/permissions";
+import { ACTION_KEYS, createRestrictedPagePermission, getPagePermission } from "@/lib/permissions";
 import { MAPA_GERAL_PERMISSION_GROUPS, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 
 const ACTION_LABELS = {

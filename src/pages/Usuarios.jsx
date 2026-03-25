@@ -148,6 +148,7 @@ export default function Usuarios() {
               <div className="flex-1">
                 <h4 className="font-semibold text-sm text-blue-900 mb-1">Como funciona agora</h4>
                 <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
+                  <li>Novos usuários começam com tudo bloqueado por padrão.</li>
                   <li>Você libera primeiro os módulos do menu.</li>
                   <li>Depois escolhe tela por tela o que o usuário pode visualizar e fazer.</li>
                   <li>Também dá para escolher quais telas aparecem no menu inferior do mobile.</li>
