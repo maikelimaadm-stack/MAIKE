@@ -12,8 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
@@ -23,30 +23,30 @@ import { createPageUrl } from "@/utils";
 const PRIORIDADE_CORES = {
   Baixa: "bg-slate-100 text-slate-700",
   Média: "bg-blue-100 text-blue-700",
-  Alta: "bg-amber-100 text-amber-700",
+  Alta: "bg-amber-100 text-amber-700"
 };
 
 const STATUS_CORES = {
   Pendente: "bg-yellow-100 text-yellow-700",
   "Em Andamento": "bg-blue-100 text-blue-700",
   Concluída: "bg-emerald-100 text-emerald-700",
-  Cancelada: "bg-slate-100 text-slate-500",
+  Cancelada: "bg-slate-100 text-slate-500"
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true },
-  { id: "acoes", label: "Ações", default: true, fixo: true },
-  { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left" },
-  { id: "status", label: "Status", default: true, sortable: true, align: "left" },
-  { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left" },
-  { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left" },
-  { id: "tipo_tarefa_nome", label: "Tipo", default: true, sortable: true, align: "left" },
-  { id: "area_nome", label: "Área", default: true, sortable: true, align: "left" },
-  { id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
-  { id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left" },
-  { id: "solicitante", label: "Solicitante", default: false, sortable: true, align: "left" },
-  { id: "observacoes", label: "Observações", default: false, sortable: false, align: "left" },
-];
+{ id: "selecao", label: "Seleção", default: true, fixo: true },
+{ id: "acoes", label: "Ações", default: true, fixo: true },
+{ id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left" },
+{ id: "status", label: "Status", default: true, sortable: true, align: "left" },
+{ id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left" },
+{ id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left" },
+{ id: "tipo_tarefa_nome", label: "Tipo", default: true, sortable: true, align: "left" },
+{ id: "area_nome", label: "Área", default: true, sortable: true, align: "left" },
+{ id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
+{ id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left" },
+{ id: "solicitante", label: "Solicitante", default: false, sortable: true, align: "left" },
+{ id: "observacoes", label: "Observações", default: false, sortable: false, align: "left" }];
+
 
 export default function TabelaLancamentosTarefas({
   tarefas,
@@ -55,7 +55,7 @@ export default function TabelaLancamentosTarefas({
   getIconePrioridade,
   normalizeTaskPriority,
   showConfigColunas,
-  setShowConfigColunas,
+  setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
@@ -69,14 +69,14 @@ export default function TabelaLancamentosTarefas({
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
     if (saved) {
-      try { return JSON.parse(saved); } catch { return COLUNAS_DISPONIVEIS.map((c) => c.id); }
+      try {return JSON.parse(saved);} catch {return COLUNAS_DISPONIVEIS.map((c) => c.id);}
     }
     return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_gestao_tarefas");
     if (saved) {
-      try { return JSON.parse(saved); } catch { return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id); }
+      try {return JSON.parse(saved);} catch {return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);}
     }
     return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
   });
@@ -90,9 +90,9 @@ export default function TabelaLancamentosTarefas({
   }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroSetor, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
-    const novas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter((id) => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
     localStorage.setItem("colunas_visiveis_gestao_tarefas", JSON.stringify(novas));
   };
@@ -107,9 +107,9 @@ export default function TabelaLancamentosTarefas({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id))
-      .filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
+    return colunasOrdem.
+    map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id)).
+    filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
   }, [colunasOrdem, colunasVisiveis]);
 
   const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
@@ -119,9 +119,9 @@ export default function TabelaLancamentosTarefas({
       const termo = searchTerm.toLowerCase();
       const prioridade = normalizeTaskPriority(tarefa.prioridade);
       const matchSearch =
-        !termo ||
-        [tarefa.titulo, tarefa.tipo_tarefa_nome, tarefa.grupo_atividade_nome, tarefa.area_nome, tarefa.responsavel, tarefa.solicitante, tarefa.setor_nome]
-          .some((value) => String(value || "").toLowerCase().includes(termo));
+      !termo ||
+      [tarefa.titulo, tarefa.tipo_tarefa_nome, tarefa.grupo_atividade_nome, tarefa.area_nome, tarefa.responsavel, tarefa.solicitante, tarefa.setor_nome].
+      some((value) => String(value || "").toLowerCase().includes(termo));
       const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
       const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
       const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
@@ -156,9 +156,9 @@ export default function TabelaLancamentosTarefas({
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortConfig.direction === "asc"
-      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
-      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    return sortConfig.direction === "asc" ?
+    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -181,7 +181,7 @@ export default function TabelaLancamentosTarefas({
     const prioridade = normalizeTaskPriority(tarefa.prioridade);
     if (colunaId === "titulo") return tarefa.titulo || "-";
     if (colunaId === "status") return <Badge className={`text-[10px] ${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente}`}>{tarefa.status || "-"}</Badge>;
-    if (colunaId === "prioridade") return <div className="flex items-center gap-2">{getIconePrioridade(prioridade)?.icone_url && <img src={getIconePrioridade(prioridade).icone_url} alt={prioridade} className="w-4 h-4 object-contain" />}<Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade || "-"}</Badge></div>;
+    if (colunaId === "prioridade") return <div className="flex items-center gap-2"><Badge className={`text-[10px] ${PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa}`}>{prioridade || "-"}</Badge></div>;
     if (colunaId === "grupo_atividade_nome") return tarefa.grupo_atividade_nome || "-";
     if (colunaId === "tipo_tarefa_nome") return tarefa.tipo_tarefa_nome || tarefa.tipo || "-";
     if (colunaId === "area_nome") return tarefa.area_nome || "-";
@@ -251,8 +251,8 @@ export default function TabelaLancamentosTarefas({
           <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
             <div className="text-xs text-slate-500">{tarefasFiltradas.length} de {tarefas.length} registros</div>
             <div className="flex gap-2 flex-wrap">
-              {selectedItems.length > 0 && (
-                <DropdownMenu>
+              {selectedItems.length > 0 &&
+              <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
                   </DropdownMenuTrigger>
@@ -264,7 +264,7 @@ export default function TabelaLancamentosTarefas({
                     <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
+              }
               <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">Limpar Filtros</Button>
             </div>
           </div>
@@ -286,17 +286,17 @@ export default function TabelaLancamentosTarefas({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tarefasPaginadas.length === 0 ? (
-                  <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow>
-                ) : tarefasPaginadas.map((tarefa) => (
-                  <TableRow key={tarefa.id} className="hover:bg-gray-50 border-b">
+                {tarefasPaginadas.length === 0 ?
+                <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow> :
+                tarefasPaginadas.map((tarefa) =>
+                <TableRow key={tarefa.id} className="hover:bg-gray-50 border-b">
                     {colunasOrdenadas.map((coluna) => {
-                      if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="text-xs py-2 px-2"><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} /></TableCell>;
-                      if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="text-xs py-2 px-2 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
-                      return <TableCell key={`${tarefa.id}-${coluna.id}`} className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>{renderCell(tarefa, coluna.id)}</TableCell>;
-                    })}
+                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="text-xs py-2 px-2"><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} /></TableCell>;
+                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="text-xs py-2 px-2 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
+                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>{renderCell(tarefa, coluna.id)}</TableCell>;
+                  })}
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
@@ -304,7 +304,7 @@ export default function TabelaLancamentosTarefas({
           <div className="flex items-center justify-between p-3 border-t">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
-              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
                 <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
@@ -328,8 +328,8 @@ export default function TabelaLancamentosTarefas({
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
         handleDragEnd={handleDragEnd}
-        droppableId="colunas-gestao-tarefas"
-      />
-    </div>
-  );
+        droppableId="colunas-gestao-tarefas" />
+      
+    </div>);
+
 }
