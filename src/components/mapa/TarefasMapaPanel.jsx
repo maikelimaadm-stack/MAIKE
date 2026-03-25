@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,13 @@ import { Plus, CheckCircle, Clock, MapPin, Calendar, Trash2, Edit2 } from "lucid
 import { toast } from "sonner";
 import { format } from "date-fns";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
+import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 
 const PRIORIDADE_CORES = {
-  'Baixa': 'bg-slate-100 text-slate-700',
-  'Média': 'bg-blue-100 text-blue-700',
-  'Alta': 'bg-amber-100 text-amber-700'
+  'Baixa': 'bg-blue-100 text-blue-700',
+  'Média': 'bg-orange-100 text-orange-700',
+  'Alta': 'bg-red-100 text-red-700',
+  'Concluida': 'bg-slate-100 text-slate-500'
 };
 
 const STATUS_CORES = {
@@ -26,10 +28,12 @@ const STATUS_CORES = {
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
   const [showForm, setShowForm] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState(null);
+  const [detalheTarefa, setDetalheTarefa] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('ativas');
   
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const lastTapRef = useRef({ id: null, time: 0 });
 
   const { data: tarefas = [], isLoading } = useQuery({
     queryKey: ['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId],
