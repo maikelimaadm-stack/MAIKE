@@ -569,7 +569,7 @@ export default function Layout({ children, currentPageName }) {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-slate-500" />
+                    
                     
 
                   
@@ -577,10 +577,10 @@ export default function Layout({ children, currentPageName }) {
                 </>
               }
 
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-slate-700 font-medium">Sistema Online</span>
-              </div>
+              
+
+
+              
             </div>
 
             <div className="flex items-center gap-2">
