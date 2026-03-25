@@ -16,14 +16,17 @@ import {
 "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import useDoubleTap from "@/hooks/useDoubleTap";
 
 const PRIORIDADE_CORES = {
-  Baixa: "bg-slate-100 text-slate-700",
-  Média: "bg-blue-100 text-blue-700",
-  Alta: "bg-amber-100 text-amber-700"
+  Baixa: "bg-blue-100 text-blue-700",
+  Média: "bg-orange-100 text-orange-700",
+  Alta: "bg-red-100 text-red-700",
+  Concluida: "bg-slate-100 text-slate-500"
 };
 
 const STATUS_CORES = {
@@ -37,15 +40,23 @@ const COLUNAS_DISPONIVEIS = [
 { id: "selecao", label: "Seleção", default: true, fixo: true },
 { id: "acoes", label: "Ações", default: true, fixo: true },
 { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left" },
+{ id: "descricao", label: "Descrição", default: true, sortable: false, align: "left" },
 { id: "status", label: "Status", default: true, sortable: true, align: "left" },
 { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left" },
 { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left" },
-{ id: "tipo_tarefa_nome", label: "Tipo", default: true, sortable: true, align: "left" },
+{ id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left" },
+{ id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left" },
+{ id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left" },
 { id: "area_nome", label: "Área", default: true, sortable: true, align: "left" },
+{ id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left" },
 { id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
+{ id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left" },
 { id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left" },
-{ id: "solicitante", label: "Solicitante", default: false, sortable: true, align: "left" },
-{ id: "observacoes", label: "Observações", default: false, sortable: false, align: "left" }];
+{ id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left" },
+{ id: "observacoes", label: "Observações", default: true, sortable: false, align: "left" },
+{ id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left" }];
+
+const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 
 
 export default function TabelaLancamentosTarefas({
@@ -61,11 +72,14 @@ export default function TabelaLancamentosTarefas({
   const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
   const [filtroPrioridade, setFiltroPrioridade] = useState("__TODOS__");
   const [filtroGrupo, setFiltroGrupo] = useState("__TODOS__");
+  const [filtroTipoTarefa, setFiltroTipoTarefa] = useState("__TODOS__");
+  const [filtroArea, setFiltroArea] = useState("__TODOS__");
   const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [detalheTarefa, setDetalheTarefa] = useState(null);
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
     if (saved) {
@@ -76,9 +90,9 @@ export default function TabelaLancamentosTarefas({
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_gestao_tarefas");
     if (saved) {
-      try {return JSON.parse(saved);} catch {return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);}
+      try {return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));} catch {return DEFAULT_VISIBLE_COLUMNS;}
     }
-    return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+    return DEFAULT_VISIBLE_COLUMNS;
   });
 
   useEffect(() => {
