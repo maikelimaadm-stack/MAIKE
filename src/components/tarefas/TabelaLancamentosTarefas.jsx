@@ -245,10 +245,10 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-3">
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-1">
             <div className="md:col-span-2 space-y-1">
               <Label className="text-xs">Buscar</Label>
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar tarefa, grupo, área..." className="h-8 text-xs" />
+              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar tarefa, tipo, área..." className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Status</Label>
@@ -286,7 +286,27 @@ export default function TabelaLancamentosTarefas({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Setor</Label>
+              <Label className="text-xs">Tipo de tarefa</Label>
+              <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
+                  {tiposTarefa.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Área</Label>
+              <Select value={filtroArea} onValueChange={setFiltroArea}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__TODOS__" className="text-xs">Todas</SelectItem>
+                  {areas.map((area) => <SelectItem key={area} value={area} className="text-xs">{area}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Fazenda</Label>
               <Select value={filtroSetor} onValueChange={setFiltroSetor}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
@@ -338,11 +358,15 @@ export default function TabelaLancamentosTarefas({
                 {tarefasPaginadas.length === 0 ?
                 <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow> :
                 tarefasPaginadas.map((tarefa) =>
-                <TableRow key={tarefa.id} className="hover:bg-gray-50 border-b">
+                <TableRow
+                  key={tarefa.id}
+                  className="hover:bg-gray-50 border-b cursor-pointer"
+                  onDoubleClick={() => abrirDetalhe(tarefa)}
+                  onTouchEnd={(event) => handleRowTouch(tarefa, event)}>
                     {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="text-xs py-2 px-2"><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} /></TableCell>;
-                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="text-xs py-2 px-2 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
-                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>{renderCell(tarefa, coluna.id)}</TableCell>;
+                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="text-xs py-2 px-2" onClick={(event) => event.stopPropagation()}><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} /></TableCell>;
+                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="text-xs py-2 px-2 text-center" onClick={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
+                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className={`text-xs py-2 px-3 align-top ${coluna.align === "right" ? "text-right font-mono" : ""}`}>{renderCell(tarefa, coluna.id)}</TableCell>;
                   })}
                   </TableRow>
                 )}
@@ -378,6 +402,13 @@ export default function TabelaLancamentosTarefas({
         toggleColuna={toggleColuna}
         handleDragEnd={handleDragEnd}
         droppableId="colunas-gestao-tarefas" />
+
+      <TarefaDetalhesDialog
+        open={!!detalheTarefa}
+        onOpenChange={(open) => !open && setDetalheTarefa(null)}
+        tarefa={detalheTarefa}
+        onSaved={(updated) => setDetalheTarefa(updated)}
+      />
       
     </div>);
 
