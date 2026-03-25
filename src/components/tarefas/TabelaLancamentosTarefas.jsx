@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,6 @@ import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import useDoubleTap from "@/hooks/useDoubleTap";
 
 const PRIORIDADE_CORES = {
   Baixa: "bg-blue-100 text-blue-700",
@@ -80,6 +79,7 @@ export default function TabelaLancamentosTarefas({
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedItems, setSelectedItems] = useState([]);
   const [detalheTarefa, setDetalheTarefa] = useState(null);
+  const lastTapRef = useRef({ id: null, time: 0 });
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
     if (saved) {
@@ -101,7 +101,7 @@ export default function TabelaLancamentosTarefas({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroSetor, itemsPerPage]);
+  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ?
