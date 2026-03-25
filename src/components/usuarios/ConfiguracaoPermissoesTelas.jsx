@@ -27,10 +27,19 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
       ? modulosPermitidos.filter((id) => id !== moduleId)
       : [...modulosPermitidos, moduleId];
 
-    const paginasDoModulo = modules.find((module) => module.id === moduleId)?.pages || [];
+    const modulo = modules.find((module) => module.id === moduleId);
+    const paginasDoModulo = modulo?.pages || [];
     const pageIds = paginasDoModulo.map((page) => page.id);
 
     onChange("modulos_permitidos", nextModules);
+
+    const missingPermissions = paginasDoModulo
+      .filter((page) => !permissoesTelas.some((item) => item.tela_id === page.id))
+      .map((page) => createRestrictedPagePermission(moduleId, modulo.title, page));
+
+    if (missingPermissions.length > 0) {
+      onChange("permissoes_telas", [...permissoesTelas, ...missingPermissions]);
+    }
 
     if (!nextModules.includes(moduleId)) {
       onChange(
@@ -82,7 +91,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
   const paginasMobile = modulesAtivos.flatMap((module) =>
     module.pages.filter((page) => {
       const permission = getPagePermission({ permissoes_telas: permissoesTelas }, page.id);
-      return permission?.visualizar !== false;
+      return permission?.visualizar === true;
     })
   );
 
@@ -140,7 +149,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
 
           <div className="space-y-2">
             {module.pages.map((page) => {
-              const permission = getPagePermission({ permissoes_telas: permissoesTelas }, page.id) || createPagePermission(module.id, module.title, page);
+              const permission = getPagePermission({ permissoes_telas: permissoesTelas }, page.id) || createRestrictedPagePermission(module.id, module.title, page);
 
               return (
                 <div key={page.id} className="rounded-lg border bg-white p-3 space-y-2">

@@ -16,18 +16,26 @@ import { createRestrictedPagePermission } from "@/lib/permissions";
 import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 
 const MENU_MODULES = getMenuModules(DEFAULT_MENU);
+const RESTRICTED_MAPA_GERAL_PERMISSIONS = Object.fromEntries(
+  Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS).map((key) => [key, false])
+);
+const RESTRICTED_PAGE_PERMISSIONS = MENU_MODULES.flatMap((module) =>
+  module.pages.map((page) => createRestrictedPagePermission(module.id, module.title, page))
+);
 
 const createInitialFormData = (initialData) => ({
   user_email: initialData?.user_email || initialData?.email || "",
   user_nome: initialData?.user_nome || initialData?.nome || initialData?.full_name || "",
   modulos_permitidos: initialData?.modulos_permitidos || [],
-  permissoes_telas: initialData?.permissoes_telas || [],
+  permissoes_telas: initialData?.permissoes_telas || RESTRICTED_PAGE_PERMISSIONS,
   mobile_menu_ids: initialData?.mobile_menu_ids || [],
   is_admin: initialData?.is_admin || false,
-  mapa_geral_permissoes: {
-    ...DEFAULT_MAPA_GERAL_PERMISSIONS,
-    ...(initialData?.mapa_geral_permissoes || {}),
-  },
+  mapa_geral_permissoes: initialData?.mapa_geral_permissoes
+    ? {
+        ...DEFAULT_MAPA_GERAL_PERMISSIONS,
+        ...initialData.mapa_geral_permissoes,
+      }
+    : RESTRICTED_MAPA_GERAL_PERMISSIONS,
 });
 
 export default function FormularioUsuario({ onSubmit, onCancel, initialData, usuarios }) {
@@ -52,11 +60,6 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
 
     if (!formData.user_nome?.trim()) {
       toast.error("Informe o nome do usuário.");
-      return;
-    }
-
-    if (!formData.is_admin && formData.modulos_permitidos.length === 0) {
-      toast.error("Selecione pelo menos um módulo.");
       return;
     }
 
@@ -134,9 +137,12 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
               <ConfiguracaoPermissoesTelas formData={formData} onChange={handleChange} modules={MENU_MODULES} />
             )}
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
               <p className="text-xs text-blue-800 uppercase">
-                IMPORTANTE: AQUI VOCÊ DEFINE MÓDULOS, TELAS, AÇÕES PERMITIDAS E OS BOTÕES DO MENU MOBILE DE CADA USUÁRIO.
+                IMPORTANTE: NOVOS USUÁRIOS COMEÇAM COM TUDO BLOQUEADO.
+              </p>
+              <p className="text-xs text-blue-800 uppercase">
+                DEPOIS VOCÊ LIBERA MÓDULOS, TELAS, AÇÕES E BOTÕES DO MENU MOBILE CONFORME PRECISAR.
               </p>
             </div>
 
