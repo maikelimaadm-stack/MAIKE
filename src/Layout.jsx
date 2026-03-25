@@ -570,9 +570,9 @@ export default function Layout({ children, currentPageName }) {
 
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-slate-500" />
-                    <span className="text-xs text-slate-700 font-medium">
-                      Cuiaba - MT
-                    </span>
+                    
+
+                  
                   </div>
                 </>
               }
@@ -623,9 +623,9 @@ export default function Layout({ children, currentPageName }) {
 
               {isAdminUser &&
               <Link to={createPageUrl("ConfiguracoesGerais")}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
-                    <Settings className="w-4 h-4 text-slate-600" />
-                  </Button>
+                  
+
+                
                 </Link>
               }
 
@@ -648,30 +648,30 @@ export default function Layout({ children, currentPageName }) {
                     <div className="text-slate-500 font-normal">{user?.email}</div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-xs">
-                    <User className="w-3 h-3 mr-2" />
-                    Meu Perfil
-                  </DropdownMenuItem>
-                  {isAdminUser && (
-                    <>
+                  
+
+
+                  
+                  {isAdminUser &&
+                  <>
                       <DropdownMenuItem asChild className="text-xs">
-                        <Link to={createPageUrl("ConfiguracoesGerais")}>
-                          <Settings className="w-3 h-3 mr-2" />
-                          Configuracoes
-                        </Link>
+                        
+
+
+                      
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild className="text-xs">
-                        <Link to={createPageUrl("EditorVisualSistema")}>
-                          <Sparkles className="w-3 h-3 mr-2" />
-                          Editor Visual
-                        </Link>
+                        
+
+
+                      
                       </DropdownMenuItem>
                     </>
-                  )}
-                  <DropdownMenuItem className="text-xs" onClick={() => setShowEmailDialog(true)}>
-                    <Mail className="w-3 h-3 mr-2" />
-                    Enviar e-mail
-                  </DropdownMenuItem>
+                  }
+                  
+
+
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
                     <LogOut className="w-3 h-3 mr-2" />
@@ -999,31 +999,31 @@ export default function Layout({ children, currentPageName }) {
             const hasAccess = allowedMobilePageUrls.has(page.url);
             const Icon = page.Icon;
 
-            return hasAccess ? (
-              <Link
-                key={page.id}
-                to={createPageUrl(page.url)}
-                aria-label={page.label}
-                className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+            return hasAccess ?
+            <Link
+              key={page.id}
+              to={createPageUrl(page.url)}
+              aria-label={page.label}
+              className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
                 <Icon className="w-6 h-6" />
-                </Link>
-            ) : (
-              <button
-                key={page.id}
-                type="button"
-                aria-label={page.label}
-                onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
-                className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-300">
+                </Link> :
+
+            <button
+              key={page.id}
+              type="button"
+              aria-label={page.label}
+              onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
+              className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-300">
                 <Icon className="w-6 h-6" />
-              </button>
-            );
+              </button>;
+
 
           })}
             <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label="Menu"
-              className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-600">
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Menu"
+            className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-600">
               <Menu className="w-6 h-6" />
             </button>
           </div>
