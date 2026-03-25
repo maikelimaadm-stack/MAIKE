@@ -91,6 +91,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     grupo_atividade_nome: "",
     solicitante: "",
     data_pedido: "",
+    data_prevista: "",
     data_conclusao: "",
     setor_nome: "",
     prioridade: "Média",
@@ -122,6 +123,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       grupo_atividade_nome: source.grupo_atividade_nome || "",
       solicitante: source.solicitante || source.responsavel_geral || nomeUsuarioAtual || "",
       data_pedido: source.data_pedido || "",
+      data_prevista: source.data_prevista || "",
       data_conclusao: source.data_conclusao || "",
       setor_nome: source.setor_nome || areaSelecionada?.setor_nome || "",
       prioridade: normalizeTaskPriority(source.prioridade || "Média"),
@@ -398,6 +400,16 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
             }} className={getFieldClassName("data_pedido", "h-8 text-xs uppercase")} />
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Prazo</Label>
+          <Input
+            type="date"
+            value={formData.data_prevista}
+            onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))}
+            className="h-8 text-xs uppercase"
+          />
         </div>
 
         <div className="space-y-1.5">
