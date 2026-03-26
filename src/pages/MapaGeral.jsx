@@ -110,13 +110,13 @@ export default function MapaGeral() {
       const cachedUser = localStorage.getItem('offline_current_user');
       return cachedUser ? JSON.parse(cachedUser) : null;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ['mapa-geral-permissoes'],
     queryFn: () => base44.entities.Permissao.list(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000
   });
 
   const permissaoAtual = useMemo(() => {
@@ -275,11 +275,11 @@ export default function MapaGeral() {
   const pontosSuplementacaoFiltrados = useMemo(() => {
     if (filtroSetor === 'todos') return pontosSuplementacaoDecorados;
     return pontosSuplementacaoDecorados.filter((ponto) => {
-      const areaIds = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length
-        ? ponto.area_vinculada_ids
-        : ponto.area_vinculada_id
-          ? [ponto.area_vinculada_id]
-          : [];
+      const areaIds = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length ?
+      ponto.area_vinculada_ids :
+      ponto.area_vinculada_id ?
+      [ponto.area_vinculada_id] :
+      [];
       return areaIds.some((id) => areaIdsFiltrados.has(id));
     });
   }, [filtroSetor, pontosSuplementacaoDecorados, areaIdsFiltrados]);
@@ -446,7 +446,7 @@ export default function MapaGeral() {
       ...draft,
       area_id: areaDetectada?.id || draft.area_id || "",
       area_nome: areaDetectada?.nome || draft.area_nome || "",
-      coordenadas: coords || draft.coordenadas || null,
+      coordenadas: coords || draft.coordenadas || null
     };
     setTarefasContext({
       areaId: draftCompleto.area_id || undefined,
@@ -455,7 +455,7 @@ export default function MapaGeral() {
       loteNome: draftCompleto.lote_nome || undefined,
       initialCoordinates: draftCompleto.coordenadas || null,
       initialDraft: draftCompleto,
-      openCreateOnMount: true,
+      openCreateOnMount: true
     });
     setShowTarefas(true);
   }, [detectarAreaPorCoordenada, podeUsarTarefasMapa]);
@@ -467,7 +467,7 @@ export default function MapaGeral() {
     abrirLancamentoTarefa(coords || draft.coordenadas || null, {
       ...draft,
       area_id: area?.id || "",
-      area_nome: area?.nome || "",
+      area_nome: area?.nome || ""
     });
   }, [rascunhoTarefa, abrirLancamentoTarefa]);
 
@@ -610,21 +610,21 @@ export default function MapaGeral() {
     mapElement.addEventListener('touchcancel', handlePressEnd);
 
     const listeners = [
-      map.addListener('rightclick', (event) => {
-        if (!podeUsarTarefasMapa || selecionandoLocalTarefa || !event?.latLng) return;
-        abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
-      }),
-      map.addListener('click', (event) => {
-        clearLongPress();
-        if (ignoreNextMapClickRef.current) {
-          ignoreNextMapClickRef.current = false;
-          return;
-        }
-        if (!selecionandoLocalTarefa || !event?.latLng) return;
-        const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
-        handleSelectTaskLocation(coords, detectarAreaPorCoordenada(coords));
-      }),
-    ];
+    map.addListener('rightclick', (event) => {
+      if (!podeUsarTarefasMapa || selecionandoLocalTarefa || !event?.latLng) return;
+      abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
+    }),
+    map.addListener('click', (event) => {
+      clearLongPress();
+      if (ignoreNextMapClickRef.current) {
+        ignoreNextMapClickRef.current = false;
+        return;
+      }
+      if (!selecionandoLocalTarefa || !event?.latLng) return;
+      const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+      handleSelectTaskLocation(coords, detectarAreaPorCoordenada(coords));
+    })];
+
 
     return () => {
       handlePressEnd();
@@ -745,9 +745,9 @@ export default function MapaGeral() {
           showTarefasButton={podeUsarTarefasMapa}
           showInsightsButton={mapaGeralPermissions.visualizar_insights}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
-          onOpenTarefas={() => {if (!podeUsarTarefasMapa) return; setTarefasContext({}); setShowTarefas(true);}}
-          onOpenInsights={() => {if (!mapaGeralPermissions.visualizar_insights) return; setShowInsights(true);}}
-          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return; setShowFiltros(true);}} />
+          onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
+          onOpenInsights={() => {if (!mapaGeralPermissions.visualizar_insights) return;setShowInsights(true);}}
+          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}} />
 
 
         {/* Legenda */}
@@ -781,11 +781,11 @@ export default function MapaGeral() {
                 <div className="text-slate-500">Alertas</div>
               </div>
             </div>
-            {mapaGeralPermissions.visualizar_insights && (
-              <Button variant="ghost" size="sm" onClick={() => setShowInsights(true)} className="h-6 text-[10px] gap-1 text-emerald-700 px-2">
-                <BarChart3 className="w-3 h-3" /> Insights
-              </Button>
-            )}
+            
+
+
+
+            
           </div>
         </div>
 
@@ -859,7 +859,7 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}}>
         <DialogContent className="bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="sr-only"><DialogTitle>Detalhes da tarefa</DialogTitle></DialogHeader>
-          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => { if (updated) setSelectedTarefa(updated); if (podeUsarTarefasMapa) refetchTarefas(); }} />}
+          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
         </DialogContent>
       </Dialog>
 
