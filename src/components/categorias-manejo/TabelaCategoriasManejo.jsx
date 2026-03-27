@@ -400,7 +400,7 @@ export default function TabelaCategoriasManejo({
                         <TableHead
                           key={coluna.id}
 className={`text-xs py-2 px-3 
-${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} 
+${coluna.sortable ? "cursor-pointer hover:bg-gray-1" : ""} 
 ${isRight ? "text-right" : ""} 
 whitespace-nowrap`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
