@@ -20,7 +20,7 @@ export const normalizeTaskPriority = (value) => {
   return "Baixa";
 };
 
-const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "solicitante", "data_pedido", "responsavel_id"];
+const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id","data_pedido"];
 
 const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
   const texto = `${tipoNome} ${grupoNome}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
