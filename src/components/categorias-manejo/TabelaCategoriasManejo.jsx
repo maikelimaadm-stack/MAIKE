@@ -384,10 +384,10 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="text-gray-700 px-2 text-xs font-medium text-left h-9">
+                          <TableHead key="selecao" className="">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
-                              onCheckedChange={toggleSelectAll} className="text-center" />
+                              onCheckedChange={toggleSelectAll} className="" />
                             
                           </TableHead>);
 
@@ -423,12 +423,12 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="text-gray-700 px-2 text-xs font-medium text-left h-9">
+                          <TableCell key={`${item.id}-selecao`} className="">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
                                 setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                              }} className="peer peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                              }} className="" />
                             
                               </TableCell>);
 
@@ -436,10 +436,10 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="text-gray-700 px-2 text-xs font-medium text-left h-9">
+                          <TableCell key={`${item.id}-acoes`} className="">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-gray-700 px-2 text-xs font-medium text-left h-9">
+                                    <Button variant="ghost" size="icon" className="">
                                       <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -459,7 +459,7 @@ export default function TabelaCategoriasManejo({
 
                       return (
                         <TableCell
-                          key={`${item.id}-${coluna.id}`} className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-gray-700 px-2 text-xs text-left h-9">
+                          key={`${item.id}-${coluna.id}`} className="p-1 text-gray-700 px-2 text-xs">
                           
                           
                               {renderCell(item, coluna.id)}
