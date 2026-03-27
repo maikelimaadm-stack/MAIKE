@@ -378,7 +378,7 @@ export default function TabelaCategoriasManejo({
         <Card>
           <CardContent className="p-0">
             <div className="overflow-auto max-h-[500px]">
-              <Table className="w-full table-fixed caption-bottom text-sm">
+              <Table className="">
                 <TableHeader>
                   <TableRow className="bg-white border-b">
                     {colunasOrdenadas.map((coluna) => {
