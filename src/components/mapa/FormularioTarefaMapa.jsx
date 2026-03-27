@@ -10,7 +10,8 @@ import { Crosshair, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
 import useSetorAreas from "@/hooks/useSetorAreas";
-import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
+import { getPermissionDisplayName, getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
+import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 
 export const normalizeTaskPriority = (value) => {
   const normalized = (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -76,6 +77,12 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     queryKey: ["usuario-atual-tarefa-mapa-form"],
     queryFn: () => base44.auth.me(),
     initialData: null
+  });
+
+  const { data: permissoesUsuarios = [] } = useQuery({
+    queryKey: ["permissoes-usuarios-tarefa-mapa-form"],
+    queryFn: () => base44.entities.Permissao.list(),
+    initialData: []
   });
 
   const nomeUsuarioAtual = useMemo(() => getUserDisplayName(usuarioAtual), [usuarioAtual]);
@@ -158,9 +165,25 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const tiposTarefaFiltrados = formData.grupo_atividade_id ?
   tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id) :
   [];
-  const usuariosOrdenados = usuariosSistema.
-  filter((user) => !isExcludedSystemUser(user)).
-  sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)));
+
+  const usuariosOrdenados = useMemo(() => {
+    const permissoesPorEmail = new Map(
+      permissoesUsuarios
+        .map((permissao) => [permissao.user_email, normalizePermissionRecord(permissao)])
+    );
+
+    return usuariosSistema
+      .filter((user) => {
+        if (isExcludedSystemUser(user)) return false;
+        const permissao = permissoesPorEmail.get(user.email);
+        return canAccessPage(permissao, "gt-lancamentos", "gestao-tarefas");
+      })
+      .sort((a, b) => {
+        const permissaoA = permissoesPorEmail.get(a.email);
+        const permissaoB = permissoesPorEmail.get(b.email);
+        return getPermissionDisplayName(permissaoA, a).localeCompare(getPermissionDisplayName(permissaoB, b), "pt-BR", { sensitivity: "base" });
+      });
+  }, [usuariosSistema, permissoesUsuarios]);
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -229,8 +252,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const handleResponsavelChange = (selectedResponsavelId) => {
     const responsavel = usuariosOrdenados.find((item) => item.id === selectedResponsavelId);
+    const permissao = permissoesUsuarios.find((item) => item.user_email === responsavel?.email);
     setErrors((prev) => ({ ...prev, responsavel_id: false }));
-    setFormData((prev) => ({ ...prev, responsavel_id: selectedResponsavelId, responsavel: getUserDisplayName(responsavel) }));
+    setFormData((prev) => ({ ...prev, responsavel_id: selectedResponsavelId, responsavel: getPermissionDisplayName(permissao, responsavel) }));
   };
 
   const handleSubmit = (e) => {
@@ -343,7 +367,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
               <SelectTrigger className={getFieldClassName("responsavel_id", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
               <SelectContent>
-                {usuariosOrdenados.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getUserDisplayName(item)}</SelectItem>)}
+                {usuariosOrdenados.map((item) => {
+                  const permissao = permissoesUsuarios.find((registro) => registro.user_email === item.email);
+                  return <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getPermissionDisplayName(permissao, item)}</SelectItem>;
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -356,7 +383,8 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               <SelectTrigger className={getFieldClassName("solicitante", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
               <SelectContent>
                 {usuariosOrdenados.map((item) => {
-                  const nome = getUserDisplayName(item);
+                  const permissao = permissoesUsuarios.find((registro) => registro.user_email === item.email);
+                  const nome = getPermissionDisplayName(permissao, item);
                   return <SelectItem key={item.id} value={nome} className="text-xs uppercase">{nome}</SelectItem>;
                 })}
               </SelectContent>
