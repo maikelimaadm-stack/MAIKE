@@ -399,7 +399,10 @@ export default function TabelaCategoriasManejo({
                       return (
                         <TableHead
                           key={coluna.id}
-                          className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
+className={`text-xs py-2 px-3 
+${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} 
+${isRight ? "text-right" : ""} 
+min-w-[120px] max-w-[120px] w-[120px]`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
                           <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
