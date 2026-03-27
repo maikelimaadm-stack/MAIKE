@@ -360,7 +360,7 @@ export default function TabelaLotes({
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
-                        <TableHead key="selecao" className="text-xs py-2 px-2">
+                        <TableHead key="selecao" className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                           <Checkbox
                             checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
                             onCheckedChange={toggleSelectAll} />
@@ -369,7 +369,7 @@ export default function TabelaLotes({
 
                     }
                     if (coluna.id === "acoes") {
-                      return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
+                      return <TableHead key="acoes" className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"></TableHead>;
                     }
                     const isRight = coluna.align === "right";
                     return (
@@ -399,7 +399,7 @@ export default function TabelaLotes({
                       {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
-                        <TableCell key={`${lote.id}-selecao`} className="text-xs py-2 px-2">
+                        <TableCell key={`${lote.id}-selecao`} className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                               <Checkbox
                             checked={selectedItems.includes(lote.id)}
                             onCheckedChange={(checked) => {
@@ -412,7 +412,7 @@ export default function TabelaLotes({
 
                     if (coluna.id === "acoes") {
                       return (
-                        <TableCell key={`${lote.id}-acoes`} className="text-xs py-2 px-2 text-center">
+                        <TableCell key={`${lote.id}-acoes`} className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6">
