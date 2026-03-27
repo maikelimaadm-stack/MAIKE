@@ -384,7 +384,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="pr-2 pl-2 text-left h-9">
+                          <TableHead key="selecao" className="text-gray-700 px-2 text-xs font-medium text-left h-9">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} className="text-center" />
@@ -393,12 +393,12 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-center"></TableHead>;
+                        return <TableHead key="acoes" className="text-gray-700 px-2 text-xs font-medium text-left h-9"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
-                          key={coluna.id} className="text-gray-900 px-2 text-xs font-medium text-left h-9 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] cursor-pointer hover:bg-gray-50"
+                          key={coluna.id} className="text-gray-700 px-2 text-xs font-medium text-left h-9"
 
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
@@ -423,7 +423,7 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="pr-2 pl-2 text-left h-9">
+                          <TableCell key={`${item.id}-selecao`} className="text-gray-700 px-2 text-xs font-medium text-left h-9">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -436,7 +436,7 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="text-center">
+                          <TableCell key={`${item.id}-acoes`} className="text-gray-700 px-2 text-xs font-medium text-left h-9">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="text-center">
@@ -459,7 +459,7 @@ export default function TabelaCategoriasManejo({
 
                       return (
                         <TableCell
-                          key={`${item.id}-${coluna.id}`} className="text-gray-700 px-2 text-xs text-left align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          key={`${item.id}-${coluna.id}`} className="text-gray-700 px-2 text-xs font-medium text-left h-9">
                           
                           
                               {renderCell(item, coluna.id)}
