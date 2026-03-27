@@ -384,7 +384,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
+                          <TableHead key="selecao" className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} className="peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\n       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\n       disabled:cursor-not-allowed disabled:opacity-70\n       data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
@@ -393,7 +393,7 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] text-center align-middle text-muted-foreground font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0"></TableHead>;
+                        return <TableHead key="acoes" className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
@@ -423,7 +423,7 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-12 w-12 min-w-[30px] max-w-[30px]  align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
+                          <TableCell key={`${item.id}-selecao`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -436,7 +436,7 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] text-center align-middle text-muted-foreground font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
+                          <TableCell key={`${item.id}-acoes`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium\nfocus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring\ndisabled:pointer-events-none disabled:opacity-50\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\nhover:bg-accent hover:text-accent-foreground w-4">
