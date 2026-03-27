@@ -459,7 +459,7 @@ export default function TabelaCategoriasManejo({
 
                       return (
                         <TableCell
-                          key={`${item.id}-${coluna.id}`} className="text-muted-foreground pr-2 pl-2 text-xs text-left align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          key={`${item.id}-${coluna.id}`} className="w-[100px] min-w-[120px] max-w-[80px] p-2 pr-2 pl-2 text-xs text-left align-middle text-gray-700 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                           
                           
                               {renderCell(item, coluna.id)}
