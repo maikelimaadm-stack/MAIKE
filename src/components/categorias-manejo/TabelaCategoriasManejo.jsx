@@ -396,7 +396,12 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle"></TableHead>;
+return (
+  <TableHead 
+    key="acoes" 
+    className="sticky left-[40px] z-20 bg-white w-[40px] text-center h-10 align-middle"
+  />
+);
                       }
                       const isRight = coluna.align === "right";
                       return (
@@ -445,7 +450,10 @@ whitespace-nowrap`}
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle">
+<TableCell 
+  key={`${item.id}-acoes`} 
+  className="sticky left-[40px] z-10 bg-white w-[40px] text-center h-10 align-middle"
+>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="text-muted-foreground text-xs font-medium text-center">
