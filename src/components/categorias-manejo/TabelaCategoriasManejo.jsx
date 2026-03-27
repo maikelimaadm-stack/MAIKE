@@ -439,7 +439,7 @@ export default function TabelaCategoriasManejo({
                           <TableCell key={`${item.id}-acoes`} className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] text-center align-middle text-muted-foreground font-medium p-2\n[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="">
+                                    <Button variant="ghost" size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground w-4">
                                       <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                     </Button>
                                   </DropdownMenuTrigger>
