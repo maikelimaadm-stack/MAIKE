@@ -384,7 +384,10 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle">
+<TableHead 
+  key="selecao" 
+  className="sticky left-0 z-20 bg-white w-[40px] text-center h-10 align-middle"
+>
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} />
@@ -426,7 +429,10 @@ whitespace-nowrap`}
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle">
+<TableCell 
+  key={`${item.id}-selecao`} 
+  className="sticky left-0 z-10 bg-white w-[40px] text-center h-10 align-middle"
+>
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
