@@ -387,7 +387,7 @@ export default function TabelaCategoriasManejo({
                           <TableHead key="selecao" className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
-                              onCheckedChange={toggleSelectAll} className="" />
+                              onCheckedChange={toggleSelectAll} className="peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\n       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\n       disabled:cursor-not-allowed disabled:opacity-70\n       data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
                             
                           </TableHead>);
 
@@ -423,12 +423,12 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] h-9 text-center align-middle text-muted-foreground font-medium p-2\n[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
+                          <TableCell key={`${item.id}-selecao`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-12 w-12 min-w-[30px] max-w-[30px]  align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
                                 setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                              }} className="" />
+                              }} className="rounded-full peer h-4 w-4 border-2 border-gray-400 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-70 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-center" />
                             
                               </TableCell>);
 
