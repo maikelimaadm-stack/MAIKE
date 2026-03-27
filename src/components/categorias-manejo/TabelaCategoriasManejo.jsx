@@ -384,10 +384,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-<TableHead 
-  key="selecao" 
-  className="sticky left-0 z-20 bg-white w-[40px] text-center h-10 align-middle"
->
+                          <TableHead key="selecao" className="text-muted-foreground text-xs font-medium text-center">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} />
@@ -396,21 +393,13 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-return (
-  <TableHead 
-    key="acoes" 
-    className="sticky left-[40px] z-20 bg-white w-[40px] text-center h-10 align-middle"
-  />
-);
+                        return <TableHead key="acoes" className="text-muted-foreground text-xs font-medium text-center"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
                           key={coluna.id}
-className={`text-xs py-2 px-3 
-${coluna.sortable ? "cursor-pointer hover:bg-gray-1" : ""} 
-${isRight ? "text-right" : ""} 
-whitespace-nowrap`}
+                          className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
                           <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
@@ -434,10 +423,7 @@ whitespace-nowrap`}
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-<TableCell 
-  key={`${item.id}-selecao`} 
-  className="sticky left-0 z-10 bg-white w-[40px] text-center h-10 align-middle"
->
+                          <TableCell key={`${item.id}-selecao`} className="text-muted-foreground py-1 text-xs font-medium text-center">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -450,10 +436,7 @@ whitespace-nowrap`}
 
                       if (coluna.id === "acoes") {
                         return (
-<TableCell 
-  key={`${item.id}-acoes`} 
-  className="sticky left-[40px] z-10 bg-white w-[40px] text-center h-10 align-middle"
->
+                          <TableCell key={`${item.id}-acoes`} className="text-muted-foreground text-xs font-medium text-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="text-muted-foreground text-xs font-medium text-center">
@@ -476,7 +459,7 @@ whitespace-nowrap`}
 
                       return (
                         <TableCell
-                          key={`${item.id}-${coluna.id}`} className="w-[100px] min-w-[120px] max-w-[80px] p-2 pr-2 pl-2 text-xs text-left align-middle text-gray-700 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          key={`${item.id}-${coluna.id}`} className="text-muted-foreground text-xs text-left">
                           
                           
                               {renderCell(item, coluna.id)}

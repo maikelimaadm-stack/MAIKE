@@ -20,7 +20,7 @@ export const normalizeTaskPriority = (value) => {
   return "Baixa";
 };
 
-const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id","data_pedido"];
+const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "solicitante", "data_pedido", "responsavel_id"];
 
 const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
   const texto = `${tipoNome} ${grupoNome}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -365,7 +365,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Responsável </Label>
+          <Label className="text-xs">Responsável *</Label>
           <div data-field="responsavel_id">
             <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
               <SelectTrigger className={getFieldClassName("responsavel_id", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
@@ -380,7 +380,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Solicitante </Label>
+          <Label className="text-xs">Solicitante *</Label>
           <div data-field="solicitante">
             <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
               <SelectTrigger className={getFieldClassName("solicitante", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
