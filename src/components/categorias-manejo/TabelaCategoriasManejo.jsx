@@ -240,7 +240,7 @@ export default function TabelaCategoriasManejo({
       return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
-    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowUp className="w-3 h-3 text-emerald-600" /> :
     <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
@@ -384,7 +384,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="sticky left-0 bg-white z-10 w-12 min-w-[25px] max-w-[25px]">
+                          <TableHead key="selecao" className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} className="" />
@@ -393,16 +393,16 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="sticky left-0 bg-white z-10 w-12 min-w-[25px] max-w-[25px]"></TableHead>;
+                        return <TableHead key="acoes" className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
-                          key={coluna.id} className="text-gray-700 px-2 text-xs font-medium text-left h-9"
+                          key={coluna.id} className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-gray-900 px-2 text-xs font-medium text-left"
 
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
-                          <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
+                          <div className="inline-flex items-center gap-1 h-full">
                             {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                           </div>
                         </TableHead>);
@@ -423,7 +423,7 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="text-center">
+                          <TableCell key={`${item.id}-selecao`} className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -436,10 +436,10 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="text-center">
+                          <TableCell key={`${item.id}-acoes`} className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-sm font-medium rounded-md inline-flex items-center justify-center gap-1 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-center">
+                                    <Button variant="ghost" size="icon" className="">
                                       <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -459,7 +459,7 @@ export default function TabelaCategoriasManejo({
 
                       return (
                         <TableCell
-                          key={`${item.id}-${coluna.id}`} className="p-1 text-gray-700 px-2 text-xs">
+                          key={`${item.id}-${coluna.id}`} className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] p-1 text-gray-700 px-2 text-xs">
                           
                           
                               {renderCell(item, coluna.id)}
