@@ -384,7 +384,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="text-muted-foreground text-xs text-center align-middle">
+                          <TableHead key="selecao" className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} />
@@ -393,7 +393,7 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-muted-foreground text-xs text-center align-middle"></TableHead>;
+                        return <TableHead key="acoes" className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
@@ -423,7 +423,7 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="text-muted-foreground text-xs text-center align-middle">
+                          <TableCell key={`${item.id}-selecao`} className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -436,7 +436,7 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="text-muted-foreground text-xs text-center align-middle">
+                          <TableCell key={`${item.id}-acoes`} className="w-[30px] min-w-[30px] max-w-[50px] text-center h-10 align-middle">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="text-muted-foreground text-xs font-medium text-center">
