@@ -393,7 +393,7 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]"></TableHead>;
+                        return <TableHead key="acoes" className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] text-center align-middle text-muted-foreground font-medium p-2\n[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
@@ -423,7 +423,7 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
+                          <TableCell key={`${item.id}-selecao`} className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] h-9 text-center align-middle text-muted-foreground font-medium p-2\n[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -436,7 +436,7 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="h-9 px-0 text-center align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px]">
+                          <TableCell key={`${item.id}-acoes`} className="sticky left-0 bg-white z-12 w-12 min-w-[30px] max-w-[30px] text-center align-middle text-muted-foreground font-medium p-2\n[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="">
