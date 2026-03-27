@@ -378,13 +378,13 @@ export default function TabelaCategoriasManejo({
         <Card>
           <CardContent className="p-0">
             <div className="overflow-auto max-h-[500px]">
-              <Table>
+              <Table className="w-full table-fixed caption-bottom text-sm">
                 <TableHeader>
                   <TableRow className="bg-white border-b">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="">
+                          <TableHead key="selecao" className="sticky left-0 bg-white z-10 w-12 min-w-[25px] max-w-[25px]">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} className="" />
@@ -393,7 +393,7 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-gray-700 px-2 text-xs font-medium text-left h-9"></TableHead>;
+                        return <TableHead key="acoes" className="sticky left-0 bg-white z-10 w-12 min-w-[25px] max-w-[25px]"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
@@ -419,11 +419,11 @@ export default function TabelaCategoriasManejo({
                     </TableRow> :
 
                   categoriasPaginadas.map((item) =>
-                  <TableRow key={item.id} className="hover:bg-gray-50 border-b">
+                  <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100 hover:text-gray-1000 hover:font-semibold">
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="">
+                          <TableCell key={`${item.id}-selecao`} className="text-center">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
@@ -436,10 +436,10 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="">
+                          <TableCell key={`${item.id}-acoes`} className="text-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="">
+                                    <Button variant="ghost" size="icon" className="text-sm font-medium rounded-md inline-flex items-center justify-center gap-1 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-center">
                                       <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                     </Button>
                                   </DropdownMenuTrigger>
