@@ -384,7 +384,7 @@ export default function TabelaCategoriasManejo({
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
+                          <TableHead key="selecao" className="bg-white text-muted-foreground font-medium text-center h-10 sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
                               onCheckedChange={toggleSelectAll} className="peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\n       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\n       disabled:cursor-not-allowed disabled:opacity-70\n       data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
@@ -393,7 +393,7 @@ export default function TabelaCategoriasManejo({
 
                       }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0"></TableHead>;
+                        return <TableHead key="acoes" className="bg-white text-muted-foreground font-medium text-center h-10 sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0"></TableHead>;
                       }
                       const isRight = coluna.align === "right";
                       return (
@@ -423,12 +423,12 @@ export default function TabelaCategoriasManejo({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
+                          <TableCell key={`${item.id}-selecao`} className="bg-white text-muted-foreground py-1 font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
                                 setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                              }} className="rounded-full peer h-4 w-4 border-2 border-gray-400 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-70 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-center" />
+                              }} className="rounded-full peer shrink-0 data-[state=checked]:text-primary-foreground h-4 w-4 border-2 border-gray-400 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-70 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-center" />
                             
                               </TableCell>);
 
@@ -436,11 +436,11 @@ export default function TabelaCategoriasManejo({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
+                          <TableCell key={`${item.id}-acoes`} className="bg-white text-muted-foreground px-1 font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium\nfocus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring\ndisabled:pointer-events-none disabled:opacity-50\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\nhover:bg-accent hover:text-accent-foreground w-4">
-                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                    <Button variant="ghost" size="icon" className="text-sm font-medium\\nfocus-visible:outline-none rounded-md transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-accent h-9 inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:ring-1 focus-visible:ring-ring\\ndisabled:pointer-events-none disabled:opacity-50\\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\\nhover:bg-accent hover:text-accent-foreground w-4">
+                                      <MoreVertical className="text-slate-600 lucide lucide-ellipsis-vertical w-3.5 h-3.5" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="start">
