@@ -402,7 +402,7 @@ export default function TabelaCategoriasManejo({
 className={`text-xs py-2 px-3 
 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} 
 ${isRight ? "text-right" : ""} 
-min-w-[10px] max-w-[10px] w-[10px]`}
+whitespace-nowrap`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
                           <div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>
