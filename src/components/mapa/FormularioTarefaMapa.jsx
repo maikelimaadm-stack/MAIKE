@@ -167,25 +167,25 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   [];
 
   const usuariosOrdenados = useMemo(() => {
-    const permissoesNormalizadas = permissoesUsuarios
-      .map((registro) => normalizePermissionRecord(registro?.data || registro))
-      .filter(Boolean);
+    const permissoesNormalizadas = permissoesUsuarios.
+    map((registro) => normalizePermissionRecord(registro?.data || registro)).
+    filter(Boolean);
 
     const permissoesPorEmail = new Map(
       permissoesNormalizadas.map((permissao) => [permissao.user_email, permissao])
     );
 
-    return usuariosSistema
-      .filter((user) => {
-        if (isExcludedSystemUser(user)) return false;
-        const permissao = permissoesPorEmail.get(user.email);
-        return canAccessPage(permissao, "gt-lancamentos", "gestao-tarefas");
-      })
-      .sort((a, b) => {
-        const permissaoA = permissoesPorEmail.get(a.email);
-        const permissaoB = permissoesPorEmail.get(b.email);
-        return getPermissionDisplayName(permissaoA, a).localeCompare(getPermissionDisplayName(permissaoB, b), "pt-BR", { sensitivity: "base" });
-      });
+    return usuariosSistema.
+    filter((user) => {
+      if (isExcludedSystemUser(user)) return false;
+      const permissao = permissoesPorEmail.get(user.email);
+      return canAccessPage(permissao, "gt-lancamentos", "gestao-tarefas");
+    }).
+    sort((a, b) => {
+      const permissaoA = permissoesPorEmail.get(a.email);
+      const permissaoB = permissoesPorEmail.get(b.email);
+      return getPermissionDisplayName(permissaoA, a).localeCompare(getPermissionDisplayName(permissaoB, b), "pt-BR", { sensitivity: "base" });
+    });
   }, [usuariosSistema, permissoesUsuarios]);
 
   const getFieldClassName = (field, baseClass) => {
@@ -280,24 +280,24 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Título *</Label>
           <Input
-            data-field="titulo"
-            value={formData.titulo}
-            onChange={(e) => {
-              setErrors((prev) => ({ ...prev, titulo: false }));
-              setFormData((prev) => ({ ...prev, titulo: e.target.value }));
-            }}
-            placeholder="Ex: Cerca quebrada na lateral"
-            className={getFieldClassName("titulo", "h-8 text-xs uppercase")} />
+          data-field="titulo"
+          value={formData.titulo}
+          onChange={(e) => {
+            setErrors((prev) => ({ ...prev, titulo: false }));
+            setFormData((prev) => ({ ...prev, titulo: e.target.value }));
+          }}
+          placeholder="Ex: Cerca quebrada na lateral" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+        
           
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
         <div className="space-y-1.5">
           <Label className="text-xs">Fazenda</Label>
           <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
-            const setor = setores.find((item) => item.id === value);
-            setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
-            setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" }));
-          }} disabled={Boolean(areaId || loteId)}>
-            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="Selecione a fazenda" /></SelectTrigger>
+              const setor = setores.find((item) => item.id === value);
+              setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
+              setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" }));
+            }} disabled={Boolean(areaId || loteId)}>
+            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione a fazenda" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__sem_setor__" className="text-xs uppercase">Sem fazenda</SelectItem>
               {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}
@@ -306,31 +306,31 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         {!areaId && !loteId ?
-        <div className="space-y-1.5">
+          <div className="space-y-1.5">
             <Label className="text-xs">Local / Pasto</Label>
             <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
-              <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione o local" : "Selecione a fazenda primeiro"} /></SelectTrigger>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione o local" : "Selecione a fazenda primeiro"} /></SelectTrigger>
               <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
             </Select>
           </div> :
 
-        <div className="space-y-1.5">
+          <div className="space-y-1.5">
             <Label className="text-xs">Local / Pasto</Label>
             <Input value={formData.area_nome || formData.lote_nome} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
           </div>
-        }
+          }
 
         <div className="space-y-1.5">
           <Label className="text-xs">Grupo de atividade *</Label>
           <div data-field="grupo_atividade_id">
             <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
-              <SelectTrigger className={getFieldClassName("grupo_atividade_id", "h-8 text-xs uppercase")}>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase">
                 <SelectValue placeholder="Selecione o grupo" />
               </SelectTrigger>
               <SelectContent>
                 {gruposAtividade.map((grupo) =>
-                <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>
-                )}
+                  <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>
+                  )}
               </SelectContent>
             </Select>
           </div>
@@ -345,13 +345,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <Label className="text-xs">Tipo de tarefa *</Label>
           <div data-field="tipo_tarefa_id">
             <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
-              <SelectTrigger className={getFieldClassName("tipo_tarefa_id", "h-8 text-xs uppercase")}>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase">
                 <SelectValue placeholder={formData.grupo_atividade_id ? "Selecione o tipo" : "Selecione o grupo primeiro"} />
               </SelectTrigger>
               <SelectContent>
                 {tiposTarefaFiltrados.map((tipo) =>
-                <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>
-                )}
+                  <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>
+                  )}
               </SelectContent>
             </Select>
           </div>
@@ -362,12 +362,12 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <Label className="text-xs">Responsável *</Label>
           <div data-field="responsavel_id">
             <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
-              <SelectTrigger className={getFieldClassName("responsavel_id", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
               <SelectContent>
                 {usuariosOrdenados.map((item) => {
-                  const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email);
-                  return <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getPermissionDisplayName(permissao?.data || permissao, item)}</SelectItem>;
-                })}
+                    const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email);
+                    return <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getPermissionDisplayName(permissao?.data || permissao, item)}</SelectItem>;
+                  })}
               </SelectContent>
             </Select>
           </div>
@@ -377,13 +377,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <Label className="text-xs">Solicitante *</Label>
           <div data-field="solicitante">
             <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
-              <SelectTrigger className={getFieldClassName("solicitante", "h-8 text-xs uppercase")}><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
               <SelectContent>
                 {usuariosOrdenados.map((item) => {
-                  const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email);
-                  const nome = getPermissionDisplayName(permissao?.data || permissao, item);
-                  return <SelectItem key={item.id} value={nome} className="text-xs uppercase">{nome}</SelectItem>;
-                })}
+                    const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email);
+                    const nome = getPermissionDisplayName(permissao?.data || permissao, item);
+                    return <SelectItem key={item.id} value={nome} className="text-xs uppercase">{nome}</SelectItem>;
+                  })}
               </SelectContent>
             </Select>
           </div>
@@ -392,7 +392,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         <div className="space-y-1.5">
           <Label className="text-xs">Prioridade</Label>
           <Select value={formData.prioridade} onValueChange={(value) => setFormData((prev) => ({ ...prev, prioridade: value }))}>
-            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="Baixa" className="text-xs uppercase">Baixa</SelectItem>
               <SelectItem value="Média" className="text-xs uppercase">Média</SelectItem>
@@ -404,10 +404,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         <div className="space-y-1.5">
           <Label className="text-xs">Status</Label>
           <Select value={formData.status} onValueChange={(value) => {
-            setErrors((prev) => ({ ...prev, data_conclusao: false }));
-            setFormData((prev) => ({ ...prev, status: value }));
-          }}>
-            <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
+              setErrors((prev) => ({ ...prev, data_conclusao: false }));
+              setFormData((prev) => ({ ...prev, status: value }));
+            }}>
+            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="Pendente" className="text-xs uppercase">Pendente</SelectItem>
               <SelectItem value="Em Andamento" className="text-xs uppercase">Em andamento</SelectItem>
@@ -423,39 +423,39 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <Label className="text-xs">Data do pedido *</Label>
           <div data-field="data_pedido">
             <Input type="date" value={formData.data_pedido} onChange={(e) => {
-              setErrors((prev) => ({ ...prev, data_pedido: false }));
-              setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
-            }} className={getFieldClassName("data_pedido", "h-8 text-xs uppercase")} />
+                setErrors((prev) => ({ ...prev, data_pedido: false }));
+                setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
+              }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <Label className="text-xs">Prazo</Label>
           <Input
-            type="date"
-            value={formData.data_prevista}
-            onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))}
-            className="h-8 text-xs uppercase"
-          />
+              type="date"
+              value={formData.data_prevista}
+              onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+            
+            
         </div>
 
         <div className="space-y-1.5">
           <Label className="text-xs">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
           <div data-field="data_conclusao">
             <Input type="date" value={formData.data_conclusao} onChange={(e) => {
-              setErrors((prev) => ({ ...prev, data_conclusao: false }));
-              setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
-            }} className={getFieldClassName("data_conclusao", "h-8 text-xs uppercase")} />
+                setErrors((prev) => ({ ...prev, data_conclusao: false }));
+                setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
+              }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
           </div>
         </div>
         </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-        <div className="space-y-1.5 lg:col-span-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+        <div className="">
           <Label className="text-xs">Descrição da tarefa</Label>
-          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
+          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[100px] text-xs uppercase" />
         </div>
 
-        <div className="space-y-1.5 lg:col-span-2">
+        <div className="">
           <Label className="text-xs">Observações</Label>
           <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs uppercase" />
         </div>
