@@ -419,7 +419,7 @@ export default function TabelaCategoriasManejo({
                     </TableRow> :
 
                   categoriasPaginadas.map((item) =>
-                  <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100 hover:text-gray-1000 hover:font-semibold">
+                  <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000">
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
