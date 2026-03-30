@@ -307,7 +307,7 @@ export default function TabelaCategoriasManejo({
                 
               </div>
 
-              <div className="min-w-[130px] max-w-[180px] w-full">
+              <div className="">
                 <Label className="text-xs">Sexo</Label>
                 <Select value={filtroSexo} onValueChange={setFiltroSexo}>
                   <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -380,7 +380,7 @@ export default function TabelaCategoriasManejo({
             <div className="overflow-auto max-h-[500px]">
               <Table className="">
                 <TableHeader>
-                  <TableRow className="">
+                  <TableRow className="border-b transition-colors hover:bg-muted/0 data-[state=selected]:bg-muted">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
@@ -483,7 +483,7 @@ export default function TabelaCategoriasManejo({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="x">
                 <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">
                   Anterior
                 </Button>
