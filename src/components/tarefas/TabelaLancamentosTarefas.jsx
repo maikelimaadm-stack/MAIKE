@@ -195,7 +195,7 @@ export default function TabelaLancamentosTarefas({
   };
 
   const SortIcon = ({ column }) => {
-    if (sortConfig.key !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    if (sortConfig.key !== column) return <ArrowUpDown className="lucide lucide-arrow-up-down lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
     return sortConfig.direction === "asc" ?
     <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
     <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
@@ -350,7 +350,7 @@ export default function TabelaLancamentosTarefas({
                     if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
                     if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
                     const isRight = coluna.align === "right";
-                    return <TableHead key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
+                    return <TableHead key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className="inline-flex items-center gap-1 h-full">{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
                   })}
                 </TableRow>
               </TableHeader>
@@ -374,7 +374,7 @@ export default function TabelaLancamentosTarefas({
             </Table>
           </div>
 
-          <div className="flex items-center justify-between p-3 border-t">
+          <div className="flex items-center justify-between p-1 border-t">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
               <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
@@ -384,7 +384,7 @@ export default function TabelaLancamentosTarefas({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">Anterior</Button>
               <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
               <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">Próxima</Button>
