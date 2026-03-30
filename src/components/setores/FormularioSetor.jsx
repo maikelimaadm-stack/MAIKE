@@ -19,9 +19,9 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
   const [invalidFields, setInvalidFields] = useState([]);
 
   const handleChange = (field, value) => {
-    const nextValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string"
-      ? value.toUpperCase()
-      : value;
+    const nextValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ?
+    value.toUpperCase() :
+    value;
     setFormData((prev) => ({ ...prev, [field]: nextValue }));
     setInvalidFields((prev) => prev.filter((item) => item !== field));
   };
@@ -51,12 +51,12 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
 
   return (
     <Card className="shadow-sm border-slate-300 bg-white">
-      <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+      <CardHeader className="flex flex-col space-y-1.5 p-1 bg-slate-50 border-b border-slate-200 py-1">
         <CardTitle className="text-sm font-semibold text-slate-900">
           {isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-1">
         <form onSubmit={handleSubmit} className="space-y-1">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
             <div className="space-y-1 lg:col-span-2">
@@ -65,10 +65,10 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
                 data-field="nome"
                 value={formData.nome}
                 onChange={(e) => handleChange("nome", e.target.value)}
-                placeholder="NOME DO SETOR / FAZENDA"
-                className={getFieldClassName("nome", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
-              />
+                placeholder="NOME DO SETOR / FAZENDA" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
+                style={{ textTransform: "uppercase" }} />
+              
             </div>
 
             <div className="space-y-1">
@@ -77,11 +77,11 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
                 data-field="sigla"
                 value={formData.sigla}
                 onChange={(e) => handleChange("sigla", e.target.value)}
-                placeholder="SIGLA"
-                className={getFieldClassName("sigla", "h-8 text-xs uppercase")}
+                placeholder="SIGLA" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
                 style={{ textTransform: "uppercase" }}
-                maxLength={10}
-              />
+                maxLength={10} />
+              
             </div>
           </div>
 
@@ -89,13 +89,13 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
             <div className="space-y-1">
               <Label className="text-xs">Tipo *</Label>
               <Select value={formData.tipo} onValueChange={(value) => handleChange("tipo", value)}>
-                <SelectTrigger className={getFieldClassName("tipo", "h-8 text-xs")}>
+                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_SETOR.map((tipo) => (
-                    <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
-                  ))}
+                  {TIPOS_SETOR.map((tipo) =>
+                  <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -105,10 +105,10 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
               <Input
                 value={formData.responsavel}
                 onChange={(e) => handleChange("responsavel", e.target.value)}
-                placeholder="RESPONSÁVEL"
-                className="h-8 text-xs uppercase"
-                style={{ textTransform: "uppercase" }}
-              />
+                placeholder="RESPONSÁVEL" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
+                style={{ textTransform: "uppercase" }} />
+              
             </div>
 
             <div className="space-y-1">
@@ -116,9 +116,9 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
               <Input
                 value={formData.telefone}
                 onChange={(e) => handleChange("telefone", e.target.value)}
-                placeholder="(00) 00000-0000"
-                className="h-8 text-xs"
-              />
+                placeholder="(00) 00000-0000" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+              
+              
             </div>
           </div>
 
@@ -130,9 +130,9 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
                 step="0.01"
                 value={formData.area_total}
                 onChange={(e) => handleChange("area_total", e.target.value)}
-                placeholder="0,00"
-                className="h-8 text-xs"
-              />
+                placeholder="0,00" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+              
+              
             </div>
 
             <div className="space-y-1">
@@ -141,9 +141,9 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
                 type="number"
                 value={formData.capacidade_animais}
                 onChange={(e) => handleChange("capacidade_animais", e.target.value)}
-                placeholder="0"
-                className="h-8 text-xs"
-              />
+                placeholder="0" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+              
+              
             </div>
 
             <div className="flex items-center gap-3 pt-6">
@@ -159,10 +159,10 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
                 data-field="endereco"
                 value={formData.endereco}
                 onChange={(e) => handleChange("endereco", e.target.value)}
-                placeholder="ENDEREÇO COMPLETO"
-                className={getFieldClassName("endereco", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
-              />
+                placeholder="ENDEREÇO COMPLETO" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
+                style={{ textTransform: "uppercase" }} />
+              
             </div>
 
             <div className="space-y-1">
@@ -171,33 +171,33 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
                 data-field="cidade"
                 value={formData.cidade}
                 onChange={(e) => handleChange("cidade", e.target.value)}
-                placeholder="CIDADE"
-                className={getFieldClassName("cidade", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
-              />
+                placeholder="CIDADE" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
+                style={{ textTransform: "uppercase" }} />
+              
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
+            <div className="space-y-">
               <Label className="text-xs">Estado *</Label>
               <div data-field="estado">
                 <Select value={formData.estado || SELECT_EMPTY} onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
-                  <SelectTrigger className={getFieldClassName("estado", "h-8 text-xs")}>
+                  <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                     <SelectValue placeholder="SELECIONE" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {ESTADOS_BR.map((uf) => (
-                      <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
-                    ))}
+                    {ESTADOS_BR.map((uf) =>
+                    <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
 
-          <div className="space-y-1 pt-1">
+          <div className="space-y-1">
             <Label className="text-xs">Observações</Label>
             <Textarea
               value={formData.observacoes}
@@ -205,20 +205,20 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
               placeholder="OBSERVAÇÕES GERAIS..."
               className="text-xs uppercase"
               style={{ textTransform: "uppercase" }}
-              rows={2}
-            />
+              rows={2} />
+            
           </div>
 
-          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-7 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-600">
               {isEditing ? "Atualizar" : "Salvar"}
             </Button>
           </div>
         </form>
       </CardContent>
-    </Card>
-  );
+    </Card>);
+
 }
