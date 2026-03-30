@@ -291,7 +291,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             className={getFieldClassName("titulo", "h-8 text-xs uppercase")} />
           
         </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
         <div className="space-y-1.5">
           <Label className="text-xs">Fazenda</Label>
           <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
@@ -418,7 +418,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             </SelectContent>
           </Select>
         </div>
-        
+        </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
 
         <div className="space-y-1.5">
