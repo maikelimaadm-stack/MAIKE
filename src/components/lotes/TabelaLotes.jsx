@@ -356,20 +356,20 @@ export default function TabelaLotes({
           <div className="overflow-auto max-h-[500px]">
 <Table>
   <TableHeader>
-    <TableRow className="border-b hover:bg-muted/50">
-
+    <TableRow className="bg-white border-b">
       {colunasOrdenadas.map((coluna) => {
-
         if (coluna.id === "selecao") {
           return (
             <TableHead
               key="selecao"
-              className="h-7 px-1 text-xs text-center border border-gray-300 w-8"
+              className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
             >
               <Checkbox
-                checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0}
+                checked={
+                  selectedItems.length === lotesFiltrados.length &&
+                  lotesFiltrados.length > 0
+                }
                 onCheckedChange={toggleSelectAll}
-                className="h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-emerald-500"
               />
             </TableHead>
           );
@@ -379,8 +379,8 @@ export default function TabelaLotes({
           return (
             <TableHead
               key="acoes"
-              className="h-7 px-1 text-xs text-center border border-gray-300 w-8"
-            />
+              className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+            ></TableHead>
           );
         }
 
@@ -389,19 +389,22 @@ export default function TabelaLotes({
         return (
           <TableHead
             key={coluna.id}
-            className={`h-7 px-1 text-xs font-medium text-center border border-gray-300 ${
+            className={`text-xs py-2 px-3 ${
               coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""
-            }`}
+            } ${isRight ? "text-right" : ""}`}
             onClick={() => coluna.sortable && handleSort(coluna.id)}
           >
-            <div className={`inline-flex items-center gap-1 ${isRight ? "justify-end w-full" : ""}`}>
+            <div
+              className={`flex items-center gap-1 ${
+                isRight ? "justify-end" : ""
+              }`}
+            >
               {coluna.label}
               {coluna.sortable && <SortIcon column={coluna.id} />}
             </div>
           </TableHead>
         );
       })}
-
     </TableRow>
   </TableHeader>
 
@@ -410,7 +413,7 @@ export default function TabelaLotes({
       <TableRow>
         <TableCell
           colSpan={colunasOrdenadas.length}
-          className="h-7 text-center text-xs text-slate-400 border border-gray-300"
+          className="text-center py-8 text-xs text-slate-400 border border-gray-300"
         >
           Nenhum lote encontrado
         </TableCell>
@@ -418,14 +421,12 @@ export default function TabelaLotes({
     ) : (
       lotesPaginados.map((lote) => (
         <TableRow key={lote.id} className="hover:bg-gray-50 border-b">
-
           {colunasOrdenadas.map((coluna) => {
-
             if (coluna.id === "selecao") {
               return (
                 <TableCell
                   key={`${lote.id}-selecao`}
-                  className="h-7 px-1 text-xs text-center border border-gray-300"
+                  className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
                 >
                   <Checkbox
                     checked={selectedItems.includes(lote.id)}
@@ -436,7 +437,6 @@ export default function TabelaLotes({
                           : prev.filter((id) => id !== lote.id)
                       );
                     }}
-                    className="h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-emerald-500"
                   />
                 </TableCell>
               );
@@ -446,7 +446,7 @@ export default function TabelaLotes({
               return (
                 <TableCell
                   key={`${lote.id}-acoes`}
-                  className="h-7 px-1 text-xs text-center border border-gray-300"
+                  className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -456,11 +456,17 @@ export default function TabelaLotes({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={() => onEdit(lote)} className="text-xs">
+                      <DropdownMenuItem
+                        onClick={() => onEdit(lote)}
+                        className="text-xs"
+                      >
                         Editar
                       </DropdownMenuItem>
 
-                      <DropdownMenuItem onClick={() => onDelete(lote.id)} className="text-xs text-red-600">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(lote.id)}
+                        className="text-xs text-red-600"
+                      >
                         Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -472,20 +478,20 @@ export default function TabelaLotes({
             return (
               <TableCell
                 key={`${lote.id}-${coluna.id}`}
-                className={`h-7 px-1 text-xs border border-gray-300 ${
-                  coluna.align === "right" ? "text-right font-mono" : "text-center"
+                className={`text-xs py-2 px-3 ${
+                  coluna.align === "right" ? "text-right font-mono" : ""
                 }`}
               >
                 {renderCell(lote, coluna.id)}
               </TableCell>
             );
           })}
-
         </TableRow>
       ))
     )}
   </TableBody>
 </Table>
+
 
           </div>
 
