@@ -231,7 +231,7 @@ export default function FormularioCategoriaManejo({
                 Previsão de Ganho de Peso Mensal (GMD)
               </span>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols- gap-1">
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-1">
               {MESES.map((mes) =>
               <div key={mes.field} className="space-y-1">
                   <Label className="text-xs">{mes.label} *</Label>
@@ -260,7 +260,7 @@ export default function FormularioCategoriaManejo({
             </Button>
             <Button
               type="submit"
-              size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-500">
+              size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-600">
               
               
               {isEditing ? "Atualizar" : "Salvar"}
