@@ -380,7 +380,7 @@ export default function TabelaCategoriasManejo({
             <div className="overflow-auto max-h-[500px]">
               <Table className="">
                 <TableHeader>
-                  <TableRow className="">
+                  <TableRow className="data-[state=selected]:bg-muted">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
@@ -398,7 +398,7 @@ export default function TabelaCategoriasManejo({
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
-                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-0 text-xs font-medium text-center border border-gray-400"
+                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-0 text-xs font-medium text-center border border-gray-300"
 
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
@@ -473,7 +473,7 @@ export default function TabelaCategoriasManejo({
               </Table>
             </div>
 
-            <div className="flex items-center justify-between p-3 border-t">
+            <div className="flex items-center justify-between p-1 border-t">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Itens por página:</span>
                 <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
@@ -483,7 +483,7 @@ export default function TabelaCategoriasManejo({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">
                   Anterior
                 </Button>
