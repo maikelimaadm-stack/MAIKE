@@ -244,13 +244,13 @@ export default function TabelaLancamentosTarefas({
   return (
     <div className="space-y-3">
       <Card>
-        <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-1">
+        <CardContent className="p-1">
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
             <div className="md:col-span-0 space-y-">
               <Label className="text-xs">Buscar</Label>
               <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar tarefa, tipo, área..." className="flex min-w-[130px] max-w-[180px]flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[130px] max-w-[180px] w-full">
               <Label className="text-xs">Status</Label>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
                 <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -263,7 +263,7 @@ export default function TabelaLancamentosTarefas({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[130px] max-w-[180px] w-full">
               <Label className="text-xs">Prioridade</Label>
               <Select value={filtroPrioridade} onValueChange={setFiltroPrioridade}>
                 <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
@@ -275,7 +275,7 @@ export default function TabelaLancamentosTarefas({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[130px] max-w-[180px] w-full">
               <Label className="text-xs">Grupo</Label>
               <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
                 <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -285,7 +285,7 @@ export default function TabelaLancamentosTarefas({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[130px] max-w-[180px] w-full">
               <Label className="text-xs">Tipo de tarefa</Label>
               <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
                 <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -295,7 +295,7 @@ export default function TabelaLancamentosTarefas({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[130px] max-w-[180px] w-full">
               <Label className="text-xs">Área</Label>
               <Select value={filtroArea} onValueChange={setFiltroArea}>
                 <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
@@ -305,7 +305,7 @@ export default function TabelaLancamentosTarefas({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[130px] max-w-[180px] w-full">
               <Label className="text-xs">Fazenda</Label>
               <Select value={filtroSetor} onValueChange={setFiltroSetor}>
                 <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -317,7 +317,7 @@ export default function TabelaLancamentosTarefas({
             </div>
           </div>
 
-          <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
+          <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
             <div className="text-xs text-slate-500">{tarefasFiltradas.length} de {tarefas.length} registros</div>
             <div className="flex gap-2 flex-wrap">
               {selectedItems.length > 0 &&
