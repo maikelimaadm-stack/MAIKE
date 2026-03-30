@@ -144,13 +144,7 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
       />
     </div>
 
-    <div className="flex items-center gap-2 pt-4">
-      <Switch
-        checked={formData.ativo}
-        onCheckedChange={(value) => handleChange("ativo", value)}
-      />
-      <Label className="text-xs">Setor Ativo</Label>
-    </div>
+
 
     <div className="space-y-1 lg:col-span-2">
       <Label className="text-xs">Endereço *</Label>
@@ -176,6 +170,7 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
       />
     </div>
 
+
     <div className="space-y-1">
       <Label className="text-xs">Estado *</Label>
       <div data-field="estado">
@@ -194,6 +189,13 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
           </SelectContent>
         </Select>
       </div>
+          <div className="flex items-center gap-2 pt-4">
+      <Switch
+        checked={formData.ativo}
+        onCheckedChange={(value) => handleChange("ativo", value)}
+      />
+      <Label className="text-xs">Setor Ativo</Label>
+    </div>
     </div>
 
   </div>
