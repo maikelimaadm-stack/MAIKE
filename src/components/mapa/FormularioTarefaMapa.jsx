@@ -277,7 +277,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Título *</Label>
           <Input
@@ -290,7 +289,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             placeholder="Ex: Cerca quebrada na lateral"
             className={getFieldClassName("titulo", "h-8 text-xs uppercase")} />
           
-        </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
         <div className="space-y-1.5">
           <Label className="text-xs">Fazenda</Label>
