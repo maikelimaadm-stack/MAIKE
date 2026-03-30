@@ -295,22 +295,22 @@ export default function TabelaCategoriasManejo({
     <>
       <div className="space-y-3">
         <Card>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
-              <div className="md:col-span-2 space-y-1">
+          <CardContent className="px-1 py-1">
+            <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
+              <div className="md:col-span-0 space-y-0">
                 <Label className="text-xs">Buscar</Label>
                 <Input
                   placeholder="Buscar categoria, sigla, raça..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8 text-xs" />
+                  onChange={(e) => setSearchTerm(e.target.value)} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                
                 
               </div>
 
-              <div className="space-y-1">
+              <div className="min-w-[130px] max-w-[180px] w-full">
                 <Label className="text-xs">Sexo</Label>
                 <Select value={filtroSexo} onValueChange={setFiltroSexo}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
@@ -319,10 +319,10 @@ export default function TabelaCategoriasManejo({
                 </Select>
               </div>
 
-              <div className="space-y-1">
+              <div className="min-w-[130px] max-w-[180px] w-full">
                 <Label className="text-xs">Espécie</Label>
                 <Select value={filtroEspecie} onValueChange={setFiltroEspecie}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                     {especies.map((item) =>
@@ -332,10 +332,10 @@ export default function TabelaCategoriasManejo({
                 </Select>
               </div>
 
-              <div className="space-y-1">
+              <div className="min-w-[130px] max-w-[180px] w-full">
                 <Label className="text-xs">Categoria Oficial</Label>
                 <Select value={filtroCategoriaOficial} onValueChange={setFiltroCategoriaOficial}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                     {categoriasOficiais.map((item) =>
@@ -346,7 +346,7 @@ export default function TabelaCategoriasManejo({
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
+            <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
               <div className="text-xs text-slate-500">
                 {categoriasFiltradas.length} de {categorias.length} registros
               </div>
