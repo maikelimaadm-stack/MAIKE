@@ -19,9 +19,9 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
   const [invalidFields, setInvalidFields] = useState([]);
 
   const handleChange = (field, value) => {
-    const nextValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ?
-    value.toUpperCase() :
-    value;
+    const nextValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string"
+      ? value.toUpperCase()
+      : value;
     setFormData((prev) => ({ ...prev, [field]: nextValue }));
     setInvalidFields((prev) => prev.filter((item) => item !== field));
   };
@@ -51,174 +51,148 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
 
   return (
     <Card className="shadow-sm border-slate-300 bg-white">
-      <CardHeader className="flex flex-col space-y-1.5 p-1 bg-slate-50 border-b border-slate-200 py-1">
+      <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
         <CardTitle className="text-sm font-semibold text-slate-900">
           {isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-1">
-        <form onSubmit={handleSubmit} className="space-y-1">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">Nome do Setor/Fazenda *</Label>
-              <Input
-                data-field="nome"
-                value={formData.nome}
-                onChange={(e) => handleChange("nome", e.target.value)}
-                placeholder="NOME DO SETOR / FAZENDA" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+      <CardContent className="p-4">
+<form onSubmit={handleSubmit} className="space-y-2">
 
-                style={{ textTransform: "uppercase" }} />
-              
-            </div>
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
 
-            <div className="space-y-1">
-              <Label className="text-xs">Sigla *</Label>
-              <Input
-                data-field="sigla"
-                value={formData.sigla}
-                onChange={(e) => handleChange("sigla", e.target.value)}
-                placeholder="SIGLA" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+    <div className="space-y-1 lg:col-span-2">
+      <Label className="text-xs">Nome do Setor/Fazenda *</Label>
+      <Input
+        value={formData.nome}
+        onChange={(e) => handleChange("nome", e.target.value)}
+        className={getFieldClassName("nome", "h-8 text-xs uppercase")}
+      />
+    </div>
 
-                style={{ textTransform: "uppercase" }}
-                maxLength={10} />
-              
-            </div>
-          </div>
+    <div className="space-y-1">
+      <Label className="text-xs">Sigla *</Label>
+      <Input
+        value={formData.sigla}
+        onChange={(e) => handleChange("sigla", e.target.value)}
+        className={getFieldClassName("sigla", "h-8 text-xs uppercase")}
+      />
+    </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo *</Label>
-              <Select value={formData.tipo} onValueChange={(value) => handleChange("tipo", value)}>
-                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_SETOR.map((tipo) =>
-                  <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="space-y-1">
+      <Label className="text-xs">Tipo *</Label>
+      <Select value={formData.tipo} onValueChange={(v) => handleChange("tipo", v)}>
+        <SelectTrigger className="h-8 text-xs">
+          <SelectValue placeholder="Selecione" />
+        </SelectTrigger>
+        <SelectContent>
+          {TIPOS_SETOR.map((tipo) => (
+            <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Responsável</Label>
-              <Input
-                value={formData.responsavel}
-                onChange={(e) => handleChange("responsavel", e.target.value)}
-                placeholder="RESPONSÁVEL" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+    <div className="space-y-1">
+      <Label className="text-xs">Responsável</Label>
+      <Input
+        value={formData.responsavel}
+        onChange={(e) => handleChange("responsavel", e.target.value)}
+        className="h-8 text-xs uppercase"
+      />
+    </div>
 
-                style={{ textTransform: "uppercase" }} />
-              
-            </div>
+    <div className="space-y-1">
+      <Label className="text-xs">Telefone</Label>
+      <Input
+        value={formData.telefone}
+        onChange={(e) => handleChange("telefone", e.target.value)}
+        className="h-8 text-xs"
+      />
+    </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Telefone</Label>
-              <Input
-                value={formData.telefone}
-                onChange={(e) => handleChange("telefone", e.target.value)}
-                placeholder="(00) 00000-0000" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
-              
-              
-            </div>
-          </div>
+    <div className="space-y-1">
+      <Label className="text-xs">Área Total</Label>
+      <Input
+        type="number"
+        value={formData.area_total}
+        onChange={(e) => handleChange("area_total", e.target.value)}
+        className="h-8 text-xs"
+      />
+    </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Área Total (ha)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.area_total}
-                onChange={(e) => handleChange("area_total", e.target.value)}
-                placeholder="0,00" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
-              
-              
-            </div>
+    <div className="space-y-1">
+      <Label className="text-xs">Capacidade</Label>
+      <Input
+        type="number"
+        value={formData.capacidade_animais}
+        onChange={(e) => handleChange("capacidade_animais", e.target.value)}
+        className="h-8 text-xs"
+      />
+    </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Capacidade (animais)</Label>
-              <Input
-                type="number"
-                value={formData.capacidade_animais}
-                onChange={(e) => handleChange("capacidade_animais", e.target.value)}
-                placeholder="0" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
-              
-              
-            </div>
+    <div className="flex items-center gap-2 pt-5">
+      <Switch
+        checked={formData.ativo}
+        onCheckedChange={(v) => handleChange("ativo", v)}
+      />
+      <Label className="text-xs">Ativo</Label>
+    </div>
 
-            <div className="flex items-center gap-3 pt-6">
-              <Switch checked={formData.ativo} onCheckedChange={(value) => handleChange("ativo", value)} />
-              <Label className="text-xs">Setor Ativo</Label>
-            </div>
-          </div>
+    <div className="space-y-1 lg:col-span-2">
+      <Label className="text-xs">Endereço *</Label>
+      <Input
+        value={formData.endereco}
+        onChange={(e) => handleChange("endereco", e.target.value)}
+        className={getFieldClassName("endereco", "h-8 text-xs uppercase")}
+      />
+    </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">Endereço *</Label>
-              <Input
-                data-field="endereco"
-                value={formData.endereco}
-                onChange={(e) => handleChange("endereco", e.target.value)}
-                placeholder="ENDEREÇO COMPLETO" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+    <div className="space-y-1">
+      <Label className="text-xs">Cidade *</Label>
+      <Input
+        value={formData.cidade}
+        onChange={(e) => handleChange("cidade", e.target.value)}
+        className={getFieldClassName("cidade", "h-8 text-xs uppercase")}
+      />
+    </div>
 
-                style={{ textTransform: "uppercase" }} />
-              
-            </div>
+    <div className="space-y-1">
+      <Label className="text-xs">Estado *</Label>
+      <Select value={formData.estado || SELECT_EMPTY} onValueChange={(v) => handleChange("estado", v)}>
+        <SelectTrigger className="h-8 text-xs">
+          <SelectValue placeholder="Selecione" />
+        </SelectTrigger>
+        <SelectContent>
+          {ESTADOS_BR.map((uf) => (
+            <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Cidade *</Label>
-              <Input
-                data-field="cidade"
-                value={formData.cidade}
-                onChange={(e) => handleChange("cidade", e.target.value)}
-                placeholder="CIDADE" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+  </div>
 
-                style={{ textTransform: "uppercase" }} />
-              
-            </div>
-          </div>
+  <div className="space-y-1">
+    <Label className="text-xs">Observações</Label>
+    <Textarea
+      value={formData.observacoes}
+      onChange={(e) => handleChange("observacoes", e.target.value)}
+      className="text-xs uppercase"
+    />
+  </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-">
-              <Label className="text-xs">Estado *</Label>
-              <div data-field="estado">
-                <Select value={formData.estado || SELECT_EMPTY} onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
-                  <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
-                    <SelectValue placeholder="SELECIONE" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {ESTADOS_BR.map((uf) =>
-                    <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+  <div className="flex justify-end gap-2 border-t pt-2">
+    <Button type="button" variant="outline" onClick={onCancel}>
+      Cancelar
+    </Button>
+    <Button type="submit">
+      Salvar
+    </Button>
+  </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Observações</Label>
-            <Textarea
-              value={formData.observacoes}
-              onChange={(e) => handleChange("observacoes", e.target.value)}
-              placeholder="OBSERVAÇÕES GERAIS..."
-              className="text-xs uppercase"
-              style={{ textTransform: "uppercase" }}
-              rows={2} />
-            
-          </div>
-
-          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-7 text-xs">
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-600">
-              {isEditing ? "Atualizar" : "Salvar"}
-            </Button>
-          </div>
-        </form>
+</form>
       </CardContent>
-    </Card>);
-
+    </Card>
+  );
 }
