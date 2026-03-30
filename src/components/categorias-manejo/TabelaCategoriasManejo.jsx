@@ -240,8 +240,8 @@ export default function TabelaCategoriasManejo({
       return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
-    <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
-    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    <ArrowUp className="w-3 h-3 text-emerald-600" /> :
+    <ArrowDown className="lucide lucide-arrow-up-down lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
   };
 
   const toggleSelectAll = () => {
@@ -419,7 +419,7 @@ export default function TabelaCategoriasManejo({
                     </TableRow> :
 
                   categoriasPaginadas.map((item) =>
-                  <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000">
+                  <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100 hover:text-gray-1000 hover:font-semibold">
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
