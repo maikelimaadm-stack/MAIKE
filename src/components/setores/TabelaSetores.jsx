@@ -173,7 +173,7 @@ export default function TabelaSetores({
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
-      return <ArrowUpDown className="lucide lucide-arrow-up w-3 h-3 text-emerald-600" />;
+      return <ArrowUpDown className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
     <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
