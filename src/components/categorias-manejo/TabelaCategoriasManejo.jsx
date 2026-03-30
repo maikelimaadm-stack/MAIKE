@@ -240,7 +240,7 @@ export default function TabelaCategoriasManejo({
       return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     }
     return sortConfig.direction === "asc" ?
-    <ArrowUp className="w-3 h-3 text-emerald-600" /> :
+    <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
     <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
