@@ -356,139 +356,139 @@ export default function TabelaLotes({
           <div className="overflow-auto max-h-[500px]">
 <Table>
   <TableHeader>
-    <TableRow className="bg-white border-b">
+    <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
       {colunasOrdenadas.map((coluna) => {
-        if (coluna.id === "selecao") {
-          return (
-            <TableHead
-              key="selecao"
-              className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
-            >
+                    if (coluna.id === "selecao") {
+                      return (
+                        <TableHead
+                          key="selecao" className="h-10 p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
+
+                          
               <Checkbox
-                checked={
-                  selectedItems.length === lotesFiltrados.length &&
-                  lotesFiltrados.length > 0
-                }
-                onCheckedChange={toggleSelectAll}
-              />
-            </TableHead>
-          );
-        }
+                            checked={
+                            selectedItems.length === lotesFiltrados.length &&
+                            lotesFiltrados.length > 0
+                            }
+                            onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\\n focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\\n disabled:cursor-not-allowed disabled:opacity-70\\n data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
+                          
+            </TableHead>);
 
-        if (coluna.id === "acoes") {
-          return (
-            <TableHead
-              key="acoes"
-              className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
-            ></TableHead>
-          );
-        }
+                    }
 
-        const isRight = coluna.align === "right";
+                    if (coluna.id === "acoes") {
+                      return (
+                        <TableHead
+                          key="acoes"
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        </TableHead>);
 
-        return (
-          <TableHead
-            key={coluna.id}
-            className={`text-xs py-2 px-3 ${
-              coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""
-            } ${isRight ? "text-right" : ""}`}
-            onClick={() => coluna.sortable && handleSort(coluna.id)}
-          >
-            <div
-              className={`flex items-center gap-1 ${
-                isRight ? "justify-end" : ""
-              }`}
-            >
+                    }
+
+                    const isRight = coluna.align === "right";
+
+                    return (
+                      <TableHead
+                        key={coluna.id}
+                        className={`text-xs py-2 px-3 ${
+                        coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${
+                        isRight ? "text-right" : ""}`}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}>
+                        
+            <div className="inline-flex items-center gap-1 h-full">
+
+
+                          
+                          
               {coluna.label}
               {coluna.sortable && <SortIcon column={coluna.id} />}
             </div>
-          </TableHead>
-        );
-      })}
+          </TableHead>);
+
+                  })}
     </TableRow>
   </TableHeader>
 
   <TableBody>
-    {lotesPaginados.length === 0 ? (
-      <TableRow>
+    {lotesPaginados.length === 0 ?
+                <TableRow>
         <TableCell
-          colSpan={colunasOrdenadas.length}
-          className="text-center py-8 text-xs text-slate-400 border border-gray-300"
-        >
+                    colSpan={colunasOrdenadas.length}
+                    className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                    
           Nenhum lote encontrado
         </TableCell>
-      </TableRow>
-    ) : (
-      lotesPaginados.map((lote) => (
-        <TableRow key={lote.id} className="hover:bg-gray-50 border-b">
-          {colunasOrdenadas.map((coluna) => {
-            if (coluna.id === "selecao") {
-              return (
-                <TableCell
-                  key={`${lote.id}-selecao`}
-                  className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
-                >
-                  <Checkbox
-                    checked={selectedItems.includes(lote.id)}
-                    onCheckedChange={(checked) => {
-                      setSelectedItems((prev) =>
-                        checked
-                          ? [...prev, lote.id]
-                          : prev.filter((id) => id !== lote.id)
-                      );
-                    }}
-                  />
-                </TableCell>
-              );
-            }
+      </TableRow> :
 
-            if (coluna.id === "acoes") {
-              return (
-                <TableCell
-                  key={`${lote.id}-acoes`}
-                  className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
-                >
+                lotesPaginados.map((lote) =>
+                <TableRow key={lote.id} className="hover:bg-gray-50 border-b">
+          {colunasOrdenadas.map((coluna) => {
+                    if (coluna.id === "selecao") {
+                      return (
+                        <TableCell
+                          key={`${lote.id}-selecao`}
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          
+                  <Checkbox
+                            checked={selectedItems.includes(lote.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedItems((prev) =>
+                              checked ?
+                              [...prev, lote.id] :
+                              prev.filter((id) => id !== lote.id)
+                              );
+                            }} className="peer shrink-0 shadow disabled:opacity-50 peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\\n focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\\n disabled:cursor-not-allowed disabled:opacity-70\\n data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
+                          
+                </TableCell>);
+
+                    }
+
+                    if (coluna.id === "acoes") {
+                      return (
+                        <TableCell
+                          key={`${lote.id}-acoes`}
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <Button variant="ghost" size="icon" className="h-9 font-medium text-sm font-medium\\\\\\\\nfocus-visible:outline-none rounded-md transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-accent inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:ring-1 focus-visible:ring-ring\\\\\\\\ndisabled:pointer-events-none disabled:opacity-50\\\\\\\\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\\\\\\\\nhover:bg-accent hover:text-accent-foreground w-4">
                         <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                       </Button>
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem
-                        onClick={() => onEdit(lote)}
-                        className="text-xs"
-                      >
+                                onClick={() => onEdit(lote)}
+                                className="text-xs">
+                                
                         Editar
                       </DropdownMenuItem>
 
                       <DropdownMenuItem
-                        onClick={() => onDelete(lote.id)}
-                        className="text-xs text-red-600"
-                      >
+                                onClick={() => onDelete(lote.id)}
+                                className="text-xs text-red-600">
+                                
                         Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TableCell>
-              );
-            }
+                </TableCell>);
 
-            return (
-              <TableCell
-                key={`${lote.id}-${coluna.id}`}
-                className={`text-xs py-2 px-3 ${
-                  coluna.align === "right" ? "text-right font-mono" : ""
-                }`}
-              >
+                    }
+
+                    return (
+                      <TableCell
+                        key={`${lote.id}-${coluna.id}`}
+                        className={`text-xs py-2 px-3 ${
+                        coluna.align === "right" ? "text-right font-mono" : ""}`
+                        }>
+                        
                 {renderCell(lote, coluna.id)}
-              </TableCell>
-            );
-          })}
+              </TableCell>);
+
+                  })}
         </TableRow>
-      ))
-    )}
+                )
+                }
   </TableBody>
 </Table>
 
