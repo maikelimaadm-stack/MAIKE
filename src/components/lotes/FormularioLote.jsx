@@ -435,14 +435,14 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
             </div>
 
             {formData.motivo_entrada === "Compra" &&
-            <div className="border rounded-lg p-3 space-y-1 bg-slate-50/50">
+            <div className="border rounded-lg p-1 space-y-1 bg-slate-50/50">
                 <span className="font-semibold text-sm text-slate-700">Dados da Compra</span>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                   <div className="space-y-1">
                     <Label className="text-xs">Fornecedor *</Label>
                     <div data-field="fornecedor_id">
                       <Select value={formData.fornecedor_id || SELECT_EMPTY} onValueChange={(value) => handleChange("fornecedor_id", value === SELECT_EMPTY ? "" : value)}>
-                        <SelectTrigger className={getFieldClassName("fornecedor_id", "h-8 text-xs")}>
+                        <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                           <SelectValue placeholder="SELECIONE" />
                         </SelectTrigger>
                         <SelectContent>
