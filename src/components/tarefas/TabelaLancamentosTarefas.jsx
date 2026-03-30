@@ -22,17 +22,17 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 const PRIORIDADE_CORES = {
-  Baixa: "bg-blue-200 text-black hover:bg-blue-300",
-  Média: "bg-yellow-200 text-black hover:bg-yellow-300",
-  Alta: "bg-red-200 text-black hover:bg-red-300",
-  Concluida: "bg-slate-200 text-black hover:bg-slate-300"
+  Baixa: "bg-blue-300 text-black hover:bg-blue-300",
+  Média: "bg-yellow-300 text-black hover:bg-yellow-300",
+  Alta: "bg-red-300 text-black hover:bg-red-300",
+  Concluida: "bg-slate-300 text-black hover:bg-slate-300"
 };
 
 const STATUS_CORES = {
-  Pendente: "bg-yellow-200 text-black hover:bg-yellow-300",
-  "Em Andamento": "bg-blue-200 text-black hover:bg-blue-300",
-  Concluída: "bg-emerald-200 text-black hover:bg-emerald-300",
-  Cancelada: "bg-slate-200 text-black hover:bg-slate-300"
+  Pendente: "bg-yellow-300 text-black hover:bg-yellow-300",
+  "Em Andamento": "bg-blue-300 text-black hover:bg-blue-300",
+  Concluída: "bg-emerald-300 text-black hover:bg-emerald-300",
+  Cancelada: "bg-slate-300 text-black hover:bg-slate-300"
 };
 
 const COLUNAS_DISPONIVEIS = [
