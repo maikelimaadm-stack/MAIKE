@@ -976,7 +976,7 @@ export default function Layout({ children, currentPageName }) {
       </Dialog>
 
 
-      <main className="max-w-[1600px] mx-auto pb-1 md:pb-0">
+      <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " pb-16 md:pb-0"}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

@@ -398,7 +398,7 @@ export default function TabelaCategoriasManejo({
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
-                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[1px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-400"
+                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-0 text-xs font-medium text-center border border-gray-400"
 
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
