@@ -24,7 +24,7 @@ import { createPageUrl } from "@/utils";
 const PRIORIDADE_CORES = {
   Baixa: "bg-blue-300 text-black hover:bg-blue-300",
   Média: "bg-yellow-300 text-black hover:bg-yellow-300",
-  Alta: "bg-red-300 text-black hover:bg-red-300",
+  Alta: "bg-red-400 text-black hover:bg-red-400",
   Concluida: "bg-slate-300 text-black hover:bg-slate-300"
 };
 
