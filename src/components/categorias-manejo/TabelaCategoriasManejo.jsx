@@ -387,7 +387,7 @@ export default function TabelaCategoriasManejo({
                           <TableHead key="selecao" className="p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
                             <Checkbox
                               checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
-                              onCheckedChange={toggleSelectAll} className="peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\n       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\n       disabled:cursor-not-allowed disabled:opacity-70\n       data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
+                              onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" />
                             
                           </TableHead>);
 
@@ -428,7 +428,7 @@ export default function TabelaCategoriasManejo({
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
                                 setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                              }} className="rounded-full peer shrink-0 data-[state=checked]:text-primary-foreground h-4 w-4 border-2 border-gray-400 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-70 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-center" />
+                              }} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" />
                             
                               </TableCell>);
 
