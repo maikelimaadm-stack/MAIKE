@@ -59,43 +59,43 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
       <CardContent className="p-">
 <form onSubmit={handleSubmit} className="space-y-1">
 
-  <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
 
     <div className="space-y-1 lg:col-span-2">
       <Label className="text-xs">Nome do Setor/Fazenda *</Label>
       <Input
-                data-field="nome"
-                value={formData.nome}
-                onChange={(e) => handleChange("nome", e.target.value)}
-                placeholder="NOME DO SETOR / FAZENDA" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
-
-                style={{ textTransform: "uppercase" }} />
-              
+        data-field="nome"
+        value={formData.nome}
+        onChange={(e) => handleChange("nome", e.target.value)}
+        placeholder="NOME DO SETOR / FAZENDA"
+        className={getFieldClassName("nome", "h-7 px-1 py-1 text-xs uppercase")}
+        style={{ textTransform: "uppercase" }}
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Sigla *</Label>
       <Input
-                data-field="sigla"
-                value={formData.sigla}
-                onChange={(e) => handleChange("sigla", e.target.value)}
-                placeholder="SIGLA"
-                className={getFieldClassName("sigla", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
-                maxLength={10} />
-              
+        data-field="sigla"
+        value={formData.sigla}
+        onChange={(e) => handleChange("sigla", e.target.value)}
+        placeholder="SIGLA"
+        className={getFieldClassName("sigla", "h-7 px-1 py-1 text-xs uppercase")}
+        style={{ textTransform: "uppercase" }}
+        maxLength={10}
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Tipo *</Label>
       <Select value={formData.tipo} onValueChange={(value) => handleChange("tipo", value)}>
-        <SelectTrigger className={getFieldClassName("tipo", "h-8 text-xs")}>
+        <SelectTrigger className={getFieldClassName("tipo", "h-7 text-xs")}>
           <SelectValue placeholder="Selecione" />
         </SelectTrigger>
         <SelectContent>
-          {TIPOS_SETOR.map((tipo) =>
-                  <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
-                  )}
+          {TIPOS_SETOR.map((tipo) => (
+            <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
@@ -103,94 +103,94 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
     <div className="space-y-1">
       <Label className="text-xs">Responsável</Label>
       <Input
-                value={formData.responsavel}
-                onChange={(e) => handleChange("responsavel", e.target.value)}
-                placeholder="RESPONSÁVEL"
-                className="h-8 text-xs uppercase"
-                style={{ textTransform: "uppercase" }} />
-              
+        value={formData.responsavel}
+        onChange={(e) => handleChange("responsavel", e.target.value)}
+        placeholder="RESPONSÁVEL"
+        className="h-7 px-1 py-1 text-xs uppercase"
+        style={{ textTransform: "uppercase" }}
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Telefone</Label>
       <Input
-                value={formData.telefone}
-                onChange={(e) => handleChange("telefone", e.target.value)}
-                placeholder="(00) 00000-0000"
-                className="h-8 text-xs" />
-              
+        value={formData.telefone}
+        onChange={(e) => handleChange("telefone", e.target.value)}
+        placeholder="(00) 00000-0000"
+        className="h-7 px-1 py-1 text-xs"
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Área Total (ha)</Label>
       <Input
-                type="number"
-                step="0.01"
-                value={formData.area_total}
-                onChange={(e) => handleChange("area_total", e.target.value)}
-                placeholder="0,00"
-                className="h-8 text-xs" />
-              
+        type="number"
+        step="0.01"
+        value={formData.area_total}
+        onChange={(e) => handleChange("area_total", e.target.value)}
+        placeholder="0,00"
+        className="h-7 px-1 py-1 text-xs"
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Capacidade (animais)</Label>
       <Input
-                type="number"
-                value={formData.capacidade_animais}
-                onChange={(e) => handleChange("capacidade_animais", e.target.value)}
-                placeholder="0"
-                className="h-8 text-xs" />
-              
+        type="number"
+        value={formData.capacidade_animais}
+        onChange={(e) => handleChange("capacidade_animais", e.target.value)}
+        placeholder="0"
+        className="h-7 px-1 py-1 text-xs"
+      />
     </div>
 
-    <div className="flex items-center gap-3 pt-6">
+    <div className="flex items-center gap-2 pt-4">
       <Switch
-                checked={formData.ativo}
-                onCheckedChange={(value) => handleChange("ativo", value)} />
-              
+        checked={formData.ativo}
+        onCheckedChange={(value) => handleChange("ativo", value)}
+      />
       <Label className="text-xs">Setor Ativo</Label>
     </div>
 
     <div className="space-y-1 lg:col-span-2">
       <Label className="text-xs">Endereço *</Label>
       <Input
-                data-field="endereco"
-                value={formData.endereco}
-                onChange={(e) => handleChange("endereco", e.target.value)}
-                placeholder="ENDEREÇO COMPLETO"
-                className={getFieldClassName("endereco", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }} />
-              
+        data-field="endereco"
+        value={formData.endereco}
+        onChange={(e) => handleChange("endereco", e.target.value)}
+        placeholder="ENDEREÇO COMPLETO"
+        className={getFieldClassName("endereco", "h-7 px-1 py-1 text-xs uppercase")}
+        style={{ textTransform: "uppercase" }}
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Cidade *</Label>
       <Input
-                data-field="cidade"
-                value={formData.cidade}
-                onChange={(e) => handleChange("cidade", e.target.value)}
-                placeholder="CIDADE"
-                className={getFieldClassName("cidade", "h-8 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }} />
-              
+        data-field="cidade"
+        value={formData.cidade}
+        onChange={(e) => handleChange("cidade", e.target.value)}
+        placeholder="CIDADE"
+        className={getFieldClassName("cidade", "h-7 px-1 py-1 text-xs uppercase")}
+        style={{ textTransform: "uppercase" }}
+      />
     </div>
 
     <div className="space-y-1">
       <Label className="text-xs">Estado *</Label>
       <div data-field="estado">
         <Select
-                  value={formData.estado || SELECT_EMPTY}
-                  onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
-                  
-          <SelectTrigger className={getFieldClassName("estado", "h-8 text-xs")}>
+          value={formData.estado || SELECT_EMPTY}
+          onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}
+        >
+          <SelectTrigger className={getFieldClassName("estado", "h-7 text-xs")}>
             <SelectValue placeholder="SELECIONE" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-            {ESTADOS_BR.map((uf) =>
-                    <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
-                    )}
+            {ESTADOS_BR.map((uf) => (
+              <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -201,20 +201,29 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
   <div className="space-y-1 pt-1">
     <Label className="text-xs">Observações</Label>
     <Textarea
-              value={formData.observacoes}
-              onChange={(e) => handleChange("observacoes", e.target.value)}
-              placeholder="OBSERVAÇÕES GERAIS..."
-              className="text-xs uppercase"
-              style={{ textTransform: "uppercase" }}
-              rows={2} />
-            
+      value={formData.observacoes}
+      onChange={(e) => handleChange("observacoes", e.target.value)}
+      placeholder="OBSERVAÇÕES GERAIS..."
+      className="text-xs uppercase p-1"
+      style={{ textTransform: "uppercase" }}
+      rows={2}
+    />
   </div>
 
   <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-    <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onCancel}
+      className="h-7 px-2 text-xs"
+    >
       Cancelar
     </Button>
-    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+
+    <Button
+      type="submit"
+      className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 shadow hover:bg-emerald-600"
+    >
       {isEditing ? "Atualizar" : "Salvar"}
     </Button>
   </div>
