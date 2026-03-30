@@ -380,7 +380,7 @@ export default function TabelaCategoriasManejo({
             <div className="overflow-auto max-h-[500px]">
               <Table className="">
                 <TableHeader>
-                  <TableRow className="data-[state=selected]:bg-muted">
+                  <TableRow className="">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
