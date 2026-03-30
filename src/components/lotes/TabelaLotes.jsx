@@ -361,7 +361,7 @@ export default function TabelaLotes({
                     if (coluna.id === "selecao") {
                       return (
                         <TableHead
-                          key="selecao" className="h-10 p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
+                          key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
 
                           
               <Checkbox
@@ -378,8 +378,8 @@ export default function TabelaLotes({
                     if (coluna.id === "acoes") {
                       return (
                         <TableHead
-                          key="acoes"
-                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          key="acoes" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
+                          
                         </TableHead>);
 
                     }
@@ -388,10 +388,10 @@ export default function TabelaLotes({
 
                     return (
                       <TableHead
-                        key={coluna.id}
-                        className={`text-xs py-2 px-3 ${
-                        coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${
-                        isRight ? "text-right" : ""}`}
+                        key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300"
+
+
+
                         onClick={() => coluna.sortable && handleSort(coluna.id)}>
                         
             <div className="inline-flex items-center gap-1 h-full">
@@ -425,8 +425,8 @@ export default function TabelaLotes({
                     if (coluna.id === "selecao") {
                       return (
                         <TableCell
-                          key={`${lote.id}-selecao`}
-                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          key={`${lote.id}-selecao`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
+                          
                           
                   <Checkbox
                             checked={selectedItems.includes(lote.id)}
@@ -445,8 +445,8 @@ export default function TabelaLotes({
                     if (coluna.id === "acoes") {
                       return (
                         <TableCell
-                          key={`${lote.id}-acoes`}
-                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                          key={`${lote.id}-acoes`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
+                          
                           
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -477,10 +477,10 @@ export default function TabelaLotes({
 
                     return (
                       <TableCell
-                        key={`${lote.id}-${coluna.id}`}
-                        className={`text-xs py-2 px-3 ${
-                        coluna.align === "right" ? "text-right font-mono" : ""}`
-                        }>
+                        key={`${lote.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">
+
+
+                        
                         
                 {renderCell(lote, coluna.id)}
               </TableCell>);
