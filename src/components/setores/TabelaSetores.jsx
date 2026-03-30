@@ -353,7 +353,7 @@ export default function TabelaSetores({
                     </TableRow> :
 
                   setoresPaginados.map((item) =>
-                  <TableRow key={item.id} className="hover:bg-gray-50 border-b">
+                  <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000">
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
