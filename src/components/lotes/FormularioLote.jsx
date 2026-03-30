@@ -232,12 +232,12 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-slate-50 border-b py-3 px-4">
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
           <CardTitle className="text-sm font-semibold text-slate-700">
             {isEditing ? "Editar Lote" : "Cadastrar Novo Lote"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-1">
           <form onSubmit={handleSubmit} className="space-y-1">
             <div className="space-y-1">
               <Label className="text-xs">Motivo da Entrada</Label>
@@ -263,8 +263,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   data-field="nome"
                   value={formData.nome || ""}
                   onChange={(e) => handleChange("nome", e.target.value)}
-                  placeholder="NOME DO LOTE"
-                  className={getFieldClassName("nome", "h-8 text-xs uppercase")}
+                  placeholder="NOME DO LOTE" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
                   style={{ textTransform: "uppercase" }} />
                 
               </div>
@@ -276,8 +276,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   type="number"
                   value={formData.quantidade_cabecas || ""}
                   onChange={(e) => handleChange("quantidade_cabecas", e.target.value)}
-                  placeholder="0"
-                  className={getFieldClassName("quantidade_cabecas", "h-8 text-xs")} />
+                  placeholder="0" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                
                 
               </div>
 
@@ -287,8 +287,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   data-field="data_entrada"
                   type="date"
                   value={formData.data_entrada || ""}
-                  onChange={(e) => handleChange("data_entrada", e.target.value)}
-                  className={getFieldClassName("data_entrada", "h-8 text-xs")} />
+                  onChange={(e) => handleChange("data_entrada", e.target.value)} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                
                 
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                 <Label className="text-xs">Categoria de Manejo *</Label>
                 <div data-field="categoria_manejo_id">
                   <Select value={formData.categoria_manejo_id || SELECT_EMPTY} onValueChange={(value) => handleChange("categoria_manejo_id", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className={getFieldClassName("categoria_manejo_id", "h-8 text-xs")}>
+                    <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                       <SelectValue placeholder="SELECIONE" />
                     </SelectTrigger>
                     <SelectContent>
@@ -313,16 +313,16 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Categoria *</Label>
-                <Input data-field="categoria" value={formData.categoria || ""} readOnly className={getFieldClassName("categoria", "h-8 text-xs bg-slate-50 uppercase")} style={{ textTransform: "uppercase" }} />
-              </div>
+              
+
+
+              
 
               <div className="space-y-1">
                 <Label className="text-xs">Sexo *</Label>
                 <div data-field="sexo">
                   <Select value={formData.sexo || SELECT_EMPTY} onValueChange={(value) => handleChange("sexo", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className={getFieldClassName("sexo", "h-8 text-xs")}>
+                    <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                       <SelectValue placeholder="SELECIONE" />
                     </SelectTrigger>
                     <SelectContent>
@@ -343,8 +343,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   data-field="raca_predominante"
                   value={formData.raca_predominante || ""}
                   onChange={(e) => handleChange("raca_predominante", e.target.value)}
-                  placeholder="RAÇA"
-                  className={getFieldClassName("raca_predominante", "h-8 text-xs uppercase")}
+                  placeholder="RAÇA" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+
                   style={{ textTransform: "uppercase" }} />
                 
               </div>
@@ -357,8 +357,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   step="0.1"
                   value={formData.peso_medio_kg || ""}
                   onChange={(e) => handleChange("peso_medio_kg", e.target.value)}
-                  placeholder="0.0"
-                  className={getFieldClassName("peso_medio_kg", "h-8 text-xs")} />
+                  placeholder="0.0" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                
                 
               </div>
 
@@ -369,8 +369,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                   type="number"
                   value={formData.idade_media_meses || ""}
                   onChange={(e) => handleChange("idade_media_meses", e.target.value)}
-                  placeholder="0"
-                  className={getFieldClassName("idade_media_meses", "h-8 text-xs")} />
+                  placeholder="0" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                
                 
               </div>
             </div>
@@ -379,8 +379,8 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
               <div className="space-y-1">
                 <Label className="text-xs">Setor *</Label>
                 <div data-field="setor_id">
-                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => { const novoSetor = value === SELECT_EMPTY ? "" : value; setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" })); setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false })); }}>
-                    <SelectTrigger className={getFieldClassName("setor_id", "h-8 text-xs")}>
+                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
+                    <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                       <SelectValue placeholder="SELECIONE" />
                     </SelectTrigger>
                     <SelectContent>
@@ -399,7 +399,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                 <Label className="text-xs">Área de Entrada *</Label>
                 <div data-field="area_entrada_id">
                   <Select value={formData.area_entrada_id || SELECT_EMPTY} onValueChange={(value) => handleChange("area_entrada_id", value === SELECT_EMPTY ? "" : value)} disabled={!formData.setor_id}>
-                    <SelectTrigger className={getFieldClassName("area_entrada_id", "h-8 text-xs")}>
+                    <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                       <SelectValue placeholder={formData.setor_id ? "SELECIONE" : "SELECIONE O SETOR PRIMEIRO"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -418,7 +418,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                 <Label className="text-xs">Sistema Produtivo *</Label>
                 <div data-field="sistema_produtivo">
                   <Select value={formData.sistema_produtivo || SELECT_EMPTY} onValueChange={(value) => handleChange("sistema_produtivo", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className={getFieldClassName("sistema_produtivo", "h-8 text-xs")}>
+                    <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
                       <SelectValue placeholder="SELECIONE" />
                     </SelectTrigger>
                     <SelectContent>
@@ -553,10 +553,10 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
             </div>
 
             <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-7 text-xs">
                 Cancelar
               </Button>
-              <Button type="submit" size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
+              <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-500">
                 {isEditing ? "Atualizar" : "Salvar"}
               </Button>
             </div>
