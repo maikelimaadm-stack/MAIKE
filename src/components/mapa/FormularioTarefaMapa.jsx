@@ -451,7 +451,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
         </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Descrição da tarefa</Label>
           <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
@@ -485,7 +484,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             </Button>
           </div>
         </div>
-      </div>
       </div>
       <div className="flex justify-end gap-2 pt-2 border-t">
         <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
