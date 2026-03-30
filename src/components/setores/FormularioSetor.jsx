@@ -59,7 +59,7 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
       <CardContent className="p-1 pt-1">
 <form onSubmit={handleSubmit} className="space-y-1">
 
-  <div className="grid grid-cols-1 lg:grid-cols-6 gap-1">
+  <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
 
     <div className="space-y-1 lg:col-span-">
       <Label className="text-xs">Nome do Setor/Fazenda *</Label>
