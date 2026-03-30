@@ -224,8 +224,8 @@ export default function TabelaLancamentosTarefas({
     const prioridadeClassName = tarefa.status === "Concluída" ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
     if (colunaId === "titulo") return tarefa.titulo || "-";
     if (colunaId === "descricao") return tarefa.descricao || "-";
-    if (colunaId === "status") return <Badge className={`text-[10px] ${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente}`}>{tarefa.status || "-"}</Badge>;
     if (colunaId === "prioridade") return <div className="flex items-center gap-2"><Badge className={`text-[10px] ${prioridadeClassName}`}>{prioridade || "-"}</Badge></div>;
+    if (colunaId === "status") return <Badge className={`text-[10px] ${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente}`}>{tarefa.status || "-"}</Badge>;
     if (colunaId === "grupo_atividade_nome") return tarefa.grupo_atividade_nome || "-";
     if (colunaId === "tipo") return tarefa.tipo || "-";
     if (colunaId === "tipo_tarefa_nome") return tarefa.tipo_tarefa_nome || tarefa.tipo || "-";
