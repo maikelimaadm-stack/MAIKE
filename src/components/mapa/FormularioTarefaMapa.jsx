@@ -449,6 +449,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
         </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Descrição da tarefa</Label>
           <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
@@ -458,7 +459,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <Label className="text-xs">Observações</Label>
           <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="min-h-[100px] text-xs uppercase" />
         </div>
-
+        </div>
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Local do problema no mapa</Label>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
