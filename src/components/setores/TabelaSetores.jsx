@@ -177,7 +177,7 @@ export default function TabelaSetores({
     }
     return sortConfig.direction === "asc" ?
     <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
-    <ArrowDown className="lucide lucide-arrow-up-down lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -326,7 +326,7 @@ export default function TabelaSetores({
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
-                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-0 text-xs font-medium text-center border border-gray-300"
+                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300"
 
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
@@ -353,7 +353,7 @@ export default function TabelaSetores({
                     </TableRow> :
 
                   setoresPaginados.map((item) =>
-                  <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000">
+                  <TableRow key={item.id} className="hover:bg-gray-50 border-b">
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
