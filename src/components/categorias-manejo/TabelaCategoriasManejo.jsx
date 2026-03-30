@@ -297,12 +297,12 @@ export default function TabelaCategoriasManejo({
         <Card>
           <CardContent className="px-1 py-1">
             <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
-              <div className="md:col-span-0 space-y-0">
+              <div className="md:col-span-0 space-y-">
                 <Label className="text-xs">Buscar</Label>
                 <Input
                   placeholder="Buscar categoria, sigla, raça..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                  onChange={(e) => setSearchTerm(e.target.value)} className="min-w-[130px] max-w-[180px]flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
                 
                 
               </div>
