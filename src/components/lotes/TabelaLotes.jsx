@@ -251,22 +251,22 @@ export default function TabelaLotes({
   return (
     <div className="space-y-3">
       <Card>
-        <CardContent className="p-6 px-1 py-1">
-          <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
-            <div className="md:col-span-0 space-y-">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
+            <div className="md:col-span-2 space-y-1">
               <Label className="text-xs">Buscar</Label>
               <Input
                 placeholder="Buscar lote, código, categoria..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)} className="flex min-w-[130px] max-w-[180px]flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
-              
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8 text-xs" />
               
             </div>
 
-            <div className="">
+            <div className="space-y-1">
               <Label className="text-xs">Status</Label>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                   <SelectItem value="Ativo" className="text-xs">Ativo</SelectItem>
@@ -278,10 +278,10 @@ export default function TabelaLotes({
               </Select>
             </div>
 
-            <div className="">
+            <div className="space-y-1">
               <Label className="text-xs">Categoria</Label>
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                   {categorias.map((categoria) =>
@@ -291,10 +291,10 @@ export default function TabelaLotes({
               </Select>
             </div>
 
-            <div className="">
+            <div className="space-y-1">
               <Label className="text-xs">Motivo</Label>
               <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                   {motivos.map((motivo) =>
@@ -304,10 +304,10 @@ export default function TabelaLotes({
               </Select>
             </div>
 
-            <div className="">
+            <div className="space-y-1">
               <Label className="text-xs">Área</Label>
               <Select value={filtroArea} onValueChange={setFiltroArea}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                   {areas.map((area) =>
@@ -318,7 +318,7 @@ export default function TabelaLotes({
             </div>
           </div>
 
-          <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
+          <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
             <div className="text-xs text-slate-500">
               {lotesFiltrados.length} de {lotes.length} registros
             </div>
@@ -356,20 +356,20 @@ export default function TabelaLotes({
           <div className="overflow-auto max-h-[500px]">
 <Table>
   <TableHeader>
-    <TableRow className="border-b transition-colors hover:bg-muted/0 data-[state=selected]:bg-muted">
+    <TableRow className="bg-white border-b">
       {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
                         <TableHead
-                          key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-
+                          key="selecao"
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                           
               <Checkbox
                             checked={
                             selectedItems.length === lotesFiltrados.length &&
                             lotesFiltrados.length > 0
                             }
-                            onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\\n focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\\n disabled:cursor-not-allowed disabled:opacity-70\\n data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
+                            onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" />
                           
             </TableHead>);
 
@@ -378,8 +378,8 @@ export default function TabelaLotes({
                     if (coluna.id === "acoes") {
                       return (
                         <TableHead
-                          key="acoes" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-                          
+                          key="acoes"
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         </TableHead>);
 
                     }
@@ -388,16 +388,16 @@ export default function TabelaLotes({
 
                     return (
                       <TableHead
-                        key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300"
-
-
-
+                        key={coluna.id}
+                        className={`text-xs py-2 px-3 ${
+                        coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${
+                        isRight ? "text-right" : ""}`}
                         onClick={() => coluna.sortable && handleSort(coluna.id)}>
                         
-            <div className="inline-flex items-center gap-1 h-full">
-
-
-                          
+            <div
+                          className={`flex items-center gap-1 ${
+                          isRight ? "justify-end" : ""}`
+                          }>
                           
               {coluna.label}
               {coluna.sortable && <SortIcon column={coluna.id} />}
@@ -420,13 +420,13 @@ export default function TabelaLotes({
       </TableRow> :
 
                 lotesPaginados.map((lote) =>
-                <TableRow key={lote.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000">
+                <TableRow key={lote.id} className="hover:bg-gray-50 border-b">
           {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") {
                       return (
                         <TableCell
-                          key={`${lote.id}-selecao`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-                          
+                          key={`${lote.id}-selecao`}
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                           
                   <Checkbox
                             checked={selectedItems.includes(lote.id)}
@@ -436,7 +436,7 @@ export default function TabelaLotes({
                               [...prev, lote.id] :
                               prev.filter((id) => id !== lote.id)
                               );
-                            }} className="peer shrink-0 shadow disabled:opacity-50 peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\\n focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\\n disabled:cursor-not-allowed disabled:opacity-70\\n data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
+                            }} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" />
                           
                 </TableCell>);
 
@@ -445,12 +445,12 @@ export default function TabelaLotes({
                     if (coluna.id === "acoes") {
                       return (
                         <TableCell
-                          key={`${lote.id}-acoes`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-                          
+                          key={`${lote.id}-acoes`}
+                          className="text-muted-foreground text-xs font-medium text-center h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                           
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 font-medium text-sm font-medium\\\\\\\\nfocus-visible:outline-none rounded-md transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-accent inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:ring-1 focus-visible:ring-ring\\\\\\\\ndisabled:pointer-events-none disabled:opacity-50\\\\\\\\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\\\\\\\\nhover:bg-accent hover:text-accent-foreground w-4">
+                      <Button variant="ghost" size="icon" className="h-9 font-medium text-sm font-medium\\\\\\\\\\\\\\nfocus-visible:outline-none rounded-md transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-accent inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:ring-1 focus-visible:ring-ring\\\\\\\\\\\\\\\\ndisabled:pointer-events-none disabled:opacity-50\\\\\\\\\\\\\\\\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\\\\\\\\\\\\\\\\nhover:bg-accent hover:text-accent-foreground w-4">
                         <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -477,10 +477,10 @@ export default function TabelaLotes({
 
                     return (
                       <TableCell
-                        key={`${lote.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">
-
-
-                        
+                        key={`${lote.id}-${coluna.id}`}
+                        className={`text-xs py-2 px-3 ${
+                        coluna.align === "right" ? "text-right font-mono" : ""}`
+                        }>
                         
                 {renderCell(lote, coluna.id)}
               </TableCell>);
@@ -495,7 +495,7 @@ export default function TabelaLotes({
 
           </div>
 
-          <div className="flex items-center justify-between p-1 border-t">
+          <div className="flex items-center justify-between p-3 border-t">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
               <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
@@ -505,7 +505,7 @@ export default function TabelaLotes({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">
                 Anterior
               </Button>
