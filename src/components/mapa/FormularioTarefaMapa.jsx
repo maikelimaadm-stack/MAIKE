@@ -359,10 +359,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
 
-        <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs">Descrição da tarefa</Label>
-          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
-        </div>
 
         <div className="space-y-1.5">
           <Label className="text-xs">Responsável *</Label>
@@ -451,6 +447,11 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
             }} className={getFieldClassName("data_conclusao", "h-8 text-xs uppercase")} />
           </div>
+        </div>
+        
+        <div className="space-y-1.5 lg:col-span-2">
+          <Label className="text-xs">Descrição da tarefa</Label>
+          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Detalhes do problema ou da atividade" className="min-h-[120px] text-xs uppercase" />
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">
