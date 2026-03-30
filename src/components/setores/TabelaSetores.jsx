@@ -173,10 +173,10 @@ export default function TabelaSetores({
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
-      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+      return <ArrowUpDown className="lucide lucide-arrow-up w-3 h-3 text-emerald-600" />;
     }
     return sortConfig.direction === "asc" ?
-    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
     <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
@@ -217,22 +217,22 @@ export default function TabelaSetores({
     <>
       <div className="space-y-3">
         <Card>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
-              <div className="md:col-span-2 space-y-1">
+          <CardContent className="p-6 px-1 py-1">
+            <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
+              <div className="md:col-span-0 space-y-">
                 <Label className="text-xs">Buscar</Label>
                 <Input
                   placeholder="Buscar setor, sigla, cidade..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8 text-xs" />
+                  onChange={(e) => setSearchTerm(e.target.value)} className="flex min-w-[130px] max-w-[180px]flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
+                
                 
               </div>
 
-              <div className="space-y-1">
+              <div className="min-w-[130px] max-w-[180px] w-full">
                 <Label className="text-xs">Tipo</Label>
                 <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     {tipos.map((item) =>
@@ -242,10 +242,10 @@ export default function TabelaSetores({
                 </Select>
               </div>
 
-              <div className="space-y-1">
+              <div className="min-w-[130px] max-w-[180px] w-full">
                 <Label className="text-xs">Estado</Label>
                 <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     {estados.map((item) =>
@@ -255,10 +255,10 @@ export default function TabelaSetores({
                 </Select>
               </div>
 
-              <div className="space-y-1">
+              <div className="min-w-[130px] max-w-[180px] w-full">
                 <Label className="text-xs">Status</Label>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     <SelectItem value="Ativo" className="text-xs">Ativo</SelectItem>
@@ -268,7 +268,7 @@ export default function TabelaSetores({
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
+            <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
               <div className="text-xs text-slate-500">
                 {setoresFiltrados.length} de {setores.length} registros
               </div>
@@ -306,31 +306,31 @@ export default function TabelaSetores({
             <div className="overflow-auto max-h-[500px]">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-white border-b">
+                  <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="text-xs py-2 px-2">
+                          <TableHead key="selecao" className="h-10 p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
                             <Checkbox
                               checked={selectedItems.length === setoresFiltrados.length && setoresFiltrados.length > 0}
-                              onCheckedChange={toggleSelectAll} />
+                              onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 peer h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\\n focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\\n disabled:cursor-not-allowed disabled:opacity-70\\n data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white" />
                             
                           </TableHead>);
 
                       }
 
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
+                        return <TableHead key="acoes" className="h-10 p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
                       }
 
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
-                          key={coluna.id}
-                          className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
+                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-0 text-xs font-medium text-center border border-gray-300"
+
                           onClick={() => coluna.sortable && handleSort(coluna.id)}>
                           
-                          <div className={`flex items-center gap-1 ${isRight ? "justify-end" : "justify-start"}`}>
+                          <div className="inline-flex items-center gap-1 h-full">
                             {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
                           </div>
                         </TableHead>);
@@ -357,12 +357,12 @@ export default function TabelaSetores({
                         {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${item.id}-selecao`} className="text-xs py-2 px-2">
+                          <TableCell key={`${item.id}-selecao`} className="bg-white text-muted-foreground font-medium text-center h-10 sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <Checkbox
                               checked={selectedItems.includes(item.id)}
                               onCheckedChange={() => {
                                 setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                              }} />
+                              }} className="peer rounded-full peer shrink-0 data-[state=checked]:text-primary-foreground h-4 w-4 border-2 border-gray-400 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-70 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-center" />
                             
                               </TableCell>);
 
@@ -370,10 +370,10 @@ export default function TabelaSetores({
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableCell key={`${item.id}-acoes`} className="text-xs py-2 px-2 text-center">
+                          <TableCell key={`${item.id}-acoes`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <Button variant="ghost" size="icon" className="h-9 font-medium text-sm font-medium\\\\\\\\nfocus-visible:outline-none rounded-md transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-accent inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:ring-1 focus-visible:ring-ring\\\\\\\\ndisabled:pointer-events-none disabled:opacity-50\\\\\\\\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\\\\\\\\nhover:bg-accent hover:text-accent-foreground w-4">
                                       <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -393,8 +393,8 @@ export default function TabelaSetores({
 
                       return (
                         <TableCell
-                          key={`${item.id}-${coluna.id}`}
-                          className={`text-xs py-2 px-3 ${coluna.align === "right" ? "text-right font-mono" : ""}`}>
+                          key={`${item.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">
+                          
                           
                               {renderCell(item, coluna.id)}
                             </TableCell>);
@@ -407,7 +407,7 @@ export default function TabelaSetores({
               </Table>
             </div>
 
-            <div className="flex items-center justify-between p-3 border-t">
+            <div className="flex items-center justify-between p-1 border-t">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Itens por página:</span>
                 <Select value={String(itemsPerPage)} onValueChange={(value) => {setItemsPerPage(Number(value));setCurrentPage(1);}}>
@@ -419,7 +419,7 @@ export default function TabelaSetores({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((prev) => prev - 1)} className="h-7 text-xs">
                   Anterior
                 </Button>
