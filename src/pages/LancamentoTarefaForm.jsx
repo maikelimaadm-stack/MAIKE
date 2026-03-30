@@ -97,7 +97,7 @@ export default function LancamentoTarefaForm() {
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-1">
+    <div className="p-1 md:p-1 space-y-1">
       
 
 
