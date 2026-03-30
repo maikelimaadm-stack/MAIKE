@@ -148,18 +148,18 @@ export default function TabelaLancamentosTarefas({
       const matchSearch =
       !termo ||
       [
-        tarefa.titulo,
-        tarefa.descricao,
-        tarefa.tipo,
-        tarefa.tipo_tarefa_nome,
-        tarefa.grupo_atividade_nome,
-        tarefa.area_nome,
-        tarefa.responsavel,
-        tarefa.solicitante,
-        tarefa.setor_nome,
-        tarefa.observacoes,
-        tarefa.observacoes_conclusao
-      ].some((value) => String(value || "").toLowerCase().includes(termo));
+      tarefa.titulo,
+      tarefa.descricao,
+      tarefa.tipo,
+      tarefa.tipo_tarefa_nome,
+      tarefa.grupo_atividade_nome,
+      tarefa.area_nome,
+      tarefa.responsavel,
+      tarefa.solicitante,
+      tarefa.setor_nome,
+      tarefa.observacoes,
+      tarefa.observacoes_conclusao].
+      some((value) => String(value || "").toLowerCase().includes(termo));
       const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
       const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
       const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
@@ -197,7 +197,7 @@ export default function TabelaLancamentosTarefas({
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     return sortConfig.direction === "asc" ?
-    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
     <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
@@ -347,10 +347,10 @@ export default function TabelaLancamentosTarefas({
               <TableHeader>
                 <TableRow className="bg-white border-b">
                   {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === "selecao") return <TableHead key="selecao" className="text-xs py-2 px-2"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} /></TableHead>;
-                    if (coluna.id === "acoes") return <TableHead key="acoes" className="text-xs py-2 px-2"></TableHead>;
+                    if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} /></TableHead>;
+                    if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
                     const isRight = coluna.align === "right";
-                    return <TableHead key={coluna.id} className={`text-xs py-2 px-3 ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`} onClick={() => coluna.sortable && handleSort(coluna.id)}><div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
+                    return <TableHead key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className={`flex items-center gap-1 ${isRight ? "justify-end" : ""}`}>{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
                   })}
                 </TableRow>
               </TableHeader>
@@ -359,14 +359,14 @@ export default function TabelaLancamentosTarefas({
                 <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow> :
                 tarefasPaginadas.map((tarefa) =>
                 <TableRow
-                  key={tarefa.id}
-                  className="hover:bg-gray-50 border-b cursor-pointer"
+                  key={tarefa.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000"
+
                   onDoubleClick={() => abrirDetalhe(tarefa)}
                   onTouchEnd={(event) => handleRowTouch(tarefa, event)}>
                     {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="text-xs py-2 px-2" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} /></TableCell>;
-                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="text-xs py-2 px-2 text-center" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
-                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className={`text-xs py-2 px-3 align-top ${coluna.align === "right" ? "text-right font-mono" : ""}`}>{renderCell(tarefa, coluna.id)}</TableCell>;
+                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} /></TableCell>;
+                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
+                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">{renderCell(tarefa, coluna.id)}</TableCell>;
                   })}
                   </TableRow>
                 )}
@@ -407,8 +407,8 @@ export default function TabelaLancamentosTarefas({
         open={!!detalheTarefa}
         onOpenChange={(open) => !open && setDetalheTarefa(null)}
         tarefa={detalheTarefa}
-        onSaved={(updated) => setDetalheTarefa(updated)}
-      />
+        onSaved={(updated) => setDetalheTarefa(updated)} />
+      
       
     </div>);
 
