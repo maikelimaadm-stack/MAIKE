@@ -189,6 +189,8 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
           </SelectContent>
         </Select>
       </div>
+
+    </div>
           <div className="flex items-center gap-2 pt-4">
       <Switch
         checked={formData.ativo}
@@ -196,8 +198,6 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
       />
       <Label className="text-xs">Setor Ativo</Label>
     </div>
-    </div>
-
   </div>
 
   <div className="space-y-1 pt-1">
