@@ -214,11 +214,11 @@ export default function TabelaLancamentosTarefas({
     }
     setSelectedItems(tarefasFiltradas.map((item) => item.id));
   };
-const formatarData = (data) => {
-  if (!data) return "-";
-  const d = new Date(data + "T00:00:00");
-  return d.toLocaleDateString("pt-BR");
-};
+  const formatarData = (data) => {
+    if (!data) return "-";
+    const d = new Date(data + "T00:00:00");
+    return d.toLocaleDateString("pt-BR");
+  };
   const limparFiltros = () => {
     setSearchTerm("");
     setFiltroStatus("__TODOS__");
@@ -242,9 +242,9 @@ const formatarData = (data) => {
     if (colunaId === "setor_nome") return tarefa.setor_nome || "-";
     if (colunaId === "area_nome") return tarefa.area_nome || "-";
     if (colunaId === "responsavel") return tarefa.responsavel || "-";
-if (colunaId === "data_pedido") return formatarData(tarefa.data_pedido);
-if (colunaId === "data_prevista") return formatarData(tarefa.data_prevista);
-if (colunaId === "data_conclusao") return formatarData(tarefa.data_conclusao);
+    if (colunaId === "data_pedido") return formatarData(tarefa.data_pedido);
+    if (colunaId === "data_prevista") return formatarData(tarefa.data_prevista);
+    if (colunaId === "data_conclusao") return formatarData(tarefa.data_conclusao);
     if (colunaId === "solicitante") return tarefa.solicitante || "-";
     if (colunaId === "observacoes") return tarefa.observacoes || "-";
     if (colunaId === "observacoes_conclusao") return tarefa.observacoes_conclusao || "-";
@@ -274,7 +274,7 @@ if (colunaId === "data_conclusao") return formatarData(tarefa.data_conclusao);
   {filtrosVisivel &&
         <CardContent className="p-1">
       <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
-        <div className="md:col-span-0 space-y-1">
+        <div className="md:col-span-0 space-y-0">
           <Label className="text-xs">Buscar</Label>
           <Input
                 value={searchTerm}
