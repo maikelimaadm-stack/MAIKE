@@ -214,7 +214,10 @@ export default function TabelaLancamentosTarefas({
     }
     setSelectedItems(tarefasFiltradas.map((item) => item.id));
   };
-
+const formatarData = (data) => {
+  if (!data) return "-";
+  return new Date(data).toLocaleDateString("pt-BR");
+};
   const limparFiltros = () => {
     setSearchTerm("");
     setFiltroStatus("__TODOS__");
@@ -238,9 +241,9 @@ export default function TabelaLancamentosTarefas({
     if (colunaId === "setor_nome") return tarefa.setor_nome || "-";
     if (colunaId === "area_nome") return tarefa.area_nome || "-";
     if (colunaId === "responsavel") return tarefa.responsavel || "-";
-    if (colunaId === "data_pedido") return tarefa.data_pedido || "-";
-    if (colunaId === "data_prevista") return tarefa.data_prevista || "-";
-    if (colunaId === "data_conclusao") return tarefa.data_conclusao || "-";
+if (colunaId === "data_pedido") return formatarData(tarefa.data_pedido);
+if (colunaId === "data_prevista") return formatarData(tarefa.data_prevista);
+if (colunaId === "data_conclusao") return formatarData(tarefa.data_conclusao);
     if (colunaId === "solicitante") return tarefa.solicitante || "-";
     if (colunaId === "observacoes") return tarefa.observacoes || "-";
     if (colunaId === "observacoes_conclusao") return tarefa.observacoes_conclusao || "-";
