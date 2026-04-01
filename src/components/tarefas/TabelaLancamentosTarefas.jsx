@@ -80,6 +80,12 @@ export default function TabelaLancamentosTarefas({
   const [selectedItems, setSelectedItems] = useState([]);
   const [detalheTarefa, setDetalheTarefa] = useState(null);
   const lastTapRef = useRef({ id: null, time: 0 });
+  const [filtrosVisivel, setFiltrosVisivel] = useState(true);
+
+const toggleFiltros = () => {
+  setFiltrosVisivel((prev) => !prev);
+};
+
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
     if (saved) {
