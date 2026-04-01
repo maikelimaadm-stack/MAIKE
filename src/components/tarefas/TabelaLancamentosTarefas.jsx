@@ -243,102 +243,169 @@ export default function TabelaLancamentosTarefas({
 
   return (
     <div className="space-y-3">
-      <Card>
-        <CardContent className="p-1">
-          <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
-            <div className="md:col-span-0 space-y-">
-              <Label className="text-xs">Buscar</Label>
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar tarefa, tipo, área..." className="flex min-w-[130px] max-w-[180px]flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
-            </div>
-            <div className="min-w-[130px] max-w-[180px] w-full">
-              <Label className="text-xs">Status</Label>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
-                  <SelectItem value="Pendente" className="text-xs">Pendente</SelectItem>
-                  <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
-                  <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>
-                  <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[130px] max-w-[180px] w-full">
-              <Label className="text-xs">Prioridade</Label>
-              <Select value={filtroPrioridade} onValueChange={setFiltroPrioridade}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__TODOS__" className="text-xs">Todas</SelectItem>
-                  <SelectItem value="Baixa" className="text-xs">Baixa</SelectItem>
-                  <SelectItem value="Média" className="text-xs">Média</SelectItem>
-                  <SelectItem value="Alta" className="text-xs">Alta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[130px] max-w-[180px] w-full">
-              <Label className="text-xs">Grupo</Label>
-              <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
-                  {grupos.map((grupo) => <SelectItem key={grupo} value={grupo} className="text-xs">{grupo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[130px] max-w-[180px] w-full">
-              <Label className="text-xs">Tipo de tarefa</Label>
-              <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
-                  {tiposTarefa.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[130px] max-w-[180px] w-full">
-              <Label className="text-xs">Área</Label>
-              <Select value={filtroArea} onValueChange={setFiltroArea}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__TODOS__" className="text-xs">Todas</SelectItem>
-                  {areas.map((area) => <SelectItem key={area} value={area} className="text-xs">{area}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[130px] max-w-[180px] w-full">
-              <Label className="text-xs">Fazenda</Label>
-              <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-                <SelectTrigger className="min-w-[130px] max-w-[180px] bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__TODOS__" className="text-xs">Todos</SelectItem>
-                  {setores.map((setor) => <SelectItem key={setor} value={setor} className="text-xs">{setor}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+<Card>
+  {/* HEADER COM BOTÃO */}
+  <div className="flex items-center justify-between px-3 py-2 border-b bg-slate-50">
+    <span className="text-sm font-semibold text-slate-900">
+      Filtros
+    </span>
 
-          <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
-            <div className="text-xs text-slate-500">{tarefasFiltradas.length} de {tarefas.length} registros</div>
-            <div className="flex gap-2 flex-wrap">
-              {selectedItems.length > 0 &&
-              <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onDelete(selectedItems)} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              }
-              <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">Limpar Filtros</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={toggleFiltros}
+      className="h-7 text-xs"
+    >
+      {filtrosVisivel ? 'Ocultar ▲' : 'Mostrar ▼'}
+    </Button>
+  </div>
+
+  {/* CONTEÚDO CONTROLADO */}
+  {filtrosVisivel && (
+    <CardContent className="p-1">
+      <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
+        <div className="md:col-span-0 space-y-1">
+          <Label className="text-xs">Buscar</Label>
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar tarefa, tipo, área..."
+            className="flex min-w-[130px] max-w-[180px] w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm h-7 text-xs"
+          />
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Status</Label>
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+              <SelectItem value="Concluída">Concluída</SelectItem>
+              <SelectItem value="Cancelada">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* (mantive seu resto igual, só compactei visual) */}
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Grupo</Label>
+          <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              {grupos.map((grupo) => (
+                <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Tipo de tarefa</Label>
+          <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              {tiposTarefa.map((tipo) => (
+                <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Área</Label>
+          <Select value={filtroArea} onValueChange={setFiltroArea}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todas</SelectItem>
+              {areas.map((area) => (
+                <SelectItem key={area} value={area}>{area}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Fazenda</Label>
+          <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              {setores.map((setor) => (
+                <SelectItem key={setor} value={setor}>{setor}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
+        <div className="text-xs text-slate-500">
+          {tarefasFiltradas.length} de {tarefas.length} registros
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {selectedItems.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  Ações ({selectedItems.length})
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent>
+                <DropdownMenuLabel className="text-xs">
+                  Ações em Lote
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={() => onDelete(selectedItems)}
+                  className="text-xs text-red-600"
+                >
+                  Excluir Selecionados
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={() => setSelectedItems([])}
+                  className="text-xs"
+                >
+                  Limpar Seleção
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={limparFiltros}
+            className="h-7 text-xs"
+          >
+            Limpar Filtros
+          </Button>
+        </div>
+      </div>
+    </CardContent>
+  )}
+</Card>
 
       <Card>
         <CardContent className="p-0">
