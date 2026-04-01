@@ -82,9 +82,9 @@ export default function TabelaLancamentosTarefas({
   const lastTapRef = useRef({ id: null, time: 0 });
   const [filtrosVisivel, setFiltrosVisivel] = useState(true);
 
-const toggleFiltros = () => {
-  setFiltrosVisivel((prev) => !prev);
-};
+  const toggleFiltros = () => {
+    setFiltrosVisivel((prev) => !prev);
+  };
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
@@ -248,36 +248,36 @@ const toggleFiltros = () => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1">
 <Card>
   {/* HEADER COM BOTÃO */}
-  <div className="flex items-center justify-between px-3 py-2 border-b bg-slate-50">
+  <div className="bg-slate-50 pr-1 pl-1 flex items-center justify-between border-b">
     <span className="text-sm font-semibold text-slate-900">
       Filtros
     </span>
 
     <Button
-      variant="ghost"
-      size="sm"
-      onClick={toggleFiltros}
-      className="h-7 text-xs"
-    >
+            variant="ghost"
+            size="sm"
+            onClick={toggleFiltros} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-md px-1 h-6 text-xs">
+            
+            
       {filtrosVisivel ? 'Ocultar' : 'Mostrar'}
     </Button>
   </div>
 
   {/* CONTEÚDO CONTROLADO */}
-  {filtrosVisivel && (
-    <CardContent className="p-1">
+  {filtrosVisivel &&
+        <CardContent className="p-1">
       <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
         <div className="md:col-span-0 space-y-1">
           <Label className="text-xs">Buscar</Label>
           <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar tarefa, tipo, área..."
-            className="flex min-w-[130px] max-w-[180px] w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm h-7 text-xs"
-          />
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar tarefa, tipo, área..."
+                className="flex min-w-[130px] max-w-[180px] w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm h-7 text-xs" />
+              
         </div>
 
         <div className="min-w-[130px] max-w-[180px] w-full">
@@ -306,9 +306,9 @@ const toggleFiltros = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__TODOS__">Todos</SelectItem>
-              {grupos.map((grupo) => (
-                <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
-              ))}
+              {grupos.map((grupo) =>
+                  <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
+                  )}
             </SelectContent>
           </Select>
         </div>
@@ -321,9 +321,9 @@ const toggleFiltros = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__TODOS__">Todos</SelectItem>
-              {tiposTarefa.map((tipo) => (
-                <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-              ))}
+              {tiposTarefa.map((tipo) =>
+                  <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  )}
             </SelectContent>
           </Select>
         </div>
@@ -336,9 +336,9 @@ const toggleFiltros = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__TODOS__">Todas</SelectItem>
-              {areas.map((area) => (
-                <SelectItem key={area} value={area}>{area}</SelectItem>
-              ))}
+              {areas.map((area) =>
+                  <SelectItem key={area} value={area}>{area}</SelectItem>
+                  )}
             </SelectContent>
           </Select>
         </div>
@@ -351,9 +351,9 @@ const toggleFiltros = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__TODOS__">Todos</SelectItem>
-              {setores.map((setor) => (
-                <SelectItem key={setor} value={setor}>{setor}</SelectItem>
-              ))}
+              {setores.map((setor) =>
+                  <SelectItem key={setor} value={setor}>{setor}</SelectItem>
+                  )}
             </SelectContent>
           </Select>
         </div>
@@ -365,8 +365,8 @@ const toggleFiltros = () => {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          {selectedItems.length > 0 && (
-            <DropdownMenu>
+          {selectedItems.length > 0 &&
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 text-xs">
                   Ações ({selectedItems.length})
@@ -381,36 +381,36 @@ const toggleFiltros = () => {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={() => onDelete(selectedItems)}
-                  className="text-xs text-red-600"
-                >
+                    onClick={() => onDelete(selectedItems)}
+                    className="text-xs text-red-600">
+                    
                   Excluir Selecionados
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={() => setSelectedItems([])}
-                  className="text-xs"
-                >
+                    onClick={() => setSelectedItems([])}
+                    className="text-xs">
+                    
                   Limpar Seleção
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
+              }
 
           <Button
-            variant="outline"
-            size="sm"
-            onClick={limparFiltros}
-            className="h-7 text-xs"
-          >
+                variant="outline"
+                size="sm"
+                onClick={limparFiltros}
+                className="h-7 text-xs">
+                
             Limpar Filtros
           </Button>
         </div>
       </div>
     </CardContent>
-  )}
+        }
 </Card>
 
       <Card>
