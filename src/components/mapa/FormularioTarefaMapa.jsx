@@ -277,7 +277,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   return (
     <form onSubmit={handleSubmit} className="space-y-1">
-        <div className="space- lg:col-span-2">
+        <div className="space-1 lg:col-span-2">
           <Label className="text-xs">Título *</Label>
           <Input
           data-field="titulo"
