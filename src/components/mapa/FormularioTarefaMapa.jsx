@@ -276,7 +276,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-1">
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs">Título *</Label>
           <Input
@@ -484,9 +484,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
       </div>
-      <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">{tarefa ? "Salvar" : "Criar tarefa"}</Button>
+      <div className="flex justify-end gap-1 pt-1 border-t">
+        <Button type="button" variant="outline" size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-7 text-xs" onClick={onCancel}>Cancelar</Button>
+        <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">{tarefa ? "Salvar" : "Criar tarefa"}</Button>
       </div>
 
       {!onRequestSelectLocation &&
