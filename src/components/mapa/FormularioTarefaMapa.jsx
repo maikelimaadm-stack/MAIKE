@@ -20,7 +20,7 @@ export const normalizeTaskPriority = (value) => {
   return "Baixa";
 };
 
-const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id","data_pedido"];
+const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "solicitante", "data_pedido", "responsavel_id"];
 
 const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
   const texto = `${tipoNome} ${grupoNome}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -277,7 +277,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   return (
     <form onSubmit={handleSubmit} className="space-y-1">
-        <div className="space-y-1.5 lg:col-span-2">
+        <div className="space- lg:col-span-2">
           <Label className="text-xs">Título *</Label>
           <Input
           data-field="titulo"
@@ -359,7 +359,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Responsável </Label>
+          <Label className="text-xs">Responsável *</Label>
           <div data-field="responsavel_id">
             <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
@@ -374,7 +374,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Solicitante </Label>
+          <Label className="text-xs">Solicitante *</Label>
           <div data-field="solicitante">
             <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
