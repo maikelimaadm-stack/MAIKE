@@ -216,7 +216,8 @@ export default function TabelaLancamentosTarefas({
   };
 const formatarData = (data) => {
   if (!data) return "-";
-  return new Date(data).toLocaleDateString("pt-BR");
+  const d = new Date(data + "T00:00:00");
+  return d.toLocaleDateString("pt-BR");
 };
   const limparFiltros = () => {
     setSearchTerm("");
