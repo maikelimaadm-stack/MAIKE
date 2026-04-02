@@ -702,7 +702,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         {permissions.visualizar_historico_movimentacoes_lote !== false &&
           <Button
             onClick={() => setShowHistorico(true)}
-            variant="outline" className="bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+            variant="outline" className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
 
             translate="no">
             
@@ -712,7 +712,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         {permissions.visualizar_historico_suplementacao_lote !== false &&
           <Button
             onClick={() => setShowHistoricoSupl(true)}
-            variant="outline" className="bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+            variant="outline" className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
 
             translate="no">
             
@@ -736,7 +736,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
             }}
             variant="outline"
-            size="sm" className="px-4 py-2 bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300">
+            size="sm" className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300">
             
             
             Renomear Lote
@@ -766,7 +766,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   setShowJuntarLotes(true);
                 }}
                 variant="outline"
-                size="sm" className="px-4 py-2 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+                size="sm" className="px-4 py-2 bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
 
                 disabled={!temJuntavel}
                 title={!temJuntavel ? 'Precisa haver 2+ lotes da mesma categoria para juntar' : ''}>
