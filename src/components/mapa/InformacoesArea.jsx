@@ -75,7 +75,7 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
           <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">P. Médio geral</div>
+          <div className="text-slate-500">Média geral</div>
           <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
