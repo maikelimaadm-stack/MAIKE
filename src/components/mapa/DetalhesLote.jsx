@@ -654,7 +654,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                     }
                 </div>
-                <div className="grid grid-cols-6 gap-1 text-[10px]">
+                <div className="grid grid-cols-3 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
                     <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
