@@ -698,7 +698,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         {permissions.registrar_abate !== false && <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="bg-background px-2 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Abate</Button>}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-2 gap-1">
+      <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         {permissions.visualizar_historico_movimentacoes_lote !== false &&
           <Button
             onClick={() => setShowHistorico(true)}
@@ -736,8 +736,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
             }}
             variant="outline"
-            size="sm"
-            className="h-8 text-xs font-semibold border-slate-300">
+            size="sm" className="px-4 py-2 bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300">
+            
             
             Renomear Lote
           </Button>
@@ -766,8 +766,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   setShowJuntarLotes(true);
                 }}
                 variant="outline"
-                size="sm"
-                className={`h-8 text-xs font-semibold border-slate-300 ${!temJuntavel ? 'opacity-50' : ''}`}
+                size="sm" className="px-4 py-2 bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+
                 disabled={!temJuntavel}
                 title={!temJuntavel ? 'Precisa haver 2+ lotes da mesma categoria para juntar' : ''}>
                 
