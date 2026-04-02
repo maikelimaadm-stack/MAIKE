@@ -689,7 +689,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-2">
         {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>}
         {permissions.pesar_lotes !== false && <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Pesar</Button>}
         {permissions.mudar_categoria_lotes !== false && <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mudar Categoria</Button>}
