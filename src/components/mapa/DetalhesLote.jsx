@@ -645,7 +645,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               if (entrada) {entrada.setHours(0, 0, 0, 0);diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000));}
 
               return (
-                <div key={lote.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+                <div key={lote.id} className="bg-slate-50 text-[11px] px-1 py-1 rounded-lg border border-slate-200 space-y-1">
                 <div className="flex items-center justify-between">
                   <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
                     Lote: {lote.nome}
@@ -689,7 +689,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
-      <div className="my-1 grid grid-cols- md:grid-cols-3 gap-1">
+      <div className="my-1 grid grid-cols-3 md:grid-cols-3 gap-1">
         {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Mover</Button>}
         {permissions.pesar_lotes !== false && <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Pesar</Button>}
         {permissions.mudar_categoria_lotes !== false && <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Mudar Categoria</Button>}
