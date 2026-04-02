@@ -56,7 +56,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     area_entrada_id: "",
     raca_predominante: "",
     sistema_produtivo: "",
-    data_entrada: new Date().toISOString().split("T")[0],
+data_entrada: new Date().toLocaleDateString("sv-SE"),
     motivo_entrada: "",
     fornecedor_id: "",
     fornecedor_nome: "",
@@ -191,7 +191,15 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     element?.focus?.();
     return false;
   };
+const formatarDataBR = (data) => {
+  if (!data) return "";
 
+  // se já estiver no formato BR, não mexe
+  if (data.includes("/")) return data;
+
+  const [ano, mes, dia] = data.split("-");
+  return `${dia}/${mes}/${ano}`;
+};
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -201,30 +209,34 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     const quantidade = parseInt(formData.quantidade_cabecas) || 0;
     const peso = parseFloat(formData.peso_medio_kg) || 0;
 
-    const dataToSave = {
-      ...formData,
-      nome: formData.nome.toUpperCase(),
-      setor_nome: area?.setor_nome || "",
-      area_entrada_nome: area?.nome || "",
-      area_atual_id: formData.area_entrada_id,
-      area_atual_nome: area?.nome || "",
-      categoria_manejo_nome: categoriaManejo?.nome || "",
-      origem: formData.motivo_entrada?.toUpperCase() || "",
-      observacoes: formData.observacoes?.toUpperCase() || "",
-      quantidade_cabecas: quantidade,
-      peso_medio_kg: peso,
-      idade_media_meses: parseInt(formData.idade_media_meses) || 0,
-      valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
-      valor_por_cabeca: parseFloat(formData.valor_por_cabeca) || 0,
-      valor_frete: parseFloat(formData.valor_frete) || 0,
-      ...(!isEditing ? {
-        quantidade_entrada: quantidade,
-        peso_entrada_kg: peso,
-        categoria_entrada: formData.categoria || "",
-        categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
-        categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
-      } : {})
-    };
+const dataToSave = {
+  ...formData,
+
+  data_entrada: formatarDataBR(formData.data_entrada), // 👈 AQUI
+
+  nome: formData.nome.toUpperCase(),
+  setor_nome: area?.setor_nome || "",
+  area_entrada_nome: area?.nome || "",
+  area_atual_id: formData.area_entrada_id,
+  area_atual_nome: area?.nome || "",
+  categoria_manejo_nome: categoriaManejo?.nome || "",
+  origem: formData.motivo_entrada?.toUpperCase() || "",
+  observacoes: formData.observacoes?.toUpperCase() || "",
+  quantidade_cabecas: quantidade,
+  peso_medio_kg: peso,
+  idade_media_meses: parseInt(formData.idade_media_meses) || 0,
+  valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
+  valor_por_cabeca: parseFloat(formData.valor_por_cabeca) || 0,
+  valor_frete: parseFloat(formData.valor_frete) || 0,
+
+  ...(!isEditing ? {
+    quantidade_entrada: quantidade,
+    peso_entrada_kg: peso,
+    categoria_entrada: formData.categoria || "",
+    categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
+    categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
+  } : {})
+};
 
     onSubmit(dataToSave);
   };
