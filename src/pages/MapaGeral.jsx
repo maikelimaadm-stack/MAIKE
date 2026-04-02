@@ -811,6 +811,7 @@ export default function MapaGeral() {
               showPontos={showPontos} setShowPontos={setShowPontos}
               showLinhas={showLinhas} setShowLinhas={setShowLinhas}
               showLotes={showLotes} setShowLotes={setShowLotes}
+              showTarefas={showTarefas} setShowTarefas={setShowTarefas}
               showPontosSuplementacao={showPontosSuplementacao} setShowPontosSuplementacao={setShowPontosSuplementacao}
               showAlertas={showAlertas} setShowAlertas={setShowAlertas}
               showUserLocation={showUserLocation} setShowUserLocation={setShowUserLocation}
