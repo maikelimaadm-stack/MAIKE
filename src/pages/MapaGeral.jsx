@@ -801,7 +801,7 @@ export default function MapaGeral() {
 
       {/* ─── Sheet Filtros Avançados ─── */}
       <Sheet open={showFiltros} onOpenChange={setShowFiltros}>
-        <SheetContent side="left" className="p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left bg-background py-6 fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 left-0 h-full border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm w-[300px] overflow-y-auto">
+        <SheetContent side="left" className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left bg-background py- fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 left-0 h-full border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm w-[300px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="text-sm">Filtros e Camadas</SheetTitle>
           </SheetHeader>
