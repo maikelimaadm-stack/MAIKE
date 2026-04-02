@@ -215,9 +215,9 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
 const dataToSave = {
   ...formData,
-  data_entrada: formData.data_entrada, // 👈 APENAS PASSE A DATA DIRETO
-  nome: formData.nome.toUpperCase(),
-  // ...
+  // Alteração aqui: adicionamos o T12:00:00
+  data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null, 
+  
   nome: formData.nome.toUpperCase(),
   setor_nome: area?.setor_nome || "",
   area_entrada_nome: area?.nome || "",
