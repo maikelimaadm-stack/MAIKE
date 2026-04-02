@@ -44,7 +44,20 @@ const REQUIRED_FIELDS = [
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState(initialData || {
+// Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
+  const carregarDataEntrada = (data) => {
+    if (!data) return new Date().toLocaleDateString("sv-SE");
+    if (data.includes("/")) {
+      const [dia, mes, ano] = data.split("/");
+      return `${ano}-${mes}-${dia}`;
+    }
+    return data.split("T")[0]; // Remove horas se vier do banco como DateTime
+  };
+
+  const [formData, setFormData] = useState(initialData ? {
+    ...initialData,
+    data_entrada: carregarDataEntrada(initialData.data_entrada)
+  } : {
     nome: "",
     quantidade_cabecas: "",
     categoria: "",
@@ -52,11 +65,11 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     sexo: "",
     peso_medio_kg: "",
     idade_media_meses: "",
-    setor_id: initialData?.setor_id || "",
+    setor_id: "",
     area_entrada_id: "",
     raca_predominante: "",
     sistema_produtivo: "",
-data_entrada: new Date().toLocaleDateString("sv-SE"),
+    data_entrada: new Date().toLocaleDateString("sv-SE"),
     motivo_entrada: "",
     fornecedor_id: "",
     fornecedor_nome: "",
@@ -191,15 +204,6 @@ data_entrada: new Date().toLocaleDateString("sv-SE"),
     element?.focus?.();
     return false;
   };
-const formatarDataBR = (data) => {
-  if (!data) return "";
-
-  // se já estiver no formato BR, não mexe
-  if (data.includes("/")) return data;
-
-  const [ano, mes, dia] = data.split("-");
-  return `${dia}/${mes}/${ano}`;
-};
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -211,9 +215,9 @@ const formatarDataBR = (data) => {
 
 const dataToSave = {
   ...formData,
-
-  data_entrada: formatarDataBR(formData.data_entrada), // 👈 AQUI
-
+  data_entrada: formData.data_entrada, // 👈 APENAS PASSE A DATA DIRETO
+  nome: formData.nome.toUpperCase(),
+  // ...
   nome: formData.nome.toUpperCase(),
   setor_nome: area?.setor_nome || "",
   area_entrada_nome: area?.nome || "",
