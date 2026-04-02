@@ -12,7 +12,7 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
   const hectares = area.area_pastejada || area.tamanho_hectares || 0;
 
   const totalUA = useMemo(() => {
-    const pesoTotal = lotesNaArea.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0);
+    const pesoTotal = lotesNaArea.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
     return pesoTotal / 450;
   }, [lotesNaArea]);
 
@@ -37,11 +37,11 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
   }, [lotesNaArea]);
 
   const pesoMedioGeral = useMemo(() => {
-    const pesoTotal = lotesNaArea.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0);
+    const pesoTotal = lotesNaArea.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
     return totalCabecas > 0 ? pesoTotal / totalCabecas : 0;
   }, [lotesNaArea, totalCabecas]);
 
-  const sistemasUnicos = [...new Set(lotesNaArea.map((l) => l.sistema_produtivo).filter(Boolean))];
+  const sistemasUnicos = [...new Set(lotesNaArea.map(l => l.sistema_produtivo).filter(Boolean))];
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
@@ -49,7 +49,7 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
         Informações da Área: {area.nome}
       </Badge>
 
-      <div className="grid grid-cols-4 sm:grid-cols-3 gap-1 text-[10px]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]" >
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Hectares</div>
           <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
@@ -63,7 +63,7 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
           <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Tipo de pastagem</div>
+          <div className="text-slate-500">Pastagem</div>
           <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
@@ -75,32 +75,32 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
           <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Peso médio geral</div>
+          <div className="text-slate-500">Média Geral</div>
           <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Dias pastejo (média)</div>
+          <div className="text-slate-500">Dias pastejo</div>
           <div className="font-semibold text-slate-900">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
         </div>
       </div>
 
-      {sistemasUnicos.length > 0 &&
-      <div className="flex items-center gap-1 flex-wrap">
+      {sistemasUnicos.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[10px] text-slate-500">Sistemas Reprodutivos:</span>
-          {sistemasUnicos.map((s) =>
-        <Badge key={s} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{s}</Badge>
-        )}
+          {sistemasUnicos.map(s => (
+            <Badge key={s} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{s}</Badge>
+          ))}
         </div>
-      }
+      )}
 
-      {tituloLotes &&
-      <div className="flex items-center gap-1 flex-wrap">
+      {tituloLotes && (
+        <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[10px] text-slate-500">Lotes:</span>
-          {tituloLotes.split(' - ').map((nome, index) =>
-        <Badge key={`${nome}-${index}`} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{nome}</Badge>
-        )}
+          {tituloLotes.split(' - ').map((nome, index) => (
+            <Badge key={`${nome}-${index}`} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{nome}</Badge>
+          ))}
         </div>
-      }
-    </div>);
-
+      )}
+    </div>
+  );
 }
