@@ -11,8 +11,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogTitle } from
+"@/components/ui/dialog";
 import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 import FormularioMorte from "../lotes/FormularioMorte";
 import FormularioNascimento from "../lotes/FormularioNascimento";
@@ -72,8 +72,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.ativo !== false);
-    },
+      return all.filter((i) => i.ativo !== false);
+    }
   });
 
   // Agrupar lotes por categoria
@@ -87,23 +87,23 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   }, {});
 
   const categorias = Object.keys(lotesPorCategoria).sort();
-  
+
   // Calcular total de cabeças
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
-  
+
   // Título com nomes dos lotes
-  const tituloLotes = lotes.map(l => l.nome).join(' - ');
+  const tituloLotes = lotes.map((l) => l.nome).join(' - ');
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
-  const areaAtual = areas.find(a => a.id === lotes[0]?.area_atual_id);
+  const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id);
 
   const atualizarLoteDestinoLocal = (lista, loteAtualizado) => {
     if (!loteAtualizado?.id) return;
@@ -120,38 +120,38 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     queryKey: ['lotes-na-area', empresaSelecionadaId, lotes[0]?.area_atual_id],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
+      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
     },
-    enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id,
+    enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id
   });
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
       console.log('🔄 INICIANDO MOVIMENTAÇÃO');
-      const areaSaida = areas.find(a => a.id === formData.area_saida_id);
-      const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
+      const areaSaida = areas.find((a) => a.id === formData.area_saida_id);
+      const areaEntrada = areas.find((a) => a.id === formData.area_entrada_id);
       const movimentacoesCriadas = [];
       const todosLotesSistema = await base44.entities.Lote.list();
-      const lotesDestinoAtivos = todosLotesSistema.filter(l =>
-        l.empresa_id === empresaSelecionadaId &&
-        l.area_atual_id === formData.area_entrada_id &&
-        l.status === 'Ativo'
+      const lotesDestinoAtivos = todosLotesSistema.filter((l) =>
+      l.empresa_id === empresaSelecionadaId &&
+      l.area_atual_id === formData.area_entrada_id &&
+      l.status === 'Ativo'
       );
       const encontrarLoteDestinoCompativel = (loteOrigem, categoriaMovimento) => {
-        return lotesDestinoAtivos.find(l =>
-          l.area_atual_id === formData.area_entrada_id &&
-          (l.nome || '').toUpperCase() === (loteOrigem.nome || '').toUpperCase() &&
-          (l.categoria || '').toUpperCase() === categoriaMovimento &&
-          l.status === 'Ativo'
+        return lotesDestinoAtivos.find((l) =>
+        l.area_atual_id === formData.area_entrada_id &&
+        (l.nome || '').toUpperCase() === (loteOrigem.nome || '').toUpperCase() &&
+        (l.categoria || '').toUpperCase() === categoriaMovimento &&
+        l.status === 'Ativo'
         );
       };
-      
+
       // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
       if (formData.mover_todos === 'sim') {
         await validarOrdemTemporalLotes({
           empresaId: empresaSelecionadaId,
           lotes,
-          dataReferencia: formData.data_movimentacao,
+          dataReferencia: formData.data_movimentacao
         });
 
         for (const lote of lotes) {
@@ -181,7 +181,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         for (const mov of formData.movimentacoes) {
           if (mov.quantidade <= 0) continue;
 
-          const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
+          const lotesCategoria = lotes.filter((l) => l.categoria?.toUpperCase() === mov.categoria);
           let quantidadeRestante = Number(mov.quantidade || 0);
 
           for (const lote of lotesCategoria) {
@@ -190,7 +190,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             await validarOrdemTemporalLote({
               empresaId: empresaSelecionadaId,
               loteId: lote.id,
-              dataReferencia: formData.data_movimentacao,
+              dataReferencia: formData.data_movimentacao
             });
 
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -278,41 +278,41 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       }
 
       return movimentacoesCriadas;
-      
-      },
-      onSuccess: async (movimentacoesCriadas, variables) => {
-        toast.success('Gado movido com sucesso!');
-        setAreaDestinoPreSelecionada(null);
-        setShowMovimentacao(false);
-        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-        queryClient.invalidateQueries({ queryKey: ['lotes'] });
-        queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
 
-        const lotesNovos = await base44.entities.Lote.list();
-        const categoriasMovidas = variables.mover_todos === 'sim'
-          ? [...new Set(lotes.map(l => (l.categoria || '').toUpperCase()))]
-          : [...new Set((variables.movimentacoes || []).filter(m => Number(m.quantidade) > 0).map(m => (m.categoria || '').toUpperCase()))];
-        const nomesOrigem = new Set(lotes.map(l => l.nome));
-        const lotesDestino = lotesNovos.filter(l =>
-          l.empresa_id === empresaSelecionadaId &&
-          l.area_atual_id === variables.area_entrada_id &&
-          l.status === 'Ativo' &&
-          (nomesOrigem.has(l.nome) || categoriasMovidas.includes((l.categoria || '').toUpperCase()))
-        );
+    },
+    onSuccess: async (movimentacoesCriadas, variables) => {
+      toast.success('Gado movido com sucesso!');
+      setAreaDestinoPreSelecionada(null);
+      setShowMovimentacao(false);
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
 
-        setMovimentacaoPendente(null);
-        setMovimentacoesCriadasIds((movimentacoesCriadas || []).map(item => item.id).filter(Boolean));
+      const lotesNovos = await base44.entities.Lote.list();
+      const categoriasMovidas = variables.mover_todos === 'sim' ?
+      [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))] :
+      [...new Set((variables.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
+      const nomesOrigem = new Set(lotes.map((l) => l.nome));
+      const lotesDestino = lotesNovos.filter((l) =>
+      l.empresa_id === empresaSelecionadaId &&
+      l.area_atual_id === variables.area_entrada_id &&
+      l.status === 'Ativo' && (
+      nomesOrigem.has(l.nome) || categoriasMovidas.includes((l.categoria || '').toUpperCase()))
+      );
 
-        if (registrarPesagemAposMovimentacao) {
-          setLotesAtualizados(lotesDestino.length > 0 ? lotesDestino : lotes);
-          setShowPesagem(true);
-          return;
-        }
+      setMovimentacaoPendente(null);
+      setMovimentacoesCriadasIds((movimentacoesCriadas || []).map((item) => item.id).filter(Boolean));
 
-        setLotesAtualizados(null);
-        setMovimentacoesCriadasIds([]);
-        onClose();
-      },
+      if (registrarPesagemAposMovimentacao) {
+        setLotesAtualizados(lotesDestino.length > 0 ? lotesDestino : lotes);
+        setShowPesagem(true);
+        return;
+      }
+
+      setLotesAtualizados(null);
+      setMovimentacoesCriadasIds([]);
+      onClose();
+    },
     onError: (error) => {
       console.error('❌ Erro:', error);
       setMovimentacaoPendente(null);
@@ -327,16 +327,16 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   };
 
   const handleMorte = async (formData) => {
-    const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
+    const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
-    const areaMorte = areas.find(a => a.id === areaAtualId);
+    const areaMorte = areas.find((a) => a.id === areaAtualId);
     let quantidadeRestante = Number(formData.quantidade || 0);
 
     for (const lote of lotesCategoria) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: formData.data_ocorrencia,
+        dataReferencia: formData.data_ocorrencia
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -372,18 +372,18 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   const handleNascimento = async (formData) => {
     // Determinar categoria baseada no sexo
-    const categoriaFilhote = formData.sexo === "Macho" 
-      ? "Bezerro 0 a 12 meses" 
-      : "Bezerra 0 a 12 meses";
+    const categoriaFilhote = formData.sexo === "Macho" ?
+    "Bezerro 0 a 12 meses" :
+    "Bezerra 0 a 12 meses";
 
     // Buscar lote da categoria correta na mesma área
     const areaAtualId = lotes[0]?.area_atual_id;
     const todosLotes = await base44.entities.Lote.list();
-    let loteFilhote = todosLotes.find(l => 
-      l.empresa_id === empresaSelecionadaId && 
-      l.categoria === categoriaFilhote && 
-      l.area_atual_id === areaAtualId &&
-      l.status === 'Ativo'
+    let loteFilhote = todosLotes.find((l) =>
+    l.empresa_id === empresaSelecionadaId &&
+    l.categoria === categoriaFilhote &&
+    l.area_atual_id === areaAtualId &&
+    l.status === 'Ativo'
     );
 
     if (loteFilhote) {
@@ -394,7 +394,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       });
     } else {
       // Criar novo lote
-      const areaAtual = areas.find(a => a.id === areaAtualId);
+      const areaAtual = areas.find((a) => a.id === areaAtualId);
       loteFilhote = await base44.entities.Lote.create({
         empresa_id: empresaSelecionadaId,
         nome: `${categoriaFilhote.split(' ')[0].toUpperCase()} - ${areaAtual?.nome || 'AREA'}`,
@@ -414,7 +414,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       });
     }
 
-    const areaNascimento = areas.find(a => a.id === areaAtualId);
+    const areaNascimento = areas.find((a) => a.id === areaAtualId);
 
     // Registrar movimentação
     await base44.entities.MovimentacaoMapa.create({
@@ -437,16 +437,16 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   };
 
   const handleAbate = async (formData) => {
-    const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
+    const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
-    const areaAbate = areas.find(a => a.id === areaAtualId);
+    const areaAbate = areas.find((a) => a.id === areaAtualId);
     let quantidadeRestante = Number(formData.quantidade || 0);
 
     for (const lote of lotesCategoria) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: formData.data_abate,
+        dataReferencia: formData.data_abate
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -482,10 +482,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   const handleMudancaCategoria = async (formData) => {
     const areaAtualId = lotes[0]?.area_atual_id;
-    const areaMudanca = areas.find(a => a.id === areaAtualId);
+    const areaMudanca = areas.find((a) => a.id === areaAtualId);
 
     for (const mudanca of formData.mudancas) {
-      const lotesCategoria = lotes.filter(l => l.categoria === mudanca.categoria_atual);
+      const lotesCategoria = lotes.filter((l) => l.categoria === mudanca.categoria_atual);
       let quantidadeRestante = mudanca.quantidade;
 
       for (const lote of lotesCategoria) {
@@ -494,7 +494,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: formData.data_mudanca,
+          dataReferencia: formData.data_mudanca
         });
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
@@ -545,7 +545,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           origem_lote_id: lote.id,
           destino_lote_id: loteDestinoId,
           categoria_anterior: mudanca.categoria_atual,
-          categoria_nova: mudanca.categoria_nova,
+          categoria_nova: mudanca.categoria_nova
         };
 
         await base44.entities.MovimentacaoMapa.create({
@@ -573,20 +573,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const handlePesagem = async (formData) => {
     const lotesParaPesar = lotesAtualizados || lotes;
     const areaAtualId = lotesParaPesar[0]?.area_atual_id;
-    const areaPesagem = areas.find(a => a.id === areaAtualId);
+    const areaPesagem = areas.find((a) => a.id === areaAtualId);
 
     // Se há pesos individuais por lote, usar esses; senão usar por categoria
     const pesosIndividuais = formData.pesos_por_lote || {};
 
     for (const categoria of formData.categorias_selecionadas) {
-      const lotesCategoria = lotesParaPesar.filter(l => l.categoria === categoria);
+      const lotesCategoria = lotesParaPesar.filter((l) => l.categoria === categoria);
       const pesoPadrao = parseFloat(formData.pesos_por_categoria[categoria]);
 
       for (const lote of lotesCategoria) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: formData.data_pesagem,
+          dataReferencia: formData.data_pesagem
         });
 
         // Verificar se tem peso individual para este lote específico
@@ -628,40 +628,40 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-1">
-        {categorias.map(categoria => {
-          const lotesCategoria = lotesPorCategoria[categoria];
-          const configIcone = iconesConfig.find(ic => 
-            ic.tipo_entidade === 'Lote' && 
+        {categorias.map((categoria) => {
+            const lotesCategoria = lotesPorCategoria[categoria];
+            const configIcone = iconesConfig.find((ic) =>
+            ic.tipo_entidade === 'Lote' &&
             ic.categoria?.toUpperCase() === categoria?.toUpperCase()
-          );
-          const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+            );
+            const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
-          return lotesCategoria.map(lote => {
-            const cab = lote.quantidade_cabecas || 0;
-            const peso = lote.peso_medio_kg || 0;
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
-            const entrada = lote.data_entrada ? new Date(lote.data_entrada) : null;
-            let diasPastejo = 0;
-            if (entrada) { entrada.setHours(0,0,0,0); diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000)); }
+            return lotesCategoria.map((lote) => {
+              const cab = lote.quantidade_cabecas || 0;
+              const peso = lote.peso_medio_kg || 0;
+              const hoje = new Date();hoje.setHours(0, 0, 0, 0);
+              const entrada = lote.data_entrada ? new Date(lote.data_entrada) : null;
+              let diasPastejo = 0;
+              if (entrada) {entrada.setHours(0, 0, 0, 0);diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000));}
 
-            return (
-              <div key={lote.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+              return (
+                <div key={lote.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                 <div className="flex items-center justify-between">
                   <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
                     Lote: {lote.nome}
                   </Badge>
-                  {iconeUrl && (
+                  {iconeUrl &&
                     <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
-                  )}
+                    }
                 </div>
-                <div className="grid grid-cols-3 gap-1 text-[10px]">
+                <div className="grid grid-cols-6 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
                     <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Peso Médio</div>
-                    <div className="font-semibold text-slate-900">{peso > 0 ? `${peso.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg` : '-'}</div>
+                    <div className="font-semibold text-slate-900">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Dias de pastejo</div>
@@ -681,13 +681,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-500">Categoria: <span className="font-semibold text-slate-700">{categoria}</span></div>
-              </div>
-            );
-          });
-        })}
+              </div>);
+
+            });
+          })}
       </div>
 
-      <ResumoSuplementacao lotesIds={lotes.map(l => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
+      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>}
@@ -699,31 +699,31 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        {permissions.visualizar_historico_movimentacoes_lote !== false && (
-          <Button 
+        {permissions.visualizar_historico_movimentacoes_lote !== false &&
+          <Button
             onClick={() => setShowHistorico(true)}
             variant="outline"
             className="h-9 text-[11px] font-semibold border-slate-300"
-            translate="no"
-          >
+            translate="no">
+            
             Histórico Movimentações
           </Button>
-        )}
-        {permissions.visualizar_historico_suplementacao_lote !== false && (
-          <Button 
+          }
+        {permissions.visualizar_historico_suplementacao_lote !== false &&
+          <Button
             onClick={() => setShowHistoricoSupl(true)}
             variant="outline"
             className="h-9 text-[11px] font-semibold border-slate-300"
-            translate="no"
-          >
+            translate="no">
+            
             Histórico Suplementação
           </Button>
-        )}
+          }
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        {permissions.renomear_lotes !== false && (
-          <Button 
+        {permissions.renomear_lotes !== false &&
+          <Button
             onClick={() => {
               if (lotes.length === 1) {
                 setLoteParaRenomear(lotes[0]);
@@ -737,219 +737,219 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             }}
             variant="outline"
             size="sm"
-            className="h-8 text-xs font-semibold border-slate-300"
-          >
+            className="h-8 text-xs font-semibold border-slate-300">
+            
             Renomear Lote
           </Button>
-        )}
+          }
         {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
-          // Agrupar por categoria para ver quais categorias têm mais de 1 lote
-          const porCategoria = {};
-          lotes.forEach(l => {
-            const cat = (l.categoria || '').toUpperCase();
-            if (!porCategoria[cat]) porCategoria[cat] = [];
-            porCategoria[cat].push(l);
-          });
-          const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
-          const temJuntavel = categoriasJuntaveis.length > 0;
-          
-          return (
-            <Button 
-              onClick={() => {
-                if (categoriasJuntaveis.length === 1) {
-                  setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
-                  setLotePrincipalJuncao(null);
-                } else {
-                  setCategoriaSelecionadaJuncao(null);
-                  setLotePrincipalJuncao(null);
-                }
-                setShowJuntarLotes(true);
-              }}
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs font-semibold border-slate-300 ${!temJuntavel ? 'opacity-50' : ''}`}
-              disabled={!temJuntavel}
-              title={!temJuntavel ? 'Precisa haver 2+ lotes da mesma categoria para juntar' : ''}
-            >
-              Juntar Lotes
-            </Button>
-          );
-        })()}
-      </div>
-
-      {/* Dialog Juntar Lotes */}
-      <Dialog open={showJuntarLotes} onOpenChange={(open) => { setShowJuntarLotes(open); if (!open) { setCategoriaSelecionadaJuncao(null); setLotePrincipalJuncao(null); } }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="text-sm">Juntar Lotes</DialogTitle></DialogHeader>
-          {(() => {
+            // Agrupar por categoria para ver quais categorias têm mais de 1 lote
             const porCategoria = {};
-            lotes.forEach(l => {
+            lotes.forEach((l) => {
               const cat = (l.categoria || '').toUpperCase();
               if (!porCategoria[cat]) porCategoria[cat] = [];
               porCategoria[cat].push(l);
             });
             const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
+            const temJuntavel = categoriasJuntaveis.length > 0;
 
-            if (!categoriaSelecionadaJuncao && categoriasJuntaveis.length > 1) {
-              return (
-                <div className="space-y-2">
+            return (
+              <Button
+                onClick={() => {
+                  if (categoriasJuntaveis.length === 1) {
+                    setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
+                    setLotePrincipalJuncao(null);
+                  } else {
+                    setCategoriaSelecionadaJuncao(null);
+                    setLotePrincipalJuncao(null);
+                  }
+                  setShowJuntarLotes(true);
+                }}
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs font-semibold border-slate-300 ${!temJuntavel ? 'opacity-50' : ''}`}
+                disabled={!temJuntavel}
+                title={!temJuntavel ? 'Precisa haver 2+ lotes da mesma categoria para juntar' : ''}>
+                
+              Juntar Lotes
+            </Button>);
+
+          })()}
+      </div>
+
+      {/* Dialog Juntar Lotes */}
+      <Dialog open={showJuntarLotes} onOpenChange={(open) => {setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-sm">Juntar Lotes</DialogTitle></DialogHeader>
+          {(() => {
+              const porCategoria = {};
+              lotes.forEach((l) => {
+                const cat = (l.categoria || '').toUpperCase();
+                if (!porCategoria[cat]) porCategoria[cat] = [];
+                porCategoria[cat].push(l);
+              });
+              const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
+
+              if (!categoriaSelecionadaJuncao && categoriasJuntaveis.length > 1) {
+                return (
+                  <div className="space-y-2">
                   <p className="text-xs text-slate-600">Selecione a categoria para juntar:</p>
-                  {categoriasJuntaveis.map(([cat, ls]) => (
-                    <Button key={cat} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => { setCategoriaSelecionadaJuncao(cat); setLotePrincipalJuncao(null); }}>
+                  {categoriasJuntaveis.map(([cat, ls]) =>
+                    <Button key={cat} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => {setCategoriaSelecionadaJuncao(cat);setLotePrincipalJuncao(null);}}>
                       {cat} ({ls.length} lotes, {ls.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0)} cab)
                     </Button>
-                  ))}
-                </div>
-              );
-            }
+                    )}
+                </div>);
 
-            const catSel = categoriaSelecionadaJuncao || (categoriasJuntaveis[0] && categoriasJuntaveis[0][0]);
-            const lotesParaJuntar = porCategoria[catSel] || [];
+              }
 
-            if (!lotePrincipalJuncao && lotesParaJuntar.length > 0) {
-              return (
-                <div className="space-y-2">
+              const catSel = categoriaSelecionadaJuncao || categoriasJuntaveis[0] && categoriasJuntaveis[0][0];
+              const lotesParaJuntar = porCategoria[catSel] || [];
+
+              if (!lotePrincipalJuncao && lotesParaJuntar.length > 0) {
+                return (
+                  <div className="space-y-2">
                   <p className="text-xs text-slate-600">Selecione o lote que receberá os animais (lote principal):</p>
                   <p className="text-[10px] text-slate-500">Categoria: <strong>{catSel}</strong></p>
-                  {lotesParaJuntar.map(l => (
+                  {lotesParaJuntar.map((l) =>
                     <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-between" onClick={() => setLotePrincipalJuncao(l)}>
                       <span>{l.nome}</span>
                       <span className="text-slate-500">{l.quantidade_cabecas} cab</span>
                     </Button>
-                  ))}
-                </div>
-              );
-            }
+                    )}
+                </div>);
 
-            if (lotePrincipalJuncao && lotesParaJuntar.length > 0) {
-              const outrosLotes = lotesParaJuntar.filter(l => l.id !== lotePrincipalJuncao.id);
-              const totalCab = lotesParaJuntar.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-              return (
-                <div className="space-y-3">
+              }
+
+              if (lotePrincipalJuncao && lotesParaJuntar.length > 0) {
+                const outrosLotes = lotesParaJuntar.filter((l) => l.id !== lotePrincipalJuncao.id);
+                const totalCab = lotesParaJuntar.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+                return (
+                  <div className="space-y-3">
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                     <p className="text-xs font-semibold text-emerald-800">Lote principal: {lotePrincipalJuncao.nome}</p>
                     <p className="text-[10px] text-emerald-700">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-slate-600">Lotes que serão absorvidos:</p>
-                    {outrosLotes.map(l => (
+                    {outrosLotes.map((l) =>
                       <div key={l.id} className="flex justify-between text-xs p-2 bg-slate-50 rounded border">
                         <span>{l.nome}</span>
                         <span className="text-slate-500">{l.quantidade_cabecas} cab</span>
                       </div>
-                    ))}
+                      )}
                   </div>
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLotePrincipalJuncao(null)}>Voltar</Button>
                     <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                      await validarOrdemTemporalLotes({
-                        empresaId: empresaSelecionadaId,
-                        lotes: lotesParaJuntar,
-                        dataReferencia: new Date().toISOString(),
-                      });
+                        await validarOrdemTemporalLotes({
+                          empresaId: empresaSelecionadaId,
+                          lotes: lotesParaJuntar,
+                          dataReferencia: new Date().toISOString()
+                        });
 
-                      const principal = lotePrincipalJuncao;
-                      const pesoTotal = lotesParaJuntar.reduce((s, l) => s + ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)), 0);
-                      const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
-                      const snapshotLotes = lotesParaJuntar.map(l => ({
-                        id: l.id, nome: l.nome, quantidade_cabecas: l.quantidade_cabecas || 0,
-                        peso_medio_kg: l.peso_medio_kg || 0, status: l.status || 'Ativo',
-                        categoria: l.categoria || '', categoria_manejo_id: l.categoria_manejo_id || '',
-                        categoria_manejo_nome: l.categoria_manejo_nome || '',
-                        area_atual_id: l.area_atual_id || '', area_atual_nome: l.area_atual_nome || ''
-                      }));
-                      const nomesLotes = lotesParaJuntar.map(l => l.nome).join(', ');
-                      for (const l of outrosLotes) {
-                        await base44.entities.Lote.update(l.id, { status: 'Inativo', quantidade_cabecas: 0 });
-                      }
-                      await base44.entities.Lote.update(principal.id, {
-                        quantidade_cabecas: totalCab,
-                        peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
-                      });
-                      const areaAtualId = principal.area_atual_id;
-                      const areaJuncao = areas.find(a => a.id === areaAtualId);
-                      await base44.entities.MovimentacaoMapa.create({
-                        empresa_id: empresaSelecionadaId,
-                        data_movimentacao: new Date().toISOString(),
-                        tipo: 'Entrada', motivo: 'Junção de Lotes',
-                        lote: principal.nome, lote_id: principal.id,
-                        quantidade_animais: totalCab,
-                        area_origem_id: areaAtualId, area_origem_nome: areaJuncao?.nome || '',
-                        observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
-                      });
-                      toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
-                      setShowJuntarLotes(false);
-                      onClose();
-                      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-                    }}>
+                        const principal = lotePrincipalJuncao;
+                        const pesoTotal = lotesParaJuntar.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0);
+                        const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
+                        const snapshotLotes = lotesParaJuntar.map((l) => ({
+                          id: l.id, nome: l.nome, quantidade_cabecas: l.quantidade_cabecas || 0,
+                          peso_medio_kg: l.peso_medio_kg || 0, status: l.status || 'Ativo',
+                          categoria: l.categoria || '', categoria_manejo_id: l.categoria_manejo_id || '',
+                          categoria_manejo_nome: l.categoria_manejo_nome || '',
+                          area_atual_id: l.area_atual_id || '', area_atual_nome: l.area_atual_nome || ''
+                        }));
+                        const nomesLotes = lotesParaJuntar.map((l) => l.nome).join(', ');
+                        for (const l of outrosLotes) {
+                          await base44.entities.Lote.update(l.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                        }
+                        await base44.entities.Lote.update(principal.id, {
+                          quantidade_cabecas: totalCab,
+                          peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
+                        });
+                        const areaAtualId = principal.area_atual_id;
+                        const areaJuncao = areas.find((a) => a.id === areaAtualId);
+                        await base44.entities.MovimentacaoMapa.create({
+                          empresa_id: empresaSelecionadaId,
+                          data_movimentacao: new Date().toISOString(),
+                          tipo: 'Entrada', motivo: 'Junção de Lotes',
+                          lote: principal.nome, lote_id: principal.id,
+                          quantidade_animais: totalCab,
+                          area_origem_id: areaAtualId, area_origem_nome: areaJuncao?.nome || '',
+                          observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
+                        });
+                        toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
+                        setShowJuntarLotes(false);
+                        onClose();
+                        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+                      }}>
                       Confirmar Junção
                     </Button>
                   </div>
-                </div>
-              );
-            }
-            return null;
-          })()}
+                </div>);
+
+              }
+              return null;
+            })()}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showMovimentacao} onOpenChange={(open) => {
-        setShowMovimentacao(open);
-        if (!open) setAreaDestinoPreSelecionada(null);
-      }}>
+          setShowMovimentacao(open);
+          if (!open) setAreaDestinoPreSelecionada(null);
+        }}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Movimentação de Lotes</DialogTitle>
           </DialogHeader>
           <FormularioMovimentacaoLote
-            lotesOriginais={lotes}
-            areaOrigem={areaAtual}
-            areaDestinoPreSelecionada={areaDestinoPreSelecionada}
-            onSubmit={handleMovimentacao}
-            onCancel={() => {
-              setAreaDestinoPreSelecionada(null);
-              setShowMovimentacao(false);
-            }}
-          />
+              lotesOriginais={lotes}
+              areaOrigem={areaAtual}
+              areaDestinoPreSelecionada={areaDestinoPreSelecionada}
+              onSubmit={handleMovimentacao}
+              onCancel={() => {
+                setAreaDestinoPreSelecionada(null);
+                setShowMovimentacao(false);
+              }} />
+            
         </DialogContent>
       </Dialog>
 
       <Dialog open={showMorte} onOpenChange={setShowMorte}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Registrar Morte</DialogTitle></DialogHeader>
-          {showMorte && (
+          {showMorte &&
             <FormularioMorte
               lote={lotes}
               onSubmit={handleMorte}
-              onCancel={() => setShowMorte(false)}
-            />
-          )}
+              onCancel={() => setShowMorte(false)} />
+
+            }
         </DialogContent>
       </Dialog>
 
       <Dialog open={showNascimento} onOpenChange={setShowNascimento}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Registrar Nascimento</DialogTitle></DialogHeader>
-          {showNascimento && (
+          {showNascimento &&
             <FormularioNascimento
               lote={lotes}
               onSubmit={handleNascimento}
-              onCancel={() => setShowNascimento(false)}
-            />
-          )}
+              onCancel={() => setShowNascimento(false)} />
+
+            }
         </DialogContent>
       </Dialog>
 
       <Dialog open={showAbate} onOpenChange={setShowAbate}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Registrar Abate</DialogTitle></DialogHeader>
-          {showAbate && (
+          {showAbate &&
             <FormularioAbate
               lote={lotes}
               onSubmit={handleAbate}
-              onCancel={() => setShowAbate(false)}
-            />
-          )}
+              onCancel={() => setShowAbate(false)} />
+
+            }
         </DialogContent>
       </Dialog>
 
@@ -957,23 +957,23 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Mudança de Categoria</DialogTitle></DialogHeader>
           <FormularioMudancaCategoria
-            lote={lotes}
-            onSubmit={handleMudancaCategoria}
-            onCancel={() => setShowMudancaCategoria(false)}
-          />
+              lote={lotes}
+              onSubmit={handleMudancaCategoria}
+              onCancel={() => setShowMudancaCategoria(false)} />
+            
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showPesagem} onOpenChange={(open) => { setShowPesagem(open); if (!open) { setLotesAtualizados(null); setMovimentacoesCriadasIds([]); } }}>
+      <Dialog open={showPesagem} onOpenChange={(open) => {setShowPesagem(open);if (!open) {setLotesAtualizados(null);setMovimentacoesCriadasIds([]);}}}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
-          {showPesagem && (
+          {showPesagem &&
             <FormularioPesagem
               lote={lotesAtualizados || lotes}
               onSubmit={handlePesagem}
-              onCancel={() => { setShowPesagem(false); setLotesAtualizados(null); setMovimentacoesCriadasIds([]); }}
-            />
-          )}
+              onCancel={() => {setShowPesagem(false);setLotesAtualizados(null);setMovimentacoesCriadasIds([]);}} />
+
+            }
         </DialogContent>
       </Dialog>
 
@@ -986,24 +986,24 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       <Dialog open={showHistoricoSupl} onOpenChange={setShowHistoricoSupl}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Histórico de Suplementação</DialogTitle></DialogHeader>
-          {lotes.length === 1 ? (
+          {lotes.length === 1 ?
             <HistoricoSuplementacaoLote
               loteId={lotes[0].id}
-              loteNome={lotes[0].nome}
-            />
-          ) : (
+              loteNome={lotes[0].nome} /> :
+
+
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-slate-900">Histórico de Suplementação</h3>
-              {lotes.map(lote => (
-                <div key={lote.id} className="border-t pt-4">
+              {lotes.map((lote) =>
+              <div key={lote.id} className="border-t pt-4">
                   <HistoricoSuplementacaoLote
-                    loteId={lote.id}
-                    loteNome={lote.nome}
-                  />
+                  loteId={lote.id}
+                  loteNome={lote.nome} />
+                
                 </div>
-              ))}
+              )}
             </div>
-          )}
+            }
         </DialogContent>
       </Dialog>
 
@@ -1011,19 +1011,19 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       <Dialog open={showRenomear} onOpenChange={setShowRenomear}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="text-sm">Renomear Lote</DialogTitle></DialogHeader>
-          {!loteParaRenomear && lotes.length > 1 ? (
+          {!loteParaRenomear && lotes.length > 1 ?
             <div className="space-y-2">
               <p className="text-xs text-slate-600">Selecione o lote para renomear:</p>
-              {lotes.map(l => (
-                <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => {
-                  setLoteParaRenomear(l);
-                  setNovoNomeLote(l.nome);
-                }}>
+              {lotes.map((l) =>
+              <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => {
+                setLoteParaRenomear(l);
+                setNovoNomeLote(l.nome);
+              }}>
                   {l.nome} ({l.quantidade_cabecas} cab - {l.categoria})
                 </Button>
-              ))}
-            </div>
-          ) : loteParaRenomear ? (
+              )}
+            </div> :
+            loteParaRenomear ?
             <RenomearLoteForm
               lote={loteParaRenomear}
               novoNome={novoNomeLote}
@@ -1035,9 +1035,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 onClose();
                 window.dispatchEvent(new CustomEvent('atualizar-mapa'));
               }}
-              onCancel={() => setShowRenomear(false)}
-            />
-          ) : null}
+              onCancel={() => setShowRenomear(false)} /> :
+
+            null}
         </DialogContent>
       </Dialog>
 
@@ -1048,28 +1048,28 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           <p className="text-xs text-slate-600">Depois de confirmar a movimentação, deseja abrir a pesagem dos lotes movimentados?</p>
           <div className="flex justify-end gap-2 mt-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
-              onClick={() => {
-                setRegistrarPesagemAposMovimentacao(false);
-                setShowConfirmPesagem(false);
-                movimentacaoMutation.mutate(movimentacaoPendente);
-              }}
-            >
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
+                onClick={() => {
+                  setRegistrarPesagemAposMovimentacao(false);
+                  setShowConfirmPesagem(false);
+                  movimentacaoMutation.mutate(movimentacaoPendente);
+                }}>
+                
               Não
             </Button>
             <Button
-              size="sm"
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-              disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
-              onClick={() => {
-                setRegistrarPesagemAposMovimentacao(true);
-                setShowConfirmPesagem(false);
-                movimentacaoMutation.mutate(movimentacaoPendente);
-              }}
-            >
+                size="sm"
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
+                onClick={() => {
+                  setRegistrarPesagemAposMovimentacao(true);
+                  setShowConfirmPesagem(false);
+                  movimentacaoMutation.mutate(movimentacaoPendente);
+                }}>
+                
               Sim, Pesar
             </Button>
           </div>
@@ -1084,10 +1084,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         </DialogHeader>
         <div className="space-y-2">
           <p className="text-xs text-slate-600">{progresso.mensagem}</p>
-          <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+          <Progress value={progresso.atual / progresso.total * 100} className="w-full h-1.5" />
         </div>
       </DialogContent>
     </Dialog>
-    </>
-  );
+    </>);
+
 }
