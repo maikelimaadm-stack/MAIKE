@@ -143,7 +143,7 @@ export default function MapaFiltrosAvancados({
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-1">
             {MODOS_COLORACAO.map((modo) => {
             const ativo = modoColoracao === modo.id;
             return (
