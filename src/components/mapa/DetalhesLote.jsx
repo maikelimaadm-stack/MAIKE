@@ -689,8 +689,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
-      <div className="grid grid-cols-3 md:grid-cols-3 gap-2">
-        {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>}
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-1">
+        {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="inline-flex items-center justify-center gap- whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-8 text-xs font-semibold border-slate-300" translate="no">Mover</Button>}
         {permissions.pesar_lotes !== false && <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Pesar</Button>}
         {permissions.mudar_categoria_lotes !== false && <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Mudar Categoria</Button>}
         {permissions.registrar_nascimento !== false && <Button onClick={() => setShowNascimento(true)} variant="outline" size="sm" className="h-8 text-xs font-semibold border-slate-300" translate="no">Nascimento</Button>}
