@@ -721,7 +721,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           }
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-2">
+      <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         {permissions.renomear_lotes !== false &&
           <Button
             onClick={() => {
