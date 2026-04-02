@@ -117,7 +117,7 @@ export default function MapaFiltrosAvancados({
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
-          <div className="gap-">
+          <div className="g">
             <div className="mb-3">
               <span className="text-xs font-bold text-slate-800 uppercase">Camadas</span>
             </div>
