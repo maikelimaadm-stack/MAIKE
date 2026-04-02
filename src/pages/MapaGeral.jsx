@@ -54,6 +54,7 @@ export default function MapaGeral() {
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
   const [showLotes, setShowLotes] = useState(true);
+  const [showTarefas, setShowTarefas] = useState(true);
   const [showPontosSuplementacao, setShowPontosSuplementacao] = useState(true);
   const [showAlertas, setShowAlertas] = useState(true);
   const [showUserLocation, setShowUserLocation] = useState(false);
@@ -76,7 +77,6 @@ export default function MapaGeral() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
   const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
-  const [showTarefas, setShowTarefas] = useState(false);
   const [tarefasContext, setTarefasContext] = useState({});
   const [selectedTarefa, setSelectedTarefa] = useState(null);
   const [showDetalhesTarefa, setShowDetalhesTarefa] = useState(false);
@@ -97,6 +97,7 @@ export default function MapaGeral() {
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const { setores } = useSetorAreas(empresaSelecionadaId);
+  const MAPA_CAMADAS_STORAGE_KEY = 'mapa_geral_filtros_camadas';
   useEffect(() => {firstFitDoneRef.current = false;}, [empresaSelecionadaId]);
 
   const { data: currentUser = null } = useQuery({
@@ -134,6 +135,35 @@ export default function MapaGeral() {
       canAccessPage(permissaoAtual, 'pec-mapa-geral', 'pecuaria')
     );
   }, [currentUser?.role, permissaoAtual]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(MAPA_CAMADAS_STORAGE_KEY);
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    if (typeof parsed.showAreas === 'boolean') setShowAreas(parsed.showAreas);
+    if (typeof parsed.showPontos === 'boolean') setShowPontos(parsed.showPontos);
+    if (typeof parsed.showLinhas === 'boolean') setShowLinhas(parsed.showLinhas);
+    if (typeof parsed.showLotes === 'boolean') setShowLotes(parsed.showLotes);
+    if (typeof parsed.showTarefas === 'boolean') setShowTarefas(parsed.showTarefas);
+    if (typeof parsed.showPontosSuplementacao === 'boolean') setShowPontosSuplementacao(parsed.showPontosSuplementacao);
+    if (typeof parsed.showAlertas === 'boolean') setShowAlertas(parsed.showAlertas);
+    if (typeof parsed.showUserLocation === 'boolean') setShowUserLocation(parsed.showUserLocation);
+    if (typeof parsed.showNomesAreas === 'boolean') setShowNomesAreas(parsed.showNomesAreas);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(MAPA_CAMADAS_STORAGE_KEY, JSON.stringify({
+      showAreas,
+      showPontos,
+      showLinhas,
+      showLotes,
+      showTarefas,
+      showPontosSuplementacao,
+      showAlertas,
+      showUserLocation,
+      showNomesAreas,
+    }));
+  }, [showAreas, showPontos, showLinhas, showLotes, showTarefas, showPontosSuplementacao, showAlertas, showUserLocation, showNomesAreas]);
 
   const podeUsarTarefasMapa = useMemo(() => {
     if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) return mapaGeralPermissions.visualizar_tarefas;
@@ -693,7 +723,7 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
   useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoFiltrados, mapaGeralPermissions.visualizar_cochos_suplementacao && showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoFiltrados, showPontosSuplementacao, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, handleClickLotes, handleDragLotes]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, handleClickTarefa]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTarefas, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
@@ -712,6 +742,7 @@ export default function MapaGeral() {
     if (!mapaGeralPermissions.visualizar_pontos_referencia) setShowPontos(false);
     if (!mapaGeralPermissions.visualizar_linhas) setShowLinhas(false);
     if (!mapaGeralPermissions.visualizar_lotes) setShowLotes(false);
+    if (!mapaGeralPermissions.visualizar_tarefas) setShowTarefas(false);
     if (!mapaGeralPermissions.visualizar_cochos_suplementacao) setShowPontosSuplementacao(false);
     if (!mapaGeralPermissions.visualizar_alertas) setShowAlertas(false);
     if (!mapaGeralPermissions.visualizar_localizacao) setShowUserLocation(false);
