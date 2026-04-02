@@ -624,7 +624,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   return (
     <>
-    <div className="space-y-1" translate="no">
+    <div className="space-y-2" translate="no">
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-1">
