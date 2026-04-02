@@ -121,7 +121,7 @@ export default function MapaFiltrosAvancados({
             <div className="mb-3">
               <span className="text-xs font-bold text-slate-800 uppercase">Camadas</span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-">
               {availableLayers.map((item) =>
             <label key={item.label} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
                   <div className="flex items-center gap-2">
