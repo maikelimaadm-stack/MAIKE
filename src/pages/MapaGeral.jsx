@@ -85,6 +85,7 @@ export default function MapaGeral() {
   const [rascunhoTarefa, setRascunhoTarefa] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
+  const [showTaskIcons, setShowTaskIcons] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem('mapa_geral_filtros');
@@ -95,7 +96,7 @@ export default function MapaGeral() {
     if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
     if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
     if (typeof state.showLotes === 'boolean') setShowLotes(state.showLotes);
-    if (typeof state.showTarefas === 'boolean') setShowTarefas(state.showTarefas);
+    if (typeof state.showTaskIcons === 'boolean') setShowTaskIcons(state.showTaskIcons);
     if (typeof state.showPontosSuplementacao === 'boolean') setShowPontosSuplementacao(state.showPontosSuplementacao);
     if (typeof state.showAlertas === 'boolean') setShowAlertas(state.showAlertas);
     if (typeof state.showUserLocation === 'boolean') setShowUserLocation(state.showUserLocation);
@@ -119,7 +120,7 @@ export default function MapaGeral() {
       showPontos,
       showLinhas,
       showLotes,
-      showTarefas,
+      showTaskIcons,
       showPontosSuplementacao,
       showAlertas,
       showUserLocation,
@@ -135,7 +136,7 @@ export default function MapaGeral() {
       filtroPesoMax,
       modoColoracao,
     }));
-  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTarefas, showPontosSuplementacao, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, showPontosSuplementacao, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -745,7 +746,7 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
   useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoFiltrados, mapaGeralPermissions.visualizar_cochos_suplementacao && showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoFiltrados, showPontosSuplementacao, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, handleClickLotes, handleDragLotes]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, handleClickTarefa]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
@@ -863,7 +864,7 @@ export default function MapaGeral() {
               showPontos={showPontos} setShowPontos={setShowPontos}
               showLinhas={showLinhas} setShowLinhas={setShowLinhas}
               showLotes={showLotes} setShowLotes={setShowLotes}
-              showTarefas={showTarefas} setShowTarefas={setShowTarefas}
+              showTarefas={showTaskIcons} setShowTarefas={setShowTaskIcons}
               showPontosSuplementacao={showPontosSuplementacao} setShowPontosSuplementacao={setShowPontosSuplementacao}
               showHectaresAreas={showHectaresAreas} setShowHectaresAreas={setShowHectaresAreas}
               showAlertas={showAlertas} setShowAlertas={setShowAlertas}
