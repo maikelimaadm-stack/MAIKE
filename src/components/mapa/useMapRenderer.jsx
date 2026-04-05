@@ -131,7 +131,7 @@ export default function useMapRenderer(mapInstanceRef) {
 
   // ─── Labels dos nomes das áreas (separado para mostrar/esconder) ───
   // extraTextFn(area) => string | null — texto extra embaixo do nome
-  const syncLabels = useCallback((areas, show, extraTextFn) => {
+  const syncLabels = useCallback((areas, show, extraTextFn, showHectares = true) => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
@@ -150,7 +150,7 @@ export default function useMapRenderer(mapInstanceRef) {
     areas.forEach(area => {
       const extraText = extraTextFn ? extraTextFn(area) : null;
       const hectares = Number(area.area_pastejada || area.tamanho_hectares || 0);
-      const hectaresText = hectares > 0
+      const hectaresText = showHectares && hectares > 0
         ? `ha ${hectares.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         : null;
 

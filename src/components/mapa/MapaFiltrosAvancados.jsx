@@ -73,10 +73,12 @@ export default function MapaFiltrosAvancados({
   showPontos, setShowPontos,
   showLinhas, setShowLinhas,
   showLotes, setShowLotes,
+  showTarefas, setShowTarefas,
   showPontosSuplementacao, setShowPontosSuplementacao,
   showAlertas, setShowAlertas,
   showUserLocation, setShowUserLocation,
   showNomesAreas, setShowNomesAreas,
+  showHectaresAreas, setShowHectaresAreas,
   // Filtros de lotes
   filtroCategoria, setFiltroCategoria,
   filtroStatus, setFiltroStatus,
@@ -101,9 +103,8 @@ export default function MapaFiltrosAvancados({
   const availableLayers = [
   permissions?.visualizar_areas !== false && { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
   permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
-
-  // ---------------------------------
-
+  permissions?.visualizar_areas !== false && { label: 'Hectares das Áreas', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
+  permissions?.visualizar_tarefas !== false && { label: 'Ícones de Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
   permissions?.visualizar_lotes !== false && { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
   permissions?.visualizar_pontos_referencia !== false && { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v) },
   permissions?.visualizar_linhas !== false && { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v) },

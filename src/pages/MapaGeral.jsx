@@ -58,6 +58,7 @@ export default function MapaGeral() {
   const [showAlertas, setShowAlertas] = useState(true);
   const [showUserLocation, setShowUserLocation] = useState(false);
   const [showNomesAreas, setShowNomesAreas] = useState(true);
+  const [showHectaresAreas, setShowHectaresAreas] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
 
   // Filtros avançados
@@ -84,6 +85,57 @@ export default function MapaGeral() {
   const [rascunhoTarefa, setRascunhoTarefa] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('mapa_geral_filtros');
+    if (!saved) return;
+    const state = JSON.parse(saved);
+    if (typeof state.mapType === 'string') setMapType(state.mapType);
+    if (typeof state.showAreas === 'boolean') setShowAreas(state.showAreas);
+    if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
+    if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
+    if (typeof state.showLotes === 'boolean') setShowLotes(state.showLotes);
+    if (typeof state.showTarefas === 'boolean') setShowTarefas(state.showTarefas);
+    if (typeof state.showPontosSuplementacao === 'boolean') setShowPontosSuplementacao(state.showPontosSuplementacao);
+    if (typeof state.showAlertas === 'boolean') setShowAlertas(state.showAlertas);
+    if (typeof state.showUserLocation === 'boolean') setShowUserLocation(state.showUserLocation);
+    if (typeof state.showNomesAreas === 'boolean') setShowNomesAreas(state.showNomesAreas);
+    if (typeof state.showHectaresAreas === 'boolean') setShowHectaresAreas(state.showHectaresAreas);
+    if (typeof state.filtroCategoria === 'string') setFiltroCategoria(state.filtroCategoria);
+    if (typeof state.filtroStatus === 'string') setFiltroStatus(state.filtroStatus);
+    if (typeof state.filtroSistema === 'string') setFiltroSistema(state.filtroSistema);
+    if (typeof state.filtroTipoCultura === 'string') setFiltroTipoCultura(state.filtroTipoCultura);
+    if (typeof state.filtroTipoPastagem === 'string') setFiltroTipoPastagem(state.filtroTipoPastagem);
+    if (typeof state.filtroSetor === 'string') setFiltroSetor(state.filtroSetor);
+    setFiltroPesoMin(state.filtroPesoMin ?? null);
+    setFiltroPesoMax(state.filtroPesoMax ?? null);
+    if (typeof state.modoColoracao === 'string') setModoColoracao(state.modoColoracao);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('mapa_geral_filtros', JSON.stringify({
+      mapType,
+      showAreas,
+      showPontos,
+      showLinhas,
+      showLotes,
+      showTarefas,
+      showPontosSuplementacao,
+      showAlertas,
+      showUserLocation,
+      showNomesAreas,
+      showHectaresAreas,
+      filtroCategoria,
+      filtroStatus,
+      filtroSistema,
+      filtroTipoCultura,
+      filtroTipoPastagem,
+      filtroSetor,
+      filtroPesoMin,
+      filtroPesoMax,
+      modoColoracao,
+    }));
+  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTarefas, showPontosSuplementacao, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -671,15 +723,15 @@ export default function MapaGeral() {
       // Limpar labels existentes para forçar recriação com texto extra
       renderer.syncLabels([], false);
       setTimeout(() => {
-        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, getLabelExtraText);
+        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, getLabelExtraText, showHectaresAreas);
       }, 50);
     } else if (mapReady) {
       renderer.syncLabels([], false);
       setTimeout(() => {
-        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, null);
+        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, null, showHectaresAreas);
       }, 50);
     }
-  }, [areasFiltradas, showNomesAreas, showAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
+  }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
     if (showPontosSuplementacao) return pontos;
@@ -813,6 +865,7 @@ export default function MapaGeral() {
               showLotes={showLotes} setShowLotes={setShowLotes}
               showTarefas={showTarefas} setShowTarefas={setShowTarefas}
               showPontosSuplementacao={showPontosSuplementacao} setShowPontosSuplementacao={setShowPontosSuplementacao}
+              showHectaresAreas={showHectaresAreas} setShowHectaresAreas={setShowHectaresAreas}
               showAlertas={showAlertas} setShowAlertas={setShowAlertas}
               showUserLocation={showUserLocation} setShowUserLocation={setShowUserLocation}
               showNomesAreas={showNomesAreas} setShowNomesAreas={setShowNomesAreas}
