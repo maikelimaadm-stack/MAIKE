@@ -101,16 +101,16 @@ export default function MapaFiltrosAvancados({
 
   // Definição das camadas disponíveis com base nas permissões e estados
   const availableLayers = [
-  permissions?.visualizar_areas !== false && { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
-  permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
-  permissions?.visualizar_areas !== false && { label: 'Hectares das Áreas', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
-  permissions?.visualizar_tarefas !== false && { label: 'Ícones de Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
-  permissions?.visualizar_lotes !== false && { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
+  permissions?.visualizar_areas !== false && { label: 'Mapa de Áreas', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
+  permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Detalhes Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
+  permissions?.visualizar_areas !== false && { label: 'Hectares', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
+  permissions?.visualizar_tarefas !== false && { label: 'Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
+  permissions?.visualizar_lotes !== false && { label: 'Lotes', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
   permissions?.visualizar_pontos_referencia !== false && { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v) },
   permissions?.visualizar_linhas !== false && { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v) },
   permissions?.visualizar_cochos_suplementacao !== false && { label: 'Cochos / Suplementação', checked: showPontosSuplementacao, onChange: () => setShowPontosSuplementacao((v) => !v) },
   permissions?.visualizar_alertas !== false && { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v) },
-  permissions?.visualizar_localizacao !== false && { label: 'Minha Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) }].
+  permissions?.visualizar_localizacao !== false && { label: 'Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) }].
   filter(Boolean);
 
   return (
@@ -233,15 +233,15 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div className="space-y-1 px-0">
+      <div>
           <div className="mb-3">
-            <span className="text-xs font-bold text-slate-800 uppercase">Detalhes de Lotes</span>
+            <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
-          <div className="space-y-1 px-1">
-            <div className="space-y-1 px-1">
+          <div className="space-y-2.5 px-1">
+            <div>
               <Label className="text-[10px] text-slate-600">Categoria</Label>
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas" className="text-xs">Todas</SelectItem>
                   {categorias.map((cat) => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
@@ -251,7 +251,7 @@ export default function MapaFiltrosAvancados({
             <div>
               <Label className="text-[10px] text-slate-600">Sistema Produtivo</Label>
               <Select value={filtroSistema} onValueChange={setFiltroSistema}>
-                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                   {sistemasProdutivos.map((sp) => <SelectItem key={sp} value={sp} className="text-xs">{sp}</SelectItem>)}
@@ -261,7 +261,7 @@ export default function MapaFiltrosAvancados({
             <div>
               <Label className="text-[10px] text-slate-600">Alertas</Label>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                   <SelectItem value="com_alerta" className="text-xs">Com Alerta</SelectItem>
@@ -270,17 +270,20 @@ export default function MapaFiltrosAvancados({
               </Select>
             </div>
             <div>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
               <Input
-              type="number" placeholder="Ex: 200" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs"
+              type="number" placeholder="Ex: 200" className="h-8 text-xs"
               value={filtroPesoMin || ''} onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Máximo (kg)</Label>
               <Input
-              type="number" placeholder="Ex: 500" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs"
+              type="number" placeholder="Ex: 500" className="h-8 text-xs"
               value={filtroPesoMax || ''} onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)} />
             </div>
+                        <div>
+
           </div>
         </div>
       }
