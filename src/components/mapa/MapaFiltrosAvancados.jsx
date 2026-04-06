@@ -101,16 +101,16 @@ export default function MapaFiltrosAvancados({
 
   // Definição das camadas disponíveis com base nas permissões e estados
   const availableLayers = [
-  permissions?.visualizar_areas !== false && { label: 'Mapa de Áreas', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
-  permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Detalhes Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
-  permissions?.visualizar_areas !== false && { label: 'Hectares', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
-  permissions?.visualizar_tarefas !== false && { label: 'Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
-  permissions?.visualizar_lotes !== false && { label: 'Lotes', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
+  permissions?.visualizar_areas !== false && { label: 'Áreas / Pastos', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
+  permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Nomes das Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
+  permissions?.visualizar_areas !== false && { label: 'Hectares das Áreas', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
+  permissions?.visualizar_tarefas !== false && { label: 'Ícones de Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
+  permissions?.visualizar_lotes !== false && { label: 'Categorias de Manejo', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
   permissions?.visualizar_pontos_referencia !== false && { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v) },
   permissions?.visualizar_linhas !== false && { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v) },
   permissions?.visualizar_cochos_suplementacao !== false && { label: 'Cochos / Suplementação', checked: showPontosSuplementacao, onChange: () => setShowPontosSuplementacao((v) => !v) },
   permissions?.visualizar_alertas !== false && { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v) },
-  permissions?.visualizar_localizacao !== false && { label: 'Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) }].
+  permissions?.visualizar_localizacao !== false && { label: 'Minha Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) }].
   filter(Boolean);
 
   return (
@@ -233,7 +233,7 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div>
+      <div className="s">
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
