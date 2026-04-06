@@ -237,11 +237,11 @@ export default function MapaFiltrosAvancados({
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
-          <div className="space-y-2.5 px-1">
+          <div className="space-y-1 px-1">
             <div>
               <Label className="text-[10px] text-slate-600">Categoria</Label>
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas" className="text-xs">Todas</SelectItem>
                   {categorias.map((cat) => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
@@ -251,7 +251,7 @@ export default function MapaFiltrosAvancados({
             <div>
               <Label className="text-[10px] text-slate-600">Sistema Produtivo</Label>
               <Select value={filtroSistema} onValueChange={setFiltroSistema}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                   {sistemasProdutivos.map((sp) => <SelectItem key={sp} value={sp} className="text-xs">{sp}</SelectItem>)}
@@ -261,7 +261,7 @@ export default function MapaFiltrosAvancados({
             <div>
               <Label className="text-[10px] text-slate-600">Alertas</Label>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                   <SelectItem value="com_alerta" className="text-xs">Com Alerta</SelectItem>
