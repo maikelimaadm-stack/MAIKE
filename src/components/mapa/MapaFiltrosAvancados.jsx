@@ -233,12 +233,12 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div className="">
+      <div className="space-y-1 px-0">
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
           <div className="space-y-1 px-1">
-            <div>
+            <div className="space-y-1 px-1">
               <Label className="text-[10px] text-slate-600">Categoria</Label>
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
                 <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
