@@ -233,7 +233,7 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div className="s">
+      <div className="">
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
