@@ -272,13 +272,13 @@ export default function MapaFiltrosAvancados({
             <div>
               <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
               <Input
-              type="number" placeholder="Ex: 200" className="h-8 text-xs"
+              type="number" placeholder="Ex: 200" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs"
               value={filtroPesoMin || ''} onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Máximo (kg)</Label>
               <Input
-              type="number" placeholder="Ex: 500" className="h-8 text-xs"
+              type="number" placeholder="Ex: 500" className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs"
               value={filtroPesoMax || ''} onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)} />
             </div>
           </div>
