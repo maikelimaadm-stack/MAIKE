@@ -270,23 +270,27 @@ export default function MapaFiltrosAvancados({
               </Select>
             </div>
             <div>
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
               <Input
-              type="number" placeholder="Ex: 200" className="h-8 text-xs"
-              value={filtroPesoMin || ''} onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
+                type="number"
+                placeholder="Ex: 200"
+                className="h-8 text-xs"
+                value={filtroPesoMin || ''}
+                onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)}
+              />
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Máximo (kg)</Label>
               <Input
-              type="number" placeholder="Ex: 500" className="h-8 text-xs"
-              value={filtroPesoMax || ''} onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)} />
+                type="number"
+                placeholder="Ex: 500"
+                className="h-8 text-xs"
+                value={filtroPesoMax || ''}
+                onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)}
+              />
             </div>
-                        <div>
-
           </div>
-        </div>
-      }
+        )}
     </div>);
 
 }
