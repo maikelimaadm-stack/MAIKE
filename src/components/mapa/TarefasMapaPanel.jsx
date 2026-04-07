@@ -13,17 +13,17 @@ import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaM
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 
 const PRIORIDADE_CORES = {
-  'Baixa': 'bg-blue-100 text-blue-700',
-  'Média': 'bg-orange-100 text-orange-700',
-  'Alta': 'bg-red-100 text-red-700',
-  'Concluida': 'bg-slate-100 text-slate-500'
+  'Baixa': 'bg-blue-300 text-black hover:bg-blue-300',
+  'Média': 'bg-yellow-300 text-black hover:bg-yellow-300',
+  'Alta': 'bg-red-400 text-black hover:bg-red-400',
+  'Concluida': 'bg-slate-300 text-black hover:bg-slate-300'
 };
 
 const STATUS_CORES = {
-  'Pendente': 'bg-yellow-100 text-yellow-700',
-  'Em Andamento': 'bg-blue-100 text-blue-700',
-  'Concluída': 'bg-emerald-100 text-emerald-700',
-  'Cancelada': 'bg-slate-100 text-slate-500'
+  'Pendente': 'bg-yellow-300 text-black hover:bg-yellow-300',
+  'Em Andamento': 'bg-blue-300 text-black hover:bg-blue-300',
+  'Concluída': 'bg-emerald-300 text-black hover:bg-emerald-300',
+  'Cancelada': 'bg-slate-300 text-black hover:bg-slate-300'
 };
 
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
@@ -236,19 +236,19 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             </Button>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-auto max-h-[420px]">
+          <div className="overflow-hidden">
+            <div className="overflow-auto max-h-[500px]">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-white border-b hover:bg-white">
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">TAREFA</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">GRUPO</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">TIPO</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">STATUS</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">PRIORIDADE</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">RESPONSÁVEL</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b">PRAZO</TableHead>
-                    <TableHead className="text-xs py-2 px-3 font-bold border-b text-right">AÇÕES</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TAREFA</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">GRUPO</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TIPO</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">STATUS</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">PRIORIDADE</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">RESPONSÁVEL</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">PRAZO</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">AÇÕES</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -258,7 +258,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                     </TableRow>
                   ) : tarefasFiltradas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-xs text-slate-400 border-b">
+                      <TableCell colSpan={8} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                         <div className="flex flex-col items-center gap-2">
                           <Clock className="w-8 h-8 opacity-50" />
                           <span>Nenhuma tarefa encontrada</span>
@@ -271,9 +271,9 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                       const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
 
                       return (
-                        <TableRow key={tarefa.id} className="hover:bg-gray-50 cursor-pointer" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
-                          <TableCell className="text-xs py-2 px-3 border-b align-top min-w-[240px]">
-                            <div className="space-y-1">
+                        <TableRow key={tarefa.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
+                            <div className="space-y-0.5">
                               <div className="font-medium text-slate-900 uppercase break-words">{tarefa.titulo || '-'}</div>
                               {tarefa.descricao && <div className="text-slate-500 break-words line-clamp-2 uppercase">{tarefa.descricao}</div>}
                               {(tarefa.area_nome || tarefa.setor_nome) && (
@@ -281,17 +281,17 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b uppercase align-top">{tarefa.grupo_atividade_nome || '-'}</TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b uppercase align-top">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b align-top">
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300 uppercase">{tarefa.grupo_atividade_nome || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300 uppercase">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
                             <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px] uppercase`}>{tarefa.status || '-'}</Badge>
                           </TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b align-top">
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
                             <Badge className={`${prioridadeClassName} text-[10px] uppercase`}>{prioridade}</Badge>
                           </TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b uppercase align-top">{tarefa.responsavel || '-'}</TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b align-top">{tarefa.data_prevista ? format(new Date(tarefa.data_prevista), 'dd/MM/yyyy') : '-'}</TableCell>
-                          <TableCell className="text-xs py-2 px-3 border-b align-top">
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300 uppercase">{tarefa.responsavel || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.data_prevista ? format(new Date(tarefa.data_prevista), 'dd/MM/yyyy') : '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
                             <div className="flex flex-wrap justify-end gap-1" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
                               {tarefa.status !== 'Concluída' && (
                                 <Button variant="outline" size="sm" onClick={() => handleConcluir(tarefa)} className="h-7 text-xs">Concluir</Button>
@@ -334,7 +334,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         setShowForm(open);
         if (!open) setEditingTarefa(null);
       }}>
-        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-2xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogContent className="p-3 bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
             <DialogTitle className="text-sm font-bold text-slate-900">{editingTarefa ? 'EDITAR TAREFA DO MAPA' : 'NOVA TAREFA DO MAPA'}</DialogTitle>
             <p className="text-xs text-slate-600">Preencha as informações da atividade, defina o responsável e marque o ponto no mapa se necessário.</p>
