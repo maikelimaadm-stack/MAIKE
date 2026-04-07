@@ -207,7 +207,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
             {currentTarefa.status}
           </Badge>
-          <Badge className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent shadow hover:bg-primary/80 text-[10px] bg-orange-100 text-orange-700">
+          <Badge className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent shadow hover:bg-primary/80 text-[10px] bg-orange-100 text-orange-700\n">
             Prioridade: {prioridade}
           </Badge>
         </div>
