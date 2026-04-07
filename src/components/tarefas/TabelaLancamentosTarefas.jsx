@@ -424,7 +424,7 @@ export default function TabelaLancamentosTarefas({
             />
 
             <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
-              <label className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 border-b border-slate-200">
+              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
                 <Checkbox
                   checked={allVisibleSelected}
                   onCheckedChange={(checked) => {
@@ -436,12 +436,12 @@ export default function TabelaLancamentosTarefas({
                       };
                     });
                   }}
-                  className="h-3.5 w-3.5"
+                  className="h-3.5 w-3.5 shrink-0"
                 />
-                (Selecionar Tudo)
+                <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
               </label>
               {filteredOptions.map((option) => (
-                <label key={option} className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">
+                <label key={option} className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
                   <Checkbox
                     checked={valoresSelecionados.includes(option)}
                     onCheckedChange={(checked) => {
@@ -452,9 +452,9 @@ export default function TabelaLancamentosTarefas({
                           : prev.valores.filter((item) => item !== option)
                       }));
                     }}
-                    className="h-3.5 w-3.5"
+                    className="h-3.5 w-3.5 shrink-0"
                   />
-                  {option}
+                  <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
                 </label>
               ))}
             </div>
