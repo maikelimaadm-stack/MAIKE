@@ -98,6 +98,7 @@ export default function TabelaLancamentosTarefas({
 
   const resizeRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
+  const scrollContainerRef = useRef(null);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
@@ -139,6 +140,10 @@ export default function TabelaLancamentosTarefas({
     };
 
     const handlePointerUp = () => {
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.style.overflowX = "auto";
+      }
       resizeRef.current = null;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
@@ -271,6 +276,10 @@ export default function TabelaLancamentosTarefas({
     event.preventDefault();
     event.stopPropagation();
     const clientX = event.touches?.[0]?.clientX ?? event.clientX;
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.style.overflowX = "hidden";
+    }
     resizeRef.current = {
       columnId: colunaId,
       startX: clientX,
@@ -499,7 +508,7 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-1">
       <Card>
         <CardContent className="p-0">
-          <div className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-contain">
+          <div ref={scrollContainerRef} className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-x-none overscroll-y-contain touch-pan-y">
             <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-30 bg-white">
@@ -547,7 +556,7 @@ export default function TabelaLancamentosTarefas({
                         )}
 
                         <div
-                          className="absolute top-0 right-0 h-full w-4 cursor-col-resize z-30"
+                          className="absolute top-0 right-0 h-full w-5 cursor-col-resize z-30 touch-none"
                           onMouseDown={(event) => iniciarResize(event, coluna.id)}
                           onTouchStart={(event) => iniciarResize(event, coluna.id)}
                           onClick={(event) => event.stopPropagation()}
