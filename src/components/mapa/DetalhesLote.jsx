@@ -631,16 +631,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   return (
     <>
     <div className="space-y-2" translate="no">
-      <div className="space-y-1">
-        <div className="flex items-center gap-1 flex-wrap">
-          <Badge
-            variant="outline"
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-          >
-            Detalhes do Lote
-          </Badge>
-        </div>
-      </div>
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-1">
@@ -662,34 +652,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
               return (
                 <div key={lote.id} className="bg-slate-50 text-[11px] px-1 py-1 rounded-lg border border-slate-200 space-y-1">
-                <div className="space-y-1 border-b pb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Badge
-                        variant="outline"
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-                      >
-                        Lote: {lote.nome}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-                      >
-                        Categoria: {categoria}
-                      </Badge>
-                      {lote.area_atual_nome &&
-                        <Badge
-                          variant="outline"
-                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-                        >
-                          Área: {lote.area_atual_nome}
-                        </Badge>
-                      }
-                    </div>
-                    {iconeUrl &&
-                      <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
+                    Lote: {lote.nome}
+                  </Badge>
+                  {iconeUrl &&
+                    <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                     }
-                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
@@ -717,11 +686,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     <div className="font-semibold text-slate-900">{lote.data_entrada ? new Date(lote.data_entrada).toLocaleDateString('pt-BR') : '-'}</div>
                   </div>
                 </div>
+                <div className="text-[10px] text-slate-500">Categoria: <span className="font-semibold text-slate-700">{categoria}</span></div>
               </div>);
 
             });
           })}
       </div>
+
+      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         <DropdownMenu>
