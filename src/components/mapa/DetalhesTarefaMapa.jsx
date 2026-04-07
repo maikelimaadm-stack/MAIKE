@@ -221,13 +221,6 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
         </Button>
       </div>
 
-      <CardSection title="Último evento da tarefa">
-        <TarefaResumoVisual
-          prazo={currentTarefa.data_prevista}
-          prioridade={prioridade}
-          status={currentTarefa.status} />
-        
-      </CardSection>
 
       <CardSection title="Informações da Tarefa">
         <div className="space-y-1 text-[10px]">
