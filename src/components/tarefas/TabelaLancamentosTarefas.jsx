@@ -74,6 +74,10 @@ export default function TabelaLancamentosTarefas({
   const [filtroTipoTarefa, setFiltroTipoTarefa] = useState("__TODOS__");
   const [filtroArea, setFiltroArea] = useState("__TODOS__");
   const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
+  const [filtroTitulo, setFiltroTitulo] = useState("");
+  const [filtroDescricao, setFiltroDescricao] = useState("");
+  const [filtroResponsavel, setFiltroResponsavel] = useState("");
+  const [filtroSolicitante, setFiltroSolicitante] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -107,7 +111,7 @@ export default function TabelaLancamentosTarefas({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, itemsPerPage]);
+  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, filtroTitulo, filtroDescricao, filtroResponsavel, filtroSolicitante, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ?
@@ -172,9 +176,13 @@ export default function TabelaLancamentosTarefas({
       const matchTipoTarefa = filtroTipoTarefa === "__TODOS__" || (tarefa.tipo_tarefa_nome || tarefa.tipo) === filtroTipoTarefa;
       const matchArea = filtroArea === "__TODOS__" || tarefa.area_nome === filtroArea;
       const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
-      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor;
+      const matchTitulo = !filtroTitulo || String(tarefa.titulo || "").toLowerCase().includes(filtroTitulo.toLowerCase());
+      const matchDescricao = !filtroDescricao || String(tarefa.descricao || "").toLowerCase().includes(filtroDescricao.toLowerCase());
+      const matchResponsavel = !filtroResponsavel || String(tarefa.responsavel || "").toLowerCase().includes(filtroResponsavel.toLowerCase());
+      const matchSolicitante = !filtroSolicitante || String(tarefa.solicitante || "").toLowerCase().includes(filtroSolicitante.toLowerCase());
+      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor && matchTitulo && matchDescricao && matchResponsavel && matchSolicitante;
     });
-  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, normalizeTaskPriority]);
+  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, filtroTitulo, filtroDescricao, filtroResponsavel, filtroSolicitante, normalizeTaskPriority]);
 
   const tarefasOrdenadas = useMemo(() => {
     const sorted = [...tarefasFiltradas];
@@ -227,6 +235,10 @@ export default function TabelaLancamentosTarefas({
     setFiltroTipoTarefa("__TODOS__");
     setFiltroArea("__TODOS__");
     setFiltroSetor("__TODOS__");
+    setFiltroTitulo("");
+    setFiltroDescricao("");
+    setFiltroResponsavel("");
+    setFiltroSolicitante("");
   };
 
   const renderCell = (tarefa, colunaId) => {
