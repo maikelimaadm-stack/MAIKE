@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, CheckCircle, Clock, MapPin, Calendar, Trash2, Edit2 } from "lucide-react";
+import { Clock } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
@@ -49,25 +49,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     },
     enabled: !!empresaSelecionadaId,
   });
-
-  const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ['icones-prioridade-tarefa-mapa'],
-    queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === 'Prioridade Tarefa');
-    },
-    initialData: [],
-  });
-
-  const normalizarPrioridade = (valor) =>
-    (valor || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase();
-
-  const getIconePrioridade = (prioridade) =>
-    iconesPrioridade.find((icone) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(normalizeTaskPriority(prioridade)));
 
   const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
 
@@ -200,162 +181,151 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-slate-900">Tarefas</h3>
-          {(areaNome || loteNome) && (
-            <p className="text-xs text-slate-500">{areaNome || loteNome}</p>
-          )}
-        </div>
-        <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="w-3.5 h-3.5" /> Nova Tarefa
-        </Button>
-      </div>
-
-      {/* Resumo */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-yellow-50 rounded p-2 text-center">
-          <div className="text-lg font-bold text-yellow-700">{pendentes}</div>
-          <div className="text-[10px] text-yellow-600">Pendentes</div>
-        </div>
-        <div className="bg-blue-50 rounded p-2 text-center">
-          <div className="text-lg font-bold text-blue-700">{emAndamento}</div>
-          <div className="text-[10px] text-blue-600">Em Andamento</div>
-        </div>
-        <div className="bg-red-50 rounded p-2 text-center">
-          <div className="text-lg font-bold text-red-700">{altas}</div>
-          <div className="text-[10px] text-red-600">Alta prioridade</div>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="flex gap-2">
-        <Button 
-          variant={filtroStatus === 'ativas' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFiltroStatus('ativas')}
-          className="h-7 text-xs"
-        >
-          Ativas
-        </Button>
-        <Button 
-          variant={filtroStatus === 'concluidas' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFiltroStatus('concluidas')}
-          className="h-7 text-xs"
-        >
-          Concluídas
-        </Button>
-        <Button 
-          variant={filtroStatus === 'todas' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFiltroStatus('todas')}
-          className="h-7 text-xs"
-        >
-          Todas
-        </Button>
-      </div>
-
-      {/* Lista de Tarefas */}
-      <div className="space-y-2 max-h-[400px] overflow-y-auto">
-        {isLoading ? (
-          <div className="text-center py-4 text-xs text-slate-500">Carregando...</div>
-        ) : tarefasFiltradas.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">
-            <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Nenhuma tarefa encontrada</p>
+      <div className="rounded-xl border bg-card shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 border-b">
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-bold text-slate-900">TAREFAS</h3>
+            {(areaNome || loteNome) && <p className="text-xs text-slate-500 uppercase">{areaNome || loteNome}</p>}
           </div>
-        ) : (
-          tarefasFiltradas.map(tarefa => {
-            const prioridade = normalizeTaskPriority(tarefa.prioridade);
-            const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
+          <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+            Nova Tarefa
+          </Button>
+        </div>
 
-            return (
-            <Card key={tarefa.id} className="shadow-sm cursor-pointer" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-medium text-sm text-slate-900 break-words">{tarefa.titulo}</span>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {getIconePrioridade(tarefa.prioridade)?.icone_url && (
-                          <img
-                            src={getIconePrioridade(tarefa.prioridade).icone_url}
-                            alt={prioridade}
-                            className="w-4 h-4 object-contain"
-                          />
-                        )}
-                        <Badge className={`${prioridadeClassName} text-[10px]`}>
-                          {prioridade}
-                        </Badge>
-                        <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px]`}>{tarefa.status}</Badge>
+        <div className="p-3 space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg border bg-slate-50 p-2 text-center">
+              <div className="text-base font-bold text-slate-900">{pendentes}</div>
+              <div className="text-[10px] text-slate-600 uppercase">Pendentes</div>
+            </div>
+            <div className="rounded-lg border bg-slate-50 p-2 text-center">
+              <div className="text-base font-bold text-slate-900">{emAndamento}</div>
+              <div className="text-[10px] text-slate-600 uppercase">Em andamento</div>
+            </div>
+            <div className="rounded-lg border bg-slate-50 p-2 text-center">
+              <div className="text-base font-bold text-slate-900">{altas}</div>
+              <div className="text-[10px] text-slate-600 uppercase">Alta prioridade</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={filtroStatus === 'ativas' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroStatus('ativas')}
+              className="h-7 text-xs"
+            >
+              Ativas
+            </Button>
+            <Button
+              variant={filtroStatus === 'concluidas' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroStatus('concluidas')}
+              className="h-7 text-xs"
+            >
+              Concluídas
+            </Button>
+            <Button
+              variant={filtroStatus === 'todas' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroStatus('todas')}
+              className="h-7 text-xs"
+            >
+              Todas
+            </Button>
+          </div>
+
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {isLoading ? (
+              <div className="text-center py-4 text-xs text-slate-500">Carregando...</div>
+            ) : tarefasFiltradas.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma tarefa encontrada</p>
+              </div>
+            ) : (
+              tarefasFiltradas.map((tarefa) => {
+                const prioridade = normalizeTaskPriority(tarefa.prioridade);
+                const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
+
+                return (
+                  <Card key={tarefa.id} className="shadow-sm cursor-pointer border" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-semibold text-slate-900 break-words uppercase">{tarefa.titulo}</h4>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              <Badge className={`${prioridadeClassName} text-[10px] uppercase`}>
+                                {prioridade}
+                              </Badge>
+                              <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px] uppercase`}>{tarefa.status}</Badge>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+                            <Badge variant="outline" className="text-[10px] uppercase">{tarefa.grupo_atividade_nome || '-'}</Badge>
+                            <Badge variant="outline" className="text-[10px] uppercase">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</Badge>
+                            {tarefa.data_prevista && <Badge variant="outline" className="text-[10px]">{format(new Date(tarefa.data_prevista), 'dd/MM/yyyy')}</Badge>}
+                            {tarefa.area_nome && <Badge variant="outline" className="text-[10px] uppercase">{tarefa.area_nome}</Badge>}
+                          </div>
+
+                          {tarefa.descricao && (
+                            <p className="text-xs text-slate-600 break-words uppercase">{tarefa.descricao}</p>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-1 text-[10px] text-slate-500">
+                            <div><span className="font-medium uppercase">Solicitante:</span> {tarefa.solicitante || '-'}</div>
+                            <div><span className="font-medium uppercase">Responsável:</span> {tarefa.responsavel || '-'}</div>
+                            <div><span className="font-medium uppercase">Observações:</span> {tarefa.observacoes || '-'}</div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
-                      <Badge variant="outline" className="text-[10px]">{tarefa.grupo_atividade_nome || '-'}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</Badge>
-                      {tarefa.data_prevista && (
-                        <span className="flex items-center gap-0.5">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(tarefa.data_prevista), 'dd/MM')}
-                        </span>
-                      )}
-                      {tarefa.area_nome && (
-                        <span className="flex items-center gap-0.5">
-                          <MapPin className="w-3 h-3" />
-                          {tarefa.area_nome}
-                        </span>
-                      )}
-                    </div>
-                    {tarefa.descricao && (
-                      <p className="text-xs text-slate-600 break-words">{tarefa.descricao}</p>
-                    )}
-                    <div className="space-y-0.5 text-[10px] text-slate-500">
-                      <div><span className="font-medium">Solicitante:</span> {tarefa.solicitante || '-'}</div>
-                      <div><span className="font-medium">Responsável:</span> {tarefa.responsavel || '-'}</div>
-                      <div><span className="font-medium">Observações:</span> {tarefa.observacoes || '-'}</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
-                    {tarefa.status !== 'Concluída' && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleConcluir(tarefa)}
-                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-50"
-                        title="Concluir"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </Button>
-                    )}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }}
-                      className="h-7 w-7 text-blue-600 hover:bg-blue-50"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => {
-                        if (confirm('Excluir esta tarefa?')) {
-                          deleteMutation.mutate(tarefa.id);
-                        }
-                      }}
-                      className="h-7 w-7 text-red-600 hover:bg-red-50"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )})
-        )}
+
+                      <div className="flex flex-wrap justify-end gap-1 pt-2 border-t" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
+                        {tarefa.status !== 'Concluída' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleConcluir(tarefa)}
+                            className="h-7 text-xs"
+                            title="Concluir"
+                          >
+                            Concluir
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }}
+                          className="h-7 text-xs"
+                          title="Editar"
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Excluir esta tarefa?')) {
+                              deleteMutation.mutate(tarefa.id);
+                            }
+                          }}
+                          className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                          title="Excluir"
+                        >
+                          Excluir
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
 
       <TarefaDetalhesDialog
