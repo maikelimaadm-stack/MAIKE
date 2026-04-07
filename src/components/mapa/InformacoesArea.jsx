@@ -50,37 +50,37 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
       </Badge>
 
       <div className="grid grid-cols-4 sm:grid-cols-4 gap-1 text-[10px]">
-         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Hectares</div>
-          <div className="font-semibold text-slate-900">hectares: {hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
+        <div className="">
+          
+          <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">UA/ha</div>
-          <div className="font-semibold text-slate-900">UA: {fmt(uaHa)}</div>
+          
+          <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">UA total</div>
-          <div className="font-semibold text-slate-900">UA total: {fmt(totalUA)}</div>
+          
+          <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Pastagem</div>
-          <div className="font-semibold text-slate-900">Pastagem: {area.tipo_pastagem || '-'}</div>
+          
+          <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Qtd. Lotes</div>
-          <div className="font-semibold text-slate-900">Qtd. Lotes: {lotesNaArea.length.toLocaleString('pt-BR')}</div>
+          
+          <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Qtd. Cabeças</div>
-          <div className="font-semibold text-slate-900">Qtd. Cabeças: {totalCabecas.toLocaleString('pt-BR')}</div>
+          <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Média geral</div>
-          <div className="font-semibold text-slate-900">Média geral: {pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
+          <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Dias pastejo</div>
-          <div className="font-semibold text-slate-900">Dias pastejo: {diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
+          <div className="font-semibold text-slate-900">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
         </div>
       </div>
 
