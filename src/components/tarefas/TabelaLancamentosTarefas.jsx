@@ -499,8 +499,8 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-1">
       <Card>
         <CardContent className="p-0">
-          <div className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-x-contain touch-pan-x">
-            <Table className={`w-full ${isMobile ? "min-w-max" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+          <div className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-contain">
+            <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-30 bg-white">
                   {colunasOrdenadas.map((coluna) => {
@@ -547,7 +547,7 @@ export default function TabelaLancamentosTarefas({
                         )}
 
                         <div
-                          className="absolute top-0 right-0 h-full w-3 cursor-col-resize touch-none"
+                          className="absolute top-0 right-0 h-full w-4 cursor-col-resize z-30"
                           onMouseDown={(event) => iniciarResize(event, coluna.id)}
                           onTouchStart={(event) => iniciarResize(event, coluna.id)}
                           onClick={(event) => event.stopPropagation()}
@@ -580,8 +580,8 @@ export default function TabelaLancamentosTarefas({
                           return (
                             <TableCell
                               key={`${tarefa.id}-selecao`}
-                              style={{ width, minWidth: width, maxWidth: width, left: 0 }}
-                              className="p-0 bg-white text-muted-foreground font-medium text-center sticky z-20 align-middle px-0 h-7 border-r border-b border-gray-300"
+                              style={{ width, minWidth: width, maxWidth: width }}
+                              className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
                               onClick={(event) => event.stopPropagation()}
                               onTouchEnd={(event) => event.stopPropagation()}
                             >
@@ -594,8 +594,8 @@ export default function TabelaLancamentosTarefas({
                           return (
                             <TableCell
                               key={`${tarefa.id}-acoes`}
-                              style={{ width, minWidth: width, maxWidth: width, left: columnWidths.selecao || 44 }}
-                              className="p-0 bg-white text-muted-foreground font-medium text-center sticky z-20 align-middle px-0 h-7 border-r border-b border-gray-300"
+                              style={{ width, minWidth: width, maxWidth: width }}
+                              className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
                               onClick={(event) => event.stopPropagation()}
                               onTouchEnd={(event) => event.stopPropagation()}
                             >
