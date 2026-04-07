@@ -433,8 +433,8 @@ export default function TabelaLancamentosTarefas({
         <CardContent className="p-0">
           <div className="relative w-full overflow-auto max-h-[calc(100vh-220px)]">
             <Table className="w-full min-w-[900px] border-collapse">
-              <TableHeader className="bg-white">
-                <TableRow className="sticky top-0 z-30 bg-white border-b border-gray-200">
+              <TableHeader className="bg-white border-b border-gray-200">
+                <TableRow className="sticky top-0 z-30 bg-white">
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") return <TableHead key="selecao" className="sticky top-0 left-0 z-40 h-10 p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0 border-b border-gray-200"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
                     if (coluna.id === "acoes") return <TableHead key="acoes" className="sticky top-0 left-0 z-40 h-10 p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0 border-b border-r border-gray-200"></TableHead>;
@@ -444,7 +444,7 @@ export default function TabelaLancamentosTarefas({
                   })}
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="[&_tr:first-child_td]:border-t-0">
                 {tarefasPaginadas.length === 0 ?
                 <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow> :
                 tarefasPaginadas.map((tarefa) =>
@@ -456,7 +456,7 @@ export default function TabelaLancamentosTarefas({
                     {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableCell>;
                     if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
-                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">{renderCell(tarefa, coluna.id)}</TableCell>;
+                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300 border-t-0">{renderCell(tarefa, coluna.id)}</TableCell>;
                   })}
                   </TableRow>
                 )}
