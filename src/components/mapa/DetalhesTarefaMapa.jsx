@@ -199,27 +199,27 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       <div className="pb-2 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap ">
 <Badge
-  variant="outline"
-  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
->
+            variant="outline"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs">
+            
   Tarefa: {currentTarefa.titulo}
 </Badge>
 
           
                   </div>
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-3 gap-1">
 
 <Badge
-  variant="outline"
-  className={`text-[10px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}
->
+            variant="outline"
+            className={`text-[10px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
+            
   Status: {currentTarefa.status}
 </Badge>
 
 <Badge
-  variant="outline"
-  className={`text-[10px] border-transparent shadow-none ${prioridadeClassName}`}
->
+            variant="outline"
+            className={`text-[10px] border-transparent shadow-none ${prioridadeClassName}`}>
+            
   Prioridade: {prioridade}
 </Badge>
 
