@@ -431,10 +431,10 @@ export default function TabelaLancamentosTarefas({
 
       <Card>
         <CardContent className="p-0">
-          <div className="relative max-h-[500px] overflow-auto">
-            <Table className="min-w-max">
-              <TableHeader className="bg-white shadow-sm">
-                <TableRow className="sticky top-0 z-30 bg-white border-b">
+          <div className="relative w-full overflow-auto max-h-[calc(100vh-220px)]">
+            <Table className="w-full min-w-[900px]">
+              <TableHeader className="bg-white shadow-sm border-b border-gray-300">
+                <TableRow className="sticky top-0 z-30 bg-white border-b border-gray-300">
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") return <TableHead key="selecao" className="sticky top-0 left-0 z-40 h-10 p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0 border border-gray-300"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
                     if (coluna.id === "acoes") return <TableHead key="acoes" className="sticky top-0 left-0 z-40 h-10 p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0 border border-gray-300"></TableHead>;
