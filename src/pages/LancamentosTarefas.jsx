@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -14,7 +13,6 @@ export default function LancamentosTarefas() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [deleteIds, setDeleteIds] = useState([]);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
 
   const { data: tarefas = [] } = useQuery({
     queryKey: ["gestao-tarefas-unificada", empresaSelecionadaId],
@@ -87,10 +85,6 @@ export default function LancamentosTarefas() {
           
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-            <Settings className="w-4 h-4" />
-          </Button>
-          
           <Link to={createPageUrl("LancamentoTarefaForm")}>
             <Button size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
               Adicionar
@@ -101,12 +95,8 @@ export default function LancamentosTarefas() {
 
       <TabelaLancamentosTarefas
         tarefas={tarefas}
-        grupos={grupos}
         onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
-        getIconePrioridade={getIconePrioridade}
-        normalizeTaskPriority={normalizeTaskPriority}
-        showConfigColunas={showConfigColunas}
-        setShowConfigColunas={setShowConfigColunas} />
+        normalizeTaskPriority={normalizeTaskPriority} />
       
 
       <ConfirmDialog
