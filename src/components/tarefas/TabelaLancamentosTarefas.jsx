@@ -9,13 +9,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
-import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -67,19 +70,18 @@ export default function TabelaLancamentosTarefas({
   setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState([]);
-  const [filtroPrioridade, setFiltroPrioridade] = useState([]);
-  const [filtroGrupo, setFiltroGrupo] = useState([]);
-  const [filtroTipoTarefa, setFiltroTipoTarefa] = useState([]);
-  const [filtroArea, setFiltroArea] = useState([]);
-  const [filtroSetor, setFiltroSetor] = useState([]);
-  const [filtroTitulo, setFiltroTitulo] = useState([]);
-  const [filtroDescricao, setFiltroDescricao] = useState([]);
-  const [filtroResponsavel, setFiltroResponsavel] = useState([]);
-  const [filtroSolicitante, setFiltroSolicitante] = useState([]);
+  const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
+  const [filtroPrioridade, setFiltroPrioridade] = useState("__TODOS__");
+  const [filtroGrupo, setFiltroGrupo] = useState("__TODOS__");
+  const [filtroTipoTarefa, setFiltroTipoTarefa] = useState("__TODOS__");
+  const [filtroArea, setFiltroArea] = useState("__TODOS__");
+  const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
+  const [filtroTitulo, setFiltroTitulo] = useState("");
+  const [filtroDescricao, setFiltroDescricao] = useState("");
+  const [filtroResponsavel, setFiltroResponsavel] = useState("");
+  const [filtroSolicitante, setFiltroSolicitante] = useState("");
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
-  const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -184,10 +186,6 @@ export default function TabelaLancamentosTarefas({
   const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
   const tiposTarefa = useMemo(() => [...new Set(tarefas.map((item) => item.tipo_tarefa_nome || item.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
   const areas = useMemo(() => [...new Set(tarefas.map((item) => item.area_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const titulos = useMemo(() => [...new Set(tarefas.map((item) => item.titulo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const descricoes = useMemo(() => [...new Set(tarefas.map((item) => item.descricao).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const responsaveis = useMemo(() => [...new Set(tarefas.map((item) => item.responsavel).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const solicitantes = useMemo(() => [...new Set(tarefas.map((item) => item.solicitante).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
 
   const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
 
@@ -201,8 +199,6 @@ export default function TabelaLancamentosTarefas({
   };
 
   const tarefasFiltradas = useMemo(() => {
-    const incluiValor = (filtro, valor) => filtro.length === 0 || filtro.includes(String(valor || ""));
-
     return tarefas.filter((tarefa) => {
       const termo = searchTerm.toLowerCase();
       const prioridade = normalizeTaskPriority(tarefa.prioridade);
@@ -220,16 +216,16 @@ export default function TabelaLancamentosTarefas({
         tarefa.observacoes_conclusao
       ].some((value) => String(value || "").toLowerCase().includes(termo));
 
-      const matchStatus = incluiValor(filtroStatus, tarefa.status);
-      const matchPrioridade = incluiValor(filtroPrioridade, prioridade);
-      const matchGrupo = incluiValor(filtroGrupo, tarefa.grupo_atividade_nome);
-      const matchTipoTarefa = incluiValor(filtroTipoTarefa, tarefa.tipo_tarefa_nome || tarefa.tipo);
-      const matchArea = incluiValor(filtroArea, tarefa.area_nome);
-      const matchSetor = incluiValor(filtroSetor, tarefa.setor_nome);
-      const matchTitulo = incluiValor(filtroTitulo, tarefa.titulo);
-      const matchDescricao = incluiValor(filtroDescricao, tarefa.descricao);
-      const matchResponsavel = incluiValor(filtroResponsavel, tarefa.responsavel);
-      const matchSolicitante = incluiValor(filtroSolicitante, tarefa.solicitante);
+      const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
+      const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
+      const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
+      const matchTipoTarefa = filtroTipoTarefa === "__TODOS__" || (tarefa.tipo_tarefa_nome || tarefa.tipo) === filtroTipoTarefa;
+      const matchArea = filtroArea === "__TODOS__" || tarefa.area_nome === filtroArea;
+      const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
+      const matchTitulo = !filtroTitulo || String(tarefa.titulo || "").toLowerCase().includes(filtroTitulo.toLowerCase());
+      const matchDescricao = !filtroDescricao || String(tarefa.descricao || "").toLowerCase().includes(filtroDescricao.toLowerCase());
+      const matchResponsavel = !filtroResponsavel || String(tarefa.responsavel || "").toLowerCase().includes(filtroResponsavel.toLowerCase());
+      const matchSolicitante = !filtroSolicitante || String(tarefa.solicitante || "").toLowerCase().includes(filtroSolicitante.toLowerCase());
 
       return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor && matchTitulo && matchDescricao && matchResponsavel && matchSolicitante;
     });
@@ -271,6 +267,13 @@ export default function TabelaLancamentosTarefas({
     document.body.style.userSelect = "none";
   };
 
+  const SortIcon = ({ column }) => {
+    if (sortConfig.key !== column) return <ArrowUpDown className="w-3 h-3 ml-1 text-slate-300" />;
+    return sortConfig.direction === "asc"
+      ? <ArrowUp className="w-3 h-3 ml-1 text-slate-300" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+  };
+
   const toggleSelectAll = () => {
     if (selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0) {
       setSelectedItems([]);
@@ -287,16 +290,16 @@ export default function TabelaLancamentosTarefas({
 
   const limparFiltros = () => {
     setSearchTerm("");
-    setFiltroStatus([]);
-    setFiltroPrioridade([]);
-    setFiltroGrupo([]);
-    setFiltroTipoTarefa([]);
-    setFiltroArea([]);
-    setFiltroSetor([]);
-    setFiltroTitulo([]);
-    setFiltroDescricao([]);
-    setFiltroResponsavel([]);
-    setFiltroSolicitante([]);
+    setFiltroStatus("__TODOS__");
+    setFiltroPrioridade("__TODOS__");
+    setFiltroGrupo("__TODOS__");
+    setFiltroTipoTarefa("__TODOS__");
+    setFiltroArea("__TODOS__");
+    setFiltroSetor("__TODOS__");
+    setFiltroTitulo("");
+    setFiltroDescricao("");
+    setFiltroResponsavel("");
+    setFiltroSolicitante("");
   };
 
   const renderCell = (tarefa, colunaId) => {
@@ -323,80 +326,113 @@ export default function TabelaLancamentosTarefas({
   };
 
   const hasActiveFilter = (colunaId) => {
-    return (colunaId === "titulo" && filtroTitulo.length > 0) ||
-      (colunaId === "descricao" && filtroDescricao.length > 0) ||
-      (colunaId === "prioridade" && filtroPrioridade.length > 0) ||
-      (colunaId === "status" && filtroStatus.length > 0) ||
-      (colunaId === "grupo_atividade_nome" && filtroGrupo.length > 0) ||
-      ((colunaId === "tipo_tarefa_nome" || colunaId === "tipo") && filtroTipoTarefa.length > 0) ||
-      (colunaId === "setor_nome" && filtroSetor.length > 0) ||
-      (colunaId === "area_nome" && filtroArea.length > 0) ||
-      (colunaId === "responsavel" && filtroResponsavel.length > 0) ||
-      (colunaId === "solicitante" && filtroSolicitante.length > 0);
+    return (colunaId === "titulo" && filtroTitulo) ||
+      (colunaId === "descricao" && filtroDescricao) ||
+      (colunaId === "prioridade" && filtroPrioridade !== "__TODOS__") ||
+      (colunaId === "status" && filtroStatus !== "__TODOS__") ||
+      (colunaId === "grupo_atividade_nome" && filtroGrupo !== "__TODOS__") ||
+      ((colunaId === "tipo_tarefa_nome" || colunaId === "tipo") && filtroTipoTarefa !== "__TODOS__") ||
+      (colunaId === "setor_nome" && filtroSetor !== "__TODOS__") ||
+      (colunaId === "area_nome" && filtroArea !== "__TODOS__") ||
+      (colunaId === "responsavel" && filtroResponsavel) ||
+      (colunaId === "solicitante" && filtroSolicitante);
   };
 
-  const getValoresFiltro = (colunaId) => {
+  const clearColumnFilter = (colunaId) => {
+    if (colunaId === "titulo") setFiltroTitulo("");
+    if (colunaId === "descricao") setFiltroDescricao("");
+    if (colunaId === "prioridade") setFiltroPrioridade("__TODOS__");
+    if (colunaId === "status") setFiltroStatus("__TODOS__");
+    if (colunaId === "grupo_atividade_nome") setFiltroGrupo("__TODOS__");
+    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") setFiltroTipoTarefa("__TODOS__");
+    if (colunaId === "setor_nome") setFiltroSetor("__TODOS__");
+    if (colunaId === "area_nome") setFiltroArea("__TODOS__");
+    if (colunaId === "responsavel") setFiltroResponsavel("");
+    if (colunaId === "solicitante") setFiltroSolicitante("");
+  };
+
+  const applyColumnTextFilter = (colunaId, value) => {
+    if (colunaId === "titulo") setFiltroTitulo(value);
+    if (colunaId === "descricao") setFiltroDescricao(value);
+    if (colunaId === "responsavel") setFiltroResponsavel(value);
+    if (colunaId === "solicitante") setFiltroSolicitante(value);
+  };
+
+  const getColumnTextFilterValue = (colunaId) => {
     if (colunaId === "titulo") return filtroTitulo;
     if (colunaId === "descricao") return filtroDescricao;
+    if (colunaId === "responsavel") return filtroResponsavel;
+    if (colunaId === "solicitante") return filtroSolicitante;
+    return "";
+  };
+
+  const applyColumnSelectFilter = (colunaId, value) => {
+    if (colunaId === "prioridade") setFiltroPrioridade(value);
+    if (colunaId === "status") setFiltroStatus(value);
+    if (colunaId === "grupo_atividade_nome") setFiltroGrupo(value);
+    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") setFiltroTipoTarefa(value);
+    if (colunaId === "setor_nome") setFiltroSetor(value);
+    if (colunaId === "area_nome") setFiltroArea(value);
+  };
+
+  const getColumnSelectFilterValue = (colunaId) => {
     if (colunaId === "prioridade") return filtroPrioridade;
     if (colunaId === "status") return filtroStatus;
     if (colunaId === "grupo_atividade_nome") return filtroGrupo;
     if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") return filtroTipoTarefa;
     if (colunaId === "setor_nome") return filtroSetor;
     if (colunaId === "area_nome") return filtroArea;
-    if (colunaId === "responsavel") return filtroResponsavel;
-    if (colunaId === "solicitante") return filtroSolicitante;
-    return [];
+    return "__TODOS__";
   };
 
-  const setValoresFiltro = (colunaId, values) => {
-    if (colunaId === "titulo") setFiltroTitulo(values);
-    if (colunaId === "descricao") setFiltroDescricao(values);
-    if (colunaId === "prioridade") setFiltroPrioridade(values);
-    if (colunaId === "status") setFiltroStatus(values);
-    if (colunaId === "grupo_atividade_nome") setFiltroGrupo(values);
-    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") setFiltroTipoTarefa(values);
-    if (colunaId === "setor_nome") setFiltroSetor(values);
-    if (colunaId === "area_nome") setFiltroArea(values);
-    if (colunaId === "responsavel") setFiltroResponsavel(values);
-    if (colunaId === "solicitante") setFiltroSolicitante(values);
-  };
-
-  const clearColumnFilter = (colunaId) => {
-    setValoresFiltro(colunaId, []);
-  };
-
-  const getColumnOptions = (colunaId) => {
-    if (colunaId === "titulo") return titulos;
-    if (colunaId === "descricao") return descricoes;
+  const getColumnSelectOptions = (colunaId) => {
     if (colunaId === "prioridade") return ["Baixa", "Média", "Alta"];
     if (colunaId === "status") return ["Pendente", "Em Andamento", "Concluída", "Cancelada"];
     if (colunaId === "grupo_atividade_nome") return grupos || [];
     if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") return tiposTarefa || [];
     if (colunaId === "setor_nome") return setores || [];
     if (colunaId === "area_nome") return areas || [];
-    if (colunaId === "responsavel") return responsaveis || [];
-    if (colunaId === "solicitante") return solicitantes || [];
     return [];
+  };
+
+  const getColumnFilterPlaceholder = (colunaId) => {
+    if (colunaId === "titulo") return "Pesquisar tarefa";
+    if (colunaId === "descricao") return "Pesquisar descrição";
+    if (colunaId === "responsavel") return "Pesquisar responsável";
+    if (colunaId === "solicitante") return "Pesquisar solicitante";
+    return "Pesquisar";
+  };
+
+  const getColumnCheckedValues = (colunaId) => {
+    const valorAtual = getColumnSelectFilterValue(colunaId);
+    const opcoes = getColumnSelectOptions(colunaId);
+    return valorAtual === "__TODOS__" ? opcoes : [valorAtual];
+  };
+
+  const toggleColumnCheckedValue = (colunaId, option) => {
+    const selecionados = getColumnCheckedValues(colunaId);
+    const existe = selecionados.includes(option);
+    const proximos = existe ? selecionados.filter((item) => item !== option) : [...selecionados, option];
+
+    if (proximos.length !== 1) return;
+    applyColumnSelectFilter(colunaId, proximos[0]);
   };
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
+    const isTextFilter = ["titulo", "descricao", "responsavel", "solicitante"].includes(colunaId);
+    const isSelectFilter = ["prioridade", "status", "grupo_atividade_nome", "tipo_tarefa_nome", "tipo", "setor_nome", "area_nome"].includes(colunaId);
     const columnLabel = COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === colunaId)?.label || colunaId;
-    const options = getColumnOptions(colunaId);
-    const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
-    const filteredOptions = options.filter((option) => String(option).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
-    const allVisibleSelected = filteredOptions.length > 0 && filteredOptions.every((option) => valoresSelecionados.includes(option));
+    const filterOptions = getColumnSelectOptions(colunaId);
+    const filteredOptions = filterOptions.filter((option) => option.toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
+
+    if (!isTextFilter && !isSelectFilter) return null;
 
     return (
-      <DropdownMenu
-        open={menuFiltroAberto === colunaId}
-        onOpenChange={(open) => {
-          setMenuFiltroAberto(open ? colunaId : null);
-          setBuscaFiltroMenu("");
-          setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] });
-        }}
-      >
+      <DropdownMenu open={menuFiltroAberto === colunaId} onOpenChange={(open) => {
+        setMenuFiltroAberto(open ? colunaId : null);
+        if (!open) setBuscaFiltroMenu("");
+      }}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
             <Filter className="w-2 h-2" />
@@ -404,77 +440,67 @@ export default function TabelaLancamentosTarefas({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[310px] p-0">
           <DropdownMenuItem className="text-xs h-8" onClick={() => handleSort(colunaId)}>
-            <ArrowDownAZ className="w-4 h-4 mr-2" />
+            <ArrowDownAZ className="w-4 h-4" />
             Classificar do Menor para o Maior
           </DropdownMenuItem>
           <DropdownMenuItem className="text-xs h-8" onClick={() => setSortConfig({ key: colunaId, direction: "desc" })}>
-            <ArrowUpZA className="w-4 h-4 mr-2" />
+            <ArrowUpZA className="w-4 h-4" />
             Classificar do Maior para o Menor
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-xs h-8 text-slate-500" onClick={() => clearColumnFilter(colunaId)} disabled={!hasActiveFilter(colunaId)}>
-            <X className="w-4 h-4 mr-2" />
+            <X className="w-4 h-4" />
             Limpar Filtro de "{columnLabel}"
           </DropdownMenuItem>
           <DropdownMenuSeparator />
 
           <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
             <Input
-              value={buscaFiltroMenu}
-              onChange={(e) => setBuscaFiltroMenu(e.target.value)}
+              value={isTextFilter ? getColumnTextFilterValue(colunaId) : buscaFiltroMenu}
+              onChange={(e) => {
+                if (isTextFilter) {
+                  applyColumnTextFilter(colunaId, e.target.value);
+                } else {
+                  setBuscaFiltroMenu(e.target.value);
+                }
+              }}
               placeholder="PESQUISAR"
               className="h-8 text-xs uppercase"
             />
 
-            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
-              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
-                <Checkbox
-                  checked={allVisibleSelected}
-                  onCheckedChange={(checked) => {
-                    setFiltroTemp((prev) => {
-                      const restantes = prev.valores.filter((value) => !filteredOptions.includes(value));
-                      return {
-                        ...prev,
-                        valores: checked ? [...new Set([...restantes, ...filteredOptions])] : restantes
-                      };
-                    });
-                  }}
-                  className="h-3.5 w-3.5 shrink-0"
-                />
-                <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
-              </label>
-              {filteredOptions.map((option) => (
-                <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
+            {isSelectFilter && (
+              <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
+                <label className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 border-b border-slate-200">
                   <Checkbox
-                    checked={valoresSelecionados.includes(option)}
-                    onCheckedChange={(checked) => {
-                      setFiltroTemp((prev) => ({
-                        ...prev,
-                        valores: checked
-                          ? [...prev.valores, option]
-                          : prev.valores.filter((item) => item !== option)
-                      }));
-                    }}
-                    className="h-3.5 w-3.5 shrink-0"
+                    checked={getColumnSelectFilterValue(colunaId) === "__TODOS__"}
+                    onCheckedChange={() => applyColumnSelectFilter(colunaId, "__TODOS__")}
+                    className="h-3.5 w-3.5"
                   />
-                  <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
+                  (Selecionar Tudo)
                 </label>
-              ))}
-            </div>
+                {filteredOptions.map((option) => (
+                  <label key={option} className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">
+                    <Checkbox
+                      checked={getColumnCheckedValues(colunaId).includes(option)}
+                      onCheckedChange={() => toggleColumnCheckedValue(colunaId, option)}
+                      className="h-3.5 w-3.5"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
                 setMenuFiltroAberto(null);
                 setBuscaFiltroMenu("");
-                setFiltroTemp({ colunaId: null, valores: [] });
               }}>
                 Cancelar
               </Button>
               <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {
-                setValoresFiltro(colunaId, filtroTemp.valores);
                 setMenuFiltroAberto(null);
                 setBuscaFiltroMenu("");
-                setFiltroTemp({ colunaId: null, valores: [] });
               }}>
                 OK
               </Button>
@@ -525,6 +551,7 @@ export default function TabelaLancamentosTarefas({
                         key={coluna.id}
                         style={{ width, minWidth: width, maxWidth: width }}
                         className="sticky top-0 h-7 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap"
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
                         <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
@@ -643,17 +670,6 @@ export default function TabelaLancamentosTarefas({
         </CardContent>
       </Card>
 
-
-      <ConfiguracaoColunasMapaDialog
-        open={showConfigColunas}
-        onOpenChange={setShowConfigColunas}
-        colunasDisponiveis={COLUNAS_DISPONIVEIS}
-        colunasVisiveis={colunasVisiveis}
-        colunasOrdem={colunasOrdem}
-        toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd}
-        droppableId="colunas-gestao-tarefas"
-      />
 
       <TarefaDetalhesDialog
         open={!!detalheTarefa}
