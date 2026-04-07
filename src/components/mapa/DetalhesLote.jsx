@@ -633,29 +633,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     <div className="space-y-2" translate="no">
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
-      <div className="space-y-1 pb-2 border-b">
-        <div className="flex items-center gap-1 flex-wrap">
-          <Badge
-            variant="outline"
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-          >
-            Lote: {tituloLotes}
-          </Badge>
-          {areaAtual?.nome && (
-            <Badge
-              variant="outline"
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-            >
-              Área: {areaAtual.nome}
-            </Badge>
-          )}
-          <Badge variant="outline" className="text-[10px] border-transparent shadow-none !bg-blue-300 !text-black hover:!bg-blue-300">
-            Total: {totalCabecas.toLocaleString('pt-BR')} cab
-          </Badge>
-        </div>
-      </div>
-
-      <div className="space-y-2 text-[10px]">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-1">
         {categorias.map((categoria) => {
             const lotesCategoria = lotesPorCategoria[categoria];
             const configIcone = iconesConfig.find((ic) =>
@@ -673,40 +651,51 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               if (entrada) {entrada.setHours(0, 0, 0, 0);diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000));}
 
               return (
-                <div key={lote.id} className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap justify-between">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Badge
-                        variant="outline"
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs"
-                      >
-                        Lote: {lote.nome}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] border-transparent shadow-none !bg-yellow-300 !text-black hover:!bg-yellow-300">
-                        Categoria: {categoria}
-                      </Badge>
-                    </div>
-                    {iconeUrl && <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />}
+                <div key={lote.id} className="bg-slate-50 text-[11px] px-1 py-1 rounded-lg border border-slate-200 space-y-1">
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
+                    Lote: {lote.nome}
+                  </Badge>
+                  {iconeUrl &&
+                    <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
+                    }
+                </div>
+                <div className="grid grid-cols-3 gap-1 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Qtd. Cabeças</div>
+                    <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
                   </div>
-                  <div className="space-y-1 text-[10px] pl-1">
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Qtd. Cabeças:</span><span className="font-semibold text-slate-900 break-words">{cab.toLocaleString('pt-BR')}</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Peso Médio:</span><span className="font-semibold text-slate-900 break-words">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Dias de pastejo:</span><span className="font-semibold text-slate-900 break-words">{diasPastejo.toLocaleString('pt-BR')} dia(s)</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sist. Rep.:</span><span className="font-semibold text-slate-900 break-words">{lote.sistema_produtivo || '-'}</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sexo:</span><span className="font-semibold text-slate-900 break-words">{lote.sexo || '-'}</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Entrada na área:</span><span className="font-semibold text-slate-900 break-words">{lote.data_entrada ? new Date(lote.data_entrada).toLocaleDateString('pt-BR') : '-'}</span></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Peso Médio</div>
+                    <div className="font-semibold text-slate-900">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Dias de pastejo</div>
+                    <div className="font-semibold text-slate-900">{diasPastejo.toLocaleString('pt-BR')} dia(s)</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Sist. Rep.</div>
+                    <div className="font-semibold text-slate-900">{lote.sistema_produtivo || '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Sexo</div>
+                    <div className="font-semibold text-slate-900">{lote.sexo || '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Entrada na área</div>
+                    <div className="font-semibold text-slate-900">{lote.data_entrada ? new Date(lote.data_entrada).toLocaleDateString('pt-BR') : '-'}</div>
                   </div>
                 </div>
-              );
+                <div className="text-[10px] text-slate-500">Categoria: <span className="font-semibold text-slate-700">{categoria}</span></div>
+              </div>);
 
             });
           })}
       </div>
 
-      <div className="grid grid-cols-2 gap-1">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onClose}>
-          Detalhes do Lote
-        </Button>
+      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
+
+      <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 text-xs">
@@ -773,8 +762,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       {/* Dialog Juntar Lotes */}
       <Dialog open={showJuntarLotes} onOpenChange={(open) => {setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}}>
