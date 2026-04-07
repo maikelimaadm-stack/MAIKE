@@ -18,6 +18,7 @@ const PRIORIDADE_CORES = {
   Alta: "bg-red-400 text-black hover:bg-red-400",
   Concluida: "bg-slate-300 text-black hover:bg-slate-300"
 
+
 };
 
 const STATUS_CORES = {
