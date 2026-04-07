@@ -611,7 +611,7 @@ export default function TabelaLancamentosTarefas({
                           <TableCell
                             key={`${tarefa.id}-${coluna.id}`}
                             style={{ width, minWidth: width, maxWidth: width }}
-                            className="px-2 h-7 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis"
+                            className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words"
                           >
                             {renderCell(tarefa, coluna.id)}
                           </TableCell>
