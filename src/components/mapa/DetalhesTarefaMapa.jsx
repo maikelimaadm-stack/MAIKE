@@ -200,6 +200,10 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
             Tarefa: {currentTarefa.titulo}
           </Badge>
+          
+                  </div>
+                <div className="grid grid-cols-3 gap-1">
+
           <Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
             {currentTarefa.status}
           </Badge>
