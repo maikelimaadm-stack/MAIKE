@@ -13,19 +13,21 @@ import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
 import TarefaResumoVisual from "./TarefaResumoVisual";
 
 const PRIORIDADE_CORES = {
-  Baixa: "!bg-blue-300 !text-black hover:!bg-blue-300",
-  Média: "!bg-yellow-300 !text-black hover:!bg-yellow-300",
-  Alta: "!bg-red-400 !text-black hover:!bg-red-400",
-  Concluida: "!bg-slate-300 !text-black hover:!bg-slate-300"
+  Baixa: "bg-blue-300 text-black hover:bg-blue-300",
+  Média: "bg-yellow-300 text-black hover:bg-yellow-300",
+  Alta: "bg-red-400 text-black hover:bg-red-400",
+  Concluida: "bg-slate-300 text-black hover:bg-slate-300"
+
+
 };
 
 const STATUS_CORES = {
-  Pendente: "!bg-yellow-300 !text-black hover:!bg-yellow-300",
-  "Em Andamento": "!bg-blue-300 !text-black hover:!bg-blue-300",
-  Concluída: "!bg-emerald-300 !text-black hover:!bg-emerald-300",
-  Cancelada: "!bg-slate-300 !text-black hover:!bg-slate-300"
-};
+  Pendente: "bg-yellow-300 text-black hover:bg-yellow-300",
+  "Em Andamento": "bg-blue-300 text-black hover:bg-blue-300",
+  Concluída: "bg-emerald-300 text-black hover:bg-emerald-300",
+  Cancelada: "bg-slate-300 text-black hover:bg-slate-300"
 
+};
 
 const getDateTimeLocal = (value) => {
   if (!value) return new Date().toISOString().slice(0, 16);
@@ -205,20 +207,12 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
                   </div>
                 <div className="grid grid-cols-2 gap-1">
 
-<Badge
-  variant="outline"
-  className={`text-[10px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}
->
-  Status: {currentTarefa.status}
-</Badge>
-
-<Badge
-  variant="outline"
-  className={`text-[10px] border-transparent shadow-none ${prioridadeClassName}`}
->
-  Prioridade: {prioridade}
-</Badge>
-
+          <Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
+            {currentTarefa.status}
+          </Badge>
+          <Badge className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent shadow hover:bg-primary/80 text-[10px] bg-orange-100 text-orange-700\n">
+            Prioridade: {prioridade}
+          </Badge>
         </div>
       </div>
 
