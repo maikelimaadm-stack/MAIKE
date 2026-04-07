@@ -99,6 +99,7 @@ export default function TabelaLancamentosTarefas({
   const resizeRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
   const scrollContainerRef = useRef(null);
+  const tableRef = useRef(null);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
@@ -141,8 +142,13 @@ export default function TabelaLancamentosTarefas({
 
     const handlePointerUp = () => {
       const container = scrollContainerRef.current;
+      const table = tableRef.current;
       if (container) {
         container.style.overflowX = "auto";
+        container.style.overflowY = "auto";
+      }
+      if (table) {
+        table.style.touchAction = "";
       }
       resizeRef.current = null;
       document.body.style.cursor = "";
@@ -277,8 +283,13 @@ export default function TabelaLancamentosTarefas({
     event.stopPropagation();
     const clientX = event.touches?.[0]?.clientX ?? event.clientX;
     const container = scrollContainerRef.current;
+    const table = tableRef.current;
     if (container) {
       container.style.overflowX = "hidden";
+      container.style.overflowY = "hidden";
+    }
+    if (table) {
+      table.style.touchAction = "none";
     }
     resizeRef.current = {
       columnId: colunaId,
@@ -509,7 +520,7 @@ export default function TabelaLancamentosTarefas({
       <Card>
         <CardContent className="p-0">
           <div ref={scrollContainerRef} className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-x-none overscroll-y-contain touch-pan-y">
-            <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+            <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-30 bg-white">
                   {colunasOrdenadas.map((coluna) => {
@@ -559,6 +570,7 @@ export default function TabelaLancamentosTarefas({
                           className="absolute top-0 right-0 h-full w-5 cursor-col-resize z-30 touch-none"
                           onMouseDown={(event) => iniciarResize(event, coluna.id)}
                           onTouchStart={(event) => iniciarResize(event, coluna.id)}
+                          onTouchMove={(event) => event.stopPropagation()}
                           onClick={(event) => event.stopPropagation()}
                         />
                       </TableHead>
