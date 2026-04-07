@@ -232,8 +232,8 @@ export default function MapaFiltrosAvancados({
       {permissions?.visualizar_lotes !== false && <Separator />}
 
       {/* ─── Filtros de Lotes ─── */}
-      {permissions?.visualizar_lotes !== false &&
-      <div>
+      {permissions?.visualizar_lotes !== false && (
+        <div>
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
@@ -290,8 +290,10 @@ export default function MapaFiltrosAvancados({
               />
             </div>
           </div>
-        )}
-    </div>);
+        </div>
+      )}
+    </div>
+  );
 
 }
 
