@@ -8,11 +8,13 @@ import { createPageUrl } from "@/utils";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { normalizeTaskPriority } from "@/components/mapa/FormularioTarefaMapa";
 import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
+import { Settings2 } from "lucide-react";
 
 export default function LancamentosTarefas() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [deleteIds, setDeleteIds] = useState([]);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
 
   const { data: tarefas = [] } = useQuery({
     queryKey: ["gestao-tarefas-unificada", empresaSelecionadaId],
@@ -85,6 +87,10 @@ export default function LancamentosTarefas() {
           
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-2" onClick={() => setShowConfigColunas(true)}>
+            <Settings2 className="w-3.5 h-3.5" />
+            Colunas
+          </Button>
           <Link to={createPageUrl("LancamentoTarefaForm")}>
             <Button size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
               Adicionar
@@ -96,7 +102,9 @@ export default function LancamentosTarefas() {
       <TabelaLancamentosTarefas
         tarefas={tarefas}
         onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
-        normalizeTaskPriority={normalizeTaskPriority} />
+        normalizeTaskPriority={normalizeTaskPriority}
+        showConfigColunas={showConfigColunas}
+        setShowConfigColunas={setShowConfigColunas} />
       
 
       <ConfirmDialog

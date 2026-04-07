@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -61,7 +62,9 @@ export default function TabelaLancamentosTarefas({
   tarefas = [],
   grupos = [],
   onDelete,
-  normalizeTaskPriority
+  normalizeTaskPriority,
+  showConfigColunas,
+  setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroStatus, setFiltroStatus] = useState([]);
@@ -640,6 +643,17 @@ export default function TabelaLancamentosTarefas({
         </CardContent>
       </Card>
 
+
+      <ConfiguracaoColunasMapaDialog
+        open={showConfigColunas}
+        onOpenChange={setShowConfigColunas}
+        colunasDisponiveis={COLUNAS_DISPONIVEIS}
+        colunasVisiveis={colunasVisiveis}
+        colunasOrdem={colunasOrdem}
+        toggleColuna={toggleColuna}
+        handleDragEnd={handleDragEnd}
+        droppableId="colunas-gestao-tarefas"
+      />
 
       <TarefaDetalhesDialog
         open={!!detalheTarefa}
