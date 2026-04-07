@@ -60,8 +60,8 @@ const COLUMN_WIDTHS_KEY = "colunas_largura_gestao_tarefas";
 const MIN_COLUMN_WIDTH = 80;
 
 export default function TabelaLancamentosTarefas({
-  tarefas,
-  grupos,
+  tarefas = [],
+  grupos = [],
   onDelete,
   normalizeTaskPriority,
   showConfigColunas,
@@ -430,7 +430,7 @@ export default function TabelaLancamentosTarefas({
               <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__TODOS__">Todos</SelectItem>
-                {grupos.map((grupo) => <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>)}
+                {(grupos || []).map((grupo) => <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>)}
               </SelectContent>
             </Select>
           </DropdownMenuContent>
@@ -449,7 +449,7 @@ export default function TabelaLancamentosTarefas({
               <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__TODOS__">Todos</SelectItem>
-                {tiposTarefa.map((tipo) => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}
+                {(tiposTarefa || []).map((tipo) => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}
               </SelectContent>
             </Select>
           </DropdownMenuContent>
@@ -468,7 +468,7 @@ export default function TabelaLancamentosTarefas({
               <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__TODOS__">Todos</SelectItem>
-                {setores.map((setor) => <SelectItem key={setor} value={setor}>{setor}</SelectItem>)}
+                {(setores || []).map((setor) => <SelectItem key={setor} value={setor}>{setor}</SelectItem>)}
               </SelectContent>
             </Select>
           </DropdownMenuContent>
@@ -487,7 +487,7 @@ export default function TabelaLancamentosTarefas({
               <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__TODOS__">Todos</SelectItem>
-                {areas.map((area) => <SelectItem key={area} value={area}>{area}</SelectItem>)}
+                {(areas || []).map((area) => <SelectItem key={area} value={area}>{area}</SelectItem>)}
               </SelectContent>
             </Select>
           </DropdownMenuContent>
