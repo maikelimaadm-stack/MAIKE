@@ -431,49 +431,50 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <p className="text-xs text-slate-600">Defina datas, prioridade, status e complemente as instruções da execução.</p>
         </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-
-        <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Data do pedido *</Label>
-          <div data-field="data_pedido">
-            <Input type="date" value={formData.data_pedido} onChange={(e) => {
-                setErrors((prev) => ({ ...prev, data_pedido: false }));
-                setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
-              }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase">Data do pedido *</Label>
+            <div data-field="data_pedido">
+              <Input type="date" value={formData.data_pedido} onChange={(e) => {
+                  setErrors((prev) => ({ ...prev, data_pedido: false }));
+                  setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
+                }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Prazo previsto</Label>
-          <Input
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase">Prazo previsto</Label>
+            <Input
               type="date"
               value={formData.data_prevista}
-              onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
-            
-            
-        </div>
+              onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))}
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+            />
+          </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
-          <div data-field="data_conclusao">
-            <Input type="date" value={formData.data_conclusao} onChange={(e) => {
-                setErrors((prev) => ({ ...prev, data_conclusao: false }));
-                setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
-              }} className="rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
+            <div data-field="data_conclusao">
+              <Input type="date" value={formData.data_conclusao} onChange={(e) => {
+                  setErrors((prev) => ({ ...prev, data_conclusao: false }));
+                  setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
+                }} className="rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+            </div>
           </div>
         </div>
-        </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-        <div className="">
-          <Label className="text-xs uppercase">Descrição da tarefa</Label>
-          <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO, O PROBLEMA ENCONTRADO OU A ORIENTAÇÃO DA EXECUÇÃO" className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[100px] text-xs uppercase" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+          <div>
+            <Label className="text-xs uppercase">Descrição da tarefa</Label>
+            <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO, O PROBLEMA ENCONTRADO OU A ORIENTAÇÃO DA EXECUÇÃO" className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[100px] text-xs uppercase" />
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase">Observações internas</Label>
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} placeholder="INFORME DETALHES COMPLEMENTARES, ALERTAS OU ORIENTAÇÕES INTERNAS" className="min-h-[100px] text-xs uppercase" />
+          </div>
         </div>
 
-        <div className="">
-          <Label className="text-xs uppercase">Observações internas</Label>
-          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} placeholder="INFORME DETALHES COMPLEMENTARES, ALERTAS OU ORIENTAÇÕES INTERNAS" className="min-h-[100px] text-xs uppercase" />
-        </div>
-        </div>
         <div className="space-y-1.5 lg:col-span-2">
           <Label className="text-xs uppercase">Local da tarefa no mapa</Label>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
@@ -491,16 +492,16 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
                 }
                 setShowLocationPicker(true);
               }}>
-              
               <Crosshair className="w-3.5 h-3.5" />
               {formData.coordenadas ? "Alterar ponto no mapa" : "Marcar ponto no mapa"}
             </Button>
           </div>
         </div>
-      <div className="flex justify-end gap-1 pt-3 border-t">
-        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">{tarefa ? "Salvar tarefa" : "Criar tarefa"}</Button>
-      </div>
+
+        <div className="flex justify-end gap-1 pt-3 border-t">
+          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
+          <Button type="submit" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">{tarefa ? "Salvar tarefa" : "Criar tarefa"}</Button>
+        </div>
       </div>
 
       {!onRequestSelectLocation &&
