@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Clock } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -235,95 +236,88 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             </Button>
           </div>
 
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-            {isLoading ? (
-              <div className="text-center py-4 text-xs text-slate-500">Carregando...</div>
-            ) : tarefasFiltradas.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
-                <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nenhuma tarefa encontrada</p>
-              </div>
-            ) : (
-              tarefasFiltradas.map((tarefa) => {
-                const prioridade = normalizeTaskPriority(tarefa.prioridade);
-                const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
-
-                return (
-                  <Card key={tarefa.id} className="shadow-sm cursor-pointer border" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
-                    <CardContent className="p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-semibold text-slate-900 break-words uppercase">{tarefa.titulo}</h4>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              <Badge className={`${prioridadeClassName} text-[10px] uppercase`}>
-                                {prioridade}
-                              </Badge>
-                              <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px] uppercase`}>{tarefa.status}</Badge>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
-                            <Badge variant="outline" className="text-[10px] uppercase">{tarefa.grupo_atividade_nome || '-'}</Badge>
-                            <Badge variant="outline" className="text-[10px] uppercase">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</Badge>
-                            {tarefa.data_prevista && <Badge variant="outline" className="text-[10px]">{format(new Date(tarefa.data_prevista), 'dd/MM/yyyy')}</Badge>}
-                            {tarefa.area_nome && <Badge variant="outline" className="text-[10px] uppercase">{tarefa.area_nome}</Badge>}
-                          </div>
-
-                          {tarefa.descricao && (
-                            <p className="text-xs text-slate-600 break-words uppercase">{tarefa.descricao}</p>
-                          )}
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-1 text-[10px] text-slate-500">
-                            <div><span className="font-medium uppercase">Solicitante:</span> {tarefa.solicitante || '-'}</div>
-                            <div><span className="font-medium uppercase">Responsável:</span> {tarefa.responsavel || '-'}</div>
-                            <div><span className="font-medium uppercase">Observações:</span> {tarefa.observacoes || '-'}</div>
-                          </div>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-auto max-h-[420px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-white border-b hover:bg-white">
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">TAREFA</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">GRUPO</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">TIPO</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">STATUS</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">PRIORIDADE</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">RESPONSÁVEL</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b">PRAZO</TableHead>
+                    <TableHead className="text-xs py-2 px-3 font-bold border-b text-right">AÇÕES</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-4 text-xs text-slate-500 border-b">Carregando...</TableCell>
+                    </TableRow>
+                  ) : tarefasFiltradas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-xs text-slate-400 border-b">
+                        <div className="flex flex-col items-center gap-2">
+                          <Clock className="w-8 h-8 opacity-50" />
+                          <span>Nenhuma tarefa encontrada</span>
                         </div>
-                      </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    tarefasFiltradas.map((tarefa) => {
+                      const prioridade = normalizeTaskPriority(tarefa.prioridade);
+                      const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
 
-                      <div className="flex flex-wrap justify-end gap-1 pt-2 border-t" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
-                        {tarefa.status !== 'Concluída' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleConcluir(tarefa)}
-                            className="h-7 text-xs"
-                            title="Concluir"
-                          >
-                            Concluir
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }}
-                          className="h-7 text-xs"
-                          title="Editar"
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm('Excluir esta tarefa?')) {
-                              deleteMutation.mutate(tarefa.id);
-                            }
-                          }}
-                          className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
-                          title="Excluir"
-                        >
-                          Excluir
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
+                      return (
+                        <TableRow key={tarefa.id} className="hover:bg-gray-50 cursor-pointer" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
+                          <TableCell className="text-xs py-2 px-3 border-b align-top min-w-[240px]">
+                            <div className="space-y-1">
+                              <div className="font-medium text-slate-900 uppercase break-words">{tarefa.titulo || '-'}</div>
+                              {tarefa.descricao && <div className="text-slate-500 break-words line-clamp-2 uppercase">{tarefa.descricao}</div>}
+                              {(tarefa.area_nome || tarefa.setor_nome) && (
+                                <div className="text-slate-500 uppercase">{tarefa.setor_nome || '-'} {tarefa.area_nome ? `• ${tarefa.area_nome}` : ''}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b uppercase align-top">{tarefa.grupo_atividade_nome || '-'}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b uppercase align-top">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b align-top">
+                            <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px] uppercase`}>{tarefa.status || '-'}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b align-top">
+                            <Badge className={`${prioridadeClassName} text-[10px] uppercase`}>{prioridade}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b uppercase align-top">{tarefa.responsavel || '-'}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b align-top">{tarefa.data_prevista ? format(new Date(tarefa.data_prevista), 'dd/MM/yyyy') : '-'}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b align-top">
+                            <div className="flex flex-wrap justify-end gap-1" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
+                              {tarefa.status !== 'Concluída' && (
+                                <Button variant="outline" size="sm" onClick={() => handleConcluir(tarefa)} className="h-7 text-xs">Concluir</Button>
+                              )}
+                              <Button variant="outline" size="sm" onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }} className="h-7 text-xs">Editar</Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (confirm('Excluir esta tarefa?')) {
+                                    deleteMutation.mutate(tarefa.id);
+                                  }
+                                }}
+                                className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                              >
+                                Excluir
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
       </div>
@@ -340,7 +334,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         setShowForm(open);
         if (!open) setEditingTarefa(null);
       }}>
-        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-4xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-2xl max-h-[95vh] overflow-y-auto p-0">
           <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
             <DialogTitle className="text-sm font-bold text-slate-900">{editingTarefa ? 'EDITAR TAREFA DO MAPA' : 'NOVA TAREFA DO MAPA'}</DialogTitle>
             <p className="text-xs text-slate-600">Preencha as informações da atividade, defina o responsável e marque o ponto no mapa se necessário.</p>
