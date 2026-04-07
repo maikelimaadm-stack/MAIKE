@@ -196,7 +196,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   return (
     <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-1">
-        <div className="flex items-center gap-1 flex-wrap  grid grid-cols- sm:grid-cols-1 gap-1 text-[10px]">
+        <div className="flex items-center gap-1 flex-wrap ">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
             Tarefa: {currentTarefa.titulo}
           </Badge>
