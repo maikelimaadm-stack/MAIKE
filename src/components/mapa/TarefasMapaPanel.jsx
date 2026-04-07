@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Clock, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
@@ -241,24 +247,27 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
               <Table>
                 <TableHeader>
                   <TableRow className="bg-white border-b hover:bg-white">
+                    <TableHead className="h-7 p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle px-0"></TableHead>
                     <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TAREFA</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">GRUPO</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TIPO</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">STATUS</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">DESCRIÇÃO</TableHead>
                     <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">PRIORIDADE</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">STATUS</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">GRUPO</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TIPO DE TAREFA</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">FAZENDA</TableHead>
+                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">ÁREA</TableHead>
                     <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">RESPONSÁVEL</TableHead>
                     <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">PRAZO</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">AÇÕES</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-4 text-xs text-slate-500 border-b">Carregando...</TableCell>
+                      <TableCell colSpan={11} className="text-center py-4 text-xs text-slate-500 border-b">Carregando...</TableCell>
                     </TableRow>
                   ) : tarefasFiltradas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                      <TableCell colSpan={11} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                         <div className="flex flex-col items-center gap-2">
                           <Clock className="w-8 h-8 opacity-50" />
                           <span>Nenhuma tarefa encontrada</span>
@@ -272,45 +281,34 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
                       return (
                         <TableRow key={tarefa.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
-                            <div className="space-y-0.5">
-                              <div className="font-medium text-slate-900 uppercase break-words">{tarefa.titulo || '-'}</div>
-                              {tarefa.descricao && <div className="text-slate-500 break-words line-clamp-2 uppercase">{tarefa.descricao}</div>}
-                              {(tarefa.area_nome || tarefa.setor_nome) && (
-                                <div className="text-slate-500 uppercase">{tarefa.setor_nome || '-'} {tarefa.area_nome ? `• ${tarefa.area_nome}` : ''}</div>
-                              )}
-                            </div>
+                          <TableCell className="p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle px-0" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                {tarefa.status !== 'Concluída' && (
+                                  <DropdownMenuItem onClick={() => handleConcluir(tarefa)} className="text-xs">Concluir</DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }} className="text-xs">Editar</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { if (confirm('Excluir esta tarefa?')) deleteMutation.mutate(tarefa.id); }} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300 uppercase">{tarefa.grupo_atividade_nome || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300 uppercase">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.titulo || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.descricao || '-'}</TableCell>
                           <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
-                            <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px] uppercase`}>{tarefa.status || '-'}</Badge>
+                            <Badge className={`${prioridadeClassName} text-[10px]`}>{prioridade || '-'}</Badge>
                           </TableCell>
                           <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
-                            <Badge className={`${prioridadeClassName} text-[10px] uppercase`}>{prioridade}</Badge>
+                            <Badge className={`${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente} text-[10px]`}>{tarefa.status || '-'}</Badge>
                           </TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300 uppercase">{tarefa.responsavel || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.grupo_atividade_nome || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.setor_nome || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.area_nome || '-'}</TableCell>
+                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.responsavel || '-'}</TableCell>
                           <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.data_prevista ? format(new Date(tarefa.data_prevista), 'dd/MM/yyyy') : '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
-                            <div className="flex flex-wrap justify-end gap-1" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
-                              {tarefa.status !== 'Concluída' && (
-                                <Button variant="outline" size="sm" onClick={() => handleConcluir(tarefa)} className="h-7 text-xs">Concluir</Button>
-                              )}
-                              <Button variant="outline" size="sm" onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }} className="h-7 text-xs">Editar</Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm('Excluir esta tarefa?')) {
-                                    deleteMutation.mutate(tarefa.id);
-                                  }
-                                }}
-                                className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
-                              >
-                                Excluir
-                              </Button>
-                            </div>
-                          </TableCell>
                         </TableRow>
                       );
                     })
