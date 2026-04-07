@@ -510,8 +510,8 @@ export default function TabelaLancamentosTarefas({
                       return (
                         <TableHead
                         key="selecao"
-                        style={{ width, minWidth: width, maxWidth: width, left: 0 }}
-                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
+                        style={{ width, minWidth: width, maxWidth: width }}
+                        className="sticky top-0 z-30 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         >
                           <Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                         </TableHead>
@@ -522,8 +522,8 @@ export default function TabelaLancamentosTarefas({
                       return (
                         <TableHead
                         key="acoes"
-                        style={{ width, minWidth: width, maxWidth: width, left: columnWidths.selecao || 44 }}
-                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
+                        style={{ width, minWidth: width, maxWidth: width }}
+                        className="sticky top-0 z-30 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         />
                       );
                     }
