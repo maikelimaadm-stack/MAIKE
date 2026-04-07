@@ -98,6 +98,7 @@ export default function TabelaLancamentosTarefas({
 
   const resizeRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
@@ -128,25 +129,32 @@ export default function TabelaLancamentosTarefas({
   }, [columnWidths]);
 
   useEffect(() => {
-    const handleMouseMove = (event) => {
+    const handlePointerMove = (event) => {
       if (!resizeRef.current) return;
+      const clientX = event.touches?.[0]?.clientX ?? event.clientX;
+      if (typeof clientX !== "number") return;
       const { columnId, startX, startWidth } = resizeRef.current;
-      const nextWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + (event.clientX - startX));
+      const nextWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + (clientX - startX));
       setColumnWidths((prev) => ({ ...prev, [columnId]: nextWidth }));
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       resizeRef.current = null;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      document.body.style.touchAction = "";
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("mouseup", handlePointerUp);
+    window.addEventListener("touchmove", handlePointerMove, { passive: false });
+    window.addEventListener("touchend", handlePointerUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("mouseup", handlePointerUp);
+      window.removeEventListener("touchmove", handlePointerMove);
+      window.removeEventListener("touchend", handlePointerUp);
     };
   }, []);
 
@@ -262,13 +270,15 @@ export default function TabelaLancamentosTarefas({
   const iniciarResize = (event, colunaId) => {
     event.preventDefault();
     event.stopPropagation();
+    const clientX = event.touches?.[0]?.clientX ?? event.clientX;
     resizeRef.current = {
       columnId: colunaId,
-      startX: event.clientX,
+      startX: clientX,
       startWidth: columnWidths[colunaId] || 160
     };
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    document.body.style.touchAction = "none";
   };
 
   const toggleSelectAll = () => {
@@ -489,8 +499,8 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-1">
       <Card>
         <CardContent className="p-0">
-          <div className="relative w-full overflow-auto max-h-[calc(100vh-220px)]">
-            <Table className="w-full min-w-[900px] border-separate border-spacing-0 table-fixed">
+          <div className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-x-contain touch-pan-x">
+            <Table className={`w-full ${isMobile ? "min-w-max" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-30 bg-white">
                   {colunasOrdenadas.map((coluna) => {
@@ -499,9 +509,9 @@ export default function TabelaLancamentosTarefas({
                     if (coluna.id === "selecao") {
                       return (
                         <TableHead
-                          key="selecao"
-                          style={{ width, minWidth: width, maxWidth: width }}
-                          className="sticky top-0 left-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
+                        key="selecao"
+                        style={{ width, minWidth: width, maxWidth: width, left: 0 }}
+                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         >
                           <Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                         </TableHead>
@@ -511,9 +521,9 @@ export default function TabelaLancamentosTarefas({
                     if (coluna.id === "acoes") {
                       return (
                         <TableHead
-                          key="acoes"
-                          style={{ width, minWidth: width, maxWidth: width }}
-                          className="sticky top-0 left-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
+                        key="acoes"
+                        style={{ width, minWidth: width, maxWidth: width, left: columnWidths.selecao || 44 }}
+                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         />
                       );
                     }
@@ -537,8 +547,9 @@ export default function TabelaLancamentosTarefas({
                         )}
 
                         <div
-                          className="absolute top-0 right-0 h-full w-2 cursor-col-resize"
+                          className="absolute top-0 right-0 h-full w-3 cursor-col-resize touch-none"
                           onMouseDown={(event) => iniciarResize(event, coluna.id)}
+                          onTouchStart={(event) => iniciarResize(event, coluna.id)}
                           onClick={(event) => event.stopPropagation()}
                         />
                       </TableHead>
@@ -569,8 +580,8 @@ export default function TabelaLancamentosTarefas({
                           return (
                             <TableCell
                               key={`${tarefa.id}-selecao`}
-                              style={{ width, minWidth: width, maxWidth: width }}
-                              className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 align-middle px-0 h-7 border-r border-b border-gray-300"
+                              style={{ width, minWidth: width, maxWidth: width, left: 0 }}
+                              className="p-0 bg-white text-muted-foreground font-medium text-center sticky z-20 align-middle px-0 h-7 border-r border-b border-gray-300"
                               onClick={(event) => event.stopPropagation()}
                               onTouchEnd={(event) => event.stopPropagation()}
                             >
@@ -583,8 +594,8 @@ export default function TabelaLancamentosTarefas({
                           return (
                             <TableCell
                               key={`${tarefa.id}-acoes`}
-                              style={{ width, minWidth: width, maxWidth: width }}
-                              className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 align-middle px-0 h-7 border-r border-b border-gray-300"
+                              style={{ width, minWidth: width, maxWidth: width, left: columnWidths.selecao || 44 }}
+                              className="p-0 bg-white text-muted-foreground font-medium text-center sticky z-20 align-middle px-0 h-7 border-r border-b border-gray-300"
                               onClick={(event) => event.stopPropagation()}
                               onTouchEnd={(event) => event.stopPropagation()}
                             >
