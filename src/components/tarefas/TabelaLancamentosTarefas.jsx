@@ -434,7 +434,7 @@ export default function TabelaLancamentosTarefas({
           <div className="overflow-auto max-h-[500px] relative">
             <Table className="min-w-max">
               <TableHeader className="sticky top-0 z-30 bg-white shadow-sm">
-                <TableRow className="bg-white border-b">
+                <TableRow className="sticky top-0 z-40 bg-white border-b">
                   {colunasOrdenadas.map((coluna) => {
                     if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
                     if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
