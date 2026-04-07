@@ -145,7 +145,7 @@ export default function TabelaLancamentosTarefas({
       const table = tableRef.current;
       if (container) {
         container.style.overflowX = "auto";
-        container.style.overflowY = "auto";
+        container.style.overflowY = isMobile ? "visible" : "auto";
       }
       if (table) {
         table.style.touchAction = "";
@@ -286,7 +286,7 @@ export default function TabelaLancamentosTarefas({
     const table = tableRef.current;
     if (container) {
       container.style.overflowX = "hidden";
-      container.style.overflowY = "hidden";
+      container.style.overflowY = isMobile ? "visible" : "hidden";
     }
     if (table) {
       table.style.touchAction = "none";
@@ -519,7 +519,7 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-1">
       <Card>
         <CardContent className="p-0">
-          <div ref={scrollContainerRef} className="relative w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] overscroll-x-none overscroll-y-contain touch-pan-y">
+          <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto ${isMobile ? "overflow-y-visible max-h-none" : "overflow-y-auto max-h-[calc(100vh-220px)]"} overscroll-x-none touch-pan-y`}>
             <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-30 bg-white">
@@ -667,6 +667,7 @@ export default function TabelaLancamentosTarefas({
               </Select>
             </div>
             <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500 hidden md:inline">{tarefasOrdenadas.length} registros</span>
               <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">Anterior</Button>
               <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
               <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">Próxima</Button>
