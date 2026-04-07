@@ -5,31 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Clock, MoreVertical } from "lucide-react";
+import { Plus, CheckCircle, Clock, MapPin, Calendar, Trash2, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 
 const PRIORIDADE_CORES = {
-  'Baixa': 'bg-blue-300 text-black hover:bg-blue-300',
-  'Média': 'bg-yellow-300 text-black hover:bg-yellow-300',
-  'Alta': 'bg-red-400 text-black hover:bg-red-400',
-  'Concluida': 'bg-slate-300 text-black hover:bg-slate-300'
+  'Baixa': 'bg-blue-100 text-blue-700',
+  'Média': 'bg-orange-100 text-orange-700',
+  'Alta': 'bg-red-100 text-red-700',
+  'Concluida': 'bg-slate-100 text-slate-500'
 };
 
 const STATUS_CORES = {
-  'Pendente': 'bg-yellow-300 text-black hover:bg-yellow-300',
-  'Em Andamento': 'bg-blue-300 text-black hover:bg-blue-300',
-  'Concluída': 'bg-emerald-300 text-black hover:bg-emerald-300',
-  'Cancelada': 'bg-slate-300 text-black hover:bg-slate-300'
+  'Pendente': 'bg-yellow-100 text-yellow-700',
+  'Em Andamento': 'bg-blue-100 text-blue-700',
+  'Concluída': 'bg-emerald-100 text-emerald-700',
+  'Cancelada': 'bg-slate-100 text-slate-500'
 };
 
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
@@ -56,6 +49,25 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  const { data: iconesPrioridade = [] } = useQuery({
+    queryKey: ['icones-prioridade-tarefa-mapa'],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === 'Prioridade Tarefa');
+    },
+    initialData: [],
+  });
+
+  const normalizarPrioridade = (valor) =>
+    (valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+
+  const getIconePrioridade = (prioridade) =>
+    iconesPrioridade.find((icone) => normalizarPrioridade(icone.categoria) === normalizarPrioridade(normalizeTaskPriority(prioridade)));
 
   const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
 
@@ -188,136 +200,162 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border bg-card shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 border-b">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-bold text-slate-900">TAREFAS</h3>
-            {(areaNome || loteNome) && <p className="text-xs text-slate-500 uppercase">{areaNome || loteNome}</p>}
-          </div>
-          <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-            Nova Tarefa
-          </Button>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-slate-900">Tarefas</h3>
+          {(areaNome || loteNome) && (
+            <p className="text-xs text-slate-500">{areaNome || loteNome}</p>
+          )}
         </div>
+        <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Plus className="w-3.5 h-3.5" /> Nova Tarefa
+        </Button>
+      </div>
 
-        <div className="p-3 space-y-3">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-lg border bg-slate-50 p-2 text-center">
-              <div className="text-base font-bold text-slate-900">{pendentes}</div>
-              <div className="text-[10px] text-slate-600 uppercase">Pendentes</div>
-            </div>
-            <div className="rounded-lg border bg-slate-50 p-2 text-center">
-              <div className="text-base font-bold text-slate-900">{emAndamento}</div>
-              <div className="text-[10px] text-slate-600 uppercase">Em andamento</div>
-            </div>
-            <div className="rounded-lg border bg-slate-50 p-2 text-center">
-              <div className="text-base font-bold text-slate-900">{altas}</div>
-              <div className="text-[10px] text-slate-600 uppercase">Alta prioridade</div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={filtroStatus === 'ativas' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('ativas')}
-              className="h-7 text-xs"
-            >
-              Ativas
-            </Button>
-            <Button
-              variant={filtroStatus === 'concluidas' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('concluidas')}
-              className="h-7 text-xs"
-            >
-              Concluídas
-            </Button>
-            <Button
-              variant={filtroStatus === 'todas' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('todas')}
-              className="h-7 text-xs"
-            >
-              Todas
-            </Button>
-          </div>
-
-          <div className="overflow-hidden">
-            <div className="overflow-auto max-h-[500px]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-white border-b hover:bg-white">
-                    <TableHead className="h-7 p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle px-0"></TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TAREFA</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">DESCRIÇÃO</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">PRIORIDADE</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">STATUS</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">GRUPO</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">TIPO DE TAREFA</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">FAZENDA</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">ÁREA</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">RESPONSÁVEL</TableHead>
-                    <TableHead className="h-7 text-gray-900 px-1 text-xs font-medium text-center border border-gray-300">PRAZO</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center py-4 text-xs text-slate-500 border-b">Carregando...</TableCell>
-                    </TableRow>
-                  ) : tarefasFiltradas.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
-                        <div className="flex flex-col items-center gap-2">
-                          <Clock className="w-8 h-8 opacity-50" />
-                          <span>Nenhuma tarefa encontrada</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    tarefasFiltradas.map((tarefa) => {
-                      const prioridade = normalizeTaskPriority(tarefa.prioridade);
-                      const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
-
-                      return (
-                        <TableRow key={tarefa.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
-                          <TableCell className="p-0 bg-white text-muted-foreground font-medium text-center w-10 min-w-[25px] max-w-[25px] align-middle px-0" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                {tarefa.status !== 'Concluída' && (
-                                  <DropdownMenuItem onClick={() => handleConcluir(tarefa)} className="text-xs">Concluir</DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }} className="text-xs">Editar</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { if (confirm('Excluir esta tarefa?')) deleteMutation.mutate(tarefa.id); }} className="text-xs text-red-600">Excluir</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.titulo || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.descricao || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
-                            <Badge className={`${prioridadeClassName} text-[10px]`}>{prioridade || '-'}</Badge>
-                          </TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">
-                            <Badge className={`${STATUS_CORES[tarefa.status] || STATUS_CORES.Pendente} text-[10px]`}>{tarefa.status || '-'}</Badge>
-                          </TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.grupo_atividade_nome || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.setor_nome || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.area_nome || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.responsavel || '-'}</TableCell>
-                          <TableCell className="p-2 text-gray-700 text-xs align-middle px-2 h-7 border border-gray-300">{tarefa.data_prevista ? format(new Date(tarefa.data_prevista), 'dd/MM/yyyy') : '-'}</TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+      {/* Resumo */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-yellow-50 rounded p-2 text-center">
+          <div className="text-lg font-bold text-yellow-700">{pendentes}</div>
+          <div className="text-[10px] text-yellow-600">Pendentes</div>
         </div>
+        <div className="bg-blue-50 rounded p-2 text-center">
+          <div className="text-lg font-bold text-blue-700">{emAndamento}</div>
+          <div className="text-[10px] text-blue-600">Em Andamento</div>
+        </div>
+        <div className="bg-red-50 rounded p-2 text-center">
+          <div className="text-lg font-bold text-red-700">{altas}</div>
+          <div className="text-[10px] text-red-600">Alta prioridade</div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex gap-2">
+        <Button 
+          variant={filtroStatus === 'ativas' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFiltroStatus('ativas')}
+          className="h-7 text-xs"
+        >
+          Ativas
+        </Button>
+        <Button 
+          variant={filtroStatus === 'concluidas' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFiltroStatus('concluidas')}
+          className="h-7 text-xs"
+        >
+          Concluídas
+        </Button>
+        <Button 
+          variant={filtroStatus === 'todas' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFiltroStatus('todas')}
+          className="h-7 text-xs"
+        >
+          Todas
+        </Button>
+      </div>
+
+      {/* Lista de Tarefas */}
+      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+        {isLoading ? (
+          <div className="text-center py-4 text-xs text-slate-500">Carregando...</div>
+        ) : tarefasFiltradas.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">
+            <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Nenhuma tarefa encontrada</p>
+          </div>
+        ) : (
+          tarefasFiltradas.map(tarefa => {
+            const prioridade = normalizeTaskPriority(tarefa.prioridade);
+            const prioridadeClassName = tarefa.status === 'Concluída' ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
+
+            return (
+            <Card key={tarefa.id} className="shadow-sm cursor-pointer" onDoubleClick={() => abrirDetalhe(tarefa)} onTouchEnd={(event) => handleCardTouch(tarefa, event)}>
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-medium text-sm text-slate-900 break-words">{tarefa.titulo}</span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {getIconePrioridade(tarefa.prioridade)?.icone_url && (
+                          <img
+                            src={getIconePrioridade(tarefa.prioridade).icone_url}
+                            alt={prioridade}
+                            className="w-4 h-4 object-contain"
+                          />
+                        )}
+                        <Badge className={`${prioridadeClassName} text-[10px]`}>
+                          {prioridade}
+                        </Badge>
+                        <Badge className={`${STATUS_CORES[tarefa.status]} text-[10px]`}>{tarefa.status}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+                      <Badge variant="outline" className="text-[10px]">{tarefa.grupo_atividade_nome || '-'}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{tarefa.tipo_tarefa_nome || tarefa.tipo || '-'}</Badge>
+                      {tarefa.data_prevista && (
+                        <span className="flex items-center gap-0.5">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(tarefa.data_prevista), 'dd/MM')}
+                        </span>
+                      )}
+                      {tarefa.area_nome && (
+                        <span className="flex items-center gap-0.5">
+                          <MapPin className="w-3 h-3" />
+                          {tarefa.area_nome}
+                        </span>
+                      )}
+                    </div>
+                    {tarefa.descricao && (
+                      <p className="text-xs text-slate-600 break-words">{tarefa.descricao}</p>
+                    )}
+                    <div className="space-y-0.5 text-[10px] text-slate-500">
+                      <div><span className="font-medium">Solicitante:</span> {tarefa.solicitante || '-'}</div>
+                      <div><span className="font-medium">Responsável:</span> {tarefa.responsavel || '-'}</div>
+                      <div><span className="font-medium">Observações:</span> {tarefa.observacoes || '-'}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}>
+                    {tarefa.status !== 'Concluída' && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleConcluir(tarefa)}
+                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-50"
+                        title="Concluir"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => { setEditingTarefa(tarefa); setShowForm(true); }}
+                      className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                      title="Editar"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        if (confirm('Excluir esta tarefa?')) {
+                          deleteMutation.mutate(tarefa.id);
+                        }
+                      }}
+                      className="h-7 w-7 text-red-600 hover:bg-red-50"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )})
+        )}
       </div>
 
       <TarefaDetalhesDialog
@@ -332,10 +370,9 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         setShowForm(open);
         if (!open) setEditingTarefa(null);
       }}>
-        <DialogContent className="p-3 bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
-            <DialogTitle className="text-sm font-bold text-slate-900">{editingTarefa ? 'EDITAR TAREFA DO MAPA' : 'NOVA TAREFA DO MAPA'}</DialogTitle>
-            <p className="text-xs text-slate-600">Preencha as informações da atividade, defina o responsável e marque o ponto no mapa se necessário.</p>
+        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-2xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{editingTarefa ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
           </DialogHeader>
           <FormularioTarefaMapa
             key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
