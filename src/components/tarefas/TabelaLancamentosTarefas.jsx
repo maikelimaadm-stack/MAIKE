@@ -145,7 +145,7 @@ export default function TabelaLancamentosTarefas({
       const table = tableRef.current;
       if (container) {
         container.style.overflowX = "auto";
-        container.style.overflowY = isMobile ? "visible" : "auto";
+        container.style.overflowY = "auto";
       }
       if (table) {
         table.style.touchAction = "";
@@ -286,7 +286,7 @@ export default function TabelaLancamentosTarefas({
     const table = tableRef.current;
     if (container) {
       container.style.overflowX = "hidden";
-      container.style.overflowY = isMobile ? "visible" : "hidden";
+      container.style.overflowY = "hidden";
     }
     if (table) {
       table.style.touchAction = "none";
@@ -519,8 +519,9 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-1">
       <Card>
         <CardContent className="p-0">
-          <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto ${isMobile ? "overflow-y-visible max-h-none" : "overflow-y-auto max-h-[calc(100vh-220px)]"} overscroll-x-none touch-pan-y`}>
-            <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+          <div className="relative">
+            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto ${isMobile ? "overflow-y-auto max-h-[calc(100vh-280px)]" : "overflow-y-auto max-h-[calc(100vh-220px)]"} overscroll-x-none overscroll-y-contain touch-pan-y`}>
+              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-30 bg-white">
                   {colunasOrdenadas.map((coluna) => {
@@ -653,10 +654,11 @@ export default function TabelaLancamentosTarefas({
                   ))
                 )}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between p-1 border-t">
+          <div className="flex items-center justify-between p-1 border-t bg-white">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
               <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
