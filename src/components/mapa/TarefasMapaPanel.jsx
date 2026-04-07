@@ -370,9 +370,10 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         setShowForm(open);
         if (!open) setEditingTarefa(null);
       }}>
-        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-2xl max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-sm">{editingTarefa ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
+        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-4xl max-h-[95vh] overflow-y-auto p-0">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
+            <DialogTitle className="text-sm font-bold text-slate-900">{editingTarefa ? 'EDITAR TAREFA DO MAPA' : 'NOVA TAREFA DO MAPA'}</DialogTitle>
+            <p className="text-xs text-slate-600">Preencha as informações da atividade, defina o responsável e marque o ponto no mapa se necessário.</p>
           </DialogHeader>
           <FormularioTarefaMapa
             key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
