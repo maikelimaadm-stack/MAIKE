@@ -206,7 +206,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
                 <div className="grid grid-cols-3 gap-1">
 
           <Badge className={`text-[10px] ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
-            {currentTarefa.status}
+            Status: {currentTarefa.status}
           </Badge>
           <Badge className={`text-[10px] ${prioridadeClassName}`}>
             Prioridade: {prioridade}
