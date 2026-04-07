@@ -119,7 +119,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   useEffect(() => {
     const source = tarefa || initialDraft || {};
     const areaSelecionada = areas.find((item) => item.id === (source.area_id || areaId || ""));
-    setFormData({
+    setFormData((prev) => ({
       id: source.id || "",
       titulo: source.titulo || "",
       descricao: source.descricao || "",
@@ -143,9 +143,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       area_nome: source.area_nome || areaNome || "",
       lote_id: source.lote_id || loteId || "",
       lote_nome: source.lote_nome || loteNome || "",
-      ponto_suplementacao_id: source.ponto_suplementacao_id || pontoSuplId || "",
-      coordenadas: source.coordenadas || initialCoordinates || null
-    });
+      ponto_suplementacao_id: source.ponto_suplementacao_id || prev.ponto_suplementacao_id || pontoSuplId || "",
+      coordenadas: source.coordenadas || prev.coordenadas || initialCoordinates || null
+    }));
     setSetorSelecionadoId(areaSelecionada?.setor_id || "");
     setErrors({});
   }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas, nomeUsuarioAtual]);

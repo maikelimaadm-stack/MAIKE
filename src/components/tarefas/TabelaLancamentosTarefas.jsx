@@ -65,7 +65,11 @@ export default function TabelaLancamentosTarefas({
   getIconePrioridade,
   normalizeTaskPriority,
   showConfigColunas,
-  setShowConfigColunas
+  setShowConfigColunas,
+  showHeaderActions = false,
+  onAdd,
+  headerTitle = "",
+  headerDescription = ""
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
@@ -74,6 +78,10 @@ export default function TabelaLancamentosTarefas({
   const [filtroTipoTarefa, setFiltroTipoTarefa] = useState("__TODOS__");
   const [filtroArea, setFiltroArea] = useState("__TODOS__");
   const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
+  const [filtroTitulo, setFiltroTitulo] = useState("");
+  const [filtroDescricao, setFiltroDescricao] = useState("");
+  const [filtroResponsavel, setFiltroResponsavel] = useState("");
+  const [filtroSolicitante, setFiltroSolicitante] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -107,7 +115,7 @@ export default function TabelaLancamentosTarefas({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, itemsPerPage]);
+  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, filtroTitulo, filtroDescricao, filtroResponsavel, filtroSolicitante, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ?
@@ -172,7 +180,11 @@ export default function TabelaLancamentosTarefas({
       const matchTipoTarefa = filtroTipoTarefa === "__TODOS__" || (tarefa.tipo_tarefa_nome || tarefa.tipo) === filtroTipoTarefa;
       const matchArea = filtroArea === "__TODOS__" || tarefa.area_nome === filtroArea;
       const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
-      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor;
+      const matchTitulo = !filtroTitulo || String(tarefa.titulo || "").toLowerCase().includes(filtroTitulo.toLowerCase());
+      const matchDescricao = !filtroDescricao || String(tarefa.descricao || "").toLowerCase().includes(filtroDescricao.toLowerCase());
+      const matchResponsavel = !filtroResponsavel || String(tarefa.responsavel || "").toLowerCase().includes(filtroResponsavel.toLowerCase());
+      const matchSolicitante = !filtroSolicitante || String(tarefa.solicitante || "").toLowerCase().includes(filtroSolicitante.toLowerCase());
+      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor && matchTitulo && matchDescricao && matchResponsavel && matchSolicitante;
     });
   }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, normalizeTaskPriority]);
 
@@ -227,6 +239,10 @@ export default function TabelaLancamentosTarefas({
     setFiltroTipoTarefa("__TODOS__");
     setFiltroArea("__TODOS__");
     setFiltroSetor("__TODOS__");
+    setFiltroTitulo("");
+    setFiltroDescricao("");
+    setFiltroResponsavel("");
+    setFiltroSolicitante("");
   };
 
   const renderCell = (tarefa, colunaId) => {
@@ -253,6 +269,22 @@ export default function TabelaLancamentosTarefas({
 
   return (
     <div className="space-y-1">
+      {showHeaderActions && (
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
+          <div>
+            <h1 className="text-sm font-bold text-slate-900">{headerTitle}</h1>
+            {headerDescription ? <p className="text-xs text-slate-600 uppercase">{headerDescription}</p> : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+            <Button size="sm" onClick={onAdd} className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors shadow h-7 hover:bg-emerald-600">
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      )}
 <Card>
   {/* HEADER COM BOTÃO */}
   <div className="bg-slate-50 pr-1 pl-1 flex items-center justify-between border-b">
@@ -419,15 +451,31 @@ export default function TabelaLancamentosTarefas({
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-auto max-h-[500px]">
+          <div className="overflow-auto max-h-[65vh]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20 bg-white shadow-sm">
                 <TableRow className="bg-white border-b">
                   {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
-                    if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
-                    const isRight = coluna.align === "right";
-                    return <TableHead key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className="inline-flex items-center gap-1 h-full">{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
+                    if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-30 w-10 min-w-[25px] max-w-[25px] align-middle px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-70 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" /></TableHead>;
+                    if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-[40px] z-30 w-10 min-w-[25px] max-w-[25px] align-middle px-0"></TableHead>;
+                    return <TableHead key={coluna.id} className="h-7 align-middle text-gray-900 px-1 text-xs font-medium text-center border border-gray-300 bg-white" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className="inline-flex items-center gap-1 h-full">{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
+                  })}
+                </TableRow>
+                <TableRow className="bg-white border-b">
+                  {colunasOrdenadas.map((coluna) => {
+                    if (coluna.id === "selecao") return <TableHead key="filter-selecao" className="bg-white sticky left-0 z-30 w-10 min-w-[25px] max-w-[25px] border border-gray-300 p-1"></TableHead>;
+                    if (coluna.id === "acoes") return <TableHead key="filter-acoes" className="bg-white sticky left-[40px] z-30 w-10 min-w-[25px] max-w-[25px] border border-gray-300 p-1"></TableHead>;
+                    if (coluna.id === "titulo") return <TableHead key="filter-titulo" className="bg-white border border-gray-300 p-1"><Input value={filtroTitulo} onChange={(e) => setFiltroTitulo(e.target.value)} placeholder="Filtrar" className="h-7 text-[11px]" /></TableHead>;
+                    if (coluna.id === "descricao") return <TableHead key="filter-descricao" className="bg-white border border-gray-300 p-1"><Input value={filtroDescricao} onChange={(e) => setFiltroDescricao(e.target.value)} placeholder="Filtrar" className="h-7 text-[11px]" /></TableHead>;
+                    if (coluna.id === "prioridade") return <TableHead key="filter-prioridade" className="bg-white border border-gray-300 p-1"><Select value={filtroPrioridade} onValueChange={setFiltroPrioridade}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Todos" /></SelectTrigger><SelectContent><SelectItem value="__TODOS__">Todos</SelectItem><SelectItem value="Baixa">Baixa</SelectItem><SelectItem value="Média">Média</SelectItem><SelectItem value="Alta">Alta</SelectItem></SelectContent></Select></TableHead>;
+                    if (coluna.id === "status") return <TableHead key="filter-status" className="bg-white border border-gray-300 p-1"><Select value={filtroStatus} onValueChange={setFiltroStatus}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Todos" /></SelectTrigger><SelectContent><SelectItem value="__TODOS__">Todos</SelectItem><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluída">Concluída</SelectItem><SelectItem value="Cancelada">Cancelada</SelectItem></SelectContent></Select></TableHead>;
+                    if (coluna.id === "grupo_atividade_nome") return <TableHead key="filter-grupo" className="bg-white border border-gray-300 p-1"><Select value={filtroGrupo} onValueChange={setFiltroGrupo}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Todos" /></SelectTrigger><SelectContent><SelectItem value="__TODOS__">Todos</SelectItem>{grupos.map((grupo) => <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>)}</SelectContent></Select></TableHead>;
+                    if (coluna.id === "tipo_tarefa_nome" || coluna.id === "tipo") return <TableHead key={`filter-${coluna.id}`} className="bg-white border border-gray-300 p-1"><Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Todos" /></SelectTrigger><SelectContent><SelectItem value="__TODOS__">Todos</SelectItem>{tiposTarefa.map((tipo) => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}</SelectContent></Select></TableHead>;
+                    if (coluna.id === "setor_nome") return <TableHead key="filter-setor" className="bg-white border border-gray-300 p-1"><Select value={filtroSetor} onValueChange={setFiltroSetor}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Todos" /></SelectTrigger><SelectContent><SelectItem value="__TODOS__">Todos</SelectItem>{setores.map((setor) => <SelectItem key={setor} value={setor}>{setor}</SelectItem>)}</SelectContent></Select></TableHead>;
+                    if (coluna.id === "area_nome") return <TableHead key="filter-area" className="bg-white border border-gray-300 p-1"><Select value={filtroArea} onValueChange={setFiltroArea}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Todos" /></SelectTrigger><SelectContent><SelectItem value="__TODOS__">Todos</SelectItem>{areas.map((area) => <SelectItem key={area} value={area}>{area}</SelectItem>)}</SelectContent></Select></TableHead>;
+                    if (coluna.id === "responsavel") return <TableHead key="filter-responsavel" className="bg-white border border-gray-300 p-1"><Input value={filtroResponsavel} onChange={(e) => setFiltroResponsavel(e.target.value)} placeholder="Filtrar" className="h-7 text-[11px]" /></TableHead>;
+                    if (coluna.id === "solicitante") return <TableHead key="filter-solicitante" className="bg-white border border-gray-300 p-1"><Input value={filtroSolicitante} onChange={(e) => setFiltroSolicitante(e.target.value)} placeholder="Filtrar" className="h-7 text-[11px]" /></TableHead>;
+                    return <TableHead key={`filter-${coluna.id}`} className="bg-white border border-gray-300 p-1"></TableHead>;
                   })}
                 </TableRow>
               </TableHeader>

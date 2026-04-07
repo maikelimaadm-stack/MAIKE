@@ -147,21 +147,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   return (
     <div className="space-y-1">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-        <div>
-          <h1 className="text-sm font-bold text-slate-900">{panelTitulo}</h1>
-          {panelSubtitulo ? <p className="text-xs text-slate-600 uppercase">{panelSubtitulo}</p> : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7">
-            <Settings className="w-4 h-4" />
-          </Button>
-          <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors shadow h-7 hover:bg-emerald-600">
-            Adicionar
-          </Button>
-        </div>
-      </div>
-
       <TabelaLancamentosTarefas
         tarefas={tarefas}
         grupos={grupos}
@@ -170,6 +155,10 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         normalizeTaskPriority={normalizeTaskPriority}
         showConfigColunas={showConfigColunas}
         setShowConfigColunas={setShowConfigColunas}
+        showHeaderActions={true}
+        onAdd={() => { setEditingTarefa(null); setShowForm(true); }}
+        headerTitle={panelTitulo}
+        headerDescription={panelSubtitulo}
       />
 
       <Dialog open={showForm} onOpenChange={(open) => {
