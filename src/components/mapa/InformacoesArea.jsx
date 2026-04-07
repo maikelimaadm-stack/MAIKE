@@ -50,24 +50,24 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
       </Badge>
 
       <div className="grid grid-cols-4 sm:grid-cols-4 gap-1 text-[10px]">
-        <div className="">
-          
+        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="text-slate-500">Hectares</div>
           <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          
+          <div className="text-slate-500">UA/ha</div>
           <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          
+          <div className="text-slate-500">UA total</div>
           <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          
+          <div className="text-slate-500">Pastagem</div>
           <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          
+          <div className="text-slate-500">Qtd. Lotes</div>
           <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
         </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
@@ -103,4 +103,4 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
       }
     </div>);
 
-}'';
+}''
