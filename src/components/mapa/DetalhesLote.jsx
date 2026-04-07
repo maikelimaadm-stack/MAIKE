@@ -34,7 +34,6 @@ import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
-import { ChevronDown } from "lucide-react";
 
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -699,13 +698,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
-            >
+            <Button variant="outline" size="sm" className="h-8 text-xs">
               Eventos
-              <ChevronDown className="w-3.5 h-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
@@ -758,13 +752,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
-            >
+            <Button variant="outline" size="sm" className="h-8 text-xs">
               Históricos
-              <ChevronDown className="w-3.5 h-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
