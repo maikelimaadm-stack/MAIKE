@@ -80,6 +80,8 @@ export default function TabelaLancamentosTarefas({
   const [filtroDescricao, setFiltroDescricao] = useState("");
   const [filtroResponsavel, setFiltroResponsavel] = useState("");
   const [filtroSolicitante, setFiltroSolicitante] = useState("");
+  const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
+  const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -401,62 +403,109 @@ export default function TabelaLancamentosTarefas({
     return "Pesquisar";
   };
 
+  const getColumnCheckedValues = (colunaId) => {
+    const valorAtual = getColumnSelectFilterValue(colunaId);
+    const opcoes = getColumnSelectOptions(colunaId);
+    return valorAtual === "__TODOS__" ? opcoes : [valorAtual];
+  };
+
+  const toggleColumnCheckedValue = (colunaId, option) => {
+    const selecionados = getColumnCheckedValues(colunaId);
+    const existe = selecionados.includes(option);
+    const proximos = existe ? selecionados.filter((item) => item !== option) : [...selecionados, option];
+
+    if (proximos.length !== 1) return;
+    applyColumnSelectFilter(colunaId, proximos[0]);
+  };
+
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
     const isTextFilter = ["titulo", "descricao", "responsavel", "solicitante"].includes(colunaId);
     const isSelectFilter = ["prioridade", "status", "grupo_atividade_nome", "tipo_tarefa_nome", "tipo", "setor_nome", "area_nome"].includes(colunaId);
+    const columnLabel = COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === colunaId)?.label || colunaId;
+    const filterOptions = getColumnSelectOptions(colunaId);
+    const filteredOptions = filterOptions.filter((option) => option.toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
 
     if (!isTextFilter && !isSelectFilter) return null;
 
     return (
-      <DropdownMenu>
+      <DropdownMenu open={menuFiltroAberto === colunaId} onOpenChange={(open) => {
+        setMenuFiltroAberto(open ? colunaId : null);
+        if (!open) setBuscaFiltroMenu("");
+      }}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
             <Filter className="w-2 h-2" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72 p-0">
-          <DropdownMenuItem className="text-xs" onClick={() => handleSort(colunaId)}>
-            <ArrowDownAZ className="w-3.5 h-3.5" />
+        <DropdownMenuContent align="end" className="w-[310px] p-0">
+          <DropdownMenuItem className="text-xs h-8" onClick={() => handleSort(colunaId)}>
+            <ArrowDownAZ className="w-4 h-4" />
             Classificar do Menor para o Maior
           </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs" onClick={() => setSortConfig({ key: colunaId, direction: "desc" })}>
-            <ArrowUpZA className="w-3.5 h-3.5" />
+          <DropdownMenuItem className="text-xs h-8" onClick={() => setSortConfig({ key: colunaId, direction: "desc" })}>
+            <ArrowUpZA className="w-4 h-4" />
             Classificar do Maior para o Menor
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-xs" onClick={() => clearColumnFilter(colunaId)} disabled={!hasActiveFilter(colunaId)}>
-            <X className="w-3.5 h-3.5" />
-            Limpar Filtro de "{COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === colunaId)?.label || colunaId}"
+          <DropdownMenuItem className="text-xs h-8 text-slate-500" onClick={() => clearColumnFilter(colunaId)} disabled={!hasActiveFilter(colunaId)}>
+            <X className="w-4 h-4" />
+            Limpar Filtro de "{columnLabel}"
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {isSelectFilter ? (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-xs">Filtrar por Lista</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64 p-2">
-                <Select value={getColumnSelectFilterValue(colunaId)} onValueChange={(value) => applyColumnSelectFilter(colunaId, value)}>
-                  <SelectTrigger className="h-8 text-xs uppercase">
-                    <SelectValue placeholder="TODOS" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__TODOS__" className="text-xs uppercase">TODOS</SelectItem>
-                    {getColumnSelectOptions(colunaId).map((option) => (
-                      <SelectItem key={option} value={option} className="text-xs uppercase">{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          ) : (
-            <div className="p-2" onClick={(e) => e.stopPropagation()}>
-              <Input
-                value={getColumnTextFilterValue(colunaId)}
-                onChange={(e) => applyColumnTextFilter(colunaId, e.target.value)}
-                placeholder={getColumnFilterPlaceholder(colunaId).toUpperCase()}
-                className="h-8 text-xs uppercase"
-              />
+
+          <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+            <Input
+              value={isTextFilter ? getColumnTextFilterValue(colunaId) : buscaFiltroMenu}
+              onChange={(e) => {
+                if (isTextFilter) {
+                  applyColumnTextFilter(colunaId, e.target.value);
+                } else {
+                  setBuscaFiltroMenu(e.target.value);
+                }
+              }}
+              placeholder="PESQUISAR"
+              className="h-8 text-xs uppercase"
+            />
+
+            {isSelectFilter && (
+              <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
+                <label className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 border-b border-slate-200">
+                  <Checkbox
+                    checked={getColumnSelectFilterValue(colunaId) === "__TODOS__"}
+                    onCheckedChange={() => applyColumnSelectFilter(colunaId, "__TODOS__")}
+                    className="h-3.5 w-3.5"
+                  />
+                  (Selecionar Tudo)
+                </label>
+                {filteredOptions.map((option) => (
+                  <label key={option} className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">
+                    <Checkbox
+                      checked={getColumnCheckedValues(colunaId).includes(option)}
+                      onCheckedChange={() => toggleColumnCheckedValue(colunaId, option)}
+                      className="h-3.5 w-3.5"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
+                setMenuFiltroAberto(null);
+                setBuscaFiltroMenu("");
+              }}>
+                Cancelar
+              </Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {
+                setMenuFiltroAberto(null);
+                setBuscaFiltroMenu("");
+              }}>
+                OK
+              </Button>
             </div>
-          )}
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     );
