@@ -165,12 +165,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         setShowForm(open);
         if (!open) setEditingTarefa(null);
       }}>
-        <DialogContent className="p-3 bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[98vw] md:max-w-[92vw] xl:max-w-[88vw] max-h-[95vh] overflow-y-auto">
+        <DialogContent className="p-3 bg-background px-2 py-2 sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[98vw] md:max-w-[92vw] xl:max-w-[88vw] h-[95vh] overflow-hidden">
           <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
             <DialogTitle className="text-sm font-bold text-slate-900">{editingTarefa ? 'EDITAR TAREFA DO MAPA' : 'NOVA TAREFA DO MAPA'}</DialogTitle>
             <p className="text-xs text-slate-600">Mesmo padrão da tela de lançamentos, aberto em formato de painel grande pelo mapa.</p>
           </DialogHeader>
-          <FormularioTarefaMapa
+          <div className="overflow-auto min-h-0 max-h-[calc(95vh-90px)] pr-1">
+            <FormularioTarefaMapa
             key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
             tarefa={editingTarefa}
             areaId={areaId}
@@ -203,6 +204,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             }}
             onCancel={() => { setShowForm(false); setEditingTarefa(null); }}
           />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
