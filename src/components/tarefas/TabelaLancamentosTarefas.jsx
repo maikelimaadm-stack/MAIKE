@@ -11,12 +11,14 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
-import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -347,187 +349,117 @@ export default function TabelaLancamentosTarefas({
     if (colunaId === "solicitante") setFiltroSolicitante("");
   };
 
+  const applyColumnTextFilter = (colunaId, value) => {
+    if (colunaId === "titulo") setFiltroTitulo(value);
+    if (colunaId === "descricao") setFiltroDescricao(value);
+    if (colunaId === "responsavel") setFiltroResponsavel(value);
+    if (colunaId === "solicitante") setFiltroSolicitante(value);
+  };
+
+  const getColumnTextFilterValue = (colunaId) => {
+    if (colunaId === "titulo") return filtroTitulo;
+    if (colunaId === "descricao") return filtroDescricao;
+    if (colunaId === "responsavel") return filtroResponsavel;
+    if (colunaId === "solicitante") return filtroSolicitante;
+    return "";
+  };
+
+  const applyColumnSelectFilter = (colunaId, value) => {
+    if (colunaId === "prioridade") setFiltroPrioridade(value);
+    if (colunaId === "status") setFiltroStatus(value);
+    if (colunaId === "grupo_atividade_nome") setFiltroGrupo(value);
+    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") setFiltroTipoTarefa(value);
+    if (colunaId === "setor_nome") setFiltroSetor(value);
+    if (colunaId === "area_nome") setFiltroArea(value);
+  };
+
+  const getColumnSelectFilterValue = (colunaId) => {
+    if (colunaId === "prioridade") return filtroPrioridade;
+    if (colunaId === "status") return filtroStatus;
+    if (colunaId === "grupo_atividade_nome") return filtroGrupo;
+    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") return filtroTipoTarefa;
+    if (colunaId === "setor_nome") return filtroSetor;
+    if (colunaId === "area_nome") return filtroArea;
+    return "__TODOS__";
+  };
+
+  const getColumnSelectOptions = (colunaId) => {
+    if (colunaId === "prioridade") return ["Baixa", "Média", "Alta"];
+    if (colunaId === "status") return ["Pendente", "Em Andamento", "Concluída", "Cancelada"];
+    if (colunaId === "grupo_atividade_nome") return grupos || [];
+    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") return tiposTarefa || [];
+    if (colunaId === "setor_nome") return setores || [];
+    if (colunaId === "area_nome") return areas || [];
+    return [];
+  };
+
+  const getColumnFilterPlaceholder = (colunaId) => {
+    if (colunaId === "titulo") return "Pesquisar tarefa";
+    if (colunaId === "descricao") return "Pesquisar descrição";
+    if (colunaId === "responsavel") return "Pesquisar responsável";
+    if (colunaId === "solicitante") return "Pesquisar solicitante";
+    return "Pesquisar";
+  };
+
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
+    const isTextFilter = ["titulo", "descricao", "responsavel", "solicitante"].includes(colunaId);
+    const isSelectFilter = ["prioridade", "status", "grupo_atividade_nome", "tipo_tarefa_nome", "tipo", "setor_nome", "area_nome"].includes(colunaId);
 
-    if (colunaId === "titulo") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Input value={filtroTitulo} onChange={(e) => setFiltroTitulo(e.target.value)} placeholder="Filtrar tarefa" className="h-6 text-[10px]" />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
+    if (!isTextFilter && !isSelectFilter) return null;
 
-    if (colunaId === "descricao") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Input value={filtroDescricao} onChange={(e) => setFiltroDescricao(e.target.value)} placeholder="Filtrar descrição" className="h-6 text-[10px]" />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "prioridade") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 p-2">
-            <Select value={filtroPrioridade} onValueChange={setFiltroPrioridade}>
-              <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__TODOS__">Todos</SelectItem>
-                <SelectItem value="Baixa">Baixa</SelectItem>
-                <SelectItem value="Média">Média</SelectItem>
-                <SelectItem value="Alta">Alta</SelectItem>
-              </SelectContent>
-            </Select>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "status") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 p-2">
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__TODOS__">Todos</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                <SelectItem value="Concluída">Concluída</SelectItem>
-                <SelectItem value="Cancelada">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "grupo_atividade_nome") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
-              <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__TODOS__">Todos</SelectItem>
-                {(grupos || []).map((grupo) => <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
-              <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__TODOS__">Todos</SelectItem>
-                {(tiposTarefa || []).map((tipo) => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "setor_nome") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-              <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__TODOS__">Todos</SelectItem>
-                {(setores || []).map((setor) => <SelectItem key={setor} value={setor}>{setor}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "area_nome") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}>
-              <Filter className="w-2 h-2" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Select value={filtroArea} onValueChange={setFiltroArea}>
-              <SelectTrigger className="h-6 text-[10px]">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__TODOS__">Todos</SelectItem>
-                {(areas || []).map((area) => (
-                  <SelectItem key={area} value={area}>{area}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "responsavel") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Input value={filtroResponsavel} onChange={(e) => setFiltroResponsavel(e.target.value)} placeholder="Filtrar responsável" className="h-6 text-[10px]" />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    if (colunaId === "solicitante") {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2">
-            <Input value={filtroSolicitante} onChange={(e) => setFiltroSolicitante(e.target.value)} placeholder="Filtrar solicitante" className="h-6 text-[10px]" />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    return null;
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className={buttonClass}>
+            <Filter className="w-2 h-2" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-72 p-0">
+          <DropdownMenuItem className="text-xs" onClick={() => handleSort(colunaId)}>
+            <ArrowDownAZ className="w-3.5 h-3.5" />
+            Classificar do Menor para o Maior
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-xs" onClick={() => setSortConfig({ key: colunaId, direction: "desc" })}>
+            <ArrowUpZA className="w-3.5 h-3.5" />
+            Classificar do Maior para o Menor
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-xs" onClick={() => clearColumnFilter(colunaId)} disabled={!hasActiveFilter(colunaId)}>
+            <X className="w-3.5 h-3.5" />
+            Limpar Filtro de "{COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === colunaId)?.label || colunaId}"
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {isSelectFilter ? (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-xs">Filtrar por Lista</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-64 p-2">
+                <Select value={getColumnSelectFilterValue(colunaId)} onValueChange={(value) => applyColumnSelectFilter(colunaId, value)}>
+                  <SelectTrigger className="h-8 text-xs uppercase">
+                    <SelectValue placeholder="TODOS" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__TODOS__" className="text-xs uppercase">TODOS</SelectItem>
+                    {getColumnSelectOptions(colunaId).map((option) => (
+                      <SelectItem key={option} value={option} className="text-xs uppercase">{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : (
+            <div className="p-2" onClick={(e) => e.stopPropagation()}>
+              <Input
+                value={getColumnTextFilterValue(colunaId)}
+                onChange={(e) => applyColumnTextFilter(colunaId, e.target.value)}
+                placeholder={getColumnFilterPlaceholder(colunaId).toUpperCase()}
+                className="h-8 text-xs uppercase"
+              />
+            </div>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   return (
@@ -574,17 +506,11 @@ export default function TabelaLancamentosTarefas({
                       >
                         <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
-                          {coluna.sortable && <SortIcon column={coluna.id} />}
                         </div>
 
                         {filterControl && (
                           <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {filterControl}
-                            {hasActiveFilter(coluna.id) && (
-                              <Button variant="ghost" size="icon" className="h-3 w-3 min-w-3 p-0 text-slate-400 hover:text-slate-600" onClick={() => clearColumnFilter(coluna.id)}>
-                                <X className="w-2 h-2" />
-                              </Button>
-                            )}
                           </div>
                         )}
 
@@ -695,16 +621,6 @@ export default function TabelaLancamentosTarefas({
         </CardContent>
       </Card>
 
-      <ConfiguracaoColunasMapaDialog
-        open={showConfigColunas}
-        onOpenChange={setShowConfigColunas}
-        colunasDisponiveis={COLUNAS_DISPONIVEIS}
-        colunasVisiveis={colunasVisiveis}
-        colunasOrdem={colunasOrdem}
-        toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd}
-        droppableId="colunas-gestao-tarefas"
-      />
 
       <TarefaDetalhesDialog
         open={!!detalheTarefa}
