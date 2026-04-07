@@ -200,7 +200,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     <div className="space-y-1" translate="no">
       <div className="pb-2 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap ">
-          <Badge variant="outline" className="bg-slate-50 text-slate-950 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-yellow-100 shadow-sm hover:bg-accent hover:text-accent-foreground h-8">
+          <Badge variant="outline" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs">
             Tarefa: {currentTarefa.titulo}
           </Badge>
           
