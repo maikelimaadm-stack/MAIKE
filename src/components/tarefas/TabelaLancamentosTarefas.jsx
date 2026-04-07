@@ -441,7 +441,7 @@ export default function TabelaLancamentosTarefas({
                 <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
               </label>
               {filteredOptions.map((option) => (
-                <label key={option} className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
+                <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
                   <Checkbox
                     checked={valoresSelecionados.includes(option)}
                     onCheckedChange={(checked) => {
