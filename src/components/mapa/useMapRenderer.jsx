@@ -414,7 +414,7 @@ export default function useMapRenderer(mapInstanceRef) {
         marker.setTitle(t.titulo);
         marker.setZIndex(t.prioridade === 'Urgente' ? 3000 : 2500);
         marker.setIcon(icon);
-        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 36);
+        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 28);
         marker._tarefa = t;
         return;
       }
@@ -423,7 +423,7 @@ export default function useMapRenderer(mapInstanceRef) {
         position, map, icon,
         title: t.titulo, zIndex: t.prioridade === 'Urgente' ? 3000 : 2500
       });
-      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(m, cfg.icone_url, 36);
+      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(m, cfg.icone_url, 28);
       m._tarefa = t;
       m.addListener('click', () => onClickTarefa(m._tarefa));
       markersRef.current.set(key, m);
