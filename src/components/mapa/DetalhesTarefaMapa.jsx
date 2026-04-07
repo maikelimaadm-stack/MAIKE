@@ -207,7 +207,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
           
                   </div>
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-6 gap-1">
 
 <Badge
             variant="outline" className="min-w-[130px] max-w-[180px] inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground text-[10px] border-transparent shadow-none !bg-yellow-300 !text-black hover:!bg-yellow-300">
@@ -217,8 +217,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 </Badge>
 
 <Badge
-            variant="outline"
-            className={`text-[10px] border-transparent shadow-none ${prioridadeClassName}`}>
+            variant="outline" className="min-w-[130px] max-w-[180px] inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground text-[10px] border-transparent shadow-none !bg-yellow-300 !text-black hover:!bg-yellow-300">
+            
             
   Prioridade: {prioridade}
 </Badge>
