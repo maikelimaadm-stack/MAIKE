@@ -50,30 +50,21 @@ export default function InformacoesArea({ area, lotesNaArea, tituloLotes }) {
       </Badge>
 
       <div className="grid grid-cols-4 sm:grid-cols-4 gap-1 text-[10px]">
-        <div className="">
-          
-          <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="font-semibold text-slate-900">hectares: {hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
         </div>
+          
+          <div className="font-semibold text-slate-900">UA: {fmt(uaHa)}</div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           
-          <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="font-semibold text-slate-900">UA Total: {fmt(totalUA)}</div>
           
-          <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="font-semibold text-slate-900">Pastagem: {area.tipo_pastagem || '-'}</div>
           
-          <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
+          <div className="font-semibold text-slate-900">"text-slate-500"Qtd. Lotes: {lotesNaArea.length.toLocaleString('pt-BR')}</div>
         </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          
-          <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Qtd. Cabeças</div>
           <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
-        </div>
         <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
           <div className="text-slate-500">Média geral</div>
           <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
