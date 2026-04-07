@@ -480,14 +480,20 @@ export default function TabelaLancamentosTarefas({
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className={buttonClass}><Filter className="w-2 h-2" /></Button>
+            <Button variant="ghost" size="icon" className={buttonClass}>
+              <Filter className="w-2 h-2" />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 p-2">
             <Select value={filtroArea} onValueChange={setFiltroArea}>
-              <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectTrigger className="h-6 text-[10px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__TODOS__">Todos</SelectItem>
-                {(areas || []).map((area) => <SelectItem key={area} value={area}>{area}</SelectItem>)}
+                {(areas || []).map((area) => (
+                  <SelectItem key={area} value={area}>{area}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </DropdownMenuContent>
