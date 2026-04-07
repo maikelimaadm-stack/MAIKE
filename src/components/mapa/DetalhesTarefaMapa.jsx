@@ -16,14 +16,14 @@ const PRIORIDADE_CORES = {
   Baixa: "bg-blue-100 text-blue-700",
   Média: "bg-orange-100 text-orange-700",
   Alta: "bg-red-100 text-red-700",
-  Concluida: "bg-slate-100 text-slate-500"
+  Concluida: "bg-slate-100 text-slate-500",
 };
 
 const STATUS_CORES = {
   Pendente: "bg-yellow-100 text-yellow-700",
   "Em Andamento": "bg-blue-100 text-blue-700",
   Concluída: "bg-emerald-100 text-emerald-700",
-  Cancelada: "bg-slate-100 text-slate-500"
+  Cancelada: "bg-slate-100 text-slate-500",
 };
 
 const getDateTimeLocal = (value) => {
@@ -68,11 +68,11 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
       const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
-      return all.
-      filter((item) => item.tarefa_id === currentTarefa.id).
-      sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+      return all
+        .filter((item) => item.tarefa_id === currentTarefa.id)
+        .sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
     },
-    initialData: []
+    initialData: [],
   });
 
   const { data: iconesPrioridade = [] } = useQuery({
@@ -81,7 +81,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === "Prioridade Tarefa");
     },
-    initialData: []
+    initialData: [],
   });
 
   const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);
@@ -101,7 +101,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       data_evento: dataEvento,
       status: registro.status,
       responsavel: registro.responsavel,
-      descricao
+      descricao,
     });
   };
 
@@ -110,24 +110,24 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       const updated = await base44.entities.LancamentoTarefa.update(id, data);
       const mudouLocal = data.coordenadas?.lat !== currentTarefa?.coordenadas?.lat || data.coordenadas?.lng !== currentTarefa?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== currentTarefa?.status;
-      const evento = mudouLocal ?
-      "Mudança de Local" :
-      updated.status === "Concluída" && mudouStatus ?
-      "Conclusão" :
-      updated.status === "Cancelada" && mudouStatus ?
-      "Cancelamento" :
-      mudouStatus ?
-      "Mudança de Status" :
-      "Edição";
-      const descricao = mudouLocal ?
-      "Local da tarefa alterado no mapa." :
-      updated.status === "Concluída" && mudouStatus ?
-      "Tarefa concluída pelo mapa." :
-      updated.status === "Cancelada" && mudouStatus ?
-      "Tarefa cancelada pelo mapa." :
-      mudouStatus ?
-      `Status alterado para ${updated.status}.` :
-      "Tarefa editada.";
+      const evento = mudouLocal
+        ? "Mudança de Local"
+        : updated.status === "Concluída" && mudouStatus
+          ? "Conclusão"
+          : updated.status === "Cancelada" && mudouStatus
+            ? "Cancelamento"
+            : mudouStatus
+              ? "Mudança de Status"
+              : "Edição";
+      const descricao = mudouLocal
+        ? "Local da tarefa alterado no mapa."
+        : updated.status === "Concluída" && mudouStatus
+          ? "Tarefa concluída pelo mapa."
+          : updated.status === "Cancelada" && mudouStatus
+            ? "Tarefa cancelada pelo mapa."
+            : mudouStatus
+              ? `Status alterado para ${updated.status}.`
+              : "Tarefa editada.";
       await registrarHistorico(updated, evento, descricao, new Date().toISOString());
       return updated;
     },
@@ -146,7 +146,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       toast.success("Tarefa atualizada.");
       setShowEdit(false);
       onSaved?.(updated);
-    }
+    },
   });
 
   const eventoMutation = useMutation({
@@ -166,7 +166,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           status: novoStatus,
           data_inicio: novoStatus === "Em Andamento" ? dataEventoIso : currentTarefa.data_inicio,
           data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : currentTarefa.data_conclusao,
-          observacoes_conclusao: eventoDescricao || currentTarefa.observacoes_conclusao || ""
+          observacoes_conclusao: eventoDescricao || currentTarefa.observacoes_conclusao || "",
         };
         registroAtualizado = await base44.entities.LancamentoTarefa.update(currentTarefa.id, payload);
         const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
@@ -190,7 +190,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       setShowEvento(false);
       setEventoDescricao("");
       onSaved?.(updated);
-    }
+    },
   });
 
   return (
@@ -221,13 +221,10 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
         </Button>
       </div>
 
-      <CardSection title="Último evento da tarefa">
-        <TarefaResumoVisual
-          prazo={currentTarefa.data_prevista}
-          prioridade={prioridade}
-          status={currentTarefa.status} />
-        
-      </CardSection>
+
+
+
+
 
       <CardSection title="Informações da Tarefa">
         <div className="space-y-1 text-[10px]">
@@ -251,19 +248,19 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <CardSection title="Últimos eventos">
         <div className="space-y-2 text-[10px]">
-          {historico.length === 0 ?
-          <div className="text-slate-500">Nenhum evento registrado.</div> :
-
-          historico.slice(0, 3).map((item) =>
-          <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
+          {historico.length === 0 ? (
+            <div className="text-slate-500">Nenhum evento registrado.</div>
+          ) : (
+            historico.slice(0, 3).map((item) => (
+              <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-slate-900">{item.evento || "-"}</span>
                   <span className="text-slate-500">{formatDateBR(item.data_evento || item.created_date)}</span>
                 </div>
                 <div className="text-slate-700 break-words">{item.descricao || "-"}</div>
               </div>
-          )
-          }
+            ))
+          )}
         </div>
       </CardSection>
 
@@ -275,8 +272,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
             tarefa={currentTarefa}
             onSubmit={(data) => updateMutation.mutate({ id: data.id || currentTarefa.id, data: { ...data, prioridade: normalizeTaskPriority(data.prioridade), responsavel: data.responsavel || "", responsavel_geral: data.responsavel_geral || "", observacoes: data.observacoes || "" } })}
             onCancel={() => setShowEdit(false)}
-            onRequestSelectLocation={onRequestSelectLocation} />
-          
+            onRequestSelectLocation={onRequestSelectLocation}
+          />
         </DialogContent>
       </Dialog>
 
@@ -317,8 +314,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           </div>
         </DialogContent>
       </Dialog>
-    </div>);
-
+    </div>
+  );
 }
 
 function CardInfo({ label, value }) {
@@ -326,5 +323,5 @@ function CardInfo({ label, value }) {
 }
 
 function CardSection({ title, children }) {
-  return <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">{children}</div>;
+  return <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1"><div className="text-[11px] font-bold text-slate-900">{title}</div>{children}</div>;
 }
