@@ -132,6 +132,7 @@ export default function TabelaLancamentosTarefas({
   useEffect(() => {
     const handlePointerMove = (event) => {
       if (!resizeRef.current) return;
+      if (event.cancelable) event.preventDefault();
       const clientX = event.touches?.[0]?.clientX ?? event.clientX;
       if (typeof clientX !== "number") return;
       const { columnId, startX, startWidth } = resizeRef.current;
@@ -530,7 +531,7 @@ export default function TabelaLancamentosTarefas({
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
             <div ref={scrollContainerRef} className="relative w-full overflow-y-auto overscroll-contain max-h-[calc(100dvh-140px)] md:max-h-[calc(100dvh-170px)]" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'none' }}>
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed select-none`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map((coluna) => {
@@ -577,10 +578,10 @@ export default function TabelaLancamentosTarefas({
                         )}
 
                         <div
-                          className="absolute top-0 right-0 h-full w-1 cursor-col-resize z-30 touch-none"
+                          className="absolute top-0 -right-2 h-full w-5 cursor-col-resize z-30 touch-none"
                           onMouseDown={(event) => iniciarResize(event, coluna.id)}
                           onTouchStart={(event) => iniciarResize(event, coluna.id)}
-                          onTouchMove={(event) => event.stopPropagation()}
+                          onTouchMove={(event) => { event.stopPropagation(); if (event.cancelable) event.preventDefault(); }}
                           onClick={(event) => event.stopPropagation()}
                         />
                       </TableHead>
