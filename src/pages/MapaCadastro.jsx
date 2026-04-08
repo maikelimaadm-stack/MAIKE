@@ -110,24 +110,34 @@ export default function MapaCadastro() {
         normalizar(item.nome_ponto) === normalizar(ponto?.nome)
       );
 
-      for (const item of vinculados) {
-        await base44.entities.PontoSuplementacao.delete(item.id);
-      }
+      // Primeiro tratar depósitos antes de excluir
+      const depositos = vinculados.filter((item) => normalizar(item.categoria_ponto) === "DEPOSITO");
+      for (const deposito of depositos) {
+        // Excluir o LocalEstoque vinculado ao depósito
+        if (deposito.local_estoque_id) {
+          try {
+            await base44.entities.LocalEstoque.delete(deposito.local_estoque_id);
+          } catch (e) {
+            console.warn('LocalEstoque não encontrado ou já excluído:', e);
+          }
+        }
 
-      const deposito = vinculados.find((item) => normalizar(item.categoria_ponto) === "DEPOSITO");
-      if (deposito) {
+        // Desvincular cochos que apontavam para este depósito
         const cochosRelacionados = pontosSuplementacao.filter((item) =>
           item.empresa_id === empresaSelecionadaId &&
-          item.status === "Ativo" &&
           item.deposito_origem_id === deposito.id
         );
-
         for (const cocho of cochosRelacionados) {
           await base44.entities.PontoSuplementacao.update(cocho.id, {
             deposito_origem_id: null,
             deposito_origem_nome: null,
           });
         }
+      }
+
+      // Agora excluir todos os PontoSuplementacao vinculados
+      for (const item of vinculados) {
+        await base44.entities.PontoSuplementacao.delete(item.id);
       }
     },
     onSuccess: () => {
