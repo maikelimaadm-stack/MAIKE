@@ -130,7 +130,7 @@ export default function TabelaLancamentosTarefas({
     localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
   }, [columnWidths]);
 
-  const handleHeaderDoubleTap = (colunaId) => {
+  const toggleResizeMode = (colunaId) => {
     if (colunaId === "selecao" || colunaId === "acoes") return;
     setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
   };
@@ -509,7 +509,7 @@ export default function TabelaLancamentosTarefas({
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-100px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-130px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
@@ -545,18 +545,7 @@ export default function TabelaLancamentosTarefas({
                       <TableHead
                         key={coluna.id}
                         style={{ width, minWidth: width, maxWidth: width }}
-                        className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap ${isResizing ? 'h-auto' : 'h-7'}`}
-                        onDoubleClick={() => handleHeaderDoubleTap(coluna.id)}
-                        onTouchEnd={(e) => {
-                          const now = Date.now();
-                          if (headerTapRef.current.id === coluna.id && now - headerTapRef.current.time < 600) {
-                            e.preventDefault();
-                            handleHeaderDoubleTap(coluna.id);
-                            headerTapRef.current = { id: null, time: 0 };
-                          } else {
-                            headerTapRef.current = { id: coluna.id, time: now };
-                          }
-                        }}
+                        className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7`}
                       >
                         <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
@@ -565,6 +554,15 @@ export default function TabelaLancamentosTarefas({
                         {filterControl && (
                           <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {filterControl}
+                            <button
+                              type="button"
+                              className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`}
+                              onClick={(e) => { e.stopPropagation(); toggleResizeMode(coluna.id); }}
+                              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}
+                              title="Redimensionar coluna"
+                            >
+                              <GripVertical className="w-2.5 h-2.5" />
+                            </button>
                           </div>
                         )}
 
