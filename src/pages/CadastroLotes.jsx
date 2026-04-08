@@ -158,7 +158,7 @@ export default function CadastroLotes() {
     <div className="p-1 md:p-1 space-y-1">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="fonttext-lg font-bold text-slate-900">Cadastro de Lotes</h1>
+          <h1 className="text-lg font- text-slate-900">Cadastro de Lotes</h1>
           
         </div>
         <div className="flex flex-wrap gap-2">
