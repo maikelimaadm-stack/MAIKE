@@ -506,6 +506,27 @@ export default function TabelaLancamentosTarefas({
 
   return (
     <div className="space-y-1 overflow-hidden">
+      {/* Summary bar */}
+      <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
+        <div className="text-xs text-slate-500">
+          {tarefasFiltradas.length} de {tarefas.length} registros
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {selectedItems.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => { onDelete(selectedItems); setSelectedItems([]); }} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
