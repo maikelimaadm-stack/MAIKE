@@ -326,7 +326,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
           const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
           const proxReposicao = durEst > 0 && dataBase ? new Date(dataBase.getTime() + durEst * 86400000).toLocaleDateString("pt-BR") : null;
           return (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-0">
             <div className="flex items-center justify-between">
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
               <span className="text-[10px] text-slate-500">{formatDateBR(ultimoEvento.data_lancamento)}</span>
