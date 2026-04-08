@@ -244,50 +244,50 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
   return (
     <>
       <div className="space-y-4">
-        <Card>
+        <Card className="rounded-xl border bg-card text-card-foreground shadow">
           <CardContent className="p-3">
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
               <div className="md:col-span-2 space-y-1">
-                <Label className="text-xs">Buscar</Label>
-                <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar áreas..." className="h-8 text-xs" />
+                <Label className="text-xs uppercase">Buscar</Label>
+                <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="BUSCAR ÁREAS..." className="h-7 text-xs uppercase" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Setor</Label>
                 <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="TODOS" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+                    <SelectItem value={VALOR_TODOS} className="text-xs uppercase">TODOS</SelectItem>
+                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Uso</Label>
                 <Select value={filtroUso} onValueChange={setFiltroUso}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="TODOS" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    {TIPOS_USO.map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}
+                    <SelectItem value={VALOR_TODOS} className="text-xs uppercase">TODOS</SelectItem>
+                    {TIPOS_USO.map((item) => <SelectItem key={item} value={item} className="text-xs uppercase">{item}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Cultura</Label>
                 <Select value={filtroCultura} onValueChange={setFiltroCultura}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="TODOS" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    {TIPOS_CULTURAS.map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}
+                    <SelectItem value={VALOR_TODOS} className="text-xs uppercase">TODOS</SelectItem>
+                    {TIPOS_CULTURAS.map((item) => <SelectItem key={item} value={item} className="text-xs uppercase">{item}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Status</Label>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="TODOS" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    {['Disponível','Médio','Alto','Sobrepastoreado'].map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}
+                    <SelectItem value={VALOR_TODOS} className="text-xs uppercase">TODOS</SelectItem>
+                    {['Disponível','Médio','Alto','Sobrepastoreado'].map((item) => <SelectItem key={item} value={item} className="text-xs uppercase">{item}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -325,12 +325,12 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
             <div className="overflow-auto max-h-[500px]">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-white border-b">
+                  <TableRow className="border-b bg-white">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === 'selecao') return <TableHead key="selecao" className="text-xs font-bold py-1 px-2 border border-black w-10"><Checkbox checked={selecionados.length === areasFiltradas.length && areasFiltradas.length > 0} onCheckedChange={handleSelecionarTodos} /></TableHead>;
                       if (coluna.id === 'acoes') return <TableHead key="acoes" className="text-xs font-bold py-1 px-2 border border-black w-10"></TableHead>;
                       const isRight = coluna.align === 'right';
-                      return <TableHead key={coluna.id} className={`text-xs font-bold py-1 px-3 border border-black ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : ''}`} onClick={() => coluna.sortable && handleSort(coluna.id)}><div className={`${isRight ? 'text-right' : ''}`}>{coluna.label} {coluna.sortable ? getSortLabel(coluna.id) : ''}</div></TableHead>;
+                      return <TableHead key={coluna.id} className={`text-xs py-2 px-3 font-bold border-b ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''} ${isRight ? 'text-right' : 'text-left'}`} onClick={() => coluna.sortable && handleSort(coluna.id)}><div className={`${isRight ? 'text-right' : 'text-left'}`}>{coluna.label} {coluna.sortable ? getSortLabel(coluna.id) : ''}</div></TableHead>;
                     })}
                   </TableRow>
                 </TableHeader>
@@ -342,7 +342,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                       {colunasOrdenadas.map((coluna) => {
                         if (coluna.id === 'selecao') return <TableCell key={`${area.id}-selecao`} className="text-xs py-1 px-2 border border-gray-300"><Checkbox checked={selecionados.includes(area.id)} onCheckedChange={() => handleToggleSelecao(area.id)} /></TableCell>;
                         if (coluna.id === 'acoes') return <TableCell key={`${area.id}-acoes`} className="text-xs py-1 px-2 border border-gray-300 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem onClick={() => onEdit(area)} className="text-xs">Editar Área</DropdownMenuItem><DropdownMenuItem onClick={() => onEditDetalhes && onEditDetalhes(area)} className="text-xs">Editar Detalhes</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => onDelete(area)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
-                        return <TableCell key={`${area.id}-${coluna.id}`} className={`text-xs py-1 px-3 border border-gray-300 ${coluna.align === 'right' ? 'text-right font-mono' : ''}`}>{renderCell(area, coluna.id)}</TableCell>;
+                        return <TableCell key={`${area.id}-${coluna.id}`} className={`text-xs py-2 px-3 border-b ${coluna.align === 'right' ? 'text-right font-mono' : 'text-left'}`}>{renderCell(area, coluna.id)}</TableCell>;
                       })}
                     </TableRow>
                   ))}
@@ -359,7 +359,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
           <DialogHeader>
             <DialogTitle className="text-sm">{batchType === 'setor' ? 'Definir Setor' : batchType === 'aproveitamento' ? 'Definir Aproveitamento' : batchType === 'cultura' ? 'Definir Tipo de Cultura' : batchType === 'uso' ? 'Definir Tipo de Uso' : batchType === 'cor' ? 'Definir Cor no Mapa' : 'Reatribuir Códigos'}</DialogTitle>
           </DialogHeader>
-          {batchType === 'setor' && <div className="space-y-2"><Label className="text-xs">Setor</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue}>Aplicar</Button></div></div>}
+          {batchType === 'setor' && <div className="space-y-2"><Label className="text-xs">Setor</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue}>Aplicar</Button></div></div>}
           {batchType === 'aproveitamento' && <div className="space-y-2"><Label className="text-xs">Aproveitamento</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{APROVEITAMENTO.map((v) => <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button></div></div>}
           {batchType === 'cultura' && <div className="space-y-2"><Label className="text-xs">Tipo de Cultura</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{TIPOS_CULTURAS.map((v) => <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button></div></div>}
           {batchType === 'uso' && <div className="space-y-2"><Label className="text-xs">Tipo de Uso</Label><Select value={batchValue} onValueChange={setBatchValue}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{TIPOS_USO.map((v) => <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>)}</SelectContent></Select><div className="flex justify-end gap-2 pt-2"><Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button><Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button></div></div>}
