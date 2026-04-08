@@ -144,7 +144,7 @@ export default function CadastroSetores() {
     <div className="p-1 md:p-1 space-y-1">
       {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="font-bold text-slate-900">Cadastro de Setores</h1>
+          <h1 className="font-bold text-slate-800">Cadastro de Setores</h1>
           
         </div>
         <div className="flex gap-2 flex-wrap">
