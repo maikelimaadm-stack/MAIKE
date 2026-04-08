@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
@@ -82,8 +82,6 @@ export default function TabelaLancamentosTarefas({
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 99999 : 25);
   const [selectedItems, setSelectedItems] = useState([]);
   const [detalheTarefa, setDetalheTarefa] = useState(null);
   const [columnWidths, setColumnWidths] = useState(() => {
@@ -174,9 +172,7 @@ export default function TabelaLancamentosTarefas({
     setSelectedItems((prev) => prev.filter((id) => tarefas.some((item) => item.id === id)));
   }, [tarefas]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, filtroTitulo, filtroDescricao, filtroResponsavel, filtroSolicitante, itemsPerPage]);
+
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId)
@@ -272,9 +268,7 @@ export default function TabelaLancamentosTarefas({
     return sorted;
   }, [tarefasFiltradas, sortConfig, normalizeTaskPriority]);
 
-  const effectiveItemsPerPage = isMobile ? tarefasOrdenadas.length || 1 : itemsPerPage;
-  const totalPages = Math.max(1, Math.ceil(tarefasOrdenadas.length / effectiveItemsPerPage));
-  const tarefasPaginadas = isMobile ? tarefasOrdenadas : tarefasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
@@ -421,8 +415,7 @@ export default function TabelaLancamentosTarefas({
     const allVisibleSelected = filteredOptions.length > 0 && filteredOptions.every((option) => valoresSelecionados.includes(option));
 
     return (
-      <DropdownMenu
-        modal={true}
+      <Popover
         open={menuFiltroAberto === colunaId}
         onOpenChange={(open) => {
           setMenuFiltroAberto(open ? colunaId : null);
@@ -430,28 +423,41 @@ export default function TabelaLancamentosTarefas({
           setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] });
         }}
       >
-        <DropdownMenuTrigger asChild>
+        <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
             <Filter className="w-2 h-2" />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[310px] p-0">
-          <DropdownMenuItem className="text-xs h-8" onClick={() => handleSort(colunaId)}>
-            <ArrowDownAZ className="w-4 h-4 mr-2" />
-            Classificar do Menor para o Maior
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs h-8" onClick={() => setSortConfig({ key: colunaId, direction: "desc" })}>
-            <ArrowUpZA className="w-4 h-4 mr-2" />
-            Classificar do Maior para o Menor
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-xs h-8 text-slate-500" onClick={() => clearColumnFilter(colunaId)} disabled={!hasActiveFilter(colunaId)}>
-            <X className="w-4 h-4 mr-2" />
-            Limpar Filtro de "{columnLabel}"
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+        </PopoverTrigger>
+        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
+          <div className="p-1 space-y-0.5 border-b">
+            <button
+              type="button"
+              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
+              onClick={() => { handleSort(colunaId); setMenuFiltroAberto(null); }}
+            >
+              <ArrowDownAZ className="w-4 h-4 mr-2" />
+              Classificar do Menor para o Maior
+            </button>
+            <button
+              type="button"
+              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
+              onClick={() => { setSortConfig({ key: colunaId, direction: "desc" }); setMenuFiltroAberto(null); }}
+            >
+              <ArrowUpZA className="w-4 h-4 mr-2" />
+              Classificar do Maior para o Menor
+            </button>
+            <button
+              type="button"
+              className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-300 cursor-not-allowed'}`}
+              disabled={!hasActiveFilter(colunaId)}
+              onClick={() => { clearColumnFilter(colunaId); setMenuFiltroAberto(null); }}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Limpar Filtro de "{columnLabel}"
+            </button>
+          </div>
 
-          <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+          <div className="p-2 space-y-2">
             <Input
               value={buscaFiltroMenu}
               onChange={(e) => setBuscaFiltroMenu(e.target.value)}
@@ -513,8 +519,8 @@ export default function TabelaLancamentosTarefas({
               </Button>
             </div>
           </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverContent>
+      </Popover>
     );
   };
 
@@ -584,14 +590,14 @@ export default function TabelaLancamentosTarefas({
               </TableHeader>
 
               <TableBody>
-                {tarefasPaginadas.length === 0 ? (
+                {tarefasOrdenadas.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                       Nenhuma tarefa encontrada
                     </TableCell>
                   </TableRow>
                 ) : (
-                  tarefasPaginadas.map((tarefa) => (
+                  tarefasOrdenadas.map((tarefa) => (
                     <TableRow
                       key={tarefa.id}
                       className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
@@ -661,25 +667,6 @@ export default function TabelaLancamentosTarefas({
             </div>
           </div>
 
-          {!isMobile ? (
-            <div className="flex items-center justify-between p-1 border-t bg-white">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Itens por página:</span>
-                <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
-                  <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">{tarefasOrdenadas.length} registros</span>
-                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">Anterior</Button>
-                <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">Próxima</Button>
-              </div>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
 
