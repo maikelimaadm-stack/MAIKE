@@ -78,6 +78,7 @@ const undoStackRef = useRef([]);
 const redoStackRef = useRef([]);
 
   const pointMarkersRef = useRef([]);
+  const midPointMarkersRef = useRef([]);
 
   useEffect(() => {
     currentPointsRef.current = currentPoints;
@@ -134,21 +135,6 @@ const redoStackRef = useRef([]);
     let nearestPoint = null;
     let minDistance = Infinity;
 
-    areas.forEach(area => {
-      const coords = area.coordenadas?.coords || [];
-      coords.forEach(coord => {
-        const point = projection.fromLatLngToPoint(new google.maps.LatLng(coord[0] || coord.lat, coord[1] || coord.lng));
-        const distance = Math.sqrt(Math.pow(point.x - mousePoint.x, 2) + Math.pow(point.y - mousePoint.y, 2));
-        const scale = Math.pow(2, map.getZoom());
-        const pixelDistance = distance * scale;
-        
-        if (pixelDistance < SNAP_DISTANCE && pixelDistance < minDistance) {
-          minDistance = pixelDistance;
-          nearestPoint = { lat: coord[0] || coord.lat, lng: coord[1] || coord.lng };
-        }
-      });
-    });
-
     linhas.forEach(linha => {
       const coords = linha.coordenadas?.coords || [];
       coords.forEach(coord => {
@@ -191,6 +177,8 @@ const redoStackRef = useRef([]);
 
     pointMarkersRef.current.forEach(m => m.setMap(null));
     pointMarkersRef.current = [];
+    midPointMarkersRef.current.forEach(m => m.setMap(null));
+    midPointMarkersRef.current = [];
 
     undoStackRef.current = [];
     redoStackRef.current = [];
@@ -378,7 +366,7 @@ const redoStackRef = useRef([]);
       }
     };
 
-    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
+    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'mouseup', handleMapClick);
     const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, 'dblclick', (e) => {
       if (e?.stop) e.stop();
     });
@@ -444,6 +432,8 @@ const redoStackRef = useRef([]);
 
     pointMarkersRef.current.forEach(m => m.setMap(null));
     pointMarkersRef.current = [];
+    midPointMarkersRef.current.forEach(m => m.setMap(null));
+    midPointMarkersRef.current = [];
 
     currentPoints.forEach((point, index) => {
       const marker = new google.maps.Marker({
@@ -477,6 +467,34 @@ const redoStackRef = useRef([]);
 
       pointMarkersRef.current.push(marker);
     });
+
+    if ((tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length >= 2) {
+      for (let index = 0; index < currentPoints.length - 1; index += 1) {
+        const start = currentPoints[index];
+        const end = currentPoints[index + 1];
+        const midPoint = {
+          lat: (start.lat + end.lat) / 2,
+          lng: (start.lng + end.lng) / 2,
+        };
+
+        const midMarker = new google.maps.Marker({
+          position: midPoint,
+          map: mapInstanceRef.current,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 4,
+            fillColor: '#d1d5db',
+            fillOpacity: 0.95,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+          },
+          clickable: false,
+          zIndex: 900,
+        });
+
+        midPointMarkersRef.current.push(midMarker);
+      }
+    }
 
     if (tipoDesenho === 'area' && currentPoints.length >= 2) {
       if (currentPolygonRef.current) {
