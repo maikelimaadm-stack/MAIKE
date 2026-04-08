@@ -445,7 +445,6 @@ const redoStackRef = useRef([]);
           setCurrentMarker({ lat: newLat, lng: newLng });
           if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
         });
-        setShowFormularioPonto(true);
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
