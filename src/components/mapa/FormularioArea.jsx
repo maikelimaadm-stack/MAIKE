@@ -4,8 +4,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
 const FloatingField = ({ label, required, error, children }) => (
-  <div className="space-y-0.5">
-    <label className="text-[11px] text-slate-500 pl-1">
+  <div>
+    <label className="text-[10px] text-slate-500 pl-1 leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
@@ -164,8 +164,8 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   }
 
   return (
-    <div className="mt-1 space-y-1">
-      <form onSubmit={handleSubmit} className="space-y-1">
+    <div className="mt-1">
+      <form onSubmit={handleSubmit} className="space-y-0.5">
         <FloatingField label="Área total (ha)" required error={invalidFields.includes('area_total')}>
           <Input
             value={formData.area_total}
