@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -11,257 +10,217 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger } from
-"@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import ConfiguracaoColunasCategoriasManejoDialog from "@/components/categorias-manejo/ConfiguracaoColunasCategoriasManejoDialog";
-
-const VALOR_TODOS = "__TODOS__";
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
-{ id: "selecao", label: "Seleção", default: true, fixo: true },
-{ id: "acoes", label: "Ações", default: true, fixo: true },
-{ id: "nome", label: "Nome", default: true, sortable: true, align: "left" },
-{ id: "sigla", label: "Sigla", default: true, sortable: true, align: "left" },
-{ id: "sexo", label: "Sexo", default: true, sortable: true, align: "left" },
-{ id: "raca", label: "Raça", default: true, sortable: true, align: "left" },
-{ id: "idade", label: "Faixa Idade", default: true, sortable: true, align: "left" },
-{ id: "especie", label: "Espécie", default: false, sortable: true, align: "left" },
-{ id: "categoria_oficial", label: "Categoria Oficial", default: true, sortable: true, align: "left" },
-{ id: "ganho_anual", label: "Ganho Anual (kg)", default: false, sortable: true, align: "right" },
-{ id: "gmd_jan", label: "GMD Jan", default: false, sortable: true, align: "right" },
-{ id: "gmd_fev", label: "GMD Fev", default: false, sortable: true, align: "right" },
-{ id: "gmd_mar", label: "GMD Mar", default: false, sortable: true, align: "right" },
-{ id: "gmd_abr", label: "GMD Abr", default: false, sortable: true, align: "right" },
-{ id: "gmd_mai", label: "GMD Mai", default: false, sortable: true, align: "right" },
-{ id: "gmd_jun", label: "GMD Jun", default: false, sortable: true, align: "right" },
-{ id: "gmd_jul", label: "GMD Jul", default: false, sortable: true, align: "right" },
-{ id: "gmd_ago", label: "GMD Ago", default: false, sortable: true, align: "right" },
-{ id: "gmd_set", label: "GMD Set", default: false, sortable: true, align: "right" },
-{ id: "gmd_out", label: "GMD Out", default: false, sortable: true, align: "right" },
-{ id: "gmd_nov", label: "GMD Nov", default: false, sortable: true, align: "right" },
-{ id: "gmd_dez", label: "GMD Dez", default: false, sortable: true, align: "right" }];
+  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
+  { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
+  { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 180 },
+  { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 100 },
+  { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left", width: 100 },
+  { id: "raca", label: "Raça", default: true, sortable: true, align: "left", width: 140 },
+  { id: "idade", label: "Faixa Idade", default: true, sortable: true, align: "left", width: 140 },
+  { id: "especie", label: "Espécie", default: false, sortable: true, align: "left", width: 120 },
+  { id: "categoria_oficial", label: "Categoria Oficial", default: true, sortable: true, align: "left", width: 180 },
+  { id: "ganho_anual", label: "Ganho Anual (kg)", default: false, sortable: true, align: "right", width: 140 },
+  { id: "gmd_jan", label: "GMD Jan", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_fev", label: "GMD Fev", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_mar", label: "GMD Mar", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_abr", label: "GMD Abr", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_mai", label: "GMD Mai", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_jun", label: "GMD Jun", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_jul", label: "GMD Jul", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_ago", label: "GMD Ago", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_set", label: "GMD Set", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_out", label: "GMD Out", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_nov", label: "GMD Nov", default: false, sortable: true, align: "right", width: 100 },
+  { id: "gmd_dez", label: "GMD Dez", default: false, sortable: true, align: "right", width: 100 }
+];
 
+const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+const COLUMN_WIDTHS_KEY = "colunas_largura_categorias_manejo";
+const MIN_COLUMN_WIDTH = 80;
 
 export default function TabelaCategoriasManejo({
-  categorias,
+  categorias = [],
   onEdit,
   onDelete,
   showConfigColunas,
   setShowConfigColunas
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filtroSexo, setFiltroSexo] = useState(VALOR_TODOS);
-  const [filtroEspecie, setFiltroEspecie] = useState(VALOR_TODOS);
-  const [filtroCategoriaOficial, setFiltroCategoriaOficial] = useState(VALOR_TODOS);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
+  const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
+  const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
+  const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  // Per-column filters stored in a single object
+  const [filtrosColunas, setFiltrosColunas] = useState({});
+
+  const [columnWidths, setColumnWidths] = useState(() => {
+    const defaults = Object.fromEntries(COLUNAS_DISPONIVEIS.map((c) => [c.id, c.width || 160]));
+    const saved = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (!saved) return defaults;
+    try { return { ...defaults, ...JSON.parse(saved) }; } catch { return defaults; }
+  });
+
+  const lastTapRef = useRef({ id: null, time: 0 });
+  const scrollContainerRef = useRef(null);
+  const tableRef = useRef(null);
+  const [resizeColumnId, setResizeColumnId] = useState(null);
+  const dragRef = useRef(null);
+
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_categorias_manejo");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return COLUNAS_DISPONIVEIS.map((c) => c.id);
-      }
-    }
+    if (saved) { try { return JSON.parse(saved); } catch { /* fallback */ } }
     return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
+
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_categorias_manejo");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
-      }
-    }
-    return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+    if (saved) { try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch { /* fallback */ } }
+    return DEFAULT_VISIBLE_COLUMNS;
   });
 
-  useEffect(() => {
-    setSelectedItems((prev) => prev.filter((id) => categorias.some((item) => item.id === id)));
-  }, [categorias]);
+  useEffect(() => { localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths)); }, [columnWidths]);
+
+  // Resize logic
+  const toggleResizeMode = (colunaId) => {
+    if (colunaId === "selecao" || colunaId === "acoes") return;
+    setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
+  };
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filtroSexo, filtroEspecie, filtroCategoriaOficial, itemsPerPage]);
+    const onMove = (e) => {
+      if (!dragRef.current) return;
+      if (e.cancelable) e.preventDefault();
+      const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+      const { columnId, startX, startWidth } = dragRef.current;
+      setColumnWidths((prev) => ({ ...prev, [columnId]: Math.max(MIN_COLUMN_WIDTH, startWidth + (clientX - startX)) }));
+    };
+    const onUp = () => { if (!dragRef.current) return; dragRef.current = null; document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onUp); };
+  }, []);
 
-  const especies = useMemo(() => [...new Set(categorias.map((item) => item.especie).filter(Boolean))].sort(), [categorias]);
-  const categoriasOficiais = useMemo(() => [...new Set(categorias.map((item) => item.categoria_oficial).filter(Boolean))].sort(), [categorias]);
+  const startDragResize = (e, colunaId) => {
+    e.preventDefault(); e.stopPropagation();
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    dragRef.current = { columnId: colunaId, startX: clientX, startWidth: columnWidths[colunaId] || 160 };
+    document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none";
+  };
+
+  useEffect(() => { setSelectedItems((prev) => prev.filter((id) => categorias.some((c) => c.id === id))); }, [categorias]);
 
   const toggleColuna = (colunaId) => {
-    const novasColunas = colunasVisiveis.includes(colunaId) ?
-    colunasVisiveis.filter((id) => id !== colunaId) :
-    [...colunasVisiveis, colunaId];
-
-    setColunasVisiveis(novasColunas);
-    localStorage.setItem("colunas_visiveis_categorias_manejo", JSON.stringify(novasColunas));
+    const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
+    setColunasVisiveis(novas);
+    localStorage.setItem("colunas_visiveis_categorias_manejo", JSON.stringify(novas));
   };
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
-
     const items = Array.from(colunasOrdem);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
+    const [reordered] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reordered);
     setColunasOrdem(items);
     localStorage.setItem("colunas_ordem_categorias_manejo", JSON.stringify(items));
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.
-    map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).
-    filter((c) => c && colunasVisiveis.includes(c.id));
+    return colunasOrdem.map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis]);
+
+  // Extract unique values per column for filter options
+  const getFieldValue = (item, colunaId) => {
+    if (colunaId === "nome") return item.nome || "";
+    if (colunaId === "sigla") return item.sigla || "";
+    if (colunaId === "sexo") return item.sexo || "";
+    if (colunaId === "raca") return item.raca || "";
+    if (colunaId === "idade") {
+      if (!item.idade_minima_meses && !item.idade_maxima_meses) return "";
+      return `${item.idade_minima_meses || 0} - ${item.idade_maxima_meses || "∞"} meses`;
+    }
+    if (colunaId === "especie") return item.especie || "";
+    if (colunaId === "categoria_oficial") return item.categoria_oficial || "";
+    if (colunaId === "ganho_anual") return item.ganho_peso_anual_kg != null ? String(item.ganho_peso_anual_kg) : "";
+    const gmdMap = { gmd_jan: "gmd_janeiro", gmd_fev: "gmd_fevereiro", gmd_mar: "gmd_marco", gmd_abr: "gmd_abril", gmd_mai: "gmd_maio", gmd_jun: "gmd_junho", gmd_jul: "gmd_julho", gmd_ago: "gmd_agosto", gmd_set: "gmd_setembro", gmd_out: "gmd_outubro", gmd_nov: "gmd_novembro", gmd_dez: "gmd_dezembro" };
+    if (gmdMap[colunaId]) return item[gmdMap[colunaId]] != null ? String(item[gmdMap[colunaId]]) : "";
+    return "";
+  };
+
+  const columnOptions = useMemo(() => {
+    const opts = {};
+    COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).forEach((col) => {
+      opts[col.id] = [...new Set(categorias.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
+    });
+    return opts;
+  }, [categorias]);
+
+  // Filter logic
+  const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
+  const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
+  const setValoresFiltro = (colunaId, values) => setFiltrosColunas((prev) => ({ ...prev, [colunaId]: values }));
+  const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
 
   const categoriasFiltradas = useMemo(() => {
     return categorias.filter((item) => {
-      const termo = searchTerm.toLowerCase();
-      const matchSearch =
-      !termo ||
-      item.nome?.toLowerCase().includes(termo) ||
-      item.sigla?.toLowerCase().includes(termo) ||
-      item.raca?.toLowerCase().includes(termo) ||
-      item.categoria_oficial?.toLowerCase().includes(termo);
-      const matchSexo = filtroSexo === VALOR_TODOS || item.sexo === filtroSexo;
-      const matchEspecie = filtroEspecie === VALOR_TODOS || item.especie === filtroEspecie;
-      const matchCategoriaOficial = filtroCategoriaOficial === VALOR_TODOS || item.categoria_oficial === filtroCategoriaOficial;
-      return matchSearch && matchSexo && matchEspecie && matchCategoriaOficial;
+      return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
+        const filtro = filtrosColunas[col.id] || [];
+        if (filtro.length === 0) return true;
+        const val = getFieldValue(item, col.id);
+        return filtro.includes(val);
+      });
     });
-  }, [categorias, searchTerm, filtroSexo, filtroEspecie, filtroCategoriaOficial]);
+  }, [categorias, filtrosColunas]);
 
   const categoriasOrdenadas = useMemo(() => {
     const sorted = [...categoriasFiltradas];
     sorted.sort((a, b) => {
-      let aValue;
-      let bValue;
-
-      switch (sortConfig.key) {
-        case "ganho_anual":
-          aValue = Number(a.ganho_peso_anual_kg || 0);
-          bValue = Number(b.ganho_peso_anual_kg || 0);
-          break;
-        case "gmd_jan":
-          aValue = Number(a.gmd_janeiro || 0);
-          bValue = Number(b.gmd_janeiro || 0);
-          break;
-        case "gmd_fev":
-          aValue = Number(a.gmd_fevereiro || 0);
-          bValue = Number(b.gmd_fevereiro || 0);
-          break;
-        case "gmd_mar":
-          aValue = Number(a.gmd_marco || 0);
-          bValue = Number(b.gmd_marco || 0);
-          break;
-        case "gmd_abr":
-          aValue = Number(a.gmd_abril || 0);
-          bValue = Number(b.gmd_abril || 0);
-          break;
-        case "gmd_mai":
-          aValue = Number(a.gmd_maio || 0);
-          bValue = Number(b.gmd_maio || 0);
-          break;
-        case "gmd_jun":
-          aValue = Number(a.gmd_junho || 0);
-          bValue = Number(b.gmd_junho || 0);
-          break;
-        case "gmd_jul":
-          aValue = Number(a.gmd_julho || 0);
-          bValue = Number(b.gmd_julho || 0);
-          break;
-        case "gmd_ago":
-          aValue = Number(a.gmd_agosto || 0);
-          bValue = Number(b.gmd_agosto || 0);
-          break;
-        case "gmd_set":
-          aValue = Number(a.gmd_setembro || 0);
-          bValue = Number(b.gmd_setembro || 0);
-          break;
-        case "gmd_out":
-          aValue = Number(a.gmd_outubro || 0);
-          bValue = Number(b.gmd_outubro || 0);
-          break;
-        case "gmd_nov":
-          aValue = Number(a.gmd_novembro || 0);
-          bValue = Number(b.gmd_novembro || 0);
-          break;
-        case "gmd_dez":
-          aValue = Number(a.gmd_dezembro || 0);
-          bValue = Number(b.gmd_dezembro || 0);
-          break;
-        case "idade":
-          aValue = Number(a.idade_minima_meses || 0);
-          bValue = Number(b.idade_minima_meses || 0);
-          break;
-        default:
-          aValue = String(
-            sortConfig.key === "nome" ? a.nome || "" :
-            sortConfig.key === "sigla" ? a.sigla || "" :
-            sortConfig.key === "sexo" ? a.sexo || "" :
-            sortConfig.key === "raca" ? a.raca || "" :
-            sortConfig.key === "especie" ? a.especie || "" :
-            sortConfig.key === "categoria_oficial" ? a.categoria_oficial || "" : ""
-          ).toLowerCase();
-          bValue = String(
-            sortConfig.key === "nome" ? b.nome || "" :
-            sortConfig.key === "sigla" ? b.sigla || "" :
-            sortConfig.key === "sexo" ? b.sexo || "" :
-            sortConfig.key === "raca" ? b.raca || "" :
-            sortConfig.key === "especie" ? b.especie || "" :
-            sortConfig.key === "categoria_oficial" ? b.categoria_oficial || "" : ""
-          ).toLowerCase();
-          break;
+      const resolveNumeric = (item) => {
+        if (sortConfig.key === "ganho_anual") return Number(item.ganho_peso_anual_kg || 0);
+        if (sortConfig.key === "idade") return Number(item.idade_minima_meses || 0);
+        const gmdMap = { gmd_jan: "gmd_janeiro", gmd_fev: "gmd_fevereiro", gmd_mar: "gmd_marco", gmd_abr: "gmd_abril", gmd_mai: "gmd_maio", gmd_jun: "gmd_junho", gmd_jul: "gmd_julho", gmd_ago: "gmd_agosto", gmd_set: "gmd_setembro", gmd_out: "gmd_outubro", gmd_nov: "gmd_novembro", gmd_dez: "gmd_dezembro" };
+        if (gmdMap[sortConfig.key]) return Number(item[gmdMap[sortConfig.key]] || 0);
+        return null;
+      };
+      const aNum = resolveNumeric(a);
+      if (aNum !== null) {
+        const bNum = resolveNumeric(b);
+        if (aNum < bNum) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aNum > bNum) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
       }
-
-      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      const aVal = getFieldValue(a, sortConfig.key).toLowerCase();
+      const bVal = getFieldValue(b, sortConfig.key).toLowerCase();
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
     return sorted;
   }, [categoriasFiltradas, sortConfig]);
 
-  const totalPages = Math.max(1, Math.ceil(categoriasOrdenadas.length / itemsPerPage));
-  const categoriasPaginadas = categoriasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const handleSort = (key) => {
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
-    }));
-  };
-
-  const SortIcon = ({ column }) => {
-    if (sortConfig.key !== column) {
-      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    }
-    return sortConfig.direction === "asc" ?
-    <ArrowUp className="w-3 h-3 text-emerald-600" /> :
-    <ArrowDown className="lucide lucide-arrow-up-down lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
-  };
+  const handleSort = (key) => setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0) {
-      setSelectedItems([]);
-      return;
-    }
-    setSelectedItems(categoriasFiltradas.map((item) => item.id));
+    if (selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0) { setSelectedItems([]); return; }
+    setSelectedItems(categoriasFiltradas.map((c) => c.id));
   };
 
-  const limparFiltros = () => {
-    setSearchTerm("");
-    setFiltroSexo(VALOR_TODOS);
-    setFiltroEspecie(VALOR_TODOS);
-    setFiltroCategoriaOficial(VALOR_TODOS);
-  };
+  const handleExcluirSelecionados = () => { selectedItems.forEach((id) => onDelete(id)); setSelectedItems([]); };
 
-  const handleExcluirSelecionados = () => {
-    selectedItems.forEach((id) => onDelete(id));
-    setSelectedItems([]);
+  const handleRowTouch = (item, event) => {
+    const now = Date.now();
+    if (lastTapRef.current.id === item.id && now - lastTapRef.current.time < 300) { event.preventDefault(); onEdit(item); }
+    lastTapRef.current = { id: item.id, time: now };
   };
 
   const renderCell = (item, colunaId) => {
@@ -291,221 +250,274 @@ export default function TabelaCategoriasManejo({
     return "-";
   };
 
+  const renderFilterControl = (colunaId) => {
+    const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
+    const columnLabel = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId)?.label || colunaId;
+    const options = columnOptions[colunaId] || [];
+    const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
+    const filteredOptions = options.filter((o) => String(o).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
+    const allVisibleSelected = filteredOptions.length > 0 && filteredOptions.every((o) => valoresSelecionados.includes(o));
+
+    return (
+      <Popover
+        open={menuFiltroAberto === colunaId}
+        onOpenChange={(open) => {
+          setMenuFiltroAberto(open ? colunaId : null);
+          setBuscaFiltroMenu("");
+          setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] });
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className={buttonClass}>
+            <Filter className="w-2 h-2" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
+          <div className="p-1 space-y-0.5 border-b">
+            <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => { handleSort(colunaId); setMenuFiltroAberto(null); }}>
+              <ArrowDownAZ className="w-4 h-4 mr-2" /> Classificar do Menor para o Maior
+            </button>
+            <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => { setSortConfig({ key: colunaId, direction: "desc" }); setMenuFiltroAberto(null); }}>
+              <ArrowUpZA className="w-4 h-4 mr-2" /> Classificar do Maior para o Menor
+            </button>
+            <button
+              type="button"
+              className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-300 cursor-not-allowed'}`}
+              disabled={!hasActiveFilter(colunaId)}
+              onClick={() => { clearColumnFilter(colunaId); setMenuFiltroAberto(null); }}
+            >
+              <X className="w-4 h-4 mr-2" /> Limpar Filtro de "{columnLabel}"
+            </button>
+          </div>
+          <div className="p-2 space-y-2">
+            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />
+            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
+              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
+                <Checkbox
+                  checked={allVisibleSelected}
+                  onCheckedChange={(checked) => {
+                    setFiltroTemp((prev) => {
+                      const restantes = prev.valores.filter((v) => !filteredOptions.includes(v));
+                      return { ...prev, valores: checked ? [...new Set([...restantes, ...filteredOptions])] : restantes };
+                    });
+                  }}
+                  className="h-3.5 w-3.5 shrink-0"
+                />
+                <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
+              </label>
+              {filteredOptions.map((option) => (
+                <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
+                  <Checkbox
+                    checked={valoresSelecionados.includes(option)}
+                    onCheckedChange={(checked) => {
+                      setFiltroTemp((prev) => ({ ...prev, valores: checked ? [...prev.valores, option] : prev.valores.filter((i) => i !== option) }));
+                    }}
+                    className="h-3.5 w-3.5 shrink-0"
+                  />
+                  <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setMenuFiltroAberto(null); setBuscaFiltroMenu(""); setFiltroTemp({ colunaId: null, valores: [] }); }}>
+                Cancelar
+              </Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setValoresFiltro(colunaId, filtroTemp.valores); setMenuFiltroAberto(null); setBuscaFiltroMenu(""); setFiltroTemp({ colunaId: null, valores: [] }); }}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   return (
-    <>
-      <div className="space-y-3">
-        <Card>
-          <CardContent className="px-1 py-1">
-            <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
-              <div className="md:col-span-0 space-y-">
-                <Label className="text-xs">Buscar</Label>
-                <Input
-                  placeholder="Buscar categoria, sigla, raça..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)} className="min-w-[130px] max-w-[180px]flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
-                
-                
-              </div>
+    <div className="space-y-1 overflow-hidden">
+      {/* Summary bar */}
+      <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
+        <div className="text-xs text-slate-500">
+          {categoriasFiltradas.length} de {categorias.length} registros
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {selectedItems.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExcluirSelecionados} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
 
-              <div className="">
-                <Label className="text-xs">Sexo</Label>
-                <Select value={filtroSexo} onValueChange={setFiltroSexo}>
-                  <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
-                    <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
-                    <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="min-w-[130px] max-w-[180px] w-full">
-                <Label className="text-xs">Espécie</Label>
-                <Select value={filtroEspecie} onValueChange={setFiltroEspecie}>
-                  <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
-                    {especies.map((item) =>
-                    <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="min-w-[130px] max-w-[180px] w-full">
-                <Label className="text-xs">Categoria Oficial</Label>
-                <Select value={filtroCategoriaOficial} onValueChange={setFiltroCategoriaOficial}>
-                  <SelectTrigger className="min-w-[130px] max-w-[180px] w-full bg-transparent px-3 py-2 text-xs rounded-md flex w-full items-center justify-between whitespace-nowrap border border-input shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7"><SelectValue placeholder="Todas" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
-                    {categoriasOficiais.map((item) =>
-                    <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
-              <div className="text-xs text-slate-500">
-                {categoriasFiltradas.length} de {categorias.length} registros
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {selectedItems.length > 0 &&
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 text-xs">
-                        Ações ({selectedItems.length})
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleExcluirSelecionados} className="text-xs text-red-600">
-                        Excluir Selecionados
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                }
-                <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
-                  Limpar Filtros
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-auto max-h-[500px]">
-              <Table className="">
-                <TableHeader>
-                  <TableRow className="border-b transition-colors hover:bg-muted/0 data-[state=selected]:bg-muted">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0 overflow-hidden">
+          <div className="relative overflow-hidden">
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+                <TableHeader className="bg-white">
+                  <TableRow className="sticky top-0 z-40 bg-white">
                     {colunasOrdenadas.map((coluna) => {
+                      const width = columnWidths[coluna.id] || coluna.width || 160;
+                      const isResizing = resizeColumnId === coluna.id;
+
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-                            <Checkbox
-                              checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0}
-                              onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" />
-                            
-                          </TableHead>);
+                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
+                            <div className="flex items-center justify-center w-full h-full">
+                              <Checkbox checked={selectedItems.length === categoriasFiltradas.length && categoriasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                            </div>
+                          </TableHead>
+                        );
+                      }
 
-                      }
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="p-2 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
+                        return (
+                          <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />
+                        );
                       }
-                      const isRight = coluna.align === "right";
+
+                      const filterControl = renderFilterControl(coluna.id);
+
                       return (
                         <TableHead
-                          key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-0 text-xs font-medium text-center border border-gray-300"
-
-                          onClick={() => coluna.sortable && handleSort(coluna.id)}>
-                          
-                          <div className="inline-flex items-center gap-1 h-full">
-                            {coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}
+                          key={coluna.id}
+                          style={{ width, minWidth: width, maxWidth: width }}
+                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7"
+                        >
+                          <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                            {coluna.label}
                           </div>
-                        </TableHead>);
 
+                          {filterControl && (
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {filterControl}
+                              <button
+                                type="button"
+                                className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`}
+                                onClick={(e) => { e.stopPropagation(); toggleResizeMode(coluna.id); }}
+                                onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}
+                                title="Redimensionar coluna"
+                              >
+                                <GripVertical className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          )}
+
+                          {isResizing && (
+                            <div
+                              className="absolute top-0 -right-3 h-full w-6 z-50 flex items-center justify-center cursor-col-resize bg-emerald-500 bg-opacity-80 rounded-r"
+                              onMouseDown={(e) => startDragResize(e, coluna.id)}
+                              onTouchStart={(e) => startDragResize(e, coluna.id)}
+                              onClick={(e) => { e.stopPropagation(); setResizeColumnId(null); }}
+                              onDoubleClick={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                            >
+                              <GripVertical className="w-3.5 h-3.5 text-white" />
+                            </div>
+                          )}
+                        </TableHead>
+                      );
                     })}
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {categoriasPaginadas.length === 0 ?
-                  <TableRow>
+                  {categoriasOrdenadas.length === 0 ? (
+                    <TableRow>
                       <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                         Nenhuma categoria encontrada
                       </TableCell>
-                    </TableRow> :
-
-                  categoriasPaginadas.map((item) =>
-                  <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000">
+                    </TableRow>
+                  ) : (
+                    categoriasOrdenadas.map((item) => (
+                      <TableRow
+                        key={item.id}
+                        className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
+                        onDoubleClick={() => onEdit(item)}
+                        onTouchEnd={(event) => handleRowTouch(item, event)}
+                      >
                         {colunasOrdenadas.map((coluna) => {
-                      if (coluna.id === "selecao") {
-                        return (
-                          <TableCell key={`${item.id}-selecao`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-                                <Checkbox
-                              checked={selectedItems.includes(item.id)}
-                              onCheckedChange={() => {
-                                setSelectedItems((prev) => prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]);
-                              }} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" />
-                            
-                              </TableCell>);
+                          const width = columnWidths[coluna.id] || coluna.width || 160;
 
-                      }
+                          if (coluna.id === "selecao") {
+                            return (
+                              <TableCell
+                                key={`${item.id}-selecao`}
+                                style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                                className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
+                                onClick={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-center w-full h-full">
+                                  <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                </div>
+                              </TableCell>
+                            );
+                          }
 
-                      if (coluna.id === "acoes") {
-                        return (
-                          <TableCell key={`${item.id}-acoes`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="font-medium text-sm font-medium\\\\nfocus-visible:outline-none rounded-md transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-accent inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:ring-1 focus-visible:ring-ring\\\\ndisabled:pointer-events-none disabled:opacity-50\\\\n[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0\\\\nhover:bg-accent hover:text-accent-foreground w-4">
-                                      <MoreVertical className="text-slate-600 lucide lucide-ellipsis-vertical w-3.5 h-3.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start">
-                                    <DropdownMenuItem onClick={() => onEdit(item)} className="text-xs">
-                                      Editar
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => onDelete(item.id)} className="text-xs text-red-600">
-                                      Excluir
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>);
+                          if (coluna.id === "acoes") {
+                            return (
+                              <TableCell
+                                key={`${item.id}-acoes`}
+                                style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                                className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
+                                onClick={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-center w-full h-full">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                      <DropdownMenuItem onClick={() => onEdit(item)} className="text-xs">Editar</DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => onDelete(item.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            );
+                          }
 
-                      }
-
-                      return (
-                        <TableCell
-                          key={`${item.id}-${coluna.id}`} className="text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">
-                          
-                          
+                          return (
+                            <TableCell
+                              key={`${item.id}-${coluna.id}`}
+                              style={{ width, minWidth: width, maxWidth: width }}
+                              className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words"
+                            >
                               {renderCell(item, coluna.id)}
-                            </TableCell>);
-
-                    })}
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
-                  )
-                  }
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            <div className="flex items-center justify-between p-1 border-t">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Itens por página:</span>
-                <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
-                  <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="x">
-                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">
-                  Anterior
-                </Button>
-                <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">
-                  Próxima
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <ConfiguracaoColunasCategoriasManejoDialog
+      <ConfiguracaoColunasMapaDialog
         open={showConfigColunas}
         onOpenChange={setShowConfigColunas}
         colunasDisponiveis={COLUNAS_DISPONIVEIS}
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd} />
-      
-    </>);
-
+        handleDragEnd={handleDragEnd}
+        droppableId="colunas-categorias-manejo"
+      />
+    </div>
+  );
 }
