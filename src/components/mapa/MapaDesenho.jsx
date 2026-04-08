@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target, RotateCcw, RotateCw, Check } from "lucide-react";
+import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target, RotateCcw, RotateCw, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -624,8 +624,8 @@ const redoStackRef = useRef([]);
       pointMarkersRef.current.push(marker);
     });
 
-    if ((tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length >= 2) {
-      const segCount = tipoDesenho === 'area' && drawingClosed ? currentPoints.length : currentPoints.length - 1;
+    if (canDrag && (tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length >= 2) {
+      const segCount = tipoDesenho === 'area' ? currentPoints.length : currentPoints.length - 1;
       for (let index = 0; index < segCount; index += 1) {
         const start = currentPoints[index];
         const end = currentPoints[(index + 1) % currentPoints.length];
@@ -634,19 +634,33 @@ const redoStackRef = useRef([]);
           lng: (start.lng + end.lng) / 2,
         };
 
+        const insertAfter = index;
         const midMarker = new google.maps.Marker({
           position: midPoint,
           map: mapInstanceRef.current,
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 5,
-            fillColor: '#ffffff',
-            fillOpacity: 1,
+            scale: 4,
+            fillColor: '#facc15',
+            fillOpacity: 0.5,
             strokeColor: '#facc15',
-            strokeWeight: 2,
+            strokeWeight: 1,
           },
-          clickable: false,
+          draggable: true,
           zIndex: 900,
+        });
+
+        midMarker.addListener('dragend', (e) => {
+          const snap = findNearestPoint(e.latLng, mapInstanceRef.current);
+          const newLat = snap ? snap.lat : e.latLng.lat();
+          const newLng = snap ? snap.lng : e.latLng.lng();
+          setCurrentPoints(prev => {
+            const updated = [...prev];
+            updated.splice(insertAfter + 1, 0, { lat: newLat, lng: newLng });
+            return updated;
+          });
+          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
+          else toast.success('Novo ponto inserido', { duration: 800 });
         });
 
         midPointMarkersRef.current.push(midMarker);
@@ -927,6 +941,37 @@ const redoStackRef = useRef([]);
               )}
 
               <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
+                {/* Botão Reiniciar — volta ao modo de desenho do zero */}
+                {(drawingClosed || currentPoints.length > 0) && !itemEditando && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => {
+                      // Limpar polígono/polyline atual
+                      if (currentPolygonRef.current) {
+                        currentPolygonRef.current.setMap(null);
+                        currentPolygonRef.current = null;
+                      }
+                      if (currentPolylineRef.current) {
+                        currentPolylineRef.current.setMap(null);
+                        currentPolylineRef.current = null;
+                      }
+                      pointMarkersRef.current.forEach(m => m.setMap(null));
+                      pointMarkersRef.current = [];
+                      midPointMarkersRef.current.forEach(m => m.setMap(null));
+                      midPointMarkersRef.current = [];
+                      undoStackRef.current = [];
+                      redoStackRef.current = [];
+                      setCurrentPoints([]);
+                      setDrawingClosed(false);
+                      toast.success('Desenho reiniciado', { duration: 1000 });
+                    }}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Reiniciar
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   size="sm"
