@@ -268,15 +268,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Informações do Depósito</div>
           <div className="space-y-1 text-[10px]">
-            {subIconePonto &&
-            <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
-                <img src={subIconePonto} alt={deposito.nome_ponto} className="w-10 h-10 object-contain" />
-                <div>
-                  <div className="font-semibold text-slate-900">{deposito.nome_ponto}</div>
-                  <div className="text-slate-500">{deposito.categoria_ponto || 'DEPOSITO'} • {deposito.status || 'Ativo'}</div>
-                </div>
-              </div>
-            }
+            
+
+
+
+
+
+
+
+            
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Número:</span><span className="font-semibold text-slate-900">{deposito.numero_ponto || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sigla:</span><span className="font-semibold text-slate-900">{deposito.sigla || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{deposito.tipo || '-'}</span></div>
