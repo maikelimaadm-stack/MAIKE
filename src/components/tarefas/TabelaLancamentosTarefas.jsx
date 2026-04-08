@@ -34,8 +34,8 @@ const STATUS_CORES = {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 44 },
-  { id: "acoes", label: "Ações", default: true, fixo: true, width: 44 },
+  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 10 },
+  { id: "acoes", label: "Ações", default: true, fixo: true, width: 10 },
   { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left", width: 220 },
   { id: "descricao", label: "Descrição", default: true, sortable: false, align: "left", width: 240 },
   { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left", width: 120 },
