@@ -223,32 +223,32 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                         <div className="text-[10px] text-slate-500">{loteItem.categoria} • {loteItem.quantidade_cabecas || 0} cab • Peso atual: {loteItem.peso_medio_kg || 0} kg</div>
                       </div>
                     </div>
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Novo Peso (kg)</label>
+                    <FL label="Novo Peso (kg)">
                       <Input
                         type="number"
                         step="0.1"
                         value={pesosIndividuais[loteItem.id] || ''}
                         onChange={(e) => setPesosIndividuais(prev => ({ ...prev, [loteItem.id]: e.target.value }))}
                         placeholder={String(loteItem.peso_medio_kg || 0)}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                       />
-                    </div>
+                    </FL>
                   </div>
                 );
               })}
             </div>
           ) : modoPesagem === "todos" ? (
             <div className="space-y-2 bg-slate-50 border border-slate-300 rounded-lg p-4">
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso para Todos os Animais (kg) <span className="text-red-500">*</span></label>
-              <Input
-                type="number"
-                step="0.1"
-                value={pesoGeral}
-                onChange={(e) => setPesoGeral(e.target.value)}
-                className="h-7 text-xs font-semibold"
-                placeholder="0"
-              />
+              <FL label="Peso para Todos os Animais (kg)" required>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={pesoGeral}
+                  onChange={(e) => setPesoGeral(e.target.value)}
+                  className="h-7 text-xs font-semibold border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                  placeholder="0"
+                />
+              </FL>
               <div className="text-[10px] text-slate-600 mt-2">
                 Este peso será aplicado a todas as {categoriasDisponiveis.length} categoria(s)
               </div>
@@ -265,24 +265,24 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
 
                 return (
                   <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-xs font-semibold">Categoria</Label>
+                    <div className="flex items-center justify-between mb-1">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => removerCategoria(index)}
-                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
                       >
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
 
+                    <FL label="Categoria">
                     <Select
                       value={pesagem.categoria}
                       onValueChange={(v) => handlePesagemChange(index, 'categoria', v)}
                     >
-                      <SelectTrigger className="h-7 text-xs mb-2">
+                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue>
                           {infoCategoria?.totalCabecas || 0} cb - {pesagem.categoria}
                         </SelectValue>
@@ -298,19 +298,19 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                         })}
                       </SelectContent>
                     </Select>
+                    </FL>
 
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Atual (kg) *</label>
+                    <FL label="Peso Atual (kg)" required>
                       <Input
                         type="number"
                         step="0.1"
                         value={pesagem.peso}
                         onChange={(e) => handlePesagemChange(index, 'peso', e.target.value)}
                         placeholder="0"
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         required
                       />
-                    </div>
+                    </FL>
                   </div>
                 );
               })}

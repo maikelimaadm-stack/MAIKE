@@ -156,61 +156,60 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
 
               return (
                 <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-semibold">Categoria Atual</Label>
+                  <div className="flex items-center justify-between mb-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removerCategoria(index)}
-                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  <Select
-                    value={mudanca.categoria_atual}
-                    onValueChange={(v) => handleMudancaChange(index, 'categoria_atual', v)}
-                  >
-                    <SelectTrigger className="h-7 text-xs mb-2">
-                      <SelectValue>
-                        {infoCategoria?.totalCabecas || 0} cb - {mudanca.categoria_atual}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoriasDisponiveis.map(cat => {
-                        const info = lotesPorCategoria[cat];
-                        return (
-                          <SelectItem key={cat} value={cat} className="text-xs">
-                            {info.totalCabecas} cb - {cat}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <FL label="Categoria Atual">
+                    <Select
+                      value={mudanca.categoria_atual}
+                      onValueChange={(v) => handleMudancaChange(index, 'categoria_atual', v)}
+                    >
+                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                        <SelectValue>
+                          {infoCategoria?.totalCabecas || 0} cb - {mudanca.categoria_atual}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasDisponiveis.map(cat => {
+                          const info = lotesPorCategoria[cat];
+                          return (
+                            <SelectItem key={cat} value={cat} className="text-xs">
+                              {info.totalCabecas} cb - {cat}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </FL>
 
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade *</label>
+                  <div className="space-y-1">
+                    <FL label="Quantidade" required>
                       <Input
                         type="number"
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={mudanca.quantidade}
                         onChange={(e) => handleMudancaChange(index, 'quantidade', e.target.value)}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         placeholder="0"
                         required
                       />
-                    </div>
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Nova Categoria *</label>
+                    </FL>
+                    <FL label="Nova Categoria" required>
                       <Select
                         value={mudanca.categoria_nova}
                         onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                           <SelectValue placeholder="Selecione a nova categoria" />
                         </SelectTrigger>
                         <SelectContent>
@@ -219,7 +218,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </FL>
 
                     {mudanca.sexo_novo && (
                       <div className="text-xs text-slate-500">
@@ -227,17 +226,16 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                       </div>
                     )}
 
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Médio (kg)</label>
+                    <FL label="Peso Médio (kg)">
                       <Input
                         type="number"
                         step="0.1"
                         value={mudanca.peso_medio || ""}
                         onChange={(e) => handleMudancaChange(index, 'peso_medio', e.target.value)}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         placeholder="0"
                       />
-                    </div>
+                    </FL>
                   </div>
                 </div>
               );

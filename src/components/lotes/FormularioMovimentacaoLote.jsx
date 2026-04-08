@@ -370,26 +370,24 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-700">
-                        Sobra no cocho (kg) *
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max={evento.quantidade_total_kg}
-                        value={formData.sobras_cocho[evento.id] || ''}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          sobras_cocho: {
-                            ...formData.sobras_cocho,
-                            [evento.id]: e.target.value
-                          }
-                        })}
-                        className="h-9 text-xs"
-                        placeholder="0.0"
-                        required />
-
+                      <FL label="Sobra no cocho (kg)" required>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max={evento.quantidade_total_kg}
+                          value={formData.sobras_cocho[evento.id] || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            sobras_cocho: {
+                              ...formData.sobras_cocho,
+                              [evento.id]: e.target.value
+                            }
+                          })}
+                          className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                          placeholder="0.0"
+                          required />
+                      </FL>
                       <p className="text-[10px] text-slate-500">
                         Informe 0 se não sobrou nada no cocho
                       </p>
@@ -449,9 +447,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             <FL label="Data da Movimentação" required>
               <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
             </FL>
-            <div className="space-y-1">
+            <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">Movimentar todo o lote? <span className="text-red-500">*</span></label>
-              <RadioGroup value={formData.mover_todos} onValueChange={(v) => setFormData({ ...formData, mover_todos: v })} className="flex gap-4">
+              <RadioGroup value={formData.mover_todos} onValueChange={(v) => setFormData({ ...formData, mover_todos: v })} className="flex gap-4 mt-1">
                 <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="sim" /><Label htmlFor="sim" className="text-xs cursor-pointer">Sim</Label></div>
                 <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="nao" /><Label htmlFor="nao" className="text-xs cursor-pointer">Não</Label></div>
               </RadioGroup>
@@ -541,19 +539,18 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
               return (
                 <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-xs font-semibold">Categoria</Label>
+                    <div className="flex items-center justify-between mb-1">
                       <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRemoveMovimentacao(index)}
-                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50">
-
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto">
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
 
+                    <FL label="Categoria">
                     <Select
                     value={mov.categoria}
                     onValueChange={(v) => {
@@ -563,7 +560,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                       handleMovimentacaoChange(index, 'peso_medio', cat.peso_medio);
                     }}>
 
-                      <SelectTrigger className="h-10 text-xs mb-3">
+                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue>
                           {infoCategoria?.quantidade_total || 0} cb - {mov.categoria}
                         </SelectValue>
@@ -579,10 +576,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                       })}
                       </SelectContent>
                     </Select>
+                    </FL>
 
-                    <div className="space-y-2">
-                      <div>
-                        <Label className="text-xs text-slate-600">Quantidade *</Label>
+                    <div className="space-y-1">
+                      <FL label="Quantidade" required>
                         <Input
                         type="number"
                         value={mov.quantidade}
@@ -593,12 +590,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           }
                         }}
                         max={mov.quantidade_maxima}
-                        className="h-8 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         placeholder="0"
                         required />
-
-                        <span className="text-[10px] text-slate-500">Máximo: {mov.quantidade_maxima} cabeças</span>
-                      </div>
+                      </FL>
+                      <span className="text-[10px] text-slate-500">Máximo: {mov.quantidade_maxima} cabeças</span>
 
                       
 

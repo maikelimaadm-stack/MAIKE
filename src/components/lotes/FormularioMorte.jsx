@@ -120,62 +120,61 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
 
               return (
                 <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-semibold">Categoria</Label>
+                  <div className="flex items-center justify-between mb-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removerCategoria(index)}
-                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  <Select
-                    value={morte.categoria}
-                    onValueChange={(v) => handleMorteChange(index, 'categoria', v)}
-                  >
-                    <SelectTrigger className="h-7 text-xs mb-2">
-                      <SelectValue>
-                        {infoCategoria?.totalCabecas || 0} cb - {morte.categoria}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoriasDisponiveis.map(cat => {
-                        const info = lotesPorCategoria[cat];
-                        return (
-                          <SelectItem key={cat} value={cat} className="text-xs">
-                            {info.totalCabecas} cb - {cat}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <FL label="Categoria">
+                    <Select
+                      value={morte.categoria}
+                      onValueChange={(v) => handleMorteChange(index, 'categoria', v)}
+                    >
+                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                        <SelectValue>
+                          {infoCategoria?.totalCabecas || 0} cb - {morte.categoria}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasDisponiveis.map(cat => {
+                          const info = lotesPorCategoria[cat];
+                          return (
+                            <SelectItem key={cat} value={cat} className="text-xs">
+                              {info.totalCabecas} cb - {cat}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </FL>
 
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade *</label>
+                  <div className="space-y-1">
+                    <FL label="Quantidade" required>
                       <Input
                         type="number"
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={morte.quantidade}
                         onChange={(e) => handleMorteChange(index, 'quantidade', e.target.value)}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         placeholder="0"
                         required
                       />
-                    </div>
+                    </FL>
 
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Causa da Morte *</label>
+                    <FL label="Causa da Morte" required>
                       <Select
                         value={morte.causa_morte}
                         onValueChange={(v) => handleMorteChange(index, 'causa_morte', v)}
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                           <SelectValue placeholder="Selecione a causa" />
                         </SelectTrigger>
                         <SelectContent>
@@ -187,7 +186,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                           <SelectItem value="Outra" className="text-xs">Outra</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </FL>
                   </div>
                 </div>
               );

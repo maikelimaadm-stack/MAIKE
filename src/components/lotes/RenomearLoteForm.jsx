@@ -8,6 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
+const FL = ({ label, required, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
 export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, empresaSelecionadaId, areas, onClose, onCancel }) {
   const [loading, setLoading] = useState(false);
 
@@ -99,12 +110,9 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
         </div>
       )}
 
-      <div>
-        <label className="text-[12px] text-slate-500 pl-1 leading-none">Novo nome</label>
-        <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-          <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-        </div>
-      </div>
+      <FL label="Novo nome">
+        <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+      </FL>
       <div className="flex justify-end gap-1">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={loading}>Cancelar</Button>
         <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSalvar} disabled={loading}>

@@ -125,60 +125,59 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
 
               return (
                 <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-semibold">Categoria Mãe</Label>
+                  <div className="flex items-center justify-between mb-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removerCategoria(index)}
-                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  <Select
-                    value={nascimento.categoria_mae}
-                    onValueChange={(v) => handleNascimentoChange(index, 'categoria_mae', v)}
-                  >
-                    <SelectTrigger className="h-7 text-xs mb-2">
-                      <SelectValue>
-                        {infoCategoria?.totalCabecas || 0} cb - {nascimento.categoria_mae}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoriasDisponiveis.map(cat => {
-                        const info = lotesPorCategoria[cat];
-                        return (
-                          <SelectItem key={cat} value={cat} className="text-xs">
-                            {info.totalCabecas} cb - {cat}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <FL label="Categoria Mãe">
+                    <Select
+                      value={nascimento.categoria_mae}
+                      onValueChange={(v) => handleNascimentoChange(index, 'categoria_mae', v)}
+                    >
+                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                        <SelectValue>
+                          {infoCategoria?.totalCabecas || 0} cb - {nascimento.categoria_mae}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasDisponiveis.map(cat => {
+                          const info = lotesPorCategoria[cat];
+                          return (
+                            <SelectItem key={cat} value={cat} className="text-xs">
+                              {info.totalCabecas} cb - {cat}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </FL>
 
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade *</label>
+                  <div className="space-y-1">
+                    <FL label="Quantidade" required>
                       <Input
                         type="number"
                         min="0"
                         value={nascimento.quantidade}
                         onChange={(e) => handleNascimentoChange(index, 'quantidade', e.target.value)}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         placeholder="0"
                         required
                       />
-                    </div>
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Sexo *</label>
+                    </FL>
+                    <FL label="Sexo" required>
                       <Select
                         value={nascimento.sexo}
                         onValueChange={(v) => handleNascimentoChange(index, 'sexo', v)}
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                           <SelectValue placeholder="Selecione o sexo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -186,19 +185,18 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                           <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </FL>
 
-                    <div>
-                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Médio (kg)</label>
+                    <FL label="Peso Médio (kg)">
                       <Input
                         type="number"
                         step="0.1"
                         value={nascimento.peso_medio}
                         onChange={(e) => handleNascimentoChange(index, 'peso_medio', e.target.value)}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                         placeholder="0"
                       />
-                    </div>
+                    </FL>
                   </div>
                 </div>
               );
