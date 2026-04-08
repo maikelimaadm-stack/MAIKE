@@ -510,7 +510,7 @@ export default function TabelaLancamentosTarefas({
   return (
     <div className="space-y-1 w-full min-w-0 overflow-x-auto">
       {showHeaderActions &&
-      <div className="bg-white px-1 rounded flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shadow-sm border-b border-slate-200">
+      <div className="bg-white px-1 py-1 rounded flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shadow-sm border-b border-slate-200">
   
   <div>
     <h1 className="font-bold text-slate-900">
