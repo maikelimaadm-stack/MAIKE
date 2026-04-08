@@ -113,11 +113,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const ultimoEvento = indicador.latestRecord;
   const diasSemLancamento = ultimoEvento ? diffLocalDays(ultimoEvento.data_lancamento) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
-  const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0
-    ? ponto.area_vinculada_ids
-    : ponto.area_vinculada_id
-      ? [ponto.area_vinculada_id]
-      : [];
+  const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0 ?
+  ponto.area_vinculada_ids :
+  ponto.area_vinculada_id ?
+  [ponto.area_vinculada_id] :
+  [];
   const areaNomesRelacionadas = useMemo(() => {
     const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
     const nomesPorIds = areaIdsRelacionadas.map((id) => nomesPorId.get(id)).filter(Boolean);
@@ -184,7 +184,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
   return (
     <div className="space-y-1" translate="no">
-      <div className="pb-2 border-b space-y-1">
+      <div className="pb-0 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {ponto.nome_ponto}</Badge>
         </div>
@@ -231,9 +231,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
         }
 
         const dataBaseLancamento = parseDateLocal(ultimoEvento.data_lancamento);
-        const proximaData = dataBaseLancamento && baseDuracaoTotal > 0
-          ? new Date(dataBaseLancamento.getTime() + baseDuracaoTotal * 86400000)
-          : null;
+        const proximaData = dataBaseLancamento && baseDuracaoTotal > 0 ?
+        new Date(dataBaseLancamento.getTime() + baseDuracaoTotal * 86400000) :
+        null;
 
         // Gráfico 1: saldo consumo (quanto resta do fornecido neste ciclo)
         const percentConsumo = totalDisponivel > 0 ? Math.min(1, Math.max(0, saldoEstimado / totalDisponivel)) : 0;
@@ -256,28 +256,28 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                       fillClassName={alertaGrafico ? "bg-red-500" : "bg-lime-400"} />
                   </div>
                   {/* Gráfico 2: Capacidade física (só se capacidade cadastrada) */}
-                  {percentCapacidade !== null && (
-                    <div className="flex flex-col items-center gap-0.5" title="Capacidade do cocho">
+                  {percentCapacidade !== null &&
+                  <div className="flex flex-col items-center gap-0.5" title="Capacidade do cocho">
                       <PontoPercentIcon
-                        imageUrl={null}
-                        label="Capacidade"
-                        percent={percentCapacidade}
-                        fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}
-                        hideImageArea={true} />
+                      imageUrl={null}
+                      label="Capacidade"
+                      percent={percentCapacidade}
+                      fillClassName={percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}
+                      hideImageArea={true} />
                     </div>
-                  )}
+                  }
                 </div>
                 <div className="flex items-center gap-3 pl-1">
                   <div className="flex items-center gap-1">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${alertaGrafico ? "bg-red-500" : "bg-lime-400"}`} />
                     <span className="text-[8px] text-slate-500">Saldo ciclo</span>
                   </div>
-                  {percentCapacidade !== null && (
-                    <div className="flex items-center gap-1">
+                  {percentCapacidade !== null &&
+                  <div className="flex items-center gap-1">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}`} />
                       <span className="text-[8px] text-slate-500">Capac. cocho</span>
                     </div>
-                  )}
+                  }
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
@@ -302,21 +302,21 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       })()}
 
       <CardSection title="Total Fornecido por Produto">
-        {resumoProdutos.length === 0 ? (
-          <div className="text-xs text-slate-500">Nenhum produto lançado ainda.</div>
-        ) : (
-          <div className="space-y-1">
-            {resumoProdutos.map((item) => (
-              <div key={item.produto} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+        {resumoProdutos.length === 0 ?
+        <div className="text-xs text-slate-500">Nenhum produto lançado ainda.</div> :
+
+        <div className="space-y-1">
+            {resumoProdutos.map((item) =>
+          <div key={item.produto} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                   <div className="truncate font-medium text-slate-900">{item.produto}</div>
                   <div className="whitespace-nowrap font-semibold text-slate-900">{item.sacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
                   <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.kg)}</div>
                 </div>
               </div>
-            ))}
+          )}
           </div>
-        )}
+        }
       </CardSection>
 
       <CardSection title="Último Registro">
@@ -326,19 +326,19 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
           const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
           const proxReposicao = durEst > 0 && dataBase ? new Date(dataBase.getTime() + durEst * 86400000).toLocaleDateString("pt-BR") : null;
           return (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-2">
             <div className="flex items-center justify-between">
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
               <span className="text-[10px] text-slate-500">{formatDateBR(ultimoEvento.data_lancamento)}</span>
             </div>
             <CardMetricaEvento
-              evento={ultimoEvento}
-              consumoEsperadoDiaKg={consumoEsperadoDiaKg}
-              sacos={ultimoEventoSacos}
-              showProjecao={true}
-              duracaoEstimada={durEst}
-              proximaReposicao={proxReposicao}
-            />
+                evento={ultimoEvento}
+                consumoEsperadoDiaKg={consumoEsperadoDiaKg}
+                sacos={ultimoEventoSacos}
+                showProjecao={true}
+                duracaoEstimada={durEst}
+                proximaReposicao={proxReposicao} />
+              
             {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
           </div>);
         })() :
@@ -348,15 +348,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
       <CardSection title="Informações do Cocho">
         <div className="space-y-1 text-[10px]">
-          {iconeExibicao && (
-            <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
+          {iconeExibicao &&
+          <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
               <img src={iconeExibicao} alt={ponto.nome_ponto} className="w-10 h-10 object-contain" />
               <div>
                 <div className="font-semibold text-slate-900">{ponto.nome_ponto}</div>
                 <div className="text-slate-500">{ponto.categoria_ponto || 'COCHO'} • {ponto.status || 'Ativo'}</div>
               </div>
             </div>
-          )}
+          }
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Número:</span><span className="font-semibold text-slate-900">{ponto.numero_ponto || '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sigla:</span><span className="font-semibold text-slate-900">{ponto.sigla || '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo || '-'}</span></div>
