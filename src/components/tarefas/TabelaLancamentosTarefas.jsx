@@ -34,8 +34,8 @@ const STATUS_CORES = {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 10 },
-  { id: "acoes", label: "Ações", default: true, fixo: true, width: 10 },
+  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 20 },
+  { id: "acoes", label: "Ações", default: true, fixo: true, width: 20 },
   { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left", width: 220 },
   { id: "descricao", label: "Descrição", default: true, sortable: false, align: "left", width: 240 },
   { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left", width: 120 },
@@ -521,7 +521,7 @@ export default function TabelaLancamentosTarefas({
                       return (
                         <TableHead
                         key="selecao"
-                        style={{ width: 10, minWidth: 10, maxWidth: 10 }}
+                        style={{ width: 20, minWidth: 20, maxWidth: 20 }}
                         className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         >
                           <Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
@@ -533,7 +533,7 @@ export default function TabelaLancamentosTarefas({
                       return (
                         <TableHead
                         key="acoes"
-                        style={{ width: 10, minWidth: 10, maxWidth: 10 }}
+                        style={{ width: 20, minWidth: 20, maxWidth: 20 }}
                         className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         />
                       );
@@ -606,7 +606,7 @@ export default function TabelaLancamentosTarefas({
                           return (
                             <TableCell
                               key={`${tarefa.id}-selecao`}
-                              style={{ width: 10, minWidth: 10, maxWidth: 10 }}
+                              style={{ width: 20, minWidth: 20, maxWidth: 20 }}
                               className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
                               onClick={(event) => event.stopPropagation()}
                               onTouchEnd={(event) => event.stopPropagation()}
@@ -620,7 +620,7 @@ export default function TabelaLancamentosTarefas({
                           return (
                             <TableCell
                               key={`${tarefa.id}-acoes`}
-                              style={{ width: 10, minWidth: 10, maxWidth: 10 }}
+                              style={{ width: 20, minWidth: 20, maxWidth: 20 }}
                               className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
                               onClick={(event) => event.stopPropagation()}
                               onTouchEnd={(event) => event.stopPropagation()}
