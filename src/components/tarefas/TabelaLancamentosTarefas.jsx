@@ -519,9 +519,9 @@ export default function TabelaLancamentosTarefas({
   return (
     <div className="space-y-1">
       <Card>
-        <CardContent className="p-0">
-          <div ref={tableWrapperRef} className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? "max-h-[calc(100vh-340px)] pb-2" : "max-h-[calc(100vh-220px)]"} overscroll-x-contain overscroll-y-contain touch-pan-x`}>
+        <CardContent className="p-0" style={isMobile ? { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 270px)' } : undefined}>
+          <div className={`relative ${isMobile ? 'flex-1 min-h-0' : ''}`}>
+            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? '' : 'max-h-[calc(100vh-220px)]'} ${isMobile ? 'h-full' : ''} overscroll-x-contain overscroll-y-contain`}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
@@ -659,7 +659,7 @@ export default function TabelaLancamentosTarefas({
             </div>
           </div>
 
-          <div className="sticky bottom-[88px] z-30 flex items-center justify-between p-1 border-t bg-white md:static">
+          <div className="flex-shrink-0 flex items-center justify-between p-1 border-t bg-white">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
               <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
