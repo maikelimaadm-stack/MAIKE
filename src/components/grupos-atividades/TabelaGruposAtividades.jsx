@@ -178,7 +178,7 @@ export default function TabelaGruposAtividades({ grupos, onEdit, onDelete, showC
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1 overflow-hidden">
       <Card>
         <CardContent className="p-3">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
@@ -238,9 +238,9 @@ export default function TabelaGruposAtividades({ grupos, onEdit, onDelete, showC
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-auto max-h-[500px]">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0 overflow-hidden">
+          <div className="overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]">
             <Table>
               <TableHeader>
                 <TableRow className="bg-white border-b">

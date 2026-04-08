@@ -77,12 +77,12 @@ export default function FormularioGrupoAtividade({ initialData, isEditing, onSub
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-slate-50 border-b py-3 px-4">
-          <CardTitle className="text-sm font-semibold text-slate-700">
-            {isEditing ? "Editar Grupo de Atividades" : "Cadastrar Novo Grupo de Atividades"}
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            {isEditing ? "Editar Grupo de Atividades" : "Novo Grupo de Atividades"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-1">
           <form onSubmit={handleSubmit} className="space-y-1">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <div className="space-y-1">
@@ -92,7 +92,7 @@ export default function FormularioGrupoAtividade({ initialData, isEditing, onSub
                   value={formData.nome_grupo || ""}
                   onChange={(e) => handleChange("nome_grupo", e.target.value)}
                   placeholder="NOME DO GRUPO"
-                  className={getFieldClassName("nome_grupo", "h-8 text-xs uppercase")}
+                  className={getFieldClassName("nome_grupo", "h-7 text-xs uppercase")}
                   style={{ textTransform: "uppercase" }}
                 />
               </div>
@@ -101,7 +101,7 @@ export default function FormularioGrupoAtividade({ initialData, isEditing, onSub
                 <Label className="text-xs">Ativo</Label>
                 <div data-field="ativo">
                   <Select value={String(formData.ativo ?? true)} onValueChange={(value) => handleChange("ativo", value === "true")}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-7 text-xs">
                       <SelectValue placeholder="SELECIONE" />
                     </SelectTrigger>
                     <SelectContent>
@@ -114,37 +114,39 @@ export default function FormularioGrupoAtividade({ initialData, isEditing, onSub
               </div>
             </div>
 
-            <div className="space-y-1 pt-1 border-t">
-              <Label className="text-xs">Descrição</Label>
-              <Textarea
-                data-field="descricao"
-                value={formData.descricao || ""}
-                onChange={(e) => handleChange("descricao", e.target.value)}
-                placeholder="DESCRIÇÃO DO GRUPO"
-                className="text-xs uppercase min-h-[96px]"
-                style={{ textTransform: "uppercase" }}
-                rows={3}
-              />
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-1 border-t">
+              <div className="space-y-1">
+                <Label className="text-xs">Descrição</Label>
+                <Textarea
+                  data-field="descricao"
+                  value={formData.descricao || ""}
+                  onChange={(e) => handleChange("descricao", e.target.value)}
+                  placeholder="DESCRIÇÃO DO GRUPO"
+                  className="text-xs uppercase"
+                  style={{ textTransform: "uppercase" }}
+                  rows={2}
+                />
+              </div>
 
-            <div className="space-y-1">
+              <div className="space-y-1">
               <Label className="text-xs">Observações</Label>
               <Textarea
                 data-field="observacoes"
                 value={formData.observacoes || ""}
                 onChange={(e) => handleChange("observacoes", e.target.value)}
                 placeholder="OBSERVAÇÕES GERAIS..."
-                className="text-xs uppercase min-h-[96px]"
+                className="text-xs uppercase"
                 style={{ textTransform: "uppercase" }}
-                rows={3}
+                rows={2}
               />
+            </div>
             </div>
 
             <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">
                 Cancelar
               </Button>
-              <Button type="submit" size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
+              <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
                 {isEditing ? "Atualizar" : "Salvar"}
               </Button>
             </div>
