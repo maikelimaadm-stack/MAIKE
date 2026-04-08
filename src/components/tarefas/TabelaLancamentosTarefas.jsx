@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -9,13 +10,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
+import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -34,150 +36,83 @@ const STATUS_CORES = {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 44 },
-  { id: "acoes", label: "Ações", default: true, fixo: true, width: 44 },
-  { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left", width: 220 },
-  { id: "descricao", label: "Descrição", default: true, sortable: false, align: "left", width: 240 },
-  { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left", width: 120 },
-  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 130 },
-  { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left", width: 170 },
-  { id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left", width: 160 },
-  { id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left", width: 180 },
-  { id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left", width: 160 },
-  { id: "area_nome", label: "Área", default: true, sortable: true, align: "left", width: 160 },
-  { id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left", width: 160 },
-  { id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left", width: 160 },
-  { id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left", width: 120 },
-  { id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left", width: 120 },
-  { id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left", width: 120 },
-  { id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 },
-  { id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left", width: 220 }
-];
+{ id: "selecao", label: "Seleção", default: true, fixo: true },
+{ id: "acoes", label: "Ações", default: true, fixo: true },
+{ id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left" },
+{ id: "descricao", label: "Descrição", default: true, sortable: false, align: "left" },
+{ id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left" },
+{ id: "status", label: "Status", default: true, sortable: true, align: "left" },
+{ id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left" },
+{ id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left" },
+{ id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left" },
+{ id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left" },
+{ id: "area_nome", label: "Área", default: true, sortable: true, align: "left" },
+{ id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left" },
+{ id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
+{ id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left" },
+{ id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left" },
+{ id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left" },
+{ id: "observacoes", label: "Observações", default: true, sortable: false, align: "left" },
+{ id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left" }];
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
-const COLUMN_WIDTHS_KEY = "colunas_largura_gestao_tarefas";
-const MIN_COLUMN_WIDTH = 80;
+
 
 export default function TabelaLancamentosTarefas({
-  tarefas = [],
-  grupos = [],
+  tarefas,
+  grupos,
   onDelete,
+  getIconePrioridade,
   normalizeTaskPriority,
   showConfigColunas,
   setShowConfigColunas
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState([]);
-  const [filtroPrioridade, setFiltroPrioridade] = useState([]);
-  const [filtroGrupo, setFiltroGrupo] = useState([]);
-  const [filtroTipoTarefa, setFiltroTipoTarefa] = useState([]);
-  const [filtroArea, setFiltroArea] = useState([]);
-  const [filtroSetor, setFiltroSetor] = useState([]);
-  const [filtroTitulo, setFiltroTitulo] = useState([]);
-  const [filtroDescricao, setFiltroDescricao] = useState([]);
-  const [filtroResponsavel, setFiltroResponsavel] = useState([]);
-  const [filtroSolicitante, setFiltroSolicitante] = useState([]);
-  const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
-  const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
-  const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
+  const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
+  const [filtroPrioridade, setFiltroPrioridade] = useState("__TODOS__");
+  const [filtroGrupo, setFiltroGrupo] = useState("__TODOS__");
+  const [filtroTipoTarefa, setFiltroTipoTarefa] = useState("__TODOS__");
+  const [filtroArea, setFiltroArea] = useState("__TODOS__");
+  const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedItems, setSelectedItems] = useState([]);
   const [detalheTarefa, setDetalheTarefa] = useState(null);
-  const [columnWidths, setColumnWidths] = useState(() => {
-    const defaults = Object.fromEntries(COLUNAS_DISPONIVEIS.map((coluna) => [coluna.id, coluna.width || 160]));
-    const saved = localStorage.getItem(COLUMN_WIDTHS_KEY);
-    if (!saved) return defaults;
-    try {
-      return { ...defaults, ...JSON.parse(saved) };
-    } catch {
-      return defaults;
-    }
-  });
-
-  const resizeRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
-  const tableWrapperRef = useRef(null);
-  const scrollContainerRef = useRef(null);
-  const tableRef = useRef(null);
+  const [filtrosVisivel, setFiltrosVisivel] = useState(false);
+
+  const toggleFiltros = () => {
+    setFiltrosVisivel((prev) => !prev);
+  };
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return COLUNAS_DISPONIVEIS.map((c) => c.id);
-      }
+      try {return JSON.parse(saved);} catch {return COLUNAS_DISPONIVEIS.map((c) => c.id);}
     }
     return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
-
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_gestao_tarefas");
     if (saved) {
-      try {
-        return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));
-      } catch {
-        return DEFAULT_VISIBLE_COLUMNS;
-      }
+      try {return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));} catch {return DEFAULT_VISIBLE_COLUMNS;}
     }
     return DEFAULT_VISIBLE_COLUMNS;
   });
 
   useEffect(() => {
-    localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
-  }, [columnWidths]);
-
-  useEffect(() => {
-    const handlePointerMove = (event) => {
-      if (!resizeRef.current) return;
-      const clientX = event.touches?.[0]?.clientX ?? event.clientX;
-      if (typeof clientX !== "number") return;
-      const { columnId, startX, startWidth } = resizeRef.current;
-      const nextWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + (clientX - startX));
-      setColumnWidths((prev) => ({ ...prev, [columnId]: nextWidth }));
-    };
-
-    const handlePointerUp = () => {
-      const container = scrollContainerRef.current;
-      const table = tableRef.current;
-      if (container) {
-        container.style.overflowX = "auto";
-        container.style.overflowY = "auto";
-      }
-      if (table) {
-        table.style.touchAction = "";
-      }
-      resizeRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.body.style.touchAction = "";
-    };
-
-    window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("mouseup", handlePointerUp);
-    window.addEventListener("touchmove", handlePointerMove, { passive: false });
-    window.addEventListener("touchend", handlePointerUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("mouseup", handlePointerUp);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
-    };
-  }, []);
-
-  useEffect(() => {
     setSelectedItems((prev) => prev.filter((id) => tarefas.some((item) => item.id === id)));
   }, [tarefas]);
 
-
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, itemsPerPage]);
 
   const toggleColuna = (colunaId) => {
-    const novas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter((id) => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
     localStorage.setItem("colunas_visiveis_gestao_tarefas", JSON.stringify(novas));
   };
@@ -192,18 +127,14 @@ export default function TabelaLancamentosTarefas({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id))
-      .filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
+    return colunasOrdem.
+    map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id)).
+    filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
   }, [colunasOrdem, colunasVisiveis]);
 
-  const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const tiposTarefa = useMemo(() => [...new Set(tarefas.map((item) => item.tipo_tarefa_nome || item.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const areas = useMemo(() => [...new Set(tarefas.map((item) => item.area_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const titulos = useMemo(() => [...new Set(tarefas.map((item) => item.titulo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const descricoes = useMemo(() => [...new Set(tarefas.map((item) => item.descricao).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const responsaveis = useMemo(() => [...new Set(tarefas.map((item) => item.responsavel).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
-  const solicitantes = useMemo(() => [...new Set(tarefas.map((item) => item.solicitante).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
+  const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+  const tiposTarefa = useMemo(() => [...new Set(tarefas.map((item) => item.tipo_tarefa_nome || item.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+  const areas = useMemo(() => [...new Set(tarefas.map((item) => item.area_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
 
   const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
 
@@ -217,39 +148,33 @@ export default function TabelaLancamentosTarefas({
   };
 
   const tarefasFiltradas = useMemo(() => {
-    const incluiValor = (filtro, valor) => filtro.length === 0 || filtro.includes(String(valor || ""));
-
     return tarefas.filter((tarefa) => {
       const termo = searchTerm.toLowerCase();
       const prioridade = normalizeTaskPriority(tarefa.prioridade);
-      const matchSearch = !termo || [
-        tarefa.titulo,
-        tarefa.descricao,
-        tarefa.tipo,
-        tarefa.tipo_tarefa_nome,
-        tarefa.grupo_atividade_nome,
-        tarefa.area_nome,
-        tarefa.responsavel,
-        tarefa.solicitante,
-        tarefa.setor_nome,
-        tarefa.observacoes,
-        tarefa.observacoes_conclusao
-      ].some((value) => String(value || "").toLowerCase().includes(termo));
-
-      const matchStatus = incluiValor(filtroStatus, tarefa.status);
-      const matchPrioridade = incluiValor(filtroPrioridade, prioridade);
-      const matchGrupo = incluiValor(filtroGrupo, tarefa.grupo_atividade_nome);
-      const matchTipoTarefa = incluiValor(filtroTipoTarefa, tarefa.tipo_tarefa_nome || tarefa.tipo);
-      const matchArea = incluiValor(filtroArea, tarefa.area_nome);
-      const matchSetor = incluiValor(filtroSetor, tarefa.setor_nome);
-      const matchTitulo = incluiValor(filtroTitulo, tarefa.titulo);
-      const matchDescricao = incluiValor(filtroDescricao, tarefa.descricao);
-      const matchResponsavel = incluiValor(filtroResponsavel, tarefa.responsavel);
-      const matchSolicitante = incluiValor(filtroSolicitante, tarefa.solicitante);
-
-      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor && matchTitulo && matchDescricao && matchResponsavel && matchSolicitante;
+      const matchSearch =
+      !termo ||
+      [
+      tarefa.titulo,
+      tarefa.descricao,
+      tarefa.tipo,
+      tarefa.tipo_tarefa_nome,
+      tarefa.grupo_atividade_nome,
+      tarefa.area_nome,
+      tarefa.responsavel,
+      tarefa.solicitante,
+      tarefa.setor_nome,
+      tarefa.observacoes,
+      tarefa.observacoes_conclusao].
+      some((value) => String(value || "").toLowerCase().includes(termo));
+      const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
+      const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
+      const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
+      const matchTipoTarefa = filtroTipoTarefa === "__TODOS__" || (tarefa.tipo_tarefa_nome || tarefa.tipo) === filtroTipoTarefa;
+      const matchArea = filtroArea === "__TODOS__" || tarefa.area_nome === filtroArea;
+      const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
+      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor;
     });
-  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, filtroTitulo, filtroDescricao, filtroResponsavel, filtroSolicitante, normalizeTaskPriority]);
+  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, normalizeTaskPriority]);
 
   const tarefasOrdenadas = useMemo(() => {
     const sorted = [...tarefasFiltradas];
@@ -268,33 +193,18 @@ export default function TabelaLancamentosTarefas({
     return sorted;
   }, [tarefasFiltradas, sortConfig, normalizeTaskPriority]);
 
-
+  const totalPages = Math.max(1, Math.ceil(tarefasOrdenadas.length / itemsPerPage));
+  const tarefasPaginadas = tarefasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
   };
 
-  const iniciarResize = (event, colunaId) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const clientX = event.touches?.[0]?.clientX ?? event.clientX;
-    const container = scrollContainerRef.current;
-    const table = tableRef.current;
-    if (container) {
-      container.style.overflowX = "hidden";
-      container.style.overflowY = "hidden";
-    }
-    if (table) {
-      table.style.touchAction = "none";
-    }
-    resizeRef.current = {
-      columnId: colunaId,
-      startX: clientX,
-      startWidth: columnWidths[colunaId] || 160
-    };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    document.body.style.touchAction = "none";
+  const SortIcon = ({ column }) => {
+    if (sortConfig.key !== column) return <ArrowUpDown className="lucide lucide-arrow-up-down lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
+    return sortConfig.direction === "asc" ?
+    <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -304,31 +214,24 @@ export default function TabelaLancamentosTarefas({
     }
     setSelectedItems(tarefasFiltradas.map((item) => item.id));
   };
-
   const formatarData = (data) => {
     if (!data) return "-";
     const d = new Date(data + "T00:00:00");
     return d.toLocaleDateString("pt-BR");
   };
-
   const limparFiltros = () => {
     setSearchTerm("");
-    setFiltroStatus([]);
-    setFiltroPrioridade([]);
-    setFiltroGrupo([]);
-    setFiltroTipoTarefa([]);
-    setFiltroArea([]);
-    setFiltroSetor([]);
-    setFiltroTitulo([]);
-    setFiltroDescricao([]);
-    setFiltroResponsavel([]);
-    setFiltroSolicitante([]);
+    setFiltroStatus("__TODOS__");
+    setFiltroPrioridade("__TODOS__");
+    setFiltroGrupo("__TODOS__");
+    setFiltroTipoTarefa("__TODOS__");
+    setFiltroArea("__TODOS__");
+    setFiltroSetor("__TODOS__");
   };
 
   const renderCell = (tarefa, colunaId) => {
     const prioridade = normalizeTaskPriority(tarefa.prioridade);
     const prioridadeClassName = tarefa.status === "Concluída" ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
-
     if (colunaId === "titulo") return tarefa.titulo || "-";
     if (colunaId === "descricao") return tarefa.descricao || "-";
     if (colunaId === "prioridade") return <div className="flex items-center gap-2"><Badge className={`text-[10px] ${prioridadeClassName}`}>{prioridade || "-"}</Badge></div>;
@@ -348,328 +251,224 @@ export default function TabelaLancamentosTarefas({
     return "-";
   };
 
-  const hasActiveFilter = (colunaId) => {
-    return (colunaId === "titulo" && filtroTitulo.length > 0) ||
-      (colunaId === "descricao" && filtroDescricao.length > 0) ||
-      (colunaId === "prioridade" && filtroPrioridade.length > 0) ||
-      (colunaId === "status" && filtroStatus.length > 0) ||
-      (colunaId === "grupo_atividade_nome" && filtroGrupo.length > 0) ||
-      ((colunaId === "tipo_tarefa_nome" || colunaId === "tipo") && filtroTipoTarefa.length > 0) ||
-      (colunaId === "setor_nome" && filtroSetor.length > 0) ||
-      (colunaId === "area_nome" && filtroArea.length > 0) ||
-      (colunaId === "responsavel" && filtroResponsavel.length > 0) ||
-      (colunaId === "solicitante" && filtroSolicitante.length > 0);
-  };
-
-  const getValoresFiltro = (colunaId) => {
-    if (colunaId === "titulo") return filtroTitulo;
-    if (colunaId === "descricao") return filtroDescricao;
-    if (colunaId === "prioridade") return filtroPrioridade;
-    if (colunaId === "status") return filtroStatus;
-    if (colunaId === "grupo_atividade_nome") return filtroGrupo;
-    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") return filtroTipoTarefa;
-    if (colunaId === "setor_nome") return filtroSetor;
-    if (colunaId === "area_nome") return filtroArea;
-    if (colunaId === "responsavel") return filtroResponsavel;
-    if (colunaId === "solicitante") return filtroSolicitante;
-    return [];
-  };
-
-  const setValoresFiltro = (colunaId, values) => {
-    if (colunaId === "titulo") setFiltroTitulo(values);
-    if (colunaId === "descricao") setFiltroDescricao(values);
-    if (colunaId === "prioridade") setFiltroPrioridade(values);
-    if (colunaId === "status") setFiltroStatus(values);
-    if (colunaId === "grupo_atividade_nome") setFiltroGrupo(values);
-    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") setFiltroTipoTarefa(values);
-    if (colunaId === "setor_nome") setFiltroSetor(values);
-    if (colunaId === "area_nome") setFiltroArea(values);
-    if (colunaId === "responsavel") setFiltroResponsavel(values);
-    if (colunaId === "solicitante") setFiltroSolicitante(values);
-  };
-
-  const clearColumnFilter = (colunaId) => {
-    setValoresFiltro(colunaId, []);
-  };
-
-  const getColumnOptions = (colunaId) => {
-    if (colunaId === "titulo") return titulos;
-    if (colunaId === "descricao") return descricoes;
-    if (colunaId === "prioridade") return ["Baixa", "Média", "Alta"];
-    if (colunaId === "status") return ["Pendente", "Em Andamento", "Concluída", "Cancelada"];
-    if (colunaId === "grupo_atividade_nome") return grupos || [];
-    if (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") return tiposTarefa || [];
-    if (colunaId === "setor_nome") return setores || [];
-    if (colunaId === "area_nome") return areas || [];
-    if (colunaId === "responsavel") return responsaveis || [];
-    if (colunaId === "solicitante") return solicitantes || [];
-    return [];
-  };
-
-  const renderFilterControl = (colunaId) => {
-    const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
-    const columnLabel = COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === colunaId)?.label || colunaId;
-    const options = getColumnOptions(colunaId);
-    const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
-    const filteredOptions = options.filter((option) => String(option).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
-    const allVisibleSelected = filteredOptions.length > 0 && filteredOptions.every((option) => valoresSelecionados.includes(option));
-
-    return (
-      <Popover
-        open={menuFiltroAberto === colunaId}
-        onOpenChange={(open) => {
-          setMenuFiltroAberto(open ? colunaId : null);
-          setBuscaFiltroMenu("");
-          setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] });
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className={buttonClass}>
-            <Filter className="w-2 h-2" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
-          <div className="p-1 space-y-0.5 border-b">
-            <button
-              type="button"
-              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
-              onClick={() => { handleSort(colunaId); setMenuFiltroAberto(null); }}
-            >
-              <ArrowDownAZ className="w-4 h-4 mr-2" />
-              Classificar do Menor para o Maior
-            </button>
-            <button
-              type="button"
-              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
-              onClick={() => { setSortConfig({ key: colunaId, direction: "desc" }); setMenuFiltroAberto(null); }}
-            >
-              <ArrowUpZA className="w-4 h-4 mr-2" />
-              Classificar do Maior para o Menor
-            </button>
-            <button
-              type="button"
-              className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-300 cursor-not-allowed'}`}
-              disabled={!hasActiveFilter(colunaId)}
-              onClick={() => { clearColumnFilter(colunaId); setMenuFiltroAberto(null); }}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Limpar Filtro de "{columnLabel}"
-            </button>
-          </div>
-
-          <div className="p-2 space-y-2">
-            <Input
-              value={buscaFiltroMenu}
-              onChange={(e) => setBuscaFiltroMenu(e.target.value)}
-              placeholder="PESQUISAR"
-              className="h-8 text-xs uppercase"
-            />
-
-            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
-              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
-                <Checkbox
-                  checked={allVisibleSelected}
-                  onCheckedChange={(checked) => {
-                    setFiltroTemp((prev) => {
-                      const restantes = prev.valores.filter((value) => !filteredOptions.includes(value));
-                      return {
-                        ...prev,
-                        valores: checked ? [...new Set([...restantes, ...filteredOptions])] : restantes
-                      };
-                    });
-                  }}
-                  className="h-3.5 w-3.5 shrink-0"
-                />
-                <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
-              </label>
-              {filteredOptions.map((option) => (
-                <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
-                  <Checkbox
-                    checked={valoresSelecionados.includes(option)}
-                    onCheckedChange={(checked) => {
-                      setFiltroTemp((prev) => ({
-                        ...prev,
-                        valores: checked
-                          ? [...prev.valores, option]
-                          : prev.valores.filter((item) => item !== option)
-                      }));
-                    }}
-                    className="h-3.5 w-3.5 shrink-0"
-                  />
-                  <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
-                setMenuFiltroAberto(null);
-                setBuscaFiltroMenu("");
-                setFiltroTemp({ colunaId: null, valores: [] });
-              }}>
-                Cancelar
-              </Button>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {
-                setValoresFiltro(colunaId, filtroTemp.valores);
-                setMenuFiltroAberto(null);
-                setBuscaFiltroMenu("");
-                setFiltroTemp({ colunaId: null, valores: [] });
-              }}>
-                OK
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  };
-
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <Card className="flex flex-col flex-1 min-h-0">
-        <CardContent className="p-0 flex flex-col flex-1 min-h-0">
-          <div className="relative flex-1 min-h-0">
-            <div ref={scrollContainerRef} className="relative w-full overflow-x-auto overflow-y-auto h-full overscroll-x-contain overscroll-y-contain">
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
-              <TableHeader className="bg-white">
-                <TableRow className="sticky top-0 z-40 bg-white">
+    <div className="space-y-1">
+<Card>
+  {/* HEADER COM BOTÃO */}
+  <div className="bg-slate-50 pr-1 pl-1 flex items-center justify-between border-b">
+    <span className="text-sm font-semibold text-slate-900">
+      Filtros
+    </span>
+
+    <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleFiltros} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-md px-1 h-6 text-xs">
+            
+            
+      {filtrosVisivel ? 'Ocultar' : 'Mostrar'}
+    </Button>
+  </div>
+
+  {/* CONTEÚDO CONTROLADO */}
+  {filtrosVisivel &&
+        <CardContent className="p-1">
+      <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
+        <div className="md:col-span-0 space-y-0">
+          <Label className="text-xs">Buscar</Label>
+          <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar tarefa, tipo, área..."
+                className="flex min-w-[130px] max-w-[180px] w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm h-7 text-xs" />
+              
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Status</Label>
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+              <SelectItem value="Concluída">Concluída</SelectItem>
+              <SelectItem value="Cancelada">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* (mantive seu resto igual, só compactei visual) */}
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Grupo</Label>
+          <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              {grupos.map((grupo) =>
+                  <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
+                  )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Tipo de tarefa</Label>
+          <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              {tiposTarefa.map((tipo) =>
+                  <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Área</Label>
+          <Select value={filtroArea} onValueChange={setFiltroArea}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todas</SelectItem>
+              {areas.map((area) =>
+                  <SelectItem key={area} value={area}>{area}</SelectItem>
+                  )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[130px] max-w-[180px] w-full">
+          <Label className="text-xs">Fazenda</Label>
+          <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__TODOS__">Todos</SelectItem>
+              {setores.map((setor) =>
+                  <SelectItem key={setor} value={setor}>{setor}</SelectItem>
+                  )}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
+        <div className="text-xs text-slate-500">
+          {tarefasFiltradas.length} de {tarefas.length} registros
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {selectedItems.length > 0 &&
+              <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  Ações ({selectedItems.length})
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent>
+                <DropdownMenuLabel className="text-xs">
+                  Ações em Lote
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                    onClick={() => onDelete(selectedItems)}
+                    className="text-xs text-red-600">
+                    
+                  Excluir Selecionados
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                    onClick={() => setSelectedItems([])}
+                    className="text-xs">
+                    
+                  Limpar Seleção
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+              }
+
+          <Button
+                variant="outline"
+                size="sm"
+                onClick={limparFiltros}
+                className="h-7 text-xs">
+                
+            Limpar Filtros
+          </Button>
+        </div>
+      </div>
+    </CardContent>
+        }
+</Card>
+
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-auto max-h-[500px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-white border-b">
                   {colunasOrdenadas.map((coluna) => {
-                    const width = columnWidths[coluna.id] || coluna.width || 160;
-
-                    if (coluna.id === "selecao") {
-                      return (
-                        <TableHead
-                        key="selecao"
-                        style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
-                        >
-                          <Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                        </TableHead>
-                      );
-                    }
-
-                    if (coluna.id === "acoes") {
-                      return (
-                        <TableHead
-                        key="acoes"
-                        style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
-                        />
-                      );
-                    }
-
-                    const filterControl = renderFilterControl(coluna.id);
-
-                    return (
-                      <TableHead
-                        key={coluna.id}
-                        style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 z-40 h-7 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap"
-                      >
-                        <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                          {coluna.label}
-                        </div>
-
-                        {filterControl && (
-                          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {filterControl}
-                          </div>
-                        )}
-
-                        <div
-                          className="absolute top-0 right-0 h-full w-1 cursor-col-resize z-30 touch-none"
-                          onMouseDown={(event) => iniciarResize(event, coluna.id)}
-                          onTouchStart={(event) => iniciarResize(event, coluna.id)}
-                          onTouchMove={(event) => event.stopPropagation()}
-                          onClick={(event) => event.stopPropagation()}
-                        />
-                      </TableHead>
-                    );
+                    if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
+                    if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
+                    const isRight = coluna.align === "right";
+                    return <TableHead key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className="inline-flex items-center gap-1 h-full">{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
                   })}
                 </TableRow>
               </TableHeader>
-
               <TableBody>
-                {tarefasOrdenadas.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
-                      Nenhuma tarefa encontrada
-                    </TableCell>
+                {tarefasPaginadas.length === 0 ?
+                <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow> :
+                tarefasPaginadas.map((tarefa) =>
+                <TableRow
+                  key={tarefa.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000"
+
+                  onDoubleClick={() => abrirDetalhe(tarefa)}
+                  onTouchEnd={(event) => handleRowTouch(tarefa, event)}>
+                    {colunasOrdenadas.map((coluna) => {
+                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableCell>;
+                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
+                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">{renderCell(tarefa, coluna.id)}</TableCell>;
+                  })}
                   </TableRow>
-                ) : (
-                  tarefasOrdenadas.map((tarefa) => (
-                    <TableRow
-                      key={tarefa.id}
-                      className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
-                      onDoubleClick={() => abrirDetalhe(tarefa)}
-                      onTouchEnd={(event) => handleRowTouch(tarefa, event)}
-                    >
-                      {colunasOrdenadas.map((coluna) => {
-                        const width = columnWidths[coluna.id] || coluna.width || 160;
-
-                        if (coluna.id === "selecao") {
-                          return (
-                            <TableCell
-                              key={`${tarefa.id}-selecao`}
-                              style={{ width, minWidth: width, maxWidth: width }}
-                              className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
-                              onClick={(event) => event.stopPropagation()}
-                              onTouchEnd={(event) => event.stopPropagation()}
-                            >
-                              <Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                            </TableCell>
-                          );
-                        }
-
-                        if (coluna.id === "acoes") {
-                          return (
-                            <TableCell
-                              key={`${tarefa.id}-acoes`}
-                              style={{ width, minWidth: width, maxWidth: width }}
-                              className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
-                              onClick={(event) => event.stopPropagation()}
-                              onTouchEnd={(event) => event.stopPropagation()}
-                            >
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                                    <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start">
-                                  <DropdownMenuItem asChild className="text-xs">
-                                    <Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">
-                                    Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          );
-                        }
-
-                        return (
-                          <TableCell
-                            key={`${tarefa.id}-${coluna.id}`}
-                            style={{ width, minWidth: width, maxWidth: width }}
-                            className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words"
-                          >
-                            {renderCell(tarefa, coluna.id)}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))
                 )}
               </TableBody>
-              </Table>
-            </div>
+            </Table>
           </div>
 
+          <div className="flex items-center justify-between p-1 border-t">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Itens por página:</span>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
+                <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">Anterior</Button>
+              <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">Próxima</Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
-
 
       <ConfiguracaoColunasMapaDialog
         open={showConfigColunas}
@@ -679,15 +478,15 @@ export default function TabelaLancamentosTarefas({
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
         handleDragEnd={handleDragEnd}
-        droppableId="colunas-gestao-tarefas"
-      />
+        droppableId="colunas-gestao-tarefas" />
 
       <TarefaDetalhesDialog
         open={!!detalheTarefa}
         onOpenChange={(open) => !open && setDetalheTarefa(null)}
         tarefa={detalheTarefa}
-        onSaved={(updated) => setDetalheTarefa(updated)}
-      />
-    </div>
-  );
+        onSaved={(updated) => setDetalheTarefa(updated)} />
+      
+      
+    </div>);
+
 }

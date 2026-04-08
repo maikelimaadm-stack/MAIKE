@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { X, Filter, Target, RefreshCw, ClipboardList, BarChart3 } from "lucide-react";
+import { X, Layers, Target, RefreshCw, ClipboardList, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function MapaControlesMobile({
@@ -37,7 +37,7 @@ export default function MapaControlesMobile({
         
         {showFiltrosButton &&
         <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Filtros">
-            <Filter className="w-5 h-5 text-slate-700" />
+            <Layers className="w-5 h-5 text-slate-700" />
           </Button>
         }
       </div>

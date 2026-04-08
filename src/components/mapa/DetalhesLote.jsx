@@ -13,12 +13,6 @@ import {
   DialogHeader,
   DialogTitle } from
 "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 import FormularioMorte from "../lotes/FormularioMorte";
 import FormularioNascimento from "../lotes/FormularioNascimento";
@@ -695,72 +689,92 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
+      <div className="my-1 grid grid-cols-3 md:grid-cols-3 gap-1">
+        {permissions.mover_lotes !== false && <Button onClick={() => setShowMovimentacao(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Mover</Button>}
+        {permissions.pesar_lotes !== false && <Button onClick={() => setShowPesagem(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Pesar</Button>}
+        {permissions.mudar_categoria_lotes !== false && <Button onClick={() => setShowMudancaCategoria(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Mudar Categoria</Button>}
+        {permissions.registrar_nascimento !== false && <Button onClick={() => setShowNascimento(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Nascimento</Button>}
+        {permissions.registrar_morte !== false && <Button onClick={() => setShowMorte(true)} variant="outline" size="sm" className="bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Morte</Button>}
+        {permissions.registrar_abate !== false && <Button onClick={() => setShowAbate(true)} variant="outline" size="sm" className="bg-background px-2 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300" translate="no">Abate</Button>}
+      </div>
+
       <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs">
-              Eventos
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={() => setShowAbate(true)} className="text-xs">Abate</DropdownMenuItem>}
-            {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
-              const porCategoria = {};
-              lotes.forEach((l) => {
-                const cat = (l.categoria || '').toUpperCase();
-                if (!porCategoria[cat]) porCategoria[cat] = [];
-                porCategoria[cat].push(l);
-              });
-              const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
-              const temJuntavel = categoriasJuntaveis.length > 0;
-              if (!temJuntavel) return null;
-              return (
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (categoriasJuntaveis.length === 1) {
-                      setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
-                      setLotePrincipalJuncao(null);
-                    } else {
-                      setCategoriaSelecionadaJuncao(null);
-                      setLotePrincipalJuncao(null);
-                    }
-                    setShowJuntarLotes(true);
-                  }}
-                  className="text-xs"
-                >
-                  Juntar Lotes
-                </DropdownMenuItem>
-              );
-            })()}
-            {permissions.mover_lotes !== false && <DropdownMenuItem onClick={() => setShowMovimentacao(true)} className="text-xs">Mover</DropdownMenuItem>}
-            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={() => setShowMudancaCategoria(true)} className="text-xs">Mudar Categoria</DropdownMenuItem>}
-            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={() => setShowNascimento(true)} className="text-xs">Nascimento</DropdownMenuItem>}
-            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={() => setShowMorte(true)} className="text-xs">Morte</DropdownMenuItem>}
-            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={() => setShowPesagem(true)} className="text-xs">Pesar</DropdownMenuItem>}
-            {permissions.renomear_lotes !== false && <DropdownMenuItem onClick={() => {
+        {permissions.visualizar_historico_movimentacoes_lote !== false &&
+          <Button
+            onClick={() => setShowHistorico(true)}
+            variant="outline" className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+
+            translate="no">
+            
+            Histórico Movimentações
+          </Button>
+          }
+        {permissions.visualizar_historico_suplementacao_lote !== false &&
+          <Button
+            onClick={() => setShowHistoricoSupl(true)}
+            variant="outline" className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+
+            translate="no">
+            
+            Histórico Suplementação
+          </Button>
+          }
+      </div>
+
+      <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
+        {permissions.renomear_lotes !== false &&
+          <Button
+            onClick={() => {
               if (lotes.length === 1) {
                 setLoteParaRenomear(lotes[0]);
                 setNovoNomeLote(lotes[0].nome);
                 setShowRenomear(true);
               } else {
+                // Mostrar lista para escolher qual renomear
                 setLoteParaRenomear(null);
                 setShowRenomear(true);
               }
-            }} className="text-xs">Renomear Lote</DropdownMenuItem>}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            }}
+            variant="outline"
+            size="sm" className="px-3 bg-background text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300">
+            
+            
+            Renomear Lote
+          </Button>
+          }
+        {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
+            // Agrupar por categoria para ver quais categorias têm mais de 1 lote
+            const porCategoria = {};
+            lotes.forEach((l) => {
+              const cat = (l.categoria || '').toUpperCase();
+              if (!porCategoria[cat]) porCategoria[cat] = [];
+              porCategoria[cat].push(l);
+            });
+            const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
+            const temJuntavel = categoriasJuntaveis.length > 0;
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs">
-              Históricos
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {permissions.visualizar_historico_movimentacoes_lote !== false && <DropdownMenuItem onClick={() => setShowHistorico(true)} className="text-xs">Histórico de Movimentação</DropdownMenuItem>}
-            {permissions.visualizar_historico_suplementacao_lote !== false && <DropdownMenuItem onClick={() => setShowHistoricoSupl(true)} className="text-xs">Histórico de Suplementação</DropdownMenuItem>}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            return (
+              <Button
+                onClick={() => {
+                  if (categoriasJuntaveis.length === 1) {
+                    setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
+                    setLotePrincipalJuncao(null);
+                  } else {
+                    setCategoriaSelecionadaJuncao(null);
+                    setLotePrincipalJuncao(null);
+                  }
+                  setShowJuntarLotes(true);
+                }}
+                variant="outline"
+                size="sm" className="px-4 py-2 bg-gray-100 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:bg-accent hover:text-accent-foreground h-7 border-slate-300"
+
+                disabled={!temJuntavel}
+                title={!temJuntavel ? 'Precisa haver 2+ lotes da mesma categoria para juntar' : ''}>
+                
+              Juntar Lotes
+            </Button>);
+
+          })()}
       </div>
 
       {/* Dialog Juntar Lotes */}
