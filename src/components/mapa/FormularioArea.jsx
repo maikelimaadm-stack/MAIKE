@@ -4,11 +4,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
 const FloatingField = ({ label, required, error, children }) => (
-  <div className={`relative rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-colors`}>
-    <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-slate-500">
+  <div className="space-y-0.5">
+    <label className="text-[11px] text-slate-500 pl-1">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
-    {children}
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
   </div>
 );
 import { Input } from "@/components/ui/input";
@@ -162,39 +164,13 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   }
 
   return (
-    <div className="mt-4 space-y-3">
-      {/* Cor no mapa */}
-      <div className="space-y-2">
-        <div className="flex flex-wrap gap-1.5">
-          {CORES_DISPONIVEIS.map((c) => (
-            <button
-              key={c.cor}
-              type="button"
-              onClick={() => handleChange('cor', c.cor)}
-              className={`w-8 h-8 rounded-md border-2 transition-all ${formData.cor === c.cor ? 'border-slate-900 scale-110 shadow-md' : 'border-slate-200 hover:border-slate-400'}`}
-              style={{ backgroundColor: c.cor }}
-              title={c.nome}
-            />
-          ))}
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <FloatingField label="Número ou código da área">
-          <Input
-            value={formData.numero_area}
-            onChange={(e) => handleChange('numero_area', e.target.value.replace(/[^0-9]/g, ''))}
-            className="h-9 text-xs uppercase border-0 shadow-none focus-visible:ring-0"
-            inputMode="numeric"
-            style={{ textTransform: 'uppercase' }}
-          />
-        </FloatingField>
-
+    <div className="mt-1 space-y-1">
+      <form onSubmit={handleSubmit} className="space-y-1">
         <FloatingField label="Área total (ha)" required error={invalidFields.includes('area_total')}>
           <Input
             value={formData.area_total}
             onChange={(e) => handleChange('area_total', e.target.value)}
-            className="h-9 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
             readOnly
           />
         </FloatingField>
@@ -203,7 +179,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           <Input
             value={formData.area_pastejada}
             onChange={(e) => handleChange('area_pastejada', e.target.value)}
-            className="h-9 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
           />
         </FloatingField>
 
@@ -211,7 +187,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           <Input
             value={formData.nome}
             onChange={(e) => handleChange('nome', e.target.value)}
-            className="h-9 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
             style={{ textTransform: 'uppercase' }}
           />
         </FloatingField>
@@ -220,7 +196,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           <Input
             value={formData.sigla}
             onChange={(e) => handleChange('sigla', e.target.value.toUpperCase())}
-            className="h-9 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
             style={{ textTransform: 'uppercase' }}
             maxLength={10}
           />
@@ -228,7 +204,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
         <FloatingField label="Setor" required error={invalidFields.includes('setor_id')}>
           <Select value={formData.setor_id || '__none__'} onValueChange={(value) => { const setor = setores.find((s) => s.id === value); handleChange('setor_id', value === '__none__' ? '' : value); handleChange('setor_nome', setor?.nome || ''); }}>
-            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -240,7 +216,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
         <FloatingField label="Tipo de uso" required>
           <Select value={formData.tipo_cultura} onValueChange={(v) => handleChange('tipo_cultura', v)}>
-            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -251,7 +227,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
         <FloatingField label="Tipo de cultura" required error={invalidFields.includes('tipo_pastagem')}>
           <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
-            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -263,7 +239,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
         <FloatingField label="Aproveitamento">
           <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
-            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -272,21 +248,44 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           </Select>
         </FloatingField>
 
+        <FloatingField label="Cor no mapa">
+          <Select value={formData.cor} onValueChange={(v) => handleChange('cor', v)}>
+            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <SelectValue>
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: formData.cor }} />
+                  {CORES_DISPONIVEIS.find((c) => c.cor === formData.cor)?.nome || 'Selecione'}
+                </span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {CORES_DISPONIVEIS.map((c) => (
+                <SelectItem key={c.cor} value={c.cor} className="text-xs">
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: c.cor }} />
+                    {c.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FloatingField>
+
         <FloatingField label="Observação">
           <Textarea
             value={formData.observacoes}
             onChange={(e) => handleChange('observacoes', e.target.value)}
-            className="text-xs uppercase min-h-[60px] border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            className="text-xs uppercase min-h-[50px] border-0 shadow-none focus-visible:ring-0 bg-transparent"
             style={{ textTransform: 'uppercase' }}
             rows={2}
           />
         </FloatingField>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs px-4">
+        <div className="flex justify-end gap-1 pt-1 border-t border-slate-200">
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">
             Cancelar
           </Button>
-          <Button type="submit" size="sm" className="h-8 text-xs px-4 bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
             Salvar
           </Button>
         </div>
