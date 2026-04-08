@@ -287,7 +287,6 @@ export default function MapaGeral() {
 
   const pontosSuplementacaoDecorados = useMemo(() => {
     return pontosSuplementacao.map((ponto) => {
-      const referencia = pontos.find((item) => normalizeText(item.nome) === normalizeText(ponto.nome_ponto)) || null;
       const indicador = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
       getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, []) :
       getCochoIndicator(ponto, eventosSupl);
@@ -297,11 +296,9 @@ export default function MapaGeral() {
         indicador_percentual: indicador.percent,
         indicador_helper: indicador.helperLabel,
         ultimo_registro: indicador.latestRecord,
-        icone_status_url: referencia?.icone_url ? buildProgressIconUrl(referencia.icone_url, indicador.percent) : null,
-        sub_icone_status_url: referencia?.sub_icone_url ? buildProgressIconUrl(referencia.sub_icone_url, indicador.percent, 40) : null
       };
     });
-  }, [pontosSuplementacao, pontos, lotes, estoqueLotes, eventosSupl]);
+  }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {

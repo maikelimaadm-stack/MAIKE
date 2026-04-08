@@ -275,10 +275,11 @@ export default function useMapRenderer(mapInstanceRef) {
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
       const categoriaPonto = (ponto.categoria_ponto || ponto.tipo || 'COCHO').toUpperCase().trim();
-      const cfg = iconesConfig.find((ic) => ic.categoria?.toUpperCase().trim() === categoriaPonto)
-        || iconesConfig.find((ic) => ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim())
-        || iconesConfig.find((ic) => ic.categoria?.toUpperCase().trim() === 'COCHO');
-      const iconUrl = ponto.sub_icone_status_url || ponto.icone_status_url || cfg?.sub_icone_url || cfg?.icone_url;
+      const cfg = iconesConfig.find((ic) => ic.tipo_entidade === 'Ponto' && ic.categoria?.toUpperCase().trim() === categoriaPonto)
+        || iconesConfig.find((ic) => ic.tipo_entidade === 'Ponto' && ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim())
+        || iconesConfig.find((ic) => ic.tipo_entidade === 'Ponto' && ic.categoria?.toUpperCase().trim() === 'COCHO');
+      // Usar APENAS o ícone da ConfiguracaoIcone, não de PontoReferencia
+      const iconUrl = cfg?.icone_url || null;
       const icon = iconUrl
         ? { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: 'transparent', fillOpacity: 0, strokeOpacity: 0 }
         : { path: google.maps.SymbolPath.CIRCLE, scale: 20, fillColor: cfg?.cor_padrao || '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 };
