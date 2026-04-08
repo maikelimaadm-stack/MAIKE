@@ -560,13 +560,13 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   };
 
   return (
-    <Card className="shadow-sm border-slate-300">
-      <CardHeader className="bg-slate-50 border-b py-3 px-4">
-        <CardTitle className="text-sm font-semibold text-slate-700">
+    <Card className="mt-4 rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
+      <CardHeader className="bg-slate-50 border-b py-1 px-1">
+        <CardTitle className="text-sm font-semibold text-slate-900">
           {item ? 'Editar Movimentação' : 'Novo Lançamento Manual'}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-1">
         <form onSubmit={handleSubmit} className="space-y-1">
           {/* Linha 0: Setor - OBRIGATÓRIO */}
           {formData.motivo !== "Transferência entre Setores" &&
