@@ -329,7 +329,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-0">
             <div className="flex items-center justify-between">
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
-              <span className="text-[10px] text-slate-500">{formatDateBR(ultimoEvento.data_lancamento)}</span>
+              <span className="text-slate-500 px-20">{formatDateBR(ultimoEvento.data_lancamento)}</span>
             </div>
             <CardMetricaEvento
                 evento={ultimoEvento}
