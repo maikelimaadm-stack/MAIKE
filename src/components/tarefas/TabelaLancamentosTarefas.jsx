@@ -10,8 +10,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
@@ -34,25 +34,25 @@ const STATUS_CORES = {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
-  { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
-  { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left", width: 220 },
-  { id: "descricao", label: "Descrição", default: true, sortable: false, align: "left", width: 240 },
-  { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left", width: 120 },
-  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 130 },
-  { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left", width: 170 },
-  { id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left", width: 160 },
-  { id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left", width: 180 },
-  { id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left", width: 160 },
-  { id: "area_nome", label: "Área", default: true, sortable: true, align: "left", width: 160 },
-  { id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left", width: 160 },
-  { id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left", width: 160 },
-  { id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left", width: 120 },
-  { id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left", width: 120 },
-  { id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left", width: 120 },
-  { id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 },
-  { id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left", width: 220 }
-];
+{ id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
+{ id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
+{ id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left", width: 220 },
+{ id: "descricao", label: "Descrição", default: true, sortable: false, align: "left", width: 240 },
+{ id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left", width: 120 },
+{ id: "status", label: "Status", default: true, sortable: true, align: "left", width: 130 },
+{ id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left", width: 170 },
+{ id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left", width: 160 },
+{ id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left", width: 180 },
+{ id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left", width: 160 },
+{ id: "area_nome", label: "Área", default: true, sortable: true, align: "left", width: 160 },
+{ id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left", width: 160 },
+{ id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left", width: 160 },
+{ id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left", width: 120 },
+{ id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left", width: 120 },
+{ id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left", width: 120 },
+{ id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 },
+{ id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left", width: 220 }];
+
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 const COLUMN_WIDTHS_KEY = "colunas_largura_gestao_tarefas";
@@ -178,9 +178,9 @@ export default function TabelaLancamentosTarefas({
 
 
   const toggleColuna = (colunaId) => {
-    const novas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter((id) => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
     localStorage.setItem("colunas_visiveis_gestao_tarefas", JSON.stringify(novas));
   };
@@ -195,9 +195,9 @@ export default function TabelaLancamentosTarefas({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id))
-      .filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
+    return colunasOrdem.
+    map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id)).
+    filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
   }, [colunasOrdem, colunasVisiveis]);
 
   const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })), [tarefas]);
@@ -226,18 +226,18 @@ export default function TabelaLancamentosTarefas({
       const termo = searchTerm.toLowerCase();
       const prioridade = normalizeTaskPriority(tarefa.prioridade);
       const matchSearch = !termo || [
-        tarefa.titulo,
-        tarefa.descricao,
-        tarefa.tipo,
-        tarefa.tipo_tarefa_nome,
-        tarefa.grupo_atividade_nome,
-        tarefa.area_nome,
-        tarefa.responsavel,
-        tarefa.solicitante,
-        tarefa.setor_nome,
-        tarefa.observacoes,
-        tarefa.observacoes_conclusao
-      ].some((value) => String(value || "").toLowerCase().includes(termo));
+      tarefa.titulo,
+      tarefa.descricao,
+      tarefa.tipo,
+      tarefa.tipo_tarefa_nome,
+      tarefa.grupo_atividade_nome,
+      tarefa.area_nome,
+      tarefa.responsavel,
+      tarefa.solicitante,
+      tarefa.setor_nome,
+      tarefa.observacoes,
+      tarefa.observacoes_conclusao].
+      some((value) => String(value || "").toLowerCase().includes(termo));
 
       const matchStatus = incluiValor(filtroStatus, tarefa.status);
       const matchPrioridade = incluiValor(filtroPrioridade, prioridade);
@@ -329,16 +329,16 @@ export default function TabelaLancamentosTarefas({
   };
 
   const hasActiveFilter = (colunaId) => {
-    return (colunaId === "titulo" && filtroTitulo.length > 0) ||
-      (colunaId === "descricao" && filtroDescricao.length > 0) ||
-      (colunaId === "prioridade" && filtroPrioridade.length > 0) ||
-      (colunaId === "status" && filtroStatus.length > 0) ||
-      (colunaId === "grupo_atividade_nome" && filtroGrupo.length > 0) ||
-      ((colunaId === "tipo_tarefa_nome" || colunaId === "tipo") && filtroTipoTarefa.length > 0) ||
-      (colunaId === "setor_nome" && filtroSetor.length > 0) ||
-      (colunaId === "area_nome" && filtroArea.length > 0) ||
-      (colunaId === "responsavel" && filtroResponsavel.length > 0) ||
-      (colunaId === "solicitante" && filtroSolicitante.length > 0);
+    return colunaId === "titulo" && filtroTitulo.length > 0 ||
+    colunaId === "descricao" && filtroDescricao.length > 0 ||
+    colunaId === "prioridade" && filtroPrioridade.length > 0 ||
+    colunaId === "status" && filtroStatus.length > 0 ||
+    colunaId === "grupo_atividade_nome" && filtroGrupo.length > 0 ||
+    (colunaId === "tipo_tarefa_nome" || colunaId === "tipo") && filtroTipoTarefa.length > 0 ||
+    colunaId === "setor_nome" && filtroSetor.length > 0 ||
+    colunaId === "area_nome" && filtroArea.length > 0 ||
+    colunaId === "responsavel" && filtroResponsavel.length > 0 ||
+    colunaId === "solicitante" && filtroSolicitante.length > 0;
   };
 
   const getValoresFiltro = (colunaId) => {
@@ -401,8 +401,8 @@ export default function TabelaLancamentosTarefas({
           setMenuFiltroAberto(open ? colunaId : null);
           setBuscaFiltroMenu("");
           setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] });
-        }}
-      >
+        }}>
+        
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
             <Filter className="w-2 h-2" />
@@ -413,16 +413,16 @@ export default function TabelaLancamentosTarefas({
             <button
               type="button"
               className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
-              onClick={() => { handleSort(colunaId); setMenuFiltroAberto(null); }}
-            >
+              onClick={() => {handleSort(colunaId);setMenuFiltroAberto(null);}}>
+              
               <ArrowDownAZ className="w-4 h-4 mr-2" />
               Classificar do Menor para o Maior
             </button>
             <button
               type="button"
               className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
-              onClick={() => { setSortConfig({ key: colunaId, direction: "desc" }); setMenuFiltroAberto(null); }}
-            >
+              onClick={() => {setSortConfig({ key: colunaId, direction: "desc" });setMenuFiltroAberto(null);}}>
+              
               <ArrowUpZA className="w-4 h-4 mr-2" />
               Classificar do Maior para o Menor
             </button>
@@ -430,8 +430,8 @@ export default function TabelaLancamentosTarefas({
               type="button"
               className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? 'hover:bg-slate-100 text-slate-700' : 'text-slate-300 cursor-not-allowed'}`}
               disabled={!hasActiveFilter(colunaId)}
-              onClick={() => { clearColumnFilter(colunaId); setMenuFiltroAberto(null); }}
-            >
+              onClick={() => {clearColumnFilter(colunaId);setMenuFiltroAberto(null);}}>
+              
               <X className="w-4 h-4 mr-2" />
               Limpar Filtro de "{columnLabel}"
             </button>
@@ -442,8 +442,8 @@ export default function TabelaLancamentosTarefas({
               value={buscaFiltroMenu}
               onChange={(e) => setBuscaFiltroMenu(e.target.value)}
               placeholder="PESQUISAR"
-              className="h-8 text-xs uppercase"
-            />
+              className="h-8 text-xs uppercase" />
+            
 
             <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
               <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
@@ -458,27 +458,27 @@ export default function TabelaLancamentosTarefas({
                       };
                     });
                   }}
-                  className="h-3.5 w-3.5 shrink-0"
-                />
+                  className="h-3.5 w-3.5 shrink-0" />
+                
                 <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
               </label>
-              {filteredOptions.map((option) => (
-                <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
+              {filteredOptions.map((option) =>
+              <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
                   <Checkbox
-                    checked={valoresSelecionados.includes(option)}
-                    onCheckedChange={(checked) => {
-                      setFiltroTemp((prev) => ({
-                        ...prev,
-                        valores: checked
-                          ? [...prev.valores, option]
-                          : prev.valores.filter((item) => item !== option)
-                      }));
-                    }}
-                    className="h-3.5 w-3.5 shrink-0"
-                  />
+                  checked={valoresSelecionados.includes(option)}
+                  onCheckedChange={(checked) => {
+                    setFiltroTemp((prev) => ({
+                      ...prev,
+                      valores: checked ?
+                      [...prev.valores, option] :
+                      prev.valores.filter((item) => item !== option)
+                    }));
+                  }}
+                  className="h-3.5 w-3.5 shrink-0" />
+                
                   <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
                 </label>
-              ))}
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -500,8 +500,8 @@ export default function TabelaLancamentosTarefas({
             </div>
           </div>
         </PopoverContent>
-      </Popover>
-    );
+      </Popover>);
+
   };
 
   return (
@@ -514,121 +514,121 @@ export default function TabelaLancamentosTarefas({
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map((coluna) => {
-                    const width = columnWidths[coluna.id] || coluna.width || 160;
-                    const isResizing = resizeColumnId === coluna.id;
+                      const width = columnWidths[coluna.id] || coluna.width || 160;
+                      const isResizing = resizeColumnId === coluna.id;
 
-                    if (coluna.id === "selecao") {
-                      return (
-                        <TableHead
-                        key="selecao"
-                        style={{ width: 25, minWidth: 25, maxWidth: 25 }}
-                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
-                        >
+                      if (coluna.id === "selecao") {
+                        return (
+                          <TableHead
+                            key="selecao"
+                            style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                            className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
+                            
                           <div className="flex items-center justify-center w-full h-full">
                           <Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                           </div>
-                        </TableHead>
-                      );
-                    }
+                        </TableHead>);
 
-                    if (coluna.id === "acoes") {
+                      }
+
+                      if (coluna.id === "acoes") {
+                        return (
+                          <TableHead
+                            key="acoes"
+                            style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                            className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />);
+
+
+                      }
+
+                      const filterControl = renderFilterControl(coluna.id);
+
                       return (
                         <TableHead
-                        key="acoes"
-                        style={{ width: 25, minWidth: 25, maxWidth: 25 }}
-                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
-                        />
-                      );
-                    }
-
-                    const filterControl = renderFilterControl(coluna.id);
-
-                    return (
-                      <TableHead
-                        key={coluna.id}
-                        style={{ width, minWidth: width, maxWidth: width }}
-                        className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7`}
-                      >
+                          key={coluna.id}
+                          style={{ width, minWidth: width, maxWidth: width }}
+                          className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7`}>
+                          
                         <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
                         </div>
 
-                        {filterControl && (
+                        {filterControl &&
                           <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {filterControl}
                             <button
                               type="button"
                               className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`}
-                              onClick={(e) => { e.stopPropagation(); toggleResizeMode(coluna.id); }}
-                              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}
-                              title="Redimensionar coluna"
-                            >
+                              onClick={(e) => {e.stopPropagation();toggleResizeMode(coluna.id);}}
+                              onTouchEnd={(e) => {e.stopPropagation();e.preventDefault();toggleResizeMode(coluna.id);}}
+                              title="Redimensionar coluna">
+                              
                               <GripVertical className="w-2.5 h-2.5" />
                             </button>
                           </div>
-                        )}
+                          }
 
-                        {isResizing && (
-                          <div
-                            className="absolute top-0 -right-3 h-full w-6 z-50 flex items-center justify-center cursor-col-resize bg-emerald-500 bg-opacity-80 rounded-r"
-                            onMouseDown={(e) => startDragResize(e, coluna.id)}
-                            onTouchStart={(e) => startDragResize(e, coluna.id)}
-                            onClick={(e) => { e.stopPropagation(); setResizeColumnId(null); }}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                          >
+                        {isResizing &&
+                          <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
+
+                          onMouseDown={(e) => startDragResize(e, coluna.id)}
+                          onTouchStart={(e) => startDragResize(e, coluna.id)}
+                          onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}
+                          onDoubleClick={(e) => e.stopPropagation()}
+                          onTouchEnd={(e) => e.stopPropagation()}>
+                            
                             <GripVertical className="w-3.5 h-3.5 text-white" />
                           </div>
-                        )}
-                      </TableHead>
-                    );
-                  })}
+                          }
+                      </TableHead>);
+
+                    })}
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {tarefasOrdenadas.length === 0 ? (
+                {tarefasOrdenadas.length === 0 ?
                   <TableRow>
                     <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                       Nenhuma tarefa encontrada
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  tarefasOrdenadas.map((tarefa) => (
-                    <TableRow
-                      key={tarefa.id}
-                      className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
-                      onDoubleClick={() => abrirDetalhe(tarefa)}
-                      onTouchEnd={(event) => handleRowTouch(tarefa, event)}
-                    >
-                      {colunasOrdenadas.map((coluna) => {
-                        const width = columnWidths[coluna.id] || coluna.width || 160;
+                  </TableRow> :
 
-                        if (coluna.id === "selecao") {
-                          return (
-                            <TableCell
-                              key={`${tarefa.id}-selecao`}
-                              style={{ width: 25, minWidth: 25, maxWidth: 25 }}
-                              className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
-                              onClick={(event) => event.stopPropagation()}
-                              onTouchEnd={(event) => event.stopPropagation()}
-                            >
+                  tarefasOrdenadas.map((tarefa) =>
+                  <TableRow
+                    key={tarefa.id}
+                    className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
+                    onDoubleClick={() => abrirDetalhe(tarefa)}
+                    onTouchEnd={(event) => handleRowTouch(tarefa, event)}>
+                    
+                      {colunasOrdenadas.map((coluna) => {
+                      const width = columnWidths[coluna.id] || coluna.width || 160;
+
+                      if (coluna.id === "selecao") {
+                        return (
+                          <TableCell
+                            key={`${tarefa.id}-selecao`}
+                            style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                            className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
+                            onClick={(event) => event.stopPropagation()}
+                            onTouchEnd={(event) => event.stopPropagation()}>
+                            
                               <div className="flex items-center justify-center w-full h-full">
                               <Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                               </div>
-                            </TableCell>
-                          );
-                        }
+                            </TableCell>);
 
-                        if (coluna.id === "acoes") {
-                          return (
-                            <TableCell
-                              key={`${tarefa.id}-acoes`}
-                              style={{ width: 25, minWidth: 25, maxWidth: 25 }}
-                              className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
-                              onClick={(event) => event.stopPropagation()}
-                              onTouchEnd={(event) => event.stopPropagation()}
-                            >
+                      }
+
+                      if (coluna.id === "acoes") {
+                        return (
+                          <TableCell
+                            key={`${tarefa.id}-acoes`}
+                            style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                            className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
+                            onClick={(event) => event.stopPropagation()}
+                            onTouchEnd={(event) => event.stopPropagation()}>
+                            
                               <div className="flex items-center justify-center w-full h-full">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -646,23 +646,23 @@ export default function TabelaLancamentosTarefas({
                                 </DropdownMenuContent>
                               </DropdownMenu>
                               </div>
-                            </TableCell>
-                          );
-                        }
+                            </TableCell>);
 
-                        return (
-                          <TableCell
-                            key={`${tarefa.id}-${coluna.id}`}
-                            style={{ width, minWidth: width, maxWidth: width }}
-                            className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words"
-                          >
+                      }
+
+                      return (
+                        <TableCell
+                          key={`${tarefa.id}-${coluna.id}`}
+                          style={{ width, minWidth: width, maxWidth: width }}
+                          className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">
+                          
                             {renderCell(tarefa, coluna.id)}
-                          </TableCell>
-                        );
-                      })}
+                          </TableCell>);
+
+                    })}
                     </TableRow>
-                  ))
-                )}
+                  )
+                  }
               </TableBody>
               </Table>
             </div>
@@ -680,15 +680,15 @@ export default function TabelaLancamentosTarefas({
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
         handleDragEnd={handleDragEnd}
-        droppableId="colunas-gestao-tarefas"
-      />
+        droppableId="colunas-gestao-tarefas" />
+      
 
       <TarefaDetalhesDialog
         open={!!detalheTarefa}
         onOpenChange={(open) => !open && setDetalheTarefa(null)}
         tarefa={detalheTarefa}
-        onSaved={(updated) => setDetalheTarefa(updated)}
-      />
-    </div>
-  );
+        onSaved={(updated) => setDetalheTarefa(updated)} />
+      
+    </div>);
+
 }
