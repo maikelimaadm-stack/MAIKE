@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -277,6 +278,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   };
 
   return (
+    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
     <form onSubmit={handleSubmit} className="overflow-x-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-y pinch-zoom' }}>
       <Card className="shadow-sm border-slate-300">
         <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
@@ -526,6 +528,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         }} />
 
       }
-    </form>);
+    </form>
+    </motion.div>);
 
 }
