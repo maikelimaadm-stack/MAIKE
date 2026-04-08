@@ -529,7 +529,7 @@ export default function TabelaLancamentosTarefas({
       <Card>
         <CardContent className="p-0">
           <div className="relative">
-            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? 'max-h-[calc(100vh-230px)]' : 'max-h-[calc(100vh-220px)]'} overscroll-x-contain overscroll-y-contain`}>
+            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? 'max-h-[calc(100vh-170px)]' : 'max-h-[calc(100vh-160px)]'} overscroll-x-contain overscroll-y-contain`}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
@@ -571,13 +571,13 @@ export default function TabelaLancamentosTarefas({
                         </div>
 
                         {filterControl && (
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {filterControl}
                           </div>
                         )}
 
                         <div
-                          className="absolute top-0 right-0 h-full w-5 cursor-col-resize z-30 touch-none"
+                          className="absolute top-0 right-0 h-full w-1 cursor-col-resize z-30 touch-none"
                           onMouseDown={(event) => iniciarResize(event, coluna.id)}
                           onTouchStart={(event) => iniciarResize(event, coluna.id)}
                           onTouchMove={(event) => event.stopPropagation()}
