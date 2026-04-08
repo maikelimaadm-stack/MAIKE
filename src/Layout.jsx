@@ -602,7 +602,7 @@ export default function Layout({ children, currentPageName }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 hidden md:inline-flex"
                 onClick={() => {
                   const novoEstado = !menuOculto;
                   setMenuOculto(novoEstado);
@@ -790,7 +790,7 @@ export default function Layout({ children, currentPageName }) {
       }
 
       {!isFolha &&
-      <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'h-0 overflow-hidden border-0 py-0' : ''}`}>
+      <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
