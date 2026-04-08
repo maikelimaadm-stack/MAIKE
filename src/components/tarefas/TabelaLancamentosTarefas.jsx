@@ -15,7 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, Minus, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -95,11 +95,11 @@ export default function TabelaLancamentosTarefas({
     }
   });
 
-  const resizeRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
-  const tableWrapperRef = useRef(null);
+  const headerTapRef = useRef({ id: null, time: 0 });
   const scrollContainerRef = useRef(null);
   const tableRef = useRef(null);
+  const [resizeColumnId, setResizeColumnId] = useState(null);
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
@@ -129,45 +129,17 @@ export default function TabelaLancamentosTarefas({
     localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
   }, [columnWidths]);
 
-  useEffect(() => {
-    const handlePointerMove = (event) => {
-      if (!resizeRef.current) return;
-      if (event.cancelable) event.preventDefault();
-      const clientX = event.touches?.[0]?.clientX ?? event.clientX;
-      if (typeof clientX !== "number") return;
-      const { columnId, startX, startWidth } = resizeRef.current;
-      const nextWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + (clientX - startX));
-      setColumnWidths((prev) => ({ ...prev, [columnId]: nextWidth }));
-    };
+  const handleHeaderDoubleTap = (colunaId) => {
+    if (colunaId === "selecao" || colunaId === "acoes") return;
+    setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
+  };
 
-    const handlePointerUp = () => {
-      const container = scrollContainerRef.current;
-      const table = tableRef.current;
-      if (container) {
-        container.style.overflowX = "auto";
-        container.style.overflowY = "auto";
-      }
-      if (table) {
-        table.style.touchAction = "";
-      }
-      resizeRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.body.style.touchAction = "";
-    };
-
-    window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("mouseup", handlePointerUp);
-    window.addEventListener("touchmove", handlePointerMove, { passive: false });
-    window.addEventListener("touchend", handlePointerUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("mouseup", handlePointerUp);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
-    };
-  }, []);
+  const adjustColumnWidth = (colunaId, delta) => {
+    setColumnWidths((prev) => ({
+      ...prev,
+      [colunaId]: Math.max(MIN_COLUMN_WIDTH, (prev[colunaId] || 160) + delta)
+    }));
+  };
 
   useEffect(() => {
     setSelectedItems((prev) => prev.filter((id) => tarefas.some((item) => item.id === id)));
@@ -273,29 +245,6 @@ export default function TabelaLancamentosTarefas({
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
-  };
-
-  const iniciarResize = (event, colunaId) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const clientX = event.touches?.[0]?.clientX ?? event.clientX;
-    const container = scrollContainerRef.current;
-    const table = tableRef.current;
-    if (container) {
-      container.style.overflowX = "hidden";
-      container.style.overflowY = "hidden";
-    }
-    if (table) {
-      table.style.touchAction = "none";
-    }
-    resizeRef.current = {
-      columnId: colunaId,
-      startX: clientX,
-      startWidth: columnWidths[colunaId] || 160
-    };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    document.body.style.touchAction = "none";
   };
 
   const toggleSelectAll = () => {
@@ -530,12 +479,13 @@ export default function TabelaLancamentosTarefas({
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className="relative w-full overflow-y-auto overscroll-contain max-h-[calc(100dvh-140px)] md:max-h-[calc(100dvh-170px)]" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'none' }}>
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed select-none`}>
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-120px)] md:max-h-[calc(100dvh-170px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map((coluna) => {
                     const width = columnWidths[coluna.id] || coluna.width || 160;
+                    const isResizing = resizeColumnId === coluna.id;
 
                     if (coluna.id === "selecao") {
                       return (
@@ -565,7 +515,18 @@ export default function TabelaLancamentosTarefas({
                       <TableHead
                         key={coluna.id}
                         style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 z-40 h-7 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap"
+                        className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap ${isResizing ? 'h-auto' : 'h-7'}`}
+                        onDoubleClick={() => handleHeaderDoubleTap(coluna.id)}
+                        onTouchEnd={(e) => {
+                          const now = Date.now();
+                          if (headerTapRef.current.id === coluna.id && now - headerTapRef.current.time < 350) {
+                            e.preventDefault();
+                            handleHeaderDoubleTap(coluna.id);
+                            headerTapRef.current = { id: null, time: 0 };
+                          } else {
+                            headerTapRef.current = { id: coluna.id, time: now };
+                          }
+                        }}
                       >
                         <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
@@ -577,13 +538,20 @@ export default function TabelaLancamentosTarefas({
                           </div>
                         )}
 
-                        <div
-                          className="absolute top-0 -right-2 h-full w-5 cursor-col-resize z-30 touch-none"
-                          onMouseDown={(event) => iniciarResize(event, coluna.id)}
-                          onTouchStart={(event) => iniciarResize(event, coluna.id)}
-                          onTouchMove={(event) => { event.stopPropagation(); if (event.cancelable) event.preventDefault(); }}
-                          onClick={(event) => event.stopPropagation()}
-                        />
+                        {isResizing && (
+                          <div className="flex items-center justify-center gap-1 py-1 border-t border-emerald-200 bg-emerald-50 mt-0.5 rounded-b" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+                            <button type="button" className="h-6 w-6 flex items-center justify-center rounded bg-white border border-slate-300 active:bg-slate-100" onClick={() => adjustColumnWidth(coluna.id, -20)}>
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-[10px] font-mono text-slate-600 min-w-[32px] text-center">{width}px</span>
+                            <button type="button" className="h-6 w-6 flex items-center justify-center rounded bg-white border border-slate-300 active:bg-slate-100" onClick={() => adjustColumnWidth(coluna.id, 20)}>
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <button type="button" className="h-6 w-6 flex items-center justify-center rounded bg-white border border-red-300 text-red-500 active:bg-red-50 ml-1" onClick={() => setResizeColumnId(null)}>
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                       </TableHead>
                     );
                   })}
