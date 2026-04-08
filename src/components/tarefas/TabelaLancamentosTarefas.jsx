@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +11,12 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger } from
-"@/components/ui/dropdown-menu";
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
-import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -36,27 +35,27 @@ const STATUS_CORES = {
 };
 
 const COLUNAS_DISPONIVEIS = [
-{ id: "selecao", label: "Seleção", default: true, fixo: true },
-{ id: "acoes", label: "Ações", default: true, fixo: true },
-{ id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left" },
-{ id: "descricao", label: "Descrição", default: true, sortable: false, align: "left" },
-{ id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left" },
-{ id: "status", label: "Status", default: true, sortable: true, align: "left" },
-{ id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left" },
-{ id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left" },
-{ id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left" },
-{ id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left" },
-{ id: "area_nome", label: "Área", default: true, sortable: true, align: "left" },
-{ id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left" },
-{ id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left" },
-{ id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left" },
-{ id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left" },
-{ id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left" },
-{ id: "observacoes", label: "Observações", default: true, sortable: false, align: "left" },
-{ id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left" }];
+  { id: "selecao", label: "Seleção", default: true, fixo: true },
+  { id: "acoes", label: "Ações", default: true, fixo: true },
+  { id: "titulo", label: "Tarefa", default: true, sortable: true, align: "left", filterable: "text" },
+  { id: "descricao", label: "Descrição", default: true, sortable: false, align: "left" },
+  { id: "prioridade", label: "Prioridade", default: true, sortable: true, align: "left", filterable: "select", options: ["Baixa", "Média", "Alta"] },
+  { id: "status", label: "Status", default: true, sortable: true, align: "left", filterable: "select", options: ["Pendente", "Em Andamento", "Concluída", "Cancelada"] },
+  { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "tipo", label: "Tipo Base", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "tipo_tarefa_nome", label: "Tipo de Tarefa", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "setor_nome", label: "Fazenda", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "area_nome", label: "Área", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "solicitante", label: "Solicitante", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "responsavel", label: "Responsável", default: true, sortable: true, align: "left", filterable: "dynamic" },
+  { id: "data_pedido", label: "Data Pedido", default: true, sortable: true, align: "left" },
+  { id: "data_prevista", label: "Prazo", default: true, sortable: true, align: "left" },
+  { id: "data_conclusao", label: "Conclusão", default: true, sortable: true, align: "left" },
+  { id: "observacoes", label: "Observações", default: true, sortable: false, align: "left" },
+  { id: "observacoes_conclusao", label: "Obs. Conclusão", default: true, sortable: false, align: "left" }
+];
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
-
 
 export default function TabelaLancamentosTarefas({
   tarefas,
@@ -67,36 +66,25 @@ export default function TabelaLancamentosTarefas({
   showConfigColunas,
   setShowConfigColunas
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("__TODOS__");
-  const [filtroPrioridade, setFiltroPrioridade] = useState("__TODOS__");
-  const [filtroGrupo, setFiltroGrupo] = useState("__TODOS__");
-  const [filtroTipoTarefa, setFiltroTipoTarefa] = useState("__TODOS__");
-  const [filtroArea, setFiltroArea] = useState("__TODOS__");
-  const [filtroSetor, setFiltroSetor] = useState("__TODOS__");
+  const [columnFilters, setColumnFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedItems, setSelectedItems] = useState([]);
   const [detalheTarefa, setDetalheTarefa] = useState(null);
   const lastTapRef = useRef({ id: null, time: 0 });
-  const [filtrosVisivel, setFiltrosVisivel] = useState(false);
-
-  const toggleFiltros = () => {
-    setFiltrosVisivel((prev) => !prev);
-  };
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
     if (saved) {
-      try {return JSON.parse(saved);} catch {return COLUNAS_DISPONIVEIS.map((c) => c.id);}
+      try { return JSON.parse(saved); } catch { return COLUNAS_DISPONIVEIS.map((c) => c.id); }
     }
     return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_gestao_tarefas");
     if (saved) {
-      try {return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));} catch {return DEFAULT_VISIBLE_COLUMNS;}
+      try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch { return DEFAULT_VISIBLE_COLUMNS; }
     }
     return DEFAULT_VISIBLE_COLUMNS;
   });
@@ -107,12 +95,30 @@ export default function TabelaLancamentosTarefas({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, itemsPerPage]);
+  }, [columnFilters, itemsPerPage]);
+
+  const setColumnFilter = (colId, value) => {
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      if (!value || value === "__TODOS__") {
+        delete next[colId];
+      } else {
+        next[colId] = value;
+      }
+      return next;
+    });
+  };
+
+  const hasActiveFilters = Object.keys(columnFilters).length > 0;
+
+  const limparFiltros = () => {
+    setColumnFilters({});
+  };
 
   const toggleColuna = (colunaId) => {
-    const novas = colunasVisiveis.includes(colunaId) ?
-    colunasVisiveis.filter((id) => id !== colunaId) :
-    [...colunasVisiveis, colunaId];
+    const novas = colunasVisiveis.includes(colunaId)
+      ? colunasVisiveis.filter((id) => id !== colunaId)
+      : [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
     localStorage.setItem("colunas_visiveis_gestao_tarefas", JSON.stringify(novas));
   };
@@ -127,14 +133,27 @@ export default function TabelaLancamentosTarefas({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.
-    map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id)).
-    filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
+    return colunasOrdem
+      .map((id) => COLUNAS_DISPONIVEIS.find((coluna) => coluna.id === id))
+      .filter((coluna) => coluna && colunasVisiveis.includes(coluna.id));
   }, [colunasOrdem, colunasVisiveis]);
 
-  const setores = useMemo(() => [...new Set(tarefas.map((item) => item.setor_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
-  const tiposTarefa = useMemo(() => [...new Set(tarefas.map((item) => item.tipo_tarefa_nome || item.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
-  const areas = useMemo(() => [...new Set(tarefas.map((item) => item.area_nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })), [tarefas]);
+  // Compute dynamic options for filterable="dynamic" columns
+  const dynamicOptions = useMemo(() => {
+    const opts = {};
+    const extractUnique = (key, transform) => {
+      return [...new Set(tarefas.map((t) => transform ? transform(t) : t[key]).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+    };
+    opts.grupo_atividade_nome = extractUnique("grupo_atividade_nome");
+    opts.tipo = extractUnique("tipo");
+    opts.tipo_tarefa_nome = extractUnique(null, (t) => t.tipo_tarefa_nome || t.tipo);
+    opts.setor_nome = extractUnique("setor_nome");
+    opts.area_nome = extractUnique("area_nome");
+    opts.solicitante = extractUnique("solicitante");
+    opts.responsavel = extractUnique("responsavel");
+    return opts;
+  }, [tarefas]);
 
   const abrirDetalhe = (tarefa) => setDetalheTarefa(tarefa);
 
@@ -147,45 +166,33 @@ export default function TabelaLancamentosTarefas({
     lastTapRef.current = { id: tarefa.id, time: now };
   };
 
+  const getFieldValue = (tarefa, colId) => {
+    if (colId === "prioridade") return normalizeTaskPriority(tarefa.prioridade) || "";
+    if (colId === "tipo_tarefa_nome") return tarefa.tipo_tarefa_nome || tarefa.tipo || "";
+    return tarefa[colId] || "";
+  };
+
   const tarefasFiltradas = useMemo(() => {
     return tarefas.filter((tarefa) => {
-      const termo = searchTerm.toLowerCase();
-      const prioridade = normalizeTaskPriority(tarefa.prioridade);
-      const matchSearch =
-      !termo ||
-      [
-      tarefa.titulo,
-      tarefa.descricao,
-      tarefa.tipo,
-      tarefa.tipo_tarefa_nome,
-      tarefa.grupo_atividade_nome,
-      tarefa.area_nome,
-      tarefa.responsavel,
-      tarefa.solicitante,
-      tarefa.setor_nome,
-      tarefa.observacoes,
-      tarefa.observacoes_conclusao].
-      some((value) => String(value || "").toLowerCase().includes(termo));
-      const matchStatus = filtroStatus === "__TODOS__" || tarefa.status === filtroStatus;
-      const matchPrioridade = filtroPrioridade === "__TODOS__" || prioridade === filtroPrioridade;
-      const matchGrupo = filtroGrupo === "__TODOS__" || tarefa.grupo_atividade_nome === filtroGrupo;
-      const matchTipoTarefa = filtroTipoTarefa === "__TODOS__" || (tarefa.tipo_tarefa_nome || tarefa.tipo) === filtroTipoTarefa;
-      const matchArea = filtroArea === "__TODOS__" || tarefa.area_nome === filtroArea;
-      const matchSetor = filtroSetor === "__TODOS__" || tarefa.setor_nome === filtroSetor;
-      return matchSearch && matchStatus && matchPrioridade && matchGrupo && matchTipoTarefa && matchArea && matchSetor;
+      for (const [colId, filterVal] of Object.entries(columnFilters)) {
+        const colDef = COLUNAS_DISPONIVEIS.find((c) => c.id === colId);
+        if (!colDef) continue;
+        const val = getFieldValue(tarefa, colId);
+        if (colDef.filterable === "text") {
+          if (!String(val).toLowerCase().includes(filterVal.toLowerCase())) return false;
+        } else {
+          if (String(val) !== String(filterVal)) return false;
+        }
+      }
+      return true;
     });
-  }, [tarefas, searchTerm, filtroStatus, filtroPrioridade, filtroGrupo, filtroTipoTarefa, filtroArea, filtroSetor, normalizeTaskPriority]);
+  }, [tarefas, columnFilters, normalizeTaskPriority]);
 
   const tarefasOrdenadas = useMemo(() => {
     const sorted = [...tarefasFiltradas];
     sorted.sort((a, b) => {
-      const resolve = (item) => {
-        if (sortConfig.key === "prioridade") return String(normalizeTaskPriority(item.prioridade) || "").toLowerCase();
-        if (sortConfig.key === "tipo_tarefa_nome") return String(item.tipo_tarefa_nome || item.tipo || "").toLowerCase();
-        return String(item[sortConfig.key] || "").toLowerCase();
-      };
-      const aVal = resolve(a);
-      const bVal = resolve(b);
+      const aVal = String(getFieldValue(a, sortConfig.key)).toLowerCase();
+      const bVal = String(getFieldValue(b, sortConfig.key)).toLowerCase();
       if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
@@ -201,10 +208,10 @@ export default function TabelaLancamentosTarefas({
   };
 
   const SortIcon = ({ column }) => {
-    if (sortConfig.key !== column) return <ArrowUpDown className="lucide lucide-arrow-up-down lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" />;
-    return sortConfig.direction === "asc" ?
-    <ArrowUp className="lucide lucide-arrow-up-down w-3 h-3 ml-1 opacity-30" /> :
-    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    if (sortConfig.key !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortConfig.direction === "asc"
+      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   const toggleSelectAll = () => {
@@ -214,19 +221,11 @@ export default function TabelaLancamentosTarefas({
     }
     setSelectedItems(tarefasFiltradas.map((item) => item.id));
   };
+
   const formatarData = (data) => {
     if (!data) return "-";
     const d = new Date(data + "T00:00:00");
     return d.toLocaleDateString("pt-BR");
-  };
-  const limparFiltros = () => {
-    setSearchTerm("");
-    setFiltroStatus("__TODOS__");
-    setFiltroPrioridade("__TODOS__");
-    setFiltroGrupo("__TODOS__");
-    setFiltroTipoTarefa("__TODOS__");
-    setFiltroArea("__TODOS__");
-    setFiltroSetor("__TODOS__");
   };
 
   const renderCell = (tarefa, colunaId) => {
@@ -251,201 +250,168 @@ export default function TabelaLancamentosTarefas({
     return "-";
   };
 
+  const renderHeaderFilter = (coluna) => {
+    if (!coluna.filterable) return null;
+    const currentVal = columnFilters[coluna.id] || "";
+
+    if (coluna.filterable === "text") {
+      return (
+        <Input
+          value={currentVal}
+          onChange={(e) => setColumnFilter(coluna.id, e.target.value)}
+          placeholder="Filtrar..."
+          className="h-6 text-[10px] w-full min-w-[80px] mt-1 px-1 bg-white"
+          onClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
+
+    const options = coluna.options || dynamicOptions[coluna.id] || [];
+    return (
+      <Select
+        value={currentVal || "__TODOS__"}
+        onValueChange={(v) => setColumnFilter(coluna.id, v)}
+      >
+        <SelectTrigger
+          className="h-6 text-[10px] w-full min-w-[80px] mt-1 px-1 bg-white"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SelectValue placeholder="Todos" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__TODOS__">Todos</SelectItem>
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  };
+
   return (
     <div className="space-y-1">
-<Card>
-  {/* HEADER COM BOTÃO */}
-  <div className="bg-slate-50 pr-1 pl-1 flex items-center justify-between border-b">
-    <span className="text-sm font-semibold text-slate-900">
-      Filtros
-    </span>
-
-    <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleFiltros} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-md px-1 h-6 text-xs">
-            
-            
-      {filtrosVisivel ? 'Ocultar' : 'Mostrar'}
-    </Button>
-  </div>
-
-  {/* CONTEÚDO CONTROLADO */}
-  {filtrosVisivel &&
-        <CardContent className="p-1">
-      <div className="grid grid-cols-2 md:grid-cols-8 gap-1">
-        <div className="md:col-span-0 space-y-0">
-          <Label className="text-xs">Buscar</Label>
-          <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar tarefa, tipo, área..."
-                className="flex min-w-[130px] max-w-[180px] w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm h-7 text-xs" />
-              
-        </div>
-
-        <div className="min-w-[130px] max-w-[180px] w-full">
-          <Label className="text-xs">Status</Label>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__TODOS__">Todos</SelectItem>
-              <SelectItem value="Pendente">Pendente</SelectItem>
-              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-              <SelectItem value="Concluída">Concluída</SelectItem>
-              <SelectItem value="Cancelada">Cancelada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* (mantive seu resto igual, só compactei visual) */}
-
-        <div className="min-w-[130px] max-w-[180px] w-full">
-          <Label className="text-xs">Grupo</Label>
-          <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__TODOS__">Todos</SelectItem>
-              {grupos.map((grupo) =>
-                  <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
-                  )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="min-w-[130px] max-w-[180px] w-full">
-          <Label className="text-xs">Tipo de tarefa</Label>
-          <Select value={filtroTipoTarefa} onValueChange={setFiltroTipoTarefa}>
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__TODOS__">Todos</SelectItem>
-              {tiposTarefa.map((tipo) =>
-                  <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                  )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="min-w-[130px] max-w-[180px] w-full">
-          <Label className="text-xs">Área</Label>
-          <Select value={filtroArea} onValueChange={setFiltroArea}>
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__TODOS__">Todas</SelectItem>
-              {areas.map((area) =>
-                  <SelectItem key={area} value={area}>{area}</SelectItem>
-                  )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="min-w-[130px] max-w-[180px] w-full">
-          <Label className="text-xs">Fazenda</Label>
-          <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__TODOS__">Todos</SelectItem>
-              {setores.map((setor) =>
-                  <SelectItem key={setor} value={setor}>{setor}</SelectItem>
-                  )}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center mt-1 gap-2 flex-wrap">
+      {/* Barra de ações compacta */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-xs text-slate-500">
           {tarefasFiltradas.length} de {tarefas.length} registros
         </div>
-
         <div className="flex gap-2 flex-wrap">
-          {selectedItems.length > 0 &&
-              <DropdownMenu>
+          {selectedItems.length > 0 && (
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 text-xs">
                   Ações ({selectedItems.length})
                 </Button>
               </DropdownMenuTrigger>
-
               <DropdownMenuContent>
-                <DropdownMenuLabel className="text-xs">
-                  Ações em Lote
-                </DropdownMenuLabel>
-
+                <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                    onClick={() => onDelete(selectedItems)}
-                    className="text-xs text-red-600">
-                    
+                <DropdownMenuItem onClick={() => onDelete(selectedItems)} className="text-xs text-red-600">
                   Excluir Selecionados
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                    onClick={() => setSelectedItems([])}
-                    className="text-xs">
-                    
+                <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
                   Limpar Seleção
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-              }
-
-          <Button
-                variant="outline"
-                size="sm"
-                onClick={limparFiltros}
-                className="h-7 text-xs">
-                
-            Limpar Filtros
-          </Button>
+          )}
+          {hasActiveFilters && (
+            <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs gap-1">
+              <X className="w-3 h-3" /> Limpar Filtros
+            </Button>
+          )}
         </div>
       </div>
-    </CardContent>
-        }
-</Card>
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-auto max-h-[500px]">
+          <div className="overflow-auto max-h-[600px] relative">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-white border-b">
+              <TableHeader className="sticky top-0 z-20 bg-white shadow-sm">
+                {/* Row 1: Labels + Sort */}
+                <TableRow className="border-b">
                   {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === "selecao") return <TableHead key="selecao" className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"><Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableHead>;
-                    if (coluna.id === "acoes") return <TableHead key="acoes" className="h-10 p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0"></TableHead>;
-                    const isRight = coluna.align === "right";
-                    return <TableHead key={coluna.id} className="h-7 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[0px] text-gray-900 px-1 text-xs font-medium text-center border border-gray-300" onClick={() => coluna.sortable && handleSort(coluna.id)}><div className="inline-flex items-center gap-1 h-full">{coluna.label} {coluna.sortable && <SortIcon column={coluna.id} />}</div></TableHead>;
+                    if (coluna.id === "selecao") return (
+                      <TableHead key="selecao" className="p-0 bg-white text-center w-10 min-w-[25px] max-w-[25px] align-top">
+                        <Checkbox
+                          checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                          className="h-4 w-4 rounded-full border-2 border-gray-400"
+                        />
+                      </TableHead>
+                    );
+                    if (coluna.id === "acoes") return (
+                      <TableHead key="acoes" className="p-0 bg-white text-center w-10 min-w-[25px] max-w-[25px] align-top"></TableHead>
+                    );
+                    return (
+                      <TableHead
+                        key={coluna.id}
+                        className="bg-white px-1 text-xs font-medium text-gray-900 text-center border border-gray-300 align-top"
+                      >
+                        <div
+                          className="inline-flex items-center gap-1 cursor-pointer select-none"
+                          onClick={() => coluna.sortable && handleSort(coluna.id)}
+                        >
+                          {coluna.label}
+                          {coluna.sortable && <SortIcon column={coluna.id} />}
+                        </div>
+                        {renderHeaderFilter(coluna)}
+                      </TableHead>
+                    );
                   })}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tarefasPaginadas.length === 0 ?
-                <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma tarefa encontrada</TableCell></TableRow> :
-                tarefasPaginadas.map((tarefa) =>
-                <TableRow
-                  key={tarefa.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100 hover:text-gray-1000"
-
-                  onDoubleClick={() => abrirDetalhe(tarefa)}
-                  onTouchEnd={(event) => handleRowTouch(tarefa, event)}>
-                    {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === "selecao") return <TableCell key={`${tarefa.id}-selecao`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><Checkbox checked={selectedItems.includes(tarefa.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 shadow-lg\nfocus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400\ndisabled:cursor-not-allowed disabled:opacity-70\ndata-[state=checked]:bg-primary\ndata-[state=checked]:text-primary-foreground" /></TableCell>;
-                    if (coluna.id === "acoes") return <TableCell key={`${tarefa.id}-acoes`} className="p-0 bg-white text-muted-foreground font-medium text-center sticky left-0 z-10 w-10 min-w-[25px] max-w-[25px] align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0 px-0" onClick={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem asChild className="text-xs"><Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link></DropdownMenuItem><DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>;
-                    return <TableCell key={`${tarefa.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 h-7 border border-gray-300">{renderCell(tarefa, coluna.id)}</TableCell>;
-                  })}
+                {tarefasPaginadas.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                      Nenhuma tarefa encontrada
+                    </TableCell>
                   </TableRow>
+                ) : (
+                  tarefasPaginadas.map((tarefa) => (
+                    <TableRow
+                      key={tarefa.id}
+                      className="border-b hover:bg-gray-100 transition-colors"
+                      onDoubleClick={() => abrirDetalhe(tarefa)}
+                      onTouchEnd={(event) => handleRowTouch(tarefa, event)}
+                    >
+                      {colunasOrdenadas.map((coluna) => {
+                        if (coluna.id === "selecao") return (
+                          <TableCell key={`${tarefa.id}-selecao`} className="p-0 bg-white text-center w-10 min-w-[25px] max-w-[25px]" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedItems.includes(tarefa.id)}
+                              onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, tarefa.id] : prev.filter((id) => id !== tarefa.id))}
+                              className="h-4 w-4 rounded-full border-2 border-gray-400"
+                            />
+                          </TableCell>
+                        );
+                        if (coluna.id === "acoes") return (
+                          <TableCell key={`${tarefa.id}-acoes`} className="p-0 bg-white text-center w-10 min-w-[25px] max-w-[25px]" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem asChild className="text-xs">
+                                  <Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        );
+                        return (
+                          <TableCell key={`${tarefa.id}-${coluna.id}`} className="p-2 text-gray-700 text-xs h-7 border border-gray-300">
+                            {renderCell(tarefa, coluna.id)}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
@@ -454,7 +420,7 @@ export default function TabelaLancamentosTarefas({
           <div className="flex items-center justify-between p-1 border-t">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
-              <Select value={String(itemsPerPage)} onValueChange={(v) => {setItemsPerPage(Number(v));setCurrentPage(1);}}>
+              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
                 <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
@@ -478,15 +444,15 @@ export default function TabelaLancamentosTarefas({
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
         handleDragEnd={handleDragEnd}
-        droppableId="colunas-gestao-tarefas" />
+        droppableId="colunas-gestao-tarefas"
+      />
 
       <TarefaDetalhesDialog
         open={!!detalheTarefa}
         onOpenChange={(open) => !open && setDetalheTarefa(null)}
         tarefa={detalheTarefa}
-        onSaved={(updated) => setDetalheTarefa(updated)} />
-      
-      
-    </div>);
-
+        onSaved={(updated) => setDetalheTarefa(updated)}
+      />
+    </div>
+  );
 }
