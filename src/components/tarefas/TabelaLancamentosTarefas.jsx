@@ -98,6 +98,7 @@ export default function TabelaLancamentosTarefas({
 
   const resizeRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
+  const tableWrapperRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const tableRef = useRef(null);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
@@ -519,11 +520,11 @@ export default function TabelaLancamentosTarefas({
     <div className="space-y-1">
       <Card>
         <CardContent className="p-0">
-          <div className="relative">
-            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto ${isMobile ? "overflow-y-auto max-h-[calc(100vh-280px)]" : "overflow-y-auto max-h-[calc(100vh-220px)]"} overscroll-x-none overscroll-y-contain touch-pan-y`}>
+          <div ref={tableWrapperRef} className="relative overflow-hidden">
+            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? "max-h-[calc(100vh-340px)] pb-2" : "max-h-[calc(100vh-220px)]"} overscroll-x-contain overscroll-y-contain touch-pan-x`}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
-                <TableRow className="sticky top-0 z-30 bg-white">
+                <TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map((coluna) => {
                     const width = columnWidths[coluna.id] || coluna.width || 160;
 
@@ -532,7 +533,7 @@ export default function TabelaLancamentosTarefas({
                         <TableHead
                         key="selecao"
                         style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 z-30 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
+                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         >
                           <Checkbox checked={selectedItems.length === tarefasFiltradas.length && tarefasFiltradas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                         </TableHead>
@@ -544,7 +545,7 @@ export default function TabelaLancamentosTarefas({
                         <TableHead
                         key="acoes"
                         style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 z-30 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
+                        className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"
                         />
                       );
                     }
@@ -555,7 +556,7 @@ export default function TabelaLancamentosTarefas({
                       <TableHead
                         key={coluna.id}
                         style={{ width, minWidth: width, maxWidth: width }}
-                        className="sticky top-0 h-7 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap"
+                        className="sticky top-0 z-40 h-7 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap"
                       >
                         <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
@@ -658,7 +659,7 @@ export default function TabelaLancamentosTarefas({
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-1 border-t bg-white">
+          <div className="sticky bottom-[88px] z-30 flex items-center justify-between p-1 border-t bg-white md:static">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
               <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
