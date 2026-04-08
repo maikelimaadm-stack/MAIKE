@@ -32,7 +32,8 @@ const calcCentroid = (paths) => {
   }
   sA *= 0.5; cLat /= (6 * sA); cLng /= (6 * sA);
   if (!isFinite(cLat) || !isFinite(cLng) || !sA) {
-    const b = new google.maps.LatLngBounds(); paths.forEach(p => b.extend(p)); const c = b.getCenter(); return { lat: c.lat(), lng: c.lng() };
+    const b = new google.maps.LatLngBounds(); paths.forEach(p => b.extend(p)); const c = b.getCenter();
+    return { lat: c.lat(), lng: c.lng() };
   }
   return { lat: cLat, lng: cLng };
 };
@@ -42,6 +43,17 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const drawnRef = useRef({ polygons: [], labels: [], taskMarkers: [], listeners: [] });
+
+  // Keep refs updated so closures inside Google Maps always see latest values
+  const areasRef = useRef(areas);
+  const onSelectRef = useRef(onSelect);
+  const onOpenChangeRef = useRef(onOpenChange);
+  const initialCoordsRef = useRef(initialCoordinates);
+
+  useEffect(() => { areasRef.current = areas; }, [areas]);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { onOpenChangeRef.current = onOpenChange; }, [onOpenChange]);
+  useEffect(() => { initialCoordsRef.current = initialCoordinates; }, [initialCoordinates]);
 
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -65,6 +77,11 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
     initialData: []
   });
 
+  const tarefasRef = useRef(tarefasPendentes);
+  const iconesRef = useRef(iconesConfig);
+  useEffect(() => { tarefasRef.current = tarefasPendentes; }, [tarefasPendentes]);
+  useEffect(() => { iconesRef.current = iconesConfig; }, [iconesConfig]);
+
   const clearDrawn = useCallback(() => {
     if (!window.google?.maps) return;
     const d = drawnRef.current;
@@ -76,27 +93,37 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Cleanup everything on close
+      clearDrawn();
+      if (markerRef.current) { markerRef.current.setMap(null); markerRef.current = null; }
+      if (mapInstanceRef.current && window.google?.maps) {
+        google.maps.event.clearInstanceListeners(mapInstanceRef.current);
+        mapInstanceRef.current = null;
+      }
+      return;
+    }
 
-    let cancelled = false;
-
+    // Dialog just opened — build the map
     loadGoogleMapsScript().then(() => {
-      if (cancelled || !mapRef.current) return;
+      if (!mapRef.current) return;
 
-      // Always create a fresh map instance to avoid stale state
+      // Clean any leftover state
+      clearDrawn();
+      if (markerRef.current) { markerRef.current.setMap(null); markerRef.current = null; }
       if (mapInstanceRef.current) {
         google.maps.event.clearInstanceListeners(mapInstanceRef.current);
         mapInstanceRef.current = null;
       }
-      if (markerRef.current) {
-        markerRef.current.setMap(null);
-        markerRef.current = null;
-      }
-      clearDrawn();
+
+      const currentAreas = areasRef.current;
+      const currentInitial = initialCoordsRef.current;
+      const currentTarefas = tarefasRef.current;
+      const currentIcones = iconesRef.current;
 
       const map = new google.maps.Map(mapRef.current, {
-        center: initialCoordinates || { lat: -15.0067, lng: -59.9533 },
-        zoom: initialCoordinates ? 17 : 14,
+        center: currentInitial || { lat: -15.0067, lng: -59.9533 },
+        zoom: currentInitial ? 17 : 14,
         mapTypeId: "satellite",
         mapTypeControl: false,
         streetViewControl: false,
@@ -119,17 +146,14 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
           markerRef.current.setPosition(coords);
           markerRef.current.setMap(map);
         }
-
-        // Small delay to show the marker, then close
         window.setTimeout(() => {
-          if (cancelled) return;
-          onSelect?.(coords, area);
-          onOpenChange(false);
+          onSelectRef.current?.(coords, area);
+          onOpenChangeRef.current(false);
         }, 150);
       };
 
       // Draw area polygons with colors + labels
-      areas.forEach(area => {
+      currentAreas.forEach(area => {
         const coords = area.coordenadas?.coords || [];
         if (coords.length < 3) return;
         const path = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
@@ -139,26 +163,22 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
           paths: path, strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2,
           fillColor: cor, fillOpacity: 0.45, map,
         });
-
         polygon.addListener('mouseover', () => polygon.setOptions({ strokeColor: '#ffffff', strokeOpacity: 1, strokeWeight: 3 }));
         polygon.addListener('mouseout', () => polygon.setOptions({ strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2 }));
         polygon.addListener('click', (e) => {
           handleSelect({ lat: e.latLng.lat(), lng: e.latLng.lng() }, area);
         });
-
         d.polygons.push(polygon);
 
         // Label
         const center = calcCentroid(path);
         const hectares = Number(area.area_pastejada || area.tamanho_hectares || 0);
         const hectaresText = hectares > 0 ? `ha ${hectares.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
-
         const labelDiv = document.createElement('div');
         labelDiv.innerHTML = `<div style="color:white;text-align:center;white-space:nowrap;text-shadow:1px 1px 3px rgba(0,0,0,0.8);pointer-events:none;font-family:Arial,sans-serif;">
           <div style="font-size:11px;font-weight:700;">${area.nome || ''}</div>
           ${hectaresText ? `<div style="font-size:10px;font-weight:400;opacity:0.95;">${hectaresText}</div>` : ''}
         </div>`;
-
         const overlay = new google.maps.OverlayView();
         overlay.onAdd = function() { this.getPanes().markerLayer.appendChild(labelDiv); };
         overlay.draw = function() {
@@ -175,37 +195,33 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
       // Draw pending task markers
       const cores = { 'Baixa': '#94a3b8', 'Normal': '#3b82f6', 'Alta': '#f59e0b', 'Urgente': '#ef4444', 'Média': '#3b82f6' };
       const normalizar = (v) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-
-      tarefasPendentes.forEach(t => {
+      currentTarefas.forEach(t => {
         let position = null;
         if (t.coordenadas?.lat && t.coordenadas?.lng) {
           position = { lat: t.coordenadas.lat, lng: t.coordenadas.lng };
         } else if (t.area_id) {
-          const area = areas.find(a => a.id === t.area_id);
+          const area = currentAreas.find(a => a.id === t.area_id);
           const coords = area?.coordenadas?.coords || [];
           if (coords.length >= 3) {
             position = calcCentroid(coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })));
           }
         }
         if (!position) return;
-
         const c = cores[t.prioridade] || '#3b82f6';
-        const cfg = iconesConfig.find(ic => ic.tipo_entidade === 'Prioridade Tarefa' && normalizar(ic.categoria) === normalizar(t.prioridade));
+        const cfg = currentIcones.find(ic => ic.tipo_entidade === 'Prioridade Tarefa' && normalizar(ic.categoria) === normalizar(t.prioridade));
         const icon = cfg?.icone_url
           ? { url: cfg.icone_url, scaledSize: new google.maps.Size(28, 28), anchor: new google.maps.Point(14, 14) }
           : { path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z', fillColor: c, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(12, 22) };
-
         const m = new google.maps.Marker({ position, map, icon, title: t.titulo || '', zIndex: 2500 });
         d.taskMarkers.push(m);
       });
 
-      // Map click for areas without polygon (click on empty space)
+      // Map click (outside polygon areas — polygons have their own click handlers)
       const mapClickListener = map.addListener("click", (event) => {
         const latLng = event.latLng;
         const coords = { lat: latLng.lat(), lng: latLng.lng() };
-        // Check if inside any area
         let foundArea = null;
-        for (const area of areas) {
+        for (const area of currentAreas) {
           const areaCoords = area.coordenadas?.coords || [];
           if (areaCoords.length < 3) continue;
           const path = areaCoords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
@@ -216,19 +232,19 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
       });
       d.listeners.push(mapClickListener);
 
-      // Show initial marker if editing
-      if (initialCoordinates) {
+      // Show initial marker if editing existing coordinates
+      if (currentInitial) {
         markerRef.current = new google.maps.Marker({
-          map, position: initialCoordinates,
+          map, position: currentInitial,
           icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#059669", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 },
           zIndex: 9999,
         });
-        map.setCenter(initialCoordinates);
+        map.setCenter(currentInitial);
         map.setZoom(17);
       } else {
         const bounds = new google.maps.LatLngBounds();
         let hasPoints = false;
-        areas.forEach(area => {
+        currentAreas.forEach(area => {
           (area.coordenadas?.coords || []).forEach(coord => {
             const lat = coord[0] || coord.lat; const lng = coord[1] || coord.lng;
             if (typeof lat === "number" && typeof lng === "number") { bounds.extend({ lat, lng }); hasPoints = true; }
@@ -237,20 +253,6 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
         if (hasPoints) map.fitBounds(bounds, 40);
       }
     });
-
-    return () => { cancelled = true; };
-  }, [open]);
-
-  // Full cleanup when dialog closes
-  useEffect(() => {
-    if (!open) {
-      clearDrawn();
-      if (markerRef.current) { markerRef.current.setMap(null); markerRef.current = null; }
-      if (mapInstanceRef.current && window.google?.maps) {
-        google.maps.event.clearInstanceListeners(mapInstanceRef.current);
-        mapInstanceRef.current = null;
-      }
-    }
   }, [open, clearDrawn]);
 
   return (
