@@ -80,7 +80,7 @@ export default function LancamentosTarefas() {
   };
 
   return (
-    <div className="p-1 md:p-1 space-y-1 overflow-hidden">
+    <div className="flex flex-col p-1 md:p-1 gap-1 h-[calc(100dvh-80px)] md:h-[calc(100dvh-50px)] overflow-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Gestão de Tarefas</h1>
