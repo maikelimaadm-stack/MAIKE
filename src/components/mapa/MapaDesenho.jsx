@@ -371,14 +371,25 @@ const redoStackRef = useRef([]);
     }
   }, [areas, pontos, linhas, iconesConfig, mapReady, itemEditando]);
 
+  // Ref para bloquear cliques falsos após zoom
+  const zoomingRef = useRef(false);
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady) return;
+    const zs = google.maps.event.addListener(mapInstanceRef.current, 'zoom_changed', () => {
+      zoomingRef.current = true;
+      setTimeout(() => { zoomingRef.current = false; }, 400);
+    });
+    return () => google.maps.event.removeListener(zs);
+  }, [mapReady]);
+
   useEffect(() => {
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
-    const MAX_CLICK_DURATION = 500; // ms — mais tolerante
-    const MAX_CLICK_DISTANCE = 12;  // pixels — mais tolerante
+    const MAX_CLICK_DURATION = 400; // ms
+    const MAX_CLICK_DISTANCE = 10;  // pixels
 
-    // Verifica se clicou perto do ponto 1 (para fechar polígono)
-    const isNearFirstPoint = (latLng) => {
+    // Verifica se clicou perto de qualquer ponto existente (para fechar polígono)
+    const isNearExistingPoint = (latLng) => {
       const pts = currentPointsRef.current;
       if (tipoDesenho !== 'area' || pts.length < 3) return false;
       const map = mapInstanceRef.current;
@@ -386,33 +397,35 @@ const redoStackRef = useRef([]);
       if (!projection) return false;
       const scale = Math.pow(2, map.getZoom());
       const click = projection.fromLatLngToPoint(latLng);
-      const first = projection.fromLatLngToPoint(new google.maps.LatLng(pts[0].lat, pts[0].lng));
-      const dx = (click.x - first.x) * scale;
-      const dy = (click.y - first.y) * scale;
-      return Math.sqrt(dx * dx + dy * dy) < CLOSE_SNAP_PX;
+      for (let i = 0; i < pts.length; i++) {
+        const pt = projection.fromLatLngToPoint(new google.maps.LatLng(pts[i].lat, pts[i].lng));
+        const dx = (click.x - pt.x) * scale;
+        const dy = (click.y - pt.y) * scale;
+        if (Math.sqrt(dx * dx + dy * dy) < CLOSE_SNAP_PX) return true;
+      }
+      return false;
     };
 
-    const handleAddPoint = (e) => {
-      if (!e?.latLng) return;
-
-      // Se a área já foi fechada, não adicionar mais pontos
+    const handleAddPoint = (latLng) => {
+      if (!latLng) return;
       if (drawingClosed) return;
+      if (zoomingRef.current) return;
 
       // Verificar se deve fechar o polígono
-      if (isNearFirstPoint(e.latLng)) {
+      if (isNearExistingPoint(latLng)) {
         setDrawingClosed(true);
-        toast.success('✅ Área fechada! Ajuste os pontos ou clique Salvar.', { duration: 2000 });
+        toast.success('\u2705 Área fechada! Ajuste os pontos ou clique Salvar.', { duration: 2000 });
         return;
       }
 
-      let lat = e.latLng.lat();
-      let lng = e.latLng.lng();
+      let lat = latLng.lat();
+      let lng = latLng.lng();
 
-      const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
+      const snappedPoint = findNearestPoint(latLng, mapInstanceRef.current);
       if (snappedPoint) {
         lat = snappedPoint.lat;
         lng = snappedPoint.lng;
-        toast.success('🧲 Encaixado!', { duration: 600 });
+        toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
       }
 
       if (tipoDesenho === 'ponto') {
@@ -426,12 +439,11 @@ const redoStackRef = useRef([]);
           draggable: true
         });
         tempMarkerRef.current.addListener('dragend', (ev) => {
-          let latLng2 = ev.latLng;
-          const snap = findNearestPoint(latLng2, mapInstanceRef.current);
-          const newLat = snap ? snap.lat : latLng2.lat();
-          const newLng = snap ? snap.lng : latLng2.lng();
+          const snap = findNearestPoint(ev.latLng, mapInstanceRef.current);
+          const newLat = snap ? snap.lat : ev.latLng.lat();
+          const newLng = snap ? snap.lng : ev.latLng.lng();
           setCurrentMarker({ lat: newLat, lng: newLng });
-          if (snap) toast.success('🧲 Encaixado!', { duration: 600 });
+          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
         });
         setShowFormularioPonto(true);
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
@@ -440,21 +452,70 @@ const redoStackRef = useRef([]);
           undoStackRef.current.push(prev);
           redoStackRef.current = [];
           const updated = [...prev, newPoint];
-          toast.success(`✅ Ponto ${updated.length} adicionado`, { duration: 800 });
+          toast.success(`\u2705 Ponto ${updated.length} adicionado`, { duration: 800 });
           return updated;
         });
       }
     };
 
-    // Usar evento click do Google Maps — mais confiável que mouseup
-    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleAddPoint);
+    // Usar pointerdown/pointerup no DOM para filtrar arraste/zoom vs clique real
+    const mapDiv = mapInstanceRef.current.getDiv();
+    let downPos = null;
+    let downTime = 0;
+
+    const onDown = (ev) => {
+      downPos = { x: ev.clientX, y: ev.clientY };
+      downTime = Date.now();
+    };
+
+    const onUp = (ev) => {
+      if (!downPos) return;
+      const elapsed = Date.now() - downTime;
+      const dx = ev.clientX - downPos.x;
+      const dy = ev.clientY - downPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      downPos = null;
+      if (elapsed > MAX_CLICK_DURATION || dist > MAX_CLICK_DISTANCE) return;
+      if (zoomingRef.current) return;
+
+      // Converter pixel para LatLng
+      const map = mapInstanceRef.current;
+      const overlay = new google.maps.OverlayView();
+      overlay.draw = function() {};
+      overlay.setMap(map);
+
+      // Usar bounds do mapa para converter
+      const bounds = map.getBounds();
+      const projection2 = map.getProjection();
+      if (!bounds || !projection2) return;
+
+      const topRight = projection2.fromLatLngToPoint(bounds.getNorthEast());
+      const bottomLeft = projection2.fromLatLngToPoint(bounds.getSouthWest());
+      const scale = Math.pow(2, map.getZoom());
+
+      const mapRect = mapDiv.getBoundingClientRect();
+      const pixelX = ev.clientX - mapRect.left;
+      const pixelY = ev.clientY - mapRect.top;
+
+      const worldX = pixelX / scale + bottomLeft.x;
+      const worldY = pixelY / scale + topRight.y;
+      const worldPoint = new google.maps.Point(worldX, worldY);
+      const latLng = projection2.fromPointToLatLng(worldPoint);
+
+      overlay.setMap(null);
+      handleAddPoint(latLng);
+    };
+
+    mapDiv.addEventListener('pointerdown', onDown, { passive: true });
+    mapDiv.addEventListener('pointerup', onUp, { passive: true });
 
     const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, 'dblclick', (e) => {
       if (e?.stop) e.stop();
     });
 
     return () => {
-      google.maps.event.removeListener(clickListener);
+      mapDiv.removeEventListener('pointerdown', onDown);
+      mapDiv.removeEventListener('pointerup', onUp);
       google.maps.event.removeListener(dblClickListener);
     };
   }, [tipoDesenho, mapReady, itemEditando, drawingClosed]);
@@ -528,35 +589,37 @@ const redoStackRef = useRef([]);
     midPointMarkersRef.current.forEach(m => m.setMap(null));
     midPointMarkersRef.current = [];
 
+    const canDrag = drawingClosed || itemEditando;
     currentPoints.forEach((point, index) => {
       const marker = new google.maps.Marker({
         position: point,
         map: mapInstanceRef.current,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 5,
+          scale: 6,
           fillColor: '#ffffff',
           fillOpacity: 1,
           strokeColor: '#facc15',
           strokeWeight: 2
         },
-        draggable: true,
+        draggable: canDrag,
         zIndex: 1000
       });
 
-      marker.addListener('dragend', (e) => {
-        let latLng = e.latLng;
-        const snap = findNearestPoint(latLng, mapInstanceRef.current);
-        const newLat = snap ? snap.lat : latLng.lat();
-        const newLng = snap ? snap.lng : latLng.lng();
-        setCurrentPoints(prev => {
-          const updated = [...prev];
-          updated[index] = { lat: newLat, lng: newLng };
-          return updated;
+      if (canDrag) {
+        marker.addListener('dragend', (e) => {
+          const snap = findNearestPoint(e.latLng, mapInstanceRef.current);
+          const newLat = snap ? snap.lat : e.latLng.lat();
+          const newLng = snap ? snap.lng : e.latLng.lng();
+          setCurrentPoints(prev => {
+            const updated = [...prev];
+            updated[index] = { lat: newLat, lng: newLng };
+            return updated;
+          });
+          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
+          else toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
         });
-        if (snap) toast.success('🧲 Encaixado!', { duration: 600 });
-        else toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
-      });
+      }
 
       pointMarkersRef.current.push(marker);
     });
@@ -625,7 +688,7 @@ const redoStackRef = useRef([]);
       });
       currentPolylineRef.current.setMap(mapInstanceRef.current);
     }
-  }, [currentPoints, tipoDesenho]);
+  }, [currentPoints, tipoDesenho, drawingClosed, itemEditando]);
 
   const renderMap = () => {
     if (!mapInstanceRef.current) return;
