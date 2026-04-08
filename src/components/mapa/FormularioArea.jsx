@@ -2,6 +2,15 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+
+const FloatingField = ({ label, required, error, children }) => (
+  <div className={`relative rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-colors`}>
+    <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-slate-500">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    {children}
+  </div>
+);
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -170,95 +179,108 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-2.5">
-        {/* Campos em estilo clean - placeholder dentro */}
-        <Input
-          value={formData.numero_area}
-          onChange={(e) => handleChange('numero_area', e.target.value.replace(/[^0-9]/g, ''))}
-          placeholder="Número ou código da área"
-          className="h-9 text-xs uppercase"
-          inputMode="numeric"
-          style={{ textTransform: 'uppercase' }}
-        />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FloatingField label="Número ou código da área">
+          <Input
+            value={formData.numero_area}
+            onChange={(e) => handleChange('numero_area', e.target.value.replace(/[^0-9]/g, ''))}
+            className="h-9 text-xs uppercase border-0 shadow-none focus-visible:ring-0"
+            inputMode="numeric"
+            style={{ textTransform: 'uppercase' }}
+          />
+        </FloatingField>
 
-        <Input
-          value={formData.area_total}
-          onChange={(e) => handleChange('area_total', e.target.value)}
-          placeholder="Área total (ha) *"
-          className={getFieldClassName('area_total', 'h-9 text-xs')}
-          readOnly
-        />
+        <FloatingField label="Área total (ha)" required error={invalidFields.includes('area_total')}>
+          <Input
+            value={formData.area_total}
+            onChange={(e) => handleChange('area_total', e.target.value)}
+            className="h-9 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            readOnly
+          />
+        </FloatingField>
 
-        <Input
-          value={formData.area_pastejada}
-          onChange={(e) => handleChange('area_pastejada', e.target.value)}
-          placeholder="Área pastejada ou arável (ha) *"
-          className={getFieldClassName('area_pastejada', 'h-9 text-xs')}
-        />
+        <FloatingField label="Área pastejada ou arável (ha)" required error={invalidFields.includes('area_pastejada')}>
+          <Input
+            value={formData.area_pastejada}
+            onChange={(e) => handleChange('area_pastejada', e.target.value)}
+            className="h-9 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+          />
+        </FloatingField>
 
-        <Input
-          value={formData.nome}
-          onChange={(e) => handleChange('nome', e.target.value)}
-          placeholder="Nome *"
-          className={getFieldClassName('nome', 'h-9 text-xs uppercase')}
-          style={{ textTransform: 'uppercase' }}
-        />
+        <FloatingField label="Nome" required error={invalidFields.includes('nome')}>
+          <Input
+            value={formData.nome}
+            onChange={(e) => handleChange('nome', e.target.value)}
+            className="h-9 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            style={{ textTransform: 'uppercase' }}
+          />
+        </FloatingField>
 
-        <Input
-          value={formData.sigla}
-          onChange={(e) => handleChange('sigla', e.target.value.toUpperCase())}
-          placeholder="Sigla"
-          className="h-9 text-xs uppercase"
-          style={{ textTransform: 'uppercase' }}
-          maxLength={10}
-        />
+        <FloatingField label="Sigla">
+          <Input
+            value={formData.sigla}
+            onChange={(e) => handleChange('sigla', e.target.value.toUpperCase())}
+            className="h-9 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            style={{ textTransform: 'uppercase' }}
+            maxLength={10}
+          />
+        </FloatingField>
 
-        <Select value={formData.setor_id || '__none__'} onValueChange={(value) => { const setor = setores.find((s) => s.id === value); handleChange('setor_id', value === '__none__' ? '' : value); handleChange('setor_nome', setor?.nome || ''); }}>
-          <SelectTrigger className={getFieldClassName('setor_id', 'h-9 text-xs')}>
-            <SelectValue placeholder="Setor *" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
-            {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <FloatingField label="Setor" required error={invalidFields.includes('setor_id')}>
+          <Select value={formData.setor_id || '__none__'} onValueChange={(value) => { const setor = setores.find((s) => s.id === value); handleChange('setor_id', value === '__none__' ? '' : value); handleChange('setor_nome', setor?.nome || ''); }}>
+            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FloatingField>
 
-        <Select value={formData.tipo_cultura} onValueChange={(v) => handleChange('tipo_cultura', v)}>
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Tipo de uso *" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIPOS_USO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <FloatingField label="Tipo de uso" required>
+          <Select value={formData.tipo_cultura} onValueChange={(v) => handleChange('tipo_cultura', v)}>
+            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIPOS_USO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FloatingField>
 
-        <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
-          <SelectTrigger className={getFieldClassName('tipo_pastagem', 'h-9 text-xs')}>
-            <SelectValue placeholder="Tipo de cultura *" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
-            {TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <FloatingField label="Tipo de cultura" required error={invalidFields.includes('tipo_pastagem')}>
+          <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
+            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+              {TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FloatingField>
 
-        <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Aproveitamento" />
-          </SelectTrigger>
-          <SelectContent>
-            {APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <FloatingField label="Aproveitamento">
+          <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
+            <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FloatingField>
 
-        <Textarea
-          value={formData.observacoes}
-          onChange={(e) => handleChange('observacoes', e.target.value)}
-          placeholder="Observação"
-          className="text-xs uppercase min-h-[60px]"
-          style={{ textTransform: 'uppercase' }}
-          rows={2}
-        />
+        <FloatingField label="Observação">
+          <Textarea
+            value={formData.observacoes}
+            onChange={(e) => handleChange('observacoes', e.target.value)}
+            className="text-xs uppercase min-h-[60px] border-0 shadow-none focus-visible:ring-0 bg-transparent"
+            style={{ textTransform: 'uppercase' }}
+            rows={2}
+          />
+        </FloatingField>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
           <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs px-4">
