@@ -82,7 +82,7 @@ export default function TabelaLancamentosTarefas({
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 99999 : 25);
   const [selectedItems, setSelectedItems] = useState([]);
   const [detalheTarefa, setDetalheTarefa] = useState(null);
   const [columnWidths, setColumnWidths] = useState(() => {
@@ -272,8 +272,9 @@ export default function TabelaLancamentosTarefas({
     return sorted;
   }, [tarefasFiltradas, sortConfig, normalizeTaskPriority]);
 
-  const totalPages = Math.max(1, Math.ceil(tarefasOrdenadas.length / itemsPerPage));
-  const tarefasPaginadas = tarefasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const effectiveItemsPerPage = isMobile ? tarefasOrdenadas.length || 1 : itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(tarefasOrdenadas.length / effectiveItemsPerPage));
+  const tarefasPaginadas = isMobile ? tarefasOrdenadas : tarefasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
@@ -421,6 +422,7 @@ export default function TabelaLancamentosTarefas({
 
     return (
       <DropdownMenu
+        modal={true}
         open={menuFiltroAberto === colunaId}
         onOpenChange={(open) => {
           setMenuFiltroAberto(open ? colunaId : null);
@@ -519,9 +521,9 @@ export default function TabelaLancamentosTarefas({
   return (
     <div className="space-y-1">
       <Card>
-        <CardContent className="p-0" style={isMobile ? { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 270px)' } : undefined}>
-          <div className={`relative ${isMobile ? 'flex-1 min-h-0' : ''}`}>
-            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? '' : 'max-h-[calc(100vh-220px)]'} ${isMobile ? 'h-full' : ''} overscroll-x-contain overscroll-y-contain`}>
+        <CardContent className="p-0">
+          <div className="relative">
+            <div ref={scrollContainerRef} className={`relative w-full overflow-x-auto overflow-y-auto ${isMobile ? 'max-h-[calc(100vh-230px)]' : 'max-h-[calc(100vh-220px)]'} overscroll-x-contain overscroll-y-contain`}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
@@ -659,7 +661,7 @@ export default function TabelaLancamentosTarefas({
             </div>
           </div>
 
-          <div className="flex-shrink-0 flex items-center justify-between p-1 border-t bg-white">
+          {!isMobile && <div className="flex items-center justify-between p-1 border-t bg-white">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Itens por página:</span>
               <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
@@ -670,12 +672,12 @@ export default function TabelaLancamentosTarefas({
               </Select>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-slate-500 hidden md:inline">{tarefasOrdenadas.length} registros</span>
+              <span className="text-xs text-slate-500">{tarefasOrdenadas.length} registros</span>
               <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="h-7 text-xs">Anterior</Button>
               <span className="text-xs text-slate-600">Página {currentPage} de {totalPages}</span>
               <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="h-7 text-xs">Próxima</Button>
             </div>
-          </div>
+          </div>}
         </CardContent>
       </Card>
 
