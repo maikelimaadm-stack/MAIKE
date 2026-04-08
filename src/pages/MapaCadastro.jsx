@@ -16,11 +16,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import TabelaAreasGeo from "../components/mapa/TabelaAreasGeo";
 import TabelaPontosGeo from "../components/mapa/TabelaPontosGeo";
 import TabelaLinhasGeo from "../components/mapa/TabelaLinhasGeo";
@@ -298,26 +298,26 @@ export default function MapaCadastro() {
 
       {showSelecaoMapa && <SelecaoAreasMapa onClose={() => { setShowSelecaoMapa(false); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} />}
 
-      <Dialog open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea} modal={false}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader><DialogTitle className="text-sm">Editar Detalhes da Área</DialogTitle></DialogHeader>
+      <Sheet open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader><SheetTitle>Editar Detalhes da Área</SheetTitle></SheetHeader>
           {itemDetalhes && <FormularioArea coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => { setShowEditarDetalhesArea(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} onCancel={() => { setShowEditarDetalhesArea(false); setItemDetalhes(null); }} />}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={showEditarDetalhesPonto} onOpenChange={setShowEditarDetalhesPonto} modal={false}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader><DialogTitle className="text-sm">Editar Detalhes do Ponto</DialogTitle></DialogHeader>
+      <Sheet open={showEditarDetalhesPonto} onOpenChange={setShowEditarDetalhesPonto}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader><SheetTitle>Editar Detalhes do Ponto</SheetTitle></SheetHeader>
           {itemDetalhes && <FormularioPonto coordenadas={itemDetalhes.coordenadas} item={itemDetalhes} onSave={() => { setShowEditarDetalhesPonto(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ['pontos', 'pontos-suplementacao', 'mapa-pontos', 'mapa-pontos-supl'].includes(q.queryKey[0]) }); window.dispatchEvent(new CustomEvent('atualizar-mapa')); }} onCancel={() => { setShowEditarDetalhesPonto(false); setItemDetalhes(null); }} />}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={showEditarDetalhesLinha} onOpenChange={setShowEditarDetalhesLinha} modal={false}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader><DialogTitle className="text-sm">Editar Detalhes da Linha</DialogTitle></DialogHeader>
+      <Sheet open={showEditarDetalhesLinha} onOpenChange={setShowEditarDetalhesLinha}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader><SheetTitle>Editar Detalhes da Linha</SheetTitle></SheetHeader>
           {itemDetalhes && <FormularioLinha coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => { setShowEditarDetalhesLinha(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'linhas' }); }} onCancel={() => { setShowEditarDetalhesLinha(false); setItemDetalhes(null); }} />}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

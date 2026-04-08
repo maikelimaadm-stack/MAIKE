@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target, RotateCcw, RotateCw, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import FormularioArea from "./FormularioArea";
 import FormularioPonto from "./FormularioPonto";
 import FormularioLinha from "./FormularioLinha";
@@ -445,6 +445,7 @@ const redoStackRef = useRef([]);
           setCurrentMarker({ lat: newLat, lng: newLng });
           if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
         });
+        setShowFormularioPonto(true);
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
@@ -1035,11 +1036,11 @@ const redoStackRef = useRef([]);
         )}
       </div>
 
-      <Dialog open={showFormularioArea} onOpenChange={setShowFormularioArea} modal={false}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="text-sm">{itemEditando ? 'Editar Área' : 'Cadastrar Área'}</DialogTitle>
-          </DialogHeader>
+      <Sheet open={showFormularioArea} onOpenChange={setShowFormularioArea}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{itemEditando ? 'Editar Área' : 'Cadastrar Área'}</SheetTitle>
+          </SheetHeader>
           <FormularioArea
             coordenadas={currentPoints}
             usarGPS={usarGPS}
@@ -1052,14 +1053,14 @@ const redoStackRef = useRef([]);
             }}
             onCancel={() => setShowFormularioArea(false)}
           />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={showFormularioPonto} onOpenChange={setShowFormularioPonto} modal={false}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="text-sm">{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</DialogTitle>
-          </DialogHeader>
+      <Sheet open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</SheetTitle>
+          </SheetHeader>
           <FormularioPonto
             coordenadas={currentMarker}
             usarGPS={usarGPS}
@@ -1076,14 +1077,14 @@ const redoStackRef = useRef([]);
               cancelarDesenho();
             }}
           />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={showFormularioLinha} onOpenChange={setShowFormularioLinha} modal={false}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="text-sm">{itemEditando ? 'Editar Linha' : 'Cadastrar Linha'}</DialogTitle>
-          </DialogHeader>
+      <Sheet open={showFormularioLinha} onOpenChange={setShowFormularioLinha}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{itemEditando ? 'Editar Linha' : 'Cadastrar Linha'}</SheetTitle>
+          </SheetHeader>
           <FormularioLinha
             coordenadas={currentPoints}
             usarGPS={usarGPS}
@@ -1096,8 +1097,8 @@ const redoStackRef = useRef([]);
             }}
             onCancel={() => setShowFormularioLinha(false)}
           />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
