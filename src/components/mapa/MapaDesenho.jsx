@@ -79,7 +79,8 @@ const redoStackRef = useRef([]);
 
   const pointMarkersRef = useRef([]);
   const midPointMarkersRef = useRef([]);
-  const isMapDraggingRef = useRef(false);
+  const mouseDownPosRef = useRef(null);
+  const mouseDownTimeRef = useRef(0);
 
   useEffect(() => {
     currentPointsRef.current = currentPoints;
@@ -128,36 +129,75 @@ const redoStackRef = useRef([]);
 
   const findNearestPoint = (mouseLatLng, map) => {
     if (!snappingEnabled) return null;
-
     const projection = map.getProjection();
     if (!projection) return null;
 
+    const scale = Math.pow(2, map.getZoom());
     const mousePoint = projection.fromLatLngToPoint(mouseLatLng);
+    const mx = mousePoint.x * scale;
+    const my = mousePoint.y * scale;
     let nearestPoint = null;
-    let minDistance = Infinity;
+    let minPixelDist = Infinity;
 
-    const evaluateCoord = (coord) => {
-      const lat = coord[0] || coord.lat;
-      const lng = coord[1] || coord.lng;
-      const point = projection.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
-      const distance = Math.sqrt(Math.pow(point.x - mousePoint.x, 2) + Math.pow(point.y - mousePoint.y, 2));
-      const scale = Math.pow(2, map.getZoom());
-      const pixelDistance = distance * scale;
-
-      if (pixelDistance < SNAP_DISTANCE && pixelDistance < minDistance) {
-        minDistance = pixelDistance;
+    // Helper: avaliar um ponto (vértice)
+    const evaluateVertex = (lat, lng) => {
+      const pt = projection.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
+      const dx = pt.x * scale - mx;
+      const dy = pt.y * scale - my;
+      const pixelDist = Math.sqrt(dx * dx + dy * dy);
+      if (pixelDist < SNAP_DISTANCE && pixelDist < minPixelDist) {
+        minPixelDist = pixelDist;
         nearestPoint = { lat, lng };
+      }
+    };
+
+    // Helper: avaliar projeção no segmento entre A e B
+    const evaluateSegment = (latA, lngA, latB, lngB) => {
+      const pA = projection.fromLatLngToPoint(new google.maps.LatLng(latA, lngA));
+      const pB = projection.fromLatLngToPoint(new google.maps.LatLng(latB, lngB));
+      const ax = pA.x * scale, ay = pA.y * scale;
+      const bx = pB.x * scale, by = pB.y * scale;
+      const abx = bx - ax, aby = by - ay;
+      const lenSq = abx * abx + aby * aby;
+      if (lenSq === 0) return;
+      let t = ((mx - ax) * abx + (my - ay) * aby) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+      const projX = ax + t * abx;
+      const projY = ay + t * aby;
+      const dx = projX - mx;
+      const dy = projY - my;
+      const pixelDist = Math.sqrt(dx * dx + dy * dy);
+      if (pixelDist < SNAP_DISTANCE && pixelDist < minPixelDist) {
+        minPixelDist = pixelDist;
+        // Converter pixel de volta para LatLng
+        const worldPt = new google.maps.Point(projX / scale, projY / scale);
+        const ll = projection.fromPointToLatLng(worldPt);
+        nearestPoint = { lat: ll.lat(), lng: ll.lng() };
+      }
+    };
+
+    const processCoords = (coords, isPolygon) => {
+      const parsed = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      // Vértices primeiro (prioridade)
+      parsed.forEach(p => evaluateVertex(p.lat, p.lng));
+      // Segmentos
+      for (let i = 0; i < parsed.length - 1; i++) {
+        evaluateSegment(parsed[i].lat, parsed[i].lng, parsed[i + 1].lat, parsed[i + 1].lng);
+      }
+      // Fechar polígono
+      if (isPolygon && parsed.length >= 3) {
+        evaluateSegment(parsed[parsed.length - 1].lat, parsed[parsed.length - 1].lng, parsed[0].lat, parsed[0].lng);
       }
     };
 
     areas.forEach(area => {
       const coords = area.coordenadas?.coords || [];
-      coords.forEach(evaluateCoord);
+      if (coords.length >= 2) processCoords(coords, true);
     });
 
     linhas.forEach(linha => {
       const coords = linha.coordenadas?.coords || [];
-      coords.forEach(evaluateCoord);
+      if (coords.length >= 2) processCoords(coords, false);
     });
 
     return nearestPoint;
@@ -331,19 +371,22 @@ const redoStackRef = useRef([]);
   useEffect(() => {
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
-    const handleMapClick = (e) => {
-      if (!e?.latLng || isMapDraggingRef.current) return;
+    const MAX_CLICK_DURATION = 350; // ms
+    const MAX_CLICK_DISTANCE = 8;   // pixels
+
+    const handleAddPoint = (e) => {
+      if (!e?.latLng) return;
 
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
-      
+
       const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
       if (snappedPoint) {
         lat = snappedPoint.lat;
         lng = snappedPoint.lng;
         toast.success('🧲 Encaixado!', { duration: 600 });
       }
-      
+
       if (tipoDesenho === 'ponto') {
         setCurrentMarker({ lat, lng });
         if (tempMarkerRef.current) {
@@ -354,8 +397,8 @@ const redoStackRef = useRef([]);
           map: mapInstanceRef.current,
           draggable: true
         });
-        tempMarkerRef.current.addListener('dragend', (e) => {
-          let latLng = e.latLng;
+        tempMarkerRef.current.addListener('dragend', (ev) => {
+          let latLng = ev.latLng;
           const snap = findNearestPoint(latLng, mapInstanceRef.current);
           const newLat = snap ? snap.lat : latLng.lat();
           const newLng = snap ? snap.lng : latLng.lng();
@@ -375,22 +418,45 @@ const redoStackRef = useRef([]);
       }
     };
 
-    const dragStartListener = google.maps.event.addListener(mapInstanceRef.current, 'dragstart', () => {
-      isMapDraggingRef.current = true;
+    // Registrar posição do mouse/toque ao pressionar
+    const mapDiv = mapInstanceRef.current.getDiv();
+    const onPointerDown = (ev) => {
+      mouseDownPosRef.current = { x: ev.clientX, y: ev.clientY };
+      mouseDownTimeRef.current = Date.now();
+    };
+    mapDiv.addEventListener('pointerdown', onPointerDown, { passive: true });
+
+    // Usar mouseup no mapa do Google para capturar a posição geográfica
+    const mouseUpListener = google.maps.event.addListener(mapInstanceRef.current, 'mouseup', (e) => {
+      if (!mouseDownPosRef.current) return;
+      const elapsed = Date.now() - mouseDownTimeRef.current;
+      // Em touch, não temos clientX no evento do Google Maps, usar elapsed apenas
+      const isMobile = 'ontouchstart' in window;
+      if (!isMobile && e?.domEvent) {
+        const dx = e.domEvent.clientX - mouseDownPosRef.current.x;
+        const dy = e.domEvent.clientY - mouseDownPosRef.current.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > MAX_CLICK_DISTANCE || elapsed > MAX_CLICK_DURATION) {
+          mouseDownPosRef.current = null;
+          return;
+        }
+      } else {
+        if (elapsed > MAX_CLICK_DURATION) {
+          mouseDownPosRef.current = null;
+          return;
+        }
+      }
+      mouseDownPosRef.current = null;
+      handleAddPoint(e);
     });
-    const dragEndListener = google.maps.event.addListener(mapInstanceRef.current, 'dragend', () => {
-      setTimeout(() => {
-        isMapDraggingRef.current = false;
-      }, 0);
-    });
-    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
+
     const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, 'dblclick', (e) => {
       if (e?.stop) e.stop();
     });
+
     return () => {
-      google.maps.event.removeListener(dragStartListener);
-      google.maps.event.removeListener(dragEndListener);
-      google.maps.event.removeListener(clickListener);
+      mapDiv.removeEventListener('pointerdown', onPointerDown);
+      google.maps.event.removeListener(mouseUpListener);
       google.maps.event.removeListener(dblClickListener);
     };
   }, [tipoDesenho, mapReady, itemEditando]);
