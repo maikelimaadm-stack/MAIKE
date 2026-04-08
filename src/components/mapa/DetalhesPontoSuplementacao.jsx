@@ -348,15 +348,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
       <CardSection title="Informações do Cocho">
         <div className="space-y-1 text-[10px]">
-          {iconeExibicao &&
-          <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
-              <img src={iconeExibicao} alt={ponto.nome_ponto} className="w-10 h-10 object-contain" />
-              <div>
-                <div className="font-semibold text-slate-900">{ponto.nome_ponto}</div>
-                <div className="text-slate-500">{ponto.categoria_ponto || 'COCHO'} • {ponto.status || 'Ativo'}</div>
-              </div>
-            </div>
-          }
+          
+
+
+
+
+
+
+
+          
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Número:</span><span className="font-semibold text-slate-900">{ponto.numero_ponto || '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sigla:</span><span className="font-semibold text-slate-900">{ponto.sigla || '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo || '-'}</span></div>
