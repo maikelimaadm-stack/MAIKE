@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -88,24 +88,15 @@ export default function CadastroMaquinas() {
 
       <AnimatePresence mode="wait">
         {showForm ? (
-          <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <Card className="shadow-sm border-slate-300">
-              <CardHeader className="bg-white border-b border-slate-200 py-3 px-4">
-                <CardTitle className="text-sm font-semibold text-slate-900">{editingMaquina ? "Editar Máquina" : "Nova Máquina"}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <FormularioMaquina
-                  maquina={editingMaquina}
-                  onSave={() => {
-                    setShowForm(false);
-                    setEditingMaquina(null);
-                    queryClient.invalidateQueries({ queryKey: ["maquinas"] });
-                  }}
-                  onCancel={() => { setShowForm(false); setEditingMaquina(null); }}
-                />
-              </CardContent>
-            </Card>
-          </motion.div>
+          <FormularioMaquina
+            maquina={editingMaquina}
+            onSave={() => {
+              setShowForm(false);
+              setEditingMaquina(null);
+              queryClient.invalidateQueries({ queryKey: ["maquinas"] });
+            }}
+            onCancel={() => { setShowForm(false); setEditingMaquina(null); }}
+          />
         ) : (
           <motion.div key="table" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-1">
             {isDeletingBulk && (
