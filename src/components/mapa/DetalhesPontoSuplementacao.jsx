@@ -289,7 +289,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Duração estimada</div>
                   <div className="text-sm font-bold text-slate-900">{baseDuracaoTotal > 0 ? `${formatDecimal(baseDuracaoTotal, 0, true)} dia(s)` : '-'}</div>
-                  {diasRestantes > 0 && <div className="text-[9px] text-slate-500 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
+                  {diasRestantes > 0 && <div className="text-[11px] text-slate-500 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Próxima Reposição</div>
