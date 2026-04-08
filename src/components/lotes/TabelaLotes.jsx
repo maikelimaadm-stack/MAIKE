@@ -405,7 +405,7 @@ export default function TabelaLotes({
                           }
 
                           {isResizing &&
-                          <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-900 bg-opacity-8 "
+                          <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-900 bg-opacity-50 "
 
                           onMouseDown={(e) => startDragResize(e, coluna.id)}
                           onTouchStart={(e) => startDragResize(e, coluna.id)}
