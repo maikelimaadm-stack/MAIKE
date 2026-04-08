@@ -1,7 +1,7 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import FormularioTarefaMapa from "@/components/mapa/FormularioTarefaMapa";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
@@ -98,9 +98,6 @@ export default function LancamentoTarefaForm() {
 
   return (
     <div className="p-1 md:p-1 space-y-1 overflow-x-hidden" style={{ overscrollBehavior: 'none' }}>
-      <div className="bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-        <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar Lançamento de Tarefa" : "Lançar Tarefa"}</h1>
-      </div>
 
       {isLoading ?
       <div className="text-xs text-slate-500 p-4">Carregando...</div> :

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -276,66 +277,71 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 p-1 md:p-5 overflow-x-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-y pinch-zoom' }}>
-      <div className="rounded-xl border bg-card shadow-sm p-3 md:p-4 space-y-3">
-        <div className="space-y-0.5">
-          <h3 className="text-sm font-bold text-slate-900">DADOS PRINCIPAIS</h3>
-          <p className="text-xs text-slate-600">Informe o que precisa ser feito e vincule a tarefa ao local correto.</p>
-        </div>
-        <div className="space-y-1 lg:col-span-2">
-          <Label className="text-xs">Título da tarefa *</Label>
-          <Input
-          data-field="titulo"
-          value={formData.titulo}
-          onChange={(e) => {
-            setErrors((prev) => ({ ...prev, titulo: false }));
-            setFormData((prev) => ({ ...prev, titulo: e.target.value }));
-          }}
-          placeholder="EX: CERCA QUEBRADA NA DIVISA" className={getFieldClassName("titulo", "h-8 text-xs uppercase")} />
-          <p className="text-[11px] text-slate-500">Use um título curto e direto para facilitar a identificação da tarefa.</p>
-        </div>
+    <form onSubmit={handleSubmit} className="overflow-x-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-y pinch-zoom' }}>
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-700">
+            {tarefa ? "Editar Tarefa" : "Lançar Nova Tarefa"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-1">
+          <div className="space-y-1">
+            <div className="space-y-1">
+              <Label className="text-xs">Título da tarefa *</Label>
+              <Input
+                data-field="titulo"
+                value={formData.titulo}
+                onChange={(e) => {
+                  setErrors((prev) => ({ ...prev, titulo: false }));
+                  setFormData((prev) => ({ ...prev, titulo: e.target.value }));
+                }}
+                placeholder="EX: CERCA QUEBRADA NA DIVISA"
+                className={getFieldClassName("titulo", "h-7 text-xs uppercase")}
+                style={{ textTransform: "uppercase" }}
+              />
+            </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Fazenda</Label>
           <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
               const setor = setores.find((item) => item.id === value);
               setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
               setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" }));
             }} disabled={Boolean(areaId || loteId)}>
-            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione a fazenda" /></SelectTrigger>
+            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="__sem_setor__" className="text-xs uppercase">Sem fazenda</SelectItem>
-              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">{setor.nome}</SelectItem>)}
+              <SelectItem value="__sem_setor__" className="text-xs">SELECIONE</SelectItem>
+              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{(setor.nome || "").toUpperCase()}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
 
         {!areaId && !loteId ?
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-xs">Local / pasto</Label>
             <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
-              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione o local" : "Selecione a fazenda primeiro"} /></SelectTrigger>
-              <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue placeholder={setorSelecionadoId ? "SELECIONE" : "SELECIONE A FAZENDA PRIMEIRO"} /></SelectTrigger>
+              <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{(area.nome || "").toUpperCase()}</SelectItem>)}</SelectContent>
             </Select>
           </div> :
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-xs">Local / pasto</Label>
-            <Input value={formData.area_nome || formData.lote_nome} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
+            <Input value={(formData.area_nome || formData.lote_nome || "").toUpperCase()} readOnly className="h-7 text-xs bg-slate-50 uppercase" />
           </div>
           }
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Grupo de atividade *</Label>
           <div data-field="grupo_atividade_id">
             <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
-              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase">
-                <SelectValue placeholder="Selecione o grupo" />
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
+                <SelectValue placeholder="SELECIONE" />
               </SelectTrigger>
               <SelectContent>
                 {gruposAtividade.map((grupo) =>
-                  <SelectItem key={grupo.id} value={grupo.id} className="text-xs uppercase">{grupo.nome_grupo}</SelectItem>
+                  <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{(grupo.nome_grupo || "").toUpperCase()}</SelectItem>
                   )}
               </SelectContent>
             </Select>
@@ -344,19 +350,16 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         
 
-
-        
-
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Tipo de tarefa *</Label>
           <div data-field="tipo_tarefa_id">
             <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
-              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase">
-                <SelectValue placeholder={formData.grupo_atividade_id ? "Selecione o tipo" : "Selecione o grupo primeiro"} />
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs">
+                <SelectValue placeholder={formData.grupo_atividade_id ? "SELECIONE" : "SELECIONE O GRUPO PRIMEIRO"} />
               </SelectTrigger>
               <SelectContent>
                 {tiposTarefaFiltrados.map((tipo) =>
-                  <SelectItem key={tipo.id} value={tipo.id} className="text-xs uppercase">{tipo.nome_tipo}</SelectItem>
+                  <SelectItem key={tipo.id} value={tipo.id} className="text-xs">{(tipo.nome_tipo || "").toUpperCase()}</SelectItem>
                   )}
               </SelectContent>
             </Select>
@@ -364,118 +367,111 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Responsável</Label>
           <div data-field="responsavel_id">
             <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
-              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
               <SelectContent>
                 {usuariosOrdenados.map((item) => {
                     const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email);
-                    return <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{getPermissionDisplayName(permissao?.data || permissao, item)}</SelectItem>;
+                    return <SelectItem key={item.id} value={item.id} className="text-xs">{getPermissionDisplayName(permissao?.data || permissao, item).toUpperCase()}</SelectItem>;
                   })}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Solicitante</Label>
           <div data-field="solicitante">
             <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
-              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
+              <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
               <SelectContent>
                 {usuariosOrdenados.map((item) => {
                     const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email);
                     const nome = getPermissionDisplayName(permissao?.data || permissao, item);
-                    return <SelectItem key={item.id} value={nome} className="text-xs uppercase">{nome}</SelectItem>;
+                    return <SelectItem key={item.id} value={nome} className="text-xs">{nome.toUpperCase()}</SelectItem>;
                   })}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Prioridade</Label>
           <Select value={formData.prioridade} onValueChange={(value) => setFormData((prev) => ({ ...prev, prioridade: value }))}>
-            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Baixa" className="text-xs uppercase">Baixa</SelectItem>
-              <SelectItem value="Média" className="text-xs uppercase">Média</SelectItem>
-              <SelectItem value="Alta" className="text-xs uppercase">Alta</SelectItem>
+              <SelectItem value="Baixa" className="text-xs">BAIXA</SelectItem>
+              <SelectItem value="Média" className="text-xs">MÉDIA</SelectItem>
+              <SelectItem value="Alta" className="text-xs">ALTA</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs">Status</Label>
           <Select value={formData.status} onValueChange={(value) => {
               setErrors((prev) => ({ ...prev, data_conclusao: false }));
               setFormData((prev) => ({ ...prev, status: value }));
             }}>
-            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Pendente" className="text-xs uppercase">Pendente</SelectItem>
-              <SelectItem value="Em Andamento" className="text-xs uppercase">Em andamento</SelectItem>
-              <SelectItem value="Concluída" className="text-xs uppercase">Concluída</SelectItem>
-              <SelectItem value="Cancelada" className="text-xs uppercase">Cancelada</SelectItem>
+              <SelectItem value="Pendente" className="text-xs">PENDENTE</SelectItem>
+              <SelectItem value="Em Andamento" className="text-xs">EM ANDAMENTO</SelectItem>
+              <SelectItem value="Concluída" className="text-xs">CONCLUÍDA</SelectItem>
+              <SelectItem value="Cancelada" className="text-xs">CANCELADA</SelectItem>
             </SelectContent>
           </Select>
         </div>
         </div>
-      </div>
 
-      <div className="rounded-xl border bg-card shadow-sm p-3 md:p-4 space-y-3">
-        <div className="space-y-0.5">
-          <h3 className="text-sm font-bold text-slate-900">PRAZOS E DETALHES</h3>
-          <p className="text-xs text-slate-600">Defina datas, prioridade, status e complemente as instruções da execução.</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 pt-1 border-t">
+          <div className="space-y-1">
             <Label className="text-xs">Data do pedido *</Label>
             <div data-field="data_pedido">
               <Input type="date" value={formData.data_pedido} onChange={(e) => {
                   setErrors((prev) => ({ ...prev, data_pedido: false }));
                   setFormData((prev) => ({ ...prev, data_pedido: e.target.value }));
-                }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+                }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-xs">Prazo previsto</Label>
             <Input
               type="date"
               value={formData.data_prevista}
               onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase"
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs"
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-xs">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
             <div data-field="data_conclusao">
               <Input type="date" value={formData.data_conclusao} onChange={(e) => {
                   setErrors((prev) => ({ ...prev, data_conclusao: false }));
                   setFormData((prev) => ({ ...prev, data_conclusao: e.target.value }));
-                }} className="rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs uppercase" />
+                }} className="flex w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-7 text-xs" />
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-          <div>
+          <div className="space-y-1">
             <Label className="text-xs">Descrição da tarefa</Label>
-            <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO, O PROBLEMA ENCONTRADO OU A ORIENTAÇÃO DA EXECUÇÃO" className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[100px] text-xs uppercase" />
+            <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO" className="text-xs uppercase" style={{ textTransform: "uppercase" }} rows={2} />
           </div>
 
-          <div>
+          <div className="space-y-1">
             <Label className="text-xs">Observações internas</Label>
-            <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} placeholder="INFORME DETALHES COMPLEMENTARES, ALERTAS OU ORIENTAÇÕES INTERNAS" className="min-h-[100px] text-xs uppercase" />
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase" style={{ textTransform: "uppercase" }} rows={2} />
           </div>
         </div>
 
-        <div className="space-y-1.5 lg:col-span-2">
+        <div className="space-y-1 lg:col-span-2">
           <Label className="text-xs">Local da tarefa no mapa</Label>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
             {(formData.area_nome || formData.lote_nome) && <div className="text-xs text-slate-600"><span className="font-medium">VINCULADO A:</span> {formData.area_nome || formData.lote_nome}</div>}
@@ -498,11 +494,17 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
         </div>
 
-        <div className="flex justify-end gap-1 pt-3 border-t">
-          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
-          <Button type="submit" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">{tarefa ? "Salvar tarefa" : "Criar tarefa"}</Button>
+        <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-7 text-xs">
+            Cancelar
+          </Button>
+          <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-500">
+            {tarefa ? "Atualizar" : "Salvar"}
+          </Button>
         </div>
       </div>
+        </CardContent>
+      </Card>
 
       {!onRequestSelectLocation &&
       <TaskLocationPickerDialog
