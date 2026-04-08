@@ -122,6 +122,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     const source = tarefa || initialDraft || {};
     const sourceAreaId = source.area_id || areaId || "";
     const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
+    // Fallback: find setor by name when area is not found in areas list
+    const setorIdResolve = areaSelecionada?.setor_id
+      || (source.setor_nome ? setores.find((s) => s.nome === source.setor_nome)?.id : "")
+      || "";
     setFormData((prev) => ({
       id: source.id || "",
       titulo: source.titulo || "",
@@ -149,9 +153,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       ponto_suplementacao_id: source.ponto_suplementacao_id || prev.ponto_suplementacao_id || pontoSuplId || "",
       coordenadas: source.coordenadas || prev.coordenadas || initialCoordinates || null
     }));
-    setSetorSelecionadoId(areaSelecionada?.setor_id || "");
+    setSetorSelecionadoId(setorIdResolve);
     setErrors({});
-  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas, nomeUsuarioAtual]);
+  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas, setores, nomeUsuarioAtual]);
 
   useEffect(() => {
     const areaSelecionada = areas.find((item) => item.id === formData.area_id);
