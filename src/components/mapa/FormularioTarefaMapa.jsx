@@ -89,44 +89,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const nomeUsuarioAtual = useMemo(() => getUserDisplayName(usuarioAtual), [usuarioAtual]);
 
-  const [formData, setFormData] = useState({
-    id: tarefa?.id || initialDraft?.id || "",
-    titulo: "",
-    descricao: "",
-    tipo: "Manejo",
-    tipo_tarefa_id: "",
-    tipo_tarefa_nome: "",
-    grupo_atividade_id: "",
-    grupo_atividade_nome: "",
-    solicitante: "",
-    data_pedido: "",
-    data_prevista: "",
-    data_conclusao: "",
-    setor_nome: "",
-    prioridade: "Média",
-    status: "Pendente",
-    responsavel_id: "",
-    responsavel: "",
-    responsavel_geral: "",
-    observacoes: "",
-    area_id: areaId || "",
-    area_nome: areaNome || "",
-    lote_id: loteId || "",
-    lote_nome: loteNome || "",
-    ponto_suplementacao_id: pontoSuplId || "",
-    coordenadas: initialCoordinates || null
-  });
-  const [errors, setErrors] = useState({});
+  const sourceRef = React.useRef(tarefa || initialDraft || {});
+  const initializedRef = React.useRef(false);
 
-  useEffect(() => {
-    const source = tarefa || initialDraft || {};
+  const buildFormFromSource = (source, prevFormData) => {
     const sourceAreaId = source.area_id || areaId || "";
     const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
-    // Fallback: find setor by name when area is not found in areas list
-    const setorIdResolve = areaSelecionada?.setor_id
-      || (source.setor_nome ? setores.find((s) => s.nome === source.setor_nome)?.id : "")
-      || "";
-    setFormData((prev) => ({
+    return {
       id: source.id || "",
       titulo: source.titulo || "",
       descricao: source.descricao || "",
@@ -150,14 +119,57 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       area_nome: source.area_nome || areaNome || areaSelecionada?.nome || "",
       lote_id: source.lote_id || loteId || "",
       lote_nome: source.lote_nome || loteNome || "",
-      ponto_suplementacao_id: source.ponto_suplementacao_id || prev.ponto_suplementacao_id || pontoSuplId || "",
-      coordenadas: source.coordenadas || prev.coordenadas || initialCoordinates || null
-    }));
+      ponto_suplementacao_id: source.ponto_suplementacao_id || (prevFormData?.ponto_suplementacao_id) || pontoSuplId || "",
+      coordenadas: source.coordenadas || (prevFormData?.coordenadas) || initialCoordinates || null
+    };
+  };
+
+  const [formData, setFormData] = useState(() => buildFormFromSource(sourceRef.current, null));
+  const [errors, setErrors] = useState({});
+
+  // Initialize form ONCE when tarefa/initialDraft changes (not on areas/setores reload)
+  useEffect(() => {
+    const source = tarefa || initialDraft || {};
+    sourceRef.current = source;
+    initializedRef.current = false;
+    const newForm = buildFormFromSource(source, null);
+    setFormData(newForm);
+    // Resolve setor immediately if possible
+    const sourceAreaId = source.area_id || areaId || "";
+    const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
+    const setorIdResolve = areaSelecionada?.setor_id
+      || (source.setor_nome ? setores.find((s) => s.nome === source.setor_nome)?.id : "")
+      || "";
     setSetorSelecionadoId(setorIdResolve);
     setErrors({});
-  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, areas, setores, nomeUsuarioAtual]);
+  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates]);
 
+  // When areas/setores finish loading, resolve setor WITHOUT resetting form fields
   useEffect(() => {
+    if (!areas.length && !setores.length) return;
+    const source = sourceRef.current;
+    const sourceAreaId = source.area_id || areaId || "";
+    if (!sourceAreaId && !source.setor_nome) return;
+    const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
+    const setorIdResolve = areaSelecionada?.setor_id
+      || (source.setor_nome ? setores.find((s) => s.nome === source.setor_nome)?.id : "")
+      || "";
+    if (setorIdResolve && setorIdResolve !== setorSelecionadoId) {
+      setSetorSelecionadoId(setorIdResolve);
+    }
+    // Only update area_nome / setor_nome if they were empty (don't overwrite user edits)
+    if (areaSelecionada) {
+      setFormData((prev) => ({
+        ...prev,
+        area_nome: prev.area_nome || areaSelecionada.nome || "",
+        setor_nome: prev.setor_nome || areaSelecionada.setor_nome || ""
+      }));
+    }
+  }, [areas, setores]);
+
+  // Sync setor when user changes area_id manually via Select
+  useEffect(() => {
+    if (!formData.area_id) return;
     const areaSelecionada = areas.find((item) => item.id === formData.area_id);
     if (!areaSelecionada) return;
     if (setorSelecionadoId !== areaSelecionada.setor_id) {
@@ -166,7 +178,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     if (formData.setor_nome !== areaSelecionada.setor_nome) {
       setFormData((prev) => ({ ...prev, setor_nome: areaSelecionada.setor_nome || "" }));
     }
-  }, [areas, formData.area_id, formData.setor_nome, setorSelecionadoId]);
+  }, [formData.area_id, areas]);
 
   const areasDoSetor = setorSelecionadoId ? getAreasBySetor(setorSelecionadoId) : [];
   const tiposTarefaFiltrados = formData.grupo_atividade_id ?
