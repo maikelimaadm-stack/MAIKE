@@ -92,13 +92,25 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
   const handleCapturaGPS = (pontos) => { setCoordenadasGPS(pontos); setMostrarCapturaGPS(false); toast.success(`${pontos.length} pontos capturados via GPS!`); };
 
+  const formatHa = (val) => {
+    if (!val && val !== 0) return '';
+    const num = parseFloat(String(val).replace(',', '.'));
+    if (isNaN(num)) return String(val);
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const parseHa = (str) => {
+    // Aceita entrada do usuário no formato pt-BR: remove pontos de milhar, troca vírgula por ponto
+    return str.replace(/\./g, '').replace(',', '.');
+  };
+
   React.useEffect(() => {
     const coords = coordenadasGPS || coordenadas;
     if (window.google?.maps?.geometry && coords && coords.length >= 3) {
       const polygon = new google.maps.Polygon({ paths: coords.map((c) => new google.maps.LatLng(c.lat, c.lng)) });
       const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
-      const areaHa = (areaM2 / 10000).toFixed(2);
-      setFormData((prev) => ({ ...prev, area_total: areaHa }));
+      const areaHa = (areaM2 / 10000);
+      setFormData((prev) => ({ ...prev, area_total: formatHa(areaHa) }));
     }
   }, [coordenadasGPS, coordenadas]);
 
@@ -129,8 +141,8 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
       tipo_pastagem: formData.tipo_pastagem,
-      tamanho_hectares: parseFloat(String(formData.area_total).replace(',', '.')) || tamanhoHectares,
-      area_pastejada: parseFloat(String(formData.area_pastejada).replace(',', '.')) || 0,
+      tamanho_hectares: parseFloat(parseHa(String(formData.area_total))) || tamanhoHectares,
+      area_pastejada: parseFloat(parseHa(String(formData.area_pastejada))) || 0,
       observacoes: formData.observacoes?.toUpperCase(),
       cor: formData.cor,
     });
@@ -141,62 +153,122 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   }
 
   return (
-    <div className="mt-4">
-      <div className="rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
-        <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Área' : 'Nova Área'}</div>
-        </div>
-        <div className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-1">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-        <div className="space-y-1 lg:col-span-2">
-          <Label className="text-xs">Nome do Pasto *</Label>
-          <Input value={formData.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder="NOME DO PASTO" className={getFieldClassName('nome', 'h-7 text-xs uppercase')} style={{ textTransform: 'uppercase' }} />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Sigla</Label>
-          <Input value={formData.sigla} onChange={(e) => handleChange('sigla', e.target.value.toUpperCase())} placeholder="SIGLA" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} maxLength={10} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-        <div className="space-y-1">
-          <Label className="text-xs">Número/Código</Label>
-          <Input value={formData.numero_area} onChange={(e) => handleChange('numero_area', e.target.value.replace(/[^0-9]/g, ''))} placeholder="Automático se vazio" className="h-7 text-xs" inputMode="numeric" />
-        </div>
-        <div className="space-y-1 lg:col-span-2">
-          <Label className="text-xs">Setor *</Label>
-          <Select value={formData.setor_id || '__none__'} onValueChange={(value) => { const setor = setores.find((item) => item.id === value); handleChange('setor_id', value === '__none__' ? '' : value); handleChange('setor_nome', setor?.nome || ''); }}>
-            <SelectTrigger className={getFieldClassName('setor_id', 'h-7 text-xs')}><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
-            <SelectContent><SelectItem value="__none__" className="text-xs">Selecione</SelectItem>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}</SelectContent>
-          </Select>
+    <div className="mt-4 space-y-3">
+      {/* Cor no mapa */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-1.5">
+          {CORES_DISPONIVEIS.map((c) => (
+            <button
+              key={c.cor}
+              type="button"
+              onClick={() => handleChange('cor', c.cor)}
+              className={`w-8 h-8 rounded-md border-2 transition-all ${formData.cor === c.cor ? 'border-slate-900 scale-110 shadow-md' : 'border-slate-200 hover:border-slate-400'}`}
+              style={{ backgroundColor: c.cor }}
+              title={c.nome}
+            />
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-        <div className="space-y-1"><Label className="text-xs">Área total *</Label><Input type="text" value={formData.area_total} onChange={(e) => handleChange('area_total', e.target.value)} placeholder="0,00" className={getFieldClassName('area_total', 'h-7 text-xs')} /></div>
-        <div className="space-y-1"><Label className="text-xs">Área pastejada ou arável *</Label><Input type="text" value={formData.area_pastejada} onChange={(e) => handleChange('area_pastejada', e.target.value)} placeholder="0,00" className={getFieldClassName('area_pastejada', 'h-7 text-xs')} /></div>
-        <div className="space-y-1"><Label className="text-xs">Aproveitamento *</Label><Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent></Select></div>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        {/* Campos em estilo clean - placeholder dentro */}
+        <Input
+          value={formData.numero_area}
+          onChange={(e) => handleChange('numero_area', e.target.value.replace(/[^0-9]/g, ''))}
+          placeholder="Número ou código da área"
+          className="h-9 text-xs uppercase"
+          inputMode="numeric"
+          style={{ textTransform: 'uppercase' }}
+        />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-        <div className="space-y-1"><Label className="text-xs">Tipo de uso *</Label><Select value={formData.tipo_cultura} onValueChange={(v) => handleChange('tipo_cultura', v)}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{TIPOS_USO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1 lg:col-span-2"><Label className="text-xs">Tipo de cultura *</Label><Select value={formData.tipo_pastagem} onValueChange={(v) => handleChange('tipo_pastagem', v)}><SelectTrigger className={getFieldClassName('tipo_pastagem', 'h-8 text-xs')}><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent></Select></div>
-      </div>
+        <Input
+          value={formData.area_total}
+          onChange={(e) => handleChange('area_total', e.target.value)}
+          placeholder="Área total (ha) *"
+          className={getFieldClassName('area_total', 'h-9 text-xs')}
+          readOnly
+        />
 
-      <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-3 space-y-1">
-        <div><span className="font-semibold text-sm text-slate-700">Cor no mapa</span></div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-1">
-          <div className="space-y-1 lg:col-span-2"><Label className="text-xs">Cor *</Label><Select value={formData.cor} onValueChange={(v) => handleChange('cor', v)}><SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger><SelectContent>{CORES_DISPONIVEIS.map((c) => <SelectItem key={c.cor} value={c.cor} className="text-xs">{c.nome}</SelectItem>)}</SelectContent></Select></div>
-          <div className="flex items-end"><div className="h-8 w-full rounded border" style={{ backgroundColor: formData.cor }} /></div>
+        <Input
+          value={formData.area_pastejada}
+          onChange={(e) => handleChange('area_pastejada', e.target.value)}
+          placeholder="Área pastejada ou arável (ha) *"
+          className={getFieldClassName('area_pastejada', 'h-9 text-xs')}
+        />
+
+        <Input
+          value={formData.nome}
+          onChange={(e) => handleChange('nome', e.target.value)}
+          placeholder="Nome *"
+          className={getFieldClassName('nome', 'h-9 text-xs uppercase')}
+          style={{ textTransform: 'uppercase' }}
+        />
+
+        <Input
+          value={formData.sigla}
+          onChange={(e) => handleChange('sigla', e.target.value.toUpperCase())}
+          placeholder="Sigla"
+          className="h-9 text-xs uppercase"
+          style={{ textTransform: 'uppercase' }}
+          maxLength={10}
+        />
+
+        <Select value={formData.setor_id || '__none__'} onValueChange={(value) => { const setor = setores.find((s) => s.id === value); handleChange('setor_id', value === '__none__' ? '' : value); handleChange('setor_nome', setor?.nome || ''); }}>
+          <SelectTrigger className={getFieldClassName('setor_id', 'h-9 text-xs')}>
+            <SelectValue placeholder="Setor *" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+            {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={formData.tipo_cultura} onValueChange={(v) => handleChange('tipo_cultura', v)}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Tipo de uso *" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIPOS_USO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
+          <SelectTrigger className={getFieldClassName('tipo_pastagem', 'h-9 text-xs')}>
+            <SelectValue placeholder="Tipo de cultura *" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+            {TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Aproveitamento" />
+          </SelectTrigger>
+          <SelectContent>
+            {APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Textarea
+          value={formData.observacoes}
+          onChange={(e) => handleChange('observacoes', e.target.value)}
+          placeholder="Observação"
+          className="text-xs uppercase min-h-[60px]"
+          style={{ textTransform: 'uppercase' }}
+          rows={2}
+        />
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs px-4">
+            Cancelar
+          </Button>
+          <Button type="submit" size="sm" className="h-8 text-xs px-4 bg-emerald-600 hover:bg-emerald-700 text-white">
+            Salvar
+          </Button>
         </div>
-      </div>
-
-      <div className="space-y-1 pt-1"><Label className="text-xs">Descrição</Label><Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={2} /></div>
-      <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button><Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Salvar</Button></div>
-          </form>
-        </div>
-      </div>
+      </form>
     </div>
   );
 }

@@ -899,9 +899,9 @@ const redoStackRef = useRef([]);
                       const path = currentPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
                       const areaM2 = google.maps.geometry.spherical.computeArea(path);
                       const areaHa = areaM2 / 10000;
-                      return areaHa < 1 ? `${(areaHa).toFixed(2)} ha` : `${areaHa.toFixed(1)} ha`;
+                      return areaHa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ha';
                     }
-                    return '0 ha';
+                    return '0,00 ha';
                   })()}
                 </div>
               </div>
@@ -913,7 +913,8 @@ const redoStackRef = useRef([]);
                     if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 2) {
                       const path = currentPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
                       const lengthM = google.maps.geometry.spherical.computeLength(path);
-                      return lengthM < 1000 ? `${lengthM.toFixed(0)} m` : `${(lengthM / 1000).toFixed(2)} km`;
+                      if (lengthM < 1000) return lengthM.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m';
+                      return (lengthM / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km';
                     }
                     return '0 m';
                   })()}
