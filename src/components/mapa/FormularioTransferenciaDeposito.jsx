@@ -171,8 +171,8 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
           </div>
 
           <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel}>Cancelar</Button>
+          <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </div>
         </form>
       </CardContent>

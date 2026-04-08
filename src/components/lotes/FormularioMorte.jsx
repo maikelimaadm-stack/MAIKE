@@ -10,6 +10,17 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
+const FL = ({ label, required, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
 export default function FormularioMorte({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const lotesArray = Array.isArray(lote) ? lote : [lote];
@@ -92,18 +103,11 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Morte - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Data da Ocorrência *</Label>
-            <Input
-              type="date"
-              value={formData.data_ocorrencia}
-              onChange={(e) => setFormData({ ...formData, data_ocorrencia: e.target.value })}
-              className="h-8 text-xs"
-              required
-            />
-          </div>
+      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-1">
+          <FL label="Data da Ocorrência" required>
+            <Input type="date" value={formData.data_ocorrencia} onChange={(e) => setFormData({ ...formData, data_ocorrencia: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+          </FL>
 
           <div className="space-y-2 max-h-[45vh] overflow-y-auto">
             {formData.mortes.map((morte, index) => {
@@ -133,7 +137,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                     value={morte.categoria}
                     onValueChange={(v) => handleMorteChange(index, 'categoria', v)}
                   >
-                    <SelectTrigger className="h-10 text-xs mb-3">
+                    <SelectTrigger className="h-7 text-xs mb-2">
                       <SelectValue>
                         {infoCategoria?.totalCabecas || 0} cb - {morte.categoria}
                       </SelectValue>
@@ -152,26 +156,26 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
 
                   <div className="space-y-2">
                     <div>
-                      <Label className="text-xs text-slate-600">Quantidade *</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade *</label>
                       <Input
                         type="number"
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={morte.quantidade}
                         onChange={(e) => handleMorteChange(index, 'quantidade', e.target.value)}
-                        className="h-8 text-xs"
+                        className="h-7 text-xs"
                         placeholder="0"
                         required
                       />
                     </div>
 
                     <div>
-                      <Label className="text-xs text-slate-600">Causa da Morte *</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Causa da Morte *</label>
                       <Select
                         value={morte.causa_morte}
                         onValueChange={(v) => handleMorteChange(index, 'causa_morte', v)}
                       >
-                        <SelectTrigger className="h-8 text-xs">
+                        <SelectTrigger className="h-7 text-xs">
                           <SelectValue placeholder="Selecione a causa" />
                         </SelectTrigger>
                         <SelectContent>
@@ -193,29 +197,18 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
               type="button"
               onClick={adicionarCategoria}
               variant="outline"
-              className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+              className="w-full h-7 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
             >
               Adicionar Categoria
             </Button>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Observações Gerais</Label>
-            <Textarea
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              className="text-xs"
-              rows={2}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              Registrar Mortes
-            </Button>
+          <FL label="Observações Gerais">
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+          </FL>
+          <div className="flex justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">Registrar Mortes</Button>
           </div>
         </form>
       </CardContent>

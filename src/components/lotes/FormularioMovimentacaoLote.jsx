@@ -15,6 +15,17 @@ import { toast } from "sonner";
 import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
+const FL = ({ label, required, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
@@ -432,44 +443,24 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Movimentação de Lotes</CardTitle>
       </CardHeader>
-      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            <FL label="Data da Movimentação" required>
+              <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+            </FL>
             <div className="space-y-1">
-              <Label className="text-xs">Data da Movimentação *</Label>
-              <Input
-                type="date"
-                value={formData.data_movimentacao}
-                onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })}
-                className="h-8 text-xs"
-                required />
-
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Movimentar todo o lote? *</Label>
-              <RadioGroup
-                value={formData.mover_todos}
-                onValueChange={(v) => setFormData({ ...formData, mover_todos: v })}
-                className="flex gap-4">
-
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="sim" id="sim" />
-                  <Label htmlFor="sim" className="text-xs cursor-pointer">Sim</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nao" id="nao" />
-                  <Label htmlFor="nao" className="text-xs cursor-pointer">Não</Label>
-                </div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Movimentar todo o lote? <span className="text-red-500">*</span></label>
+              <RadioGroup value={formData.mover_todos} onValueChange={(v) => setFormData({ ...formData, mover_todos: v })} className="flex gap-4">
+                <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="sim" /><Label htmlFor="sim" className="text-xs cursor-pointer">Sim</Label></div>
+                <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="nao" /><Label htmlFor="nao" className="text-xs cursor-pointer">Não</Label></div>
               </RadioGroup>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Setor de saída *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            <FL label="Setor de saída" required>
               <Select value={formData.setor_saida_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_saida_id: v === '__none__' ? '' : v, area_saida_id: '' })}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Selecione o setor de saída" />
                 </SelectTrigger>
                 <SelectContent>
@@ -479,16 +470,14 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   )}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Área e módulo de saída *</Label>
+            </FL>
+            <FL label="Área e módulo de saída" required>
               <Select
                 value={formData.area_saida_id || '__none__'}
                 onValueChange={(v) => setFormData({ ...formData, area_saida_id: v === '__none__' ? '' : v })}
                 disabled={!formData.setor_saida_id}>
 
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                   <SelectValue placeholder={formData.setor_saida_id ? 'Selecione a área de saída' : 'Selecione o setor primeiro'} />
                 </SelectTrigger>
                 <SelectContent>
@@ -500,12 +489,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   )}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Setor de entrada *</Label>
+            </FL>
+            <FL label="Setor de entrada" required>
               <Select value={formData.setor_entrada_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_entrada_id: v === '__none__' ? '' : v, area_entrada_id: '' })}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Selecione o setor de entrada" />
                 </SelectTrigger>
                 <SelectContent>
@@ -515,16 +502,14 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   )}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Área e módulo de entrada *</Label>
+            </FL>
+            <FL label="Área e módulo de entrada" required>
               <Select
                 value={formData.area_entrada_id || '__none__'}
                 onValueChange={(v) => setFormData({ ...formData, area_entrada_id: v === '__none__' ? '' : v })}
                 disabled={!formData.setor_entrada_id}>
 
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                   <SelectValue placeholder={formData.setor_entrada_id ? 'Selecione a área de entrada' : 'Selecione o setor primeiro'} />
                 </SelectTrigger>
                 <SelectContent>
@@ -536,7 +521,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                   )}
                 </SelectContent>
               </Select>
-            </div>
+            </FL>
           </div>
 
           {formData.mover_todos === 'nao' &&
@@ -643,13 +628,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
 
 
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
-              {loading ? 'Movimentando...' : 'Confirmar Movimentação'}
-            </Button>
+          <div className="flex justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs" disabled={loading}>Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading}>{loading ? 'Movimentando...' : 'Confirmar Movimentação'}</Button>
           </div>
         </form>
       </CardContent>

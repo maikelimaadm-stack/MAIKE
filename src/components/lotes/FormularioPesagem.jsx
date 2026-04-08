@@ -10,6 +10,17 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
+const FL = ({ label, required, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
 export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [saving, setSaving] = useState(false);
@@ -159,18 +170,11 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Pesagem - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-2.5">
-          <div className="space-y-1">
-            <Label className="text-xs">Data da Pesagem *</Label>
-            <Input
-              type="date"
-              value={formData.data_pesagem}
-              onChange={(e) => setFormData({ ...formData, data_pesagem: e.target.value })}
-              className="h-9 text-xs"
-              required
-            />
-          </div>
+      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-1">
+          <FL label="Data da Pesagem" required>
+            <Input type="date" value={formData.data_pesagem} onChange={(e) => setFormData({ ...formData, data_pesagem: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+          </FL>
 
           <div className="space-y-2 border-b pb-3">
             <Label className="text-xs font-semibold">Modo de Pesagem</Label>
@@ -220,14 +224,14 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs text-slate-600">Novo Peso (kg)</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Novo Peso (kg)</label>
                       <Input
                         type="number"
                         step="0.1"
                         value={pesosIndividuais[loteItem.id] || ''}
                         onChange={(e) => setPesosIndividuais(prev => ({ ...prev, [loteItem.id]: e.target.value }))}
                         placeholder={String(loteItem.peso_medio_kg || 0)}
-                        className="h-8 text-xs"
+                        className="h-7 text-xs"
                       />
                     </div>
                   </div>
@@ -236,13 +240,13 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
             </div>
           ) : modoPesagem === "todos" ? (
             <div className="space-y-2 bg-slate-50 border border-slate-300 rounded-lg p-4">
-              <Label className="text-xs font-semibold">Peso para Todos os Animais (kg) *</Label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso para Todos os Animais (kg) <span className="text-red-500">*</span></label>
               <Input
                 type="number"
                 step="0.1"
                 value={pesoGeral}
                 onChange={(e) => setPesoGeral(e.target.value)}
-                className="h-8 text-xs font-semibold"
+                className="h-7 text-xs font-semibold"
                 placeholder="0"
               />
               <div className="text-[10px] text-slate-600 mt-2">
@@ -278,7 +282,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                       value={pesagem.categoria}
                       onValueChange={(v) => handlePesagemChange(index, 'categoria', v)}
                     >
-                      <SelectTrigger className="h-10 text-xs mb-3">
+                      <SelectTrigger className="h-7 text-xs mb-2">
                         <SelectValue>
                           {infoCategoria?.totalCabecas || 0} cb - {pesagem.categoria}
                         </SelectValue>
@@ -296,14 +300,14 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                     </Select>
 
                     <div>
-                      <Label className="text-xs text-slate-600">Peso Atual (kg) *</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Atual (kg) *</label>
                       <Input
                         type="number"
                         step="0.1"
                         value={pesagem.peso}
                         onChange={(e) => handlePesagemChange(index, 'peso', e.target.value)}
                         placeholder="0"
-                        className="h-8 text-xs"
+                        className="h-7 text-xs"
                         required
                       />
                     </div>
@@ -315,30 +319,19 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 type="button"
                 onClick={adicionarCategoria}
                 variant="outline"
-                className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+                className="w-full h-7 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
               >
                 Adicionar Categoria
               </Button>
             </div>
           )}
 
-          <div className="space-y-1">
-            <Label className="text-xs">Observações Gerais</Label>
-            <Textarea
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              className="text-xs"
-              rows={2}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={saving}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={saving}>
-              {saving ? 'Salvando...' : 'Registrar Pesagens'}
-            </Button>
+          <FL label="Observações Gerais">
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+          </FL>
+          <div className="flex justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs" disabled={saving}>Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={saving}>{saving ? 'Salvando...' : 'Registrar Pesagens'}</Button>
           </div>
         </form>
       </CardContent>

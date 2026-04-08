@@ -100,12 +100,14 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
       )}
 
       <div>
-        <Label className="text-xs">Novo nome</Label>
-        <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className="h-8 text-xs" />
+        <label className="text-[12px] text-slate-500 pl-1 leading-none">Novo nome</label>
+        <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+          <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+        </div>
       </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel} disabled={loading}>Cancelar</Button>
-        <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleSalvar} disabled={loading}>
+      <div className="flex justify-end gap-1">
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={loading}>Cancelar</Button>
+        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSalvar} disabled={loading}>
           {loading ? 'Salvando...' : 'Salvar'}
         </Button>
       </div>

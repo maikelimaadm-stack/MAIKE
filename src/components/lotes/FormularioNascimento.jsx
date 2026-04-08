@@ -10,6 +10,17 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
+const FL = ({ label, required, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
 export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const lotesArray = Array.isArray(lote) ? lote : [lote];
@@ -97,18 +108,11 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Nascimento - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Data do Nascimento *</Label>
-            <Input
-              type="date"
-              value={formData.data_nascimento}
-              onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
-              className="h-8 text-xs"
-              required
-            />
-          </div>
+      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-1">
+          <FL label="Data do Nascimento" required>
+            <Input type="date" value={formData.data_nascimento} onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+          </FL>
 
           <div className="space-y-2 max-h-[45vh] overflow-y-auto">
             {formData.nascimentos.map((nascimento, index) => {
@@ -138,7 +142,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                     value={nascimento.categoria_mae}
                     onValueChange={(v) => handleNascimentoChange(index, 'categoria_mae', v)}
                   >
-                    <SelectTrigger className="h-10 text-xs mb-3">
+                    <SelectTrigger className="h-7 text-xs mb-2">
                       <SelectValue>
                         {infoCategoria?.totalCabecas || 0} cb - {nascimento.categoria_mae}
                       </SelectValue>
@@ -157,25 +161,24 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
 
                   <div className="space-y-2">
                     <div>
-                      <Label className="text-xs text-slate-600">Quantidade *</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade *</label>
                       <Input
                         type="number"
                         min="0"
                         value={nascimento.quantidade}
                         onChange={(e) => handleNascimentoChange(index, 'quantidade', e.target.value)}
-                        className="h-8 text-xs"
+                        className="h-7 text-xs"
                         placeholder="0"
                         required
                       />
                     </div>
-
                     <div>
-                      <Label className="text-xs text-slate-600">Sexo *</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Sexo *</label>
                       <Select
                         value={nascimento.sexo}
                         onValueChange={(v) => handleNascimentoChange(index, 'sexo', v)}
                       >
-                        <SelectTrigger className="h-8 text-xs">
+                        <SelectTrigger className="h-7 text-xs">
                           <SelectValue placeholder="Selecione o sexo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -186,13 +189,13 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                     </div>
 
                     <div>
-                      <Label className="text-xs text-slate-600">Peso Médio (kg)</Label>
+                      <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Médio (kg)</label>
                       <Input
                         type="number"
                         step="0.1"
                         value={nascimento.peso_medio}
                         onChange={(e) => handleNascimentoChange(index, 'peso_medio', e.target.value)}
-                        className="h-8 text-xs"
+                        className="h-7 text-xs"
                         placeholder="0"
                       />
                     </div>
@@ -205,29 +208,18 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
               type="button"
               onClick={adicionarCategoria}
               variant="outline"
-              className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+              className="w-full h-7 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
             >
               Adicionar Categoria
             </Button>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Observações Gerais</Label>
-            <Textarea
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              className="text-xs"
-              rows={2}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              Registrar Nascimentos
-            </Button>
+          <FL label="Observações Gerais">
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+          </FL>
+          <div className="flex justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">Registrar Nascimentos</Button>
           </div>
         </form>
       </CardContent>

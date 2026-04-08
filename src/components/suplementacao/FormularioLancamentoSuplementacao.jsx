@@ -483,14 +483,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <div className="space-y-1">
-                <Label className="text-xs">Data do lançamento *</Label>
-                <Input type="date" value={formData.data_lancamento} onChange={(e) => setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }))} className="h-8 text-xs" />
+              <div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Data do lançamento <span className="text-red-500">*</span></label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_lancamento} onChange={(e) => setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Produto *</Label>
-                <Select value={formData.produto} onValueChange={(value) => setFormData((prev) => ({ ...prev, produto: value }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+              <div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto <span className="text-red-500">*</span></label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={formData.produto} onValueChange={(value) => setFormData((prev) => ({ ...prev, produto: value }))}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                   <SelectContent>
                     {produtosDisponiveis.map((produto) => (
                       <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
@@ -500,7 +500,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select></div>
               </div>
             </div>
 
@@ -672,8 +672,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
 
             <div className="flex justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button>
-              <Button type="button" onClick={handleSalvar} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar"}</Button>
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button type="button" onClick={handleSalvar} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar"}</Button>
             </div>
           </div>
         </CardContent>

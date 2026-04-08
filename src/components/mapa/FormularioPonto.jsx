@@ -15,6 +15,17 @@ import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import useSetorAreas from "@/hooks/useSetorAreas";
 
+const FL = ({ label, required, error, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
+  </div>
+);
+
 function ProdutoSuplementacaoSelect({ value, onChange }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -29,7 +40,7 @@ function ProdutoSuplementacaoSelect({ value, onChange }) {
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8 text-xs">
+      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
         <SelectValue placeholder="Selecione o produto" />
       </SelectTrigger>
       <SelectContent>
@@ -450,59 +461,40 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Ponto' : 'Novo Ponto'}</div>
         </div>
         <div className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-1">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label className="text-xs">Nome do ponto *</Label>
-            <Input value={formData.nome} onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))} className="h-8 text-xs uppercase" required />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Sigla</Label>
-            <Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-8 text-xs uppercase" maxLength={10} />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-0.5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+          <FL label="Nome do ponto" required><Input value={formData.nome} onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" required /></FL>
+          <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
         </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs">Ponto de referência *</Label>
-          <Select value={formData.configuracao_icone_id} onValueChange={(value) => {
-            const configuracao = iconesConfig.find((itemConfig) => itemConfig.id === value);
-            setFormData((prev) => ({ ...prev, configuracao_icone_id: value, tipo: configuracao?.categoria || prev.tipo }));
-          }}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o tipo do ponto" /></SelectTrigger>
-            <SelectContent>
-              {iconesConfig.map((itemConfig) => <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>)}
-            </SelectContent>
+        <FL label="Ponto de referência" required>
+          <Select value={formData.configuracao_icone_id} onValueChange={(value) => { const configuracao = iconesConfig.find((itemConfig) => itemConfig.id === value); setFormData((prev) => ({ ...prev, configuracao_icone_id: value, tipo: configuracao?.categoria || prev.tipo })); }}>
+            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o tipo do ponto" /></SelectTrigger>
+            <SelectContent>{iconesConfig.map((itemConfig) => <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs">Observações</Label>
-          <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase" />
-        </div>
+        </FL>
+        <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
 
         {ehCocho && (
-          <div className="space-y-4 border-t pt-4">
-            <div className="text-sm font-semibold text-slate-700">Dados do Cocho</div>
+          <div className="space-y-1 border-t pt-1">
+            <div className="text-xs font-semibold text-slate-700">Dados do Cocho</div>
             {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">Setor *</Label>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+              <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
                     {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-
+              </FL>
               <div className="space-y-1 lg:col-span-2">
                 <Label className="text-xs">Áreas vinculadas *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
-                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {areasDoSetor.map((area) => {
@@ -518,51 +510,38 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Depósito vinculado *</Label>
+              <FL label="Depósito vinculado" required>
                 <Select value={formData.deposito_origem_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, deposito_origem_id: value }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o depósito" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o depósito" /></SelectTrigger>
                   <SelectContent>
                     {depositosDisponiveis.map((deposito) => <SelectItem key={deposito.id} value={deposito.id} className="text-xs">{deposito.nome_ponto}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Produto padrão</Label>
+              </FL>
+              <FL label="Produto padrão">
                 <ProdutoSuplementacaoSelect value={formData.produto_padrao} onChange={(value) => setFormData((prev) => ({ ...prev, produto_padrao: value }))} />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Capacidade do cocho (kg) *</Label>
-                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Metragem do cocho (m) *</Label>
-                <Input type="number" step="0.01" value={formData.metragem_cocho_m} onChange={(e) => setFormData((prev) => ({ ...prev, metragem_cocho_m: e.target.value }))} className="h-8 text-xs" />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Cobertura *</Label>
+              </FL>
+              <FL label="Capacidade do cocho (kg)" required>
+                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Metragem do cocho (m)" required>
+                <Input type="number" step="0.01" value={formData.metragem_cocho_m} onChange={(e) => setFormData((prev) => ({ ...prev, metragem_cocho_m: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Cobertura" required>
                 <Select value={formData.cobertura_cocho} onValueChange={(value) => setFormData((prev) => ({ ...prev, cobertura_cocho: value }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Coberto" className="text-xs">Coberto</SelectItem>
                     <SelectItem value="Não Coberto" className="text-xs">Não Coberto</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Frequência mínima (dias) *</Label>
-                <Input type="number" value={formData.frequencia_esperada_dias_minimo} onChange={(e) => setFormData((prev) => ({ ...prev, frequencia_esperada_dias_minimo: e.target.value }))} className="h-8 text-xs" />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Frequência máxima (dias) *</Label>
-                <Input type="number" value={formData.frequencia_esperada_dias_maximo} onChange={(e) => setFormData((prev) => ({ ...prev, frequencia_esperada_dias_maximo: e.target.value }))} className="h-8 text-xs" />
-              </div>
+              </FL>
+              <FL label="Frequência mínima (dias)" required>
+                <Input type="number" value={formData.frequencia_esperada_dias_minimo} onChange={(e) => setFormData((prev) => ({ ...prev, frequencia_esperada_dias_minimo: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Frequência máxima (dias)" required>
+                <Input type="number" value={formData.frequencia_esperada_dias_maximo} onChange={(e) => setFormData((prev) => ({ ...prev, frequencia_esperada_dias_maximo: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
             </div>
 
             {depositosDisponiveis.length === 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Cadastre primeiro um ponto do tipo depósito para vincular este cocho.</div>}
@@ -570,36 +549,33 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         )}
 
         {ehDeposito && (
-          <div className="space-y-4 border-t pt-4">
-            <div className="text-sm font-semibold text-slate-700">Depósito de Suplementação</div>
+          <div className="space-y-1 border-t pt-1">
+            <div className="text-xs font-semibold text-slate-700">Depósito de Suplementação</div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">Setor *</Label>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+              <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
                     {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Capacidade do depósito (kg) *</Label>
-                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-8 text-xs" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Estoque mínimo (kg) *</Label>
-                <Input type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} className="h-8 text-xs" />
-              </div>
+              </FL>
+              <FL label="Capacidade do depósito (kg)" required>
+                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Estoque mínimo (kg)" required>
+                <Input type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
             </div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-2 border-t">
+        <div className="flex justify-end gap-1 pt-1 border-t">
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={progresso.show}>Cancelar</Button>
-          <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600" disabled={progresso.show}>{progresso.show ? "Salvando..." : item ? "Salvar alterações" : "Salvar ponto"}</Button>
+          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={progresso.show}>{progresso.show ? "Salvando..." : item ? "Salvar alterações" : "Salvar ponto"}</Button>
         </div>
           </form>
         </div>
