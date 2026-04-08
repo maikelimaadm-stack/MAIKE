@@ -134,8 +134,11 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
       mapInstanceRef.current = map;
 
       const d = drawnRef.current;
+      let handled = false;
 
       const handleSelect = (coords, area) => {
+        if (handled) return;
+        handled = true;
         if (!markerRef.current) {
           markerRef.current = new google.maps.Marker({
             map, position: coords,
