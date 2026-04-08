@@ -514,7 +514,7 @@ export default function TabelaLancamentosTarefas({
   
   <div>
     <h1 className="font-bold text-slate-900">
-      {headerTitle || "Lançamentos"}
+      Gestão de Tarefas: {headerTitle || "Gestão de Tarefas"}
     </h1>
   </div>
 
