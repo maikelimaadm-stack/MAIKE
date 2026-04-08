@@ -146,7 +146,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const panelSubtitulo = areaNome || loteNome || '';
 
   return (
-    <div className="space-y-1 min-w-max">
+    <div className="space-y-1 w-full min-w-0 overflow-x-auto">
       <TabelaLancamentosTarefas
         tarefas={tarefas}
         grupos={grupos}
