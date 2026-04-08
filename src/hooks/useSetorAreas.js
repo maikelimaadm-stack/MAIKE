@@ -18,7 +18,7 @@ export default function useSetorAreas(empresaSelecionadaId) {
     queryFn: async () => {
       const all = await base44.entities.Setor.list();
       return all
-        .map((item) => ({ ...item.data, id: item.id }))
+        .map((item) => ({ ...(item.data || item), id: item.id }))
         .filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
@@ -30,7 +30,7 @@ export default function useSetorAreas(empresaSelecionadaId) {
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
       return all
-        .map((item) => ({ ...item.data, id: item.id }))
+        .map((item) => ({ ...(item.data || item), id: item.id }))
         .filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
