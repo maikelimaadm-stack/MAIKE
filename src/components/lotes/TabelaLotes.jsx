@@ -405,13 +405,13 @@ export default function TabelaLotes({
                           }
 
                           {isResizing &&
-                          <div
-                            className="absolute top-0 -right-3 h-full w-6 z-50 flex items-center justify-center cursor-col-resize bg-emerald-500 bg-opacity-80 rounded-r"
-                            onMouseDown={(e) => startDragResize(e, coluna.id)}
-                            onTouchStart={(e) => startDragResize(e, coluna.id)}
-                            onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}>
+                          <div className="absolute top-0 -right-1 h-full w-6 z-50 flex items-center justify-center cursor-col-resize bg-emerald-500 bg-opacity-80 rounded-r"
+
+                          onMouseDown={(e) => startDragResize(e, coluna.id)}
+                          onTouchStart={(e) => startDragResize(e, coluna.id)}
+                          onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}
+                          onDoubleClick={(e) => e.stopPropagation()}
+                          onTouchEnd={(e) => e.stopPropagation()}>
                             
                               <GripVertical className="w-3.5 h-3.5 text-white" />
                             </div>
