@@ -509,7 +509,7 @@ export default function TabelaLancamentosTarefas({
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-120px)] md:max-h-[calc(100dvh-170px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-100px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
@@ -549,7 +549,7 @@ export default function TabelaLancamentosTarefas({
                         onDoubleClick={() => handleHeaderDoubleTap(coluna.id)}
                         onTouchEnd={(e) => {
                           const now = Date.now();
-                          if (headerTapRef.current.id === coluna.id && now - headerTapRef.current.time < 350) {
+                          if (headerTapRef.current.id === coluna.id && now - headerTapRef.current.time < 600) {
                             e.preventDefault();
                             handleHeaderDoubleTap(coluna.id);
                             headerTapRef.current = { id: null, time: 0 };
