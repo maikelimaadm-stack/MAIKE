@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,71 +105,86 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="space-y-1">
-          <Label className="text-xs uppercase">Código</Label>
-          <Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-8 text-xs uppercase" placeholder="TRT001" />
-        </div>
-        <div className="col-span-2 md:col-span-2 space-y-1">
-          <Label className="text-xs uppercase">Nome *</Label>
-          <Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} className={getFieldClassName("nome")} placeholder="NOME DA MÁQUINA" required />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs uppercase">Tipo *</Label>
-          <Select value={formData.tipo} onValueChange={(v) => handleChange("tipo", v)}>
-            <SelectTrigger className={getFieldClassName("tipo")}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-            <SelectContent>{TIPOS.map((t) => <SelectItem key={t} value={t} className="text-xs uppercase">{t}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-      </div>
+    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            {maquina ? "Editar Máquina" : "Nova Máquina"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-1">
+          <form onSubmit={handleSubmit} className="space-y-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <div className="space-y-1">
+                <Label className="text-xs">Código</Label>
+                <Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-7 text-xs uppercase" placeholder="TRT001" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Nome da Máquina *</Label>
+                <Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} className={getFieldClassName("nome").replace("h-8", "h-7")} placeholder="NOME DA MÁQUINA" required />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo *</Label>
+                <Select value={formData.tipo} onValueChange={(v) => handleChange("tipo", v)}>
+                  <SelectTrigger className={getFieldClassName("tipo").replace("h-8", "h-7")}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectContent>{TIPOS.map((t) => <SelectItem key={t} value={t} className="text-xs uppercase">{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="space-y-1"><Label className="text-xs uppercase">Marca</Label><Input value={formData.marca} onChange={(e) => handleChange("marca", e.target.value)} className="h-8 text-xs uppercase" placeholder="MARCA" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Modelo</Label><Input value={formData.modelo} onChange={(e) => handleChange("modelo", e.target.value)} className="h-8 text-xs uppercase" placeholder="MODELO" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Ano Fabricação</Label><Input type="number" value={formData.ano_fabricacao} onChange={(e) => handleChange("ano_fabricacao", e.target.value)} className="h-8 text-xs" placeholder="2024" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Status</Label><Select value={formData.status} onValueChange={(v) => handleChange("status", v)}><SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Ativo" className="text-xs uppercase">Ativo</SelectItem><SelectItem value="Em Manutenção" className="text-xs uppercase">Em Manutenção</SelectItem><SelectItem value="Inativo" className="text-xs uppercase">Inativo</SelectItem><SelectItem value="Vendido" className="text-xs uppercase">Vendido</SelectItem></SelectContent></Select></div>
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+              <div className="space-y-1"><Label className="text-xs">Marca</Label><Input value={formData.marca} onChange={(e) => handleChange("marca", e.target.value)} className="h-7 text-xs uppercase" placeholder="MARCA" /></div>
+              <div className="space-y-1"><Label className="text-xs">Modelo</Label><Input value={formData.modelo} onChange={(e) => handleChange("modelo", e.target.value)} className="h-7 text-xs uppercase" placeholder="MODELO" /></div>
+              <div className="space-y-1"><Label className="text-xs">Ano Fabricação</Label><Input type="number" value={formData.ano_fabricacao} onChange={(e) => handleChange("ano_fabricacao", e.target.value)} className="h-7 text-xs" placeholder="2024" /></div>
+              <div className="space-y-1"><Label className="text-xs">Status</Label><Select value={formData.status} onValueChange={(v) => handleChange("status", v)}><SelectTrigger className="h-7 text-xs uppercase"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Ativo" className="text-xs uppercase">Ativo</SelectItem><SelectItem value="Em Manutenção" className="text-xs uppercase">Em Manutenção</SelectItem><SelectItem value="Inativo" className="text-xs uppercase">Inativo</SelectItem><SelectItem value="Vendido" className="text-xs uppercase">Vendido</SelectItem></SelectContent></Select></div>
+            </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        <div className="space-y-1"><Label className="text-xs uppercase">Placa</Label><Input value={formData.placa} onChange={(e) => handleChange("placa", e.target.value)} className="h-8 text-xs uppercase" placeholder="ABC1D23" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Chassi</Label><Input value={formData.chassi} onChange={(e) => handleChange("chassi", e.target.value)} className="h-8 text-xs uppercase" placeholder="CHASSI" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Renavam</Label><Input value={formData.renavam} onChange={(e) => handleChange("renavam", e.target.value)} className="h-8 text-xs uppercase" placeholder="RENAVAM" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Potência (CV)</Label><Input type="number" value={formData.potencia_cv} onChange={(e) => handleChange("potencia_cv", e.target.value)} className="h-8 text-xs" placeholder="0" /></div>
-        <div className="space-y-1"><Label className="text-xs uppercase">Data Aquisição</Label><Input type="date" value={formData.data_aquisicao} onChange={(e) => handleChange("data_aquisicao", e.target.value)} className="h-8 text-xs" /></div>
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
+              <div className="space-y-1"><Label className="text-xs">Placa</Label><Input value={formData.placa} onChange={(e) => handleChange("placa", e.target.value)} className="h-7 text-xs uppercase" placeholder="ABC1D23" /></div>
+              <div className="space-y-1"><Label className="text-xs">Chassi</Label><Input value={formData.chassi} onChange={(e) => handleChange("chassi", e.target.value)} className="h-7 text-xs uppercase" placeholder="CHASSI" /></div>
+              <div className="space-y-1"><Label className="text-xs">Renavam</Label><Input value={formData.renavam} onChange={(e) => handleChange("renavam", e.target.value)} className="h-7 text-xs uppercase" placeholder="RENAVAM" /></div>
+              <div className="space-y-1"><Label className="text-xs">Potência (CV)</Label><Input type="number" value={formData.potencia_cv} onChange={(e) => handleChange("potencia_cv", e.target.value)} className="h-7 text-xs" placeholder="0" /></div>
+              <div className="space-y-1"><Label className="text-xs">Data Aquisição</Label><Input type="date" value={formData.data_aquisicao} onChange={(e) => handleChange("data_aquisicao", e.target.value)} className="h-7 text-xs" /></div>
+            </div>
 
-      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-        <div className="text-xs font-semibold text-slate-700 uppercase">Operação e Abastecimento</div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <div className="space-y-1"><Label className="text-xs uppercase">Horímetro Atual</Label><Input type="number" value={formData.horimetro_atual} onChange={(e) => handleChange("horimetro_atual", e.target.value)} className="h-8 text-xs" placeholder="HORAS" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Hodômetro Atual</Label><Input type="number" value={formData.hodometro_atual} onChange={(e) => handleChange("hodometro_atual", e.target.value)} className="h-8 text-xs" placeholder="KM" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Combustível</Label><Select value={formData.tipo_combustivel} onValueChange={(v) => handleChange("tipo_combustivel", v)}><SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="SELECIONE" /></SelectTrigger><SelectContent>{COMBUSTIVEIS.map((c) => <SelectItem key={c} value={c} className="text-xs uppercase">{c}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Capacidade Tanque (L)</Label><Input type="number" value={formData.capacidade_tanque} onChange={(e) => handleChange("capacidade_tanque", e.target.value)} className="h-8 text-xs" placeholder="0" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Consumo Médio</Label><Input type="number" step="0.1" value={formData.consumo_medio} onChange={(e) => handleChange("consumo_medio", e.target.value)} className="h-8 text-xs" placeholder="L/H" /></div>
-        </div>
-      </div>
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <div>
+                <span className="font-semibold text-sm text-slate-700">Operação e Abastecimento</span>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-1">
+                <div className="space-y-1"><Label className="text-xs">Horímetro Atual</Label><Input type="number" value={formData.horimetro_atual} onChange={(e) => handleChange("horimetro_atual", e.target.value)} className="h-7 text-xs" placeholder="HORAS" /></div>
+                <div className="space-y-1"><Label className="text-xs">Hodômetro Atual</Label><Input type="number" value={formData.hodometro_atual} onChange={(e) => handleChange("hodometro_atual", e.target.value)} className="h-7 text-xs" placeholder="KM" /></div>
+                <div className="space-y-1"><Label className="text-xs">Combustível</Label><Select value={formData.tipo_combustivel} onValueChange={(v) => handleChange("tipo_combustivel", v)}><SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="SELECIONE" /></SelectTrigger><SelectContent>{COMBUSTIVEIS.map((c) => <SelectItem key={c} value={c} className="text-xs uppercase">{c}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1"><Label className="text-xs">Capacidade Tanque (L)</Label><Input type="number" value={formData.capacidade_tanque} onChange={(e) => handleChange("capacidade_tanque", e.target.value)} className="h-7 text-xs" placeholder="0" /></div>
+                <div className="space-y-1"><Label className="text-xs">Consumo Médio</Label><Input type="number" step="0.1" value={formData.consumo_medio} onChange={(e) => handleChange("consumo_medio", e.target.value)} className="h-7 text-xs" placeholder="L/H" /></div>
+              </div>
+            </div>
 
-      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
-        <div className="text-xs font-semibold text-emerald-800 uppercase">Custos Operacionais</div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <div className="space-y-1"><Label className="text-xs uppercase">Vida Útil (H)</Label><Input type="number" value={formData.vida_util_horas} onChange={(e) => handleChange("vida_util_horas", e.target.value)} className="h-8 text-xs bg-white" placeholder="10000" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Custo / Hora</Label><Input type="number" step="0.01" value={formData.custo_hora} onChange={(e) => handleChange("custo_hora", e.target.value)} className="h-8 text-xs bg-white" placeholder="0,00" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Combustível / L</Label><Input type="number" step="0.01" value={formData.valor_combustivel_litro} onChange={(e) => handleChange("valor_combustivel_litro", e.target.value)} className="h-8 text-xs bg-white" placeholder="0,00" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Valor Aquisição</Label><Input type="number" step="0.01" value={formData.valor_aquisicao} onChange={(e) => handleChange("valor_aquisicao", e.target.value)} className="h-8 text-xs bg-white" placeholder="0,00" /></div>
-          <div className="space-y-1"><Label className="text-xs uppercase">Valor Atual</Label><Input type="number" step="0.01" value={formData.valor_atual} onChange={(e) => handleChange("valor_atual", e.target.value)} className="h-8 text-xs bg-white" placeholder="0,00" /></div>
-        </div>
-      </div>
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <div>
+                <span className="font-semibold text-sm text-slate-700">Custos Operacionais</span>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-1">
+                <div className="space-y-1"><Label className="text-xs">Vida Útil (H)</Label><Input type="number" value={formData.vida_util_horas} onChange={(e) => handleChange("vida_util_horas", e.target.value)} className="h-7 text-xs" placeholder="10000" /></div>
+                <div className="space-y-1"><Label className="text-xs">Custo / Hora</Label><Input type="number" step="0.01" value={formData.custo_hora} onChange={(e) => handleChange("custo_hora", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
+                <div className="space-y-1"><Label className="text-xs">Combustível / L</Label><Input type="number" step="0.01" value={formData.valor_combustivel_litro} onChange={(e) => handleChange("valor_combustivel_litro", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
+                <div className="space-y-1"><Label className="text-xs">Valor Aquisição</Label><Input type="number" step="0.01" value={formData.valor_aquisicao} onChange={(e) => handleChange("valor_aquisicao", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
+                <div className="space-y-1"><Label className="text-xs">Valor Atual</Label><Input type="number" step="0.01" value={formData.valor_atual} onChange={(e) => handleChange("valor_atual", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
+              </div>
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <div className="space-y-1"><Label className="text-xs uppercase">Localização Atual</Label><Select value={formData.localizacao_atual} onValueChange={(v) => handleChange("localizacao_atual", v)}><SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="SELECIONE A ÁREA" /></SelectTrigger><SelectContent>{areas.map((a) => <SelectItem key={a.id} value={a.nome} className="text-xs uppercase">{a.nome}</SelectItem>)}</SelectContent></Select></div>
-        <div className="md:col-span-2 space-y-1"><Label className="text-xs uppercase">Observações</Label><Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} rows={3} className="text-xs uppercase min-h-[84px]" placeholder="OBSERVAÇÕES GERAIS" /></div>
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <div className="space-y-1"><Label className="text-xs">Localização Atual</Label><Select value={formData.localizacao_atual} onValueChange={(v) => handleChange("localizacao_atual", v)}><SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="SELECIONE A ÁREA" /></SelectTrigger><SelectContent>{areas.map((a) => <SelectItem key={a.id} value={a.nome} className="text-xs uppercase">{a.nome}</SelectItem>)}</SelectContent></Select></div>
+              <div className="lg:col-span-2 space-y-1"><Label className="text-xs">Observações</Label><Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} rows={3} className="text-xs uppercase min-h-[84px]" placeholder="OBSERVAÇÕES GERAIS" /></div>
+            </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button>
-        <Button type="submit" disabled={mutation.isPending} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">{mutation.isPending ? "Salvando..." : "Salvar"}</Button>
-      </div>
-    </form>
+            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-2 border-t">
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button type="submit" disabled={mutation.isPending} size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-600">{mutation.isPending ? "Salvando..." : maquina ? "Atualizar" : "Salvar"}</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
