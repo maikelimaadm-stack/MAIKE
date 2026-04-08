@@ -298,22 +298,22 @@ export default function MapaCadastro() {
 
       {showSelecaoMapa && <SelecaoAreasMapa onClose={() => { setShowSelecaoMapa(false); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} />}
 
-      <Dialog open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea} modal={false}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle className="text-sm">Editar Detalhes da Área</DialogTitle></DialogHeader>
           {itemDetalhes && <FormularioArea coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => { setShowEditarDetalhesArea(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} onCancel={() => { setShowEditarDetalhesArea(false); setItemDetalhes(null); }} />}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showEditarDetalhesPonto} onOpenChange={setShowEditarDetalhesPonto}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={showEditarDetalhesPonto} onOpenChange={setShowEditarDetalhesPonto} modal={false}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle className="text-sm">Editar Detalhes do Ponto</DialogTitle></DialogHeader>
           {itemDetalhes && <FormularioPonto coordenadas={itemDetalhes.coordenadas} item={itemDetalhes} onSave={() => { setShowEditarDetalhesPonto(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ['pontos', 'pontos-suplementacao', 'mapa-pontos', 'mapa-pontos-supl'].includes(q.queryKey[0]) }); window.dispatchEvent(new CustomEvent('atualizar-mapa')); }} onCancel={() => { setShowEditarDetalhesPonto(false); setItemDetalhes(null); }} />}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showEditarDetalhesLinha} onOpenChange={setShowEditarDetalhesLinha}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={showEditarDetalhesLinha} onOpenChange={setShowEditarDetalhesLinha} modal={false}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle className="text-sm">Editar Detalhes da Linha</DialogTitle></DialogHeader>
           {itemDetalhes && <FormularioLinha coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => { setShowEditarDetalhesLinha(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'linhas' }); }} onCancel={() => { setShowEditarDetalhesLinha(false); setItemDetalhes(null); }} />}
         </DialogContent>
