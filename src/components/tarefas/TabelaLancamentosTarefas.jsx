@@ -81,6 +81,7 @@ export default function TabelaLancamentosTarefas({
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [sortConfig, setSortConfig] = useState({ key: "titulo", direction: "asc" });
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 99999 : 25);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -101,7 +102,6 @@ export default function TabelaLancamentosTarefas({
   const tableWrapperRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const tableRef = useRef(null);
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
