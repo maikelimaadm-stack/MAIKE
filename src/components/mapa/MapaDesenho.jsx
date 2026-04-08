@@ -79,6 +79,7 @@ const redoStackRef = useRef([]);
 
   const pointMarkersRef = useRef([]);
   const midPointMarkersRef = useRef([]);
+  const isMapDraggingRef = useRef(false);
 
   useEffect(() => {
     currentPointsRef.current = currentPoints;
@@ -135,19 +136,28 @@ const redoStackRef = useRef([]);
     let nearestPoint = null;
     let minDistance = Infinity;
 
+    const evaluateCoord = (coord) => {
+      const lat = coord[0] || coord.lat;
+      const lng = coord[1] || coord.lng;
+      const point = projection.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
+      const distance = Math.sqrt(Math.pow(point.x - mousePoint.x, 2) + Math.pow(point.y - mousePoint.y, 2));
+      const scale = Math.pow(2, map.getZoom());
+      const pixelDistance = distance * scale;
+
+      if (pixelDistance < SNAP_DISTANCE && pixelDistance < minDistance) {
+        minDistance = pixelDistance;
+        nearestPoint = { lat, lng };
+      }
+    };
+
+    areas.forEach(area => {
+      const coords = area.coordenadas?.coords || [];
+      coords.forEach(evaluateCoord);
+    });
+
     linhas.forEach(linha => {
       const coords = linha.coordenadas?.coords || [];
-      coords.forEach(coord => {
-        const point = projection.fromLatLngToPoint(new google.maps.LatLng(coord[0] || coord.lat, coord[1] || coord.lng));
-        const distance = Math.sqrt(Math.pow(point.x - mousePoint.x, 2) + Math.pow(point.y - mousePoint.y, 2));
-        const scale = Math.pow(2, map.getZoom());
-        const pixelDistance = distance * scale;
-        
-        if (pixelDistance < SNAP_DISTANCE && pixelDistance < minDistance) {
-          minDistance = pixelDistance;
-          nearestPoint = { lat: coord[0] || coord.lat, lng: coord[1] || coord.lng };
-        }
-      });
+      coords.forEach(evaluateCoord);
     });
 
     return nearestPoint;
@@ -322,9 +332,8 @@ const redoStackRef = useRef([]);
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
     const handleMapClick = (e) => {
-      if (!e?.latLng) return;
+      if (!e?.latLng || isMapDraggingRef.current) return;
 
-      
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
       
@@ -366,11 +375,21 @@ const redoStackRef = useRef([]);
       }
     };
 
-    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'mouseup', handleMapClick);
+    const dragStartListener = google.maps.event.addListener(mapInstanceRef.current, 'dragstart', () => {
+      isMapDraggingRef.current = true;
+    });
+    const dragEndListener = google.maps.event.addListener(mapInstanceRef.current, 'dragend', () => {
+      setTimeout(() => {
+        isMapDraggingRef.current = false;
+      }, 0);
+    });
+    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
     const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, 'dblclick', (e) => {
       if (e?.stop) e.stop();
     });
     return () => {
+      google.maps.event.removeListener(dragStartListener);
+      google.maps.event.removeListener(dragEndListener);
       google.maps.event.removeListener(clickListener);
       google.maps.event.removeListener(dblClickListener);
     };
