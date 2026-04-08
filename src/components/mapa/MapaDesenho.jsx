@@ -58,6 +58,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
+  const [drawingClosed, setDrawingClosed] = useState(false);
   
   const [showFormularioArea, setShowFormularioArea] = useState(usarGPS && tipoDesenho === 'area');
   const [showFormularioPonto, setShowFormularioPonto] = useState(usarGPS && tipoDesenho === 'ponto');
@@ -81,6 +82,7 @@ const redoStackRef = useRef([]);
   const midPointMarkersRef = useRef([]);
   const mouseDownPosRef = useRef(null);
   const mouseDownTimeRef = useRef(0);
+  const CLOSE_SNAP_PX = 20; // distância em pixels para fechar polígono clicando no ponto 1
 
   useEffect(() => {
     currentPointsRef.current = currentPoints;
@@ -235,6 +237,7 @@ const redoStackRef = useRef([]);
 
     setCurrentPoints([]);
     setCurrentMarker(null);
+    setDrawingClosed(false);
   };
 
   // Carregar item em edição
@@ -371,11 +374,36 @@ const redoStackRef = useRef([]);
   useEffect(() => {
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
-    const MAX_CLICK_DURATION = 350; // ms
-    const MAX_CLICK_DISTANCE = 8;   // pixels
+    const MAX_CLICK_DURATION = 500; // ms — mais tolerante
+    const MAX_CLICK_DISTANCE = 12;  // pixels — mais tolerante
+
+    // Verifica se clicou perto do ponto 1 (para fechar polígono)
+    const isNearFirstPoint = (latLng) => {
+      const pts = currentPointsRef.current;
+      if (tipoDesenho !== 'area' || pts.length < 3) return false;
+      const map = mapInstanceRef.current;
+      const projection = map.getProjection();
+      if (!projection) return false;
+      const scale = Math.pow(2, map.getZoom());
+      const click = projection.fromLatLngToPoint(latLng);
+      const first = projection.fromLatLngToPoint(new google.maps.LatLng(pts[0].lat, pts[0].lng));
+      const dx = (click.x - first.x) * scale;
+      const dy = (click.y - first.y) * scale;
+      return Math.sqrt(dx * dx + dy * dy) < CLOSE_SNAP_PX;
+    };
 
     const handleAddPoint = (e) => {
       if (!e?.latLng) return;
+
+      // Se a área já foi fechada, não adicionar mais pontos
+      if (drawingClosed) return;
+
+      // Verificar se deve fechar o polígono
+      if (isNearFirstPoint(e.latLng)) {
+        setDrawingClosed(true);
+        toast.success('✅ Área fechada! Ajuste os pontos ou clique Salvar.', { duration: 2000 });
+        return;
+      }
 
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
@@ -398,10 +426,10 @@ const redoStackRef = useRef([]);
           draggable: true
         });
         tempMarkerRef.current.addListener('dragend', (ev) => {
-          let latLng = ev.latLng;
-          const snap = findNearestPoint(latLng, mapInstanceRef.current);
-          const newLat = snap ? snap.lat : latLng.lat();
-          const newLng = snap ? snap.lng : latLng.lng();
+          let latLng2 = ev.latLng;
+          const snap = findNearestPoint(latLng2, mapInstanceRef.current);
+          const newLat = snap ? snap.lat : latLng2.lat();
+          const newLng = snap ? snap.lng : latLng2.lng();
           setCurrentMarker({ lat: newLat, lng: newLng });
           if (snap) toast.success('🧲 Encaixado!', { duration: 600 });
         });
@@ -418,57 +446,37 @@ const redoStackRef = useRef([]);
       }
     };
 
-    // Registrar posição do mouse/toque ao pressionar
-    const mapDiv = mapInstanceRef.current.getDiv();
-    const onPointerDown = (ev) => {
-      mouseDownPosRef.current = { x: ev.clientX, y: ev.clientY };
-      mouseDownTimeRef.current = Date.now();
-    };
-    mapDiv.addEventListener('pointerdown', onPointerDown, { passive: true });
-
-    // Usar mouseup no mapa do Google para capturar a posição geográfica
-    const mouseUpListener = google.maps.event.addListener(mapInstanceRef.current, 'mouseup', (e) => {
-      if (!mouseDownPosRef.current) return;
-      const elapsed = Date.now() - mouseDownTimeRef.current;
-      // Em touch, não temos clientX no evento do Google Maps, usar elapsed apenas
-      const isMobile = 'ontouchstart' in window;
-      if (!isMobile && e?.domEvent) {
-        const dx = e.domEvent.clientX - mouseDownPosRef.current.x;
-        const dy = e.domEvent.clientY - mouseDownPosRef.current.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > MAX_CLICK_DISTANCE || elapsed > MAX_CLICK_DURATION) {
-          mouseDownPosRef.current = null;
-          return;
-        }
-      } else {
-        if (elapsed > MAX_CLICK_DURATION) {
-          mouseDownPosRef.current = null;
-          return;
-        }
-      }
-      mouseDownPosRef.current = null;
-      handleAddPoint(e);
-    });
+    // Usar evento click do Google Maps — mais confiável que mouseup
+    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleAddPoint);
 
     const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, 'dblclick', (e) => {
       if (e?.stop) e.stop();
     });
 
     return () => {
-      mapDiv.removeEventListener('pointerdown', onPointerDown);
-      google.maps.event.removeListener(mouseUpListener);
+      google.maps.event.removeListener(clickListener);
       google.maps.event.removeListener(dblClickListener);
     };
-  }, [tipoDesenho, mapReady, itemEditando]);
+  }, [tipoDesenho, mapReady, itemEditando, drawingClosed]);
 
   // Guia dinâmica do último ponto até o cursor (sem setState em mousemove)
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady) return;
     if (!(tipoDesenho === 'area' || tipoDesenho === 'linha') || itemEditando) return;
 
+    // Se a área foi fechada, não mostrar linha guia
+    if (drawingClosed) {
+      if (guideLineRef.current) {
+        guideLineRef.current.setPath([]);
+        guideLineRef.current.setMap(null);
+        guideLineRef.current = null;
+      }
+      return;
+    }
+
     if (!guideLineRef.current) {
       guideLineRef.current = new google.maps.Polyline({
-        strokeColor: '#facc15', // sky-600
+        strokeColor: '#facc15',
         strokeOpacity: 0.9,
         strokeWeight: 2,
         zIndex: 9999,
@@ -508,7 +516,7 @@ const redoStackRef = useRef([]);
       if (outL) google.maps.event.removeListener(outL);
       mouseMoveListenerRef.current = null;
     };
-  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled]);
+  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed]);
 
   // Linha guia removida - não mostrar mais a linha azul durante desenho
 
@@ -554,9 +562,10 @@ const redoStackRef = useRef([]);
     });
 
     if ((tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length >= 2) {
-      for (let index = 0; index < currentPoints.length - 1; index += 1) {
+      const segCount = tipoDesenho === 'area' && drawingClosed ? currentPoints.length : currentPoints.length - 1;
+      for (let index = 0; index < segCount; index += 1) {
         const start = currentPoints[index];
-        const end = currentPoints[index + 1];
+        const end = currentPoints[(index + 1) % currentPoints.length];
         const midPoint = {
           lat: (start.lat + end.lat) / 2,
           lng: (start.lng + end.lng) / 2,
@@ -567,10 +576,10 @@ const redoStackRef = useRef([]);
           map: mapInstanceRef.current,
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 4,
-            fillColor: '#d1d5db',
-            fillOpacity: 0.95,
-            strokeColor: '#ffffff',
+            scale: 5,
+            fillColor: '#ffffff',
+            fillOpacity: 1,
+            strokeColor: '#facc15',
             strokeWeight: 2,
           },
           clickable: false,
@@ -721,10 +730,10 @@ const redoStackRef = useRef([]);
             height: '100%',
             width: '100%',
             backgroundColor: '#e5e7eb',
-            cursor: (tipoDesenho && mapReady && !itemEditando) ? 'crosshair' : 'default',
+            cursor: (tipoDesenho && mapReady && !itemEditando && !drawingClosed) ? 'crosshair' : 'default',
             touchAction: 'manipulation'
           }}
-          className={(tipoDesenho && mapReady && !itemEditando) ? '[&_*]:cursor-crosshair' : ''}
+          className={(tipoDesenho && mapReady && !itemEditando && !drawingClosed) ? '[&_*]:cursor-crosshair' : ''}
         />
         {/* Botão fechar/voltar no topo esquerdo */}
         <Button
@@ -894,7 +903,7 @@ const redoStackRef = useRef([]);
                   className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                   disabled={
                     !(
-                      (tipoDesenho === 'area' && currentPoints.length >= 3) ||
+                      (tipoDesenho === 'area' && (drawingClosed || currentPoints.length >= 3)) ||
                       (tipoDesenho === 'linha' && currentPoints.length >= 2) ||
                       (tipoDesenho === 'ponto' && !!currentMarker)
                     )
@@ -910,7 +919,7 @@ const redoStackRef = useRef([]);
                     }
                   }}
                 >
-                  <Check className="w-3.5 h-3.5 mr-1.5" /> {itemEditando ? 'Salvar' : 'Terminar'}
+                  <Check className="w-3.5 h-3.5 mr-1.5" /> {itemEditando ? 'Salvar' : (drawingClosed ? 'Salvar' : 'Terminar')}
                 </Button>
               </div>
             </div>
