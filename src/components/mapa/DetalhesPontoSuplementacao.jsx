@@ -284,7 +284,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
-                  {consumoBase > 0 && <div className="text-[11px] text-slate-700 mt-0.5">{formatKg(consumoBase)}/dia</div>}
+                  {consumoBase > 0 && <div className="text-[11px] text-slate-600 mt-0.5">{formatKg(consumoBase)}/dia</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                   <div className="text-slate-500">Duração estimada</div>
