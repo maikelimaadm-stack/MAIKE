@@ -139,7 +139,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
   return (
     <div className="space-y-1" translate="no">
-      <div className="pb-2 border-b space-y-1">
+      <div className="pb-0 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {deposito.nome_ponto}</Badge>
         </div>
@@ -225,7 +225,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
                 <div className="grid grid-cols-2 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{ultimoRegistro.tipo_detalhado === "suplementacao" ? "Suplementação" : (ultimoRegistro.local_destino || "-")}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{ultimoRegistro.tipo_detalhado === "suplementacao" ? "Suplementação" : ultimoRegistro.local_destino || "-"}</div></div>
                 </div>
               </div>
               {ultimoRegistro.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {ultimoRegistro.observacoes}</div>}
@@ -244,17 +244,17 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
           <div className="space-y-2">
               {cochosVinculados.map((cocho) => {
-            const areaIds = Array.isArray(cocho.area_vinculada_ids) && cocho.area_vinculada_ids.length > 0
-              ? cocho.area_vinculada_ids
-              : (cocho.area_vinculada_id ? [cocho.area_vinculada_id] : []);
-            const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
-            const nomesResolvidos = areaIds.map((id) => nomesPorId.get(id)).filter(Boolean);
-            const pastosAtendidos = nomesResolvidos.length > 0
-              ? nomesResolvidos.join(', ')
-              : Array.isArray(cocho.area_vinculada_nomes) && cocho.area_vinculada_nomes.length > 0
-                ? cocho.area_vinculada_nomes.join(', ')
-                : cocho.area_vinculada_nome || 'Sem pasto vinculado';
-            return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
+              const areaIds = Array.isArray(cocho.area_vinculada_ids) && cocho.area_vinculada_ids.length > 0 ?
+              cocho.area_vinculada_ids :
+              cocho.area_vinculada_id ? [cocho.area_vinculada_id] : [];
+              const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
+              const nomesResolvidos = areaIds.map((id) => nomesPorId.get(id)).filter(Boolean);
+              const pastosAtendidos = nomesResolvidos.length > 0 ?
+              nomesResolvidos.join(', ') :
+              Array.isArray(cocho.area_vinculada_nomes) && cocho.area_vinculada_nomes.length > 0 ?
+              cocho.area_vinculada_nomes.join(', ') :
+              cocho.area_vinculada_nome || 'Sem pasto vinculado';
+              return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
                   <div className="text-[10px] text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
                 </div>;
@@ -268,15 +268,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Informações do Depósito</div>
           <div className="space-y-1 text-[10px]">
-            {subIconePonto && (
-              <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
+            {subIconePonto &&
+            <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
                 <img src={subIconePonto} alt={deposito.nome_ponto} className="w-10 h-10 object-contain" />
                 <div>
                   <div className="font-semibold text-slate-900">{deposito.nome_ponto}</div>
                   <div className="text-slate-500">{deposito.categoria_ponto || 'DEPOSITO'} • {deposito.status || 'Ativo'}</div>
                 </div>
               </div>
-            )}
+            }
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Número:</span><span className="font-semibold text-slate-900">{deposito.numero_ponto || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sigla:</span><span className="font-semibold text-slate-900">{deposito.sigla || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{deposito.tipo || '-'}</span></div>
