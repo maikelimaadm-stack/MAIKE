@@ -735,10 +735,12 @@ export default function MapaGeral() {
   }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
-    if (showPontosSuplementacao) return pontos;
+    if (!showPontosSuplementacao) return pontos;
+    // Ocultar pontos de referência de tipo Cocho/Depósito quando suplementação ativa
+    // (evita sobreposição com markers de PontoSuplementacao)
     return pontos.filter((p) => {
       const tipo = (p.tipo || '').toUpperCase().trim();
-      return tipo !== 'COCHO' && tipo !== 'COCHOS';
+      return tipo !== 'COCHO' && tipo !== 'COCHOS' && tipo !== 'DEPOSITO' && tipo !== 'DEPÓSITO';
     });
   }, [pontos, showPontosSuplementacao]);
 

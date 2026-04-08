@@ -321,14 +321,15 @@ export default function useMapRenderer(mapInstanceRef) {
       const area = areas.find(a => a.id === areaId);
       if (!area || !area.coordenadas?.coords || area.coordenadas.coords.length < 3) return;
       const paths = area.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      // Usar centróide real do polígono para centralizar melhor
+      const centroid = calcCentroid(paths);
+      const centroidLat = typeof centroid.lat === 'function' ? centroid.lat() : centroid.lat;
+      const centroidLng = typeof centroid.lng === 'function' ? centroid.lng() : centroid.lng;
+      // Deslocar levemente para cima para não sobrepor nome da área
       const bounds = new google.maps.LatLngBounds();
       paths.forEach(p => bounds.extend(p));
-      const center = bounds.getCenter();
-      // Deslocar ícone do lote para cima do centróide (não sobrepor nome)
-      const ne = bounds.getNorthEast();
-      const sw = bounds.getSouthWest();
-      const latSpan = ne.lat() - sw.lat();
-      const offsetCenter = new google.maps.LatLng(center.lat() + latSpan * 0.15, center.lng());
+      const latSpan = bounds.getNorthEast().lat() - bounds.getSouthWest().lat();
+      const offsetCenter = new google.maps.LatLng(centroidLat + latSpan * 0.12, centroidLng);
       const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
       const cats = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase().trim()).filter(Boolean))].sort();
       let cfg;

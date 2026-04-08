@@ -100,7 +100,8 @@ export default function MapaCadastro() {
       const ponto = pontos.find((item) => item.id === id);
       const normalizar = (value = "") => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
-      await base44.entities.PontoReferencia.update(id, { ativo: false });
+      // Excluir definitivamente do banco de dados
+      await base44.entities.PontoReferencia.delete(id);
 
       const pontosSuplementacao = await base44.entities.PontoSuplementacao.list();
       const vinculados = pontosSuplementacao.filter((item) =>
@@ -130,12 +131,13 @@ export default function MapaCadastro() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "pontos" });
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "pontos-suplementacao" });
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "pontos-supl" });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "pontos-suplementacao", "pontos-supl", "mapa-pontos", "mapa-pontos-supl"].includes(q.queryKey[0]) });
       toast.success("Ponto excluído!");
       setItemExcluir(null);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+    },
+    onError: (error) => {
+      toast.error(error?.message || "Erro ao excluir ponto");
     },
   });
 
