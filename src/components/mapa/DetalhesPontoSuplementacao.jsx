@@ -152,10 +152,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     // 3) consumo ideal por cabeça cadastrado no ponto × cabeças
     const consumoIdealPonto = Number(ponto?.consumo_ideal_por_cabeca_kg || 0) * totalCabecasRelacionadas;
     if (consumoIdealPonto > 0) return consumoIdealPonto;
-    // 4) Último recurso: totalDisponivel / frequência esperada do ponto
-    const freq = Number(ponto?.frequencia_esperada_dias || 0);
-    const totalDisp = Number(ultimoEvento.quantidade_total_kg || 0) + Number(ultimoEvento.sobra_kg || 0);
-    if (freq > 0 && totalDisp > 0) return totalDisp / freq;
     return 0;
   }, [ultimoEvento, pesoMedioRelacionados, percentualProduto, totalCabecasRelacionadas, ponto]);
   const resumoProdutos = useMemo(() => {
@@ -170,8 +166,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     });
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventos, produtos]);
-  const frequenciaMinimaAlerta = Number(ponto.frequencia_esperada_dias_minimo || ponto.frequencia_esperada_dias || 0);
-  const temAlerta = ponto.status === "Ativo" && frequenciaMinimaAlerta > 0 && (diasSemLancamento === null || diasSemLancamento > frequenciaMinimaAlerta);
+  const diasAlertaReposicao = Number(ponto.dias_alerta_reposicao || 3);
+  const temAlerta = ponto.status === "Ativo" && (diasSemLancamento === null || diasSemLancamento >= Number(ponto.alerta_sem_lancamento_dias || 10));
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -202,7 +198,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
         const diasDesde = diasSemLancamento || 0;
         // totalDisponivel = o que foi colocado no cocho neste lançamento (fornecido) + sobra do anterior
         const totalDisponivel = fornecido + sobra;
-        const minimoDias = Number(ponto.frequencia_esperada_dias_minimo || 0);
+        const diasAlerta = Number(ponto.dias_alerta_reposicao || 3);
         const capacidadeCocho = Number(ponto.capacidade_cocho_kg || 0);
 
         // consumoBase: apenas via %PV calculado dos lotes atuais — NÃO usa consumo_diario_grupo_kg do evento
@@ -240,7 +236,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
         // Gráfico 2: saldo capacidade (quanto ocupa da capacidade física do cocho)
         const percentCapacidade = capacidadeCocho > 0 ? Math.min(1, Math.max(0, saldoEstimado / capacidadeCocho)) : null;
 
-        const alertaGrafico = minimoDias > 0 && diasDesde >= minimoDias;
+        const alertaGrafico = diasRestantes > 0 && diasRestantes <= diasAlerta;
 
         return (
           <CardSection title="Saldo estimado no cocho">
@@ -369,8 +365,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo ideal/cab:</span><span className="font-semibold text-slate-900">{ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite mínimo:</span><span className="font-semibold text-slate-900">{ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite máximo:</span><span className="font-semibold text-slate-900">{ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência mínima:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias_minimo ? `${formatDecimal(ponto.frequencia_esperada_dias_minimo, 0, true)} dia(s)` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência máxima:</span><span className="font-semibold text-slate-900">{ponto.frequencia_esperada_dias_maximo ? `${formatDecimal(ponto.frequencia_esperada_dias_maximo, 0, true)} dia(s)` : ponto.frequencia_esperada_dias ? `${formatDecimal(ponto.frequencia_esperada_dias, 0, true)} dia(s)` : '-'}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Dias alerta reposição:</span><span className="font-semibold text-slate-900">{ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{ponto.observacoes || '-'}</span></div>
         </div>

@@ -1,0 +1,151 @@
+{
+  "name": "PontoSuplementacao",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "numero_ponto": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico do ponto de suplementa\u00e7\u00e3o"
+    },
+    "setor_id": {
+      "type": "string",
+      "description": "ID do setor vinculado"
+    },
+    "setor_nome": {
+      "type": "string",
+      "description": "Nome do setor vinculado"
+    },
+    "nome_ponto": {
+      "type": "string",
+      "description": "Nome do ponto de suplementa\u00e7\u00e3o"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla do ponto"
+    },
+    "categoria_ponto": {
+      "type": "string",
+      "enum": [
+        "COCHO",
+        "DEPOSITO"
+      ],
+      "default": "COCHO",
+      "description": "Categoria do ponto de suplementa\u00e7\u00e3o"
+    },
+    "tipo": {
+      "type": "string",
+      "description": "Tipo do ponto de suplementa\u00e7\u00e3o"
+    },
+    "produto_padrao": {
+      "type": "string",
+      "description": "Produto padr\u00e3o fornecido neste ponto"
+    },
+    "capacidade_cocho_kg": {
+      "type": "number",
+      "description": "Capacidade m\u00e1xima do cocho ou dep\u00f3sito em kg"
+    },
+    "estoque_minimo_kg": {
+      "type": "number",
+      "description": "Estoque m\u00ednimo do dep\u00f3sito em kg"
+    },
+    "metragem_cocho_m": {
+      "type": "number",
+      "description": "Metragem linear do cocho em metros"
+    },
+    "cobertura_cocho": {
+      "type": "string",
+      "enum": [
+        "Coberto",
+        "N\u00e3o Coberto"
+      ],
+      "description": "Define se o cocho \u00e9 coberto ou n\u00e3o coberto"
+    },
+    "area_vinculada_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea principal de pastagem vinculada"
+    },
+    "area_vinculada_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea principal vinculada"
+    },
+    "area_vinculada_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs das \u00e1reas de pastagem vinculadas ao cocho"
+    },
+    "area_vinculada_nomes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Nomes das \u00e1reas de pastagem vinculadas ao cocho"
+    },
+    "deposito_origem_id": {
+      "type": "string",
+      "description": "ID do dep\u00f3sito vinculado ao cocho"
+    },
+    "deposito_origem_nome": {
+      "type": "string",
+      "description": "Nome do dep\u00f3sito vinculado ao cocho"
+    },
+    "local_estoque_id": {
+      "type": "string",
+      "description": "ID do local de estoque autom\u00e1tico do dep\u00f3sito"
+    },
+    "local_estoque_nome": {
+      "type": "string",
+      "description": "Nome do local de estoque autom\u00e1tico do dep\u00f3sito"
+    },
+    "consumo_ideal_por_cabeca_kg": {
+      "type": "number",
+      "description": "Consumo ideal por cabe\u00e7a em kg/dia"
+    },
+    "limite_minimo_consumo": {
+      "type": "number",
+      "description": "Limite m\u00ednimo de consumo por cabe\u00e7a"
+    },
+    "limite_maximo_consumo": {
+      "type": "number",
+      "description": "Limite m\u00e1ximo de consumo por cabe\u00e7a"
+    },
+    "dias_alerta_reposicao": {
+      "type": "number",
+      "default": 3,
+      "description": "Dias antes do fim estimado do produto para disparar alerta de reposi\u00e7\u00e3o"
+    },
+    "alerta_sem_lancamento_dias": {
+      "type": "number",
+      "default": 10,
+      "description": "Alerta se ficar X dias sem lan\u00e7amento"
+    },
+    "coordenadas": {
+      "type": "object",
+      "description": "Coordenadas do ponto no mapa"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Ativo",
+        "Inativo"
+      ],
+      "default": "Ativo",
+      "description": "Status do ponto"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome_ponto",
+    "categoria_ponto"
+  ]
+}

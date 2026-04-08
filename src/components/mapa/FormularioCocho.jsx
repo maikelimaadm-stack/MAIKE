@@ -37,9 +37,7 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     consumo_ideal_por_cabeca_kg: "",
     limite_minimo_consumo: "",
     limite_maximo_consumo: "",
-    frequencia_esperada_dias_minimo: "",
-    frequencia_esperada_dias_maximo: "7",
-    frequencia_esperada_dias: "7",
+    dias_alerta_reposicao: "3",
     alerta_sem_lancamento_dias: "10",
     observacoes: ""
   });
@@ -55,9 +53,7 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
         consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || "",
         limite_minimo_consumo: item.limite_minimo_consumo || "",
         limite_maximo_consumo: item.limite_maximo_consumo || "",
-        frequencia_esperada_dias_minimo: item.frequencia_esperada_dias_minimo || "",
-        frequencia_esperada_dias_maximo: item.frequencia_esperada_dias_maximo || item.frequencia_esperada_dias || "7",
-        frequencia_esperada_dias: item.frequencia_esperada_dias || "7",
+        dias_alerta_reposicao: item.dias_alerta_reposicao || "3",
         alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || "10",
         observacoes: item.observacoes || ""
       });
@@ -130,9 +126,7 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     consumo_ideal_por_cabeca_kg: formData.consumo_ideal_por_cabeca_kg ? parseFloat(formData.consumo_ideal_por_cabeca_kg) : null,
     limite_minimo_consumo: formData.limite_minimo_consumo ? parseFloat(formData.limite_minimo_consumo) : null,
     limite_maximo_consumo: formData.limite_maximo_consumo ? parseFloat(formData.limite_maximo_consumo) : null,
-    frequencia_esperada_dias_minimo: formData.frequencia_esperada_dias_minimo ? parseInt(formData.frequencia_esperada_dias_minimo) : null,
-    frequencia_esperada_dias_maximo: formData.frequencia_esperada_dias_maximo ? parseInt(formData.frequencia_esperada_dias_maximo) : 7,
-    frequencia_esperada_dias: formData.frequencia_esperada_dias_maximo ? parseInt(formData.frequencia_esperada_dias_maximo) : 7,
+    dias_alerta_reposicao: formData.dias_alerta_reposicao ? parseInt(formData.dias_alerta_reposicao) : 3,
     alerta_sem_lancamento_dias: formData.alerta_sem_lancamento_dias ? parseInt(formData.alerta_sem_lancamento_dias) : 10,
     coordenadas,
     status: 'Ativo',
@@ -176,10 +170,7 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
         <FL label="Limite Mínimo (kg)"><Input type="number" step="0.01" value={formData.limite_minimo_consumo} onChange={(e) => setFormData({ ...formData, limite_minimo_consumo: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
         <FL label="Limite Máximo (kg)"><Input type="number" step="0.01" value={formData.limite_maximo_consumo} onChange={(e) => setFormData({ ...formData, limite_maximo_consumo: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
       </div>
-      <div className="grid grid-cols-2 gap-1">
-        <FL label="Frequência mínima (dias)"><Input type="number" value={formData.frequencia_esperada_dias_minimo} onChange={(e) => setFormData({ ...formData, frequencia_esperada_dias_minimo: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-        <FL label="Frequência máxima (dias)"><Input type="number" value={formData.frequencia_esperada_dias_maximo} onChange={(e) => setFormData({ ...formData, frequencia_esperada_dias_maximo: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-      </div>
+      <FL label="Dias de Alerta para Reposição"><Input type="number" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData({ ...formData, dias_alerta_reposicao: e.target.value })} placeholder="3" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
       <FL label="Alerta sem Lançamento (dias)"><Input type="number" value={formData.alerta_sem_lancamento_dias} onChange={(e) => setFormData({ ...formData, alerta_sem_lancamento_dias: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
       <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} /></FL>
       <div className="flex gap-1 pt-1 border-t">
