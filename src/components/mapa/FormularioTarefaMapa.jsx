@@ -89,12 +89,17 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const nomeUsuarioAtual = useMemo(() => getUserDisplayName(usuarioAtual), [usuarioAtual]);
 
-  const sourceRef = React.useRef(tarefa || initialDraft || {});
-  const initializedRef = React.useRef(false);
+  // Fill solicitante from current user when empty (lazy, after user loads)
+  useEffect(() => {
+    if (!nomeUsuarioAtual) return;
+    setFormData((prev) => {
+      if (prev.solicitante) return prev;
+      return { ...prev, solicitante: nomeUsuarioAtual, responsavel_geral: prev.responsavel_geral || nomeUsuarioAtual };
+    });
+  }, [nomeUsuarioAtual]);
 
-  const buildFormFromSource = (source, prevFormData) => {
-    const sourceAreaId = source.area_id || areaId || "";
-    const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
+  const [formData, setFormData] = useState(() => {
+    const source = tarefa || initialDraft || {};
     return {
       id: source.id || "",
       titulo: source.titulo || "",
@@ -104,71 +109,60 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       tipo_tarefa_nome: source.tipo_tarefa_nome || "",
       grupo_atividade_id: source.grupo_atividade_id || "",
       grupo_atividade_nome: source.grupo_atividade_nome || "",
-      solicitante: source.solicitante || source.responsavel_geral || nomeUsuarioAtual || "",
+      solicitante: source.solicitante || source.responsavel_geral || "",
       data_pedido: source.data_pedido || "",
       data_prevista: source.data_prevista || "",
       data_conclusao: source.data_conclusao || "",
-      setor_nome: source.setor_nome || areaSelecionada?.setor_nome || "",
-      prioridade: normalizeTaskPriority(source.prioridade || "Média"),
+      setor_nome: source.setor_nome || "",
+      prioridade: normalizeTaskPriority(source.prioridade || "M\u00e9dia"),
       status: source.status || "Pendente",
       responsavel_id: source.responsavel_id || "",
       responsavel: source.responsavel || "",
-      responsavel_geral: source.responsavel_geral || source.solicitante || nomeUsuarioAtual || "",
+      responsavel_geral: source.responsavel_geral || source.solicitante || "",
       observacoes: source.observacoes || "",
-      area_id: sourceAreaId,
-      area_nome: source.area_nome || areaNome || areaSelecionada?.nome || "",
+      area_id: source.area_id || areaId || "",
+      area_nome: source.area_nome || areaNome || "",
       lote_id: source.lote_id || loteId || "",
       lote_nome: source.lote_nome || loteNome || "",
-      ponto_suplementacao_id: source.ponto_suplementacao_id || (prevFormData?.ponto_suplementacao_id) || pontoSuplId || "",
-      coordenadas: source.coordenadas || (prevFormData?.coordenadas) || initialCoordinates || null
+      ponto_suplementacao_id: source.ponto_suplementacao_id || pontoSuplId || "",
+      coordenadas: source.coordenadas || initialCoordinates || null
     };
-  };
-
-  const [formData, setFormData] = useState(() => buildFormFromSource(sourceRef.current, null));
+  });
   const [errors, setErrors] = useState({});
 
-  // Initialize form ONCE when tarefa/initialDraft changes (not on areas/setores reload)
+  // Resolve setorSelecionadoId from formData + areas/setores (runs every render they change)
   useEffect(() => {
-    const source = tarefa || initialDraft || {};
-    sourceRef.current = source;
-    initializedRef.current = false;
-    const newForm = buildFormFromSource(source, null);
-    setFormData(newForm);
-    // Resolve setor immediately if possible
-    const sourceAreaId = source.area_id || areaId || "";
-    const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
-    const setorIdResolve = areaSelecionada?.setor_id
-      || (source.setor_nome ? setores.find((s) => s.nome === source.setor_nome)?.id : "")
-      || "";
-    setSetorSelecionadoId(setorIdResolve);
-    setErrors({});
-  }, [tarefa, initialDraft, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates]);
-
-  // When areas/setores finish loading, resolve setor WITHOUT resetting form fields
-  useEffect(() => {
-    if (!areas.length && !setores.length) return;
-    const source = sourceRef.current;
-    const sourceAreaId = source.area_id || areaId || "";
-    if (!sourceAreaId && !source.setor_nome) return;
-    const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
-    const setorIdResolve = areaSelecionada?.setor_id
-      || (source.setor_nome ? setores.find((s) => s.nome === source.setor_nome)?.id : "")
-      || "";
-    if (setorIdResolve && setorIdResolve !== setorSelecionadoId) {
-      setSetorSelecionadoId(setorIdResolve);
+    // Skip if already resolved
+    if (setorSelecionadoId) return;
+    const sourceAreaId = formData.area_id;
+    if (!sourceAreaId && !formData.setor_nome) return;
+    // Try to find via area_id
+    if (sourceAreaId && areas.length) {
+      const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
+      if (areaSelecionada?.setor_id) {
+        setSetorSelecionadoId(areaSelecionada.setor_id);
+        if (!formData.area_nome) {
+          setFormData((prev) => ({ ...prev, area_nome: areaSelecionada.nome || prev.area_nome, setor_nome: areaSelecionada.setor_nome || prev.setor_nome }));
+        }
+        return;
+      }
     }
-    // Only update area_nome / setor_nome if they were empty (don't overwrite user edits)
-    if (areaSelecionada) {
-      setFormData((prev) => ({
-        ...prev,
-        area_nome: prev.area_nome || areaSelecionada.nome || "",
-        setor_nome: prev.setor_nome || areaSelecionada.setor_nome || ""
-      }));
+    // Fallback: find setor by name
+    if (formData.setor_nome && setores.length) {
+      const setor = setores.find((s) => s.nome === formData.setor_nome);
+      if (setor) {
+        setSetorSelecionadoId(setor.id);
+        return;
+      }
     }
-  }, [areas, setores]);
+  }, [formData.area_id, formData.setor_nome, areas, setores, setorSelecionadoId]);
 
   // Sync setor when user changes area_id manually via Select
+  const prevAreaIdRef = React.useRef(formData.area_id);
   useEffect(() => {
+    // Only run when area_id actually changes by user action (not on initial load)
+    if (formData.area_id === prevAreaIdRef.current) return;
+    prevAreaIdRef.current = formData.area_id;
     if (!formData.area_id) return;
     const areaSelecionada = areas.find((item) => item.id === formData.area_id);
     if (!areaSelecionada) return;
