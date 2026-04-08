@@ -98,8 +98,8 @@ export default function LancamentoTarefaForm() {
 
   return (
     <div className="p-1 md:p-1 space-y-1 overflow-x-hidden" style={{ overscrollBehavior: 'none' }}>
-      <div className="bg-emerald-50 border-b border-emerald-200 py-2 px-3 rounded-t-xl">
-        <h2 className="text-sm font-bold text-emerald-900">{isEdit ? "Editar Lançamento de Tarefa" : "Lançar Tarefa"}</h2>
+      <div className="bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
+        <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar Lançamento de Tarefa" : "Lançar Tarefa"}</h1>
       </div>
 
       {isLoading ?

@@ -283,7 +283,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           <p className="text-xs text-slate-600">Informe o que precisa ser feito e vincule a tarefa ao local correto.</p>
         </div>
         <div className="space-y-1 lg:col-span-2">
-          <Label className="text-xs uppercase">Título da tarefa *</Label>
+          <Label className="text-xs">Título da tarefa *</Label>
           <Input
           data-field="titulo"
           value={formData.titulo}
@@ -297,7 +297,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Fazenda</Label>
+          <Label className="text-xs">Fazenda</Label>
           <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => {
               const setor = setores.find((item) => item.id === value);
               setSetorSelecionadoId(value === "__sem_setor__" ? "" : value);
@@ -313,7 +313,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         {!areaId && !loteId ?
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase">Local / pasto</Label>
+            <Label className="text-xs">Local / pasto</Label>
             <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder={setorSelecionadoId ? "Selecione o local" : "Selecione a fazenda primeiro"} /></SelectTrigger>
               <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs uppercase">{area.nome}</SelectItem>)}</SelectContent>
@@ -321,13 +321,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div> :
 
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase">Local / pasto</Label>
+            <Label className="text-xs">Local / pasto</Label>
             <Input value={formData.area_nome || formData.lote_nome} readOnly className="h-8 text-xs bg-slate-50 uppercase" />
           </div>
           }
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Grupo de atividade *</Label>
+          <Label className="text-xs">Grupo de atividade *</Label>
           <div data-field="grupo_atividade_id">
             <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase">
@@ -348,7 +348,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Tipo de tarefa *</Label>
+          <Label className="text-xs">Tipo de tarefa *</Label>
           <div data-field="tipo_tarefa_id">
             <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase">
@@ -365,7 +365,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Responsável</Label>
+          <Label className="text-xs">Responsável</Label>
           <div data-field="responsavel_id">
             <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
@@ -380,7 +380,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Solicitante</Label>
+          <Label className="text-xs">Solicitante</Label>
           <div data-field="solicitante">
             <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
               <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue placeholder="Selecione o solicitante" /></SelectTrigger>
@@ -396,7 +396,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Prioridade</Label>
+          <Label className="text-xs">Prioridade</Label>
           <Select value={formData.prioridade} onValueChange={(value) => setFormData((prev) => ({ ...prev, prioridade: value }))}>
             <SelectTrigger className="flex w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -408,7 +408,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase">Status</Label>
+          <Label className="text-xs">Status</Label>
           <Select value={formData.status} onValueChange={(value) => {
               setErrors((prev) => ({ ...prev, data_conclusao: false }));
               setFormData((prev) => ({ ...prev, status: value }));
@@ -433,7 +433,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase">Data do pedido *</Label>
+            <Label className="text-xs">Data do pedido *</Label>
             <div data-field="data_pedido">
               <Input type="date" value={formData.data_pedido} onChange={(e) => {
                   setErrors((prev) => ({ ...prev, data_pedido: false }));
@@ -443,7 +443,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase">Prazo previsto</Label>
+            <Label className="text-xs">Prazo previsto</Label>
             <Input
               type="date"
               value={formData.data_prevista}
@@ -453,7 +453,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
+            <Label className="text-xs">Data de conclusão {formData.status === "Concluída" ? "*" : ""}</Label>
             <div data-field="data_conclusao">
               <Input type="date" value={formData.data_conclusao} onChange={(e) => {
                   setErrors((prev) => ({ ...prev, data_conclusao: false }));
@@ -465,18 +465,18 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
           <div>
-            <Label className="text-xs uppercase">Descrição da tarefa</Label>
+            <Label className="text-xs">Descrição da tarefa</Label>
             <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO, O PROBLEMA ENCONTRADO OU A ORIENTAÇÃO DA EXECUÇÃO" className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[100px] text-xs uppercase" />
           </div>
 
           <div>
-            <Label className="text-xs uppercase">Observações internas</Label>
+            <Label className="text-xs">Observações internas</Label>
             <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} placeholder="INFORME DETALHES COMPLEMENTARES, ALERTAS OU ORIENTAÇÕES INTERNAS" className="min-h-[100px] text-xs uppercase" />
           </div>
         </div>
 
         <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs uppercase">Local da tarefa no mapa</Label>
+          <Label className="text-xs">Local da tarefa no mapa</Label>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
             {(formData.area_nome || formData.lote_nome) && <div className="text-xs text-slate-600"><span className="font-medium">VINCULADO A:</span> {formData.area_nome || formData.lote_nome}</div>}
             {formData.coordenadas ? <div className="text-xs text-slate-600 flex items-center gap-2"><MapPin className="w-3.5 h-3.5" />{formData.coordenadas.lat.toFixed(6)}, {formData.coordenadas.lng.toFixed(6)}</div> : <div className="text-xs text-slate-500">MARQUE O PONTO EXATO NO MAPA PARA FACILITAR A EXECUÇÃO.</div>}
