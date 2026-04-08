@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MapPin } from "lucide-react";
+import useMapRenderer from "./useMapRenderer";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 let googleMapsPromise = null;
@@ -51,9 +54,34 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
-  const polygonsRef = useRef([]);
   const clickListenerRef = useRef(null);
   const selectingRef = useRef(false);
+  const polygonClickListenersRef = useRef([]);
+  const renderer = useMapRenderer(mapInstanceRef);
+
+  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+
+  const { data: tarefasPendentes = [] } = useQuery({
+    queryKey: ["tarefas-picker-pendentes", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.LancamentoTarefa.list("-updated_date");
+      return all.filter(
+        (t) => t.empresa_id === empresaSelecionadaId && (t.status === "Pendente" || t.status === "Em Andamento")
+      );
+    },
+    enabled: open && !!empresaSelecionadaId,
+    initialData: []
+  });
+
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ["icones-config-picker", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+    },
+    enabled: open && !!empresaSelecionadaId,
+    initialData: []
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -77,8 +105,9 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
       const map = mapInstanceRef.current;
       selectingRef.current = false;
 
-      polygonsRef.current.forEach((item) => item.polygon?.setMap(null));
-      polygonsRef.current = [];
+      // Clean up old polygon click listeners
+      polygonClickListenersRef.current.forEach((l) => google.maps.event.removeListener(l));
+      polygonClickListenersRef.current = [];
       if (clickListenerRef.current) clickListenerRef.current.remove();
 
       const selectPoint = (coords, area = null) => {
@@ -111,41 +140,37 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
         }, 120);
       };
 
-      const findAreaByCoords = (coords) => {
-        const point = new google.maps.LatLng(coords.lat, coords.lng);
-        return polygonsRef.current.find((item) => google.maps.geometry.poly.containsLocation(point, item.polygon))?.area || null;
-      };
+      // Use renderer to draw areas with proper colors and labels
+      const noop = () => {};
+      renderer.syncAreas(areas, true, (area, coords) => {
+        if (coords) selectPoint(coords, area);
+      }, noop, null);
 
-      areas.forEach((area) => {
-        const path = (area.coordenadas?.coords || []).map((coord) => ({
-          lat: coord[0] || coord.lat,
-          lng: coord[1] || coord.lng,
-        }));
+      renderer.syncLabels(areas, true, null, true);
 
-        if (path.length < 3) return;
+      // Draw pending tasks
+      renderer.syncTarefas(tarefasPendentes, areas, iconesConfig, noop);
 
-        const polygon = new google.maps.Polygon({
-          paths: path,
-          strokeColor: "#059669",
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
-          fillColor: "#10b981",
-          fillOpacity: 0.18,
-          map,
-        });
-
-        polygon.addListener("click", (event) => {
-          selectPoint({ lat: event.latLng.lat(), lng: event.latLng.lng() }, area);
-        });
-
-        polygonsRef.current.push({ polygon, area });
-      });
-
+      // Add click listener on map for clicking outside areas
       clickListenerRef.current = map.addListener("click", (event) => {
         const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
-        selectPoint(coords, findAreaByCoords(coords));
+        // Find if clicked inside an area polygon
+        const point = new google.maps.LatLng(coords.lat, coords.lng);
+        let foundArea = null;
+        for (const area of areas) {
+          const areaCoords = area.coordenadas?.coords || [];
+          if (areaCoords.length < 3) continue;
+          const path = areaCoords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+          const polygon = new google.maps.Polygon({ paths: path });
+          if (google.maps.geometry.poly.containsLocation(point, polygon)) {
+            foundArea = area;
+            break;
+          }
+        }
+        selectPoint(coords, foundArea);
       });
 
+      // Position map
       if (initialCoordinates) {
         if (!markerRef.current) {
           markerRef.current = new google.maps.Marker({
@@ -173,7 +198,26 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
 
       google.maps.event.trigger(map, "resize");
     });
-  }, [open, areas, initialCoordinates, onOpenChange, onSelect]);
+
+    return () => {
+      // Cleanup on close
+      if (clickListenerRef.current) {
+        clickListenerRef.current.remove();
+        clickListenerRef.current = null;
+      }
+    };
+  }, [open, areas, initialCoordinates, onOpenChange, onSelect, tarefasPendentes, iconesConfig]);
+
+  // Cleanup renderer when dialog closes
+  useEffect(() => {
+    if (!open) {
+      renderer.clearAll();
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
+        markerRef.current = null;
+      }
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
