@@ -130,68 +130,36 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   });
   const [errors, setErrors] = useState({});
 
-  // Resolve setorSelecionadoId from formData + areas/setores (runs every render they change)
   useEffect(() => {
-    // Skip if already resolved
-    if (setorSelecionadoId) return;
-    const sourceAreaId = formData.area_id;
-    if (!sourceAreaId && !formData.setor_nome) return;
-    // Try to find via area_id
-    if (sourceAreaId && areas.length) {
-      const areaSelecionada = areas.find((item) => item.id === sourceAreaId);
-      if (areaSelecionada?.setor_id) {
-        setSetorSelecionadoId(areaSelecionada.setor_id);
-        if (!formData.area_nome) {
-          setFormData((prev) => ({ ...prev, area_nome: areaSelecionada.nome || prev.area_nome, setor_nome: areaSelecionada.setor_nome || prev.setor_nome }));
-        }
-        return;
-      }
-    }
-    // Fallback: find setor by name
-    if (formData.setor_nome && setores.length) {
-      const setor = setores.find((s) => s.nome === formData.setor_nome);
-      if (setor) {
-        setSetorSelecionadoId(setor.id);
-        return;
-      }
-    }
-  }, [formData.area_id, formData.setor_nome, areas, setores, setorSelecionadoId]);
+    const areaSelecionada = formData.area_id ? areas.find((item) => item.id === formData.area_id) : null;
 
-  // Sync setor when user changes area_id manually via Select
-  const prevAreaIdRef = React.useRef(formData.area_id);
-  useEffect(() => {
-    // Only run when area_id actually changes by user action (not on initial load)
-    if (formData.area_id === prevAreaIdRef.current) return;
-    prevAreaIdRef.current = formData.area_id;
-    if (!formData.area_id) return;
-    const areaSelecionada = areas.find((item) => item.id === formData.area_id);
-    if (!areaSelecionada) return;
-    if (setorSelecionadoId !== areaSelecionada.setor_id) {
-      setSetorSelecionadoId(areaSelecionada.setor_id || "");
+    if (areaSelecionada) {
+      if (setorSelecionadoId !== (areaSelecionada.setor_id || "")) {
+        setSetorSelecionadoId(areaSelecionada.setor_id || "");
+      }
+
+      if (formData.area_nome !== (areaSelecionada.nome || "") || formData.setor_nome !== (areaSelecionada.setor_nome || "")) {
+        setFormData((prev) => ({
+          ...prev,
+          area_nome: areaSelecionada.nome || prev.area_nome,
+          setor_nome: areaSelecionada.setor_nome || prev.setor_nome
+        }));
+      }
+      return;
     }
-    if (formData.setor_nome !== areaSelecionada.setor_nome) {
-      setFormData((prev) => ({ ...prev, setor_nome: areaSelecionada.setor_nome || "" }));
+
+    if (!formData.area_id && formData.setor_nome && setores.length && !setorSelecionadoId) {
+      const setor = setores.find((item) => item.nome === formData.setor_nome);
+      if (setor?.id) {
+        setSetorSelecionadoId(setor.id);
+      }
     }
-  }, [formData.area_id, areas]);
+  }, [formData.area_id, formData.area_nome, formData.setor_nome, areas, setores, setorSelecionadoId]);
 
   const areasDoSetor = setorSelecionadoId ? getAreasBySetor(setorSelecionadoId) : [];
   const tiposTarefaFiltrados = formData.grupo_atividade_id ?
   tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id) :
   [];
-
-  useEffect(() => {
-    if (!formData.tipo_tarefa_id && formData.tipo_tarefa_nome && tiposTarefa.length) {
-      const tipoEncontrado = tiposTarefa.find((tipo) => tipo.nome_tipo === formData.tipo_tarefa_nome);
-      if (tipoEncontrado) {
-        setFormData((prev) => ({
-          ...prev,
-          tipo_tarefa_id: tipoEncontrado.id,
-          grupo_atividade_id: prev.grupo_atividade_id || tipoEncontrado.grupo_atividade_id || "",
-          grupo_atividade_nome: prev.grupo_atividade_nome || tipoEncontrado.grupo_atividade_nome || ""
-        }));
-      }
-    }
-  }, [formData.tipo_tarefa_id, formData.tipo_tarefa_nome, tiposTarefa]);
 
   useEffect(() => {
     if (!formData.tipo_tarefa_id && formData.tipo_tarefa_nome && tiposTarefa.length) {
