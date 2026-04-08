@@ -445,7 +445,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <div className="mt-4 rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
+        <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Ponto' : 'Novo Ponto'}</div>
+        </div>
+        <div className="p-1">
+          <form onSubmit={handleSubmit} className="space-y-1">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-1">
             <Label className="text-xs">Nome do ponto *</Label>
@@ -593,10 +598,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         )}
 
         <div className="flex justify-end gap-2 pt-2 border-t">
-          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel} disabled={progresso.show}>Cancelar</Button>
-          <Button type="submit" size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700" disabled={progresso.show}>{progresso.show ? "Salvando..." : item ? "Salvar alterações" : "Salvar ponto"}</Button>
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={progresso.show}>Cancelar</Button>
+          <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600" disabled={progresso.show}>{progresso.show ? "Salvando..." : item ? "Salvar alterações" : "Salvar ponto"}</Button>
         </div>
-      </form>
+          </form>
+        </div>
+      </div>
 
       <Dialog open={progresso.show} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">

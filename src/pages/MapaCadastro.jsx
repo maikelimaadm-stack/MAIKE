@@ -208,39 +208,38 @@ export default function MapaCadastro() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+    <div className="p-1 md:p-1 space-y-1">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Cadastro de Áreas, Pontos e Linhas</h1>
-          <p className="text-xs text-slate-600">Cadastro e gestão dos elementos geográficos da fazenda</p>
+          <h1 className="font-bold text-slate-800">Cadastro de Áreas, Pontos e Linhas</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="icon" onClick={handleOpenConfig} className="h-8 w-8">
+          <Button variant="outline" size="icon" onClick={handleOpenConfig} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
             <Settings className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={handleRefresh} className="h-8 text-xs">
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="h-7 text-xs">
             Atualizar
           </Button>
-          <Button onClick={() => setShowImportarGeoJSON(true)} variant="outline" size="sm" className="h-8 text-xs">
+          <Button onClick={() => setShowImportarGeoJSON(true)} variant="outline" size="sm" className="h-7 text-xs">
             Importar GeoJSON
           </Button>
           {abaAtiva === "areas" && (
             <>
-              <Button onClick={() => handleNovoItem('area', false)} variant="outline" size="sm" className="h-8 text-xs">Desenhar no Mapa</Button>
-              <Button onClick={() => setShowSelecaoMapa(true)} variant="outline" size="sm" className="h-8 text-xs">Selecionar no Mapa</Button>
-              <Button onClick={() => handleNovoItem('area', true)} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Usar GPS</Button>
+              <Button onClick={() => handleNovoItem('area', false)} variant="outline" size="sm" className="h-7 text-xs">Desenhar no Mapa</Button>
+              <Button onClick={() => setShowSelecaoMapa(true)} variant="outline" size="sm" className="h-7 text-xs">Selecionar no Mapa</Button>
+              <Button onClick={() => handleNovoItem('area', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
           )}
           {abaAtiva === "pontos" && (
             <>
-              <Button onClick={() => handleNovoItem('ponto', false)} variant="outline" size="sm" className="h-8 text-xs">Marcar no Mapa</Button>
-              <Button onClick={() => handleNovoItem('ponto', true)} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Usar GPS</Button>
+              <Button onClick={() => handleNovoItem('ponto', false)} variant="outline" size="sm" className="h-7 text-xs">Marcar no Mapa</Button>
+              <Button onClick={() => handleNovoItem('ponto', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
           )}
           {abaAtiva === "linhas" && (
             <>
-              <Button onClick={() => handleNovoItem('linha', false)} variant="outline" size="sm" className="h-8 text-xs">Desenhar no Mapa</Button>
-              <Button onClick={() => handleNovoItem('linha', true)} size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">Usar GPS</Button>
+              <Button onClick={() => handleNovoItem('linha', false)} variant="outline" size="sm" className="h-7 text-xs">Desenhar no Mapa</Button>
+              <Button onClick={() => handleNovoItem('linha', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
           )}
         </div>

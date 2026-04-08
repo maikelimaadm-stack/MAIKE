@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,13 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-1 mt-4">
+    <div className="mt-4">
+      <div className="rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
+        <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Linha' : 'Nova Linha'}</div>
+        </div>
+        <div className="p-1">
+          <form onSubmit={handleSubmit} className="space-y-1">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
         <div className="space-y-1 lg:col-span-2"><Label className="text-xs">Nome da Linha *</Label><Input value={formData.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder="NOME DA LINHA" className={getFieldClassName('nome', 'h-8 text-xs uppercase')} style={{ textTransform: 'uppercase' }} /></div>
         <div className="space-y-1"><Label className="text-xs">Sigla</Label><Input value={formData.sigla} onChange={(e) => handleChange('sigla', e.target.value)} placeholder="SIGLA" className="h-8 text-xs uppercase" maxLength={10} /></div>
@@ -91,7 +97,10 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
       </div>
       <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-3 space-y-1"><div><span className="font-semibold text-sm text-slate-700">Cor da Linha</span></div><div className="grid grid-cols-5 gap-2">{CORES_DISPONIVEIS.map((cor) => <button key={cor} type="button" onClick={() => handleChange('cor', cor)} className={`w-full h-8 rounded border ${formData.cor === cor ? 'ring-2 ring-slate-900' : ''}`} style={{ backgroundColor: cor }} />)}</div></div>
       <div className="space-y-1 pt-1"><Label className="text-xs">Observações</Label><Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} className="text-xs uppercase" rows={2} /></div>
-      <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button><Button type="submit" size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">{item ? 'Salvar alterações' : 'Salvar linha'}</Button></div>
-    </form>
+      <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button><Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">{item ? 'Salvar alterações' : 'Salvar linha'}</Button></div>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }
