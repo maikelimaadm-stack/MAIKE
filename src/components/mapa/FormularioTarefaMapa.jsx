@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -99,7 +99,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   }, [nomeUsuarioAtual]);
 
   const [formData, setFormData] = useState(() => {
-    const source = tarefa || initialDraft || {};
+    const source = tarefa?.data ? { ...tarefa.data, id: tarefa.id } : initialDraft?.data ? { ...initialDraft.data, id: initialDraft.id } : tarefa || initialDraft || {};
     return {
       id: source.id || "",
       titulo: source.titulo || "",
@@ -178,6 +178,34 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const tiposTarefaFiltrados = formData.grupo_atividade_id ?
   tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id) :
   [];
+
+  useEffect(() => {
+    if (!formData.tipo_tarefa_id && formData.tipo_tarefa_nome && tiposTarefa.length) {
+      const tipoEncontrado = tiposTarefa.find((tipo) => tipo.nome_tipo === formData.tipo_tarefa_nome);
+      if (tipoEncontrado) {
+        setFormData((prev) => ({
+          ...prev,
+          tipo_tarefa_id: tipoEncontrado.id,
+          grupo_atividade_id: prev.grupo_atividade_id || tipoEncontrado.grupo_atividade_id || "",
+          grupo_atividade_nome: prev.grupo_atividade_nome || tipoEncontrado.grupo_atividade_nome || ""
+        }));
+      }
+    }
+  }, [formData.tipo_tarefa_id, formData.tipo_tarefa_nome, tiposTarefa]);
+
+  useEffect(() => {
+    if (!formData.tipo_tarefa_id && formData.tipo_tarefa_nome && tiposTarefa.length) {
+      const tipoEncontrado = tiposTarefa.find((tipo) => tipo.nome_tipo === formData.tipo_tarefa_nome);
+      if (tipoEncontrado) {
+        setFormData((prev) => ({
+          ...prev,
+          tipo_tarefa_id: tipoEncontrado.id,
+          grupo_atividade_id: prev.grupo_atividade_id || tipoEncontrado.grupo_atividade_id || "",
+          grupo_atividade_nome: prev.grupo_atividade_nome || tipoEncontrado.grupo_atividade_nome || ""
+        }));
+      }
+    }
+  }, [formData.tipo_tarefa_id, formData.tipo_tarefa_nome, tiposTarefa]);
 
   const usuariosOrdenados = useMemo(() => {
     const permissoesNormalizadas = permissoesUsuarios.
