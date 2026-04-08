@@ -151,6 +151,10 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         tarefas={tarefas}
         grupos={grupos}
         onDelete={(ids) => deleteMutation.mutate(ids)}
+        onEdit={(tarefa) => {
+          setEditingTarefa(tarefa);
+          setShowForm(true);
+        }}
         getIconePrioridade={getIconePrioridade}
         normalizeTaskPriority={normalizeTaskPriority}
         showConfigColunas={showConfigColunas}
