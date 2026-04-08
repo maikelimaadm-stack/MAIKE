@@ -142,7 +142,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     }
   });
 
-  const panelTitulo = pontoSuplId ? 'TAREFAS DO PONTO' : loteId ? 'TAREFAS DO LOTE' : areaId ? 'TAREFAS DA ÁREA' : 'TAREFAS';
+  const panelTitulo = pontoSuplId ? 'GESTÃO DE TAREFAS' : loteId ? 'GESTÃO DE TAREFAS' : areaId ? 'GESTÃO DE TAREFAS' : 'GESTÃO DE TAREFAS';
   const panelSubtitulo = areaNome || loteNome || '';
 
   return (
