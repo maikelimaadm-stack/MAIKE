@@ -125,36 +125,36 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       <CardContent className="p-2">
         <form onSubmit={handleSubmit} className="space-y-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <div className="space-y-0.5">
-              <Label className="text-xs">{direction === "entrada" ? "Local de Origem" : "Local de Destino"}</Label>
-              <Select value={localRelacionadoId} onValueChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o local" /></SelectTrigger>
+            <div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={localRelacionadoId} onValueChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o local" /></SelectTrigger>
                 <SelectContent>{outrosLocais.map((l) => <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>)}</SelectContent>
-              </Select>
+              </Select></div>
             </div>
-            <div className="space-y-0.5">
-              <Label className="text-xs">Produto de Suplementação</Label>
-              <Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+            <div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto de Suplementação <span className="text-red-500">*</span></label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                 <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto} ({p.unidade_medida || "KG"})</SelectItem>)}</SelectContent>
-              </Select>
+              </Select></div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <div className="space-y-0.5">
-              <Label className="text-xs">Unidade</Label>
-              <Select value={unidadeInput} onValueChange={setUnidadeInput} disabled={!suportaSacos}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Unidade</label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={unidadeInput} onValueChange={setUnidadeInput} disabled={!suportaSacos}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="KG" className="text-xs">KG</SelectItem>
                   {suportaSacos && <SelectItem value="SACO" className="text-xs">Sacas ({pesoPorSaco} kg/saco)</SelectItem>}
                 </SelectContent>
-              </Select>
+              </Select></div>
             </div>
-            <div className="space-y-0.5">
-              <Label className="text-xs">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"})</Label>
-              <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className="h-8 text-xs" placeholder="0,00" />
+            <div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"}) <span className="text-red-500">*</span></label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
             </div>
           </div>
 
@@ -165,9 +165,9 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
             {suportaSacos && <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo (sacas): <span className="font-semibold text-slate-900">{saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
           </div>
 
-          <div className="space-y-0.5">
-            <Label className="text-xs">Observações</Label>
-            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="text-xs" />
+          <div>
+            <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
+            <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
           </div>
 
           <div className="flex justify-end gap-1 pt-1 border-t">
