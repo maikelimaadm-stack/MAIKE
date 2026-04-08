@@ -3,20 +3,18 @@ import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { normalizeTaskPriority } from "@/components/mapa/FormularioTarefaMapa";
-import FormularioTarefaMapa from "@/components/mapa/FormularioTarefaMapa";
 import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
-import { Settings } from "lucide-react";
+import { Settings2 } from "lucide-react";
 
 export default function LancamentosTarefas() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [deleteIds, setDeleteIds] = useState([]);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editingTarefa, setEditingTarefa] = useState(null);
 
   const { data: tarefas = [] } = useQuery({
     queryKey: ["gestao-tarefas-unificada", empresaSelecionadaId],
@@ -45,58 +43,6 @@ export default function LancamentosTarefas() {
     return iconesPrioridade.find((icone) => normalize(icone.categoria) === prioridadeNormalizada);
   };
 
-  const registrarHistorico = async (registro, evento, descricao) => {
-    await base44.entities.HistoricoLancamentoTarefa.create({
-      empresa_id: registro.empresa_id || empresaSelecionadaId,
-      tarefa_id: registro.id,
-      titulo_tarefa: registro.titulo,
-      evento,
-      data_evento: new Date().toISOString(),
-      status: registro.status,
-      responsavel: registro.responsavel,
-      descricao
-    });
-  };
-
-  const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      const created = await base44.entities.LancamentoTarefa.create({ ...payload, empresa_id: empresaSelecionadaId });
-      await registrarHistorico(created, "Criação", "Tarefa criada pela gestão de tarefas.");
-      return created;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
-      queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
-      toast.success("Tarefa salva.");
-      setShowForm(false);
-      setEditingTarefa(null);
-    }
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async (payload) => {
-      const tarefa = editingTarefa;
-      const updated = await base44.entities.LancamentoTarefa.update(tarefa.id, payload);
-      const mudouLocal = payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng;
-      const mudouStatus = payload.status && payload.status !== tarefa?.status;
-      const evento = mudouLocal ? "Mudança de Local" : updated.status === "Concluída" && mudouStatus ? "Conclusão" : updated.status === "Cancelada" && mudouStatus ? "Cancelamento" : mudouStatus ? "Mudança de Status" : "Edição";
-      const descricao = mudouLocal ? "Local da tarefa alterado." : updated.status === "Concluída" && mudouStatus ? "Tarefa concluída." : updated.status === "Cancelada" && mudouStatus ? "Tarefa cancelada." : mudouStatus ? `Status alterado para ${updated.status}.` : "Tarefa atualizada.";
-      await registrarHistorico(updated, evento, descricao);
-      return updated;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
-      queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
-      toast.success("Tarefa atualizada.");
-      setShowForm(false);
-      setEditingTarefa(null);
-    }
-  });
-
   const deleteMutation = useMutation({
     mutationFn: async (ids) => {
       for (const id of ids) await base44.entities.LancamentoTarefa.delete(id);
@@ -110,27 +56,6 @@ export default function LancamentosTarefas() {
       setDeleteIds([]);
     }
   });
-
-  const handleEdit = (tarefa) => {
-    setEditingTarefa(tarefa);
-    setShowForm(true);
-  };
-
-  const handleSubmit = (data) => {
-    const payload = {
-      ...data,
-      prioridade: data.prioridade,
-      solicitante: data.solicitante || "",
-      responsavel: data.responsavel || "",
-      responsavel_geral: data.solicitante || "",
-      observacoes: data.observacoes || ""
-    };
-    if (editingTarefa) {
-      updateMutation.mutate(payload);
-    } else {
-      createMutation.mutate(payload);
-    }
-  };
 
   const handleExport = () => {
     const csv = [
@@ -155,39 +80,31 @@ export default function LancamentosTarefas() {
   };
 
   return (
-    <div className="p-1 md:p-1 space-y-1" style={{ overscrollBehavior: 'none' }}>
-      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
+    <div className="p-1 md:p-1 space-y-1 overflow-hidden h-[100dvh] pb-16 md:pb-0 md:h-auto" style={{ overscrollBehavior: 'none' }}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Gestão de Tarefas</h1>
+          
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-            <Settings className="w-4 h-4" />
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setShowConfigColunas(true)}>
+            <Settings2 className="w-3.5 h-3.5" />
           </Button>
-          <Button onClick={() => { setEditingTarefa(null); setShowForm(true); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
-            Adicionar
-          </Button>
+          <Link to={createPageUrl("LancamentoTarefaForm")}>
+            <Button size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
+              Adicionar
+            </Button>
+          </Link>
         </div>
-      </div>}
+      </div>
 
-      <AnimatePresence mode="wait">
-        {showForm ?
-        <FormularioTarefaMapa
-          key="form"
-          tarefa={editingTarefa}
-          onSubmit={handleSubmit}
-          onCancel={() => { setShowForm(false); setEditingTarefa(null); }} /> :
-
-        <TabelaLancamentosTarefas
-          key="table"
-          tarefas={tarefas}
-          onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
-          onEdit={handleEdit}
-          normalizeTaskPriority={normalizeTaskPriority}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas} />
-        }
-      </AnimatePresence>
+      <TabelaLancamentosTarefas
+        tarefas={tarefas}
+        onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
+        normalizeTaskPriority={normalizeTaskPriority}
+        showConfigColunas={showConfigColunas}
+        setShowConfigColunas={setShowConfigColunas} />
+      
 
       <ConfirmDialog
         open={deleteIds.length > 0}
