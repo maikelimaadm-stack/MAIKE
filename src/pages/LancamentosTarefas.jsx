@@ -2,13 +2,13 @@ import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { normalizeTaskPriority } from "@/components/mapa/FormularioTarefaMapa";
 import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
+import { Settings2 } from "lucide-react";
 
 export default function LancamentosTarefas() {
   const queryClient = useQueryClient();
@@ -80,17 +80,16 @@ export default function LancamentosTarefas() {
   };
 
   return (
-    <div className="p-1 md:p-1 space-y-1">
+    <div className="p-1 md:p-1 space-y-1 overflow-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Gestão de Tarefas</h1>
           
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-            <Settings className="w-4 h-4" />
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setShowConfigColunas(true)}>
+            <Settings2 className="w-3.5 h-3.5" />
           </Button>
-          
           <Link to={createPageUrl("LancamentoTarefaForm")}>
             <Button size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
               Adicionar
@@ -101,9 +100,7 @@ export default function LancamentosTarefas() {
 
       <TabelaLancamentosTarefas
         tarefas={tarefas}
-        grupos={grupos}
         onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
-        getIconePrioridade={getIconePrioridade}
         normalizeTaskPriority={normalizeTaskPriority}
         showConfigColunas={showConfigColunas}
         setShowConfigColunas={setShowConfigColunas} />
