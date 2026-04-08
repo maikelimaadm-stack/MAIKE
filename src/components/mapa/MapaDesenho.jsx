@@ -1036,8 +1036,8 @@ const redoStackRef = useRef([]);
         )}
       </div>
 
-      <Dialog open={showFormularioArea} onOpenChange={setShowFormularioArea}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+      <Dialog open={showFormularioArea} onOpenChange={setShowFormularioArea} modal={false}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-sm">{itemEditando ? 'Editar Área' : 'Cadastrar Área'}</DialogTitle>
           </DialogHeader>
@@ -1056,8 +1056,8 @@ const redoStackRef = useRef([]);
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+      <Dialog open={showFormularioPonto} onOpenChange={setShowFormularioPonto} modal={false}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-sm">{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</DialogTitle>
           </DialogHeader>
@@ -1080,8 +1080,8 @@ const redoStackRef = useRef([]);
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showFormularioLinha} onOpenChange={setShowFormularioLinha}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+      <Dialog open={showFormularioLinha} onOpenChange={setShowFormularioLinha} modal={false}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-sm">{itemEditando ? 'Editar Linha' : 'Cadastrar Linha'}</DialogTitle>
           </DialogHeader>
