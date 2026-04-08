@@ -16,8 +16,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
 const PRIORIDADE_CORES = {
   Baixa: "bg-blue-300 text-black hover:bg-blue-300",
@@ -62,6 +60,7 @@ export default function TabelaLancamentosTarefas({
   tarefas = [],
   grupos = [],
   onDelete,
+  onEdit,
   normalizeTaskPriority,
   showConfigColunas,
   setShowConfigColunas
@@ -658,8 +657,8 @@ export default function TabelaLancamentosTarefas({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
-                                  <DropdownMenuItem asChild className="text-xs">
-                                    <Link to={createPageUrl(`LancamentoTarefaForm?id=${tarefa.id}`)}>Editar</Link>
+                                  <DropdownMenuItem onClick={() => onEdit && onEdit(tarefa)} className="text-xs">
+                                    Editar
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => onDelete(tarefa.id)} className="text-xs text-red-600">
                                     Excluir
