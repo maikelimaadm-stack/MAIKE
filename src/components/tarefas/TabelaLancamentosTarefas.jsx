@@ -15,7 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Settings } from "lucide-react";
 
 const PRIORIDADE_CORES = {
   Baixa: "bg-blue-300 text-black hover:bg-blue-300",
@@ -63,7 +63,11 @@ export default function TabelaLancamentosTarefas({
   onEdit,
   normalizeTaskPriority,
   showConfigColunas,
-  setShowConfigColunas
+  setShowConfigColunas,
+  showHeaderActions = false,
+  onAdd,
+  headerTitle,
+  headerDescription
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroStatus, setFiltroStatus] = useState([]);
@@ -504,8 +508,24 @@ export default function TabelaLancamentosTarefas({
   };
 
   return (
-    <div className="space-y-1 overflow-hidden">
-      {/* Summary bar */}
+    <div className="space-y-1 w-full min-w-0 overflow-x-auto">
+      {showHeaderActions && (
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200 sticky top-0 z-20">
+          <div>
+            <h1 className="font-bold text-slate-800">{headerTitle || "Lançamentos"}</h1>
+            {headerDescription ? <p className="text-xs text-slate-600">{headerDescription}</p> : null}
+          </div>
+          <div className="flex gap-2 flex-wrap shrink-0">
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas?.(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button onClick={() => onAdd?.()} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
         <div className="text-xs text-slate-500">
           {tarefasFiltradas.length} de {tarefas.length} registros
@@ -528,9 +548,9 @@ export default function TabelaLancamentosTarefas({
 
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
-          <div className="relative overflow-hidden">
+          <div className="relative w-full overflow-x-auto">
             <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+              <Table ref={tableRef} className={`${isMobile ? "min-w-[1280px]" : "min-w-[1600px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map((coluna) => {
