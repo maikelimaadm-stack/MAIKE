@@ -111,7 +111,7 @@ export default function MapaCadastro() {
       );
 
       for (const item of vinculados) {
-        await base44.entities.PontoSuplementacao.update(item.id, { status: "Inativo" });
+        await base44.entities.PontoSuplementacao.delete(item.id);
       }
 
       const deposito = vinculados.find((item) => normalizar(item.categoria_ponto) === "DEPOSITO");
