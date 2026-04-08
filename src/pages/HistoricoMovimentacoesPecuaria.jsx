@@ -298,24 +298,24 @@ export default function HistoricoMovimentacoesPecuaria() {
           {editando && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs uppercase">Data *</Label>
-                  <Input type="date" value={editando.data_movimentacao?.split("T")[0] || ""} onChange={(e) => setEditando({ ...editando, data_movimentacao: e.target.value })} className="h-8 text-xs uppercase" />
+                <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
+                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Data<span className="text-red-500 ml-0.5">*</span></label>
+                  <Input type="date" value={editando.data_movimentacao?.split("T")[0] || ""} onChange={(e) => setEditando({ ...editando, data_movimentacao: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs uppercase">Qtd Animais *</Label>
-                  <Input type="number" value={editando.quantidade_animais || ""} onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })} className="h-8 text-xs uppercase" />
+                <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
+                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Qtd Animais<span className="text-red-500 ml-0.5">*</span></label>
+                  <Input type="number" value={editando.quantidade_animais || ""} onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
               </div>
               {editando.peso_medio !== undefined && (
-                <div className="space-y-1">
-                  <Label className="text-xs uppercase">Peso Médio (kg)</Label>
-                  <Input type="number" step="0.1" value={editando.peso_medio || ""} onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })} className="h-8 text-xs uppercase" />
+                <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
+                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Médio (kg)</label>
+                  <Input type="number" step="0.1" value={editando.peso_medio || ""} onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
               )}
-              <div className="space-y-1">
-                <Label className="text-xs uppercase">Observações</Label>
-                <Textarea value={editando.observacoes || ""} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} className="text-xs uppercase" rows={3} />
+              <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
+                <Textarea value={editando.observacoes || ""} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={3} />
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <Button onClick={() => setShowEditRapido(false)} variant="outline" size="sm" className="h-8 text-xs">Cancelar</Button>
