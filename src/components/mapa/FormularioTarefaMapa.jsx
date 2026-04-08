@@ -132,17 +132,24 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   useEffect(() => {
     const areaSelecionada = formData.area_id ? areas.find((item) => item.id === formData.area_id) : null;
+    const areaPorNome = !areaSelecionada && formData.area_nome ? areas.find((item) => item.nome === formData.area_nome) : null;
+    const areaResolvida = areaSelecionada || areaPorNome;
 
-    if (areaSelecionada) {
-      if (setorSelecionadoId !== (areaSelecionada.setor_id || "")) {
-        setSetorSelecionadoId(areaSelecionada.setor_id || "");
+    if (areaResolvida) {
+      if (setorSelecionadoId !== (areaResolvida.setor_id || "")) {
+        setSetorSelecionadoId(areaResolvida.setor_id || "");
       }
 
-      if (formData.area_nome !== (areaSelecionada.nome || "") || formData.setor_nome !== (areaSelecionada.setor_nome || "")) {
+      if (
+        formData.area_id !== (areaResolvida.id || "") ||
+        formData.area_nome !== (areaResolvida.nome || "") ||
+        formData.setor_nome !== (areaResolvida.setor_nome || "")
+      ) {
         setFormData((prev) => ({
           ...prev,
-          area_nome: areaSelecionada.nome || prev.area_nome,
-          setor_nome: areaSelecionada.setor_nome || prev.setor_nome
+          area_id: areaResolvida.id || prev.area_id,
+          area_nome: areaResolvida.nome || prev.area_nome,
+          setor_nome: areaResolvida.setor_nome || prev.setor_nome
         }));
       }
       return;
