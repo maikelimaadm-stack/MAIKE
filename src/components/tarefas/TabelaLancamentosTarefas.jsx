@@ -525,11 +525,11 @@ export default function TabelaLancamentosTarefas({
   };
 
   return (
-    <div className="space-y-1">
-      <Card>
-        <CardContent className="p-0">
-          <div className="relative">
-            <div ref={scrollContainerRef} className="relative w-full overflow-x-auto overflow-y-auto overscroll-x-contain max-h-[70vh]">
+    <div className="space-y-1 overflow-hidden">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0 overflow-hidden">
+          <div className="relative overflow-hidden">
+            <div ref={scrollContainerRef} className="relative w-full overflow-y-auto overscroll-contain max-h-[calc(100dvh-140px)] md:max-h-[calc(100dvh-170px)]" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'none' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">

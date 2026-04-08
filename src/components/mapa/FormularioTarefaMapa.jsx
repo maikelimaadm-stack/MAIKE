@@ -276,7 +276,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 p-4 md:p-5">
+    <form onSubmit={handleSubmit} className="space-y-3 p-1 md:p-5 overflow-x-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-y pinch-zoom' }}>
       <div className="rounded-xl border bg-card shadow-sm p-3 md:p-4 space-y-3">
         <div className="space-y-0.5">
           <h3 className="text-sm font-bold text-slate-900">DADOS PRINCIPAIS</h3>
