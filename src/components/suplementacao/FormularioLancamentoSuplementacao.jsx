@@ -507,42 +507,42 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {/* Campos de quantidade com suporte a sacos */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               {suportaSacos && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Unidade de lançamento</Label>
-                  <Select value={formData.unidade_lancamento} onValueChange={(value) => setFormData((prev) => ({ ...prev, unidade_lancamento: value }))}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <div>
+                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Unidade de lançamento</label>
+                  <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={formData.unidade_lancamento} onValueChange={(value) => setFormData((prev) => ({ ...prev, unidade_lancamento: value }))}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="KG" className="text-xs">Quilogramas (KG)</SelectItem>
                       <SelectItem value="SACO" className="text-xs">Sacos ({pesoPorSaco} kg/saco)</SelectItem>
                     </SelectContent>
-                  </Select>
+                  </Select></div>
                 </div>
               )}
 
               {formData.unidade_lancamento === "SACO" && suportaSacos ? (
                 <>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Quantidade de sacos *</Label>
-                    <Input type="text" inputMode="decimal" value={formData.quantidade_sacos} onChange={(e) => handleQuantidadeSacosChange(e.target.value)} className="h-8 text-xs" placeholder="0" />
+                  <div>
+                    <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade de sacos <span className="text-red-500">*</span></label>
+                    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="text" inputMode="decimal" value={formData.quantidade_sacos} onChange={(e) => handleQuantidadeSacosChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Equivalente em kg</Label>
-                    <div className="h-8 flex items-center px-3 bg-slate-100 rounded-md text-xs font-semibold text-slate-700 border">{formatDecimal(quantidadeKg)} kg</div>
+                  <div>
+                    <label className="text-[12px] text-slate-500 pl-1 leading-none">Equivalente em kg</label>
+                    <div className="h-7 flex items-center px-3 bg-slate-100 rounded-md text-xs font-semibold text-slate-700 border border-slate-300">{formatDecimal(quantidadeKg)} kg</div>
                   </div>
                 </>
               ) : (
-                <div className={`space-y-1 ${suportaSacos ? "" : "lg:col-span-2"}`}>
-                  <Label className="text-xs">Quantidade total fornecida (kg) *</Label>
-                  <Input type="text" inputMode="decimal" value={formData.quantidade_total_kg} onChange={(e) => handleQuantidadeKgChange(e.target.value)} className="h-8 text-xs" placeholder="0,00" />
+                <div className={`${suportaSacos ? "" : "lg:col-span-2"}`}>
+                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade total fornecida (kg) <span className="text-red-500">*</span></label>
+                  <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="text" inputMode="decimal" value={formData.quantidade_total_kg} onChange={(e) => handleQuantidadeKgChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
                   {suportaSacos && pesoPorSaco > 0 && quantidadeKg > 0 && (
                     <div className="text-[10px] text-slate-500">≈ {formatDecimal(kgParaSacos(quantidadeKg, pesoPorSaco), 1)} saco(s)</div>
                   )}
                 </div>
               )}
 
-              <div className="space-y-1">
-                <Label className="text-xs">Sobra no cocho (kg)</Label>
-                <Input type="text" inputMode="decimal" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-8 text-xs" placeholder="0,00" />
+              <div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Sobra no cocho (kg)</label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="text" inputMode="decimal" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
               </div>
             </div>
 
@@ -666,9 +666,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               </div>
             )}
 
-            <div className="space-y-1">
-              <Label className="text-xs">Observações</Label>
-              <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs" rows={3} />
+            <div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={3} /></div>
             </div>
             <div className="flex justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
