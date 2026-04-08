@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Settings2, Loader2 } from "lucide-react";
+import { Plus, Settings2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Progress } from "@/components/ui/progress";
@@ -29,6 +31,9 @@ export default function CadastroMaquinas() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+  const [busca, setBusca] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
 
   const { data: maquinas = [], isLoading } = useQuery({
     queryKey: ["maquinas", empresaSelecionadaId],
@@ -46,6 +51,15 @@ export default function CadastroMaquinas() {
       toast.success("Máquina excluída");
     },
   });
+
+  const maquinasFiltradas = useMemo(() => {
+    return maquinas.filter((m) => {
+      const matchBusca = !busca || [m.nome, m.codigo, m.placa, m.marca, m.modelo].some((value) => String(value || "").toLowerCase().includes(busca.toLowerCase()));
+      const matchTipo = filtroTipo === "todos" || m.tipo === filtroTipo;
+      const matchStatus = filtroStatus === "todos" || m.status === filtroStatus;
+      return matchBusca && matchTipo && matchStatus;
+    });
+  }, [maquinas, busca, filtroTipo, filtroStatus]);
 
   const totalAtivas = useMemo(() => maquinas.filter((m) => m.status === "Ativo").length, [maquinas]);
   const totalManutencao = useMemo(() => maquinas.filter((m) => m.status === "Em Manutenção").length, [maquinas]);
@@ -119,6 +133,50 @@ export default function CadastroMaquinas() {
               <Card className="rounded-xl border bg-card text-card-foreground shadow"><CardContent className="p-3 text-center"><div className="text-lg font-bold text-slate-700">{totalTratores}</div><div className="text-xs text-slate-600">Tratores</div></CardContent></Card>
             </div>
 
+            <Card className="rounded-xl border bg-card text-card-foreground shadow">
+              <CardContent className="p-3">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
+                  <div className="md:col-span-2 space-y-1">
+                    <Label className="text-xs uppercase">Buscar</Label>
+                    <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="BUSCAR MÁQUINAS..." className="h-7 text-xs uppercase" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase">Tipo</Label>
+                    <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                      <SelectTrigger className="h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos" className="text-xs uppercase">Todos</SelectItem>
+                        {TIPOS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs uppercase">{tipo}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase">Status</Label>
+                    <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                      <SelectTrigger className="h-7 text-xs uppercase"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos" className="text-xs uppercase">Todos</SelectItem>
+                        <SelectItem value="Ativo" className="text-xs uppercase">Ativo</SelectItem>
+                        <SelectItem value="Em Manutenção" className="text-xs uppercase">Em Manutenção</SelectItem>
+                        <SelectItem value="Inativo" className="text-xs uppercase">Inativo</SelectItem>
+                        <SelectItem value="Vendido" className="text-xs uppercase">Vendido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2 flex items-end justify-end gap-2 flex-wrap">
+                    {selecionados.length > 0 && (
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setBulkDeleteConfirm(true)}>
+                        Excluir Selecionados ({selecionados.length})
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBusca(""); setFiltroTipo("todos"); setFiltroStatus("todos"); }}>
+                      <X className="w-3.5 h-3.5 mr-1" /> Limpar Filtros
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {isDeletingBulk && (
               <Card className="rounded-xl border bg-card text-card-foreground shadow">
                 <CardContent className="p-3 space-y-2">
@@ -129,7 +187,7 @@ export default function CadastroMaquinas() {
             )}
 
             <TabelaMaquinas
-              maquinas={maquinas}
+              maquinas={maquinasFiltradas}
               selecionados={selecionados}
               onSelecionadosChange={setSelecionados}
               onView={(maquina) => { setSelectedMaquina(maquina); setShowFicha(true); }}

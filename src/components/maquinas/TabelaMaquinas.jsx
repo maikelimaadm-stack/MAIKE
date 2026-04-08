@@ -15,10 +15,17 @@ const COLUNAS_DISPONIVEIS = [
   { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 90 },
   { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 180 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 130 },
+  { id: "marca", label: "Marca", default: false, sortable: true, align: "left", width: 130 },
+  { id: "modelo", label: "Modelo", default: false, sortable: true, align: "left", width: 130 },
   { id: "marca_modelo", label: "Marca / Modelo", default: true, sortable: true, align: "left", width: 180 },
   { id: "placa", label: "Placa", default: true, sortable: true, align: "left", width: 110 },
+  { id: "ano_fabricacao", label: "Ano", default: false, sortable: true, align: "right", width: 90 },
+  { id: "potencia_cv", label: "Potência (CV)", default: false, sortable: true, align: "right", width: 110 },
   { id: "horimetro", label: "Horímetro", default: true, sortable: true, align: "right", width: 110 },
+  { id: "hodometro", label: "Hodômetro", default: false, sortable: true, align: "right", width: 110 },
+  { id: "combustivel", label: "Combustível", default: false, sortable: true, align: "left", width: 120 },
   { id: "custo_hora", label: "Custo / H", default: true, sortable: true, align: "right", width: 120 },
+  { id: "localizacao", label: "Localização", default: false, sortable: true, align: "left", width: 150 },
   { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 140 },
 ];
 
@@ -131,10 +138,17 @@ export default function TabelaMaquinas({
     if (colunaId === "codigo") return item.codigo || "";
     if (colunaId === "nome") return item.nome || "";
     if (colunaId === "tipo") return item.tipo || "";
+    if (colunaId === "marca") return item.marca || "";
+    if (colunaId === "modelo") return item.modelo || "";
     if (colunaId === "marca_modelo") return `${item.marca || ""} ${item.modelo || ""}`.trim();
     if (colunaId === "placa") return item.placa || "";
+    if (colunaId === "ano_fabricacao") return item.ano_fabricacao != null ? String(item.ano_fabricacao) : "";
+    if (colunaId === "potencia_cv") return item.potencia_cv != null ? String(item.potencia_cv) : "";
     if (colunaId === "horimetro") return item.horimetro_atual != null ? String(item.horimetro_atual) : "";
+    if (colunaId === "hodometro") return item.hodometro_atual != null ? String(item.hodometro_atual) : "";
+    if (colunaId === "combustivel") return item.tipo_combustivel || "";
     if (colunaId === "custo_hora") return item.custo_hora != null ? String(item.custo_hora) : "";
+    if (colunaId === "localizacao") return item.localizacao_atual || "";
     if (colunaId === "status") return item.status || "";
     return "";
   };
@@ -189,6 +203,7 @@ export default function TabelaMaquinas({
 
   const renderCell = (item, colunaId) => {
     if (colunaId === "horimetro") return item.horimetro_atual ? `${item.horimetro_atual}h` : "-";
+    if (colunaId === "hodometro") return item.hodometro_atual ? `${item.hodometro_atual} km` : "-";
     if (colunaId === "custo_hora") return item.custo_hora ? formatarMoeda(item.custo_hora) : "-";
     return getFieldValue(item, colunaId) || "-";
   };
