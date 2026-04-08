@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target, RotateCcw, RotateCw, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import FormularioArea from "./FormularioArea";
 import FormularioPonto from "./FormularioPonto";
 import FormularioLinha from "./FormularioLinha";
@@ -1036,11 +1036,11 @@ const redoStackRef = useRef([]);
         )}
       </div>
 
-      <Sheet open={showFormularioArea} onOpenChange={setShowFormularioArea}>
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{itemEditando ? 'Editar Área' : 'Cadastrar Área'}</SheetTitle>
-          </SheetHeader>
+      <Dialog open={showFormularioArea} onOpenChange={setShowFormularioArea}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{itemEditando ? 'Editar Área' : 'Cadastrar Área'}</DialogTitle>
+          </DialogHeader>
           <FormularioArea
             coordenadas={currentPoints}
             usarGPS={usarGPS}
@@ -1053,14 +1053,14 @@ const redoStackRef = useRef([]);
             }}
             onCancel={() => setShowFormularioArea(false)}
           />
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
-      <Sheet open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</SheetTitle>
-          </SheetHeader>
+      <Dialog open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</DialogTitle>
+          </DialogHeader>
           <FormularioPonto
             coordenadas={currentMarker}
             usarGPS={usarGPS}
@@ -1077,14 +1077,14 @@ const redoStackRef = useRef([]);
               cancelarDesenho();
             }}
           />
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
-      <Sheet open={showFormularioLinha} onOpenChange={setShowFormularioLinha}>
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{itemEditando ? 'Editar Linha' : 'Cadastrar Linha'}</SheetTitle>
-          </SheetHeader>
+      <Dialog open={showFormularioLinha} onOpenChange={setShowFormularioLinha}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{itemEditando ? 'Editar Linha' : 'Cadastrar Linha'}</DialogTitle>
+          </DialogHeader>
           <FormularioLinha
             coordenadas={currentPoints}
             usarGPS={usarGPS}
@@ -1097,8 +1097,8 @@ const redoStackRef = useRef([]);
             }}
             onCancel={() => setShowFormularioLinha(false)}
           />
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
