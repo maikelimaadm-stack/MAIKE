@@ -184,7 +184,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
   return (
     <div className="space-y-1" translate="no">
-      <div className="pb-0 border-b space-y-1">
+      <div className="pb-1 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {ponto.nome_ponto}</Badge>
         </div>
