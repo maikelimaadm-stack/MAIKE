@@ -15,7 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, Minus, Plus } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -100,6 +100,7 @@ export default function TabelaLancamentosTarefas({
   const scrollContainerRef = useRef(null);
   const tableRef = useRef(null);
   const [resizeColumnId, setResizeColumnId] = useState(null);
+  const dragRef = useRef(null);
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_gestao_tarefas");
@@ -134,11 +135,40 @@ export default function TabelaLancamentosTarefas({
     setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
   };
 
-  const adjustColumnWidth = (colunaId, delta) => {
-    setColumnWidths((prev) => ({
-      ...prev,
-      [colunaId]: Math.max(MIN_COLUMN_WIDTH, (prev[colunaId] || 160) + delta)
-    }));
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current) return;
+      if (e.cancelable) e.preventDefault();
+      const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+      const { columnId, startX, startWidth } = dragRef.current;
+      const nextWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + (clientX - startX));
+      setColumnWidths((prev) => ({ ...prev, [columnId]: nextWidth }));
+    };
+    const onUp = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, []);
+
+  const startDragResize = (e, colunaId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    dragRef.current = { columnId: colunaId, startX: clientX, startWidth: columnWidths[colunaId] || 160 };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   };
 
   useEffect(() => {
@@ -539,17 +569,15 @@ export default function TabelaLancamentosTarefas({
                         )}
 
                         {isResizing && (
-                          <div className="flex items-center justify-center gap-1 py-1 border-t border-emerald-200 bg-emerald-50 mt-0.5 rounded-b" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-                            <button type="button" className="h-6 w-6 flex items-center justify-center rounded bg-white border border-slate-300 active:bg-slate-100" onClick={() => adjustColumnWidth(coluna.id, -20)}>
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-[10px] font-mono text-slate-600 min-w-[32px] text-center">{width}px</span>
-                            <button type="button" className="h-6 w-6 flex items-center justify-center rounded bg-white border border-slate-300 active:bg-slate-100" onClick={() => adjustColumnWidth(coluna.id, 20)}>
-                              <Plus className="w-3 h-3" />
-                            </button>
-                            <button type="button" className="h-6 w-6 flex items-center justify-center rounded bg-white border border-red-300 text-red-500 active:bg-red-50 ml-1" onClick={() => setResizeColumnId(null)}>
-                              <X className="w-3 h-3" />
-                            </button>
+                          <div
+                            className="absolute top-0 -right-3 h-full w-6 z-50 flex items-center justify-center cursor-col-resize bg-emerald-500 bg-opacity-80 rounded-r"
+                            onMouseDown={(e) => startDragResize(e, coluna.id)}
+                            onTouchStart={(e) => startDragResize(e, coluna.id)}
+                            onClick={(e) => { e.stopPropagation(); setResizeColumnId(null); }}
+                            onDoubleClick={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                          >
+                            <GripVertical className="w-3.5 h-3.5 text-white" />
                           </div>
                         )}
                       </TableHead>
