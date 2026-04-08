@@ -122,7 +122,7 @@ const redoStackRef = useRef([]);
     enabled: !!empresaSelecionadaId,
   });
 
-  const SNAP_DISTANCE = 6; // snap em pixels
+  const SNAP_DISTANCE = 16; // snap em pixels
 
   const findNearestPoint = (mouseLatLng, map) => {
     if (!snappingEnabled) return null;
@@ -259,7 +259,7 @@ const redoStackRef = useRef([]);
       
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 },
-        zoom: 15,
+        zoom: 17,
         mapTypeId: mapType,
         mapTypeControl: false,
         streetViewControl: false,
@@ -308,7 +308,11 @@ const redoStackRef = useRef([]);
       });
 
       if (hasValidCoords) {
-        mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
+        mapInstanceRef.current.fitBounds(bounds, { padding: 20 });
+        const zoomAtual = mapInstanceRef.current.getZoom?.();
+        if (typeof zoomAtual === 'number' && zoomAtual > 18) {
+          mapInstanceRef.current.setZoom(18);
+        }
         hasCenteredRef.current = true;
       }
     }
@@ -330,6 +334,7 @@ const redoStackRef = useRef([]);
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
     const handleMapClick = (e) => {
+      if (!e?.latLng) return;
 
       
       let lat = e.latLng.lat();
@@ -373,8 +378,14 @@ const redoStackRef = useRef([]);
       }
     };
 
-    const listener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
-    return () => google.maps.event.removeListener(listener);
+    const clickListener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
+    const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, 'dblclick', (e) => {
+      if (e?.stop) e.stop();
+    });
+    return () => {
+      google.maps.event.removeListener(clickListener);
+      google.maps.event.removeListener(dblClickListener);
+    };
   }, [tipoDesenho, mapReady, itemEditando]);
 
   // Guia dinâmica do último ponto até o cursor (sem setState em mousemove)
