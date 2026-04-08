@@ -10,6 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
+const FL = ({ label, required, error, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
+  </div>
+);
+
 const TIPOS = ["Trator", "Colheitadeira", "Plantadeira", "Pulverizador", "Caminhão", "Pickup", "Motocicleta", "Implemento", "Outro"];
 const COMBUSTIVEIS = ["Diesel", "Gasolina", "Etanol", "Flex", "Elétrico", "Não Aplicável"];
 const REQUIRED_FIELDS = ["nome", "tipo"];
@@ -113,74 +124,76 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-1">
+          <form onSubmit={handleSubmit} className="space-y-0.5">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <div className="space-y-1">
-                <Label className="text-xs">Código</Label>
-                <Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-7 text-xs uppercase" placeholder="TRT001" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Nome da Máquina *</Label>
-                <Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} className={getFieldClassName("nome").replace("h-8", "h-7")} placeholder="NOME DA MÁQUINA" required />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo *</Label>
+              <FL label="Código"><Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="TRT001" /></FL>
+              <FL label="Nome da Máquina" required error={tentouSalvar && !formData.nome}><Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="NOME DA MÁQUINA" /></FL>
+              <FL label="Tipo" required error={tentouSalvar && !formData.tipo}>
                 <Select value={formData.tipo} onValueChange={(v) => handleChange("tipo", v)}>
-                  <SelectTrigger className={getFieldClassName("tipo").replace("h-8", "h-7")}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                   <SelectContent>{TIPOS.map((t) => <SelectItem key={t} value={t} className="text-xs uppercase">{t}</SelectItem>)}</SelectContent>
                 </Select>
-              </div>
+              </FL>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
-              <div className="space-y-1"><Label className="text-xs">Marca</Label><Input value={formData.marca} onChange={(e) => handleChange("marca", e.target.value)} className="h-7 text-xs uppercase" placeholder="MARCA" /></div>
-              <div className="space-y-1"><Label className="text-xs">Modelo</Label><Input value={formData.modelo} onChange={(e) => handleChange("modelo", e.target.value)} className="h-7 text-xs uppercase" placeholder="MODELO" /></div>
-              <div className="space-y-1"><Label className="text-xs">Ano Fabricação</Label><Input type="number" value={formData.ano_fabricacao} onChange={(e) => handleChange("ano_fabricacao", e.target.value)} className="h-7 text-xs" placeholder="2024" /></div>
-              <div className="space-y-1"><Label className="text-xs">Status</Label><Select value={formData.status} onValueChange={(v) => handleChange("status", v)}><SelectTrigger className="h-7 text-xs uppercase"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Ativo" className="text-xs uppercase">Ativo</SelectItem><SelectItem value="Em Manutenção" className="text-xs uppercase">Em Manutenção</SelectItem><SelectItem value="Inativo" className="text-xs uppercase">Inativo</SelectItem><SelectItem value="Vendido" className="text-xs uppercase">Vendido</SelectItem></SelectContent></Select></div>
+              <FL label="Marca"><Input value={formData.marca} onChange={(e) => handleChange("marca", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="MARCA" /></FL>
+              <FL label="Modelo"><Input value={formData.modelo} onChange={(e) => handleChange("modelo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="MODELO" /></FL>
+              <FL label="Ano Fabricação"><Input type="number" value={formData.ano_fabricacao} onChange={(e) => handleChange("ano_fabricacao", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="2024" /></FL>
+              <FL label="Status">
+                <Select value={formData.status} onValueChange={(v) => handleChange("status", v)}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="Ativo" className="text-xs">Ativo</SelectItem><SelectItem value="Em Manutenção" className="text-xs">Em Manutenção</SelectItem><SelectItem value="Inativo" className="text-xs">Inativo</SelectItem><SelectItem value="Vendido" className="text-xs">Vendido</SelectItem></SelectContent>
+                </Select>
+              </FL>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
-              <div className="space-y-1"><Label className="text-xs">Placa</Label><Input value={formData.placa} onChange={(e) => handleChange("placa", e.target.value)} className="h-7 text-xs uppercase" placeholder="ABC1D23" /></div>
-              <div className="space-y-1"><Label className="text-xs">Chassi</Label><Input value={formData.chassi} onChange={(e) => handleChange("chassi", e.target.value)} className="h-7 text-xs uppercase" placeholder="CHASSI" /></div>
-              <div className="space-y-1"><Label className="text-xs">Renavam</Label><Input value={formData.renavam} onChange={(e) => handleChange("renavam", e.target.value)} className="h-7 text-xs uppercase" placeholder="RENAVAM" /></div>
-              <div className="space-y-1"><Label className="text-xs">Potência (CV)</Label><Input type="number" value={formData.potencia_cv} onChange={(e) => handleChange("potencia_cv", e.target.value)} className="h-7 text-xs" placeholder="0" /></div>
-              <div className="space-y-1"><Label className="text-xs">Data Aquisição</Label><Input type="date" value={formData.data_aquisicao} onChange={(e) => handleChange("data_aquisicao", e.target.value)} className="h-7 text-xs" /></div>
+              <FL label="Placa"><Input value={formData.placa} onChange={(e) => handleChange("placa", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="ABC1D23" /></FL>
+              <FL label="Chassi"><Input value={formData.chassi} onChange={(e) => handleChange("chassi", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="CHASSI" /></FL>
+              <FL label="Renavam"><Input value={formData.renavam} onChange={(e) => handleChange("renavam", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="RENAVAM" /></FL>
+              <FL label="Potência (CV)"><Input type="number" value={formData.potencia_cv} onChange={(e) => handleChange("potencia_cv", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
+              <FL label="Data Aquisição"><Input type="date" value={formData.data_aquisicao} onChange={(e) => handleChange("data_aquisicao", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
             </div>
-
-            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
-              <div>
-                <span className="font-semibold text-sm text-slate-700">Operação e Abastecimento</span>
-              </div>
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+              <span className="font-semibold text-xs text-slate-700">Operação e Abastecimento</span>
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-1">
-                <div className="space-y-1"><Label className="text-xs">Horímetro Atual</Label><Input type="number" value={formData.horimetro_atual} onChange={(e) => handleChange("horimetro_atual", e.target.value)} className="h-7 text-xs" placeholder="HORAS" /></div>
-                <div className="space-y-1"><Label className="text-xs">Hodômetro Atual</Label><Input type="number" value={formData.hodometro_atual} onChange={(e) => handleChange("hodometro_atual", e.target.value)} className="h-7 text-xs" placeholder="KM" /></div>
-                <div className="space-y-1"><Label className="text-xs">Combustível</Label><Select value={formData.tipo_combustivel} onValueChange={(v) => handleChange("tipo_combustivel", v)}><SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="SELECIONE" /></SelectTrigger><SelectContent>{COMBUSTIVEIS.map((c) => <SelectItem key={c} value={c} className="text-xs uppercase">{c}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-1"><Label className="text-xs">Capacidade Tanque (L)</Label><Input type="number" value={formData.capacidade_tanque} onChange={(e) => handleChange("capacidade_tanque", e.target.value)} className="h-7 text-xs" placeholder="0" /></div>
-                <div className="space-y-1"><Label className="text-xs">Consumo Médio</Label><Input type="number" step="0.1" value={formData.consumo_medio} onChange={(e) => handleChange("consumo_medio", e.target.value)} className="h-7 text-xs" placeholder="L/H" /></div>
+                <FL label="Horímetro Atual"><Input type="number" value={formData.horimetro_atual} onChange={(e) => handleChange("horimetro_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="HORAS" /></FL>
+                <FL label="Hodômetro Atual"><Input type="number" value={formData.hodometro_atual} onChange={(e) => handleChange("hodometro_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="KM" /></FL>
+                <FL label="Combustível">
+                  <Select value={formData.tipo_combustivel} onValueChange={(v) => handleChange("tipo_combustivel", v)}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                    <SelectContent>{COMBUSTIVEIS.map((c) => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </FL>
+                <FL label="Capacidade Tanque (L)"><Input type="number" value={formData.capacidade_tanque} onChange={(e) => handleChange("capacidade_tanque", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
+                <FL label="Consumo Médio"><Input type="number" step="0.1" value={formData.consumo_medio} onChange={(e) => handleChange("consumo_medio", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="L/H" /></FL>
               </div>
             </div>
-
-            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
-              <div>
-                <span className="font-semibold text-sm text-slate-700">Custos Operacionais</span>
-              </div>
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+              <span className="font-semibold text-xs text-slate-700">Custos Operacionais</span>
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-1">
-                <div className="space-y-1"><Label className="text-xs">Vida Útil (H)</Label><Input type="number" value={formData.vida_util_horas} onChange={(e) => handleChange("vida_util_horas", e.target.value)} className="h-7 text-xs" placeholder="10000" /></div>
-                <div className="space-y-1"><Label className="text-xs">Custo / Hora</Label><Input type="number" step="0.01" value={formData.custo_hora} onChange={(e) => handleChange("custo_hora", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
-                <div className="space-y-1"><Label className="text-xs">Combustível / L</Label><Input type="number" step="0.01" value={formData.valor_combustivel_litro} onChange={(e) => handleChange("valor_combustivel_litro", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
-                <div className="space-y-1"><Label className="text-xs">Valor Aquisição</Label><Input type="number" step="0.01" value={formData.valor_aquisicao} onChange={(e) => handleChange("valor_aquisicao", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
-                <div className="space-y-1"><Label className="text-xs">Valor Atual</Label><Input type="number" step="0.01" value={formData.valor_atual} onChange={(e) => handleChange("valor_atual", e.target.value)} className="h-7 text-xs" placeholder="0,00" /></div>
+                <FL label="Vida Útil (H)"><Input type="number" value={formData.vida_util_horas} onChange={(e) => handleChange("vida_util_horas", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="10000" /></FL>
+                <FL label="Custo / Hora"><Input type="number" step="0.01" value={formData.custo_hora} onChange={(e) => handleChange("custo_hora", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
+                <FL label="Combustível / L"><Input type="number" step="0.01" value={formData.valor_combustivel_litro} onChange={(e) => handleChange("valor_combustivel_litro", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
+                <FL label="Valor Aquisição"><Input type="number" step="0.01" value={formData.valor_aquisicao} onChange={(e) => handleChange("valor_aquisicao", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
+                <FL label="Valor Atual"><Input type="number" step="0.01" value={formData.valor_atual} onChange={(e) => handleChange("valor_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
               </div>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <div className="space-y-1"><Label className="text-xs">Localização Atual</Label><Select value={formData.localizacao_atual} onValueChange={(v) => handleChange("localizacao_atual", v)}><SelectTrigger className="h-7 text-xs uppercase"><SelectValue placeholder="SELECIONE A ÁREA" /></SelectTrigger><SelectContent>{areas.map((a) => <SelectItem key={a.id} value={a.nome} className="text-xs uppercase">{a.nome}</SelectItem>)}</SelectContent></Select></div>
-              <div className="lg:col-span-2 space-y-1"><Label className="text-xs">Observações</Label><Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} rows={3} className="text-xs uppercase min-h-[84px]" placeholder="OBSERVAÇÕES GERAIS" /></div>
+              <FL label="Localização Atual">
+                <Select value={formData.localizacao_atual} onValueChange={(v) => handleChange("localizacao_atual", v)}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE A ÁREA" /></SelectTrigger>
+                  <SelectContent>{areas.map((a) => <SelectItem key={a.id} value={a.nome} className="text-xs uppercase">{a.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </FL>
+              <div className="lg:col-span-2">
+                <FL label="Observações">
+                  <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} rows={3} className="text-xs uppercase min-h-[84px] border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="OBSERVAÇÕES GERAIS" />
+                </FL>
+              </div>
             </div>
-
-            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-2 border-t">
+            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-              <Button type="submit" disabled={mutation.isPending} size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-600">{mutation.isPending ? "Salvando..." : maquina ? "Atualizar" : "Salvar"}</Button>
+              <Button type="submit" disabled={mutation.isPending} size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{mutation.isPending ? "Salvando..." : maquina ? "Atualizar" : "Salvar"}</Button>
             </div>
           </form>
         </CardContent>

@@ -7,6 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
+const FL = ({ label, required, error, children, dataField }) => (
+  <div data-field={dataField}>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
+  </div>
+);
+
 const MESES = [
 { label: "Jan", field: "gmd_janeiro" },
 { label: "Fev", field: "gmd_fevereiro" },
@@ -95,178 +106,73 @@ export default function FormularioCategoriaManejo({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-1">
-        <form onSubmit={handleSubmit} className="space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-0.5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Nome da Categoria *</Label>
-              <Input
-                value={formData.nome || ""}
-                onChange={(e) => handleChange("nome", e.target.value)}
-                placeholder="NOME DA CATEGORIA"
-                className={getFieldClassName("nome", "h-7 text-xs uppercase")} />
-              
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Sigla *</Label>
-              <Input
-                value={formData.sigla || ""}
-                onChange={(e) => handleChange("sigla", e.target.value)}
-                placeholder="SIGLA"
-                className={getFieldClassName("sigla", "h-7 text-xs uppercase")}
-                maxLength={10} />
-              
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Espécie *</Label>
-              <Select
-                value={formData.especie || "Bovinos"}
-                onValueChange={(value) => handleChange("especie", value)}>
-                
-                <SelectTrigger className={getFieldClassName("especie", "h-7 text-xs")}>
-                  <SelectValue />
-                </SelectTrigger>
+            <FL label="Nome da Categoria" required error={invalidFields.includes('nome')}>
+              <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DA CATEGORIA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            </FL>
+            <FL label="Sigla" required error={invalidFields.includes('sigla')}>
+              <Input value={formData.sigla || ""} onChange={(e) => handleChange("sigla", e.target.value)} placeholder="SIGLA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} />
+            </FL>
+            <FL label="Espécie" required error={invalidFields.includes('especie')}>
+              <Select value={formData.especie || "Bovinos"} onValueChange={(value) => handleChange("especie", value)}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Bovinos" className="text-xs">Bovinos</SelectItem>
                   <SelectItem value="Ovinos" className="text-xs">Ovinos</SelectItem>
                   <SelectItem value="Suínos" className="text-xs">Suínos</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FL>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Sexo *</Label>
-              <Select
-                value={formData.sexo || "__VAZIO__"}
-                onValueChange={(value) =>
-                handleChange("sexo", value === "__VAZIO__" ? "" : value)
-                }>
-                
-                <SelectTrigger className={getFieldClassName("sexo", "h-7 text-xs")}>
-                  <SelectValue placeholder="SELECIONE" />
-                </SelectTrigger>
+            <FL label="Sexo" required error={invalidFields.includes('sexo')}>
+              <Select value={formData.sexo || "__VAZIO__"} onValueChange={(value) => handleChange("sexo", value === "__VAZIO__" ? "" : value)}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__VAZIO__" className="text-xs">SELECIONE</SelectItem>
                   <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
                   <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Raça *</Label>
-              <Input
-                value={formData.raca || ""}
-                onChange={(e) => handleChange("raca", e.target.value)}
-                placeholder="RAÇA"
-                className={getFieldClassName("raca", "h-7 text-xs uppercase")} />
-              
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Categoria Oficial *</Label>
-              <Select
-                value={formData.categoria_oficial || "__VAZIO__"}
-                onValueChange={(value) =>
-                handleChange("categoria_oficial", value === "__VAZIO__" ? "" : value)
-                }>
-                
-                <SelectTrigger
-                  className={getFieldClassName("categoria_oficial", "h-7 text-xs")}>
-                  
-                  <SelectValue placeholder="SELECIONE" />
-                </SelectTrigger>
+            </FL>
+            <FL label="Raça" required error={invalidFields.includes('raca')}>
+              <Input value={formData.raca || ""} onChange={(e) => handleChange("raca", e.target.value)} placeholder="RAÇA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            </FL>
+            <FL label="Categoria Oficial" required error={invalidFields.includes('categoria_oficial')}>
+              <Select value={formData.categoria_oficial || "__VAZIO__"} onValueChange={(value) => handleChange("categoria_oficial", value === "__VAZIO__" ? "" : value)}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__VAZIO__" className="text-xs">SELECIONE</SelectItem>
-                  {categoriasOficiaisDisponiveis.map((cat) =>
-                  <SelectItem key={cat} value={cat} className="text-xs">
-                      {cat}
-                    </SelectItem>
-                  )}
+                  {categoriasOficiaisDisponiveis.map((cat) => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
+            </FL>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Idade Mínima (meses) *</Label>
-              <Input
-                type="number"
-                value={formData.idade_minima_meses}
-                onChange={(e) => handleChange("idade_minima_meses", e.target.value)}
-                placeholder="0"
-                className={getFieldClassName("idade_minima_meses", "h-7 text-xs")} />
-              
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Idade Máxima (meses) *</Label>
-              <Input
-                type="number"
-                value={formData.idade_maxima_meses}
-                onChange={(e) => handleChange("idade_maxima_meses", e.target.value)}
-                placeholder="0"
-                className={getFieldClassName("idade_maxima_meses", "h-7 text-xs")} />
-              
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Ganho de Peso Anual (kg) *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.ganho_peso_anual_kg}
-                onChange={(e) => handleChange("ganho_peso_anual_kg", e.target.value)}
-                placeholder="0,00"
-                className={getFieldClassName("ganho_peso_anual_kg", "h-7 text-xs")} />
-              
-            </div>
+            <FL label="Idade Mínima (meses)" required error={invalidFields.includes('idade_minima_meses')}>
+              <Input type="number" value={formData.idade_minima_meses} onChange={(e) => handleChange("idade_minima_meses", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            </FL>
+            <FL label="Idade Máxima (meses)" required error={invalidFields.includes('idade_maxima_meses')}>
+              <Input type="number" value={formData.idade_maxima_meses} onChange={(e) => handleChange("idade_maxima_meses", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            </FL>
+            <FL label="Ganho de Peso Anual (kg)" required error={invalidFields.includes('ganho_peso_anual_kg')}>
+              <Input type="number" step="0.01" value={formData.ganho_peso_anual_kg} onChange={(e) => handleChange("ganho_peso_anual_kg", e.target.value)} placeholder="0,00" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            </FL>
           </div>
-
-          <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
-            <div>
-              <span className="font-semibold text-sm text-slate-700">
-                Previsão de Ganho de Peso Mensal (GMD)
-              </span>
-            </div>
+          <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+            <span className="font-semibold text-xs text-slate-700">Previsão de GMD Mensal</span>
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-1">
               {MESES.map((mes) =>
-              <div key={mes.field} className="space-y-1">
-                  <Label className="text-xs">{mes.label} *</Label>
-                  <Input
-                  type="number"
-                  step="0.01"
-                  value={formData[mes.field]}
-                  onChange={(e) => handleChange(mes.field, e.target.value)}
-                  placeholder="0,00"
-                  className={getFieldClassName(mes.field, "h-7 text-xs")} />
-                
-                </div>
+              <FL key={mes.field} label={mes.label} required error={invalidFields.includes(mes.field)}>
+                <Input type="number" step="0.01" value={formData[mes.field]} onChange={(e) => handleChange(mes.field, e.target.value)} placeholder="0,00" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
               )}
             </div>
           </div>
-
-          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-2 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              size="sm"
-              className="h-7 text-xs">
-              
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              size="sm" className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-emerald-600">
-              
-              
-              {isEditing ? "Atualizar" : "Salvar"}
-            </Button>
+          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isEditing ? "Atualizar" : "Salvar"}</Button>
           </div>
         </form>
       </CardContent>

@@ -8,6 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
+const FL = ({ label, required, error, children, dataField }) => (
+  <div data-field={dataField}>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
+  </div>
+);
+
 const REQUIRED_FIELDS = ["nome_tipo", "grupo_atividade_id"];
 const UPPERCASE_FIELDS = ["nome_tipo", "descricao"];
 const SELECT_EMPTY = "__VAZIO__";
@@ -81,47 +92,38 @@ export default function FormularioTipoTarefa({ initialData, grupos, isEditing, o
           </CardTitle>
         </CardHeader>
         <CardContent className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-1">
+          <form onSubmit={handleSubmit} className="space-y-0.5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo de Tarefa *</Label>
-                <Input data-field="nome_tipo" value={formData.nome_tipo || ""} onChange={(e) => handleChange("nome_tipo", e.target.value)} placeholder="NOME DO TIPO" className={getFieldClassName("nome_tipo", "h-7 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Grupo *</Label>
-                <div data-field="grupo_atividade_id">
-                  <Select value={formData.grupo_atividade_id || SELECT_EMPTY} onValueChange={(value) => handleChange("grupo_atividade_id", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className={getFieldClassName("grupo_atividade_id", "h-7 text-xs")}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {grupos.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{String(grupo.nome_grupo || "").toUpperCase()}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <FL label="Tipo de Tarefa" required error={errors.nome_tipo} dataField="nome_tipo">
+                <Input value={formData.nome_tipo || ""} onChange={(e) => handleChange("nome_tipo", e.target.value)} placeholder="NOME DO TIPO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
+              </FL>
+              <FL label="Grupo" required error={errors.grupo_atividade_id} dataField="grupo_atividade_id">
+                <Select value={formData.grupo_atividade_id || SELECT_EMPTY} onValueChange={(value) => handleChange("grupo_atividade_id", value === SELECT_EMPTY ? "" : value)}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                    {grupos.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{String(grupo.nome_grupo || "").toUpperCase()}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </FL>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-1 border-t">
-              <div className="space-y-1">
-                <Label className="text-xs">Ativo</Label>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-0.5 border-t">
+              <FL label="Ativo">
                 <Select value={String(formData.ativo ?? true)} onValueChange={(value) => handleChange("ativo", value === "true")}>
-                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true" className="text-xs">SIM</SelectItem>
                     <SelectItem value="false" className="text-xs">NÃO</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </FL>
             </div>
-
-            <div className="space-y-1 pt-1 border-t">
-              <Label className="text-xs">Descrição</Label>
-              <Textarea value={formData.descricao || ""} onChange={(e) => handleChange("descricao", e.target.value)} placeholder="DESCRIÇÃO DO TIPO" className="text-xs uppercase" style={{ textTransform: "uppercase" }} rows={2} />
-            </div>
-
+            <FL label="Descrição">
+              <Textarea value={formData.descricao || ""} onChange={(e) => handleChange("descricao", e.target.value)} placeholder="DESCRIÇÃO DO TIPO" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
+            </FL>
             <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-              <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">{isEditing ? "Atualizar" : "Salvar"}</Button>
+              <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isEditing ? "Atualizar" : "Salvar"}</Button>
             </div>
           </form>
         </CardContent>

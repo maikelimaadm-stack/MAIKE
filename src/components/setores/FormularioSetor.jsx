@@ -74,179 +74,61 @@ const FL = ({ label, required, error, children, dataField }) => (
         </CardTitle>
       </CardHeader>
       <CardContent className="p-1 pt-1">
-<form onSubmit={handleSubmit} className="space-y-1">
-
+<form onSubmit={handleSubmit} className="space-y-0.5">
   <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
-
-    <div className="space-y-1 lg:col-span-">
-      <Label className="text-xs">Nome do Setor/Fazenda *</Label>
-      <Input
-                data-field="nome"
-                value={formData.nome}
-                onChange={(e) => handleChange("nome", e.target.value)}
-                placeholder="NOME DO SETOR / FAZENDA"
-                className={getFieldClassName("nome", "h-7 px-1 py-1 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }} />
-              
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Sigla *</Label>
-      <Input
-                data-field="sigla"
-                value={formData.sigla}
-                onChange={(e) => handleChange("sigla", e.target.value)}
-                placeholder="SIGLA"
-                className={getFieldClassName("sigla", "h-7 px-1 py-1 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }}
-                maxLength={10} />
-              
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Tipo *</Label>
+    <FL label="Nome do Setor/Fazenda" required error={invalidFields.includes('nome')} dataField="nome">
+      <Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO SETOR / FAZENDA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
+    </FL>
+    <FL label="Sigla" required error={invalidFields.includes('sigla')} dataField="sigla">
+      <Input value={formData.sigla} onChange={(e) => handleChange("sigla", e.target.value)} placeholder="SIGLA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} maxLength={10} />
+    </FL>
+    <FL label="Tipo" required error={invalidFields.includes('tipo')} dataField="tipo">
       <Select value={formData.tipo} onValueChange={(value) => handleChange("tipo", value)}>
-        <SelectTrigger className={getFieldClassName("tipo", "h-7 text-xs")}>
-          <SelectValue placeholder="Selecione" />
-        </SelectTrigger>
+        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione" /></SelectTrigger>
+        <SelectContent>{TIPOS_SETOR.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent>
+      </Select>
+    </FL>
+    <FL label="Responsável">
+      <Input value={formData.responsavel} onChange={(e) => handleChange("responsavel", e.target.value)} placeholder="RESPONSÁVEL" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
+    </FL>
+    <FL label="Telefone">
+      <Input value={formData.telefone} onChange={(e) => handleChange("telefone", e.target.value)} placeholder="(00) 00000-0000" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+    </FL>
+    <FL label="Área Total (ha)">
+      <Input type="number" step="0.01" value={formData.area_total} onChange={(e) => handleChange("area_total", e.target.value)} placeholder="0,00" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+    </FL>
+    <FL label="Capacidade (animais)">
+      <Input type="number" value={formData.capacidade_animais} onChange={(e) => handleChange("capacidade_animais", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+    </FL>
+    <FL label="Endereço" required error={invalidFields.includes('endereco')} dataField="endereco">
+      <Input value={formData.endereco} onChange={(e) => handleChange("endereco", e.target.value)} placeholder="ENDEREÇO COMPLETO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
+    </FL>
+    <FL label="Cidade" required error={invalidFields.includes('cidade')} dataField="cidade">
+      <Input value={formData.cidade} onChange={(e) => handleChange("cidade", e.target.value)} placeholder="CIDADE" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
+    </FL>
+    <FL label="Estado" required error={invalidFields.includes('estado')} dataField="estado">
+      <Select value={formData.estado || SELECT_EMPTY} onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
+        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
         <SelectContent>
-          {TIPOS_SETOR.map((tipo) =>
-                  <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
-                  )}
+          <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+          {ESTADOS_BR.map((uf) => <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>)}
         </SelectContent>
       </Select>
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Responsável</Label>
-      <Input
-                value={formData.responsavel}
-                onChange={(e) => handleChange("responsavel", e.target.value)}
-                placeholder="RESPONSÁVEL"
-                className="h-7 px-1 py-1 text-xs uppercase"
-                style={{ textTransform: "uppercase" }} />
-              
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Telefone</Label>
-      <Input
-                value={formData.telefone}
-                onChange={(e) => handleChange("telefone", e.target.value)}
-                placeholder="(00) 00000-0000"
-                className="h-7 px-1 py-1 text-xs" />
-              
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Área Total (ha)</Label>
-      <Input
-                type="number"
-                step="0.01"
-                value={formData.area_total}
-                onChange={(e) => handleChange("area_total", e.target.value)}
-                placeholder="0,00"
-                className="h-7 px-1 py-1 text-xs" />
-              
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Capacidade (animais)</Label>
-      <Input
-                type="number"
-                value={formData.capacidade_animais}
-                onChange={(e) => handleChange("capacidade_animais", e.target.value)}
-                placeholder="0"
-                className="h-7 px-1 py-1 text-xs" />
-              
-    </div>
-
-
-
-    <div className="space-y-1 lg:col-span-">
-      <Label className="text-xs">Endereço *</Label>
-      <Input
-                data-field="endereco"
-                value={formData.endereco}
-                onChange={(e) => handleChange("endereco", e.target.value)}
-                placeholder="ENDEREÇO COMPLETO"
-                className={getFieldClassName("endereco", "h-7 px-1 py-1 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }} />
-              
-    </div>
-
-    <div className="space-y-1">
-      <Label className="text-xs">Cidade *</Label>
-      <Input
-                data-field="cidade"
-                value={formData.cidade}
-                onChange={(e) => handleChange("cidade", e.target.value)}
-                placeholder="CIDADE"
-                className={getFieldClassName("cidade", "h-7 px-1 py-1 text-xs uppercase")}
-                style={{ textTransform: "uppercase" }} />
-              
-    </div>
-
-
-    <div className="space-y-1">
-      <Label className="text-xs">Estado *</Label>
-      <div data-field="estado">
-        <Select
-                  value={formData.estado || SELECT_EMPTY}
-                  onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
-                  
-          <SelectTrigger className={getFieldClassName("estado", "h-7 text-xs")}>
-            <SelectValue placeholder="SELECIONE" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-            {ESTADOS_BR.map((uf) =>
-                    <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
-                    )}
-          </SelectContent>
-        </Select>
-      </div>
-
-    </div>
-          <div className="flex items-center gap-2 pt-4">
-      <Switch
-                checked={formData.ativo}
-                onCheckedChange={(value) => handleChange("ativo", value)} />
-              
-      <Label className="text-xs">Setor Ativo</Label>
+    </FL>
+    <div className="flex items-center gap-2 pt-4">
+      <Switch checked={formData.ativo} onCheckedChange={(value) => handleChange("ativo", value)} />
+      <label className="text-[12px] text-slate-500">Setor Ativo</label>
     </div>
   </div>
 
-  <div className="space-y-1 pt-1">
-    <Label className="text-xs">Observações</Label>
-    <Textarea
-              value={formData.observacoes}
-              onChange={(e) => handleChange("observacoes", e.target.value)}
-              placeholder="OBSERVAÇÕES GERAIS..."
-              className="text-xs uppercase p-1"
-              style={{ textTransform: "uppercase" }}
-              rows={2} />
-            
-  </div>
+  <FL label="Observações">
+    <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
+  </FL>
 
   <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-    <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              className="h-7 px-2 text-xs">
-              
-      Cancelar
-    </Button>
-
-    <Button
-              type="submit"
-              className="h-7 bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 shadow hover:bg-emerald-600">
-              
-      {isEditing ? "Atualizar" : "Salvar"}
-    </Button>
+    <Button type="button" variant="outline" onClick={onCancel} className="h-7 px-2 text-xs">Cancelar</Button>
+    <Button type="submit" className="h-7 bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs">{ isEditing ? "Atualizar" : "Salvar"}</Button>
   </div>
-
 </form>
       </CardContent>
     </Card>
