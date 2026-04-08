@@ -75,23 +75,23 @@ export default function FormularioTipoTarefa({ initialData, grupos, isEditing, o
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-slate-50 border-b py-3 px-4">
-          <CardTitle className="text-sm font-semibold text-slate-700">
-            {isEditing ? "Editar Tipo de Tarefa" : "Cadastrar Novo Tipo de Tarefa"}
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            {isEditing ? "Editar Tipo de Tarefa" : "Novo Tipo de Tarefa"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-1">
           <form onSubmit={handleSubmit} className="space-y-1">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <div className="space-y-1">
                 <Label className="text-xs">Tipo de Tarefa *</Label>
-                <Input data-field="nome_tipo" value={formData.nome_tipo || ""} onChange={(e) => handleChange("nome_tipo", e.target.value)} placeholder="NOME DO TIPO" className={getFieldClassName("nome_tipo", "h-8 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
+                <Input data-field="nome_tipo" value={formData.nome_tipo || ""} onChange={(e) => handleChange("nome_tipo", e.target.value)} placeholder="NOME DO TIPO" className={getFieldClassName("nome_tipo", "h-7 text-xs uppercase")} style={{ textTransform: "uppercase" }} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Grupo *</Label>
                 <div data-field="grupo_atividade_id">
                   <Select value={formData.grupo_atividade_id || SELECT_EMPTY} onValueChange={(value) => handleChange("grupo_atividade_id", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className={getFieldClassName("grupo_atividade_id", "h-8 text-xs")}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                    <SelectTrigger className={getFieldClassName("grupo_atividade_id", "h-7 text-xs")}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
                       {grupos.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{String(grupo.nome_grupo || "").toUpperCase()}</SelectItem>)}
@@ -105,7 +105,7 @@ export default function FormularioTipoTarefa({ initialData, grupos, isEditing, o
               <div className="space-y-1">
                 <Label className="text-xs">Ativo</Label>
                 <Select value={String(formData.ativo ?? true)} onValueChange={(value) => handleChange("ativo", value === "true")}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true" className="text-xs">SIM</SelectItem>
                     <SelectItem value="false" className="text-xs">NÃO</SelectItem>
@@ -116,12 +116,12 @@ export default function FormularioTipoTarefa({ initialData, grupos, isEditing, o
 
             <div className="space-y-1 pt-1 border-t">
               <Label className="text-xs">Descrição</Label>
-              <Textarea value={formData.descricao || ""} onChange={(e) => handleChange("descricao", e.target.value)} placeholder="DESCRIÇÃO DO TIPO" className="text-xs uppercase min-h-[96px]" style={{ textTransform: "uppercase" }} rows={3} />
+              <Textarea value={formData.descricao || ""} onChange={(e) => handleChange("descricao", e.target.value)} placeholder="DESCRIÇÃO DO TIPO" className="text-xs uppercase" style={{ textTransform: "uppercase" }} rows={2} />
             </div>
 
             <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button>
-              <Button type="submit" size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">{isEditing ? "Atualizar" : "Salvar"}</Button>
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">{isEditing ? "Atualizar" : "Salvar"}</Button>
             </div>
           </form>
         </CardContent>
