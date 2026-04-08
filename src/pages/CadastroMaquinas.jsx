@@ -86,23 +86,25 @@ export default function CadastroMaquinas() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-1">
-      {!showForm && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Máquinas e Veículos</h1>
-            <p className="text-xs text-slate-600">Gestão de cadastro de máquinas, veículos e implementos</p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
-              <Settings2 className="w-3.5 h-3.5 mr-1" /> Configurar Colunas
-            </Button>
-            <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Nova Máquina
-            </Button>
-          </div>
+    <div className="p-1 md:p-1 space-y-1">
+      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
+        <div>
+          <h1 className="font-bold text-slate-800">Cadastro de Máquinas</h1>
         </div>
-      )}
+        <div className="flex gap-2 flex-wrap">
+          {!showForm &&
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+              <Settings2 className="w-4 h-4" />
+            </Button>
+          }
+
+          {!showForm &&
+          <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
+              Adicionar
+            </Button>
+          }
+        </div>
+      </div>}
 
       <AnimatePresence mode="wait">
         {showForm ? (
