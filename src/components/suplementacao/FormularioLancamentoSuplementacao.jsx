@@ -670,7 +670,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <Label className="text-xs">Observações</Label>
               <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs" rows={3} />
             </div>
-
             <div className="flex justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button type="button" onClick={handleSalvar} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar"}</Button>
@@ -678,9 +677,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           </div>
         </CardContent>
       </Card>
-
       <Dialog open={progresso.show} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle className="text-sm">Salvando...</DialogTitle></DialogHeader><div className="space-y-2"><p className="text-xs text-slate-600">{progresso.mensagem}</p><Progress value={progresso.total ? (progresso.atual / progresso.total) * 100 : 0} className="w-full h-1.5" /></div></DialogContent>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Salvando...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+            <Progress value={progresso.total ? (progresso.atual / progresso.total) * 100 : 0} className="w-full h-1.5" />
+          </div>
+        </DialogContent>
       </Dialog>
     </>
   );
