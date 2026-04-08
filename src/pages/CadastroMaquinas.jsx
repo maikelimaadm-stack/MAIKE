@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings2, Loader2 } from "lucide-react";
+import { Settings, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Progress } from "@/components/ui/progress";
@@ -74,7 +74,7 @@ export default function CadastroMaquinas() {
         <div className="flex gap-2 flex-wrap">
           {!showForm &&
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-              <Settings2 className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
             </Button>
           }
 
