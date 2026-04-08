@@ -299,23 +299,23 @@ export default function HistoricoMovimentacoesPecuaria() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Data</Label>
-                  <Input type="date" value={editando.data_movimentacao?.split("T")[0] || ""} onChange={(e) => setEditando({ ...editando, data_movimentacao: e.target.value })} className="h-8 text-xs" />
+                  <Label className="text-xs uppercase">Data *</Label>
+                  <Input type="date" value={editando.data_movimentacao?.split("T")[0] || ""} onChange={(e) => setEditando({ ...editando, data_movimentacao: e.target.value })} className="h-8 text-xs uppercase" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Quantidade de Animais</Label>
-                  <Input type="number" value={editando.quantidade_animais || ""} onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })} className="h-8 text-xs" />
+                  <Label className="text-xs uppercase">Qtd Animais *</Label>
+                  <Input type="number" value={editando.quantidade_animais || ""} onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })} className="h-8 text-xs uppercase" />
                 </div>
               </div>
               {editando.peso_medio !== undefined && (
                 <div className="space-y-1">
-                  <Label className="text-xs">Peso Médio (kg)</Label>
-                  <Input type="number" step="0.1" value={editando.peso_medio || ""} onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })} className="h-8 text-xs" />
+                  <Label className="text-xs uppercase">Peso Médio (kg)</Label>
+                  <Input type="number" step="0.1" value={editando.peso_medio || ""} onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })} className="h-8 text-xs uppercase" />
                 </div>
               )}
               <div className="space-y-1">
-                <Label className="text-xs">Observações</Label>
-                <Textarea value={editando.observacoes || ""} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} className="text-xs" rows={3} />
+                <Label className="text-xs uppercase">Observações</Label>
+                <Textarea value={editando.observacoes || ""} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} className="text-xs uppercase" rows={3} />
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <Button onClick={() => setShowEditRapido(false)} variant="outline" size="sm" className="h-8 text-xs">Cancelar</Button>
