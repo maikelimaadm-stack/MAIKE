@@ -20,18 +20,19 @@ const TIPOS_MOVIMENTACAO = [
 const MOTIVOS_ENTRADA = ["Compra", "Nascimento", "Saldo Inicial", "Inventário", "Ajuste Positivo", "Doação Recebida", "Outros"];
 const MOTIVOS_SAIDA = ["Venda", "Morte", "Abate", "Transferência entre Setores", "Mudança de Categoria", "Ajuste Negativo", "Doação", "Perda/Roubo", "Outros"];
 
-const FL = ({ children, label, required, className = "" }) => (
-  <div className={`rounded-md border border-gray-300 px-2 pt-1 pb-1 ${className}`}>
+const FL = ({ label, required, error, children, className = "" }) => (
+  <div className={className}>
     <label className="text-[12px] text-slate-500 pl-1 leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
-    {children}
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
   </div>
 );
 
 const inputCls = "h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent";
 const selectTriggerCls = "h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent";
-const invalidCls = "border-red-500 bg-red-50";
 
 export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -215,7 +216,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   });
 
   const isInvalid = (field) => invalidFields.includes(field);
-  const flCls = (field) => isInvalid(field) ? invalidCls : "";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -255,19 +255,19 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const clearInvalid = (field) => setInvalidFields((p) => p.filter((f) => f !== field));
 
   return (
-    <Card className="mt-4 rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
-      <CardHeader className="bg-slate-50 border-b py-2 px-3">
+    <Card className="shadow-sm border-slate-300 mt-4">
+      <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
         <CardTitle className="text-sm font-semibold text-slate-900">
           {item ? 'Editar Movimentação' : 'Novo Lançamento Manual'}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3">
-        <form onSubmit={handleSubmit} className="space-y-2">
+      <CardContent className="p-1">
+        <form onSubmit={handleSubmit} className="space-y-0.5">
 
           {/* Setor */}
           {formData.motivo !== "Transferência entre Setores" && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-              <FL label="Setor / Fazenda" required className={`md:col-span-3 ${flCls('setor_id')}`}>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+              <FL label="Setor / Fazenda" required error={isInvalid('setor_id')} className="lg:col-span-3">
                 <Select value={formData.setor_id} onValueChange={(v) => { setFormData({ ...formData, setor_id: v, categoria_animal: "", marca: "", area_origem_id: "", area_destino_id: "" }); clearInvalid('setor_id'); }}>
                   <SelectTrigger className={selectTriggerCls}><SelectValue placeholder="SELECIONE O SETOR PRIMEIRO" /></SelectTrigger>
                   <SelectContent>
@@ -275,27 +275,25 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                       const saldo = saldoPorSetor[setor.id] || 0;
                       return (
                         <SelectItem key={setor.id} value={setor.id} className="text-xs uppercase">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
-                            <span className="text-[10px] text-slate-500">({setor.tipo})</span>
-                            <span className="text-[10px] text-slate-500">{saldo} CAB</span>
-                          </div>
+                          {setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome} ({setor.tipo}) {saldo} CAB
                         </SelectItem>
                       );
                     }) : <SelectItem value={null} disabled className="text-xs uppercase text-slate-500">CADASTRE SETORES PRIMEIRO</SelectItem>}
                   </SelectContent>
                 </Select>
               </FL>
-              <div className="rounded-md border border-gray-300 px-3 py-2 flex flex-col justify-center">
-                <span className="text-[12px] text-slate-500 leading-none">Saldo no Setor</span>
-                <span className="text-sm font-bold text-emerald-700 mt-1">{formData.setor_id ? `${saldoPorSetor[formData.setor_id] || 0} CAB` : '--'}</span>
+              <div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Saldo no Setor</label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors h-[38px] px-3 flex items-center">
+                  <span className="text-sm font-bold text-emerald-700">{formData.setor_id ? `${saldoPorSetor[formData.setor_id] || 0} CAB` : '--'}</span>
+                </div>
               </div>
             </div>
           )}
 
           {/* Tipo, Motivo, Data, Qtd, Peso */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <FL label="Tipo" required className={flCls('tipo')}>
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-1">
+            <FL label="Tipo" required error={isInvalid('tipo')}>
               <Select value={formData.tipo} onValueChange={(v) => { setFormData({ ...formData, tipo: v, motivo: "" }); clearInvalid('tipo'); }}>
                 <SelectTrigger className={selectTriggerCls}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                 <SelectContent>
@@ -304,7 +302,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               </Select>
             </FL>
 
-            <FL label="Motivo" required className={flCls('motivo')}>
+            <FL label="Motivo" required error={isInvalid('motivo')}>
               <Select value={formData.motivo} onValueChange={(v) => {
                 if (v === "Transferência entre Setores" && formData.setor_id) setFormData({ ...formData, motivo: v, setor_origem_id: formData.setor_id });
                 else setFormData({ ...formData, motivo: v });
@@ -319,11 +317,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               </Select>
             </FL>
 
-            <FL label="Data" required className={flCls('data_movimentacao')}>
+            <FL label="Data" required error={isInvalid('data_movimentacao')}>
               <Input type="date" value={formData.data_movimentacao} onChange={(e) => { setFormData({ ...formData, data_movimentacao: e.target.value }); clearInvalid('data_movimentacao'); }} className={inputCls} />
             </FL>
 
-            <FL label="Qtd Animais" required className={flCls('quantidade_animais')}>
+            <FL label="Qtd Animais" required error={isInvalid('quantidade_animais')}>
               <Input type="number" min="1" value={formData.quantidade_animais} onChange={(e) => { setFormData({ ...formData, quantidade_animais: e.target.value }); clearInvalid('quantidade_animais'); }} className={inputCls} />
             </FL>
 
@@ -338,8 +336,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Categoria, Marca, Sexo, Área (não mudança de categoria) */}
           {formData.motivo !== "Mudança de Categoria" && (
-            <div className={`grid grid-cols-2 ${formData.tipo === "Entrada" ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
-              <FL label="Categoria" required className={flCls('categoria_animal')}>
+            <div className={`grid grid-cols-1 ${formData.tipo === "Entrada" ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-1`}>
+              <FL label="Categoria" required error={isInvalid('categoria_animal')}>
                 {formData.tipo === "Saída" ? (
                   <Select value={formData.categoria_animal} onValueChange={(v) => { const cat = categoriasManejo.find((c) => c.nome === v); setFormData({ ...formData, categoria_animal: v, marca: "", sexo: cat?.sexo || "" }); clearInvalid('categoria_animal'); }} disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder={formData.setor_id ? "SELECIONE" : "SELECIONE SETOR PRIMEIRO"} /></SelectTrigger>
@@ -360,7 +358,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               </FL>
 
               {formData.tipo === "Saída" && (
-                <FL label="Marca" required className={flCls('marca')}>
+                <FL label="Marca" required error={isInvalid('marca')}>
                   <Select value={formData.marca} onValueChange={(v) => { setFormData({ ...formData, marca: v }); clearInvalid('marca'); }} disabled={!formData.categoria_animal || !formData.setor_id}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder={formData.categoria_animal ? "SELECIONE" : "SELECIONE CATEGORIA PRIMEIRO"} /></SelectTrigger>
                     <SelectContent>
@@ -372,7 +370,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
               {formData.tipo === "Entrada" && (
                 <>
-                  <FL label="Marca" required className={flCls('marca')}>
+                  <FL label="Marca" required error={isInvalid('marca')}>
                     <ComboboxComNovo value={formData.marca} onChange={(v) => { setFormData({ ...formData, marca: v }); clearInvalid('marca'); }} options={marcasExistentes} placeholder="SELECIONE OU DIGITE..." inputClassName="h-7 text-xs pr-2 uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" hideIcons disabled={!formData.setor_id} />
                   </FL>
                   <FL label="Sexo">
@@ -394,8 +392,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Mudança de Categoria */}
           {formData.motivo === "Mudança de Categoria" && (
-            <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+              <span className="font-semibold text-xs text-slate-700">Mudança de Categoria</span>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <FL label="Categoria Atual (De)" required className={flCls('categoria_animal')}>
                   <Select value={formData.categoria_animal} onValueChange={(v) => { setFormData({ ...formData, categoria_animal: v, marca: "" }); clearInvalid('categoria_animal'); }} disabled={!formData.setor_id}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder={formData.setor_id ? "DE QUAL CATEGORIA?" : "SELECIONE SETOR PRIMEIRO"} /></SelectTrigger>
@@ -404,7 +403,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     </SelectContent>
                   </Select>
                 </FL>
-                <FL label="Marca" required className={flCls('marca')}>
+                <FL label="Marca" required error={isInvalid('marca')}>
                   <Select value={formData.marca} onValueChange={(v) => { setFormData({ ...formData, marca: v }); clearInvalid('marca'); }} disabled={!formData.categoria_animal || !formData.setor_id}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder={formData.categoria_animal ? "SELECIONE" : "SELECIONE CATEGORIA PRIMEIRO"} /></SelectTrigger>
                     <SelectContent>
@@ -421,8 +420,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   </Select>
                 </FL>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <FL label="Nova Categoria (Para)" required className={flCls('categoria_nova')}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+                <FL label="Nova Categoria (Para)" required error={isInvalid('categoria_nova')}>
                   <Select value={formData.categoria_nova} onValueChange={(v) => { setFormData({ ...formData, categoria_nova: v }); clearInvalid('categoria_nova'); }}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder="PARA QUAL CATEGORIA?" /></SelectTrigger>
                     <SelectContent>
@@ -436,7 +435,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Compra/Venda */}
           {(formData.motivo === "Compra" || formData.motivo === "Venda") && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
               <FL label={formData.tipo === "Entrada" ? "Fornecedor" : "Comprador"}>
                 <ComboboxComNovo value={formData.tipo === "Entrada" ? formData.fornecedor_origem : formData.destino_venda} onChange={(v) => { if (formData.tipo === "Entrada") setFormData({ ...formData, fornecedor_origem: v }); else setFormData({ ...formData, destino_venda: v }); }} options={formData.tipo === "Entrada" ? fornecedoresExistentes : compradoresExistentes} placeholder="SELECIONE OU DIGITE..." inputClassName="h-7 text-xs pr-2 uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" hideIcons />
               </FL>
@@ -457,7 +456,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Abate */}
           {formData.motivo === "Abate" && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
               <FL label="Comprador/Frigorífico">
                 <ComboboxComNovo value={formData.destino_venda} onChange={(v) => setFormData({ ...formData, destino_venda: v })} options={compradoresExistentes} placeholder="SELECIONE OU DIGITE..." inputClassName="h-7 text-xs pr-2 uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" hideIcons />
               </FL>
@@ -478,10 +477,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Transferência entre Setores */}
           {formData.motivo === "Transferência entre Setores" && (
-            <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
-              <p className="text-xs text-indigo-700 font-semibold">Transferência entre Setores/Fazendas (cria saída + entrada automaticamente)</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <FL label="Setor de Origem" required className={flCls('setor_origem_id')}>
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+              <span className="font-semibold text-xs text-slate-700">Transferência entre Setores/Fazendas</span>
+              <p className="text-[11px] text-slate-500">Cria saída + entrada automaticamente.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+                <FL label="Setor de Origem" required error={isInvalid('setor_origem_id')}>
                   <Select value={formData.setor_origem_id} onValueChange={(v) => { setFormData({ ...formData, setor_origem_id: v }); clearInvalid('setor_origem_id'); }}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder="DE ONDE SAI" /></SelectTrigger>
                     <SelectContent>
@@ -492,7 +492,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     </SelectContent>
                   </Select>
                 </FL>
-                <FL label="Setor de Destino" required className={flCls('setor_destino_id')}>
+                <FL label="Setor de Destino" required error={isInvalid('setor_destino_id')}>
                   <Select value={formData.setor_destino_id} onValueChange={(v) => { setFormData({ ...formData, setor_destino_id: v }); clearInvalid('setor_destino_id'); }}>
                     <SelectTrigger className={selectTriggerCls}><SelectValue placeholder="PARA ONDE VAI" /></SelectTrigger>
                     <SelectContent>
@@ -525,9 +525,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           </FL>
 
           {/* Botões */}
-          <div className="flex justify-end gap-2 pt-3 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs uppercase">Cancelar</Button>
-            <Button type="submit" size="sm" className="bg-lime-500 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700" disabled={createMutation.isPending}>
+          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={createMutation.isPending}>
               {createMutation.isPending ? 'Salvando...' : item ? 'Atualizar' : 'Salvar'}
             </Button>
           </div>
