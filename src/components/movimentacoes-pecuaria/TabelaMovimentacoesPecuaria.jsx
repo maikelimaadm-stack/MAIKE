@@ -258,6 +258,55 @@ export default function TabelaMovimentacoesPecuaria({
     return val || "-";
   };
 
+  const renderFilterControl = (colunaId) => {
+    const btnClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
+    const colLabel = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId)?.label || colunaId;
+    const options = columnOptions[colunaId] || [];
+    const valSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
+    const filtered = options.filter((o) => String(o).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
+    const allSelected = filtered.length > 0 && filtered.every((o) => valSelecionados.includes(o));
+
+    return (
+      <Popover open={menuFiltroAberto === colunaId} onOpenChange={(open) => { setMenuFiltroAberto(open ? colunaId : null); setBuscaFiltroMenu(""); setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] }); }}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className={btnClass}><Filter className="w-2 h-2" /></Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
+          <div className="p-1 space-y-0.5 border-b">
+            <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => { handleSort(colunaId); setMenuFiltroAberto(null); }}>
+              <ArrowDownAZ className="w-4 h-4 mr-2" /> Classificar do Menor para o Maior
+            </button>
+            <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => { setSortConfig({ key: colunaId, direction: "desc" }); setMenuFiltroAberto(null); }}>
+              <ArrowUpZA className="w-4 h-4 mr-2" /> Classificar do Maior para o Menor
+            </button>
+            <button type="button" className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? "hover:bg-slate-100 text-slate-700" : "text-slate-300 cursor-not-allowed"}`} disabled={!hasActiveFilter(colunaId)} onClick={() => { clearColumnFilter(colunaId); setMenuFiltroAberto(null); }}>
+              <X className="w-4 h-4 mr-2" /> Limpar Filtro de "{colLabel}"
+            </button>
+          </div>
+          <div className="p-2 space-y-2">
+            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />
+            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
+              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
+                <Checkbox checked={allSelected} onCheckedChange={(checked) => { setFiltroTemp((p) => { const rest = p.valores.filter((v) => !filtered.includes(v)); return { ...p, valores: checked ? [...new Set([...rest, ...filtered])] : rest }; }); }} className="h-3.5 w-3.5 shrink-0" />
+                <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
+              </label>
+              {filtered.map((opt) => (
+                <label key={opt} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
+                  <Checkbox checked={valSelecionados.includes(opt)} onCheckedChange={(checked) => { setFiltroTemp((p) => ({ ...p, valores: checked ? [...p.valores, opt] : p.valores.filter((i) => i !== opt) })); }} className="h-3.5 w-3.5 shrink-0" />
+                  <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{opt}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setMenuFiltroAberto(null); setBuscaFiltroMenu(""); setFiltroTemp({ colunaId: null, valores: [] }); }}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setValoresFiltro(colunaId, filtroTemp.valores); setMenuFiltroAberto(null); setBuscaFiltroMenu(""); setFiltroTemp({ colunaId: null, valores: [] }); }}>OK</Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   return (
     <div className="space-y-1 overflow-hidden">
       <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
