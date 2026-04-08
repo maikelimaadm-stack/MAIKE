@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,8 +51,9 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
   };
 
   return (
-    <Card className="shadow-sm border-slate-300 bg-white">
-      <CardHeader className="flex flex-col space-y-1.5 p-1 bg-slate-50 border-b border-slate-200 py-1">
+    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+    <Card className="shadow-sm border-slate-300">
+      <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
         <CardTitle className="text-sm font-semibold text-slate-900">
           {isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
         </CardTitle>
@@ -232,6 +234,7 @@ export default function FormularioSetor({ initialData, isEditing, onSubmit, onCa
 
 </form>
       </CardContent>
-    </Card>);
+    </Card>
+    </motion.div>);
 
 }
