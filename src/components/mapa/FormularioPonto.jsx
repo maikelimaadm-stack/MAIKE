@@ -501,13 +501,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                   <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
                     {areasDoSetor.map((area) => {
                       const checked = formData.area_vinculada_ids?.includes(area.id);
-                      const nomeMapa = area.numero_area ? `MAPA ${area.numero_area}` : "MAPA";
+                      const nomeArea = area.nome || area.area_vinculada_nome || `ÁREA ${area.numero_area || ''}`.trim();
+                      const descricaoMapa = [area.numero_area ? `MAPA ${area.numero_area}` : null, area.setor_nome || null].filter(Boolean).join(" • ");
                       return (
                         <label key={area.id} className="flex items-start gap-2 py-1 text-xs cursor-pointer group">
                           <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} className="mt-0.5" />
                           <span className="flex flex-col leading-tight">
-                            <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{area.nome}</span>
-                            <span className="text-[11px] text-slate-400">{nomeMapa}</span>
+                            <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{nomeArea}</span>
+                            {descricaoMapa && <span className="text-[11px] text-slate-400">{descricaoMapa}</span>}
                           </span>
                         </label>
                       );
