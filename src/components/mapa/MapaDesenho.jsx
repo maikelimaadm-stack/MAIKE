@@ -52,6 +52,14 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) =>
   image.src = iconUrl;
 };
 
+function getAreaLabelContent(text) {
+  return (
+    <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
+      {text}
+    </div>
+  );
+}
+
 function getAreaLabelOverlay(map, position, text) {
   class AreaLabelOverlay extends google.maps.OverlayView {
     onAdd() {
@@ -59,13 +67,8 @@ function getAreaLabelOverlay(map, position, text) {
       div.style.position = "absolute";
       div.style.transform = "translate(-50%, -50%)";
       div.style.pointerEvents = "none";
-      div.style.zIndex = "1";
       const root = createRoot(div);
-      root.render(
-        <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
-          {text}
-        </div>
-      );
+      root.render(getAreaLabelContent(text));
       this.div = div;
       this.root = root;
       this.getPanes()?.overlayLayer?.appendChild(div);
