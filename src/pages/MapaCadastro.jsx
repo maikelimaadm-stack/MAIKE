@@ -13,14 +13,14 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  AlertDialogTitle } from
+"@/components/ui/alert-dialog";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  SheetTitle } from
+"@/components/ui/sheet";
 import TabelaAreasGeo from "../components/mapa/TabelaAreasGeo";
 import TabelaPontosGeo from "../components/mapa/TabelaPontosGeo";
 import TabelaLinhasGeo from "../components/mapa/TabelaLinhasGeo";
@@ -60,7 +60,7 @@ export default function MapaCadastro() {
       const all = await base44.entities.AreaPastagem.list();
       return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: pontos = [], refetch: refetchPontos } = useQuery({
@@ -69,7 +69,7 @@ export default function MapaCadastro() {
       const all = await base44.entities.PontoReferencia.list();
       return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: linhas = [], refetch: refetchLinhas } = useQuery({
@@ -78,7 +78,7 @@ export default function MapaCadastro() {
       const all = await base44.entities.LinhaGeografica.list();
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const deleteAreaMutation = useMutation({
@@ -94,7 +94,7 @@ export default function MapaCadastro() {
     onError: (error) => {
       if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
       toast.error("Erro ao excluir área");
-    },
+    }
   });
 
   const deletePontoMutation = useMutation({
@@ -107,9 +107,9 @@ export default function MapaCadastro() {
 
       const pontosSuplementacao = await base44.entities.PontoSuplementacao.list();
       const vinculados = pontosSuplementacao.filter((item) =>
-        item.empresa_id === empresaSelecionadaId &&
-        item.status === "Ativo" &&
-        normalizar(item.nome_ponto) === normalizar(ponto?.nome)
+      item.empresa_id === empresaSelecionadaId &&
+      item.status === "Ativo" &&
+      normalizar(item.nome_ponto) === normalizar(ponto?.nome)
       );
 
       // Primeiro tratar depósitos antes de excluir
@@ -126,13 +126,13 @@ export default function MapaCadastro() {
 
         // Desvincular cochos que apontavam para este depósito
         const cochosRelacionados = pontosSuplementacao.filter((item) =>
-          item.empresa_id === empresaSelecionadaId &&
-          item.deposito_origem_id === deposito.id
+        item.empresa_id === empresaSelecionadaId &&
+        item.deposito_origem_id === deposito.id
         );
         for (const cocho of cochosRelacionados) {
           await base44.entities.PontoSuplementacao.update(cocho.id, {
             deposito_origem_id: null,
-            deposito_origem_nome: null,
+            deposito_origem_nome: null
           });
         }
       }
@@ -150,7 +150,7 @@ export default function MapaCadastro() {
     },
     onError: (error) => {
       toast.error(error?.message || "Erro ao excluir ponto");
-    },
+    }
   });
 
   const deleteLinhaMutation = useMutation({
@@ -159,7 +159,7 @@ export default function MapaCadastro() {
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "linhas" });
       toast.success("Linha excluída!");
       setItemExcluir(null);
-    },
+    }
   });
 
   const handleNovoItem = (tipo, gps = false) => {
@@ -237,29 +237,29 @@ export default function MapaCadastro() {
           <Button onClick={() => setShowImportarGeoJSON(true)} variant="outline" size="sm" className="h-7 text-xs">
             Importar GeoJSON
           </Button>
-          {abaAtiva === "areas" && (
-            <>
+          {abaAtiva === "areas" &&
+          <>
               <Button onClick={() => handleNovoItem('area', false)} variant="outline" size="sm" className="h-7 text-xs">Desenhar no Mapa</Button>
               <Button onClick={() => setShowSelecaoMapa(true)} variant="outline" size="sm" className="h-7 text-xs">Selecionar no Mapa</Button>
               <Button onClick={() => handleNovoItem('area', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
-          )}
-          {abaAtiva === "pontos" && (
-            <>
+          }
+          {abaAtiva === "pontos" &&
+          <>
               <Button onClick={() => setShowCadastroLotePontos(true)} variant="outline" size="sm" className="h-7 text-xs">
-                <Layers3 className="w-3.5 h-3.5" />
+                
                 Cadastrar em Lote
               </Button>
               <Button onClick={() => handleNovoItem('ponto', false)} variant="outline" size="sm" className="h-7 text-xs">Marcar no Mapa</Button>
               <Button onClick={() => handleNovoItem('ponto', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
-          )}
-          {abaAtiva === "linhas" && (
-            <>
+          }
+          {abaAtiva === "linhas" &&
+          <>
               <Button onClick={() => handleNovoItem('linha', false)} variant="outline" size="sm" className="h-7 text-xs">Desenhar no Mapa</Button>
               <Button onClick={() => handleNovoItem('linha', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
-          )}
+          }
         </div>
       </div>
 
@@ -303,28 +303,28 @@ export default function MapaCadastro() {
       <ImportarGeoJSON open={showImportarGeoJSON} onOpenChange={setShowImportarGeoJSON} />
       <ModalCadastroLotePontos open={showCadastroLotePontos} onOpenChange={setShowCadastroLotePontos} />
 
-      {showSelecaoMapa && <SelecaoAreasMapa onClose={() => { setShowSelecaoMapa(false); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} />}
+      {showSelecaoMapa && <SelecaoAreasMapa onClose={() => {setShowSelecaoMapa(false);queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });}} />}
 
       <Sheet open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea}>
         <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader><SheetTitle>Editar Detalhes da Área</SheetTitle></SheetHeader>
-          {itemDetalhes && <FormularioArea coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => { setShowEditarDetalhesArea(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} onCancel={() => { setShowEditarDetalhesArea(false); setItemDetalhes(null); }} />}
+          {itemDetalhes && <FormularioArea coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => {setShowEditarDetalhesArea(false);setItemDetalhes(null);queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });}} onCancel={() => {setShowEditarDetalhesArea(false);setItemDetalhes(null);}} />}
         </SheetContent>
       </Sheet>
 
       <Sheet open={showEditarDetalhesPonto} onOpenChange={setShowEditarDetalhesPonto}>
         <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader><SheetTitle>Editar Detalhes do Ponto</SheetTitle></SheetHeader>
-          {itemDetalhes && <FormularioPonto coordenadas={itemDetalhes.coordenadas} item={itemDetalhes} onSave={() => { setShowEditarDetalhesPonto(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ['pontos', 'pontos-suplementacao', 'mapa-pontos', 'mapa-pontos-supl'].includes(q.queryKey[0]) }); window.dispatchEvent(new CustomEvent('atualizar-mapa')); }} onCancel={() => { setShowEditarDetalhesPonto(false); setItemDetalhes(null); }} />}
+          {itemDetalhes && <FormularioPonto coordenadas={itemDetalhes.coordenadas} item={itemDetalhes} onSave={() => {setShowEditarDetalhesPonto(false);setItemDetalhes(null);queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ['pontos', 'pontos-suplementacao', 'mapa-pontos', 'mapa-pontos-supl'].includes(q.queryKey[0]) });window.dispatchEvent(new CustomEvent('atualizar-mapa'));}} onCancel={() => {setShowEditarDetalhesPonto(false);setItemDetalhes(null);}} />}
         </SheetContent>
       </Sheet>
 
       <Sheet open={showEditarDetalhesLinha} onOpenChange={setShowEditarDetalhesLinha}>
         <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader><SheetTitle>Editar Detalhes da Linha</SheetTitle></SheetHeader>
-          {itemDetalhes && <FormularioLinha coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => { setShowEditarDetalhesLinha(false); setItemDetalhes(null); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'linhas' }); }} onCancel={() => { setShowEditarDetalhesLinha(false); setItemDetalhes(null); }} />}
+          {itemDetalhes && <FormularioLinha coordenadas={itemDetalhes.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))} item={itemDetalhes} onSave={() => {setShowEditarDetalhesLinha(false);setItemDetalhes(null);queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'linhas' });}} onCancel={() => {setShowEditarDetalhesLinha(false);setItemDetalhes(null);}} />}
         </SheetContent>
       </Sheet>
-    </div>
-  );
+    </div>);
+
 }
