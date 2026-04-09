@@ -338,7 +338,7 @@ export default function TabelaMovimentacoesPecuaria({
 
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="">
+                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="text-muted-foreground font-medium text-left h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                             <div className="flex items-center justify-center w-full h-full">
                               <Checkbox checked={selectedItems.length === paginadas.length && paginadas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                             </div>
