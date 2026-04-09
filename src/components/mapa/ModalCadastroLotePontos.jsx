@@ -708,7 +708,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
               <Button
               type="button"
               variant="ghost"
-              size="icon" className="bg-red-50 text-sm font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground absolute right-2 top-2 z-10 h-7 w-7 hover:bg-red-100"
+              size="icon" className="bg-red-50 pb-4 text-sm font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground absolute right-2 top-2 z-10 h-7 w-7 hover:bg-red-100"
 
               onClick={() => removePoint(activePoint.tempId)}
               title="Remover ponto do lote">
