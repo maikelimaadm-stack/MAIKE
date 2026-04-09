@@ -99,12 +99,24 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
         clickable: true
       });
       polygon.setMap(mapInstanceRef.current);
+
+      const boundsArea = new google.maps.LatLngBounds();
+      paths.forEach((point) => boundsArea.extend(point));
+      const center = boundsArea.getCenter();
+      const areaLabel = new google.maps.InfoWindow({
+        content: `<div style="font-size:11px;font-weight:600;color:#1e293b;padding:0 2px;text-transform:uppercase;white-space:nowrap;">${area.nome || area.numero_area || 'ÁREA'}</div>`,
+        position: center,
+        disableAutoPan: true,
+        pixelOffset: new google.maps.Size(0, 0)
+      });
+      areaLabel.open({ map: mapInstanceRef.current, shouldFocus: false });
+
       polygon.addListener('click', () => {
         const set = selecionadosRef.current;
         if (set.has(area.id)) set.delete(area.id); else set.add(area.id);
         polygon.setOptions({ fillOpacity: set.has(area.id) ? 0.45 : 0.2 });
       });
-      polygonsRef.current.push(polygon);
+      polygonsRef.current.push(polygon, areaLabel);
     });
 
     if (has) { mapInstanceRef.current.fitBounds(bounds, { padding: 50 }); }
