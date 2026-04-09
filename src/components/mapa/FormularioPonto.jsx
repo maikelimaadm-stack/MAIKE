@@ -508,7 +508,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                           <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} className="mt-0.5" />
                           <span className="flex flex-col leading-tight">
                             <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{nomeArea}</span>
-                            {descricaoMapa && <span className="text-[11px] text-slate-400">{descricaoMapa}</span>}
+                            
                           </span>
                         </label>);
 
