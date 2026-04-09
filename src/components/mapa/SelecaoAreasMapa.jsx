@@ -23,18 +23,78 @@ const CORES_DISPONIVEIS = [
   { nome: "Laranja", cor: "#f5a01b" },
   { nome: "Roxo", cor: "#966fe1" }
 ];
-const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"]; 
-const APROVEITAMENTO = ["Alta", "Média", "Baixa"]; 
+const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"];
+const APROVEITAMENTO = ["Alta", "Média", "Baixa"];
 const TIPOS_CULTURAS = [
-  "Brachiaria","Mombaça","Tanzânia","Tifton","Piatã","Marandu","Panicum","Elefante",
-  "Milho","Soja","Sorgo","Arroz","Trigo","Cevada","Cana-de-açúcar","Algodão",
-  "Feijão","Girassol","Aveia","Café","Eucalipto","Floresta","Outros"
+  "Brachiaria", "Mombaça", "Tanzânia", "Tifton", "Piatã", "Marandu", "Panicum", "Elefante",
+  "Milho", "Soja", "Sorgo", "Arroz", "Trigo", "Cevada", "Cana-de-açúcar", "Algodão",
+  "Feijão", "Girassol", "Aveia", "Café", "Eucalipto", "Floresta", "Outros"
 ];
+
+const LABEL_STYLE = {
+  position: "absolute",
+  transform: "translate(-50%, -50%)",
+  color: "#ffffff",
+  fontSize: "11px",
+  fontWeight: "700",
+  textTransform: "uppercase",
+  textShadow: "0 1px 3px rgba(0,0,0,0.9)",
+  whiteSpace: "nowrap",
+  pointerEvents: "none",
+  letterSpacing: "0.02em"
+};
+
+function AreaLabelOverlay({ map, position, text }) {
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    if (!map || !position || !text) return;
+
+    class LabelOverlay extends google.maps.OverlayView {
+      onAdd() {
+        const div = document.createElement("div");
+        Object.assign(div.style, LABEL_STYLE);
+        div.innerText = text;
+        this.div = div;
+        const panes = this.getPanes();
+        panes?.overlayMouseTarget?.appendChild(div);
+      }
+
+      draw() {
+        if (!this.div) return;
+        const projection = this.getProjection();
+        const point = projection?.fromLatLngToDivPixel(position);
+        if (!point) return;
+        this.div.style.left = `${point.x}px`;
+        this.div.style.top = `${point.y}px`;
+      }
+
+      onRemove() {
+        if (this.div?.parentNode) {
+          this.div.parentNode.removeChild(this.div);
+        }
+        this.div = null;
+      }
+    }
+
+    const overlay = new LabelOverlay();
+    overlay.setMap(map);
+    overlayRef.current = overlay;
+
+    return () => {
+      overlay.setMap(null);
+      overlayRef.current = null;
+    };
+  }, [map, position, text]);
+
+  return null;
+}
 
 export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionMode = false, onConfirmSelection = null }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polygonsRef = useRef([]);
+  const overlaysRef = useRef([]);
   const selecionadosRef = useRef(new Set());
   const [ready, setReady] = useState(false);
   const [batchType, setBatchType] = useState(null);
@@ -63,7 +123,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
       s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry`;
       s.async = true; s.defer = true; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
     });
-    load().then(() => setReady(true)).catch(()=> toast.error('Erro ao carregar mapa'));
+    load().then(() => setReady(true)).catch(() => toast.error('Erro ao carregar mapa'));
   }, []);
 
   useEffect(() => {
@@ -77,17 +137,21 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
 
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-    polygonsRef.current.forEach(p => p.setMap(null));
+    polygonsRef.current.forEach((item) => item.setMap(null));
+    overlaysRef.current.forEach((item) => item.setMap(null));
     polygonsRef.current = [];
+    overlaysRef.current = [];
 
     const bounds = new google.maps.LatLngBounds();
     let has = false;
 
-    areas.forEach(area => {
+    areas.forEach((area) => {
       const coords = area.coordenadas?.coords || [];
       if (coords.length < 3) return;
-      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
-      paths.forEach(p => bounds.extend(p)); has = true;
+      const paths = coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      paths.forEach((p) => bounds.extend(p));
+      has = true;
+
       const cor = area.coordenadas?.cor || area.cor || '#10b981';
       const polygon = new google.maps.Polygon({
         paths,
@@ -103,23 +167,41 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
       const boundsArea = new google.maps.LatLngBounds();
       paths.forEach((point) => boundsArea.extend(point));
       const center = boundsArea.getCenter();
-      const areaLabel = new google.maps.InfoWindow({
-        content: `<div style="font-size:11px;font-weight:600;color:#1e293b;padding:0 2px;text-transform:uppercase;white-space:nowrap;">${area.nome || area.numero_area || 'ÁREA'}</div>`,
-        position: center,
-        disableAutoPan: true,
-        pixelOffset: new google.maps.Size(0, 0)
-      });
-      areaLabel.open({ map: mapInstanceRef.current, shouldFocus: false });
+      const overlay = new google.maps.OverlayView();
+      overlay.onAdd = function () {
+        const div = document.createElement('div');
+        Object.assign(div.style, LABEL_STYLE);
+        div.innerText = area.nome || area.numero_area || 'ÁREA';
+        this.div = div;
+        this.getPanes()?.overlayMouseTarget?.appendChild(div);
+      };
+      overlay.draw = function () {
+        if (!this.div) return;
+        const projection = this.getProjection();
+        const point = projection?.fromLatLngToDivPixel(center);
+        if (!point) return;
+        this.div.style.left = `${point.x}px`;
+        this.div.style.top = `${point.y}px`;
+      };
+      overlay.onRemove = function () {
+        if (this.div?.parentNode) this.div.parentNode.removeChild(this.div);
+        this.div = null;
+      };
+      overlay.setMap(mapInstanceRef.current);
 
       polygon.addListener('click', () => {
         const set = selecionadosRef.current;
         if (set.has(area.id)) set.delete(area.id); else set.add(area.id);
         polygon.setOptions({ fillOpacity: set.has(area.id) ? 0.45 : 0.2 });
       });
-      polygonsRef.current.push(polygon, areaLabel);
+
+      polygonsRef.current.push(polygon);
+      overlaysRef.current.push(overlay);
     });
 
-    if (has) { mapInstanceRef.current.fitBounds(bounds, { padding: 50 }); }
+    if (has) {
+      mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
+    }
   }, [areas, ready]);
 
   const aplicarLote = async () => {
@@ -140,7 +222,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
         }));
       }
       toast.success('Atualizado');
-      setBatchType(null); setBatchValue("");
+      setBatchType(null); setBatchValue('');
       selecionadosRef.current.clear();
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });
     } catch {
@@ -210,7 +292,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
         </div>
       )}
 
-      <Dialog open={!selectionMode && !!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(""); }}>
+      <Dialog open={!selectionMode && !!batchType} onOpenChange={() => { setBatchType(null); setBatchValue(''); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">
@@ -230,7 +312,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
                 </SelectContent>
               </Select>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
               </div>
             </div>
@@ -245,7 +327,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
                 </SelectContent>
               </Select>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
               </div>
             </div>
@@ -260,7 +342,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
                 </SelectContent>
               </Select>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote}>Aplicar</Button>
               </div>
             </div>
@@ -270,11 +352,11 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
               <Label className="text-xs">Cor</Label>
               <div className="grid grid-cols-5 gap-2">
                 {CORES_DISPONIVEIS.map(c => (
-                  <button key={c.cor} type="button" onClick={() => setBatchValue(c.cor)} className={`h-8 rounded border ${batchValue===c.cor?'ring-2 ring-emerald-600':''}`} style={{ backgroundColor: c.cor }} title={c.nome} />
+                  <button key={c.cor} type="button" onClick={() => setBatchValue(c.cor)} className={`h-8 rounded border ${batchValue === c.cor ? 'ring-2 ring-emerald-600' : ''}`} style={{ backgroundColor: c.cor }} title={c.nome} />
                 ))}
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={aplicarLote} disabled={!batchValue}>Aplicar</Button>
               </div>
             </div>
@@ -282,15 +364,15 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
           {batchType === 'renumerar' && (
             <div className="space-y-2">
               <Label className="text-xs">Iniciar numeração a partir de</Label>
-              <Input value={startNumber} onChange={(e)=>setStartNumber(e.target.value.replace(/[^0-9]/g,''))} className="h-8 text-xs" placeholder="1" />
+              <Input value={startNumber} onChange={(e) => setStartNumber(e.target.value.replace(/[^0-9]/g, ''))} className="h-8 text-xs" placeholder="1" />
               <p className="text-[11px] text-slate-500">As áreas selecionadas serão ordenadas por Nome (A→Z) e receberão códigos sequenciais.</p>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setBatchType(null)}>Cancelar</Button>
-                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async ()=>{
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setBatchType(null)}>Cancelar</Button>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
                   const ids = Array.from(selecionadosRef.current);
                   if (!ids.length) { toast.error('Selecione áreas no mapa'); return; }
                   const start = parseInt(startNumber || '1');
-                  const selecionadas = areas.filter(a => ids.includes(a.id)).sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+                  const selecionadas = areas.filter(a => ids.includes(a.id)).sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
                   await Promise.all(selecionadas.map((a, idx) => base44.entities.AreaPastagem.update(a.id, { numero_area: String(start + idx) })));
                   toast.success('Códigos reatribuídos');
                   setBatchType(null); setStartNumber(''); selecionadosRef.current.clear();
