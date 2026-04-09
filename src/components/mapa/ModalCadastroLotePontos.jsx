@@ -294,6 +294,10 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
     });
   }, [areas, pontosExistentes, linhas, mapReady]);
 
+  // Track which marker tempIds exist so click handler can check
+  const pontosRef = useRef([]);
+  useEffect(() => { pontosRef.current = pontos; }, [pontos]);
+
   // === CLICK HANDLER ===
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady) return;
@@ -303,6 +307,23 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
     const mapDiv = mapInstanceRef.current.getDiv();
     let downPos = null;
     let downTime = 0;
+
+    const isClickOnExistingNewMarker = (latLng) => {
+      const map = mapInstanceRef.current;
+      const projection = map.getProjection();
+      if (!projection) return null;
+      const scale = Math.pow(2, map.getZoom());
+      const clickPt = projection.fromLatLngToPoint(latLng);
+      const cx = clickPt.x * scale, cy = clickPt.y * scale;
+
+      for (const ponto of pontosRef.current) {
+        if (!ponto.coordenadas) continue;
+        const pt = projection.fromLatLngToPoint(new google.maps.LatLng(ponto.coordenadas.lat, ponto.coordenadas.lng));
+        const dx = pt.x * scale - cx, dy = pt.y * scale - cy;
+        if (Math.sqrt(dx * dx + dy * dy) < 20) return ponto.tempId;
+      }
+      return null;
+    };
 
     const onDown = (ev) => { downPos = { x: ev.clientX, y: ev.clientY }; downTime = Date.now(); };
     const onUp = (ev) => {
@@ -329,6 +350,14 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const worldY = pixelY / scale + topRight.y;
       const worldPoint = new google.maps.Point(worldX, worldY);
       const latLng = projection.fromPointToLatLng(worldPoint);
+
+      // Check if clicked on an existing new marker — just select it
+      const existingId = isClickOnExistingNewMarker(latLng);
+      if (existingId) {
+        setActivePointId(existingId);
+        setSheetOpen(true);
+        return;
+      }
 
       let lat = latLng.lat();
       let lng = latLng.lng();
