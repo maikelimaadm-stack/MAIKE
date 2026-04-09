@@ -46,14 +46,26 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) =>
   image.src = iconUrl;
 };
 
-const createPoint = (coords) => ({
+const createPoint = (coords, lastPoint = null) => ({
   tempId: crypto.randomUUID(),
   nome: "",
   sigla: "",
-  tipo: "",
-  observacoes: "",
+  tipo: lastPoint?.tipo || "",
+  observacoes: lastPoint?.observacoes || "",
   setor_id: "",
   coordenadas: coords,
+  configuracao_icone_id: lastPoint?.configuracao_icone_id || "",
+  produto_padrao: lastPoint?.produto_padrao || "",
+  capacidade_cocho_kg: lastPoint?.capacidade_cocho_kg || "",
+  metragem_cocho_m: lastPoint?.metragem_cocho_m || "",
+  cobertura_cocho: lastPoint?.cobertura_cocho || "",
+  consumo_ideal_por_cabeca_kg: lastPoint?.consumo_ideal_por_cabeca_kg || "",
+  limite_minimo_consumo: lastPoint?.limite_minimo_consumo || "",
+  limite_maximo_consumo: lastPoint?.limite_maximo_consumo || "",
+  dias_alerta_reposicao: lastPoint?.dias_alerta_reposicao || "3",
+  estoque_minimo_kg: lastPoint?.estoque_minimo_kg || "",
+  alerta_sem_lancamento_dias: lastPoint?.alerta_sem_lancamento_dias || "10",
+  tipo_categoria: lastPoint?.tipo_categoria || "",
 });
 
 export default function ModalCadastroLotePontos({ open, onOpenChange }) {
@@ -359,7 +371,8 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const snapped = findNearestPoint(latLng, map);
       if (snapped) { lat = snapped.lat; lng = snapped.lng; toast.success("🧲 Encaixado!", { duration: 600 }); }
 
-      const novo = createPoint({ lat, lng });
+      const ultimoPonto = pontosRef.current.length > 0 ? pontosRef.current[pontosRef.current.length - 1] : null;
+      const novo = createPoint({ lat, lng }, ultimoPonto);
       setPontos((prev) => [...prev, novo]);
       setActivePointId(novo.tempId);
       setSheetOpen(true);

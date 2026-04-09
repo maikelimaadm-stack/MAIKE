@@ -498,13 +498,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                     <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
                     {areasDoSetor.map((area) => {
                       const checked = formData.area_vinculada_ids?.includes(area.id);
                       return (
-                        <label key={area.id} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs cursor-pointer hover:bg-slate-50">
+                        <label key={area.id} className="flex items-center gap-2 py-1 text-xs cursor-pointer group">
                           <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} />
-                          <span>{area.nome}</span>
+                          <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{area.nome}</span>
                         </label>
                       );
                     })}
