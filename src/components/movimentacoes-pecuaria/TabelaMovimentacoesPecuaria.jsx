@@ -338,7 +338,7 @@ export default function TabelaMovimentacoesPecuaria({
 
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
+                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="">
                             <div className="flex items-center justify-center w-full h-full">
                               <Checkbox checked={selectedItems.length === paginadas.length && paginadas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                             </div>
@@ -382,8 +382,8 @@ export default function TabelaMovimentacoesPecuaria({
 
                       if (coluna.id === "selecao") {
                         return (
-                          <TableCell key={`${mov.id}-sel`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center align-middle h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-                              <div className="[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-4 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
+                          <TableCell key={`${mov.id}-sel`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-20 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+                              <div className="">
                                 <Checkbox checked={selectedItems.includes(mov.id)} onCheckedChange={(ch) => setSelectedItems((p) => ch ? [...p, mov.id] : p.filter((i) => i !== mov.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                               </div>
                             </TableCell>);
