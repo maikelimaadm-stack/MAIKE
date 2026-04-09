@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Upload } from "lucide-react";
+import { Settings, Upload, Layers3 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -30,6 +30,7 @@ import FormularioLinha from "../components/mapa/FormularioLinha";
 import MapaDesenho from "../components/mapa/MapaDesenho";
 import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
 import SelecaoAreasMapa from "../components/mapa/SelecaoAreasMapa";
+import ModalCadastroLotePontos from "../components/mapa/ModalCadastroLotePontos";
 import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 
 export default function MapaCadastro() {
@@ -48,6 +49,7 @@ export default function MapaCadastro() {
   const [showConfigAreas, setShowConfigAreas] = useState(false);
   const [showConfigPontos, setShowConfigPontos] = useState(false);
   const [showConfigLinhas, setShowConfigLinhas] = useState(false);
+  const [showCadastroLotePontos, setShowCadastroLotePontos] = useState(false);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -244,6 +246,10 @@ export default function MapaCadastro() {
           )}
           {abaAtiva === "pontos" && (
             <>
+              <Button onClick={() => setShowCadastroLotePontos(true)} variant="outline" size="sm" className="h-7 text-xs">
+                <Layers3 className="w-3.5 h-3.5" />
+                Cadastrar em Lote
+              </Button>
               <Button onClick={() => handleNovoItem('ponto', false)} variant="outline" size="sm" className="h-7 text-xs">Marcar no Mapa</Button>
               <Button onClick={() => handleNovoItem('ponto', true)} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Usar GPS</Button>
             </>
@@ -295,6 +301,7 @@ export default function MapaCadastro() {
       </AlertDialog>
 
       <ImportarGeoJSON open={showImportarGeoJSON} onOpenChange={setShowImportarGeoJSON} />
+      <ModalCadastroLotePontos open={showCadastroLotePontos} onOpenChange={setShowCadastroLotePontos} />
 
       {showSelecaoMapa && <SelecaoAreasMapa onClose={() => { setShowSelecaoMapa(false); queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' }); }} />}
 
