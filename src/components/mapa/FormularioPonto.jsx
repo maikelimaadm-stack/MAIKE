@@ -130,24 +130,24 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       tipo: item.tipo || "",
       configuracao_icone_id: item.configuracao_icone_id || "",
       observacoes: item.observacoes || pontoSuplementacaoExistente?.observacoes || "",
-      produto_padrao: pontoSuplementacaoExistente?.produto_padrao || "",
-      capacidade_cocho_kg: pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
-      setor_id: pontoSuplementacaoExistente?.setor_id || areas.find((area) => area.id === pontoSuplementacaoExistente?.area_vinculada_id)?.setor_id || "",
-      area_vinculada_id: pontoSuplementacaoExistente?.area_vinculada_id || "",
-      area_vinculada_ids: Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length
+      produto_padrao: item.produto_padrao || pontoSuplementacaoExistente?.produto_padrao || "",
+      capacidade_cocho_kg: item.capacidade_cocho_kg || pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
+      setor_id: item.setor_id || pontoSuplementacaoExistente?.setor_id || areas.find((area) => area.id === (item.area_vinculada_id || pontoSuplementacaoExistente?.area_vinculada_id))?.setor_id || "",
+      area_vinculada_id: item.area_vinculada_id || pontoSuplementacaoExistente?.area_vinculada_id || "",
+      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : (Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length
         ? pontoSuplementacaoExistente.area_vinculada_ids
         : pontoSuplementacaoExistente?.area_vinculada_id
           ? [pontoSuplementacaoExistente.area_vinculada_id]
-          : [],
-      deposito_origem_id: pontoSuplementacaoExistente?.deposito_origem_id || "",
-      metragem_cocho_m: pontoSuplementacaoExistente?.metragem_cocho_m || "",
-      cobertura_cocho: pontoSuplementacaoExistente?.cobertura_cocho || "",
-      consumo_ideal_por_cabeca_kg: pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg || "",
-      limite_minimo_consumo: pontoSuplementacaoExistente?.limite_minimo_consumo || "",
-      limite_maximo_consumo: pontoSuplementacaoExistente?.limite_maximo_consumo || "",
-      dias_alerta_reposicao: pontoSuplementacaoExistente?.dias_alerta_reposicao || "3",
-      estoque_minimo_kg: pontoSuplementacaoExistente?.estoque_minimo_kg || "",
-      alerta_sem_lancamento_dias: pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10",
+          : []),
+      deposito_origem_id: item.deposito_origem_id || pontoSuplementacaoExistente?.deposito_origem_id || "",
+      metragem_cocho_m: item.metragem_cocho_m || pontoSuplementacaoExistente?.metragem_cocho_m || "",
+      cobertura_cocho: item.cobertura_cocho || pontoSuplementacaoExistente?.cobertura_cocho || "",
+      consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg || "",
+      limite_minimo_consumo: item.limite_minimo_consumo || pontoSuplementacaoExistente?.limite_minimo_consumo || "",
+      limite_maximo_consumo: item.limite_maximo_consumo || pontoSuplementacaoExistente?.limite_maximo_consumo || "",
+      dias_alerta_reposicao: item.dias_alerta_reposicao || pontoSuplementacaoExistente?.dias_alerta_reposicao || "3",
+      estoque_minimo_kg: item.estoque_minimo_kg || pontoSuplementacaoExistente?.estoque_minimo_kg || "",
+      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10",
     });
   }, [item, pontoSuplementacaoExistente, areas]);
 
@@ -180,6 +180,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     const pontoCoords = coordenadasGPS || coordenadas;
     if (!pontoCoords || !areas.length) return;
 
+    let detectada = null;
+
     for (const area of areas) {
       const areaCoords = area.coordenadas?.coords || [];
       if (areaCoords.length < 3) continue;
@@ -196,14 +198,20 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       }
 
       if (inside) {
-        setAreaDetectada(area);
-        setFormData((prev) => {
-          const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
-          if (areaIds.length > 0) return prev;
-          return { ...prev, area_vinculada_id: area.id, area_vinculada_ids: [area.id] };
-        });
+        detectada = area;
         break;
       }
+    }
+
+    if (detectada) {
+      setAreaDetectada(detectada);
+      setFormData((prev) => {
+        const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
+        if (areaIds.length === 1 && areaIds[0] === detectada.id) return prev;
+        return { ...prev, area_vinculada_id: detectada.id, area_vinculada_ids: [detectada.id] };
+      });
+    } else {
+      setAreaDetectada(null);
     }
   }, [coordenadasGPS, coordenadas, areas]);
 

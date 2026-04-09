@@ -429,9 +429,18 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const existentes = await base44.entities.PontoReferencia.list();
       const maxNum = existentes.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
 
-      const payload = pontosValidos.map((item, index) => {
-        const configIcone = iconesConfig.find((ic) => ic.categoria === item.tipo);
-        return {
+      // Suplementacao Data
+      const pontosSuplementacaoEmpresa = await base44.entities.PontoSuplementacao.list();
+      const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((p) => p.empresa_id === empresaSelecionadaId && p.status === "Ativo");
+      const maiorNumero = pontosAtivosEmpresa.reduce((max, p) => Math.max(max, parseInt(String(p.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
+
+      let offsetSuplementacao = 1;
+
+      for (let index = 0; index < pontosValidos.length; index++) {
+        const item = pontosValidos[index];
+        const configIcone = iconesConfig.find((ic) => ic.categoria === item.tipo) || iconesConfig.find((ic) => ic.id === item.configuracao_icone_id);
+        
+        await base44.entities.PontoReferencia.create({
           empresa_id: empresaSelecionadaId,
           numero_ponto: String(maxNum + index + 1),
           nome: item.nome.toUpperCase(),
@@ -442,16 +451,71 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
           icone_url: configIcone?.icone_url || null,
           sub_icone_url: configIcone?.sub_icone_url || null,
           cor: configIcone?.cor_padrao || "#0066ff",
-          setor_id: item.setor_id || null,
           ativo: true,
           coordenadas: item.coordenadas,
-        };
-      });
+        });
 
-      return base44.entities.PontoReferencia.bulkCreate(payload);
+        if (item.tipo_categoria === "DEPOSITO" || item.tipo_categoria === "COCHO") {
+          let localEstoqueId = null;
+          let localEstoqueNome = null;
+
+          if (item.tipo_categoria === "DEPOSITO") {
+            const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${item.nome.toUpperCase()}`;
+            const localCriado = await base44.entities.LocalEstoque.create({ nome: item.nome.toUpperCase(), descricao: descricaoLocal });
+            localEstoqueId = localCriado.id;
+            localEstoqueNome = localCriado.nome;
+          }
+
+          const prefixo = item.tipo_categoria === "DEPOSITO" ? "DEP" : "COCHO";
+          const areasVinculadas = areas.filter((area) => (item.area_vinculada_ids || []).includes(area.id));
+          const areaVinculadaPrincipal = areasVinculadas[0] || null;
+          const setorSelecionado = setores.find((setor) => setor.id === item.setor_id);
+
+          let deposito_origem_nome = null;
+          if (item.tipo_categoria === "COCHO" && item.deposito_origem_id) {
+            const existingDep = pontosAtivosEmpresa.find((p) => p.id === item.deposito_origem_id);
+            if (existingDep) deposito_origem_nome = existingDep.nome_ponto;
+          }
+
+          await base44.entities.PontoSuplementacao.create({
+            empresa_id: empresaSelecionadaId,
+            numero_ponto: `${prefixo}-${String(maiorNumero + offsetSuplementacao).padStart(4, "0")}`,
+            setor_id: item.setor_id || null,
+            setor_nome: setorSelecionado?.nome || null,
+            nome_ponto: item.nome.toUpperCase(),
+            sigla: item.sigla?.toUpperCase() || "",
+            categoria_ponto: item.tipo_categoria,
+            tipo: item.tipo,
+            produto_padrao: item.tipo_categoria === "COCHO" ? item.produto_padrao || null : null,
+            capacidade_cocho_kg: item.capacidade_cocho_kg ? parseFloat(item.capacidade_cocho_kg) : null,
+            metragem_cocho_m: item.tipo_categoria === "COCHO" && item.metragem_cocho_m ? parseFloat(item.metragem_cocho_m) : null,
+            cobertura_cocho: item.tipo_categoria === "COCHO" ? item.cobertura_cocho || null : null,
+            area_vinculada_id: item.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.id || null : null,
+            area_vinculada_nome: item.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.nome || "" : null,
+            area_vinculada_ids: item.tipo_categoria === "COCHO" ? (item.area_vinculada_ids || []) : [],
+            area_vinculada_nomes: item.tipo_categoria === "COCHO" ? areasVinculadas.map((a) => a.nome) : [],
+            deposito_origem_id: item.tipo_categoria === "COCHO" ? item.deposito_origem_id || null : null,
+            deposito_origem_nome: deposito_origem_nome,
+            local_estoque_id: item.tipo_categoria === "DEPOSITO" ? localEstoqueId : null,
+            local_estoque_nome: item.tipo_categoria === "DEPOSITO" ? localEstoqueNome : null,
+            coordenadas: item.coordenadas,
+            status: "Ativo",
+            observacoes: item.observacoes?.toUpperCase() || null,
+            consumo_ideal_por_cabeca_kg: item.tipo_categoria === "COCHO" && item.consumo_ideal_por_cabeca_kg ? parseFloat(item.consumo_ideal_por_cabeca_kg) : null,
+            limite_minimo_consumo: item.tipo_categoria === "COCHO" && item.limite_minimo_consumo ? parseFloat(item.limite_minimo_consumo) : null,
+            limite_maximo_consumo: item.tipo_categoria === "COCHO" && item.limite_maximo_consumo ? parseFloat(item.limite_maximo_consumo) : null,
+            dias_alerta_reposicao: item.tipo_categoria === "COCHO" && item.dias_alerta_reposicao ? parseInt(item.dias_alerta_reposicao) : 3,
+            estoque_minimo_kg: item.tipo_categoria === "DEPOSITO" && item.estoque_minimo_kg ? parseFloat(item.estoque_minimo_kg) : null,
+            alerta_sem_lancamento_dias: item.tipo_categoria === "COCHO" ? parseInt(item.alerta_sem_lancamento_dias || 10) : null,
+          });
+
+          offsetSuplementacao++;
+        }
+      }
+      return true;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "mapa-pontos"].includes(q.queryKey[0]) });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "mapa-pontos", "pontos-suplementacao", "pontos-suplementacao-form"].includes(q.queryKey[0]) });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Pontos salvos com sucesso.");
       onOpenChange(false);
