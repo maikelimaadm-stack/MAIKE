@@ -15,16 +15,16 @@ import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import useSetorAreas from "@/hooks/useSetorAreas";
 
-const FL = ({ label, required, error, children }) => (
-  <div>
+const FL = ({ label, required, error, children }) =>
+<div>
     <label className="text-[12px] text-slate-500 pl-1 leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
       {children}
     </div>
-  </div>
-);
+  </div>;
+
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -35,7 +35,7 @@ function ProdutoSuplementacaoSelect({ value, onChange }) {
       const all = await base44.entities.Produto.list();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId && normalizeText(produto.categoria).includes("SUPLEMENTAC"));
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   return (
@@ -44,14 +44,14 @@ function ProdutoSuplementacaoSelect({ value, onChange }) {
         <SelectValue placeholder="Selecione o produto" />
       </SelectTrigger>
       <SelectContent>
-        {produtos.map((produto) => (
-          <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
+        {produtos.map((produto) =>
+        <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
             {produto.nome_produto}
           </SelectItem>
-        ))}
+        )}
       </SelectContent>
-    </Select>
-  );
+    </Select>);
+
 }
 
 const createEmptyForm = () => ({
@@ -73,7 +73,7 @@ const createEmptyForm = () => ({
   limite_maximo_consumo: "",
   dias_alerta_reposicao: "3",
   estoque_minimo_kg: "",
-  alerta_sem_lancamento_dias: "10",
+  alerta_sem_lancamento_dias: "10"
 });
 
 export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null }) {
@@ -92,7 +92,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((itemIcone) => itemIcone.tipo_entidade === "Ponto" && itemIcone.ativo !== false);
     },
-    enabled: true,
+    enabled: true
   });
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -103,7 +103,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       const all = await base44.entities.PontoSuplementacao.list();
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const pontoSuplementacaoExistente = useMemo(() => {
@@ -111,7 +111,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     const nomeAtual = normalizeText(item.nome);
     const siglaAtual = normalizeText(item.sigla);
 
-    return pontosSuplementacao.find((ponto) => normalizeText(ponto.nome_ponto) === nomeAtual || (siglaAtual && normalizeText(ponto.sigla) === siglaAtual)) || null;
+    return pontosSuplementacao.find((ponto) => normalizeText(ponto.nome_ponto) === nomeAtual || siglaAtual && normalizeText(ponto.sigla) === siglaAtual) || null;
   }, [item, pontosSuplementacao]);
 
   const depositosDisponiveis = useMemo(() => {
@@ -134,11 +134,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       capacidade_cocho_kg: item.capacidade_cocho_kg || pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
       setor_id: item.setor_id || pontoSuplementacaoExistente?.setor_id || areas.find((area) => area.id === (item.area_vinculada_id || pontoSuplementacaoExistente?.area_vinculada_id))?.setor_id || "",
       area_vinculada_id: item.area_vinculada_id || pontoSuplementacaoExistente?.area_vinculada_id || "",
-      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : (Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length
-        ? pontoSuplementacaoExistente.area_vinculada_ids
-        : pontoSuplementacaoExistente?.area_vinculada_id
-          ? [pontoSuplementacaoExistente.area_vinculada_id]
-          : []),
+      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length ?
+      pontoSuplementacaoExistente.area_vinculada_ids :
+      pontoSuplementacaoExistente?.area_vinculada_id ?
+      [pontoSuplementacaoExistente.area_vinculada_id] :
+      [],
       deposito_origem_id: item.deposito_origem_id || pontoSuplementacaoExistente?.deposito_origem_id || "",
       metragem_cocho_m: item.metragem_cocho_m || pontoSuplementacaoExistente?.metragem_cocho_m || "",
       cobertura_cocho: item.cobertura_cocho || pontoSuplementacaoExistente?.cobertura_cocho || "",
@@ -147,7 +147,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       limite_maximo_consumo: item.limite_maximo_consumo || pontoSuplementacaoExistente?.limite_maximo_consumo || "",
       dias_alerta_reposicao: item.dias_alerta_reposicao || pontoSuplementacaoExistente?.dias_alerta_reposicao || "3",
       estoque_minimo_kg: item.estoque_minimo_kg || pontoSuplementacaoExistente?.estoque_minimo_kg || "",
-      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10",
+      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10"
     });
   }, [item, pontoSuplementacaoExistente, areas]);
 
@@ -164,7 +164,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return {
         ...prev,
         area_vinculada_ids: proximas,
-        area_vinculada_id: proximas[0] || "",
+        area_vinculada_id: proximas[0] || ""
       };
     });
   };
@@ -193,7 +193,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         const yi = polygon[i].lng;
         const xj = polygon[j].lat;
         const yj = polygon[j].lng;
-        const intersect = ((yi > pontoCoords.lng) !== (yj > pontoCoords.lng)) && (pontoCoords.lat < (xj - xi) * (pontoCoords.lng - yi) / (yj - yi) + xi);
+        const intersect = yi > pontoCoords.lng !== yj > pontoCoords.lng && pontoCoords.lat < (xj - xi) * (pontoCoords.lng - yi) / (yj - yi) + xi;
         if (intersect) inside = !inside;
       }
 
@@ -223,8 +223,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     mutationFn: async (data) => {
       const pontosReferencia = await base44.entities.PontoReferencia.list();
       const maxNumeroPonto = pontosReferencia.reduce((maximo, ponto) => Math.max(maximo, parseInt(ponto.numero_ponto) || 0), 0);
-      const configIcone = iconesConfig.find((icone) => icone.id === data.configuracao_icone_id)
-        || iconesConfig.find((icone) => normalizeText(icone.categoria) === normalizeText(data.tipo));
+      const configIcone = iconesConfig.find((icone) => icone.id === data.configuracao_icone_id) ||
+      iconesConfig.find((icone) => normalizeText(icone.categoria) === normalizeText(data.tipo));
 
       setProgresso({ show: true, atual: 1, total: 3, mensagem: item ? "Atualizando ponto de referência..." : "Criando ponto de referência..." });
 
@@ -240,12 +240,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         numero_ponto: item?.numero_ponto || String(maxNumeroPonto + 1),
         ativo: true,
         cor: configIcone?.cor_padrao || "#0066ff",
-        coordenadas: coordenadasGPS || coordenadas,
+        coordenadas: coordenadasGPS || coordenadas
       };
 
-      const pontoReferencia = item
-        ? await base44.entities.PontoReferencia.update(item.id, payloadPonto)
-        : await base44.entities.PontoReferencia.create(payloadPonto);
+      const pontoReferencia = item ?
+      await base44.entities.PontoReferencia.update(item.id, payloadPonto) :
+      await base44.entities.PontoReferencia.create(payloadPonto);
 
       if (!data.tipo_categoria && pontoSuplementacaoExistente) {
         setProgresso({ show: true, atual: 2, total: 3, mensagem: "Inativando vínculo de suplementação..." });
@@ -261,9 +261,9 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
       const maiorNumero = pontosAtivosEmpresa.reduce((maximo, ponto) => Math.max(maximo, parseInt(String(ponto.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
       const prefixo = data.tipo_categoria === "DEPOSITO" ? "DEP" : "COCHO";
-      const areasVinculadas = data.tipo_categoria === "COCHO"
-        ? areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id))
-        : [];
+      const areasVinculadas = data.tipo_categoria === "COCHO" ?
+      areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id)) :
+      [];
       const areaVinculadaPrincipal = areasVinculadas[0] || null;
       let localEstoqueId = pontoSuplementacaoExistente?.local_estoque_id || null;
       let localEstoqueNome = pontoSuplementacaoExistente?.local_estoque_nome || null;
@@ -297,7 +297,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         cobertura_cocho: data.tipo_categoria === "COCHO" ? data.cobertura_cocho || null : null,
         area_vinculada_id: data.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.id || null : null,
         area_vinculada_nome: data.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.nome || "" : null,
-        area_vinculada_ids: data.tipo_categoria === "COCHO" ? (data.area_vinculada_ids || []) : [],
+        area_vinculada_ids: data.tipo_categoria === "COCHO" ? data.area_vinculada_ids || [] : [],
         area_vinculada_nomes: data.tipo_categoria === "COCHO" ? areasVinculadas.map((area) => area.nome) : [],
         deposito_origem_id: data.tipo_categoria === "COCHO" ? data.deposito_origem_id || null : null,
         deposito_origem_nome: data.tipo_categoria === "COCHO" ? depositoSelecionado?.nome_ponto || null : null,
@@ -311,12 +311,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         limite_maximo_consumo: data.tipo_categoria === "COCHO" && data.limite_maximo_consumo ? parseFloat(data.limite_maximo_consumo) : null,
         dias_alerta_reposicao: data.tipo_categoria === "COCHO" && data.dias_alerta_reposicao ? parseInt(data.dias_alerta_reposicao) : 3,
         estoque_minimo_kg: data.tipo_categoria === "DEPOSITO" && data.estoque_minimo_kg ? parseFloat(data.estoque_minimo_kg) : null,
-        alerta_sem_lancamento_dias: data.tipo_categoria === "COCHO" ? parseInt(data.alerta_sem_lancamento_dias || 10) : null,
+        alerta_sem_lancamento_dias: data.tipo_categoria === "COCHO" ? parseInt(data.alerta_sem_lancamento_dias || 10) : null
       };
 
-      const registroSuplementacao = pontoSuplementacaoExistente
-        ? await base44.entities.PontoSuplementacao.update(pontoSuplementacaoExistente.id, payloadSuplementacao)
-        : await base44.entities.PontoSuplementacao.create(payloadSuplementacao);
+      const registroSuplementacao = pontoSuplementacaoExistente ?
+      await base44.entities.PontoSuplementacao.update(pontoSuplementacaoExistente.id, payloadSuplementacao) :
+      await base44.entities.PontoSuplementacao.create(payloadSuplementacao);
 
       if (data.tipo_categoria === "DEPOSITO") {
         setProgresso({ show: true, atual: 3, total: 3, mensagem: "Atualizando cochos vinculados..." });
@@ -338,7 +338,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     onError: (error) => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
       toast.error(error.message || "Erro ao salvar o ponto.");
-    },
+    }
   });
 
   const handleSubmit = (e) => {
@@ -401,7 +401,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         ...formData,
         nome: formData.nome.toUpperCase(),
         sigla: formData.sigla.toUpperCase(),
-        tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null,
+        tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null
       });
       return;
     }
@@ -415,7 +415,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setor_id: formData.setor_id,
       produto_padrao: ehCocho ? formData.produto_padrao : null,
       capacidade_cocho_kg: formData.capacidade_cocho_kg,
-      area_vinculada_id: ehCocho ? (formData.area_vinculada_ids?.[0] || "") : null,
+      area_vinculada_id: ehCocho ? formData.area_vinculada_ids?.[0] || "" : null,
       area_vinculada_ids: ehCocho ? formData.area_vinculada_ids : [],
       deposito_origem_id: ehCocho ? formData.deposito_origem_id : null,
       metragem_cocho_m: ehCocho ? formData.metragem_cocho_m : null,
@@ -426,7 +426,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       dias_alerta_reposicao: ehCocho ? formData.dias_alerta_reposicao : null,
       estoque_minimo_kg: ehDeposito ? formData.estoque_minimo_kg : null,
       alerta_sem_lancamento_dias: ehCocho ? formData.alerta_sem_lancamento_dias : null,
-      tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null,
+      tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null
     });
   };
 
@@ -437,9 +437,9 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         onCancelar={() => {
           setMostrarCapturaGPS(false);
           if (usarGPS) onCancel();
-        }}
-      />
-    );
+        }} />);
+
+
   }
 
   if (mostrarSelecaoAreasMapa) {
@@ -451,14 +451,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         onConfirmSelection={(ids) => {
           setFormData((prev) => ({ ...prev, area_vinculada_ids: ids, area_vinculada_id: ids[0] || "" }));
           setMostrarSelecaoAreasMapa(false);
-        }}
-      />
-    );
+        }} />);
+
+
   }
 
   return (
     <>
-      <div className="mt-4 rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
+      <div className="bg-card text-card-foreground pr-1 rounded-xl border shadow-sm border-slate-300">
         <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
           <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Ponto' : 'Novo Ponto'}</div>
         </div>
@@ -469,15 +469,15 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
         </div>
         <FL label="Ponto de referência" required>
-          <Select value={formData.configuracao_icone_id} onValueChange={(value) => { const configuracao = iconesConfig.find((itemConfig) => itemConfig.id === value); setFormData((prev) => ({ ...prev, configuracao_icone_id: value, tipo: configuracao?.categoria || prev.tipo })); }}>
+          <Select value={formData.configuracao_icone_id} onValueChange={(value) => {const configuracao = iconesConfig.find((itemConfig) => itemConfig.id === value);setFormData((prev) => ({ ...prev, configuracao_icone_id: value, tipo: configuracao?.categoria || prev.tipo }));}}>
             <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o tipo do ponto" /></SelectTrigger>
             <SelectContent>{iconesConfig.map((itemConfig) => <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>)}</SelectContent>
           </Select>
         </FL>
         <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
 
-        {ehCocho && (
-          <div className="space-y-1 border-t pt-1">
+        {ehCocho &&
+            <div className="space-y-1 border-t pt-1">
             <div className="text-xs font-semibold text-slate-700">Dados do Cocho</div>
             {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
 
@@ -500,19 +500,19 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                   </div>
                   <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
                     {areasDoSetor.map((area) => {
-                      const checked = formData.area_vinculada_ids?.includes(area.id);
-                      const nomeArea = area.nome || area.area_vinculada_nome || `ÁREA ${area.numero_area || ''}`.trim();
-                      const descricaoMapa = [area.numero_area ? `MAPA ${area.numero_area}` : null, area.setor_nome || null].filter(Boolean).join(" • ");
-                      return (
-                        <label key={area.id} className="flex items-start gap-2 py-1 text-xs cursor-pointer group">
+                        const checked = formData.area_vinculada_ids?.includes(area.id);
+                        const nomeArea = area.nome || area.area_vinculada_nome || `ÁREA ${area.numero_area || ''}`.trim();
+                        const descricaoMapa = [area.numero_area ? `MAPA ${area.numero_area}` : null, area.setor_nome || null].filter(Boolean).join(" • ");
+                        return (
+                          <label key={area.id} className="flex items-start gap-2 py-1 text-xs cursor-pointer group">
                           <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} className="mt-0.5" />
                           <span className="flex flex-col leading-tight">
                             <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{nomeArea}</span>
                             {descricaoMapa && <span className="text-[11px] text-slate-400">{descricaoMapa}</span>}
                           </span>
-                        </label>
-                      );
-                    })}
+                        </label>);
+
+                      })}
                   </div>
                 </div>
               </div>
@@ -553,10 +553,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
             {depositosDisponiveis.length === 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Cadastre primeiro um ponto do tipo depósito para vincular este cocho.</div>}
           </div>
-        )}
+            }
 
-        {ehDeposito && (
-          <div className="space-y-1 border-t pt-1">
+        {ehDeposito &&
+            <div className="space-y-1 border-t pt-1">
             <div className="text-xs font-semibold text-slate-700">Depósito de Suplementação</div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
@@ -578,7 +578,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             </div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
           </div>
-        )}
+            }
 
         <div className="flex justify-end gap-1 pt-1 border-t">
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={progresso.show}>Cancelar</Button>
@@ -593,10 +593,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           <DialogHeader><DialogTitle className="text-sm">Salvando...</DialogTitle></DialogHeader>
           <div className="space-y-2">
             <p className="text-xs text-slate-600">{progresso.mensagem}</p>
-            <Progress value={progresso.total ? (progresso.atual / progresso.total) * 100 : 0} className="w-full h-1.5" />
+            <Progress value={progresso.total ? progresso.atual / progresso.total * 100 : 0} className="w-full h-1.5" />
           </div>
         </DialogContent>
       </Dialog>
-    </>
-  );
+    </>);
+
 }
