@@ -684,7 +684,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
           </SheetHeader>
 
           {/* Lista de pontos */}
-          <div className="mt-4 space-y-2">
+          <div className="mt-1 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-600 uppercase">{pontos.length} ponto(s) marcado(s)</span>
             </div>
