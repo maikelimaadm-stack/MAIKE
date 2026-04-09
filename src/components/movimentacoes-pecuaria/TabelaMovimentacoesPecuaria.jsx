@@ -394,7 +394,7 @@ export default function TabelaMovimentacoesPecuaria({
                             onClick={(e) => e.stopPropagation()}
                             onTouchEnd={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center w-full h-full">
-                              <Checkbox checked={selectedItems.includes(mov.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, mov.id] : prev.filter((id) => id !== mov.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                              <Checkbox checked={selectedItems.includes(mov.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, mov.id] : prev.filter((id) => id !== mov.id))} className="rounded-full peer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed shrink-0 shadow disabled:opacity-50 h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                             </div>
                           </TableCell>);
                       }
@@ -409,7 +409,11 @@ export default function TabelaMovimentacoesPecuaria({
                             onTouchEnd={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center w-full h-full">
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
                                   <DropdownMenuContent align="start">
                                     <DropdownMenuItem onClick={() => onEditCompleto(mov)} className="text-xs">Editar Completo</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => onEditRapido(mov)} className="text-xs">Editar Rápido</DropdownMenuItem>
