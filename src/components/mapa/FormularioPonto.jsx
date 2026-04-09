@@ -498,7 +498,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                     <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
-                  <div className="flex flex-col gap-1.5 max-h-2 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-1.5 max-h-30 overflow-y-auto pr-1">
                     {areasDoSetor.map((area) => {
                         const checked = formData.area_vinculada_ids?.includes(area.id);
                         const nomeArea = area.nome || area.area_vinculada_nome || `ÁREA ${area.numero_area || ''}`.trim();
