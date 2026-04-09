@@ -10,8 +10,8 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  SheetTitle } from
+"@/components/ui/sheet";
 import FormularioArea from "./FormularioArea";
 import FormularioPonto from "./FormularioPonto";
 import FormularioLinha from "./FormularioLinha";
@@ -56,8 +56,8 @@ function getAreaLabelContent(text) {
   return (
     <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
       {text}
-    </div>
-  );
+    </div>);
+
 }
 
 function getAreaLabelOverlay(map, position, text) {
@@ -102,11 +102,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('satellite');
   const [snappingEnabled, setSnappingEnabled] = useState(true);
-  
+
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
   const [drawingClosed, setDrawingClosed] = useState(false);
-  
+
   const [showFormularioArea, setShowFormularioArea] = useState(usarGPS && tipoDesenho === 'area');
   const [showFormularioPonto, setShowFormularioPonto] = useState(usarGPS && tipoDesenho === 'ponto');
   const [showFormularioLinha, setShowFormularioLinha] = useState(usarGPS && tipoDesenho === 'linha');
@@ -120,11 +120,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const currentPolygonRef = useRef(null);
   const currentPolylineRef = useRef(null);
   const tempMarkerRef = useRef(null);
-const guideLineRef = useRef(null);
-const mouseMoveListenerRef = useRef(null);
-const currentPointsRef = useRef([]);
-const undoStackRef = useRef([]);
-const redoStackRef = useRef([]);
+  const guideLineRef = useRef(null);
+  const mouseMoveListenerRef = useRef(null);
+  const currentPointsRef = useRef([]);
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
 
   const pointMarkersRef = useRef([]);
   const midPointMarkersRef = useRef([]);
@@ -143,36 +143,36 @@ const redoStackRef = useRef([]);
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: pontos = [] } = useQuery({
     queryKey: ['pontos', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.PontoReferencia.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: linhas = [] } = useQuery({
     queryKey: ['linhas', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.LinhaGeografica.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
+      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const SNAP_DISTANCE = 16; // snap em pixels
@@ -205,9 +205,9 @@ const redoStackRef = useRef([]);
     const evaluateSegment = (latA, lngA, latB, lngB) => {
       const pA = projection.fromLatLngToPoint(new google.maps.LatLng(latA, lngA));
       const pB = projection.fromLatLngToPoint(new google.maps.LatLng(latB, lngB));
-      const ax = pA.x * scale, ay = pA.y * scale;
-      const bx = pB.x * scale, by = pB.y * scale;
-      const abx = bx - ax, aby = by - ay;
+      const ax = pA.x * scale,ay = pA.y * scale;
+      const bx = pB.x * scale,by = pB.y * scale;
+      const abx = bx - ax,aby = by - ay;
       const lenSq = abx * abx + aby * aby;
       if (lenSq === 0) return;
       let t = ((mx - ax) * abx + (my - ay) * aby) / lenSq;
@@ -227,9 +227,9 @@ const redoStackRef = useRef([]);
     };
 
     const processCoords = (coords, isPolygon) => {
-      const parsed = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const parsed = coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       // Vértices primeiro (prioridade)
-      parsed.forEach(p => evaluateVertex(p.lat, p.lng));
+      parsed.forEach((p) => evaluateVertex(p.lat, p.lng));
       // Segmentos
       for (let i = 0; i < parsed.length - 1; i++) {
         evaluateSegment(parsed[i].lat, parsed[i].lng, parsed[i + 1].lat, parsed[i + 1].lng);
@@ -240,12 +240,12 @@ const redoStackRef = useRef([]);
       }
     };
 
-    areas.forEach(area => {
+    areas.forEach((area) => {
       const coords = area.coordenadas?.coords || [];
       if (coords.length >= 2) processCoords(coords, true);
     });
 
-    linhas.forEach(linha => {
+    linhas.forEach((linha) => {
       const coords = linha.coordenadas?.coords || [];
       if (coords.length >= 2) processCoords(coords, false);
     });
@@ -275,9 +275,9 @@ const redoStackRef = useRef([]);
       mouseMoveListenerRef.current = null;
     }
 
-    pointMarkersRef.current.forEach(m => m.setMap(null));
+    pointMarkersRef.current.forEach((m) => m.setMap(null));
     pointMarkersRef.current = [];
-    midPointMarkersRef.current.forEach(m => m.setMap(null));
+    midPointMarkersRef.current.forEach((m) => m.setMap(null));
     midPointMarkersRef.current = [];
 
     undoStackRef.current = [];
@@ -291,24 +291,24 @@ const redoStackRef = useRef([]);
   // Carregar item em edição
   useEffect(() => {
     if (itemEditando && tipoDesenho === 'area' && itemEditando.coordenadas?.coords) {
-      const coords = itemEditando.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const coords = itemEditando.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       setCurrentPoints(coords);
       // Centralizar no polígono
       setTimeout(() => {
         if (mapInstanceRef.current && coords.length > 0) {
           const bounds = new google.maps.LatLngBounds();
-          coords.forEach(c => bounds.extend(c));
+          coords.forEach((c) => bounds.extend(c));
           mapInstanceRef.current.fitBounds(bounds, { padding: 80 });
         }
       }, 500);
     } else if (itemEditando && tipoDesenho === 'linha' && itemEditando.coordenadas?.coords) {
-      const coords = itemEditando.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const coords = itemEditando.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       setCurrentPoints(coords);
       // Centralizar na linha
       setTimeout(() => {
         if (mapInstanceRef.current && coords.length > 0) {
           const bounds = new google.maps.LatLngBounds();
-          coords.forEach(c => bounds.extend(c));
+          coords.forEach((c) => bounds.extend(c));
           mapInstanceRef.current.fitBounds(bounds, { padding: 80 });
         }
       }, 500);
@@ -345,7 +345,7 @@ const redoStackRef = useRef([]);
       if (!mapRef.current || mapInstanceRef.current) return;
 
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
+
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 },
         zoom: 17,
@@ -363,7 +363,7 @@ const redoStackRef = useRef([]);
       });
 
       mapInstanceRef.current = map;
-      
+
       google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         setTimeout(() => {
           setMapReady(true);
@@ -379,14 +379,14 @@ const redoStackRef = useRef([]);
   const hasCenteredRef = useRef(false);
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady || itemEditando || hasCenteredRef.current) return;
-    
+
     if (areas.length > 0) {
       const bounds = new google.maps.LatLngBounds();
       let hasValidCoords = false;
 
-      areas.forEach(area => {
+      areas.forEach((area) => {
         const coords = area.coordenadas?.coords || [];
-        coords.forEach(c => {
+        coords.forEach((c) => {
           const lat = c[0] || c.lat;
           const lng = c[1] || c.lng;
           if (lat && lng) {
@@ -425,7 +425,7 @@ const redoStackRef = useRef([]);
     if (!mapInstanceRef.current || !mapReady) return;
     const zs = google.maps.event.addListener(mapInstanceRef.current, 'zoom_changed', () => {
       zoomingRef.current = true;
-      setTimeout(() => { zoomingRef.current = false; }, 400);
+      setTimeout(() => {zoomingRef.current = false;}, 400);
     });
     return () => google.maps.event.removeListener(zs);
   }, [mapReady]);
@@ -434,7 +434,7 @@ const redoStackRef = useRef([]);
     if (!mapInstanceRef.current || !tipoDesenho || !mapReady || itemEditando) return;
 
     const MAX_CLICK_DURATION = 400; // ms
-    const MAX_CLICK_DISTANCE = 10;  // pixels
+    const MAX_CLICK_DISTANCE = 10; // pixels
 
     // Verifica se clicou perto de qualquer ponto existente (para fechar polígono)
     const isNearExistingPoint = (latLng) => {
@@ -496,7 +496,7 @@ const redoStackRef = useRef([]);
         setShowFormularioPonto(true);
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
         const newPoint = { lat, lng };
-        setCurrentPoints(prev => {
+        setCurrentPoints((prev) => {
           undoStackRef.current.push(prev);
           redoStackRef.current = [];
           const updated = [...prev, newPoint];
@@ -529,7 +529,7 @@ const redoStackRef = useRef([]);
       // Converter pixel para LatLng
       const map = mapInstanceRef.current;
       const overlay = new google.maps.OverlayView();
-      overlay.draw = function() {};
+      overlay.draw = function () {};
       overlay.setMap(map);
 
       // Usar bounds do mapa para converter
@@ -632,9 +632,9 @@ const redoStackRef = useRef([]);
   useEffect(() => {
     if (!mapInstanceRef.current || currentPoints.length === 0 || !tipoDesenho) return;
 
-    pointMarkersRef.current.forEach(m => m.setMap(null));
+    pointMarkersRef.current.forEach((m) => m.setMap(null));
     pointMarkersRef.current = [];
-    midPointMarkersRef.current.forEach(m => m.setMap(null));
+    midPointMarkersRef.current.forEach((m) => m.setMap(null));
     midPointMarkersRef.current = [];
 
     const canDrag = drawingClosed || itemEditando;
@@ -659,13 +659,13 @@ const redoStackRef = useRef([]);
           const snap = findNearestPoint(e.latLng, mapInstanceRef.current);
           const newLat = snap ? snap.lat : e.latLng.lat();
           const newLng = snap ? snap.lng : e.latLng.lng();
-          setCurrentPoints(prev => {
+          setCurrentPoints((prev) => {
             const updated = [...prev];
             updated[index] = { lat: newLat, lng: newLng };
             return updated;
           });
-          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
-          else toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
+          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });else
+          toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
         });
       }
 
@@ -679,7 +679,7 @@ const redoStackRef = useRef([]);
         const end = currentPoints[(index + 1) % currentPoints.length];
         const midPoint = {
           lat: (start.lat + end.lat) / 2,
-          lng: (start.lng + end.lng) / 2,
+          lng: (start.lng + end.lng) / 2
         };
 
         const insertAfter = index;
@@ -692,23 +692,23 @@ const redoStackRef = useRef([]);
             fillColor: '#facc15',
             fillOpacity: 0.5,
             strokeColor: '#facc15',
-            strokeWeight: 1,
+            strokeWeight: 1
           },
           draggable: true,
-          zIndex: 900,
+          zIndex: 900
         });
 
         midMarker.addListener('dragend', (e) => {
           const snap = findNearestPoint(e.latLng, mapInstanceRef.current);
           const newLat = snap ? snap.lat : e.latLng.lat();
           const newLng = snap ? snap.lng : e.latLng.lng();
-          setCurrentPoints(prev => {
+          setCurrentPoints((prev) => {
             const updated = [...prev];
             updated.splice(insertAfter + 1, 0, { lat: newLat, lng: newLng });
             return updated;
           });
-          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });
-          else toast.success('Novo ponto inserido', { duration: 800 });
+          if (snap) toast.success('\ud83e\uddf2 Encaixado!', { duration: 600 });else
+          toast.success('Novo ponto inserido', { duration: 800 });
         });
 
         midPointMarkersRef.current.push(midMarker);
@@ -725,7 +725,7 @@ const redoStackRef = useRef([]);
         strokeOpacity: 1,
         strokeWeight: 3,
         fillColor: '#facc15',
-        fillOpacity: 0.35,
+        fillOpacity: 0.35
       });
       currentPolygonRef.current.setMap(mapInstanceRef.current);
     } else if (tipoDesenho === 'linha' && currentPoints.length >= 1) {
@@ -755,21 +755,21 @@ const redoStackRef = useRef([]);
   const renderMap = () => {
     if (!mapInstanceRef.current) return;
 
-    polygonsRef.current.forEach(p => p.setMap(null));
-    areaLabelsRef.current.forEach(label => label.setMap(null));
-    markersRef.current.forEach(m => m.setMap(null));
-    polylinesRef.current.forEach(l => l.setMap(null));
+    polygonsRef.current.forEach((p) => p.setMap(null));
+    areaLabelsRef.current.forEach((label) => label.setMap(null));
+    markersRef.current.forEach((m) => m.setMap(null));
+    polylinesRef.current.forEach((l) => l.setMap(null));
     polygonsRef.current = [];
     areaLabelsRef.current = [];
     markersRef.current = [];
     polylinesRef.current = [];
 
     // Mostrar áreas/pontos/linhas existentes SEMPRE (inclusive durante edição)
-    areas.forEach(area => {
+    areas.forEach((area) => {
       const coords = area.coordenadas?.coords || [];
       if (coords.length < 3) return;
 
-      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const paths = coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       const cor = area.coordenadas?.cor || area.cor || '#10b981';
 
       const polygon = new google.maps.Polygon({
@@ -779,7 +779,7 @@ const redoStackRef = useRef([]);
         strokeWeight: 1.5,
         fillColor: cor,
         fillOpacity: 0.15,
-        clickable: false,
+        clickable: false
       });
 
       polygon.setMap(mapInstanceRef.current);
@@ -796,7 +796,7 @@ const redoStackRef = useRef([]);
       areaLabelsRef.current.push(areaLabel);
     });
 
-    pontos.forEach(ponto => {
+    pontos.forEach((ponto) => {
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
 
@@ -811,7 +811,7 @@ const redoStackRef = useRef([]);
           strokeColor: '#ffffff',
           strokeWeight: 2
         },
-        clickable: false,
+        clickable: false
       });
 
       if (ponto.icone_url) {
@@ -821,11 +821,11 @@ const redoStackRef = useRef([]);
       markersRef.current.push(marker);
     });
 
-    linhas.forEach(linha => {
+    linhas.forEach((linha) => {
       const coords = linha.coordenadas?.coords || [];
       if (coords.length < 2) return;
 
-      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const paths = coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       const cor = linha.coordenadas?.cor || linha.cor || '#f59e0b';
 
       const polyline = new google.maps.Polyline({
@@ -833,7 +833,7 @@ const redoStackRef = useRef([]);
         strokeColor: cor,
         strokeOpacity: 0.5,
         strokeWeight: 2,
-        clickable: false,
+        clickable: false
       });
 
       polyline.setMap(mapInstanceRef.current);
@@ -867,18 +867,18 @@ const redoStackRef = useRef([]);
             height: '100%',
             width: '100%',
             backgroundColor: '#e5e7eb',
-            cursor: (tipoDesenho && mapReady && !itemEditando && !drawingClosed) ? 'crosshair' : 'default',
+            cursor: tipoDesenho && mapReady && !itemEditando && !drawingClosed ? 'crosshair' : 'default',
             touchAction: 'manipulation'
           }}
-          className={(tipoDesenho && mapReady && !itemEditando && !drawingClosed) ? '[&_*]:cursor-crosshair' : ''}
-        />
+          className={tipoDesenho && mapReady && !itemEditando && !drawingClosed ? '[&_*]:cursor-crosshair' : ''} />
+        
         {/* Botão fechar/voltar no topo esquerdo */}
         <Button
           onClick={onCancelar}
           variant="secondary"
           size="icon"
-          className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
-        >
+          className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white">
+          
           <X className="w-6 h-6 text-slate-700" />
         </Button>
 
@@ -888,16 +888,16 @@ const redoStackRef = useRef([]);
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => setMapType('roadmap')}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
-          >
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg">
+            
             Mapa
           </Button>
           <Button
             variant={mapType === 'satellite' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => setMapType('satellite')}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
-          >
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg">
+            
             Satélite
           </Button>
           <Button
@@ -922,8 +922,8 @@ const redoStackRef = useRef([]);
               }
             }}
             className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg"
-            title="Minha localização"
-          >
+            title="Minha localização">
+            
             <Target className="w-4 h-4" />
           </Button>
           <Button
@@ -932,168 +932,168 @@ const redoStackRef = useRef([]);
             onClick={() => setSnappingEnabled(!snappingEnabled)}
             className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white flex justify-center" : "h-8 w-8 flex justify-center"}
             title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}
-            aria-label="Alternar ímã"
-          >
+            aria-label="Alternar ímã">
+            
             <span className="text-base leading-none">🧲</span>
           </Button>
         </div>
 
-        {!mapReady && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+        {!mapReady &&
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full"></div>
               <span className="font-semibold text-slate-700">Carregando mapa...</span>
             </div>
           </div>
-        )}
-        {tipoDesenho && mapReady && (
-          <>
+        }
+        {tipoDesenho && mapReady &&
+        <>
 
 
             {/* Indicador de área/comprimento no centro do polígono */}
-            {tipoDesenho === 'area' && currentPoints.length >= 3 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+            {tipoDesenho === 'area' && currentPoints.length >= 3 &&
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
                 <div className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold">
                   Área: {(() => {
-                    if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 3) {
-                      const path = currentPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
-                      const areaM2 = google.maps.geometry.spherical.computeArea(path);
-                      const areaHa = areaM2 / 10000;
-                      return areaHa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ha';
-                    }
-                    return '0,00 ha';
-                  })()}
+                if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 3) {
+                  const path = currentPoints.map((p) => new google.maps.LatLng(p.lat, p.lng));
+                  const areaM2 = google.maps.geometry.spherical.computeArea(path);
+                  const areaHa = areaM2 / 10000;
+                  return areaHa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ha';
+                }
+                return '0,00 ha';
+              })()}
                 </div>
               </div>
-            )}
-            {tipoDesenho === 'linha' && currentPoints.length >= 2 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+          }
+            {tipoDesenho === 'linha' && currentPoints.length >= 2 &&
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
                 <div className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold">
                   {(() => {
-                    if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 2) {
-                      const path = currentPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
-                      const lengthM = google.maps.geometry.spherical.computeLength(path);
-                      if (lengthM < 1000) return lengthM.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m';
-                      return (lengthM / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km';
-                    }
-                    return '0 m';
-                  })()}
+                if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 2) {
+                  const path = currentPoints.map((p) => new google.maps.LatLng(p.lat, p.lng));
+                  const lengthM = google.maps.geometry.spherical.computeLength(path);
+                  if (lengthM < 1000) return lengthM.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m';
+                  return (lengthM / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km';
+                }
+                return '0 m';
+              })()}
                 </div>
               </div>
-            )}
+          }
 
             {/* Toolbar central: Desfazer / Refazer / Terminar */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2">
               {/* Dicas contextuais */}
-              {tipoDesenho === 'ponto' && !currentMarker && !itemEditando && (
-                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
+              {tipoDesenho === 'ponto' && !currentMarker && !itemEditando &&
+            <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   📍 Toque no mapa para marcar
                 </div>
-              )}
-              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length === 0 && !itemEditando && (
-                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
+            }
+              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length === 0 && !itemEditando &&
+            <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   {tipoDesenho === 'area' ? '🎯 Toque para desenhar a área' : '➡️ Toque para desenhar a linha'}
                 </div>
-              )}
-              {itemEditando && (
-                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
+            }
+              {itemEditando &&
+            <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   ✏️ Arraste os pontos para ajustar
                 </div>
-              )}
+            }
 
               <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
                 {/* Botão Reiniciar — volta ao modo de desenho do zero */}
-                {(drawingClosed || currentPoints.length > 0) && !itemEditando && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() => {
-                      // Limpar polígono/polyline atual
-                      if (currentPolygonRef.current) {
-                        currentPolygonRef.current.setMap(null);
-                        currentPolygonRef.current = null;
-                      }
-                      if (currentPolylineRef.current) {
-                        currentPolylineRef.current.setMap(null);
-                        currentPolylineRef.current = null;
-                      }
-                      pointMarkersRef.current.forEach(m => m.setMap(null));
-                      pointMarkersRef.current = [];
-                      midPointMarkersRef.current.forEach(m => m.setMap(null));
-                      midPointMarkersRef.current = [];
-                      undoStackRef.current = [];
-                      redoStackRef.current = [];
-                      setCurrentPoints([]);
-                      setDrawingClosed(false);
-                      toast.success('Desenho reiniciado', { duration: 1000 });
-                    }}
-                  >
+                {(drawingClosed || currentPoints.length > 0) && !itemEditando &&
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => {
+                  // Limpar polígono/polyline atual
+                  if (currentPolygonRef.current) {
+                    currentPolygonRef.current.setMap(null);
+                    currentPolygonRef.current = null;
+                  }
+                  if (currentPolylineRef.current) {
+                    currentPolylineRef.current.setMap(null);
+                    currentPolylineRef.current = null;
+                  }
+                  pointMarkersRef.current.forEach((m) => m.setMap(null));
+                  pointMarkersRef.current = [];
+                  midPointMarkersRef.current.forEach((m) => m.setMap(null));
+                  midPointMarkersRef.current = [];
+                  undoStackRef.current = [];
+                  redoStackRef.current = [];
+                  setCurrentPoints([]);
+                  setDrawingClosed(false);
+                  toast.success('Desenho reiniciado', { duration: 1000 });
+                }}>
+                
                     <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Reiniciar
                   </Button>
-                )}
+              }
 
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => {
-                    if (undoStackRef.current.length > 0) {
-                      const prevPts = undoStackRef.current.pop();
-                      redoStackRef.current.push(currentPoints);
-                      setCurrentPoints(prevPts);
-                      toast.success('Desfeito');
-                    }
-                  }}
-                  disabled={undoStackRef.current.length === 0}
-                >
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => {
+                  if (undoStackRef.current.length > 0) {
+                    const prevPts = undoStackRef.current.pop();
+                    redoStackRef.current.push(currentPoints);
+                    setCurrentPoints(prevPts);
+                    toast.success('Desfeito');
+                  }
+                }}
+                disabled={undoStackRef.current.length === 0}>
+                
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Desfazer
                 </Button>
 
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => {
-                    if (redoStackRef.current.length > 0) {
-                      const nextPts = redoStackRef.current.pop();
-                      undoStackRef.current.push(currentPoints);
-                      setCurrentPoints(nextPts);
-                      toast.success('Refeito');
-                    }
-                  }}
-                  disabled={redoStackRef.current.length === 0}
-                >
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => {
+                  if (redoStackRef.current.length > 0) {
+                    const nextPts = redoStackRef.current.pop();
+                    undoStackRef.current.push(currentPoints);
+                    setCurrentPoints(nextPts);
+                    toast.success('Refeito');
+                  }
+                }}
+                disabled={redoStackRef.current.length === 0}>
+                
                   <RotateCw className="w-3.5 h-3.5 mr-1.5" /> Refazer
                 </Button>
 
                 <Button
-                  size="sm"
-                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                  disabled={
-                    !(
-                      (tipoDesenho === 'area' && (drawingClosed || currentPoints.length >= 3)) ||
-                      (tipoDesenho === 'linha' && currentPoints.length >= 2) ||
-                      (tipoDesenho === 'ponto' && !!currentMarker)
-                    )
+                size="sm"
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={
+                !(
+                tipoDesenho === 'area' && (drawingClosed || currentPoints.length >= 3) ||
+                tipoDesenho === 'linha' && currentPoints.length >= 2 ||
+                tipoDesenho === 'ponto' && !!currentMarker)
+
+                }
+                onClick={() => {
+                  if (itemEditando) {
+                    if (tipoDesenho === 'area') setShowFormularioArea(true);else
+                    if (tipoDesenho === 'linha') setShowFormularioLinha(true);else
+                    if (tipoDesenho === 'ponto') setShowFormularioPonto(true);
+                  } else {
+                    if (tipoDesenho === 'ponto') setShowFormularioPonto(true);else
+                    finalizarDesenho();
                   }
-                  onClick={() => {
-                    if (itemEditando) {
-                      if (tipoDesenho === 'area') setShowFormularioArea(true);
-                      else if (tipoDesenho === 'linha') setShowFormularioLinha(true);
-                      else if (tipoDesenho === 'ponto') setShowFormularioPonto(true);
-                    } else {
-                      if (tipoDesenho === 'ponto') setShowFormularioPonto(true);
-                      else finalizarDesenho();
-                    }
-                  }}
-                >
-                  <Check className="w-3.5 h-3.5 mr-1.5" /> {itemEditando ? 'Salvar' : (drawingClosed ? 'Salvar' : 'Terminar')}
+                }}>
+                
+                  <Check className="w-3.5 h-3.5 mr-1.5" /> {itemEditando ? 'Salvar' : drawingClosed ? 'Salvar' : 'Terminar'}
                 </Button>
               </div>
             </div>
           </>
-        )}
+        }
       </div>
 
       <Sheet open={showFormularioArea} onOpenChange={setShowFormularioArea}>
@@ -1111,13 +1111,13 @@ const redoStackRef = useRef([]);
               queryClient.invalidateQueries({ queryKey: ['areas'] });
               onSalvar();
             }}
-            onCancel={() => setShowFormularioArea(false)}
-          />
+            onCancel={() => setShowFormularioArea(false)} />
+          
         </SheetContent>
       </Sheet>
 
       <Sheet open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+        <SheetContent side="right" className="bg-background px-1 py-1 fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 right-0 h-full border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</SheetTitle>
           </SheetHeader>
@@ -1135,8 +1135,8 @@ const redoStackRef = useRef([]);
             onCancel={() => {
               setShowFormularioPonto(false);
               cancelarDesenho();
-            }}
-          />
+            }} />
+          
         </SheetContent>
       </Sheet>
 
@@ -1155,10 +1155,10 @@ const redoStackRef = useRef([]);
               queryClient.invalidateQueries({ queryKey: ['linhas'] });
               onSalvar();
             }}
-            onCancel={() => setShowFormularioLinha(false)}
-          />
+            onCancel={() => setShowFormularioLinha(false)} />
+          
         </SheetContent>
       </Sheet>
-    </div>
-  );
+    </div>);
+
 }

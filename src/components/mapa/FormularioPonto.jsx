@@ -458,7 +458,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   return (
     <>
-      <div className="bg-card text-card-foreground pr-1 rounded-xl border shadow-sm border-slate-300">
+      <div className="bg-card text-card-foreground rounded-xl border shadow-sm border-slate-300">
         <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
           <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Ponto' : 'Novo Ponto'}</div>
         </div>
