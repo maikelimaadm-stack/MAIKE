@@ -85,6 +85,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas || item?.coordenadas || null);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
   const [formData, setFormData] = useState(createEmptyForm());
+  const [selecionouSetorManualmente, setSelecionouSetorManualmente] = useState(false);
+  const [selecionouAreasManualmente, setSelecionouAreasManualmente] = useState(false);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
@@ -158,6 +160,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   };
 
   const toggleAreaVinculada = (areaId, checked) => {
+    setSelecionouAreasManualmente(true);
     setFormData((prev) => {
       const atuais = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
       const proximas = checked ? Array.from(new Set([...atuais, areaId])) : atuais.filter((id) => id !== areaId);
@@ -175,6 +178,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setFormData((prev) => ({ ...prev, setor_id: areaPrincipal.setor_id || "" }));
     }
   }, [areas, formData.area_vinculada_id, formData.setor_id]);
+
+  useEffect(() => {
+    if (!item && !onBatchUpdate) {
+      setSelecionouSetorManualmente(false);
+      setSelecionouAreasManualmente(false);
+    }
+  }, [item, onBatchUpdate, coordenadasGPS, coordenadas]);
 
   useEffect(() => {
     const pontoCoords = coordenadasGPS || coordenadas;
@@ -206,14 +216,27 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     if (detectada) {
       setAreaDetectada(detectada);
       setFormData((prev) => {
+        const proximasMudancas = {};
         const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
-        if (areaIds.length === 1 && areaIds[0] === detectada.id) return prev;
-        return { ...prev, area_vinculada_id: detectada.id, area_vinculada_ids: [detectada.id] };
+
+        if (!selecionouSetorManualmente && detectada.setor_id && prev.setor_id !== detectada.setor_id) {
+          proximasMudancas.setor_id = detectada.setor_id;
+        }
+
+        if (!selecionouAreasManualmente) {
+          const mesmaAreaUnica = areaIds.length === 1 && areaIds[0] === detectada.id;
+          if (!mesmaAreaUnica || prev.area_vinculada_id !== detectada.id) {
+            proximasMudancas.area_vinculada_id = detectada.id;
+            proximasMudancas.area_vinculada_ids = [detectada.id];
+          }
+        }
+
+        return Object.keys(proximasMudancas).length ? { ...prev, ...proximasMudancas } : prev;
       });
     } else {
       setAreaDetectada(null);
     }
-  }, [coordenadasGPS, coordenadas, areas]);
+  }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente]);
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
@@ -449,7 +472,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         selectedIds={formData.area_vinculada_ids}
         onClose={() => setMostrarSelecaoAreasMapa(false)}
         onConfirmSelection={(ids) => {
-          setFormData((prev) => ({ ...prev, area_vinculada_ids: ids, area_vinculada_id: ids[0] || "" }));
+          setSelecionouAreasManualmente(true);
+          const primeiraArea = areas.find((area) => area.id === ids[0]);
+          setFormData((prev) => ({
+            ...prev,
+            area_vinculada_ids: ids,
+            area_vinculada_id: ids[0] || "",
+            setor_id: primeiraArea?.setor_id || prev.setor_id
+          }));
           setMostrarSelecaoAreasMapa(false);
         }} />);
 
@@ -483,7 +513,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Setor" required>
-                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }))}>
+                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => {
+                  setSelecionouSetorManualmente(true);
+                  setSelecionouAreasManualmente(true);
+                  setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }));
+                }}>
                   <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
