@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import useSetorAreas from "@/hooks/useSetorAreas";
+import SelecaoPontosMapa from "./SelecaoPontosMapa";
 
 const createEmptyPoint = () => ({
   tempId: crypto.randomUUID(),
@@ -27,6 +28,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
   const queryClient = useQueryClient();
   const [pontos, setPontos] = useState([createEmptyPoint()]);
   const [activePointId, setActivePointId] = useState(null);
+  const [showMapaSelecao, setShowMapaSelecao] = useState(false);
   const { setores } = useSetorAreas(empresaSelecionadaId);
 
   const { data: iconesConfig = [] } = useQuery({
@@ -117,10 +119,36 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
   });
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => {
-      onOpenChange(nextOpen);
-      if (!nextOpen) resetState();
-    }}>
+    <>
+      {showMapaSelecao && (
+        <SelecaoPontosMapa
+          initialPoints={pontos.filter((item) => item.coordenadas.lat !== "" && item.coordenadas.lng !== "").map((item) => ({
+            id: item.tempId,
+            lat: Number(item.coordenadas.lat),
+            lng: Number(item.coordenadas.lng),
+          }))}
+          onClose={() => setShowMapaSelecao(false)}
+          onConfirmSelection={(selectedPoints) => {
+            const converted = selectedPoints.map((item, index) => ({
+              tempId: item.id || crypto.randomUUID(),
+              nome: pontos.find((ponto) => ponto.tempId === item.id)?.nome || "",
+              sigla: pontos.find((ponto) => ponto.tempId === item.id)?.sigla || "",
+              tipo: pontos.find((ponto) => ponto.tempId === item.id)?.tipo || "",
+              observacoes: pontos.find((ponto) => ponto.tempId === item.id)?.observacoes || "",
+              setor_id: pontos.find((ponto) => ponto.tempId === item.id)?.setor_id || "",
+              coordenadas: { lat: String(item.lat), lng: String(item.lng) },
+            }));
+            setPontos(converted.length ? converted : [createEmptyPoint()]);
+            setActivePointId(converted[0]?.tempId || null);
+            setShowMapaSelecao(false);
+          }}
+        />
+      )}
+
+      <Dialog open={open} onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) resetState();
+      }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden">
         <DialogHeader className="px-4 py-3 border-b bg-slate-50">
           <DialogTitle className="text-sm font-semibold text-slate-900">Cadastro em lote de pontos</DialogTitle>
@@ -128,12 +156,17 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
         <div className="grid md:grid-cols-[260px_1fr] min-h-[520px]">
           <div className="border-r bg-slate-50/60 p-3 space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="text-xs font-medium text-slate-600 uppercase">Pontos</span>
-              <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={addPoint}>
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowMapaSelecao(true)}>
+                  Marcar no mapa
+                </Button>
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={addPoint}>
+                  <Plus className="w-3.5 h-3.5" />
+                  Adicionar
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2 max-h-[430px] overflow-y-auto pr-1">
@@ -217,6 +250,9 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
                     <Input type="number" value={activePoint.coordenadas.lng} onChange={(e) => updatePoint(activePoint.tempId, { coordenadas: { ...activePoint.coordenadas, lng: e.target.value } })} className="h-8 text-xs" placeholder="-59.000000" />
                   </div>
                 </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  Você pode preencher manualmente ou usar o botão "Marcar no mapa" para selecionar os pontos visualmente.
+                </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs uppercase">Observações</Label>
@@ -235,5 +271,6 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
