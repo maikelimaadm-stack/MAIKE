@@ -14,15 +14,15 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  SheetTitle } from
+"@/components/ui/sheet";
 import FormularioPonto from "./FormularioPonto";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
 const loadGoogleMapsScript = () => {
   return new Promise((resolve, reject) => {
-    if (window.google?.maps) { resolve(); return; }
+    if (window.google?.maps) {resolve();return;}
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
     script.async = true;
@@ -51,8 +51,8 @@ function getAreaLabelContent(text) {
   return (
     <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
       {text}
-    </div>
-  );
+    </div>);
+
 }
 
 function createAreaLabelOverlay({ map, position, text }) {
@@ -112,7 +112,7 @@ const createPoint = (coords, lastPoint = null) => ({
   dias_alerta_reposicao: lastPoint?.dias_alerta_reposicao || "3",
   estoque_minimo_kg: lastPoint?.estoque_minimo_kg || "",
   alerta_sem_lancamento_dias: lastPoint?.alerta_sem_lancamento_dias || "10",
-  tipo_categoria: lastPoint?.tipo_categoria || "",
+  tipo_categoria: lastPoint?.tipo_categoria || ""
 });
 
 export default function ModalCadastroLotePontos({ open, onOpenChange }) {
@@ -139,32 +139,32 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
   const { data: areas = [] } = useQuery({
     queryKey: ["areas", empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.AreaPastagem.list(); return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false); },
-    enabled: !!empresaSelecionadaId,
+    queryFn: async () => {const all = await base44.entities.AreaPastagem.list();return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);},
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: pontosExistentes = [] } = useQuery({
     queryKey: ["pontos", empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.PontoReferencia.list(); return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false); },
-    enabled: !!empresaSelecionadaId,
+    queryFn: async () => {const all = await base44.entities.PontoReferencia.list();return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);},
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: linhas = [] } = useQuery({
     queryKey: ["linhas", empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.LinhaGeografica.list(); return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false); },
-    enabled: !!empresaSelecionadaId,
+    queryFn: async () => {const all = await base44.entities.LinhaGeografica.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);},
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
-    queryFn: async () => { const all = await base44.entities.ConfiguracaoIcone.list(); return all.filter((i) => i.tipo_entidade === "Ponto" && i.ativo !== false); },
-    enabled: !!empresaSelecionadaId,
+    queryFn: async () => {const all = await base44.entities.ConfiguracaoIcone.list();return all.filter((i) => i.tipo_entidade === "Ponto" && i.ativo !== false);},
+    enabled: !!empresaSelecionadaId
   });
 
   const activePoint = useMemo(() => pontos.find((p) => p.tempId === activePointId) || null, [pontos, activePointId]);
 
   const updatePoint = (tempId, changes) => {
-    setPontos((prev) => prev.map((item) => (item.tempId === tempId ? { ...item, ...changes } : item)));
+    setPontos((prev) => prev.map((item) => item.tempId === tempId ? { ...item, ...changes } : item));
   };
 
   const removePoint = (tempId) => {
@@ -197,19 +197,19 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const dx = pt.x * scale - mx;
       const dy = pt.y * scale - my;
       const pixelDist = Math.sqrt(dx * dx + dy * dy);
-      if (pixelDist < SNAP_DISTANCE && pixelDist < minPixelDist) { minPixelDist = pixelDist; nearestPoint = { lat, lng }; }
+      if (pixelDist < SNAP_DISTANCE && pixelDist < minPixelDist) {minPixelDist = pixelDist;nearestPoint = { lat, lng };}
     };
 
     const evaluateSegment = (latA, lngA, latB, lngB) => {
       const pA = projection.fromLatLngToPoint(new google.maps.LatLng(latA, lngA));
       const pB = projection.fromLatLngToPoint(new google.maps.LatLng(latB, lngB));
-      const ax = pA.x * scale, ay = pA.y * scale, bx = pB.x * scale, by = pB.y * scale;
-      const abx = bx - ax, aby = by - ay, lenSq = abx * abx + aby * aby;
+      const ax = pA.x * scale,ay = pA.y * scale,bx = pB.x * scale,by = pB.y * scale;
+      const abx = bx - ax,aby = by - ay,lenSq = abx * abx + aby * aby;
       if (lenSq === 0) return;
       let t = ((mx - ax) * abx + (my - ay) * aby) / lenSq;
       t = Math.max(0, Math.min(1, t));
-      const projX = ax + t * abx, projY = ay + t * aby;
-      const dx = projX - mx, dy = projY - my;
+      const projX = ax + t * abx,projY = ay + t * aby;
+      const dx = projX - mx,dy = projY - my;
       const pixelDist = Math.sqrt(dx * dx + dy * dy);
       if (pixelDist < SNAP_DISTANCE && pixelDist < minPixelDist) {
         minPixelDist = pixelDist;
@@ -226,8 +226,8 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       if (isPolygon && parsed.length >= 3) evaluateSegment(parsed[parsed.length - 1].lat, parsed[parsed.length - 1].lng, parsed[0].lat, parsed[0].lng);
     };
 
-    areas.forEach((area) => { const coords = area.coordenadas?.coords || []; if (coords.length >= 2) processCoords(coords, true); });
-    linhas.forEach((linha) => { const coords = linha.coordenadas?.coords || []; if (coords.length >= 2) processCoords(coords, false); });
+    areas.forEach((area) => {const coords = area.coordenadas?.coords || [];if (coords.length >= 2) processCoords(coords, true);});
+    linhas.forEach((linha) => {const coords = linha.coordenadas?.coords || [];if (coords.length >= 2) processCoords(coords, false);});
     return nearestPoint;
   };
 
@@ -267,7 +267,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         gestureHandling: "greedy",
         zoomControl: false,
         disableDoubleClickZoom: true,
-        clickableIcons: false,
+        clickableIcons: false
       });
 
       mapInstanceRef.current = map;
@@ -283,7 +283,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
     if (!mapInstanceRef.current || !mapReady) return;
     const zs = google.maps.event.addListener(mapInstanceRef.current, "zoom_changed", () => {
       zoomingRef.current = true;
-      setTimeout(() => { zoomingRef.current = false; }, 400);
+      setTimeout(() => {zoomingRef.current = false;}, 400);
     });
     return () => google.maps.event.removeListener(zs);
   }, [mapReady]);
@@ -301,8 +301,8 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       let hasValid = false;
       areas.forEach((area) => {
         (area.coordenadas?.coords || []).forEach((c) => {
-          const lat = c[0] || c.lat, lng = c[1] || c.lng;
-          if (lat && lng) { bounds.extend({ lat, lng }); hasValid = true; }
+          const lat = c[0] || c.lat,lng = c[1] || c.lng;
+          if (lat && lng) {bounds.extend({ lat, lng });hasValid = true;}
         });
       });
       if (hasValid) {
@@ -352,7 +352,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         position: { lat: coords.lat, lng: coords.lng },
         map: mapInstanceRef.current,
         icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#0066ff", fillOpacity: 0.5, strokeColor: "#ffffff", strokeWeight: 2 },
-        clickable: false,
+        clickable: false
       });
       if (ponto.icone_url) applyMarkerIconPreservingAspectRatio(marker, ponto.icone_url, 44);
       existingMarkersRef.current.push(marker);
@@ -371,7 +371,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
   // Track which marker tempIds exist so click handler can check
   const pontosRef = useRef([]);
-  useEffect(() => { pontosRef.current = pontos; }, [pontos]);
+  useEffect(() => {pontosRef.current = pontos;}, [pontos]);
 
   // === CLICK HANDLER ===
   useEffect(() => {
@@ -389,22 +389,22 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       if (!projection) return null;
       const scale = Math.pow(2, map.getZoom());
       const clickPt = projection.fromLatLngToPoint(latLng);
-      const cx = clickPt.x * scale, cy = clickPt.y * scale;
+      const cx = clickPt.x * scale,cy = clickPt.y * scale;
 
       for (const ponto of pontosRef.current) {
         if (!ponto.coordenadas) continue;
         const pt = projection.fromLatLngToPoint(new google.maps.LatLng(ponto.coordenadas.lat, ponto.coordenadas.lng));
-        const dx = pt.x * scale - cx, dy = pt.y * scale - cy;
+        const dx = pt.x * scale - cx,dy = pt.y * scale - cy;
         if (Math.sqrt(dx * dx + dy * dy) < 20) return ponto.tempId;
       }
       return null;
     };
 
-    const onDown = (ev) => { downPos = { x: ev.clientX, y: ev.clientY }; downTime = Date.now(); };
+    const onDown = (ev) => {downPos = { x: ev.clientX, y: ev.clientY };downTime = Date.now();};
     const onUp = (ev) => {
       if (!downPos) return;
       const elapsed = Date.now() - downTime;
-      const dx = ev.clientX - downPos.x, dy = ev.clientY - downPos.y;
+      const dx = ev.clientX - downPos.x,dy = ev.clientY - downPos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       downPos = null;
       if (elapsed > MAX_CLICK_DURATION || dist > MAX_CLICK_DISTANCE) return;
@@ -431,7 +431,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       let lat = latLng.lat();
       let lng = latLng.lng();
       const snapped = findNearestPoint(latLng, map);
-      if (snapped) { lat = snapped.lat; lng = snapped.lng; toast.success("🧲 Encaixado!", { duration: 600 }); }
+      if (snapped) {lat = snapped.lat;lng = snapped.lng;toast.success("🧲 Encaixado!", { duration: 600 });}
 
       const ultimoPonto = pontosRef.current.length > 0 ? pontosRef.current[pontosRef.current.length - 1] : null;
       const novo = createPoint({ lat, lng }, ultimoPonto);
@@ -443,7 +443,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
     mapDiv.addEventListener("pointerdown", onDown, { passive: true });
     mapDiv.addEventListener("pointerup", onUp, { passive: true });
 
-    const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, "dblclick", (e) => { if (e?.stop) e.stop(); });
+    const dblClickListener = google.maps.event.addListener(mapInstanceRef.current, "dblclick", (e) => {if (e?.stop) e.stop();});
 
     return () => {
       mapDiv.removeEventListener("pointerdown", onDown);
@@ -473,21 +473,21 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
           fillColor: ativo ? "#16a34a" : "#dc2626",
           fillOpacity: 1,
           strokeColor: "#ffffff",
-          strokeWeight: 2,
+          strokeWeight: 2
         },
-        zIndex: 2000,
+        zIndex: 2000
       });
 
       marker.addListener("click", () => {
         window.__markerClicked = true;
-        setTimeout(() => { window.__markerClicked = false; }, 300);
+        setTimeout(() => {window.__markerClicked = false;}, 300);
         setActivePointId(ponto.tempId);
         setSheetOpen(true);
       });
       marker.addListener("dragend", (event) => {
-        let lat = event.latLng.lat(), lng = event.latLng.lng();
+        let lat = event.latLng.lat(),lng = event.latLng.lng();
         const snapped = findNearestPoint(event.latLng, mapInstanceRef.current);
-        if (snapped) { lat = snapped.lat; lng = snapped.lng; toast.success("🧲 Encaixado!", { duration: 600 }); }
+        if (snapped) {lat = snapped.lat;lng = snapped.lng;toast.success("🧲 Encaixado!", { duration: 600 });}
         updatePoint(ponto.tempId, { coordenadas: { lat, lng } });
       });
 
@@ -514,7 +514,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       for (let index = 0; index < pontosValidos.length; index++) {
         const item = pontosValidos[index];
         const configIcone = iconesConfig.find((ic) => ic.categoria === item.tipo) || iconesConfig.find((ic) => ic.id === item.configuracao_icone_id);
-        
+
         await base44.entities.PontoReferencia.create({
           empresa_id: empresaSelecionadaId,
           numero_ponto: String(maxNum + index + 1),
@@ -527,7 +527,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
           sub_icone_url: configIcone?.sub_icone_url || null,
           cor: configIcone?.cor_padrao || "#0066ff",
           ativo: true,
-          coordenadas: item.coordenadas,
+          coordenadas: item.coordenadas
         });
 
         if (item.tipo_categoria === "DEPOSITO" || item.tipo_categoria === "COCHO") {
@@ -567,7 +567,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
             cobertura_cocho: item.tipo_categoria === "COCHO" ? item.cobertura_cocho || null : null,
             area_vinculada_id: item.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.id || null : null,
             area_vinculada_nome: item.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.nome || "" : null,
-            area_vinculada_ids: item.tipo_categoria === "COCHO" ? (item.area_vinculada_ids || []) : [],
+            area_vinculada_ids: item.tipo_categoria === "COCHO" ? item.area_vinculada_ids || [] : [],
             area_vinculada_nomes: item.tipo_categoria === "COCHO" ? areasVinculadas.map((a) => a.nome) : [],
             deposito_origem_id: item.tipo_categoria === "COCHO" ? item.deposito_origem_id || null : null,
             deposito_origem_nome: deposito_origem_nome,
@@ -581,7 +581,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
             limite_maximo_consumo: item.tipo_categoria === "COCHO" && item.limite_maximo_consumo ? parseFloat(item.limite_maximo_consumo) : null,
             dias_alerta_reposicao: item.tipo_categoria === "COCHO" && item.dias_alerta_reposicao ? parseInt(item.dias_alerta_reposicao) : 3,
             estoque_minimo_kg: item.tipo_categoria === "DEPOSITO" && item.estoque_minimo_kg ? parseFloat(item.estoque_minimo_kg) : null,
-            alerta_sem_lancamento_dias: item.tipo_categoria === "COCHO" ? parseInt(item.alerta_sem_lancamento_dias || 10) : null,
+            alerta_sem_lancamento_dias: item.tipo_categoria === "COCHO" ? parseInt(item.alerta_sem_lancamento_dias || 10) : null
           });
 
           offsetSuplementacao++;
@@ -595,7 +595,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       toast.success("Pontos salvos com sucesso.");
       onOpenChange(false);
     },
-    onError: (error) => toast.error(error.message || "Erro ao salvar."),
+    onError: (error) => toast.error(error.message || "Erro ao salvar.")
   });
 
   if (!open) return null;
@@ -607,8 +607,8 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         <div
           ref={mapRef}
           style={{ height: "100%", width: "100%", backgroundColor: "#e5e7eb", cursor: mapReady ? "crosshair" : "default", touchAction: "manipulation" }}
-          className={mapReady ? "[&_*]:cursor-crosshair" : ""}
-        />
+          className={mapReady ? "[&_*]:cursor-crosshair" : ""} />
+        
 
         {/* Fechar */}
         <Button onClick={() => onOpenChange(false)} variant="secondary" size="icon" className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white">
@@ -622,7 +622,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
           <Button variant="secondary" size="icon" onClick={() => {
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
-                (pos) => { mapInstanceRef.current?.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); mapInstanceRef.current?.setZoom(18); },
+                (pos) => {mapInstanceRef.current?.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });mapInstanceRef.current?.setZoom(18);},
                 () => toast.error("Erro ao obter localização")
               );
             }
@@ -630,55 +630,55 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
             <Target className="w-4 h-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setSnappingEnabled(!snappingEnabled)}
-            className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white flex justify-center" : "h-8 w-8 flex justify-center"}
-            title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}
-          >
+          className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white flex justify-center" : "h-8 w-8 flex justify-center"}
+          title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}>
+            
             <span className="text-base leading-none">🧲</span>
           </Button>
         </div>
 
         {/* Loading */}
-        {!mapReady && (
-          <div className="absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-6 py-4 shadow-2xl">
+        {!mapReady &&
+        <div className="absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-6 py-4 shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
               <span className="font-semibold text-slate-700">Carregando mapa...</span>
             </div>
           </div>
-        )}
+        }
 
         {/* Toolbar inferior */}
-        {mapReady && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
-            {pontos.length === 0 && (
-              <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
+        {mapReady &&
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+            {pontos.length === 0 &&
+          <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                 📍 Toque no mapa para marcar vários pontos
               </div>
-            )}
+          }
             <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
-              {pontos.length > 0 && (
-                <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50" onClick={() => {
-                  newMarkersRef.current.forEach((m) => m.setMap(null));
-                  newMarkersRef.current = [];
-                  setPontos([]);
-                  setActivePointId(null);
-                  setSheetOpen(false);
-                }}>
+              {pontos.length > 0 &&
+            <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50" onClick={() => {
+              newMarkersRef.current.forEach((m) => m.setMap(null));
+              newMarkersRef.current = [];
+              setPontos([]);
+              setActivePointId(null);
+              setSheetOpen(false);
+            }}>
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reiniciar
                 </Button>
-              )}
+            }
               <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={pontos.length === 0 || saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}>
+            onClick={() => saveMutation.mutate()}>
                 <Check className="w-3.5 h-3.5 mr-1.5" /> {saveMutation.isPending ? "Salvando..." : `Salvar todos (${pontos.length})`}
               </Button>
             </div>
           </div>
-        )}
+        }
       </div>
 
       {/* SHEET LATERAL - mesmo estilo do FormularioPonto */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+        <SheetContent side="right" className="bg-background px-1 py-1 fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 right-0 h-full border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Cadastro em Lote</SheetTitle>
           </SheetHeader>
@@ -689,45 +689,45 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
               <span className="text-xs font-medium text-slate-600 uppercase">{pontos.length} ponto(s) marcado(s)</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {pontos.map((item, index) => (
-                <button
-                  key={item.tempId}
-                  type="button"
-                  onClick={() => setActivePointId(item.tempId)}
-                  className={`rounded-md border px-2 py-1 text-xs transition-colors ${activePointId === item.tempId ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-semibold" : "border-slate-200 bg-white text-slate-600"}`}
-                >
+              {pontos.map((item, index) =>
+              <button
+                key={item.tempId}
+                type="button"
+                onClick={() => setActivePointId(item.tempId)}
+                className={`rounded-md border px-2 py-1 text-xs transition-colors ${activePointId === item.tempId ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-semibold" : "border-slate-200 bg-white text-slate-600"}`}>
+                
                   {item.nome || `Ponto ${index + 1}`}
                 </button>
-              ))}
+              )}
             </div>
           </div>
 
           {/* Formulário do ponto ativo */}
-          {activePoint && (
-            <div className="relative mt-2">
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="icon" 
-                className="absolute right-2 top-2 z-10 h-7 w-7 bg-red-50 hover:bg-red-100" 
-                onClick={() => removePoint(activePoint.tempId)}
-                title="Remover ponto do lote"
-              >
+          {activePoint &&
+          <div className="relative mt-2">
+              <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 z-10 h-7 w-7 bg-red-50 hover:bg-red-100"
+              onClick={() => removePoint(activePoint.tempId)}
+              title="Remover ponto do lote">
+              
                 <Trash2 className="w-4 h-4 text-red-600" />
               </Button>
-              <FormularioPonto 
-                item={activePoint} 
-                coordenadas={activePoint.coordenadas}
-                onBatchUpdate={(data) => {
-                   updatePoint(activePoint.tempId, data);
-                   toast.success("Ponto configurado no lote!");
-                }}
-                onCancel={() => setSheetOpen(false)}
-              />
+              <FormularioPonto
+              item={activePoint}
+              coordenadas={activePoint.coordenadas}
+              onBatchUpdate={(data) => {
+                updatePoint(activePoint.tempId, data);
+                toast.success("Ponto configurado no lote!");
+              }}
+              onCancel={() => setSheetOpen(false)} />
+            
             </div>
-          )}
+          }
         </SheetContent>
       </Sheet>
-    </div>
-  );
+    </div>);
+
 }
