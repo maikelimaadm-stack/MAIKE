@@ -386,27 +386,26 @@ export default function TabelaMovimentacoesPecuaria({
                       if (coluna.id === "selecao") {
                         return (
                           <TableCell
-                            key={`${item.id}-selecao`}
+                            key={`${mov.id}-selecao`}
                             style={{ width: 25, minWidth: 25, maxWidth: 25 }}
                             className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
                             onClick={(e) => e.stopPropagation()}
                             onTouchEnd={(e) => e.stopPropagation()}>
-                            
-                                <div className="flex items-center justify-center w-full h-full">
-                                  <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                                </div>
-                              </TableCell>);
+                            <div className="flex items-center justify-center w-full h-full">
+                              <Checkbox checked={selectedItems.includes(mov.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, mov.id] : prev.filter((id) => id !== mov.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                            </div>
+                          </TableCell>);
                       }
 
                       if (coluna.id === "acoes") {
                         return (
                           <TableCell
-                            key={`${item.id}-acoes`}
+                            key={`${mov.id}-acoes`}
                             style={{ width: 25, minWidth: 25, maxWidth: 25 }}
                             className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
                             onClick={(e) => e.stopPropagation()}
                             onTouchEnd={(e) => e.stopPropagation()}>
-                                                          <div className="flex items-center justify-center w-full h-full">
+                            <div className="flex items-center justify-center w-full h-full">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger>
                                   <DropdownMenuContent align="start">
