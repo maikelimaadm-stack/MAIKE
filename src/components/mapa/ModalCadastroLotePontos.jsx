@@ -15,6 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import FormularioPonto from "./FormularioPonto";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
@@ -351,13 +352,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const worldPoint = new google.maps.Point(worldX, worldY);
       const latLng = projection.fromPointToLatLng(worldPoint);
 
-      // Check if clicked on an existing new marker — just select it
-      const existingId = isClickOnExistingNewMarker(latLng);
-      if (existingId) {
-        setActivePointId(existingId);
-        setSheetOpen(true);
-        return;
-      }
+      if (window.__markerClicked) return;
 
       let lat = latLng.lat();
       let lng = latLng.lng();
@@ -408,7 +403,12 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         zIndex: 2000,
       });
 
-      marker.addListener("click", () => { setActivePointId(ponto.tempId); setSheetOpen(true); });
+      marker.addListener("click", () => {
+        window.__markerClicked = true;
+        setTimeout(() => { window.__markerClicked = false; }, 300);
+        setActivePointId(ponto.tempId);
+        setSheetOpen(true);
+      });
       marker.addListener("dragend", (event) => {
         let lat = event.latLng.lat(), lng = event.latLng.lng();
         const snapped = findNearestPoint(event.latLng, mapInstanceRef.current);
@@ -462,7 +462,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-white">
+    <div className="fixed inset-0 z-50 bg-white">
       {/* MAPA */}
       <div className="w-full h-full relative">
         <div
@@ -565,54 +565,26 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
           {/* Formulário do ponto ativo */}
           {activePoint && (
-            <div className="mt-4 rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
-              <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-900">Novo Ponto</div>
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removePoint(activePoint.tempId)}>
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
-              </div>
-              <div className="p-1 space-y-0.5">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-                  <div>
-                    <label className="text-[12px] text-slate-500 pl-1 leading-none">Nome do ponto<span className="text-red-500 ml-0.5">*</span></label>
-                    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-                      <Input value={activePoint.nome} onChange={(e) => updatePoint(activePoint.tempId, { nome: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[12px] text-slate-500 pl-1 leading-none">Sigla</label>
-                    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-                      <Input value={activePoint.sigla} onChange={(e) => updatePoint(activePoint.tempId, { sigla: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Ponto de referência<span className="text-red-500 ml-0.5">*</span></label>
-                  <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-                    <Select value={activePoint.tipo} onValueChange={(value) => updatePoint(activePoint.tempId, { tipo: value })}>
-                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-                        <SelectValue placeholder="Selecione o tipo do ponto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {iconesConfig.map((item) => (
-                          <SelectItem key={item.id} value={item.categoria} className="text-xs">{item.categoria}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
-                  <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-                    <Textarea value={activePoint.observacoes} onChange={(e) => updatePoint(activePoint.tempId, { observacoes: e.target.value })} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                  </div>
-                </div>
-              </div>
+            <div className="relative mt-2">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-2 top-2 z-10 h-7 w-7 bg-red-50 hover:bg-red-100" 
+                onClick={() => removePoint(activePoint.tempId)}
+                title="Remover ponto do lote"
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+              </Button>
+              <FormularioPonto 
+                item={activePoint} 
+                coordenadas={activePoint.coordenadas}
+                onBatchUpdate={(data) => {
+                   updatePoint(activePoint.tempId, data);
+                   toast.success("Ponto configurado no lote!");
+                }}
+                onCancel={() => setSheetOpen(false)}
+              />
             </div>
           )}
         </SheetContent>

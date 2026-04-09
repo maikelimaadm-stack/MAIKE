@@ -76,7 +76,7 @@ const createEmptyForm = () => ({
   alerta_sem_lancamento_dias: "10",
 });
 
-export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null }) {
+export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [areaDetectada, setAreaDetectada] = useState(null);
@@ -388,6 +388,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
 
+    if (onBatchUpdate) {
+      onBatchUpdate({
+        ...formData,
+        nome: formData.nome.toUpperCase(),
+        sigla: formData.sigla.toUpperCase(),
+        tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null,
+      });
+      return;
+    }
+
     createPontoMutation.mutate({
       nome: formData.nome.toUpperCase(),
       sigla: formData.sigla.toUpperCase(),
@@ -559,7 +569,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
         <div className="flex justify-end gap-1 pt-1 border-t">
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={progresso.show}>Cancelar</Button>
-          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={progresso.show}>{progresso.show ? "Salvando..." : item ? "Salvar alterações" : "Salvar ponto"}</Button>
+          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={progresso.show}>{progresso.show ? "Salvando..." : onBatchUpdate ? "Confirmar ponto no lote" : item ? "Salvar alterações" : "Salvar ponto"}</Button>
         </div>
           </form>
         </div>
