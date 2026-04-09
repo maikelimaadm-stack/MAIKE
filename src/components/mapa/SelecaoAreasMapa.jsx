@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -31,63 +32,50 @@ const TIPOS_CULTURAS = [
   "Feijão", "Girassol", "Aveia", "Café", "Eucalipto", "Floresta", "Outros"
 ];
 
-const LABEL_STYLE = {
-  position: "absolute",
-  transform: "translate(-50%, -50%)",
-  color: "#ffffff",
-  fontSize: "11px",
-  fontWeight: "700",
-  textTransform: "uppercase",
-  textShadow: "0 1px 3px rgba(0,0,0,0.9)",
-  whiteSpace: "nowrap",
-  pointerEvents: "none",
-  letterSpacing: "0.02em"
-};
+function getAreaLabelContent(text) {
+  return (
+    <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
+      {text}
+    </div>
+  );
+}
 
-function AreaLabelOverlay({ map, position, text }) {
-  const overlayRef = useRef(null);
-
-  useEffect(() => {
-    if (!map || !position || !text) return;
-
-    class LabelOverlay extends google.maps.OverlayView {
-      onAdd() {
-        const div = document.createElement("div");
-        Object.assign(div.style, LABEL_STYLE);
-        div.innerText = text;
-        this.div = div;
-        const panes = this.getPanes();
-        panes?.overlayMouseTarget?.appendChild(div);
-      }
-
-      draw() {
-        if (!this.div) return;
-        const projection = this.getProjection();
-        const point = projection?.fromLatLngToDivPixel(position);
-        if (!point) return;
-        this.div.style.left = `${point.x}px`;
-        this.div.style.top = `${point.y}px`;
-      }
-
-      onRemove() {
-        if (this.div?.parentNode) {
-          this.div.parentNode.removeChild(this.div);
-        }
-        this.div = null;
-      }
+function createAreaLabelOverlay({ map, position, text }) {
+  class LabelOverlay extends google.maps.OverlayView {
+    onAdd() {
+      const div = document.createElement("div");
+      div.style.position = "absolute";
+      div.style.transform = "translate(-50%, -50%)";
+      div.style.pointerEvents = "none";
+      const root = createRoot(div);
+      root.render(getAreaLabelContent(text));
+      this.div = div;
+      this.root = root;
+      this.getPanes()?.overlayLayer?.appendChild(div);
     }
 
-    const overlay = new LabelOverlay();
-    overlay.setMap(map);
-    overlayRef.current = overlay;
+    draw() {
+      if (!this.div) return;
+      const projection = this.getProjection();
+      const point = projection?.fromLatLngToDivPixel(position);
+      if (!point) return;
+      this.div.style.left = `${point.x}px`;
+      this.div.style.top = `${point.y}px`;
+    }
 
-    return () => {
-      overlay.setMap(null);
-      overlayRef.current = null;
-    };
-  }, [map, position, text]);
+    onRemove() {
+      this.root?.unmount();
+      if (this.div?.parentNode) {
+        this.div.parentNode.removeChild(this.div);
+      }
+      this.div = null;
+      this.root = null;
+    }
+  }
 
-  return null;
+  const overlay = new LabelOverlay();
+  overlay.setMap(map);
+  return overlay;
 }
 
 export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionMode = false, onConfirmSelection = null }) {
@@ -167,27 +155,11 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
       const boundsArea = new google.maps.LatLngBounds();
       paths.forEach((point) => boundsArea.extend(point));
       const center = boundsArea.getCenter();
-      const overlay = new google.maps.OverlayView();
-      overlay.onAdd = function () {
-        const div = document.createElement('div');
-        Object.assign(div.style, LABEL_STYLE);
-        div.innerText = area.nome || area.numero_area || 'ÁREA';
-        this.div = div;
-        this.getPanes()?.overlayMouseTarget?.appendChild(div);
-      };
-      overlay.draw = function () {
-        if (!this.div) return;
-        const projection = this.getProjection();
-        const point = projection?.fromLatLngToDivPixel(center);
-        if (!point) return;
-        this.div.style.left = `${point.x}px`;
-        this.div.style.top = `${point.y}px`;
-      };
-      overlay.onRemove = function () {
-        if (this.div?.parentNode) this.div.parentNode.removeChild(this.div);
-        this.div = null;
-      };
-      overlay.setMap(mapInstanceRef.current);
+      const overlay = createAreaLabelOverlay({
+        map: mapInstanceRef.current,
+        position: center,
+        text: area.nome || area.numero_area || 'ÁREA'
+      });
 
       polygon.addListener('click', () => {
         const set = selecionadosRef.current;
