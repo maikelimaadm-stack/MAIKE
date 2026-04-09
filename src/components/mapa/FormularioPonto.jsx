@@ -498,17 +498,17 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                     <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
-                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-1.5 max-h- overflow-y-auto pr-1">
                     {areasDoSetor.map((area) => {
                         const checked = formData.area_vinculada_ids?.includes(area.id);
                         const nomeArea = area.nome || area.area_vinculada_nome || `ÁREA ${area.numero_area || ''}`.trim();
                         const descricaoMapa = [area.numero_area ? `MAPA ${area.numero_area}` : null, area.setor_nome || null].filter(Boolean).join(" • ");
                         return (
-                          <label key={area.id} className="flex items-start gap-2 py-1 text-xs cursor-pointer group">
+                          <label key={area.id} className="flex items-start gap-1 py-1 text-xs cursor-pointer group">
                           <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} className="mt-0.5" />
                           <span className="flex flex-col leading-tight">
                             <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{nomeArea}</span>
-                            {descricaoMapa && <span className="text-[11px] text-slate-400">{descricaoMapa}</span>}
+                            
                           </span>
                         </label>);
 
