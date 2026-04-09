@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,52 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) =>
   image.src = iconUrl;
 };
 
+function getAreaLabelContent(text) {
+  return (
+    <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
+      {text}
+    </div>
+  );
+}
+
+function createAreaLabelOverlay({ map, position, text }) {
+  class LabelOverlay extends google.maps.OverlayView {
+    onAdd() {
+      const div = document.createElement("div");
+      div.style.position = "absolute";
+      div.style.transform = "translate(-50%, -50%)";
+      div.style.pointerEvents = "none";
+      const root = createRoot(div);
+      root.render(getAreaLabelContent(text));
+      this.div = div;
+      this.root = root;
+      this.getPanes()?.overlayLayer?.appendChild(div);
+    }
+
+    draw() {
+      if (!this.div) return;
+      const projection = this.getProjection();
+      const point = projection?.fromLatLngToDivPixel(position);
+      if (!point) return;
+      this.div.style.left = `${point.x}px`;
+      this.div.style.top = `${point.y}px`;
+    }
+
+    onRemove() {
+      this.root?.unmount();
+      if (this.div?.parentNode) {
+        this.div.parentNode.removeChild(this.div);
+      }
+      this.div = null;
+      this.root = null;
+    }
+  }
+
+  const overlay = new LabelOverlay();
+  overlay.setMap(map);
+  return overlay;
+}
+
 const createPoint = (coords, lastPoint = null) => ({
   tempId: crypto.randomUUID(),
   nome: "",
@@ -76,6 +123,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polygonsRef = useRef([]);
+  const areaLabelsRef = useRef([]);
   const existingMarkersRef = useRef([]);
   const polylinesRef = useRef([]);
   const newMarkersRef = useRef([]);
@@ -194,7 +242,9 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       newMarkersRef.current.forEach((m) => m.setMap(null));
       newMarkersRef.current = [];
       polygonsRef.current.forEach((p) => p.setMap(null));
+      areaLabelsRef.current.forEach((label) => label.setMap(null));
       polygonsRef.current = [];
+      areaLabelsRef.current = [];
       existingMarkersRef.current.forEach((m) => m.setMap(null));
       existingMarkersRef.current = [];
       polylinesRef.current.forEach((l) => l.setMap(null));
@@ -267,9 +317,11 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
     if (!mapInstanceRef.current || !mapReady) return;
 
     polygonsRef.current.forEach((p) => p.setMap(null));
+    areaLabelsRef.current.forEach((label) => label.setMap(null));
     existingMarkersRef.current.forEach((m) => m.setMap(null));
     polylinesRef.current.forEach((l) => l.setMap(null));
     polygonsRef.current = [];
+    areaLabelsRef.current = [];
     existingMarkersRef.current = [];
     polylinesRef.current = [];
 
@@ -281,6 +333,16 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const polygon = new google.maps.Polygon({ paths, strokeColor: cor, strokeOpacity: 0.5, strokeWeight: 1.5, fillColor: cor, fillOpacity: 0.15, clickable: false });
       polygon.setMap(mapInstanceRef.current);
       polygonsRef.current.push(polygon);
+
+      const boundsArea = new google.maps.LatLngBounds();
+      paths.forEach((point) => boundsArea.extend(point));
+      const center = boundsArea.getCenter();
+      const overlay = createAreaLabelOverlay({
+        map: mapInstanceRef.current,
+        position: center,
+        text: area.nome || area.numero_area || "ÁREA"
+      });
+      areaLabelsRef.current.push(overlay);
     });
 
     pontosExistentes.forEach((ponto) => {
