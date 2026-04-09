@@ -28,6 +28,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: "sexo", label: "Sexo", default: false, sortable: true, align: "left", width: 80 },
   { id: "peso_medio", label: "Peso Médio", default: false, sortable: true, align: "right", width: 110 },
   { id: "peso_total", label: "Peso Total", default: false, sortable: true, align: "right", width: 110 },
+  { id: "setor", label: "Setor", default: true, sortable: true, align: "left", width: 140 },
   { id: "area", label: "Área", default: true, sortable: true, align: "left", width: 140 },
   { id: "valor_unitario", label: "Vlr. Unit.", default: false, sortable: true, align: "right", width: 110 },
   { id: "valor_total", label: "Vlr. Total", default: false, sortable: true, align: "right", width: 110 },
@@ -77,6 +78,7 @@ const getFieldValue = (mov, colId) => {
     case "sexo": return mov.sexo || "";
     case "peso_medio": return mov.peso_medio ? formatarNumero(mov.peso_medio) : "";
     case "peso_total": return mov.peso_total ? formatarNumero(mov.peso_total) : "";
+    case "setor": return (mov.tipo === "Entrada" ? mov.setor_destino_nome : mov.setor_origem_nome) || mov.setor_nome || "";
     case "area": return (mov.tipo === "Entrada" ? mov.area_destino_nome : mov.area_origem_nome) || "";
     case "valor_unitario": return mov.valor_unitario ? `R$ ${mov.valor_unitario.toFixed(2)}` : "";
     case "valor_total": return mov.valor_total ? `R$ ${mov.valor_total.toFixed(2)}` : "";
@@ -338,15 +340,17 @@ export default function TabelaMovimentacoesPecuaria({
 
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300">
+                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
+                            <div className="flex items-center justify-center w-full h-full">
                               <Checkbox checked={selectedItems.length === paginadas.length && paginadas.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                            </div>
                           </TableHead>);
 
                       }
 
                       if (coluna.id === "acoes") {
                         return (
-                          <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b  border-gray-200" />);
+                          <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />);
 
                       }
 
