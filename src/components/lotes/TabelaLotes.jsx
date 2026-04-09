@@ -450,7 +450,7 @@ export default function TabelaLotes({
                             onTouchEnd={(e) => e.stopPropagation()}>
                             
                                 <div className="flex items-center justify-center w-full h-full">
-                                  <Checkbox checked={selectedItems.includes(lote.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, lote.id] : prev.filter((id) => id !== lote.id))} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                  <Checkbox checked={selectedItems.includes(lote.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, lote.id] : prev.filter((id) => id !== lote.id))} className="rounded-full peer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed shrink-0 shadow disabled:opacity-50 h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                                 </div>
                               </TableCell>);
 
