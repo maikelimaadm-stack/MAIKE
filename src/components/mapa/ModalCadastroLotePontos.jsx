@@ -93,13 +93,13 @@ function createAreaLabelOverlay({ map, position, text }) {
   return overlay;
 }
 
-const createPoint = (coords, lastPoint = null) => ({
+const createPoint = (coords, lastPoint = null, detectedArea = null) => ({
   tempId: crypto.randomUUID(),
   nome: "",
   sigla: "",
   tipo: lastPoint?.tipo || "",
   observacoes: lastPoint?.observacoes || "",
-  setor_id: "",
+  setor_id: lastPoint?.setor_id || detectedArea?.setor_id || "",
   coordenadas: coords,
   configuracao_icone_id: lastPoint?.configuracao_icone_id || "",
   produto_padrao: lastPoint?.produto_padrao || "",
@@ -112,6 +112,8 @@ const createPoint = (coords, lastPoint = null) => ({
   dias_alerta_reposicao: lastPoint?.dias_alerta_reposicao || "3",
   estoque_minimo_kg: lastPoint?.estoque_minimo_kg || "",
   alerta_sem_lancamento_dias: lastPoint?.alerta_sem_lancamento_dias || "10",
+  area_vinculada_id: lastPoint?.area_vinculada_id || detectedArea?.id || "",
+  area_vinculada_ids: Array.isArray(lastPoint?.area_vinculada_ids) && lastPoint.area_vinculada_ids.length ? lastPoint.area_vinculada_ids : detectedArea?.id ? [detectedArea.id] : [],
   tipo_categoria: lastPoint?.tipo_categoria || ""
 });
 
@@ -180,6 +182,29 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
   };
 
   const SNAP_DISTANCE = 16;
+
+  const detectAreaByCoords = (pontoCoords) => {
+    if (!pontoCoords || !areas.length) return null;
+
+    for (const area of areas) {
+      const areaCoords = area.coordenadas?.coords || [];
+      if (areaCoords.length < 3) continue;
+
+      const polygon = areaCoords.map((coord) => ({ lat: coord[0] || coord.lat, lng: coord[1] || coord.lng }));
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].lat;
+        const yi = polygon[i].lng;
+        const xj = polygon[j].lat;
+        const yj = polygon[j].lng;
+        const intersect = yi > pontoCoords.lng !== yj > pontoCoords.lng && pontoCoords.lat < (xj - xi) * (pontoCoords.lng - yi) / (yj - yi) + xi;
+        if (intersect) inside = !inside;
+      }
+      if (inside) return area;
+    }
+
+    return null;
+  };
 
   const findNearestPoint = (mouseLatLng, map) => {
     if (!snappingEnabled) return null;
@@ -434,7 +459,8 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       if (snapped) {lat = snapped.lat;lng = snapped.lng;toast.success("🧲 Encaixado!", { duration: 600 });}
 
       const ultimoPonto = pontosRef.current.length > 0 ? pontosRef.current[pontosRef.current.length - 1] : null;
-      const novo = createPoint({ lat, lng }, ultimoPonto);
+      const areaDetectada = detectAreaByCoords({ lat, lng });
+      const novo = createPoint({ lat, lng }, ultimoPonto, areaDetectada);
       setPontos((prev) => [...prev, novo]);
       setActivePointId(novo.tempId);
       setSheetOpen(true);

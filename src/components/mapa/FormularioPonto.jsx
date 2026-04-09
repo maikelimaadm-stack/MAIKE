@@ -83,6 +83,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [mostrarSelecaoAreasMapa, setMostrarSelecaoAreasMapa] = useState(false);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas || item?.coordenadas || null);
+  const tipoAtual = item?.tipo || "";
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
   const [formData, setFormData] = useState(createEmptyForm());
   const [selecionouSetorManualmente, setSelecionouSetorManualmente] = useState(false);
@@ -218,12 +219,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setFormData((prev) => {
         const proximasMudancas = {};
         const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
+        const isCocho = normalizeText(prev.tipo || tipoAtual).includes("COCHO");
 
-        if (!selecionouSetorManualmente && detectada.setor_id && prev.setor_id !== detectada.setor_id) {
+        if (detectada.setor_id && (!prev.setor_id || !selecionouSetorManualmente) && prev.setor_id !== detectada.setor_id) {
           proximasMudancas.setor_id = detectada.setor_id;
         }
 
-        if (!selecionouAreasManualmente) {
+        if (isCocho && !selecionouAreasManualmente) {
           const mesmaAreaUnica = areaIds.length === 1 && areaIds[0] === detectada.id;
           if (!mesmaAreaUnica || prev.area_vinculada_id !== detectada.id) {
             proximasMudancas.area_vinculada_id = detectada.id;
@@ -236,7 +238,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     } else {
       setAreaDetectada(null);
     }
-  }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente]);
+  }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual]);
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
