@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createRoot } from "react-dom/client";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +52,49 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) =>
   image.src = iconUrl;
 };
 
+function getAreaLabelOverlay(map, position, text) {
+  class AreaLabelOverlay extends google.maps.OverlayView {
+    onAdd() {
+      const div = document.createElement("div");
+      div.style.position = "absolute";
+      div.style.transform = "translate(-50%, -50%)";
+      div.style.pointerEvents = "none";
+      div.style.zIndex = "1";
+      const root = createRoot(div);
+      root.render(
+        <div className="pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
+          {text}
+        </div>
+      );
+      this.div = div;
+      this.root = root;
+      this.getPanes()?.overlayLayer?.appendChild(div);
+    }
+
+    draw() {
+      if (!this.div) return;
+      const projection = this.getProjection();
+      const point = projection?.fromLatLngToDivPixel(position);
+      if (!point) return;
+      this.div.style.left = `${point.x}px`;
+      this.div.style.top = `${point.y}px`;
+    }
+
+    onRemove() {
+      this.root?.unmount();
+      if (this.div?.parentNode) {
+        this.div.parentNode.removeChild(this.div);
+      }
+      this.div = null;
+      this.root = null;
+    }
+  }
+
+  const overlay = new AreaLabelOverlay();
+  overlay.setMap(map);
+  return overlay;
+}
+
 export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando, onSalvar, onCancelar }) {
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('satellite');
@@ -67,6 +111,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polygonsRef = useRef([]);
+  const areaLabelsRef = useRef([]);
   const markersRef = useRef([]);
   const polylinesRef = useRef([]);
   const currentPolygonRef = useRef(null);
@@ -708,9 +753,11 @@ const redoStackRef = useRef([]);
     if (!mapInstanceRef.current) return;
 
     polygonsRef.current.forEach(p => p.setMap(null));
+    areaLabelsRef.current.forEach(label => label.setMap(null));
     markersRef.current.forEach(m => m.setMap(null));
     polylinesRef.current.forEach(l => l.setMap(null));
     polygonsRef.current = [];
+    areaLabelsRef.current = [];
     markersRef.current = [];
     polylinesRef.current = [];
 
@@ -734,6 +781,16 @@ const redoStackRef = useRef([]);
 
       polygon.setMap(mapInstanceRef.current);
       polygonsRef.current.push(polygon);
+
+      const boundsArea = new google.maps.LatLngBounds();
+      paths.forEach((point) => boundsArea.extend(point));
+      const center = boundsArea.getCenter();
+      const areaLabel = getAreaLabelOverlay(
+        mapInstanceRef.current,
+        center,
+        area.nome || area.numero_area || 'ÁREA'
+      );
+      areaLabelsRef.current.push(areaLabel);
     });
 
     pontos.forEach(ponto => {
