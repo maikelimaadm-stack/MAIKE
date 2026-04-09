@@ -90,33 +90,47 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       return;
     }
 
+    let timeoutId;
+
     loadGoogleMapsScript().then(() => {
-      readyRef.current = true;
-      setMapReady(true);
-      if (!mapRef.current || mapInstanceRef.current) return;
+      timeoutId = setTimeout(() => {
+        readyRef.current = true;
+        setMapReady(true);
+        if (!mapRef.current || mapInstanceRef.current) return;
 
-      const map = new google.maps.Map(mapRef.current, {
-        center: { lat: -15.0067, lng: -59.9533 },
-        zoom: 17,
-        mapTypeId: "satellite",
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        gestureHandling: "greedy",
-        clickableIcons: false,
-      });
-
-      map.addListener("click", (event) => {
-        const novo = createPoint({
-          lat: Number(event.latLng.lat().toFixed(6)),
-          lng: Number(event.latLng.lng().toFixed(6)),
+        const map = new google.maps.Map(mapRef.current, {
+          center: { lat: -15.0067, lng: -59.9533 },
+          zoom: 17,
+          mapTypeId: "satellite",
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          gestureHandling: "greedy",
+          zoomControl: false,
+          disableDoubleClickZoom: false,
+          draggable: true,
+          scrollwheel: true,
+          clickableIcons: false,
         });
-        setPontos((prev) => [...prev, novo]);
-        setActivePointId(novo.tempId);
-      });
 
-      mapInstanceRef.current = map;
+        map.addListener("click", (event) => {
+          const novo = createPoint({
+            lat: Number(event.latLng.lat().toFixed(6)),
+            lng: Number(event.latLng.lng().toFixed(6)),
+          });
+          setPontos((prev) => [...prev, novo]);
+          setActivePointId(novo.tempId);
+        });
+
+        google.maps.event.addListenerOnce(map, "tilesloaded", () => {
+          setMapReady(true);
+        });
+
+        mapInstanceRef.current = map;
+      }, 100);
     }).catch(() => toast.error("Erro ao carregar mapa"));
+
+    return () => clearTimeout(timeoutId);
   }, [open]);
 
   useEffect(() => {
@@ -209,7 +223,11 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
   return (
     <div className="fixed inset-0 z-[70] bg-white">
-      <div className="absolute inset-0" ref={mapRef} />
+      <div
+        ref={mapRef}
+        style={{ height: "100%", width: "100%", backgroundColor: "#e5e7eb", touchAction: "manipulation" }}
+        className="absolute inset-0"
+      />
 
       <Button onClick={() => onOpenChange(false)} variant="secondary" size="icon" className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white">
         <X className="w-6 h-6 text-slate-700" />
@@ -240,7 +258,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       </div>
 
       {!mapReady && (
-        <div className="absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-6 py-4 shadow-2xl">
+        <div className="absolute top-1/2 left-[calc(50%-190px)] z-20 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-6 py-4 shadow-2xl">
           <div className="flex items-center gap-3">
             <div className="h-6 w-6 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
             <span className="font-semibold text-slate-700">Carregando mapa...</span>
