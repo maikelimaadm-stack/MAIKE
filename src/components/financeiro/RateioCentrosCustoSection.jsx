@@ -2,30 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Plus, X } from "lucide-react";
 import AutocompleteGenerico from "./AutocompleteGenerico.jsx";
-
-const formatarMoeda = (valor) => {
-  if (!valor && valor !== 0) return "R$ 0,00";
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
-
-const parseNumero = (str) => {
-  if (!str) return 0;
-  return parseFloat(String(str).replace(/[R$ ]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
-};
-
-const formatarNumero = (num) => {
-  if (!num && num !== 0) return '';
-  return num.toFixed(2).replace('.', ',');
-};
-
-const FL = ({ label, children }) => (
-  <div>
-    <label className="text-[10px] text-slate-500 pl-1 leading-none">{label}</label>
-    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-      {children}
-    </div>
-  </div>
-);
+import { formatarMoedaInput, parseMoedaInput, formatarMoeda } from "@/components/financeiro/moedaUtils";
 
 export default function RateioCentrosCustoSection({ rateios, onChange, centros, valorTotal }) {
   const totalRateado = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
@@ -37,9 +14,7 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
     onChange([...rateios, { centro_custo_id: '', centro_custo_nome: '', valor: novoValor, percentual: novoPercentual }]);
   };
 
-  const removerRateio = (index) => {
-    onChange(rateios.filter((_, i) => i !== index));
-  };
+  const removerRateio = (index) => onChange(rateios.filter((_, i) => i !== index));
 
   const atualizarRateio = (index, campo, valor) => {
     const updated = rateios.map((r, i) => {
@@ -49,8 +24,8 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
         const centro = centros.find(c => c.id === valor);
         newR.centro_custo_nome = centro?.nome || '';
       }
-      if (campo === 'valor_str') {
-        let numVal = parseNumero(valor);
+      if (campo === 'valor_input') {
+        let numVal = parseMoedaInput(valor);
         if (numVal < 0) numVal = 0;
         const outrosTotal = rateios.reduce((s, r2, j) => j === index ? s : s + (r2.valor || 0), 0);
         const maxPermitido = Math.max(0, valorTotal - outrosTotal);
@@ -75,44 +50,48 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
         </button>
       </div>
 
-      {rateios.length === 0 && (
+      {rateios.length === 0 ? (
         <p className="text-[11px] text-slate-400 text-center py-1">Nenhum rateio (opcional)</p>
-      )}
-
-      {rateios.map((rateio, index) => (
-        <div key={index} className="grid grid-cols-12 gap-1 items-end">
-          <div className="col-span-5">
-            <FL label="Centro de Custo">
-              <AutocompleteGenerico
-                items={centros}
-                value={rateio.centro_custo_id}
-                onChange={(v) => atualizarRateio(index, 'centro_custo_id', v)}
-                placeholder="BUSCAR CENTRO..."
-                displayField="display_nome"
-                searchFields={["nome", "display_nome"]}
-                renderItem={(c) => <div className="text-xs text-slate-900">{c.display_nome || c.nome}</div>}
-                className="w-full"
-                inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7"
-              />
-            </FL>
-          </div>
-          <div className="col-span-3">
-            <FL label="Valor">
-              <Input value={formatarNumero(rateio.valor)} onChange={(e) => atualizarRateio(index, 'valor_str', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs text-right font-mono border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-            </FL>
-          </div>
-          <div className="col-span-3">
-            <FL label="%">
-              <Input value={rateio.percentual ? `${rateio.percentual}%` : '0%'} readOnly className="h-7 text-xs text-right font-mono border-0 shadow-none focus-visible:ring-0 bg-slate-100" />
-            </FL>
-          </div>
-          <div className="col-span-1 flex justify-center pb-0.5">
-            <button type="button" onClick={() => removerRateio(index)} className="text-slate-400 hover:text-red-500">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+      ) : (
+        <div className="overflow-auto max-h-48">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-300 bg-slate-100">
+                <th className="text-left py-1 px-1 font-semibold text-slate-600">Centro de Custo</th>
+                <th className="text-right py-1 px-1 font-semibold text-slate-600 w-24">Valor</th>
+                <th className="text-right py-1 px-1 font-semibold text-slate-600 w-16">%</th>
+                <th className="w-7"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rateios.map((rateio, index) => (
+                <tr key={index} className="border-b border-slate-200 hover:bg-white">
+                  <td className="py-0.5 px-1">
+                    <AutocompleteGenerico
+                      items={centros}
+                      value={rateio.centro_custo_id}
+                      onChange={(v) => atualizarRateio(index, 'centro_custo_id', v)}
+                      placeholder="BUSCAR CENTRO..."
+                      displayField="display_nome"
+                      searchFields={["nome", "display_nome"]}
+                      renderItem={(c) => <div className="text-xs text-slate-900">{c.display_nome || c.nome}</div>}
+                      className="w-full"
+                      inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-6 text-xs"
+                    />
+                  </td>
+                  <td className="py-0.5 px-1">
+                    <Input value={formatarMoedaInput(rateio.valor)} onChange={(e) => atualizarRateio(index, 'valor_input', e.target.value)} placeholder="0,00" className="h-6 text-xs text-right font-mono border-slate-300 shadow-none focus-visible:ring-0 bg-transparent px-1" />
+                  </td>
+                  <td className="py-0.5 px-1 text-right font-mono text-slate-500">{rateio.percentual ? `${rateio.percentual}%` : '0%'}</td>
+                  <td className="py-0.5 px-1 text-center">
+                    <button type="button" onClick={() => removerRateio(index)} className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+      )}
 
       {rateios.length > 0 && (
         <div className={`flex justify-between text-[11px] px-1 py-0.5 rounded ${Math.abs(restanteAtual) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>

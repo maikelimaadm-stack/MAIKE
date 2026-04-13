@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, X, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import AutocompleteGenerico from "./AutocompleteGenerico.jsx";
+import { formatarMoedaInput, parseMoedaInput, formatarMoeda } from "@/components/financeiro/moedaUtils";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 import RateioGruposSection from "./RateioGruposSection.jsx";
 import RateioCentrosCustoSection from "./RateioCentrosCustoSection.jsx";
@@ -28,21 +29,12 @@ const FL = ({ label, required, error, children }) => (
 
 const parseNumero = (str) => {
   if (!str) return 0;
-  return parseFloat(String(str).replace(/[R$ ]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+  return parseMoedaInput(str);
 };
 
-const formatarNumero = (num) => {
-  if (!num && num !== 0) return '';
-  const numStr = String(num).replace('.', ',');
-  const [inteiro, decimal] = numStr.split(',');
-  const inteiroFormatado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return decimal !== undefined ? `${inteiroFormatado},${decimal}` : inteiroFormatado;
-};
 
-const formatarMoeda = (valor) => {
-  if (!valor && valor !== 0) return "R$ 0,00";
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
+
+
 
 const calcularVencimento30Dias = (dataEmissao) => {
   if (!dataEmissao) return new Date().toISOString().split('T')[0];
@@ -83,8 +75,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     if (!initialData) return defaults;
     return {
       ...defaults, ...initialData,
-      valor_total: initialData.valor_total ? formatarNumero(initialData.valor_total) : '',
-      valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : '',
+      valor_total: initialData.valor_total || '',
+      valor_desconto: initialData.valor_desconto || '',
       parcelas: initialData.parcelas || [],
       rateio_grupos: initialData.rateio_grupos || [],
       rateio_centros_custo: initialData.rateio_centros_custo || [],
@@ -320,10 +312,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   <Input type="date" value={form.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} className={INPUT_CLS} />
                 </FL>
                 <FL label="Valor Total" required error={invalidFields.includes('valor_total')}>
-                  <Input value={form.valor_total} onChange={(e) => handleChange('valor_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
+                  <Input value={formatarMoedaInput(valorTotalNum)} onChange={(e) => handleChange('valor_total', e.target.value)} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                 </FL>
                 <FL label="Desconto">
-                  <Input value={form.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
+                  <Input value={formatarMoedaInput(valorDescontoNum)} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                 </FL>
                 <FL label="Valor Líquido">
                   <Input value={formatarMoeda(valorLiquidoNum)} readOnly className={`${INPUT_CLS} text-right font-mono bg-slate-100 font-bold`} />
