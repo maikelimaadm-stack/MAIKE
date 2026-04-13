@@ -6,10 +6,8 @@ function fmt(value, digits = 2) {
 }
 
 export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes }) {
-  if (!area) return null;
-
   const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-  const hectares = area.area_pastejada || area.tamanho_hectares || 0;
+  const hectares = area?.area_pastejada || area?.tamanho_hectares || 0;
 
   const totalUA = useMemo(() => {
     const pesoTotal = lotesNaArea.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0);
@@ -42,6 +40,8 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
   }, [lotesNaArea, totalCabecas]);
 
   const sistemasUnicos = [...new Set(lotesNaArea.map((l) => l.sistema_produtivo).filter(Boolean))];
+
+  if (!area) return null;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
@@ -101,6 +101,6 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
         )}
         </div>
       }
-    </div>);
-
-}''
+    </div>
+  );
+}
