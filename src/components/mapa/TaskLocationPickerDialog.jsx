@@ -1,3 +1,4 @@
+/* global google */
 import React, { useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";

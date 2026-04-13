@@ -1,3 +1,4 @@
+/* global google */
 import { useRef, useCallback } from "react";
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {

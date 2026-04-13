@@ -33,6 +33,7 @@ const FL = ({ label, required, error, children, className = "" }) => (
 
 const inputCls = "h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent";
 const selectTriggerCls = "h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent";
+const flCls = (field) => invalidFields.includes(field) ? "border-red-500 bg-red-50" : "";
 
 export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -216,6 +217,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   });
 
   const isInvalid = (field) => invalidFields.includes(field);
+  const flCls = (field) => isInvalid(field) ? "border-red-500 bg-red-50" : "";
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,16 @@ const COLUNAS_DISPONIVEIS = [
   { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 90 },
   { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 180 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 140 },
+  { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 110 },
+  { id: "setor", label: "Setor", default: true, sortable: true, align: "left", width: 150 },
+  { id: "areas", label: "Áreas Vinculadas", default: true, sortable: true, align: "left", width: 220 },
+  { id: "deposito", label: "Depósito Vinculado", default: true, sortable: true, align: "left", width: 180 },
+  { id: "produto_padrao", label: "Produto Padrão", default: true, sortable: true, align: "left", width: 170 },
+  { id: "capacidade", label: "Capacidade (kg)", default: true, sortable: true, align: "right", width: 120 },
+  { id: "metragem", label: "Metragem (m)", default: false, sortable: true, align: "right", width: 120 },
+  { id: "cobertura", label: "Cobertura", default: false, sortable: true, align: "left", width: 120 },
+  { id: "estoque_minimo", label: "Estoque Mín. (kg)", default: false, sortable: true, align: "right", width: 140 },
+  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 100 },
   { id: "coordenadas", label: "Coordenadas", default: true, sortable: true, align: "left", width: 170 },
   { id: "observacoes", label: "Observações", default: true, sortable: true, align: "left", width: 220 },
 ];
@@ -24,6 +36,7 @@ const COLUMN_WIDTHS_KEY = "colunas_largura_pontos_geo";
 const MIN_COLUMN_WIDTH = 80;
 
 export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, onDelete, showConfigColunas, setShowConfigColunas }) {
+  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
@@ -53,6 +66,16 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
     const saved = localStorage.getItem("colunas_visiveis_pontos_geo");
     if (saved) { try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch {} }
     return DEFAULT_VISIBLE_COLUMNS;
+  });
+
+  const { data: pontosSuplementacao = [] } = useQuery({
+    queryKey: ["tabela-pontos-suplementacao", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.status === "Ativo");
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: []
   });
 
   useEffect(() => { localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths)); }, [columnWidths]);
@@ -97,7 +120,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
     document.body.style.userSelect = "none";
   };
 
-  useEffect(() => { setSelectedItems((prev) => prev.filter((id) => pontos.some((p) => p.id === id))); }, [pontos]);
+  useEffect(() => { setSelectedItems((prev) => prev.filter((id) => pontosComDetalhes.some((p) => p.id === id))); }, [pontosComDetalhes]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
@@ -116,22 +139,45 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
 
   const colunasOrdenadas = useMemo(() => colunasOrdem.map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id)), [colunasOrdem, colunasVisiveis]);
 
+  const pontosComDetalhes = useMemo(() => {
+    const normalizar = (value = "") => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+    return pontos.map((item) => {
+      const detalhe = pontosSuplementacao.find((pontoSup) => {
+        const mesmoNome = normalizar(pontoSup.nome_ponto) === normalizar(item.nome);
+        const mesmaSigla = item.sigla && normalizar(pontoSup.sigla) === normalizar(item.sigla);
+        return mesmoNome || mesmaSigla;
+      });
+      return { ...item, detalhe_suplementacao: detalhe || null };
+    });
+  }, [pontos, pontosSuplementacao]);
+
   const getFieldValue = (item, colunaId) => {
-    if (colunaId === "codigo") return item.numero_ponto || "";
-    if (colunaId === "nome") return item.nome || "";
-    if (colunaId === "tipo") return item.tipo || "";
+    const detalhe = item.detalhe_suplementacao || {};
+    if (colunaId === "codigo") return item.numero_ponto || detalhe.numero_ponto || "";
+    if (colunaId === "nome") return item.nome || detalhe.nome_ponto || "";
+    if (colunaId === "tipo") return item.tipo || detalhe.tipo || "";
+    if (colunaId === "categoria") return detalhe.categoria_ponto || "";
+    if (colunaId === "setor") return detalhe.setor_nome || "";
+    if (colunaId === "areas") return Array.isArray(detalhe.area_vinculada_nomes) && detalhe.area_vinculada_nomes.length ? detalhe.area_vinculada_nomes.join(", ") : detalhe.area_vinculada_nome || "";
+    if (colunaId === "deposito") return detalhe.deposito_origem_nome || "";
+    if (colunaId === "produto_padrao") return detalhe.produto_padrao || "";
+    if (colunaId === "capacidade") return detalhe.capacidade_cocho_kg != null ? String(detalhe.capacidade_cocho_kg) : "";
+    if (colunaId === "metragem") return detalhe.metragem_cocho_m != null ? String(detalhe.metragem_cocho_m) : "";
+    if (colunaId === "cobertura") return detalhe.cobertura_cocho || "";
+    if (colunaId === "estoque_minimo") return detalhe.estoque_minimo_kg != null ? String(detalhe.estoque_minimo_kg) : "";
+    if (colunaId === "status") return detalhe.status || "";
     if (colunaId === "coordenadas") return item.coordenadas?.lat && item.coordenadas?.lng ? `${item.coordenadas.lat.toFixed(6)}, ${item.coordenadas.lng.toFixed(6)}` : "";
-    if (colunaId === "observacoes") return item.observacoes || "";
+    if (colunaId === "observacoes") return detalhe.observacoes || item.observacoes || "";
     return "";
   };
 
   const columnOptions = useMemo(() => {
     const opts = {};
     COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).forEach((col) => {
-      opts[col.id] = [...new Set(pontos.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
+      opts[col.id] = [...new Set(pontosComDetalhes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
     });
     return opts;
-  }, [pontos]);
+  }, [pontosComDetalhes]);
 
   const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
@@ -139,7 +185,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
 
   const pontosFiltrados = useMemo(() => {
-    return pontos.filter((item) => {
+    return pontosComDetalhes.filter((item) => {
       return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
@@ -147,7 +193,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
         return filtro.includes(val);
       });
     });
-  }, [pontos, filtrosColunas]);
+  }, [pontosComDetalhes, filtrosColunas]);
 
   const pontosOrdenados = useMemo(() => {
     const sorted = [...pontosFiltrados];
@@ -168,7 +214,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
   };
   const handleExcluirSelecionados = () => {
     selectedItems.forEach((id) => {
-      const ponto = pontos.find((p) => p.id === id);
+      const ponto = pontosComDetalhes.find((p) => p.id === id);
       if (ponto) onDelete(ponto);
     });
     setSelectedItems([]);
