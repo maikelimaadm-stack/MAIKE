@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
+import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, Settings } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -59,6 +59,7 @@ export default function Fornecedores() {
   const [editingFornecedor, setEditingFornecedor] = useState(null);
   const [fichaFornecedor, setFichaFornecedor] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const [showErrorDialog, setShowErrorDialog] = useState(false);
@@ -484,7 +485,10 @@ export default function Fornecedores() {
               <h1 className="text-xl font-bold text-slate-900">Fornecedores/Clientes</h1>
               <p className="text-xs text-slate-600">Gerenciar cadastros</p>
             </div>
-            <div className="flex gap-2"> {/* Moved buttons here and applied flex gap */}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+                <Settings className="w-4 h-4" />
+              </Button>
               <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
                 Exportar
               </Button>
@@ -497,7 +501,7 @@ export default function Fornecedores() {
               <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
                 Modelo
               </Button>
-              <Button onClick={() => { setEditingFornecedor(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={() => { setEditingFornecedor(null); setShowForm(true); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
                 Novo Fornecedor
               </Button>
             </div>
@@ -523,6 +527,8 @@ export default function Fornecedores() {
           onDelete={handleDelete}
           onPrint={handlePrint}
           isLoading={isLoading}
+          showConfigColunas={showConfigColunas}
+          setShowConfigColunas={setShowConfigColunas}
         />
       )}
 
