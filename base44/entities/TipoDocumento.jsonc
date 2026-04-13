@@ -1,0 +1,67 @@
+{
+  "name": "TipoDocumento",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do tipo de documento (ex: NF-e, Boleto, Recibo)"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla do tipo (ex: NFE, NFS, BOL)"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Fiscal",
+        "Financeiro",
+        "Contratual",
+        "Interno",
+        "Outros"
+      ],
+      "description": "Categoria do documento"
+    },
+    "tipo_movimento": {
+      "type": "string",
+      "enum": [
+        "Entrada",
+        "Saida",
+        "Ambos"
+      ],
+      "description": "Se aplica a Entrada, Sa\u00edda ou Ambos"
+    },
+    "exige_numero_documento": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se exige n\u00famero de documento obrigat\u00f3rio"
+    },
+    "exige_anexo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se exige anexo obrigat\u00f3rio (PDF, XML)"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se est\u00e1 ativo"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o opcional"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem num\u00e9rica para exibi\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "categoria",
+    "tipo_movimento"
+  ]
+}

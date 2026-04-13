@@ -11,6 +11,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ManejosTecnicosRebanho from './pages/ManejosTecnicosRebanho';
 import MovimentacoesLote from './pages/MovimentacoesLote';
 import ContasFinanceiras from './pages/ContasFinanceiras';
+import TiposDocumento from './pages/TiposDocumento';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -75,6 +76,11 @@ const AuthenticatedApp = () => {
       <Route path="/ContasFinanceiras" element={
         <LayoutWrapper currentPageName="ContasFinanceiras">
           <ContasFinanceiras />
+        </LayoutWrapper>
+      } />
+      <Route path="/TiposDocumento" element={
+        <LayoutWrapper currentPageName="TiposDocumento">
+          <TiposDocumento />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />
