@@ -150,7 +150,48 @@ export default function LancamentoFinanceiro() {
       setShowForm(false);
       toast.success('Lançamento atualizado!');
     } else {
-      createMutation.mutate(data);
+      // Se tem mais de 1 parcela, cria um registro separado para cada parcela
+      const parcelas = data.parcelas || [];
+      if (parcelas.length > 1) {
+        setShowSaveProgress(true);
+        setProgressoSalvamento({ etapa: 'Criando parcelas...', current: 0, total: 100 });
+        const totalParcelas = parcelas.length;
+        for (let i = 0; i < totalParcelas; i++) {
+          const parcela = parcelas[i];
+          const obsParcela = parcela.observacao_parcela ? parcela.observacao_parcela.toUpperCase() : '';
+          const obsGeral = data.observacao || '';
+          const obsCompleta = [obsGeral, obsParcela].filter(Boolean).join(' | ');
+          const dadosParcela = {
+            ...data,
+            valor_total: parcela.valor,
+            valor_pago: 0,
+            data_vencimento: parcela.data_vencimento,
+            descricao: `${data.descricao} - PARCELA ${parcela.numero}/${totalParcelas}`,
+            observacao: obsCompleta || undefined,
+            parcelado: true,
+            quantidade_parcelas: totalParcelas,
+            parcelas: [{ ...parcela, numero: 1 }], // Cada registro guarda só sua parcela
+          };
+          await base44.entities.LancamentoFinanceiro.create(dadosParcela);
+          setProgressoSalvamento({ etapa: `Parcela ${i + 1} de ${totalParcelas}...`, current: Math.round(((i + 1) / totalParcelas) * 100), total: 100 });
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+        queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+        setShowForm(false);
+        setEditingLancamento(null);
+        setDadosXML(null);
+        setShowSaveProgress(false);
+        toast.success(`${totalParcelas} parcelas lançadas com sucesso!`);
+      } else {
+        // Parcela única — manter observação da parcela se existir
+        if (parcelas.length === 1 && parcelas[0].observacao_parcela) {
+          const obsParcela = parcelas[0].observacao_parcela.toUpperCase();
+          const obsGeral = data.observacao || '';
+          data.observacao = [obsGeral, obsParcela].filter(Boolean).join(' | ');
+        }
+        createMutation.mutate(data);
+      }
     }
   };
 
