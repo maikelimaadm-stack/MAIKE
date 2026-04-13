@@ -5,7 +5,7 @@ import { formatarMoedaInput, parseMoedaInput, formatarMoeda } from "@/components
 
 const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 text-center align-middle whitespace-nowrap h-7 px-2 border-r border-b border-gray-200";
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
-const INP = "w-full bg-transparent border-0 outline-none text-xs h-[26px] px-0 focus:ring-0";
+const INP = "w-full bg-transparent border-0 outline-none text-xs text-left h-[26px] px-0 focus:ring-0";
 
 export default function RateioCentrosCustoSection({ rateios, onChange, centros, valorTotal }) {
   const totalRateado = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
@@ -85,7 +85,7 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
                       searchFields={["nome", "display_nome"]}
                       renderItem={(c) => <div className="text-xs text-slate-900">{c.display_nome || c.nome}</div>}
                       className="w-full"
-                      inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[26px] text-xs px-0 pl-6"
+                      inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[26px] text-xs px-0"
                     />
                   </td>
                   <td className={TD}>

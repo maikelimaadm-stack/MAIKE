@@ -72,7 +72,7 @@ export default function AutocompleteGenerico({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className={`pl-2 pr-8 h-8 text-xs uppercase ${inputClassName}`}
+          className={`pr-8 h-8 text-xs uppercase ${inputClassName}`}
           style={{ textTransform: 'uppercase' }}
         />
         {searchTerm && (

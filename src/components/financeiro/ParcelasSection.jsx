@@ -12,7 +12,7 @@ const calcularProximoMes = (dataBase, meses) => {
 
 const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 text-center align-middle whitespace-nowrap h-7 px-2 border-r border-b border-gray-200";
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
-const INP = "w-full bg-transparent border-0 outline-none text-xs h-[26px] px-0 focus:ring-0";
+const INP = "w-full bg-transparent border-0 outline-none text-xs text-left h-[26px] px-0 focus:ring-0";
 
 export default function ParcelasSection({ parcelas, onParcelasChange, valorTotal, dataEmissao }) {
   const adicionarParcela = () => {
