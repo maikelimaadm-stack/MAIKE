@@ -128,7 +128,7 @@ const DEFAULT_MENU = [
   icon: "DollarSign",
   submenu: [
   { id: "fin-lancamento", title: "Lancamento Financeiro", url: "LancamentoFinanceiro" },
-  { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
+
   { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
   { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
 
