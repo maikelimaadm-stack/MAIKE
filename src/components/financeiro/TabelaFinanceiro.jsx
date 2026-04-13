@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, Download, MoreVertical, Calendar, Edit2, Layers, X, Package } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from "sonner";
 
 const formatarMoeda = (valor) => {
@@ -79,37 +78,39 @@ const getBadgeStyle = (status) => {
 const COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
   { id: 'acoes', label: 'Ações', default: true, fixo: true, width: 25 },
-  { id: 'numero', label: 'Nº', default: true },
-  { id: 'parcela', label: 'Parcela', default: false },
-  { id: 'emissao', label: 'Emissão', default: true },
-  { id: 'vencimento', label: 'Vencimento', default: true },
-  { id: 'dias', label: 'Dias', default: true },
-  { id: 'fornecedor_cliente', label: 'Fornecedor/Cliente', default: true },
-  { id: 'tipo_documento', label: 'Tipo Doc', default: true },
-  { id: 'documento', label: 'Nº Doc', default: true },
-  { id: 'chave_nfe', label: 'Chave NF-e', default: false },
-  { id: 'serie', label: 'Série', default: false },
-  { id: 'cfop', label: 'CFOP', default: false },
-  { id: 'valor_total', label: 'Vlr. Total', default: true },
-  { id: 'valor_pago', label: 'Vlr. Pago', default: true },
-  { id: 'saldo', label: 'Vlr. Saldo', default: true },
-  { id: 'status', label: 'Status', default: true },
-  { id: 'safra', label: 'Safra', default: false },
-  { id: 'centro_custo', label: 'Centro Custo', default: false },
-  { id: 'plano_contas', label: 'Plano Contas', default: false },
-  { id: 'grupo', label: 'Grupo', default: false },
-  { id: 'forma_pagamento', label: 'Forma Pgto', default: false },
-  { id: 'valor_produtos', label: 'Vlr. Produtos', default: false },
-  { id: 'valor_frete', label: 'Vlr. Frete', default: false },
-  { id: 'valor_seguro', label: 'Vlr. Seguro', default: false },
-  { id: 'outras_despesas', label: 'Outras Desp.', default: false },
-  { id: 'valor_desconto', label: 'Vlr. Desc.', default: false },
-  { id: 'valor_ipi', label: 'IPI', default: false },
-  { id: 'valor_icms', label: 'ICMS', default: false },
-  { id: 'valor_pis', label: 'PIS', default: false },
-  { id: 'valor_cofins', label: 'COFINS', default: false },
-  { id: 'base_icms', label: 'Base ICMS', default: false },
+  { id: 'numero', label: 'Nº', default: true, width: 70 },
+  { id: 'parcela', label: 'Parcela', default: false, width: 80 },
+  { id: 'emissao', label: 'Emissão', default: true, width: 100 },
+  { id: 'vencimento', label: 'Vencimento', default: true, width: 100 },
+  { id: 'dias', label: 'Dias', default: true, width: 80 },
+  { id: 'fornecedor_cliente', label: 'Fornecedor/Cliente', default: true, width: 200 },
+  { id: 'tipo_documento', label: 'Tipo Doc', default: true, width: 100 },
+  { id: 'documento', label: 'Nº Doc', default: true, width: 100 },
+  { id: 'chave_nfe', label: 'Chave NF-e', default: false, width: 140 },
+  { id: 'serie', label: 'Série', default: false, width: 70 },
+  { id: 'cfop', label: 'CFOP', default: false, width: 80 },
+  { id: 'valor_total', label: 'Vlr. Total', default: true, width: 120 },
+  { id: 'valor_pago', label: 'Vlr. Pago', default: true, width: 120 },
+  { id: 'saldo', label: 'Vlr. Saldo', default: true, width: 120 },
+  { id: 'status', label: 'Status', default: true, width: 120 },
+  { id: 'safra', label: 'Safra', default: false, width: 100 },
+  { id: 'centro_custo', label: 'Centro Custo', default: false, width: 140 },
+  { id: 'plano_contas', label: 'Plano Contas', default: false, width: 160 },
+  { id: 'grupo', label: 'Grupo', default: false, width: 120 },
+  { id: 'forma_pagamento', label: 'Forma Pgto', default: false, width: 120 },
+  { id: 'valor_produtos', label: 'Vlr. Produtos', default: false, width: 120 },
+  { id: 'valor_frete', label: 'Vlr. Frete', default: false, width: 100 },
+  { id: 'valor_seguro', label: 'Vlr. Seguro', default: false, width: 100 },
+  { id: 'outras_despesas', label: 'Outras Desp.', default: false, width: 110 },
+  { id: 'valor_desconto', label: 'Vlr. Desc.', default: false, width: 100 },
+  { id: 'valor_ipi', label: 'IPI', default: false, width: 100 },
+  { id: 'valor_icms', label: 'ICMS', default: false, width: 100 },
+  { id: 'valor_pis', label: 'PIS', default: false, width: 100 },
+  { id: 'valor_cofins', label: 'COFINS', default: false, width: 100 },
+  { id: 'base_icms', label: 'Base ICMS', default: false, width: 100 },
 ];
+
+const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
 
 export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos, safras, centrosCusto, planosContas, gruposFinanceiros, onUpdateLote }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -130,30 +131,19 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   });
   
   const [colunasOrdem, setColunasOrdem] = useState(() => {
-    const padrao = COLUNAS_DISPONIVEIS.map(c => c.id);
     const saved = localStorage.getItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`);
     if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return [...new Set([...padrao, ...parsed])];
-      } catch {
-        return padrao;
-      }
+      try { return JSON.parse(saved); } catch { /* fallback */ }
     }
-    return padrao;
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
   });
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const padrao = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
     const saved = localStorage.getItem(`colunas_tabela_financeiro_${tipo.toLowerCase()}`);
     if (saved) {
-      try {
-        return [...new Set([...padrao, ...JSON.parse(saved)])];
-      } catch {
-        return padrao;
-      }
+      try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch { /* fallback */ }
     }
-    return padrao;
+    return DEFAULT_VISIBLE_COLUMNS;
   });
 
   const toggleColuna = (colunaId) => {
@@ -176,9 +166,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     localStorage.setItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`, JSON.stringify(items));
   };
 
-  const colunasOrdenadas = colunasOrdem
-    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
-    .filter(c => c && colunasVisiveis.includes(c.id));
+  const colunasOrdenadas = useMemo(() => {
+    return colunasOrdem
+      .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+      .filter(c => c && colunasVisiveis.includes(c.id));
+  }, [colunasOrdem, colunasVisiveis]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -374,122 +366,100 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     return 0;
   });
 
-  const abrirDetalhes = (lancamento) => {
-    setDetalhesAberto(lancamento);
-  };
-
-  const abrirParcelas = (lancamento) => {
-    setParcelasDialog(lancamento);
-  };
-
-  const abrirProdutos = (lancamento) => {
-    setProdutosDialog(lancamento);
-  };
-
+  const abrirDetalhes = (lancamento) => setDetalhesAberto(lancamento);
+  const abrirParcelas = (lancamento) => setParcelasDialog(lancamento);
+  const abrirProdutos = (lancamento) => setProdutosDialog(lancamento);
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
-  const renderCell = (coluna, lancamento) => {
-    switch (coluna.id) {
-      case 'selecao':
-        return null;
-      case 'acoes':
-        return null;
+  // renderCell returns CONTENT only (no <TableCell> wrapper) — same pattern as TabelaCategoriasManejo
+  const renderCell = (lancamento, colunaId) => {
+    switch (colunaId) {
       case 'numero':
-        return <TableCell className="font-semibold text-xs border-r border-slate-200">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>;
+        return <span className="font-semibold">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</span>;
       case 'parcela':
-        return (
-          <TableCell className="text-xs text-center border-r border-slate-200">
-            {lancamento?.numero_parcela && lancamento?.total_parcelas ? (
-              <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px]">
-                {lancamento.numero_parcela}/{lancamento.total_parcelas}
-              </Badge>
-            ) : '-'}
-          </TableCell>
-        );
+        return lancamento?.numero_parcela && lancamento?.total_parcelas ? (
+          <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px]">
+            {lancamento.numero_parcela}/{lancamento.total_parcelas}
+          </Badge>
+        ) : '-';
       case 'emissao':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{formatarData(lancamento?.data_emissao)}</TableCell>;
+        return <span className="text-slate-600">{formatarData(lancamento?.data_emissao)}</span>;
       case 'vencimento':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{formatarData(lancamento?.data_vencimento)}</TableCell>;
+        return <span className="text-slate-600">{formatarData(lancamento?.data_vencimento)}</span>;
       case 'dias':
-        return (
-          <TableCell className="text-xs border-r border-slate-200">
-            {(lancamento?.status === 'Pendente' || lancamento?.status === 'Pago Parcial') && (
-              <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
-                {calcularDias(lancamento?.data_vencimento)}
-              </span>
-            )}
-          </TableCell>
-        );
+        return (lancamento?.status === 'Pendente' || lancamento?.status === 'Pago Parcial') ? (
+          <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
+            {calcularDias(lancamento?.data_vencimento)}
+          </span>
+        ) : null;
       case 'fornecedor_cliente':
-        return <TableCell className="max-w-xs truncate text-xs border-r border-slate-200">{lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-'}</TableCell>;
+        return lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-';
       case 'tipo_documento':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{lancamento?.tipo_documento || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.tipo_documento || '-'}</span>;
       case 'documento':
-        return <TableCell className="font-mono text-xs text-slate-600 border-r border-slate-200">{lancamento?.numero_documento || '-'}</TableCell>;
+        return <span className="font-mono text-slate-600">{lancamento?.numero_documento || '-'}</span>;
       case 'chave_nfe':
-        return <TableCell className="font-mono text-[10px] text-slate-600 max-w-[120px] truncate border-r border-slate-200" title={lancamento?.chave_nfe}>{lancamento?.chave_nfe || '-'}</TableCell>;
+        return <span className="font-mono text-[10px] text-slate-600" title={lancamento?.chave_nfe}>{lancamento?.chave_nfe || '-'}</span>;
       case 'serie':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{lancamento?.serie_documento || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.serie_documento || '-'}</span>;
       case 'cfop':
-        return <TableCell className="text-xs font-mono text-slate-600 border-r border-slate-200">{lancamento?.cfop || '-'}</TableCell>;
+        return <span className="font-mono text-slate-600">{lancamento?.cfop || '-'}</span>;
       case 'valor_total':
-        return <TableCell className="text-right font-mono text-xs font-semibold border-r border-slate-200">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>;
+        return <span className="font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</span>;
       case 'valor_pago':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</span>;
       case 'saldo':
-        return <TableCell className="text-right font-mono text-xs font-semibold text-slate-700 border-r border-slate-200">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>;
+        return <span className="font-mono font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</span>;
       case 'status':
         return (
-          <TableCell className="border-r border-slate-200">
-            <div className="flex flex-col gap-1">
-              <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>
-                {lancamento?.status}
+          <div className="flex flex-col gap-1">
+            <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>
+              {lancamento?.status}
+            </Badge>
+            {lancamento?.parcelas && lancamento.parcelas.length > 0 && (
+              <Badge 
+                variant="outline" 
+                className="bg-slate-100 text-slate-700 text-[10px] cursor-pointer hover:bg-slate-200" 
+                onClick={() => abrirParcelas(lancamento)}
+              >
+                <Calendar className="w-2.5 h-2.5 mr-0.5" />
+                {lancamento.parcelas.length} parcela(s)
               </Badge>
-              {lancamento?.parcelas && lancamento.parcelas.length > 0 && (
-                <Badge 
-                  variant="outline" 
-                  className="bg-slate-100 text-slate-700 text-[10px] cursor-pointer hover:bg-slate-200" 
-                  onClick={() => abrirParcelas(lancamento)}
-                >
-                  <Calendar className="w-2.5 h-2.5 mr-0.5" />
-                  {lancamento.parcelas.length} parcela(s)
-                </Badge>
-              )}
-            </div>
-          </TableCell>
+            )}
+          </div>
         );
       case 'safra':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{lancamento?.safra_nome || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.safra_nome || '-'}</span>;
       case 'centro_custo':
-        return <TableCell className="text-xs text-slate-600 max-w-xs truncate border-r border-slate-200">{lancamento?.centro_custo_nome || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.centro_custo_nome || '-'}</span>;
       case 'plano_contas':
-        return <TableCell className="text-xs max-w-xs truncate text-slate-600 border-r border-slate-200">{lancamento?.plano_contas_nome || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.plano_contas_nome || '-'}</span>;
       case 'grupo':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{lancamento?.grupo_nome || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.grupo_nome || '-'}</span>;
       case 'forma_pagamento':
-        return <TableCell className="text-xs text-slate-600 border-r border-slate-200">{lancamento?.forma_pagamento_nome || '-'}</TableCell>;
+        return <span className="text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</span>;
       case 'valor_produtos':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_produtos || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_produtos || 0)}</span>;
       case 'valor_frete':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_frete || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_frete || 0)}</span>;
       case 'valor_seguro':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_seguro || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_seguro || 0)}</span>;
       case 'outras_despesas':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_outras_despesas || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_outras_despesas || 0)}</span>;
       case 'valor_desconto':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_desconto_total || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_desconto_total || 0)}</span>;
       case 'valor_ipi':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_ipi || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_ipi || 0)}</span>;
       case 'valor_icms':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_icms || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_icms || 0)}</span>;
       case 'valor_pis':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_pis || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pis || 0)}</span>;
       case 'valor_cofins':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.valor_cofins || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_cofins || 0)}</span>;
       case 'base_icms':
-        return <TableCell className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{formatarMoeda(lancamento?.base_calculo_icms || 0)}</TableCell>;
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.base_calculo_icms || 0)}</span>;
       default:
-        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+        return '-';
     }
   };
 
@@ -539,11 +509,12 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                   <TableHeader className="bg-white">
                     <TableRow className="sticky top-0 z-40 bg-white">
                       {colunasOrdenadas.map((coluna) => {
+                        const width = coluna.width || 160;
                         const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
 
                         if (coluna.id === 'selecao') {
                           return (
-                            <TableHead key="selecao" className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                            <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
                               <div className="flex items-center justify-center w-full h-full">
                                 <Checkbox 
                                   checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
@@ -556,12 +527,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                         }
 
                         if (coluna.id === 'acoes') {
-                          return <TableHead key="acoes" className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }} />;
+                          return <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />;
                         }
 
                         return (
                           <TableHead 
                             key={coluna.id}
+                            style={{ width, minWidth: width, maxWidth: width }}
                             className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${isSortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                             onClick={() => isSortable && handleSort(coluna.id)}
                           >
@@ -575,43 +547,53 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <AnimatePresence>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
-                        </TableRow>
-                      ) : lancamentosOrdenados.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum lançamento</TableCell>
-                        </TableRow>
-                      ) : (
-                        lancamentosOrdenados.map((lancamento) => {
-                          if (!lancamento) return null;
-                          const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={colunasOrdenadas.length} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                      </TableRow>
+                    ) : lancamentosOrdenados.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={colunasOrdenadas.length} className="text-center py-12 text-slate-400 text-xs">Nenhum lançamento</TableCell>
+                      </TableRow>
+                    ) : (
+                      lancamentosOrdenados.map((lancamento) => {
+                        if (!lancamento) return null;
+                        const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
 
-                          return (
-                            <TableRow 
-                              key={lancamento.id}
-                              className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
-                            >
-                              {colunasOrdenadas.map((coluna) => {
-                                if (coluna.id === 'selecao') {
-                                  return (
-                                    <TableCell key={`${lancamento.id}-selecao`} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                                      <div className="flex items-center justify-center w-full h-full">
-                                        <Checkbox
-                                          checked={selecionados.includes(lancamento.id)}
-                                          onCheckedChange={() => handleToggleSelecao(lancamento.id)}
-                                          className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                                        />
-                                      </div>
-                                    </TableCell>
-                                  );
-                                }
+                        return (
+                          <TableRow 
+                            key={lancamento.id}
+                            className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
+                          >
+                            {colunasOrdenadas.map((coluna) => {
+                              const width = coluna.width || 160;
 
-                                if (coluna.id === 'acoes') {
-                                  return (
-                                    <TableCell key={`${lancamento.id}-acoes`} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                              if (coluna.id === 'selecao') {
+                                return (
+                                  <TableCell
+                                    key={`${lancamento.id}-selecao`}
+                                    style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                                    className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
+                                  >
+                                    <div className="flex items-center justify-center w-full h-full">
+                                      <Checkbox
+                                        checked={selecionados.includes(lancamento.id)}
+                                        onCheckedChange={() => handleToggleSelecao(lancamento.id)}
+                                        className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                      />
+                                    </div>
+                                  </TableCell>
+                                );
+                              }
+
+                              if (coluna.id === 'acoes') {
+                                return (
+                                  <TableCell
+                                    key={`${lancamento.id}-acoes`}
+                                    style={{ width: 25, minWidth: 25, maxWidth: 25 }}
+                                    className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
+                                  >
+                                    <div className="flex items-center justify-center w-full h-full">
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                           <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -659,21 +641,25 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
-                                    </TableCell>
-                                  );
-                                }
-
-                                return (
-                                  <React.Fragment key={coluna.id}>
-                                    {renderCell(coluna, lancamento)}
-                                  </React.Fragment>
+                                    </div>
+                                  </TableCell>
                                 );
-                              })}
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </AnimatePresence>
+                              }
+
+                              return (
+                                <TableCell
+                                  key={`${lancamento.id}-${coluna.id}`}
+                                  style={{ width, minWidth: width, maxWidth: width }}
+                                  className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words"
+                                >
+                                  {renderCell(lancamento, coluna.id)}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
               </div>
