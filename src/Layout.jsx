@@ -131,7 +131,7 @@ const DEFAULT_MENU = [
   { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
   { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
   { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
-  { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
+
   { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
   { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" }]
 
