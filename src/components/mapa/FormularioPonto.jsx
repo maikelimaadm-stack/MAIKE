@@ -266,14 +266,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual]);
 
   useEffect(() => {
-    const suggestedId = suggestedDepositoId || (depositoMaisProximo?.distance <= 20 ? depositoMaisProximo.id : null);
+    const suggestedId = suggestedDepositoId || depositoMaisProximo?.id || null;
     if (!suggestedId || !depositosDisponiveis.some((deposito) => deposito.id === suggestedId)) return;
     setFormData((prev) => {
       if (!normalizeText(prev.tipo || tipoAtual).includes("COCHO")) return prev;
-      if (prev.deposito_origem_id) return prev;
+      if (prev.deposito_origem_id === suggestedId) return prev;
       return { ...prev, deposito_origem_id: suggestedId };
     });
-  }, [suggestedDepositoId, depositoMaisProximo?.id, depositoMaisProximo?.distance, depositosDisponiveis, tipoAtual]);
+  }, [suggestedDepositoId, depositoMaisProximo?.id, depositosDisponiveis, tipoAtual]);
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
