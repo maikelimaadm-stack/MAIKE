@@ -92,6 +92,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
     estado: initialData?.estado || "",
     cep: initialData?.cep || "",
     observacoes: initialData?.observacoes || "",
+    tipos: initialData?.tipos || ["Fornecedor"],
     ativo: initialData?.ativo !== false
   });
 
@@ -389,7 +390,25 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
             </div>
 
             <div className="flex flex-wrap gap-6 py-1 px-1">
-              <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-slate-600 w-full">Classificação</p>
+              {["Fornecedor", "Cliente", "Funcionario"].map(tipo => (
+                <div key={tipo} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`tipo_${tipo}`}
+                    checked={(formData.tipos || []).includes(tipo)}
+                    onCheckedChange={(checked) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        tipos: checked
+                          ? [...(prev.tipos || []), tipo]
+                          : (prev.tipos || []).filter(t => t !== tipo)
+                      }));
+                    }}
+                  />
+                  <label htmlFor={`tipo_${tipo}`} className="text-xs text-slate-700 cursor-pointer">{tipo === 'Funcionario' ? 'Funcionário' : tipo}</label>
+                </div>
+              ))}
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-300">
                 <Checkbox id="forn_ativo" checked={formData.ativo} onCheckedChange={(v) => setFormData(prev => ({ ...prev, ativo: v }))} />
                 <label htmlFor="forn_ativo" className="text-xs text-slate-700 cursor-pointer">Ativo</label>
               </div>
@@ -401,7 +420,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
