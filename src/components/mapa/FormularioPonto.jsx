@@ -152,30 +152,27 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
 
+    const isBatchItem = Boolean(onBatchUpdate);
     setFormData({
       nome: item.nome || "",
       sigla: item.sigla || "",
       tipo: item.tipo || "",
       configuracao_icone_id: item.configuracao_icone_id || "",
-      observacoes: item.observacoes || pontoSuplementacaoExistente?.observacoes || "",
-      produto_padrao: item.produto_padrao || pontoSuplementacaoExistente?.produto_padrao || "",
-      capacidade_cocho_kg: item.capacidade_cocho_kg || pontoSuplementacaoExistente?.capacidade_cocho_kg || "",
-      setor_id: item.setor_id || pontoSuplementacaoExistente?.setor_id || areas.find((area) => area.id === (item.area_vinculada_id || pontoSuplementacaoExistente?.area_vinculada_id))?.setor_id || "",
-      area_vinculada_id: item.area_vinculada_id || pontoSuplementacaoExistente?.area_vinculada_id || "",
-      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : Array.isArray(pontoSuplementacaoExistente?.area_vinculada_ids) && pontoSuplementacaoExistente.area_vinculada_ids.length ?
-      pontoSuplementacaoExistente.area_vinculada_ids :
-      pontoSuplementacaoExistente?.area_vinculada_id ?
-      [pontoSuplementacaoExistente.area_vinculada_id] :
-      [],
-      deposito_origem_id: item.deposito_origem_id || pontoSuplementacaoExistente?.deposito_origem_id || "",
-      metragem_cocho_m: item.metragem_cocho_m || pontoSuplementacaoExistente?.metragem_cocho_m || "",
-      cobertura_cocho: item.cobertura_cocho || pontoSuplementacaoExistente?.cobertura_cocho || "",
-      consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg || "",
-      limite_minimo_consumo: item.limite_minimo_consumo || pontoSuplementacaoExistente?.limite_minimo_consumo || "",
-      limite_maximo_consumo: item.limite_maximo_consumo || pontoSuplementacaoExistente?.limite_maximo_consumo || "",
-      dias_alerta_reposicao: item.dias_alerta_reposicao || pontoSuplementacaoExistente?.dias_alerta_reposicao || "3",
-      estoque_minimo_kg: item.estoque_minimo_kg || pontoSuplementacaoExistente?.estoque_minimo_kg || "",
-      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || pontoSuplementacaoExistente?.alerta_sem_lancamento_dias || "10"
+      observacoes: item.observacoes || (!isBatchItem ? pontoSuplementacaoExistente?.observacoes : "") || "",
+      produto_padrao: item.produto_padrao || (!isBatchItem ? pontoSuplementacaoExistente?.produto_padrao : "") || "",
+      capacidade_cocho_kg: item.capacidade_cocho_kg || (!isBatchItem ? pontoSuplementacaoExistente?.capacidade_cocho_kg : "") || "",
+      setor_id: item.setor_id || (!isBatchItem ? pontoSuplementacaoExistente?.setor_id : "") || areas.find((area) => area.id === item.area_vinculada_id)?.setor_id || "",
+      area_vinculada_id: item.area_vinculada_id || (!isBatchItem ? pontoSuplementacaoExistente?.area_vinculada_id : "") || "",
+      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : [],
+      deposito_origem_id: item.deposito_origem_id || "",
+      metragem_cocho_m: item.metragem_cocho_m || (!isBatchItem ? pontoSuplementacaoExistente?.metragem_cocho_m : "") || "",
+      cobertura_cocho: item.cobertura_cocho || (!isBatchItem ? pontoSuplementacaoExistente?.cobertura_cocho : "") || "",
+      consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || (!isBatchItem ? pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg : "") || "",
+      limite_minimo_consumo: item.limite_minimo_consumo || (!isBatchItem ? pontoSuplementacaoExistente?.limite_minimo_consumo : "") || "",
+      limite_maximo_consumo: item.limite_maximo_consumo || (!isBatchItem ? pontoSuplementacaoExistente?.limite_maximo_consumo : "") || "",
+      dias_alerta_reposicao: item.dias_alerta_reposicao || (!isBatchItem ? pontoSuplementacaoExistente?.dias_alerta_reposicao : "") || "3",
+      estoque_minimo_kg: item.estoque_minimo_kg || (!isBatchItem ? pontoSuplementacaoExistente?.estoque_minimo_kg : "") || "",
+      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || (!isBatchItem ? pontoSuplementacaoExistente?.alerta_sem_lancamento_dias : "") || "10"
     });
   }, [item, pontoSuplementacaoExistente, areas]);
 
@@ -270,7 +267,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     if (!suggestedId || !depositosDisponiveis.some((deposito) => deposito.id === suggestedId)) return;
     setFormData((prev) => {
       if (!normalizeText(prev.tipo || tipoAtual).includes("COCHO")) return prev;
-      if (prev.deposito_origem_id === suggestedId) return prev;
+      if (prev.deposito_origem_id && prev.deposito_origem_id === suggestedId) return prev;
+      if (prev.deposito_origem_id && prev.deposito_origem_id !== suggestedId) return { ...prev, deposito_origem_id: suggestedId };
       return { ...prev, deposito_origem_id: suggestedId };
     });
   }, [suggestedDepositoId, depositoMaisProximo?.id, depositosDisponiveis, tipoAtual]);

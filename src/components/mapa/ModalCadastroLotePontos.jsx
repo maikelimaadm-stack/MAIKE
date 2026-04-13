@@ -100,7 +100,7 @@ const createPoint = (coords, lastPoint = null, detectedArea = null, detectedDepo
   sigla: "",
   tipo: lastPoint?.tipo || "",
   observacoes: lastPoint?.observacoes || "",
-  setor_id: lastPoint?.setor_id || detectedArea?.setor_id || "",
+  setor_id: detectedArea?.setor_id || "",
   coordenadas: coords,
   configuracao_icone_id: lastPoint?.configuracao_icone_id || "",
   produto_padrao: lastPoint?.produto_padrao || "",
@@ -113,9 +113,9 @@ const createPoint = (coords, lastPoint = null, detectedArea = null, detectedDepo
   dias_alerta_reposicao: lastPoint?.dias_alerta_reposicao || "3",
   estoque_minimo_kg: lastPoint?.estoque_minimo_kg || "",
   alerta_sem_lancamento_dias: lastPoint?.alerta_sem_lancamento_dias || "10",
-  area_vinculada_id: lastPoint?.area_vinculada_id || detectedArea?.id || "",
-  area_vinculada_ids: Array.isArray(lastPoint?.area_vinculada_ids) && lastPoint.area_vinculada_ids.length ? lastPoint.area_vinculada_ids : detectedArea?.id ? [detectedArea.id] : [],
-  deposito_origem_id: lastPoint?.deposito_origem_id || detectedDepositoId || "",
+  area_vinculada_id: detectedArea?.id || "",
+  area_vinculada_ids: detectedArea?.id ? [detectedArea.id] : [],
+  deposito_origem_id: detectedDepositoId || "",
   suggested_deposito_id: detectedDepositoId || "",
   tipo_categoria: lastPoint?.tipo_categoria || ""
 });
