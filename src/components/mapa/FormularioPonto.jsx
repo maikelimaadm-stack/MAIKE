@@ -602,9 +602,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                   <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoDepositoMapa(true)}>Selecionar no mapa</Button>
                 </div>
                 <div className="rounded-md border border-slate-300">
-                  <Select value={formData.deposito_origem_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, deposito_origem_id: value }))}>
+                  <Select value={formData.deposito_origem_id || "__none__"} onValueChange={(value) => setFormData((prev) => ({ ...prev, deposito_origem_id: value === "__none__" ? "" : value }))}>
                     <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o depósito" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__" className="text-xs">Selecione o depósito</SelectItem>
                       {depositosDisponiveis.map((deposito) => <SelectItem key={deposito.id} value={deposito.id} className="text-xs">{deposito.nome_ponto}</SelectItem>)}
                     </SelectContent>
                   </Select>
