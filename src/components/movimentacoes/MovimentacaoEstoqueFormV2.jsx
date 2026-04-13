@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +120,21 @@ const MOTIVOS_PERDA = [
   { value: 'quebra_transporte', label: 'Quebra no Transporte' },
   { value: 'outros', label: 'Outros' }
 ];
+
+const FL = ({ label, required, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
+const fieldInputClass = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent uppercase";
+const fieldSelectTriggerClass = "h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent uppercase";
+const fieldTextareaClass = "text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent uppercase min-h-[50px]";
 
 export default function MovimentacaoEstoqueFormV2({ 
   onSubmit, 
@@ -1075,57 +1089,63 @@ export default function MovimentacaoEstoqueFormV2({
               {/* Linha 1: Tipo, Operação, Data, Local Principal */}
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">Tipo *</Label>
-                  <Select value={tipo} onValueChange={handleTipoChange}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ENTRADA" className="text-xs">ENTRADA</SelectItem>
-                      <SelectItem value="SAIDA" className="text-xs">SAÍDA</SelectItem>
-                      <SelectItem value="TRANSFERENCIA" className="text-xs">TRANSFERÊNCIA</SelectItem>
-                      <SelectItem value="AJUSTE" className="text-xs">AJUSTE</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FL label="Tipo" required>
+                    <Select value={tipo} onValueChange={handleTipoChange}>
+                      <SelectTrigger className={fieldSelectTriggerClass}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ENTRADA" className="text-xs uppercase">ENTRADA</SelectItem>
+                        <SelectItem value="SAIDA" className="text-xs uppercase">SAÍDA</SelectItem>
+                        <SelectItem value="TRANSFERENCIA" className="text-xs uppercase">TRANSFERÊNCIA</SelectItem>
+                        <SelectItem value="AJUSTE" className="text-xs uppercase">AJUSTE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FL>
                 </div>
 
                 <div className="col-span-3 space-y-1">
-                  <Label className="text-xs">Operação *</Label>
-                  <Select value={operacao} onValueChange={setOperacao}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {operacoesDisponiveis.map(op => (
-                        <SelectItem key={op.value} value={op.value} className="text-xs">
-                          {op.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FL label="Operação" required>
+                    <Select value={operacao} onValueChange={setOperacao}>
+                      <SelectTrigger className={fieldSelectTriggerClass}>
+                        <SelectValue placeholder="SELECIONE" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operacoesDisponiveis.map(op => (
+                          <SelectItem key={op.value} value={op.value} className="text-xs uppercase">
+                            {op.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FL>
                 </div>
 
                 <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">Data *</Label>
-                  <Input 
-                    type="date" 
-                    value={dataMovimentacao} 
-                    onChange={(e) => setDataMovimentacao(e.target.value)}
-                    className="h-8 text-xs"
-                  />
+                  <FL label="Data" required>
+                    <Input 
+                      type="date" 
+                      value={dataMovimentacao} 
+                      onChange={(e) => setDataMovimentacao(e.target.value)}
+                      className={fieldInputClass.replace('uppercase', '')}
+                    />
+                  </FL>
                 </div>
 
                 <div className="col-span-5 space-y-1">
-                  <Label className="text-xs">{labelLocalPrincipal}</Label>
-                  <AutocompleteGenerico
-                    items={locais}
-                    value={localPrincipalId}
-                    onChange={handleLocalPrincipalChange}
-                    placeholder="Selecione"
-                    displayField="nome"
-                    searchFields={["nome"]}
-                    className="h-8"
-                  />
+                  <FL label={labelLocalPrincipal.replace(' *', '')} required>
+                    <div className="px-0.5 py-0.5">
+                      <AutocompleteGenerico
+                        items={locais}
+                        value={localPrincipalId}
+                        onChange={handleLocalPrincipalChange}
+                        placeholder="SELECIONE"
+                        displayField="nome"
+                        searchFields={["nome"]}
+                        className="h-7"
+                      />
+                    </div>
+                  </FL>
                 </div>
               </div>
 
@@ -1133,28 +1153,34 @@ export default function MovimentacaoEstoqueFormV2({
               {tipo === 'TRANSFERENCIA' && (
                 <div className="grid grid-cols-12 gap-2 pt-1 border-t">
                   <div className="col-span-6 space-y-1">
-                    <Label className="text-xs">Local de Destino *</Label>
-                    <AutocompleteGenerico
-                      items={locais}
-                      value={localEstoqueDestinoId}
-                      onChange={handleLocalDestinoChange}
-                      placeholder="Selecione o destino"
-                      displayField="nome"
-                      searchFields={["nome"]}
-                      className="h-8"
-                    />
+                    <FL label="Local de Destino" required>
+                      <div className="px-0.5 py-0.5">
+                        <AutocompleteGenerico
+                          items={locais}
+                          value={localEstoqueDestinoId}
+                          onChange={handleLocalDestinoChange}
+                          placeholder="SELECIONE O DESTINO"
+                          displayField="nome"
+                          searchFields={["nome"]}
+                          className="h-7"
+                        />
+                      </div>
+                    </FL>
                   </div>
                   <div className="col-span-6 space-y-1">
-                    <Label className="text-xs">Centro de Custo</Label>
-                    <AutocompleteGenerico
-                      items={centrosCusto}
-                      value={centroCustoId}
-                      onChange={setCentroCustoId}
-                      placeholder="Selecione"
-                      displayField="nome"
-                      searchFields={["nome", "codigo"]}
-                      className="h-8"
-                    />
+                    <FL label="Centro de Custo">
+                      <div className="px-0.5 py-0.5">
+                        <AutocompleteGenerico
+                          items={centrosCusto}
+                          value={centroCustoId}
+                          onChange={setCentroCustoId}
+                          placeholder="SELECIONE"
+                          displayField="nome"
+                          searchFields={["nome", "codigo"]}
+                          className="h-7"
+                        />
+                      </div>
+                    </FL>
                   </div>
                 </div>
               )}
@@ -1163,78 +1189,85 @@ export default function MovimentacaoEstoqueFormV2({
               {mostrarDocumento && (
                 <div className="grid grid-cols-12 gap-2 pt-1 border-t">
                   <div className="col-span-2 space-y-1">
-                    <Label className="text-xs">Tipo Doc. *</Label>
-                    <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIPOS_DOCUMENTO.map(t => (
-                          <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FL label="Tipo Doc." required>
+                      <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                        <SelectTrigger className={fieldSelectTriggerClass}>
+                          <SelectValue placeholder="SELECIONE" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_DOCUMENTO.map(t => (
+                            <SelectItem key={t.value} value={t.value} className="text-xs uppercase">{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FL>
                   </div>
 
                   <div className="col-span-2 space-y-1">
-                    <Label className="text-xs">Nº Documento *</Label>
-                    <Input 
-                      value={numeroDocumento} 
-                      onChange={(e) => setNumeroDocumento(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="000000"
-                    />
+                    <FL label="Nº Documento" required>
+                      <Input 
+                        value={numeroDocumento} 
+                        onChange={(e) => setNumeroDocumento(e.target.value.toUpperCase())}
+                        className={fieldInputClass}
+                        placeholder="000000"
+                      />
+                    </FL>
                   </div>
 
                   <div className="col-span-1 space-y-1">
-                    <Label className="text-xs">Série</Label>
-                    <Input 
-                      value={serieDocumento} 
-                      onChange={(e) => setSerieDocumento(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="001"
-                    />
+                    <FL label="Série">
+                      <Input 
+                        value={serieDocumento} 
+                        onChange={(e) => setSerieDocumento(e.target.value.toUpperCase())}
+                        className={fieldInputClass}
+                        placeholder="001"
+                      />
+                    </FL>
                   </div>
 
                   <div className="col-span-2 space-y-1">
-                    <Label className="text-xs">Data Doc.</Label>
-                    <Input 
-                      type="date"
-                      value={dataDocumento} 
-                      onChange={(e) => setDataDocumento(e.target.value)}
-                      className="h-8 text-xs"
-                    />
+                    <FL label="Data Doc.">
+                      <Input 
+                        type="date"
+                        value={dataDocumento} 
+                        onChange={(e) => setDataDocumento(e.target.value)}
+                        className={fieldInputClass.replace('uppercase', '')}
+                      />
+                    </FL>
                   </div>
 
                   <div className="col-span-2 space-y-1">
-                    <Label className="text-xs">CFOP</Label>
-                    <Input 
-                      value={cfop} 
-                      onChange={(e) => setCfop(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="5102"
-                    />
+                    <FL label="CFOP">
+                      <Input 
+                        value={cfop} 
+                        onChange={(e) => setCfop(e.target.value.toUpperCase())}
+                        className={fieldInputClass}
+                        placeholder="5102"
+                      />
+                    </FL>
                   </div>
 
                   <div className="col-span-3 space-y-1">
-                    <Label className="text-xs">Natureza Operação</Label>
-                    <Input 
-                      value={naturezaOperacao} 
-                      onChange={(e) => setNaturezaOperacao(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Venda de mercadoria"
-                    />
+                    <FL label="Natureza Operação">
+                      <Input 
+                        value={naturezaOperacao} 
+                        onChange={(e) => setNaturezaOperacao(e.target.value.toUpperCase())}
+                        className={fieldInputClass}
+                        placeholder="VENDA DE MERCADORIA"
+                      />
+                    </FL>
                   </div>
 
                   <div className="col-span-12 space-y-1">
-                    <Label className="text-xs">Chave NF-e</Label>
-                    <Input 
-                      value={chaveDocumento} 
-                      onChange={(e) => setChaveDocumento(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="44 dígitos"
-                      maxLength={44}
-                    />
+                    <FL label="Chave NF-e">
+                      <Input 
+                        value={chaveDocumento} 
+                        onChange={(e) => setChaveDocumento(e.target.value.toUpperCase())}
+                        className={fieldInputClass}
+                        placeholder="44 DÍGITOS"
+                        maxLength={44}
+                      />
+                    </FL>
                   </div>
                 </div>
               )}
@@ -1245,49 +1278,56 @@ export default function MovimentacaoEstoqueFormV2({
                   {/* Fornecedor */}
                   {exigeFornecedor && (
                     <div className="col-span-4 space-y-1">
-                      <Label className="text-xs">Fornecedor *</Label>
-                      <AutocompleteGenerico
-                        items={fornecedores}
-                        value={fornecedorId}
-                        onChange={setFornecedorId}
-                        placeholder="Pesquisar..."
-                        displayField="nome"
-                        searchFields={["nome", "cnpj", "cpf"]}
-                        className="h-8"
-                      />
+                      <FL label="Fornecedor" required>
+                        <div className="px-0.5 py-0.5">
+                          <AutocompleteGenerico
+                            items={fornecedores}
+                            value={fornecedorId}
+                            onChange={setFornecedorId}
+                            placeholder="PESQUISAR..."
+                            displayField="nome"
+                            searchFields={["nome", "cnpj", "cpf"]}
+                            className="h-7"
+                          />
+                        </div>
+                      </FL>
                     </div>
                   )}
 
                   {/* Cliente */}
                   {(tipo === 'SAIDA' && operacao === 'venda') && (
                     <div className="col-span-4 space-y-1">
-                      <Label className="text-xs">Cliente *</Label>
-                      <AutocompleteGenerico
-                        items={clientes}
-                        value={clienteId}
-                        onChange={(id) => {
-                          setClienteId(id);
-                          const cl = clientes.find(c => c.id === id);
-                          if (cl) setDestinoTexto(cl.nome);
-                        }}
-                        placeholder="Pesquisar..."
-                        displayField="nome"
-                        searchFields={["nome", "cnpj", "cpf"]}
-                        className="h-8"
-                      />
+                      <FL label="Cliente" required>
+                        <div className="px-0.5 py-0.5">
+                          <AutocompleteGenerico
+                            items={clientes}
+                            value={clienteId}
+                            onChange={(id) => {
+                              setClienteId(id);
+                              const cl = clientes.find(c => c.id === id);
+                              if (cl) setDestinoTexto(cl.nome);
+                            }}
+                            placeholder="PESQUISAR..."
+                            displayField="nome"
+                            searchFields={["nome", "cnpj", "cpf"]}
+                            className="h-7"
+                          />
+                        </div>
+                      </FL>
                     </div>
                   )}
 
                   {/* Destino/Responsável (texto livre) */}
                   {exigeDestino && operacao !== 'venda' && (
                     <div className="col-span-3 space-y-1">
-                      <Label className="text-xs">Destino/Responsável *</Label>
-                      <Input 
-                        value={destinoTexto} 
-                        onChange={(e) => setDestinoTexto(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="Nome do destino..."
-                      />
+                      <FL label="Destino/Responsável" required>
+                        <Input 
+                          value={destinoTexto} 
+                          onChange={(e) => setDestinoTexto(e.target.value.toUpperCase())}
+                          className={fieldInputClass}
+                          placeholder="NOME DO DESTINO..."
+                        />
+                      </FL>
                     </div>
                   )}
 
@@ -1433,13 +1473,14 @@ export default function MovimentacaoEstoqueFormV2({
               {/* Observações */}
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-12 space-y-1">
-                  <Label className="text-xs">Observações</Label>
-                  <Textarea 
-                    value={observacoes} 
-                    onChange={(e) => setObservacoes(e.target.value)}
-                    className="text-xs min-h-[40px]"
-                    rows={1}
-                  />
+                  <FL label="Observações">
+                    <Textarea 
+                      value={observacoes} 
+                      onChange={(e) => setObservacoes(e.target.value.toUpperCase())}
+                      className={fieldTextareaClass.replace('min-h-[50px]', 'min-h-[40px]')}
+                      rows={1}
+                    />
+                  </FL>
                 </div>
               </div>
             </CardContent>
