@@ -266,11 +266,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual]);
 
   useEffect(() => {
-    const suggestedId = suggestedDepositoId || (depositoMaisProximo?.distance <= 20 ? depositoMaisProximo.id : null);
+    const suggestedId = suggestedDepositoId || depositoMaisProximo?.id || null;
     if (!suggestedId) return;
     setFormData((prev) => {
       if (!normalizeText(prev.tipo || tipoAtual).includes("COCHO")) return prev;
-      if (prev.deposito_origem_id) return prev;
+      if (prev.deposito_origem_id === suggestedId) return prev;
+      if (prev.deposito_origem_id && prev.deposito_origem_id !== suggestedId) return prev;
       return { ...prev, deposito_origem_id: suggestedId };
     });
   }, [suggestedDepositoId, depositoMaisProximo, tipoAtual]);
