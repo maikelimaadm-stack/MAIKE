@@ -191,13 +191,25 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     if (missing.length > 0) { setInvalidFields(missing); toast.error('PREENCHA OS CAMPOS OBRIGATÓRIOS.'); return; }
     if (valorLiquidoNum <= 0) { toast.error('Valor líquido deve ser maior que zero!'); return; }
 
-    if (form.rateio_grupos.length > 0) {
+    if (form.rateio_grupos.length === 0) {
+      setInvalidFields(prev => [...prev, 'rateio_grupos']);
+      toast.error('Adicione pelo menos um rateio de Grupo Financeiro!');
+      return;
+    } else {
       const total = form.rateio_grupos.reduce((s, r) => s + (r.valor || 0), 0);
       if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de grupos (${formatarMoeda(total)}) diferente do valor líquido (${formatarMoeda(valorLiquidoNum)})!`); return; }
+      const semGrupo = form.rateio_grupos.some(r => !r.grupo_financeiro_id);
+      if (semGrupo) { toast.error('Selecione o grupo financeiro em todos os itens do rateio!'); return; }
     }
-    if (form.rateio_centros_custo.length > 0) {
+    if (form.rateio_centros_custo.length === 0) {
+      setInvalidFields(prev => [...prev, 'rateio_centros_custo']);
+      toast.error('Adicione pelo menos um rateio de Centro de Custo!');
+      return;
+    } else {
       const total = form.rateio_centros_custo.reduce((s, r) => s + (r.valor || 0), 0);
       if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de centros (${formatarMoeda(total)}) diferente do valor líquido (${formatarMoeda(valorLiquidoNum)})!`); return; }
+      const semCentro = form.rateio_centros_custo.some(r => !r.centro_custo_id);
+      if (semCentro) { toast.error('Selecione o centro de custo em todos os itens do rateio!'); return; }
     }
     if (form.parcelas.length > 0) {
       const total = form.parcelas.reduce((s, p) => s + (p.valor || 0), 0);
