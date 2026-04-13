@@ -12,7 +12,7 @@ const calcularProximoMes = (dataBase, meses) => {
 
 const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 text-center align-middle whitespace-nowrap h-7 px-2 border-r border-b border-gray-200";
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
-const INP = "w-full bg-transparent border-0 outline-none text-xs text-left h-[26px] px-0 focus:ring-0";
+const INP = "w-full bg-transparent border-0 outline-none text-xs h-[26px] px-0 focus:ring-0";
 
 export default function ParcelasSection({ parcelas, onParcelasChange, valorTotal, dataEmissao }) {
   const adicionarParcela = () => {
@@ -74,7 +74,7 @@ export default function ParcelasSection({ parcelas, onParcelasChange, valorTotal
             <tr>
               <th className={TH}>#</th>
               <th className={TH}>Vencimento</th>
-              <th className={`${TH} text-right`}>Valor (R$)</th>
+              <th className={TH}>Valor (R$)</th>
               <th className={TH}>Observação</th>
               <th className={`${TH} border-r-0`}></th>
             </tr>
@@ -84,20 +84,20 @@ export default function ParcelasSection({ parcelas, onParcelasChange, valorTotal
               <tr key={index} className="hover:bg-gray-50">
                 <td className={`${TD} text-center font-bold text-slate-500`}>{parcela.numero}</td>
                 <td className={TD}>
-                  <input type="date" value={parcela.data_vencimento} onChange={(e) => atualizarParcela(index, 'data_vencimento', e.target.value)} className={INP} />
+                  <input type="date" value={parcela.data_vencimento} onChange={(e) => atualizarParcela(index, 'data_vencimento', e.target.value)} className={`${INP} text-center`} />
                 </td>
                 <td className={TD}>
-                  <input value={formatarMoedaInput(parcela.valor)} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className={`${INP} text-right font-mono`} />
+                  <input value={formatarMoedaInput(parcela.valor)} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className={`${INP} text-center font-mono`} />
                 </td>
                 <td className={TD}>
-                  <input value={parcela.observacao_parcela || ''} onChange={(e) => atualizarParcela(index, 'observacao_parcela', e.target.value.toUpperCase())} className={`${INP} uppercase`} />
+                  <input value={parcela.observacao_parcela || ''} onChange={(e) => atualizarParcela(index, 'observacao_parcela', e.target.value.toUpperCase())} className={`${INP} text-left uppercase`} />
                 </td>
                 <td className={`${TD} text-center border-r-0`}>
                   <button type="button" onClick={() => removerParcela(index)} disabled={parcelas.length <= 1} className={parcelas.length <= 1 ? 'text-slate-200' : 'text-slate-400 hover:text-red-500'}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </td>
-              </tr>
+                </tr>
             ))}
           </tbody>
         </table>

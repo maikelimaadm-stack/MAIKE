@@ -44,7 +44,7 @@ const calcularVencimento30Dias = (dataEmissao) => {
   return d.toISOString().split('T')[0];
 };
 
-const REQUIRED_FIELDS = ['tipo', 'descricao', 'valor_total', 'data_emissao', 'conta_financeira_id', 'forma_pagamento_id'];
+const REQUIRED_FIELDS = ['tipo', 'descricao', 'valor_total', 'data_emissao', 'conta_financeira_id', 'forma_pagamento_id', 'tipo_documento_id', 'numero_documento', 'motivo_compra_id'];
 const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent";
 const SELECT_CLS = "h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent";
 const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7";
@@ -180,7 +180,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const missing = REQUIRED_FIELDS.filter(f => { const v = form[f]; return v === '' || v === null || v === undefined; });
+    // Campos obrigatórios base + fornecedor/cliente dinâmico
+    const allRequired = [...REQUIRED_FIELDS];
+    if (form.tipo === 'Pagar') allRequired.push('fornecedor_id');
+    else allRequired.push('cliente_id');
+    // Se tipo documento exige anexo
+    const tipoDocSel = tiposDocumento.find(t => t.id === form.tipo_documento_id);
+    if (tipoDocSel?.exige_anexo && (!form.anexos_urls || form.anexos_urls.length === 0)) allRequired.push('anexos_urls');
+    const missing = allRequired.filter(f => { const v = form[f]; if (f === 'anexos_urls') return !form.anexos_urls || form.anexos_urls.length === 0; return v === '' || v === null || v === undefined; });
     if (missing.length > 0) { setInvalidFields(missing); toast.error('PREENCHA OS CAMPOS OBRIGATÓRIOS.'); return; }
     if (valorLiquidoNum <= 0) { toast.error('Valor líquido deve ser maior que zero!'); return; }
 
@@ -264,7 +271,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   </FL>
                 </div>
                 <div className="lg:col-span-4">
-                  <FL label={form.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}>
+                  <FL label={form.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'} required error={invalidFields.includes(form.tipo === 'Pagar' ? 'fornecedor_id' : 'cliente_id')}>
                     <AutocompleteGenerico
                       items={fornecedores}
                       value={form.tipo === 'Pagar' ? form.fornecedor_id : form.cliente_id}
@@ -292,7 +299,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
               {/* LINHA 2: Tipo Doc | Nº Doc | Data Emissão | Valor Total | Desconto | Líquido */}
               <div className="grid grid-cols-2 lg:grid-cols-6 gap-1">
-                <FL label="Tipo Documento">
+                <FL label="Tipo Documento" required error={invalidFields.includes('tipo_documento_id')}>
                   <AutocompleteGenerico
                     items={tiposDocFiltrados}
                     value={form.tipo_documento_id}
@@ -305,7 +312,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
-                <FL label="Nº Documento">
+                <FL label="Nº Documento" required error={invalidFields.includes('numero_documento')}>
                   <Input value={form.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
                 </FL>
                 <FL label="Data Emissão" required error={invalidFields.includes('data_emissao')}>
@@ -324,7 +331,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
               {/* LINHA 3: Motivo Compra | Forma Pagamento | Conta Financeira */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="Motivo Compra">
+                <FL label="Motivo Compra" required error={invalidFields.includes('motivo_compra_id')}>
                   <AutocompleteGenerico
                     items={motivosCompra}
                     value={form.motivo_compra_id}

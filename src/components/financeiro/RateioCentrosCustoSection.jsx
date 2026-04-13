@@ -5,7 +5,7 @@ import { formatarMoedaInput, parseMoedaInput, formatarMoeda } from "@/components
 
 const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 text-center align-middle whitespace-nowrap h-7 px-2 border-r border-b border-gray-200";
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
-const INP = "w-full bg-transparent border-0 outline-none text-xs text-left h-[26px] px-0 focus:ring-0";
+const INP = "w-full bg-transparent border-0 outline-none text-xs h-[26px] px-0 focus:ring-0";
 
 export default function RateioCentrosCustoSection({ rateios, onChange, centros, valorTotal }) {
   const totalRateado = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
@@ -67,8 +67,8 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
             <thead>
               <tr>
                 <th className={`${TH} text-left`}>Centro de Custo</th>
-                <th className={`${TH} text-right`}>Valor (R$)</th>
-                <th className={`${TH} text-right`}>%</th>
+                <th className={TH}>Valor (R$)</th>
+                <th className={TH}>%</th>
                 <th className={`${TH} border-r-0`}></th>
               </tr>
             </thead>
@@ -89,9 +89,9 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
                     />
                   </td>
                   <td className={TD}>
-                    <input value={formatarMoedaInput(rateio.valor)} onChange={(e) => atualizarRateio(index, 'valor_input', e.target.value)} placeholder="0,00" className={`${INP} text-right font-mono`} />
+                    <input value={formatarMoedaInput(rateio.valor)} onChange={(e) => atualizarRateio(index, 'valor_input', e.target.value)} placeholder="0,00" className={`${INP} text-center font-mono`} />
                   </td>
-                  <td className={`${TD} text-right font-mono text-slate-500 text-[11px]`}>{(rateio.percentual != null ? rateio.percentual.toFixed(2) : '0,00').replace('.', ',')}%</td>
+                  <td className={`${TD} text-center font-mono text-slate-500 text-[11px]`}>{(rateio.percentual != null ? rateio.percentual.toFixed(2) : '0,00').replace('.', ',')}%</td>
                   <td className={`${TD} text-center border-r-0`}>
                     <button type="button" onClick={() => removerRateio(index)} className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
                   </td>
