@@ -515,6 +515,9 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowConfigColunas(true)}>
+              Colunas
+            </Button>
           </div>
         </div>
 
@@ -540,7 +543,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                         return (
                           <TableHead 
                             key={coluna.id}
-                            className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-3 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${isSortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                            className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${isSortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                             onClick={() => isSortable && handleSort(coluna.id)}
                           >
                             <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
