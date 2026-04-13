@@ -16,6 +16,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 90 },
   { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 180 },
+  { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 110 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 140 },
   { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 110 },
   { id: "setor", label: "Setor", default: true, sortable: true, align: "left", width: 150 },
@@ -157,6 +158,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
     const detalhe = item.detalhe_suplementacao || {};
     if (colunaId === "codigo") return item.numero_ponto || detalhe.numero_ponto || "";
     if (colunaId === "nome") return item.nome || detalhe.nome_ponto || "";
+    if (colunaId === "sigla") return item.sigla || detalhe.sigla || "";
     if (colunaId === "tipo") return item.tipo || detalhe.tipo || "";
     if (colunaId === "categoria") return detalhe.categoria_ponto || "";
     if (colunaId === "setor") return detalhe.setor_nome || "";
