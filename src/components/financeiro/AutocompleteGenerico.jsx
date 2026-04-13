@@ -11,7 +11,8 @@ export default function AutocompleteGenerico({
   displayField = "nome",
   searchFields = ["nome"],
   renderItem,
-  renderSubtext
+  renderSubtext,
+  inputClassName = ""
 }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +73,7 @@ export default function AutocompleteGenerico({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="pl-8 pr-8 h-8 text-xs"
+          className={`pl-8 pr-8 h-8 text-xs ${inputClassName}`}
         />
         {searchTerm && (
           <button

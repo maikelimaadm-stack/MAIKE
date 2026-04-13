@@ -136,6 +136,7 @@ const FL = ({ label, required, children }) => (
 const fieldInputClass = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent uppercase";
 const fieldSelectTriggerClass = "h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent uppercase";
 const fieldTextareaClass = "text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent uppercase min-h-[50px]";
+const fieldAutocompleteInputClass = "h-7 border-0 shadow-none focus-visible:ring-0 bg-transparent text-xs uppercase";
 
 export default function MovimentacaoEstoqueFormV2({ 
   onSubmit, 
@@ -1144,6 +1145,7 @@ export default function MovimentacaoEstoqueFormV2({
                         displayField="nome"
                         searchFields={["nome"]}
                         className="h-7"
+                        inputClassName={fieldAutocompleteInputClass}
                       />
                     </div>
                   </FL>
@@ -1179,6 +1181,7 @@ export default function MovimentacaoEstoqueFormV2({
                           displayField="nome"
                           searchFields={["nome", "codigo"]}
                           className="h-7"
+                          inputClassName={fieldAutocompleteInputClass}
                         />
                       </div>
                     </FL>
@@ -1289,6 +1292,7 @@ export default function MovimentacaoEstoqueFormV2({
                             displayField="nome"
                             searchFields={["nome", "cnpj", "cpf"]}
                             className="h-7"
+                            inputClassName={fieldAutocompleteInputClass}
                           />
                         </div>
                       </FL>
@@ -1312,6 +1316,7 @@ export default function MovimentacaoEstoqueFormV2({
                             displayField="nome"
                             searchFields={["nome", "cnpj", "cpf"]}
                             className="h-7"
+                            inputClassName={fieldAutocompleteInputClass}
                           />
                         </div>
                       </FL>
@@ -1423,6 +1428,7 @@ export default function MovimentacaoEstoqueFormV2({
                           displayField="nome"
                           searchFields={["nome", "codigo"]}
                           className="h-7"
+                          inputClassName={fieldAutocompleteInputClass}
                         />
                       </div>
                     </FL>
@@ -1528,47 +1534,54 @@ export default function MovimentacaoEstoqueFormV2({
                 {/* Linha 1: Produto, Quantidade, UN, Saldo */}
                 <div className="grid grid-cols-12 gap-2">
                   <div className="col-span-5 space-y-1">
-                    <Label className="text-xs">Produto *</Label>
-                    <AutocompleteGenerico
-                      items={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') ? produtosDisponiveisOrigem : produtos}
-                      value={currentItem.produto_id}
-                      onChange={handleProdutoChange}
-                      placeholder={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && !localEstoqueOrigemId ? "Selecione o local primeiro" : "Pesquisar..."}
-                      displayField="nome_produto"
-                      searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                      className="h-8"
-                      disabled={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && !localEstoqueOrigemId}
-                    />
+                    <FL label="Produto" required>
+                      <div className="px-0.5 py-0.5">
+                        <AutocompleteGenerico
+                          items={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') ? produtosDisponiveisOrigem : produtos}
+                          value={currentItem.produto_id}
+                          onChange={handleProdutoChange}
+                          placeholder={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && !localEstoqueOrigemId ? "SELECIONE O LOCAL PRIMEIRO" : "PESQUISAR..."}
+                          displayField="nome_produto"
+                          searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                          className="h-7"
+                          inputClassName={fieldAutocompleteInputClass}
+                          disabled={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && !localEstoqueOrigemId}
+                        />
+                      </div>
+                    </FL>
                   </div>
 
                   <div className="col-span-2 space-y-1">
-                    <Label className="text-xs">Quantidade *</Label>
-                    <Input 
-                      value={currentItem.quantidade}
-                      onChange={(e) => handleQuantidadeChange(e.target.value)}
-                      onBlur={handleQuantidadeBlur}
-                      className="h-8 text-xs text-right"
-                      placeholder="0,00"
-                    />
+                    <FL label="Quantidade" required>
+                      <Input 
+                        value={currentItem.quantidade}
+                        onChange={(e) => handleQuantidadeChange(e.target.value)}
+                        onBlur={handleQuantidadeBlur}
+                        className={`${fieldInputClass} text-right`}
+                        placeholder="0,00"
+                      />
+                    </FL>
                   </div>
 
                   <div className="col-span-1 space-y-1">
-                    <Label className="text-xs">UN</Label>
-                    <Input 
-                      value={currentItem.unidade}
-                      readOnly
-                      className="h-8 text-xs bg-slate-100"
-                    />
+                    <FL label="UN">
+                      <Input 
+                        value={currentItem.unidade}
+                        readOnly
+                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-slate-100"
+                      />
+                    </FL>
                   </div>
 
                   {saldoProdutoNoLocal !== null && currentItem.produto_id && (
                     <div className="col-span-4 space-y-1">
-                      <Label className="text-xs">Saldo no Local</Label>
-                      <div className="h-8 flex items-center">
-                        <Badge variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} className="text-xs">
-                          {formatarNumero(saldoProdutoNoLocal || 0)} {currentItem.unidade}
-                        </Badge>
-                      </div>
+                      <FL label="Saldo no Local">
+                        <div className="h-7 px-2 flex items-center bg-transparent">
+                          <Badge variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} className="text-xs">
+                            {formatarNumero(saldoProdutoNoLocal || 0)} {currentItem.unidade}
+                          </Badge>
+                        </div>
+                      </FL>
                     </div>
                   )}
                 </div>
@@ -1683,57 +1696,62 @@ export default function MovimentacaoEstoqueFormV2({
                 )}
 
                 {/* Linha 2: Valores */}
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2"}
                   <div className="space-y-1">
-                    <Label className="text-xs">Preço Unit. (R$)</Label>
-                    <Input 
-                      value={currentItem.preco_unitario}
-                      onChange={(e) => handlePrecoChange(e.target.value)}
-                      onBlur={handlePrecoBlur}
-                      className="h-8 text-xs text-right font-mono"
-                      placeholder="R$ 0,00"
-                      readOnly={!precoEditavel}
-                      title={!precoEditavel ? 'Custo definido pelo lote' : undefined}
-                    />
+                    <FL label="Preço Unit. (R$)">
+                      <Input 
+                        value={currentItem.preco_unitario}
+                        onChange={(e) => handlePrecoChange(e.target.value)}
+                        onBlur={handlePrecoBlur}
+                        className={`${fieldInputClass} text-right font-mono`}
+                        placeholder="R$ 0,00"
+                        readOnly={!precoEditavel}
+                        title={!precoEditavel ? 'Custo definido pelo lote' : undefined}
+                      />
+                    </FL>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Total (R$)</Label>
-                    <Input 
-                      value={currentItem.total}
-                      readOnly
-                      className="h-8 text-xs text-right font-mono bg-slate-100"
-                    />
+                    <FL label="Total (R$)">
+                      <Input 
+                        value={currentItem.total}
+                        readOnly
+                        className="h-7 text-xs text-right font-mono border-0 shadow-none focus-visible:ring-0 bg-slate-100"
+                      />
+                    </FL>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Desconto (R$)</Label>
-                    <Input 
-                      value={currentItem.desconto}
-                      onChange={(e) => handleDescontoChange(e.target.value)}
-                      onBlur={handleDescontoBlur}
-                      className="h-8 text-xs text-right font-mono"
-                      placeholder="R$ 0,00"
-                    />
+                    <FL label="Desconto (R$)">
+                      <Input 
+                        value={currentItem.desconto}
+                        onChange={(e) => handleDescontoChange(e.target.value)}
+                        onBlur={handleDescontoBlur}
+                        className={`${fieldInputClass} text-right font-mono`}
+                        placeholder="R$ 0,00"
+                      />
+                    </FL>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium">Líquido (R$)</Label>
-                    <Input 
-                      value={currentItem.liquido}
-                      readOnly
-                      className="h-8 text-xs text-right font-mono bg-emerald-50 font-semibold"
-                    />
+                    <FL label="Líquido (R$)">
+                      <Input 
+                        value={currentItem.liquido}
+                        readOnly
+                        className="h-7 text-xs text-right font-mono border-0 shadow-none focus-visible:ring-0 bg-emerald-50 font-semibold"
+                      />
+                    </FL>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Obs. Item</Label>
-                    <Input 
-                      value={currentItem.observacao_item}
-                      onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))}
-                      className="h-8 text-xs"
-                      placeholder="Opcional"
-                    />
+                    <FL label="Obs. Item">
+                      <Input 
+                        value={currentItem.observacao_item}
+                        onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value.toUpperCase() }))}
+                        className={fieldInputClass}
+                        placeholder="OPCIONAL"
+                      />
+                    </FL>
                   </div>
                 </div>
 
@@ -1769,80 +1787,81 @@ export default function MovimentacaoEstoqueFormV2({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs font-bold py-1 border border-black w-12">Ações</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Preço Unit.</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
-                    {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
-                      <TableHead className="text-xs font-bold py-1 border border-black">Origem</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itens.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        className="text-xs py-2 text-center text-slate-500"
-                        colSpan={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? 10 : 9}
-                      >
-                        Nenhum item adicionado ainda.
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 hover:bg-slate-50">
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b w-14">AÇÕES</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b">PRODUTO</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b">CÓDIGO</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b">UN</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b text-right">QTD</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b text-right">PREÇO UNIT.</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b text-right">TOTAL</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b text-right">DESC.</TableHead>
+                      <TableHead className="text-xs font-bold py-2 px-3 border-b text-right">LÍQUIDO</TableHead>
+                      {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
+                        <TableHead className="text-xs font-bold py-2 px-3 border-b">ORIGEM</TableHead>
+                      )}
                     </TableRow>
-                  ) : (
-                    itens.map((item, idx) => (
-                      <TableRow key={idx} className="hover:bg-gray-50">
-                        <TableCell className="text-xs py-1 px-2 border border-gray-300">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                <MoreVertical className="w-3.5 h-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start">
-                              <DropdownMenuItem className="text-xs" onClick={() => handleEditarItem(idx)}>
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleRemoverItem(idx)}>
-                                Remover
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                  </TableHeader>
+                  <TableBody>
+                    {itens.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          className="text-xs py-8 text-center text-slate-400"
+                          colSpan={(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? 10 : 9}
+                        >
+                          Nenhum item adicionado ainda.
                         </TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{item.produto_nome}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{item.produto_codigo || '-'}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{item.unidade}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(item.quantidade)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.preco_unitario)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.total)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.desconto)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoedaBR(item.liquido)}</TableCell>
-                        {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
-                          <TableCell className="text-xs py-1 border border-gray-300">
-                            {item.modo_custo_saida === 'fifo' ? (
-                              <span className="text-blue-600">
-                                FIFO: {item.rateio_lotes?.map(r => `${r.numero_documento} (${formatarNumero(r.quantidade_consumida)})`).join(' + ') || '-'}
-                              </span>
-                            ) : (
-                              item.lote_origem_info?.numero_documento || '-'
-                            )}
-                          </TableCell>
-                        )}
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      itens.map((item, idx) => (
+                        <TableRow key={idx} className="hover:bg-gray-50">
+                          <TableCell className="text-xs py-2 px-3 border-b">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem className="text-xs" onClick={() => handleEditarItem(idx)}>
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleRemoverItem(idx)}>
+                                  Remover
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b">{item.produto_nome}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b">{item.produto_codigo || '-'}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b">{item.unidade}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b text-right font-mono">{formatarNumero(item.quantidade)}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b text-right font-mono">{formatarMoedaBR(item.preco_unitario)}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b text-right font-mono">{formatarMoedaBR(item.total)}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b text-right font-mono">{formatarMoedaBR(item.desconto)}</TableCell>
+                          <TableCell className="text-xs py-2 px-3 border-b text-right font-mono font-semibold">{formatarMoedaBR(item.liquido)}</TableCell>
+                          {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
+                            <TableCell className="text-xs py-2 px-3 border-b">
+                              {item.modo_custo_saida === 'fifo' ? (
+                                <span className="text-blue-600">
+                                  FIFO: {item.rateio_lotes?.map(r => `${r.numero_documento} (${formatarNumero(r.quantidade_consumida)})`).join(' + ') || '-'}
+                                </span>
+                              ) : (
+                                item.lote_origem_info?.numero_documento || '-'
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-              {/* Rodapé com totais */}
-              <div className="bg-slate-100 p-2 border-t flex justify-end gap-6">
+              <div className="bg-slate-100 px-3 py-2 border-t flex flex-col md:flex-row md:justify-end gap-2 md:gap-6">
                 <div className="text-xs">
                   <span className="text-slate-600">Total Bruto:</span>
                   <span className="ml-2 font-mono font-semibold">{formatarMoedaBR(totaisGerais.totalBruto)}</span>
