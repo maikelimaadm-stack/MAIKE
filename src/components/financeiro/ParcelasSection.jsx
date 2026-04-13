@@ -1,7 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from "lucide-react";
 
@@ -28,12 +27,20 @@ const calcularProximoMes = (dataBase, meses) => {
   return data.toISOString().split('T')[0];
 };
 
+const FL = ({ label, children }) => (
+  <div>
+    <label className="text-[10px] text-slate-500 pl-1 leading-none">{label}</label>
+    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+      {children}
+    </div>
+  </div>
+);
+
 export default function ParcelasSection({ parcelado, parcelas, onParceladoChange, onParcelasChange, valorTotal, dataVencimento }) {
 
   const handleQuantidadeChange = (qtdStr) => {
     const qtd = parseInt(qtdStr) || 1;
     if (qtd < 1 || qtd > 120) return;
-
     const valorParcela = valorTotal > 0 ? valorTotal / qtd : 0;
     const novasParcelas = Array.from({ length: qtd }, (_, i) => ({
       numero: i + 1,
@@ -41,23 +48,18 @@ export default function ParcelasSection({ parcelado, parcelas, onParceladoChange
       valor: Number(valorParcela.toFixed(2)),
       status: 'Aberto',
     }));
-
-    // Ajustar diferença de arredondamento na última parcela
     if (novasParcelas.length > 0 && valorTotal > 0) {
       const totalGerado = novasParcelas.reduce((sum, p) => sum + p.valor, 0);
       const diff = valorTotal - totalGerado;
       novasParcelas[novasParcelas.length - 1].valor = Number((novasParcelas[novasParcelas.length - 1].valor + diff).toFixed(2));
     }
-
     onParcelasChange(novasParcelas);
   };
 
   const atualizarParcela = (index, campo, valor) => {
     const updated = parcelas.map((p, i) => {
       if (i !== index) return p;
-      if (campo === 'valor_str') {
-        return { ...p, valor: parseNumero(valor) };
-      }
+      if (campo === 'valor_str') return { ...p, valor: parseNumero(valor) };
       return { ...p, [campo]: valor };
     });
     onParcelasChange(updated);
@@ -73,74 +75,57 @@ export default function ParcelasSection({ parcelado, parcelas, onParceladoChange
   const restante = valorTotal - totalParcelas;
 
   return (
-    <div className="space-y-2 border border-slate-200 rounded-lg p-2.5 bg-white">
+    <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
       <div className="flex justify-between items-center">
-        <h3 className="text-xs font-bold text-slate-700 uppercase">Parcelamento</h3>
+        <span className="font-semibold text-xs text-slate-700">Parcelamento</span>
         <div className="flex items-center gap-2">
-          <Checkbox
-            checked={parcelado}
-            onCheckedChange={onParceladoChange}
-            id="parcelado"
-          />
-          <label htmlFor="parcelado" className="text-xs font-medium text-slate-700 cursor-pointer">Parcelar</label>
+          <Checkbox checked={parcelado} onCheckedChange={onParceladoChange} id="parcelado" />
+          <label htmlFor="parcelado" className="text-xs text-slate-700 cursor-pointer">Parcelar</label>
         </div>
       </div>
 
       {parcelado && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-end gap-2">
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase text-slate-500">Qtd. Parcelas</Label>
-              <Input
-                type="number"
-                min={1}
-                max={120}
-                value={parcelas.length || 1}
-                onChange={(e) => handleQuantidadeChange(e.target.value)}
-                className="h-7 text-xs w-20 text-center"
-              />
+            <div>
+              <label className="text-[10px] text-slate-500 pl-1 leading-none">Qtd. Parcelas</label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+                <Input
+                  type="number" min={1} max={120}
+                  value={parcelas.length || 1}
+                  onChange={(e) => handleQuantidadeChange(e.target.value)}
+                  className="h-7 text-xs w-20 text-center border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                />
+              </div>
             </div>
-            <div className="text-xs text-slate-500 pb-1">
-              Valor base por parcela: <span className="font-mono font-semibold">{formatarMoeda(valorTotal > 0 && parcelas.length > 0 ? valorTotal / parcelas.length : 0)}</span>
-            </div>
+            <span className="text-[11px] text-slate-500 pb-1.5">
+              Base: <span className="font-mono font-semibold">{formatarMoeda(valorTotal > 0 && parcelas.length > 0 ? valorTotal / parcelas.length : 0)}</span>
+            </span>
           </div>
 
-          <div className="space-y-1 max-h-64 overflow-auto">
+          <div className="space-y-0.5 max-h-64 overflow-auto">
             {parcelas.map((parcela, index) => (
-              <div key={index} className="grid grid-cols-12 gap-1.5 items-center bg-slate-50 rounded p-1.5">
+              <div key={index} className="grid grid-cols-12 gap-1 items-center bg-white rounded p-0.5 border border-slate-200">
                 <div className="col-span-1 text-center">
                   <span className="text-xs font-bold text-slate-600">{parcela.numero}</span>
                 </div>
-
-                <div className="col-span-5 space-y-0.5">
-                  <Label className="text-[10px] uppercase text-slate-500">Vencimento</Label>
-                  <Input
-                    type="date"
-                    value={parcela.data_vencimento}
-                    onChange={(e) => atualizarParcela(index, 'data_vencimento', e.target.value)}
-                    className="h-7 text-xs"
-                  />
+                <div className="col-span-5">
+                  <FL label="Vencimento">
+                    <Input type="date" value={parcela.data_vencimento} onChange={(e) => atualizarParcela(index, 'data_vencimento', e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                  </FL>
                 </div>
-
-                <div className="col-span-4 space-y-0.5">
-                  <Label className="text-[10px] uppercase text-slate-500">Valor</Label>
-                  <Input
-                    value={formatarNumero(parcela.valor)}
-                    onChange={(e) => atualizarParcela(index, 'valor_str', e.target.value.replace(/[^\d,]/g, ''))}
-                    placeholder="0,00"
-                    className="h-7 text-xs text-right font-mono"
-                  />
+                <div className="col-span-4">
+                  <FL label="Valor">
+                    <Input
+                      value={formatarNumero(parcela.valor)}
+                      onChange={(e) => atualizarParcela(index, 'valor_str', e.target.value.replace(/[^\d,]/g, ''))}
+                      placeholder="0,00"
+                      className="h-7 text-xs text-right font-mono border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                    />
+                  </FL>
                 </div>
-
                 <div className="col-span-2 flex justify-center">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => removerParcela(index)}
-                    disabled={parcelas.length <= 1}
-                  >
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removerParcela(index)} disabled={parcelas.length <= 1}>
                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
                   </Button>
                 </div>
@@ -148,7 +133,7 @@ export default function ParcelasSection({ parcelado, parcelas, onParceladoChange
             ))}
           </div>
 
-          <div className={`flex justify-between text-xs px-1.5 py-1 rounded ${Math.abs(restante) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+          <div className={`flex justify-between text-[11px] px-1 py-0.5 rounded ${Math.abs(restante) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
             <span className="font-semibold">Total parcelas: {formatarMoeda(totalParcelas)}</span>
             {Math.abs(restante) > 0.01 && <span className="font-semibold">Diferença: {formatarMoeda(restante)}</span>}
           </div>
@@ -156,7 +141,7 @@ export default function ParcelasSection({ parcelado, parcelas, onParceladoChange
       )}
 
       {!parcelado && (
-        <p className="text-xs text-slate-400 text-center py-1">Pagamento à vista (parcela única no vencimento)</p>
+        <p className="text-[11px] text-slate-400 text-center py-1">Pagamento à vista (parcela única no vencimento)</p>
       )}
     </div>
   );
