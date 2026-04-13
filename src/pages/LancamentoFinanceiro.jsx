@@ -427,28 +427,25 @@ export default function LancamentoFinanceiro() {
     <div className="p-1 md:p-1 space-y-1">
       {!showForm && ( // Conditional rendering for the main list view
         <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-2 py-2 shadow-sm border border-slate-200">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
             <div>
-              <h1 className="text-lg font-bold text-slate-900">Lançamentos Financeiros</h1>
-              <p className="text-xs text-slate-600">Gerencie contas a pagar e receber em um só lugar.</p>
+              <h1 className="font-bold text-slate-800">Lançamentos Financeiros</h1>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 text-xs">
+              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-                Novo Lançamento
+              <Button onClick={handleNewLancamento} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 shadow h-7 hover:bg-emerald-600">
+                Adicionar
               </Button>
             </div>
           </div>
 
-          <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }} className="space-y-1">
-            <div className="bg-white rounded border border-slate-200 p-1 shadow-sm w-full md:w-fit">
-              <TabsList className="grid w-full md:w-[360px] grid-cols-2 h-8 bg-slate-100">
-                <TabsTrigger value="pagar" className="text-xs h-7">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
-                <TabsTrigger value="receber" className="text-xs h-7">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
-              </TabsList>
-            </div>
+          <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }}>
+            <TabsList className="grid w-full max-w-md grid-cols-2 h-8 bg-slate-100">
+              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
+              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
+            </TabsList>
 
             <TabsContent value="pagar" className="mt-0">
               <TabelaFinanceiro

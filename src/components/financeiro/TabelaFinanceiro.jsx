@@ -490,13 +490,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           <div className="text-xs text-slate-500">
             {lancamentosOrdenados.length} de {lancamentos.length} registros
           </div>
-          <div className="flex gap-2 items-center flex-wrap">
+          <div className="flex gap-2 flex-wrap">
             {selecionados.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selecionados.length})</Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent>
                   <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs">
@@ -512,47 +512,38 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     <Trash2 className="w-3.5 h-3.5 mr-2" />
                     Excluir
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
-                    <X className="w-3.5 h-3.5 mr-2" />
-                    Limpar
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <Input placeholder="BUSCAR..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-7 w-48 text-xs uppercase" />
-            </div>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowConfigColunas(true)}>
-              Colunas
-            </Button>
           </div>
         </div>
 
-        <Card className="overflow-hidden shadow-sm border-slate-300">
-        <CardContent className="p-0">
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-8 text-xs border-r border-slate-200">
-                    <Checkbox 
-                      checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
-                      onCheckedChange={handleSelecionarTodos}
-                    />
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 overflow-hidden">
+            <div className="relative overflow-hidden">
+              <div className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+                <Table className="w-full min-w-[1100px] border-separate border-spacing-0 table-fixed">
+                  <TableHeader className="bg-white">
+                    <TableRow className="sticky top-0 z-40 bg-white">
+                  <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                    <div className="flex items-center justify-center w-full h-full">
+                      <Checkbox 
+                        checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
+                        onCheckedChange={handleSelecionarTodos}
+                        className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                      />
+                    </div>
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }} />
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs py-2 px-3 font-bold border-r border-slate-200 ${isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-3 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${isSortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                         onClick={() => isSortable && handleSort(coluna.id)}
                       >
-                        <div className="flex items-center">
+                        <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
                           {coluna.label}
                           {isSortable && getSortIcon(coluna.id)}
                         </div>
@@ -577,20 +568,20 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
                       
                       return (
-                        <motion.tr 
+                        <TableRow 
                           key={lancamento.id}
-                          initial={{ opacity: 0 }} 
-                          animate={{ opacity: 1 }} 
-                          exit={{ opacity: 0 }} 
-                          className="hover:bg-gray-50 transition-colors border-b"
+                          className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
                         >
-                          <TableCell className="border-r border-slate-200">
-                            <Checkbox
-                              checked={selecionados.includes(lancamento.id)}
-                              onCheckedChange={() => handleToggleSelecao(lancamento.id)}
-                            />
+                          <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                            <div className="flex items-center justify-center w-full h-full">
+                              <Checkbox
+                                checked={selecionados.includes(lancamento.id)}
+                                onCheckedChange={() => handleToggleSelecao(lancamento.id)}
+                                className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                              />
+                            </div>
                           </TableCell>
-                          <TableCell className="text-center border-r border-slate-200">
+                          <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -644,7 +635,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               {renderCell(coluna, lancamento)}
                             </React.Fragment>
                           ))}
-                        </motion.tr>
+                        </TableRow>
                       );
                     })
                   )}
