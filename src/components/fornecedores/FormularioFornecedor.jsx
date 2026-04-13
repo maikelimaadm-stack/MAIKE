@@ -226,7 +226,8 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   searchFields={["nome", "codigo_ibge"]}
                   disabled={!formData.estado}
                   emptyMessage="Nenhuma cidade"
-                  className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                  className="h-7 text-xs"
+                  inputClassName="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                 />
               </FL>
               <FL label="CEP" dataField="cep">
