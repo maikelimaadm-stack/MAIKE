@@ -28,8 +28,15 @@ const FL = ({ label, children }) => (
 );
 
 export default function RateioGruposSection({ rateios, onChange, grupos, valorTotal }) {
+  // Calcula o valor restante disponível para rateio
+  const totalRateado = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
+  const restante = Math.max(0, valorTotal - totalRateado);
+
   const adicionarRateio = () => {
-    onChange([...rateios, { grupo_financeiro_id: '', grupo_financeiro_nome: '', valor: 0, percentual: 0 }]);
+    // Novo rateio já vem com o valor restante preenchido automaticamente
+    const novoValor = Math.max(0, Number(restante.toFixed(2)));
+    const novoPercentual = valorTotal > 0 ? Number(((novoValor / valorTotal) * 100).toFixed(2)) : 0;
+    onChange([...rateios, { grupo_financeiro_id: '', grupo_financeiro_nome: '', valor: novoValor, percentual: novoPercentual }]);
   };
 
   const removerRateio = (index) => {
@@ -45,7 +52,13 @@ export default function RateioGruposSection({ rateios, onChange, grupos, valorTo
         newR.grupo_financeiro_nome = grupo?.nome || '';
       }
       if (campo === 'valor_str') {
-        const numVal = parseNumero(valor);
+        let numVal = parseNumero(valor);
+        // Não permitir negativo
+        if (numVal < 0) numVal = 0;
+        // Não permitir valor maior que o total
+        const outrosTotal = rateios.reduce((s, r2, j) => j === index ? s : s + (r2.valor || 0), 0);
+        const maxPermitido = Math.max(0, valorTotal - outrosTotal);
+        if (numVal > maxPermitido) numVal = Number(maxPermitido.toFixed(2));
         newR.valor = numVal;
         newR.percentual = valorTotal > 0 ? Number(((numVal / valorTotal) * 100).toFixed(2)) : 0;
       }
@@ -54,14 +67,14 @@ export default function RateioGruposSection({ rateios, onChange, grupos, valorTo
     onChange(updated);
   };
 
-  const totalRateado = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
-  const restante = valorTotal - totalRateado;
+  const totalAtual = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
+  const restanteAtual = valorTotal - totalAtual;
 
   return (
     <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
       <div className="flex justify-between items-center">
         <span className="font-semibold text-xs text-slate-700">Rateio Grupo Financeiro</span>
-        <button type="button" onClick={adicionarRateio} className="w-5 h-5 rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center">
+        <button type="button" onClick={adicionarRateio} className="w-5 h-5 rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center" disabled={restante <= 0.01 && rateios.length > 0}>
           <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -106,9 +119,9 @@ export default function RateioGruposSection({ rateios, onChange, grupos, valorTo
       ))}
 
       {rateios.length > 0 && (
-        <div className={`flex justify-between text-[11px] px-1 py-0.5 rounded ${Math.abs(restante) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
-          <span className="font-semibold">Total: {formatarMoeda(totalRateado)}</span>
-          <span className="font-semibold">Restante: {formatarMoeda(restante)}</span>
+        <div className={`flex justify-between text-[11px] px-1 py-0.5 rounded ${Math.abs(restanteAtual) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+          <span className="font-semibold">Total: {formatarMoeda(totalAtual)}</span>
+          <span className="font-semibold">Restante: {formatarMoeda(Math.max(0, restanteAtual))}</span>
         </div>
       )}
     </div>

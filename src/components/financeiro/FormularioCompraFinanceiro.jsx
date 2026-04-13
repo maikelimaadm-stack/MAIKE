@@ -70,13 +70,13 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const hoje = new Date().toISOString().split('T')[0];
     const defaults = {
       tipo: tipoLancamento || 'Pagar',
-      descricao: '', status: 'Aberto',
-      valor_total: '', valor_desconto: '', valor_liquido: '',
+      descricao: '',
+      valor_total: '', valor_desconto: '',
       data_emissao: hoje, data_pagamento: '',
       fornecedor_id: '', cliente_id: '',
       tipo_documento_id: '', numero_documento: '',
       conta_financeira_id: '', forma_pagamento_id: '',
-      motivo_compra_id: '', plano_contas_id: '',
+      motivo_compra_id: '',
       parcelas: [], rateio_grupos: [], rateio_centros_custo: [],
       observacao: '', anexos_urls: [],
     };
@@ -85,7 +85,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       ...defaults, ...initialData,
       valor_total: initialData.valor_total ? formatarNumero(initialData.valor_total) : '',
       valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : '',
-      valor_liquido: initialData.valor_liquido ? formatarNumero(initialData.valor_liquido) : '',
       parcelas: initialData.parcelas || [],
       rateio_grupos: initialData.rateio_grupos || [],
       rateio_centros_custo: initialData.rateio_centros_custo || [],
@@ -128,40 +127,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     queryFn: async () => { const all = await base44.entities.CentroCusto.list(); return all.filter(c => c.empresa_id === empresaId && c.ativo !== false); },
     enabled: !!empresaId,
   });
-  const { data: planosContas = [] } = useQuery({
-    queryKey: ['planos_contas_form', empresaId],
-    queryFn: async () => { const all = await base44.entities.PlanoContas.list('codigo'); return all.filter(p => p.empresa_id === empresaId && p.ativo !== false && p.aceita_lancamento !== false); },
-    enabled: !!empresaId,
-  });
 
   // Valores calculados
   const valorTotalNum = useMemo(() => parseNumero(form.valor_total), [form.valor_total]);
   const valorDescontoNum = useMemo(() => parseNumero(form.valor_desconto), [form.valor_desconto]);
-  const valorLiquidoNum = useMemo(() => valorTotalNum - valorDescontoNum, [valorTotalNum, valorDescontoNum]);
+  const valorLiquidoNum = useMemo(() => Math.max(0, valorTotalNum - valorDescontoNum), [valorTotalNum, valorDescontoNum]);
 
-  // Auto-atualizar valor líquido quando total ou desconto mudam
-  useEffect(() => {
-    setForm(prev => ({ ...prev, valor_liquido: valorLiquidoNum > 0 ? formatarNumero(valorLiquidoNum) : '0' }));
-  }, [valorLiquidoNum]);
-
-  // Auto-gerar vencimento 30 dias quando data emissão muda (parcela padrão)
+  // Auto-gerar parcela 30 dias quando data emissão muda e não tem parcelas
   useEffect(() => {
     if (form.data_emissao && form.parcelas.length === 0) {
       const venc = calcularVencimento30Dias(form.data_emissao);
-      setForm(prev => ({
-        ...prev,
-        parcelas: [{ numero: 1, data_vencimento: venc, valor: valorLiquidoNum, status: 'Aberto' }]
-      }));
+      setForm(prev => ({ ...prev, parcelas: [{ numero: 1, data_vencimento: venc, valor: valorLiquidoNum, status: 'Aberto' }] }));
     }
   }, [form.data_emissao]);
 
   // Atualizar valor da parcela única quando valor líquido muda
   useEffect(() => {
     if (form.parcelas.length === 1) {
-      setForm(prev => ({
-        ...prev,
-        parcelas: [{ ...prev.parcelas[0], valor: valorLiquidoNum }]
-      }));
+      setForm(prev => ({ ...prev, parcelas: [{ ...prev.parcelas[0], valor: valorLiquidoNum }] }));
     }
   }, [valorLiquidoNum]);
 
@@ -175,7 +158,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     return tiposDocumento.filter(t => t.tipo_movimento === tipoFiltro || t.tipo_movimento === 'Ambos');
   }, [tiposDocumento, form.tipo]);
 
-  // Grupos hierárquicos — mostra pai > filho
+  // Grupos hierárquicos
   const gruposComHierarquia = useMemo(() => {
     return gruposFinanceiros.map(g => {
       const pai = g.grupo_pai_id ? gruposFinanceiros.find(p => p.id === g.grupo_pai_id) : null;
@@ -215,15 +198,15 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
     if (form.rateio_grupos.length > 0) {
       const total = form.rateio_grupos.reduce((s, r) => s + (r.valor || 0), 0);
-      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de grupos (${formatarMoeda(total)}) diferente do valor líquido!`); return; }
+      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de grupos (${formatarMoeda(total)}) diferente do valor líquido (${formatarMoeda(valorLiquidoNum)})!`); return; }
     }
     if (form.rateio_centros_custo.length > 0) {
       const total = form.rateio_centros_custo.reduce((s, r) => s + (r.valor || 0), 0);
-      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de centros (${formatarMoeda(total)}) diferente do valor líquido!`); return; }
+      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de centros (${formatarMoeda(total)}) diferente do valor líquido (${formatarMoeda(valorLiquidoNum)})!`); return; }
     }
     if (form.parcelas.length > 0) {
       const total = form.parcelas.reduce((s, p) => s + (p.valor || 0), 0);
-      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Total das parcelas (${formatarMoeda(total)}) diferente do valor líquido!`); return; }
+      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Total das parcelas (${formatarMoeda(total)}) diferente do valor líquido (${formatarMoeda(valorLiquidoNum)})!`); return; }
     }
 
     setSalvando(true);
@@ -232,13 +215,13 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const contaFin = contasFinanceiras.find(c => c.id === form.conta_financeira_id);
     const formaPag = formasPagamento.find(f => f.id === form.forma_pagamento_id);
     const motivoC = motivosCompra.find(m => m.id === form.motivo_compra_id);
-    const plano = planosContas.find(p => p.id === form.plano_contas_id);
 
     const data = {
       empresa_id: empresaId, tipo: form.tipo,
       descricao: form.descricao?.toUpperCase() || '',
-      status: form.status || 'Aberto',
-      valor_total: valorTotalNum, valor_pago: 0,
+      status: 'Aberto',
+      valor_total: valorTotalNum,
+      valor_pago: 0,
       data_emissao: form.data_emissao,
       data_vencimento: form.parcelas[0]?.data_vencimento || calcularVencimento30Dias(form.data_emissao),
       data_pagamento: form.data_pagamento || undefined,
@@ -255,8 +238,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       forma_pagamento_nome: formaPag?.nome || undefined,
       motivo_compra_id: form.motivo_compra_id || undefined,
       motivo_compra_nome: motivoC?.nome || undefined,
-      plano_contas_id: form.plano_contas_id || undefined,
-      plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
       parcelado: form.parcelas.length > 1,
       quantidade_parcelas: form.parcelas.length,
       parcelas: form.parcelas,
@@ -298,8 +279,18 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 <FL label="Nº Documento">
                   <Input value={form.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
                 </FL>
-                <FL label="Status">
-                  <Input value={form.status || 'Aberto'} readOnly className={`${INPUT_CLS} bg-slate-100`} />
+                <FL label="Tipo Documento">
+                  <AutocompleteGenerico
+                    items={tiposDocFiltrados}
+                    value={form.tipo_documento_id}
+                    onChange={(v) => handleChange('tipo_documento_id', v)}
+                    placeholder="BUSCAR TIPO..."
+                    displayField="nome"
+                    searchFields={["nome", "sigla"]}
+                    renderItem={(t) => <div className="text-xs text-slate-900">{t.sigla ? `${t.sigla} - ${t.nome}` : t.nome}</div>}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
                 </FL>
               </div>
 
@@ -322,8 +313,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 </FL>
               </div>
 
-              {/* PESSOA / DOCUMENTO */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1">
+              {/* PESSOA / PAGAMENTO */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
                 <FL label={form.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}>
                   <AutocompleteGenerico
                     items={fornecedores}
@@ -342,15 +333,33 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
-                <FL label="Tipo Documento">
+                <FL label="Conta Financeira" required error={invalidFields.includes('conta_financeira_id')}>
                   <AutocompleteGenerico
-                    items={tiposDocFiltrados}
-                    value={form.tipo_documento_id}
-                    onChange={(v) => handleChange('tipo_documento_id', v)}
-                    placeholder="BUSCAR TIPO DOCUMENTO..."
+                    items={contasFinanceiras}
+                    value={form.conta_financeira_id}
+                    onChange={(v) => handleChange('conta_financeira_id', v)}
+                    placeholder="BUSCAR CONTA..."
                     displayField="nome"
-                    searchFields={["nome", "sigla"]}
-                    renderItem={(t) => <div className="text-xs font-medium text-slate-900">{t.sigla ? `${t.sigla} - ${t.nome}` : t.nome}</div>}
+                    searchFields={["nome", "banco", "conta"]}
+                    renderItem={(c) => (
+                      <>
+                        <div className="text-xs font-medium text-slate-900">{c.nome}</div>
+                        {c.banco && <div className="text-[10px] text-slate-500">{c.banco}</div>}
+                      </>
+                    )}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
+                </FL>
+                <FL label="Forma Pagamento" required error={invalidFields.includes('forma_pagamento_id')}>
+                  <AutocompleteGenerico
+                    items={formasFiltradas}
+                    value={form.forma_pagamento_id}
+                    onChange={(v) => handleChange('forma_pagamento_id', v)}
+                    placeholder="BUSCAR FORMA..."
+                    displayField="nome"
+                    searchFields={["nome", "categoria"]}
+                    renderItem={(f) => <div className="text-xs text-slate-900">{f.nome}</div>}
                     className="w-full"
                     inputClassName={AC_INPUT_CLS}
                   />
@@ -363,62 +372,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     placeholder="BUSCAR MOTIVO..."
                     displayField="nome"
                     searchFields={["nome", "categoria"]}
-                    renderItem={(m) => <div className="text-xs font-medium text-slate-900">{m.nome}</div>}
+                    renderItem={(m) => <div className="text-xs text-slate-900">{m.nome}</div>}
                     className="w-full"
                     inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
-              </div>
-
-              {/* CONTA E PAGAMENTO */}
-              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
-                <span className="font-semibold text-xs text-slate-700">Conta e Pagamento</span>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-1">
-                  <FL label="Conta Financeira" required error={invalidFields.includes('conta_financeira_id')}>
-                    <AutocompleteGenerico
-                      items={contasFinanceiras}
-                      value={form.conta_financeira_id}
-                      onChange={(v) => handleChange('conta_financeira_id', v)}
-                      placeholder="BUSCAR CONTA..."
-                      displayField="nome"
-                      searchFields={["nome", "banco", "conta"]}
-                      renderItem={(c) => (
-                        <>
-                          <div className="text-xs font-medium text-slate-900">{c.nome}</div>
-                          {c.banco && <div className="text-[10px] text-slate-500">{c.banco}</div>}
-                        </>
-                      )}
-                      className="w-full"
-                      inputClassName={AC_INPUT_CLS}
-                    />
-                  </FL>
-                  <FL label="Forma Pagamento" required error={invalidFields.includes('forma_pagamento_id')}>
-                    <AutocompleteGenerico
-                      items={formasFiltradas}
-                      value={form.forma_pagamento_id}
-                      onChange={(v) => handleChange('forma_pagamento_id', v)}
-                      placeholder="BUSCAR FORMA..."
-                      displayField="nome"
-                      searchFields={["nome", "categoria"]}
-                      renderItem={(f) => <div className="text-xs font-medium text-slate-900">{f.nome}</div>}
-                      className="w-full"
-                      inputClassName={AC_INPUT_CLS}
-                    />
-                  </FL>
-                  <FL label="Plano de Contas">
-                    <AutocompleteGenerico
-                      items={planosContas}
-                      value={form.plano_contas_id}
-                      onChange={(v) => handleChange('plano_contas_id', v)}
-                      placeholder="BUSCAR PLANO..."
-                      displayField="descricao"
-                      searchFields={["codigo", "descricao"]}
-                      renderItem={(p) => <div className="text-xs font-medium text-slate-900">{p.codigo} - {p.descricao}</div>}
-                      className="w-full"
-                      inputClassName={AC_INPUT_CLS}
-                    />
-                  </FL>
-                </div>
               </div>
 
               {/* RATEIO + PARCELAS LADO A LADO */}

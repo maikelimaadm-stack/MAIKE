@@ -137,7 +137,8 @@ const DEFAULT_MENU = [
   { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" },
   { id: "fin-contas", title: "Contas Financeiras", url: "ContasFinanceiras" },
   { id: "fin-tipos-doc", title: "Tipos de Documento", url: "TiposDocumento" },
-  { id: "fin-motivos-compra", title: "Motivos de Compra", url: "MotivosCompra" }]
+  { id: "fin-motivos-compra", title: "Motivos de Compra", url: "MotivosCompra" },
+  { id: "fin-centros", title: "Centros de Custo", url: "CentrosCusto" }]
 
 },
 {
