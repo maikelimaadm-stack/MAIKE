@@ -3,8 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Settings } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioGrupoFinanceiro from "../components/financeiro/FormularioGrupoFinanceiro";
 import TabelaGruposFinanceiros from "../components/financeiro/TabelaGruposFinanceiros";
@@ -12,6 +13,8 @@ import TabelaGruposFinanceiros from "../components/financeiro/TabelaGruposFinanc
 export default function GruposFinanceiros() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
 
@@ -47,14 +50,16 @@ export default function GruposFinanceiros() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => {
-      const hasChildren = grupos.some(g => g.grupo_pai_id === id);
-      if (hasChildren) throw new Error("Este grupo possui subgrupos vinculados. Exclua-os primeiro.");
-      return base44.entities.GrupoFinanceiro.delete(id);
+    mutationFn: async (ids) => {
+      for (const id of ids) {
+        const hasChildren = grupos.some(g => g.grupo_pai_id === id);
+        if (hasChildren) throw new Error("O grupo possui subgrupos vinculados. Exclua-os primeiro.");
+        await base44.entities.GrupoFinanceiro.delete(id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["grupos_financeiros"] });
-      toast.success("Grupo excluído!");
+      toast.success("Grupo(s) excluído(s)!");
     },
     onError: (err) => toast.error(err.message || "Erro ao excluir"),
   });
@@ -72,47 +77,65 @@ export default function GruposFinanceiros() {
     setShowForm(true);
   };
 
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingItem(null);
+  const handleRequestDelete = (id) => {
+    const ids = Array.isArray(id) ? id : [id];
+    setDeleteState({ open: true, ids });
+  };
+
+  const handleConfirmDelete = () => {
+    deleteMutation.mutate(deleteState.ids);
+    setDeleteState({ open: false, ids: [] });
   };
 
   return (
     <div className="p-1 md:p-1 space-y-1">
+      {!showForm && (
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
+          <div>
+            <h1 className="font-bold text-slate-800">Grupos de Receitas e Despesas</h1>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button onClick={() => { setShowForm(true); setEditingItem(null); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {showForm ? (
           <FormularioGrupoFinanceiro
             key="form"
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
             initialData={editingItem}
+            onSubmit={handleSubmit}
+            onCancel={() => { setShowForm(false); setEditingItem(null); }}
             gruposExistentes={grupos}
           />
         ) : (
-          <div key="list">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-              <div>
-                <h1 className="font-bold text-slate-800">Grupos de Receitas e Despesas</h1>
-                <p className="text-xs text-slate-600">Classificação gerencial para agrupamento e relatórios</p>
-              </div>
-              <Button
-                onClick={() => { setEditingItem(null); setShowForm(true); }}
-                size="sm"
-                className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 shadow h-7 hover:bg-emerald-600"
-              >
-                <Plus className="w-3.5 h-3.5" /> Novo Grupo
-              </Button>
-            </div>
-
-            <TabelaGruposFinanceiros
-              grupos={grupos}
-              onEdit={handleEdit}
-              onDelete={(id) => deleteMutation.mutate(id)}
-              isLoading={isLoading}
-            />
-          </div>
+          <TabelaGruposFinanceiros
+            key="table"
+            grupos={grupos}
+            onEdit={handleEdit}
+            onDelete={handleRequestDelete}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas}
+          />
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={deleteState.open}
+        onOpenChange={(open) => setDeleteState(prev => ({ ...prev, open }))}
+        title="Confirmar exclusão"
+        description={deleteState.ids.length > 1 ? `Deseja realmente excluir ${deleteState.ids.length} grupos selecionados?` : 'Deseja realmente excluir este grupo?'}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
