@@ -643,9 +643,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-        </Card>
+        </div>
       </div>
+    </CardContent>
+  </Card>
+</div>
 
       <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
         <DialogContent className="max-w-xl">
