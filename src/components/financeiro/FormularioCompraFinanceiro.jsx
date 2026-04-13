@@ -86,8 +86,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       plano_contas_id: "",
       grupo_id: "",
       forma_pagamento_id: "",
-      lancar_produtos: true,
-      dar_entrada_estoque: true,
       valor_original: "",
       valor_juros: "0,00",
       valor_multa: "0,00",
@@ -141,8 +139,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     return {
       ...defaults,
       ...initialData,
-      lancar_produtos: initialData.lancar_produtos !== false,
-      dar_entrada_estoque: initialData.dar_entrada_estoque !== false,
       conta_paga: initialData.conta_paga || false,
       parcelar: initialData.parcelar || false,
       valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : "",
@@ -432,27 +428,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
     }
 
-    if (formData.lancar_produtos) {
-      if (formData.produtos_selecionados.length === 0) {
-        toast.error('❌ Adicione pelo menos 1 produto!');
-        return;
-      }
-      const produtosIncompletos = formData.produtos_selecionados.filter(p =>
-        !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
-      );
-      if (produtosIncompletos.length > 0) {
-        toast.error('❌ Preencha todos os campos dos produtos (produto, quantidade e valor)!');
-        return;
-      }
-      if (formData.dar_entrada_estoque && !formData.local_estoque) {
-        toast.error('❌ O campo Local de Estoque é obrigatório!');
-        return;
-      }
-    } else {
-      if (parseNumero(formData.valor_original) <= 0) {
-        toast.error('❌ O campo Valor Original é obrigatório!');
-        return;
-      }
+    if (formData.produtos_selecionados.length === 0) {
+      toast.error('❌ Adicione pelo menos 1 produto!');
+      return;
+    }
+    const produtosIncompletos = formData.produtos_selecionados.filter(p =>
+      !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
+    );
+    if (produtosIncompletos.length > 0) {
+      toast.error('❌ Preencha todos os campos dos produtos (produto, quantidade e valor)!');
+      return;
     }
 
     setEtapa(2);
@@ -540,15 +525,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       data_vencimento: formData.data_vencimento,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
       observacoes_nfe: formData.observacoes_nfe || undefined,
-      lancar_produtos: formData.lancar_produtos,
-      dar_entrada_estoque: formData.lancar_produtos ? formData.dar_entrada_estoque : false,
-      local_estoque: formData.lancar_produtos && formData.dar_entrada_estoque ? formData.local_estoque : undefined,
       conta_paga: formData.conta_paga,
       data_pagamento: formData.conta_paga ? formData.data_pagamento : undefined,
       valor_pago_total: formData.conta_paga ? parseNumero(formData.valor_pago_total) : undefined,
       forma_pagamento_paga_id: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
       forma_pagamento_paga_nome: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
-      produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => {
+      produtos_selecionados: formData.produtos_selecionados.map(p => {
         const qtd = parseNumero(p.quantidade);
         const totalGross = parseNumero(p.valor_total);
         const desconto = parseNumero(p.desconto_item || "0");
@@ -563,17 +545,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
           desconto_item: desconto,
           valor_total: totalGross
         };
-      }) : [],
-      valor_original: formData.lancar_produtos ? undefined : parseNumero(formData.valor_original),
-      valor_juros: formData.lancar_produtos ? undefined : parseNumero(formData.valor_juros),
-      valor_multa: formData.lancar_produtos ? undefined : parseNumero(formData.valor_multa),
-      valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto),
+      }),
+      valor_original: undefined,
+      valor_juros: undefined,
+      valor_multa: undefined,
+      valor_desconto: undefined,
       valor_produtos: formData.valor_produtos ? parseNumero(formData.valor_produtos) : undefined,
-      frete: formData.lancar_produtos ? parseNumero(formData.frete) : 0,
+      frete: parseNumero(formData.frete),
       valor_frete: formData.valor_frete ? parseNumero(formData.valor_frete) : parseNumero(formData.frete),
       valor_seguro: formData.valor_seguro ? parseNumero(formData.valor_seguro) : 0,
       valor_outras_despesas: formData.valor_outras_despesas ? parseNumero(formData.valor_outras_despesas) : parseNumero(formData.outras_despesas),
-      outras_despesas: formData.lancar_produtos ? parseNumero(formData.outras_despesas) : 0,
+      outras_despesas: parseNumero(formData.outras_despesas),
       valor_desconto_total: formData.valor_desconto_total ? parseNumero(formData.valor_desconto_total) : 0,
       valor_ipi: formData.valor_ipi ? parseNumero(formData.valor_ipi) : 0,
       valor_icms: formData.valor_icms ? parseNumero(formData.valor_icms) : 0,
@@ -588,19 +570,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     await onSubmit(data);
   };
 
-  const totalProdutosLiquido = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+  const totalProdutosLiquido = formData.produtos_selecionados.reduce((sum, p) => {
     const total = parseNumero(p.valor_total || "0");
     const desc = parseNumero(p.desconto_item || "0");
     return sum + (total - desc);
-  }, 0) : 0;
+  }, 0);
 
-  const totalProdutosBruto = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+  const totalProdutosBruto = formData.produtos_selecionados.reduce((sum, p) => {
     return sum + parseNumero(p.valor_total || "0");
-  }, 0) : 0;
+  }, 0);
 
-  const totalDescontos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+  const totalDescontos = formData.produtos_selecionados.reduce((sum, p) => {
     return sum + parseNumero(p.desconto_item || "0");
-  }, 0) : 0;
+  }, 0);
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
@@ -710,13 +692,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 p-1.5 bg-slate-50 rounded border border-slate-200">
-                    <Checkbox checked={formData.lancar_produtos} onCheckedChange={(v) => handleChange('lancar_produtos', v)} id="lancar_produtos" />
-                    <label htmlFor="lancar_produtos" className="font-medium cursor-pointer text-xs text-slate-700">Lançar Produtos no Estoque</label>
-                  </div>
-
-                  {formData.lancar_produtos && (
-                    <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
+                  <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
                       <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-xs text-slate-800">Produtos</h3>
                         <Button type="button" size="sm" onClick={handleAdicionarProduto} variant="outline" className="h-6 gap-1 text-xs">
@@ -833,33 +809,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       )}
 
-                      <div className="flex items-center space-x-2 p-1.5 bg-white rounded border border-slate-200">
-                        <Checkbox checked={formData.dar_entrada_estoque} onCheckedChange={(v) => handleChange('dar_entrada_estoque', v)} id="dar_entrada_estoque" />
-                        <label htmlFor="dar_entrada_estoque" className="font-medium cursor-pointer text-xs text-slate-700">Dar entrada no estoque?</label>
-                      </div>
-
-                      {formData.dar_entrada_estoque && (
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Local de Estoque *</Label>
-                          <div className="flex gap-1">
-                            <AutocompleteGenerico
-                              items={locais}
-                              value={locais.find(l => l.nome === formData.local_estoque)?.id || ""}
-                              onChange={(id) => {
-                                const local = locais.find(l => l.id === id);
-                                handleChange('local_estoque', local?.nome || "");
-                              }}
-                              placeholder="Buscar local..."
-                              displayField="nome"
-                              searchFields={["nome", "descricao"]}
-                              className="flex-1"
-                            />
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-7 w-7">
-                              <Plus className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-2 gap-1.5">
                         <div className="space-y-1">
@@ -904,37 +853,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       </div>
                     </div>
-                  )}
-
-                  {!formData.lancar_produtos && (
-                    <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
-                      <h3 className="font-semibold text-xs text-slate-800">Valores</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Valor *</Label>
-                          <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-7 text-xs" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Juros</Label>
-                          <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Multa</Label>
-                          <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Desconto</Label>
-                          <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
-                        </div>
-                      </div>
-                      <div className="bg-white border border-slate-300 rounded p-1.5">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-700">Total:</span>
-                          <span className="font-semibold text-slate-900">{formatarMoeda(valorTotal)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {mostrarCamposNFe && (
                     <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
@@ -1230,7 +1148,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       </motion.div>
 
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_compra'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
-      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_compra'] }); const local = locais.find(l => l.id === id); if (local) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
       <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_compra'] }); handleChange('plano_contas_id', id); setShowDialogPlano(false); }} />
       <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_compra'] }); handleChange('grupo_id', id); setShowDialogGrupo(false); }} />
     </>
