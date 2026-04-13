@@ -1064,13 +1064,13 @@ export default function MovimentacaoEstoqueFormV2({
         <form onSubmit={handleSubmit} className="space-y-2">
           
           {/* ========== CARD 1: CABEÇALHO ========== */}
-          <Card className="shadow-sm">
-            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold">
+          <Card className="shadow-sm border-slate-300">
+            <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+              <CardTitle className="text-sm font-semibold text-slate-900">
                 {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2">
+            <CardContent className="p-1 space-y-1">
               
               {/* Linha 1: Tipo, Operação, Data, Local Principal */}
               <div className="grid grid-cols-12 gap-2">
@@ -1446,11 +1446,11 @@ export default function MovimentacaoEstoqueFormV2({
           </Card>
 
           {/* ========== CARD 2: ITENS ========== */}
-          <Card className="shadow-sm">
-            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold">Itens / Produtos</CardTitle>
+          <Card className="shadow-sm border-slate-300">
+            <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+              <CardTitle className="text-sm font-semibold text-slate-900">Itens / Produtos</CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2">
+            <CardContent className="p-1 space-y-1">
               
               {/* Aviso: selecionar local antes de produtos (SAÍDA/TRANSFERÊNCIA) */}
               {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && !localEstoqueOrigemId && (
@@ -1717,9 +1717,9 @@ export default function MovimentacaoEstoqueFormV2({
           </Card>
 
           {/* ========== CARD 3: TABELA DE ITENS ========== */}
-          <Card className="shadow-sm">
-            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold">
+          <Card className="shadow-sm border-slate-300">
+            <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+              <CardTitle className="text-sm font-semibold text-slate-900">
                 Itens Lançados ({itens.length})
               </CardTitle>
             </CardHeader>
@@ -1815,11 +1815,11 @@ export default function MovimentacaoEstoqueFormV2({
           </Card>
 
           {/* ========== BOTÕES DE AÇÃO ========== */}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
               {initialData?.id ? 'Atualizar' : 'Salvar Movimentação'}
             </Button>
           </div>
