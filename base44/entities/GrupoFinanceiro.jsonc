@@ -1,0 +1,63 @@
+{
+  "name": "GrupoFinanceiro",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do grupo (ex: Operacional, Administrativa)"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Receita",
+        "Despesa"
+      ],
+      "description": "Classifica\u00e7\u00e3o entre Receita ou Despesa"
+    },
+    "grupo_pai_id": {
+      "type": "string",
+      "description": "ID do grupo pai para hierarquia"
+    },
+    "grupo_pai_nome": {
+      "type": "string",
+      "description": "Nome do grupo pai (cache)"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Texto descritivo opcional"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Status do grupo no sistema"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem num\u00e9rica para exibi\u00e7\u00e3o"
+    },
+    "permite_lancamento_direto": {
+      "type": "boolean",
+      "default": false,
+      "description": "Define se aceita lan\u00e7amentos (padr\u00e3o false para uso gerencial)"
+    },
+    "classificacao_custo": {
+      "type": "string",
+      "enum": [
+        "Direto",
+        "Indireto",
+        "NaoAplicavel"
+      ],
+      "description": "Atributo gerencial para relat\u00f3rios de custo (Opcional)"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "tipo",
+    "ordem"
+  ]
+}

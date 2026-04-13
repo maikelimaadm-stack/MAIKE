@@ -80,6 +80,7 @@ import GerenciarCidades from './pages/GerenciarCidades';
 import GerenciarSafras from './pages/GerenciarSafras';
 import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
 import GruposAtividades from './pages/GruposAtividades';
+import GruposFinanceiros from './pages/GruposFinanceiros';
 
 import HistoricoMovimentacoesPecuaria from './pages/HistoricoMovimentacoesPecuaria';
 import Home from './pages/Home';
@@ -167,6 +168,7 @@ export const PAGES = {
     "GerenciarSafras": GerenciarSafras,
     "GrupoAtividadeForm": GrupoAtividadeForm,
     "GruposAtividades": GruposAtividades,
+    "GruposFinanceiros": GruposFinanceiros,
 
     "HistoricoMovimentacoesPecuaria": HistoricoMovimentacoesPecuaria,
     "Home": Home,
