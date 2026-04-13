@@ -182,160 +182,92 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="shadow-sm border-slate-300 bg-white">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
-          <CardTitle className="text-sm font-semibold text-slate-900">
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-700">
             {isEditing ? 'Editar Fornecedor/Cliente' : 'Novo Fornecedor/Cliente'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="space-y-1">
+        <CardContent className="p-1">
+          <form onSubmit={handleSubmit} className="space-y-0.5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <div className="space-y-0.5">
                 <Label className="text-xs">Tipo de Pessoa *</Label>
                 <Select value={tipoPessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)} required>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
-                    <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
+                    <SelectItem value="Física" className="text-xs">PESSOA FÍSICA</SelectItem>
+                    <SelectItem value="Jurídica" className="text-xs">PESSOA JURÍDICA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="lg:col-span-2 space-y-1">
+              <div className="lg:col-span-2 space-y-0.5">
                 <Label className="text-xs">Nome {isPessoaFisica ? 'Completo' : 'Fantasia'} *</Label>
-                <Input
-                  value={formData.nome}
-                  onChange={(e) => handleChange('nome', e.target.value)}
-                  placeholder={isPessoaFisica ? "NOME COMPLETO" : "NOME FANTASIA"}
-                  required
-                  className="h-8 text-xs uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
+                <Input value={formData.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder={isPessoaFisica ? "NOME COMPLETO" : "NOME FANTASIA"} required className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} />
               </div>
             </div>
 
             {isPessoaFisica && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <div className="space-y-1">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+                <div className="space-y-0.5">
                   <Label className="text-xs">CPF</Label>
-                  <Input
-                    value={formData.cpf}
-                    onChange={(e) => handleChange('cpf', e.target.value)}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                    className="h-8 text-xs"
-                  />
+                  <Input value={formData.cpf} onChange={(e) => handleChange('cpf', e.target.value)} placeholder="000.000.000-00" maxLength={14} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <Label className="text-xs">RG</Label>
-                  <Input
-                    value={formData.rg}
-                    onChange={(e) => handleChange('rg', e.target.value)}
-                    placeholder="00.000.000-0"
-                    className="h-8 text-xs"
-                  />
+                  <Input value={formData.rg} onChange={(e) => handleChange('rg', e.target.value)} placeholder="00.000.000-0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <Label className="text-xs">Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_nascimento}
-                    onChange={(e) => handleChange('data_nascimento', e.target.value)}
-                    className="h-8 text-xs"
-                  />
+                  <Input type="date" value={formData.data_nascimento} onChange={(e) => handleChange('data_nascimento', e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
               </div>
             )}
 
             {!isPessoaFisica && (
               <>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+                  <div className="space-y-0.5">
                     <Label className="text-xs">Razão Social</Label>
-                    <Input
-                      value={formData.razao_social}
-                      onChange={(e) => handleChange('razao_social', e.target.value)}
-                      placeholder="RAZÃO SOCIAL"
-                      className="h-8 text-xs uppercase"
-                      style={{ textTransform: 'uppercase' }}
-                    />
+                    <Input value={formData.razao_social} onChange={(e) => handleChange('razao_social', e.target.value)} placeholder="RAZÃO SOCIAL" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <Label className="text-xs">CNPJ</Label>
-                    <Input
-                      value={formData.cnpj}
-                      onChange={(e) => handleChange('cnpj', e.target.value)}
-                      placeholder="00.000.000/0000-00"
-                      maxLength={18}
-                      className="h-8 text-xs"
-                    />
+                    <Input value={formData.cnpj} onChange={(e) => handleChange('cnpj', e.target.value)} placeholder="00.000.000/0000-00" maxLength={18} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <Label className="text-xs">Inscrição Estadual</Label>
-                    <Input
-                      value={formData.inscricao_estadual}
-                      onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
-                      placeholder="000.000.000.000"
-                      className="h-8 text-xs"
-                    />
+                    <Input value={formData.inscricao_estadual} onChange={(e) => handleChange('inscricao_estadual', e.target.value)} placeholder="000.000.000.000" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                   </div>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <Label className="text-xs">Nome do Responsável</Label>
-                  <Input
-                    value={formData.nome_responsavel}
-                    onChange={(e) => handleChange('nome_responsavel', e.target.value)}
-                    placeholder="NOME DO RESPONSÁVEL"
-                    className="h-8 text-xs uppercase"
-                    style={{ textTransform: 'uppercase' }}
-                  />
+                  <Input value={formData.nome_responsavel} onChange={(e) => handleChange('nome_responsavel', e.target.value)} placeholder="NOME DO RESPONSÁVEL" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} />
                 </div>
               </>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <div className="space-y-0.5">
                 <Label className="text-xs">Telefone</Label>
-                <Input
-                  value={formData.telefone}
-                  onChange={(e) => handleChange('telefone', e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  className="h-8 text-xs"
-                />
+                <Input value={formData.telefone} onChange={(e) => handleChange('telefone', e.target.value)} placeholder="(00) 00000-0000" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </div>
-              <div className="lg:col-span-2 space-y-1">
+              <div className="lg:col-span-2 space-y-0.5">
                 <Label className="text-xs">E-mail</Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="h-8 text-xs"
-                />
+                <Input type="email" value={formData.email} onChange={(e) => handleChange('email', e.target.value)} placeholder="email@exemplo.com" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Endereço</Label>
-              <Input
-                value={formData.endereco}
-                onChange={(e) => handleChange('endereco', e.target.value)}
-                placeholder="RUA, NÚMERO, BAIRRO"
-                className="h-8 text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-              />
+              <Input value={formData.endereco} onChange={(e) => handleChange('endereco', e.target.value)} placeholder="RUA, NÚMERO, BAIRRO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <div className="space-y-0.5">
                 <Label className="text-xs">Estado</Label>
                 <Select value={formData.estado} onValueChange={(v) => handleChange('estado', v)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="UF" />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
                     {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
                       <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
@@ -343,7 +275,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <Label className="text-xs">Cidade</Label>
                 <AutocompleteGenerico
                   items={cidadesFiltradas}
@@ -351,11 +283,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   onChange={(id) => {
                     const cidade = cidadesFiltradas.find(c => c.id === id);
                     if (cidade) {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        cidade: cidade.nome,
-                        codigo_ibge: cidade.codigo_ibge
-                      }));
+                      setFormData(prev => ({ ...prev, cidade: cidade.nome, codigo_ibge: cidade.codigo_ibge }));
                     }
                   }}
                   placeholder={formData.estado ? "Digite..." : "Escolha estado"}
@@ -363,30 +291,18 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   searchFields={["nome", "codigo_ibge"]}
                   disabled={!formData.estado}
                   emptyMessage="Nenhuma cidade"
-                  className="h-8 text-xs"
+                  className="h-7 text-xs"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <Label className="text-xs">CEP</Label>
-                <Input
-                  value={formData.cep}
-                  onChange={(e) => handleChange('cep', e.target.value)}
-                  placeholder="00000-000"
-                  className="h-8 text-xs"
-                />
+                <Input value={formData.cep} onChange={(e) => handleChange('cep', e.target.value)} placeholder="00000-000" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Observações</Label>
-              <Textarea
-                value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
-                placeholder="INFORMAÇÕES ADICIONAIS..."
-                className="text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-                rows={2}
-              />
+              <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} rows={2} />
             </div>
 
             <div className="flex flex-wrap gap-6 py-1 px-1">
@@ -414,13 +330,11 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-                  Cancelar
-                </Button>
-              )}
-              <Button type="submit" size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-8 hover:bg-emerald-700">
+            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">
+                Cancelar
+              </Button>
+              <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
