@@ -525,129 +525,128 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <Table className="w-full min-w-[1100px] border-separate border-spacing-0 table-fixed">
                   <TableHeader className="bg-white">
                     <TableRow className="sticky top-0 z-40 bg-white">
-                  <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                    <div className="flex items-center justify-center w-full h-full">
-                      <Checkbox 
-                        checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
-                        onCheckedChange={handleSelecionarTodos}
-                        className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                      />
-                    </div>
-                  </TableHead>
-                  <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }} />
-                  {colunasOrdenadas.map((coluna) => {
-                    const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
-                    return (
-                      <TableHead 
-                        key={coluna.id}
-                        className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-3 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${isSortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-                        onClick={() => isSortable && handleSort(coluna.id)}
-                      >
-                        <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                          {coluna.label}
-                          {isSortable && getSortIcon(coluna.id)}
+                      <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                        <div className="flex items-center justify-center w-full h-full">
+                          <Checkbox 
+                            checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
+                            onCheckedChange={handleSelecionarTodos}
+                            className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                          />
                         </div>
                       </TableHead>
-                    );
-                  })}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <AnimatePresence>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
-                    </TableRow>
-                  ) : lancamentosOrdenados.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum lançamento</TableCell>
-                    </TableRow>
-                  ) : (
-                    lancamentosOrdenados.map((lancamento) => {
-                      if (!lancamento) return null;
-                      const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
-                      
-                      return (
-                        <TableRow 
-                          key={lancamento.id}
-                          className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
-                        >
-                          <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                            <div className="flex items-center justify-center w-full h-full">
-                              <Checkbox
-                                checked={selecionados.includes(lancamento.id)}
-                                onCheckedChange={() => handleToggleSelecao(lancamento.id)}
-                                className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                              />
+                      <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }} />
+                      {colunasOrdenadas.map((coluna) => {
+                        const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
+                        return (
+                          <TableHead 
+                            key={coluna.id}
+                            className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-3 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${isSortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                            onClick={() => isSortable && handleSort(coluna.id)}
+                          >
+                            <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                              {coluna.label}
+                              {isSortable && getSortIcon(coluna.id)}
                             </div>
-                          </TableCell>
-                          <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
-                                  <Eye className="w-3.5 h-3.5 mr-2" />
-                                  Ver Detalhes
-                                </DropdownMenuItem>
-                                {temProdutos && (
-                                  <DropdownMenuItem onClick={() => abrirProdutos(lancamento)} className="text-xs">
-                                    <Package className="w-3.5 h-3.5 mr-2" />
-                                    Ver Produtos ({lancamento.produtos_lancamento.length})
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
-                                  <Edit className="w-3.5 h-3.5 mr-2" />
-                                  Editar
-                                </DropdownMenuItem>
-                                {lancamento.parcelas && lancamento.parcelas.length > 0 && (
-                                  <DropdownMenuItem onClick={() => abrirParcelas(lancamento)} className="text-xs">
-                                    <Calendar className="w-3.5 h-3.5 mr-2" />
-                                    Ver Parcelas ({lancamento.parcelas.length})
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
-                                  <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs">
-                                    <CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />
-                                    Dar Baixa
-                                  </DropdownMenuItem>
-                                )}
-                                {lancamento?.status === 'Pago' && onCancelarBaixa && (
-                                  <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs">
-                                    <XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />
-                                    Cancelar Baixa
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">
-                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                  Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                          {colunasOrdenadas.map(coluna => (
-                            <React.Fragment key={coluna.id}>
-                              {renderCell(coluna, lancamento)}
-                            </React.Fragment>
-                          ))}
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
                         </TableRow>
-                      );
-                    })
-                  )}
-                </AnimatePresence>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                      ) : lancamentosOrdenados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum lançamento</TableCell>
+                        </TableRow>
+                      ) : (
+                        lancamentosOrdenados.map((lancamento) => {
+                          if (!lancamento) return null;
+                          const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
+
+                          return (
+                            <TableRow 
+                              key={lancamento.id}
+                              className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
+                            >
+                              <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                                <div className="flex items-center justify-center w-full h-full">
+                                  <Checkbox
+                                    checked={selecionados.includes(lancamento.id)}
+                                    onCheckedChange={() => handleToggleSelecao(lancamento.id)}
+                                    className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start">
+                                    <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
+                                      <Eye className="w-3.5 h-3.5 mr-2" />
+                                      Ver Detalhes
+                                    </DropdownMenuItem>
+                                    {temProdutos && (
+                                      <DropdownMenuItem onClick={() => abrirProdutos(lancamento)} className="text-xs">
+                                        <Package className="w-3.5 h-3.5 mr-2" />
+                                        Ver Produtos ({lancamento.produtos_lancamento.length})
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
+                                      <Edit className="w-3.5 h-3.5 mr-2" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                    {lancamento.parcelas && lancamento.parcelas.length > 0 && (
+                                      <DropdownMenuItem onClick={() => abrirParcelas(lancamento)} className="text-xs">
+                                        <Calendar className="w-3.5 h-3.5 mr-2" />
+                                        Ver Parcelas ({lancamento.parcelas.length})
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
+                                      <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs">
+                                        <CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />
+                                        Dar Baixa
+                                      </DropdownMenuItem>
+                                    )}
+                                    {lancamento?.status === 'Pago' && onCancelarBaixa && (
+                                      <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs">
+                                        <XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />
+                                        Cancelar Baixa
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">
+                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                              {colunasOrdenadas.map(coluna => (
+                                <React.Fragment key={coluna.id}>
+                                  {renderCell(coluna, lancamento)}
+                                </React.Fragment>
+                              ))}
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </AnimatePresence>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </CardContent>
-  </Card>
-</div>
 
       <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
         <DialogContent className="max-w-xl">
