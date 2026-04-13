@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle, FileUp, FileText } from "lucide-react";
+import { Settings, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -127,6 +127,7 @@ export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
   const [showImportXML, setShowImportXML] = useState(false);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [dadosImportadosXML, setDadosImportadosXML] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
@@ -588,6 +589,9 @@ export default function MovimentacoesEstoque() {
             <h1 className="font-bold text-slate-800">Movimentações de Estoque</h1>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+              <Settings className="w-4 h-4" />
+            </Button>
             <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-7 text-xs">
               Importação NF-e
             </Button>
@@ -613,7 +617,7 @@ export default function MovimentacoesEstoque() {
         )}
       </AnimatePresence>
 
-      {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={handleEdit} onCancel={handleCancel} isLoading={isLoading} />}
+      {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={handleEdit} onCancel={handleCancel} isLoading={isLoading} showConfigColunas={showConfigColunas} setShowConfigColunas={setShowConfigColunas} />}
 
       <ImportarNFeMovimentacao
         open={showImportXML}
