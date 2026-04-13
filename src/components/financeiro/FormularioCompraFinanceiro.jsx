@@ -298,8 +298,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 </div>
               </div>
 
-              {/* LINHA 2: Tipo Doc | Nº Doc | Data Emissão | Valor Total | Desconto | Líquido | Motivo | Forma Pgto | Conta Financeira */}
-              <div className="grid grid-cols-2 lg:grid-cols-9 gap-1">
+              {/* LINHA 2: Tipo Doc | Nº Doc | Data Emissão | Valor Total | Desconto | Líquido */}
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-1">
                 <FL label="Tipo Documento">
                   <AutocompleteGenerico
                     items={tiposDocFiltrados}
@@ -328,6 +328,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 <FL label="Valor Líquido">
                   <Input value={formatarMoeda(valorLiquidoNum)} readOnly className={`${INPUT_CLS} text-right font-mono bg-slate-100 font-bold`} />
                 </FL>
+              </div>
+
+              {/* LINHA 3: Motivo Compra | Forma Pagamento | Conta Financeira */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                 <FL label="Motivo Compra">
                   <AutocompleteGenerico
                     items={motivosCompra}
@@ -382,8 +386,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 dataEmissao={form.data_emissao}
               />
 
-              {/* LINHA 4: Rateio Grupo | Rateio Centro de Custo | Observações e Anexos */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              {/* LINHA 5: Rateio Grupo | Rateio Centro de Custo */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
                 <RateioGruposSection
                   rateios={form.rateio_grupos}
                   onChange={(r) => handleChange('rateio_grupos', r)}
@@ -396,32 +400,34 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   centros={centrosComHierarquia}
                   valorTotal={valorLiquidoNum}
                 />
-                <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
-                  <span className="font-semibold text-xs text-slate-700">Observações e Anexos</span>
-                  <FL label="Observações">
-                    <Textarea value={form.observacao} onChange={(e) => handleChange('observacao', e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="min-h-12 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
-                  </FL>
-                  <div className="flex items-center gap-2 pt-1">
-                    <label className="cursor-pointer">
-                      <input type="file" className="hidden" onChange={handleUploadAnexo} accept=".pdf,.xml,.jpg,.jpeg,.png" />
-                      <Button type="button" variant="outline" size="sm" className="h-6 text-xs gap-1" asChild>
-                        <span>{uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}{uploadingFile ? 'Enviando...' : 'Anexar'}</span>
-                      </Button>
-                    </label>
-                  </div>
-                  {form.anexos_urls.length > 0 && (
-                    <div className="space-y-0.5 pt-0.5">
-                      {form.anexos_urls.map((url, i) => (
-                        <div key={i} className="flex items-center justify-between bg-white rounded px-2 py-0.5 text-xs border border-slate-200">
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[250px]">Anexo {i + 1}</a>
-                          <button type="button" className="text-slate-400 hover:text-red-500" onClick={() => setForm(prev => ({ ...prev, anexos_urls: prev.anexos_urls.filter((_, idx) => idx !== i) }))}>
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              </div>
+
+              {/* LINHA 6: Observações e Anexos */}
+              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+                <span className="font-semibold text-xs text-slate-700">Observações e Anexos</span>
+                <FL label="Observações">
+                  <Textarea value={form.observacao} onChange={(e) => handleChange('observacao', e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="min-h-12 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+                </FL>
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="cursor-pointer">
+                    <input type="file" className="hidden" onChange={handleUploadAnexo} accept=".pdf,.xml,.jpg,.jpeg,.png" />
+                    <Button type="button" variant="outline" size="sm" className="h-6 text-xs gap-1" asChild>
+                      <span>{uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}{uploadingFile ? 'Enviando...' : 'Anexar'}</span>
+                    </Button>
+                  </label>
                 </div>
+                {form.anexos_urls.length > 0 && (
+                  <div className="space-y-0.5 pt-0.5">
+                    {form.anexos_urls.map((url, i) => (
+                      <div key={i} className="flex items-center justify-between bg-white rounded px-2 py-0.5 text-xs border border-slate-200">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[250px]">Anexo {i + 1}</a>
+                        <button type="button" className="text-slate-400 hover:text-red-500" onClick={() => setForm(prev => ({ ...prev, anexos_urls: prev.anexos_urls.filter((_, idx) => idx !== i) }))}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* BOTÕES */}
