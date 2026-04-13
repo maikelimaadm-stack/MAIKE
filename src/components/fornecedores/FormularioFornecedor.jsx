@@ -186,7 +186,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               </>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 pt-0.5 border-t">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <FL label="Telefone" dataField="telefone">
                 <Input value={formData.telefone} onChange={(e) => handleChange('telefone', e.target.value)} placeholder="(00) 00000-0000" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
@@ -226,7 +226,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   searchFields={["nome", "codigo_ibge"]}
                   disabled={!formData.estado}
                   emptyMessage="Nenhuma cidade"
-                  className="h-7 text-xs"
+                  className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
                 />
               </FL>
               <FL label="CEP" dataField="cep">
