@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -660,7 +659,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !processando) { onClose(); resetar(); } }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-2">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-slate-900">Importar NF-e - Etapa {etapa} de 3</DialogTitle>
           </DialogHeader>

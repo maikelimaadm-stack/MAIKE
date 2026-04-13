@@ -485,61 +485,53 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   return (
     <>
-      <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              Contas a {tipo} ({lancamentos.length})
-            </CardTitle>
-            <div className="flex gap-2 items-center">
-              {selecionados.length > 0 && (
-                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
-                  <span className="text-xs font-semibold text-slate-800">
-                    {selecionados.length} selecionado(s)
-                  </span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
-                        <MoreVertical className="w-4 h-4 text-slate-700" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs">
-                        <Edit2 className="w-3.5 h-3.5 mr-2" />
-                        Editar Lote
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs">
-                        <Download className="w-3.5 h-3.5 mr-2" />
-                        Exportar
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
-                        <Trash2 className="w-3.5 h-3.5 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
-                        <X className="w-3.5 h-3.5 mr-2" />
-                        Limpar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
-              
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
-              </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
-                Colunas
-              </Button>
-            </div>
+      <div className="space-y-1 overflow-hidden">
+        <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
+          <div className="text-xs text-slate-500">
+            {lancamentosOrdenados.length} de {lancamentos.length} registros
           </div>
-        </CardHeader>
+          <div className="flex gap-2 items-center flex-wrap">
+            {selecionados.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selecionados.length})</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs">
+                    <Edit2 className="w-3.5 h-3.5 mr-2" />
+                    Editar Lote
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs">
+                    <Download className="w-3.5 h-3.5 mr-2" />
+                    Exportar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
+                    <X className="w-3.5 h-3.5 mr-2" />
+                    Limpar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Input placeholder="BUSCAR..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-7 w-48 text-xs uppercase" />
+            </div>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowConfigColunas(true)}>
+              Colunas
+            </Button>
+          </div>
+        </div>
+
+        <Card className="overflow-hidden shadow-sm border-slate-300">
         <CardContent className="p-0">
           <div className="overflow-auto">
             <Table>
@@ -557,7 +549,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs border-r border-slate-200 ${isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        className={`text-xs py-2 px-3 font-bold border-r border-slate-200 ${isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
                         onClick={() => isSortable && handleSort(coluna.id)}
                       >
                         <div className="flex items-center">
@@ -590,7 +582,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           initial={{ opacity: 0 }} 
                           animate={{ opacity: 1 }} 
                           exit={{ opacity: 0 }} 
-                          className="hover:bg-slate-50 transition-colors border-b"
+                          className="hover:bg-gray-50 transition-colors border-b"
                         >
                           <TableCell className="border-r border-slate-200">
                             <Checkbox
@@ -661,7 +653,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
             </Table>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
 
       <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
         <DialogContent className="max-w-xl">

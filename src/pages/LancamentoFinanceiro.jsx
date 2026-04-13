@@ -424,28 +424,28 @@ export default function LancamentoFinanceiro() {
   const lancamentosReceber = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-1 md:p-1 space-y-1">
       {!showForm && ( // Conditional rendering for the main list view
         <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Lançamento Financeiro</h1>
+              <h1 className="font-bold text-slate-800">Lançamento Financeiro</h1>
               <p className="text-xs text-slate-600">Contas a pagar e receber</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 text-xs">
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={handleNewLancamento} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Novo Lançamento
               </Button>
             </div>
           </div>
 
           <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }}>
-            <TabsList className="grid w-full max-w-md grid-cols-2 h-8 bg-slate-100">
-              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
-              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
+            <TabsList className="grid w-full max-w-md grid-cols-2 h-7 bg-slate-100">
+              <TabsTrigger value="pagar" className="text-xs h-7">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
+              <TabsTrigger value="receber" className="text-xs h-7">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pagar" className="mt-4">
