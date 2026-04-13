@@ -1696,7 +1696,7 @@ export default function MovimentacaoEstoqueFormV2({
                 )}
 
                 {/* Linha 2: Valores */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2"}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                   <div className="space-y-1">
                     <FL label="Preço Unit. (R$)">
                       <Input 
