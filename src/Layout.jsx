@@ -134,7 +134,8 @@ const DEFAULT_MENU = [
 
   { id: "fin-grupos", title: "Grupos Receitas/Despesas", url: "GruposFinanceiros" },
   { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
-  { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" }]
+  { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" },
+  { id: "fin-contas", title: "Contas Financeiras", url: "ContasFinanceiras" }]
 
 },
 {

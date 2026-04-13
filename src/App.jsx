@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ManejosTecnicosRebanho from './pages/ManejosTecnicosRebanho';
 import MovimentacoesLote from './pages/MovimentacoesLote';
+import ContasFinanceiras from './pages/ContasFinanceiras';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -69,6 +70,11 @@ const AuthenticatedApp = () => {
       <Route path="/MovimentacoesLote" element={
         <LayoutWrapper currentPageName="MovimentacoesLote">
           <MovimentacoesLote />
+        </LayoutWrapper>
+      } />
+      <Route path="/ContasFinanceiras" element={
+        <LayoutWrapper currentPageName="ContasFinanceiras">
+          <ContasFinanceiras />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />

@@ -1,0 +1,73 @@
+{
+  "name": "ContaFinanceira",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome da conta (ex: Nubank, Caixa Matriz)"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Banco",
+        "Caixa",
+        "CarteiraDigital"
+      ],
+      "description": "Tipo da conta financeira"
+    },
+    "banco": {
+      "type": "string",
+      "description": "Nome do banco (quando tipo=Banco)"
+    },
+    "agencia": {
+      "type": "string",
+      "description": "N\u00famero da ag\u00eancia"
+    },
+    "conta": {
+      "type": "string",
+      "description": "N\u00famero da conta"
+    },
+    "saldo_inicial": {
+      "type": "number",
+      "default": 0,
+      "description": "Saldo inicial da conta"
+    },
+    "saldo_atual": {
+      "type": "number",
+      "default": 0,
+      "description": "Saldo atual (atualizado por movimenta\u00e7\u00f5es)"
+    },
+    "moeda": {
+      "type": "string",
+      "default": "BRL",
+      "description": "Moeda da conta"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a conta est\u00e1 ativa"
+    },
+    "permite_negativo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se permite saldo negativo"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o opcional"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem num\u00e9rica para exibi\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "tipo"
+  ]
+}
