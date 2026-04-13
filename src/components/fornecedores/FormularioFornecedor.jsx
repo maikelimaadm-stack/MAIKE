@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Save, X, User, Building2, Phone, Mail, MapPin, FileText, Calendar, CreditCard, Hash } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -90,7 +91,8 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
     codigo_ibge: initialData?.codigo_ibge || "",
     estado: initialData?.estado || "",
     cep: initialData?.cep || "",
-    observacoes: initialData?.observacoes || ""
+    observacoes: initialData?.observacoes || "",
+    ativo: initialData?.ativo !== false
   });
 
   const { data: cidades = [] } = useQuery({
@@ -384,6 +386,13 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                 style={{ textTransform: 'uppercase' }}
                 rows={2}
               />
+            </div>
+
+            <div className="flex flex-wrap gap-6 py-1 px-1">
+              <div className="flex items-center gap-2">
+                <Checkbox id="forn_ativo" checked={formData.ativo} onCheckedChange={(v) => setFormData(prev => ({ ...prev, ativo: v }))} />
+                <label htmlFor="forn_ativo" className="text-xs text-slate-700 cursor-pointer">Ativo</label>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">

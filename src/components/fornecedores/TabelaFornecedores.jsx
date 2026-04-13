@@ -35,6 +35,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'email', label: 'Email', default: false, sortable: false },
   { id: 'cidade', label: 'Cidade', default: true, sortable: true },
   { id: 'estado', label: 'UF', default: true, sortable: true },
+  { id: 'ativo', label: 'Status', default: true, sortable: true },
 ];
 
 const ITEMS_PER_PAGE = 50;
@@ -248,6 +249,14 @@ export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete
         return <TableCell className="text-xs border-r border-slate-200">{fornecedor.cidade || '-'}</TableCell>;
       case 'estado':
         return <TableCell className="text-xs border-r border-slate-200">{fornecedor.estado || '-'}</TableCell>;
+      case 'ativo':
+        return (
+          <TableCell className="border-r border-slate-200">
+            <Badge className={`text-[10px] ${fornecedor.ativo !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              {fornecedor.ativo !== false ? 'Ativo' : 'Inativo'}
+            </Badge>
+          </TableCell>
+        );
       default:
         return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
     }

@@ -1,0 +1,110 @@
+{
+  "name": "Fornecedor",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa (vincula o fornecedor a uma empresa)"
+    },
+    "numero_cadastro": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico do cadastro (gerado automaticamente)"
+    },
+    "tipo_pessoa": {
+      "type": "string",
+      "enum": [
+        "F\u00edsica",
+        "Jur\u00eddica"
+      ],
+      "description": "Tipo de pessoa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome completo ou raz\u00e3o social"
+    },
+    "cpf": {
+      "type": "string",
+      "description": "CPF (apenas para pessoa f\u00edsica)"
+    },
+    "rg": {
+      "type": "string",
+      "description": "RG (apenas para pessoa f\u00edsica)"
+    },
+    "data_nascimento": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de nascimento (apenas para pessoa f\u00edsica)"
+    },
+    "cnpj": {
+      "type": "string",
+      "description": "CNPJ (apenas para pessoa jur\u00eddica)"
+    },
+    "razao_social": {
+      "type": "string",
+      "description": "Raz\u00e3o social (apenas para pessoa jur\u00eddica)"
+    },
+    "inscricao_estadual": {
+      "type": "string",
+      "description": "Inscri\u00e7\u00e3o estadual (apenas para pessoa jur\u00eddica)"
+    },
+    "nome_responsavel": {
+      "type": "string",
+      "description": "Nome do respons\u00e1vel (apenas para pessoa jur\u00eddica)"
+    },
+    "telefone": {
+      "type": "string",
+      "description": "Telefone de contato"
+    },
+    "email": {
+      "type": "string",
+      "description": "E-mail de contato"
+    },
+    "endereco": {
+      "type": "string",
+      "description": "Endere\u00e7o completo"
+    },
+    "cidade": {
+      "type": "string",
+      "description": "Cidade"
+    },
+    "codigo_ibge": {
+      "type": "string",
+      "description": "C\u00f3digo IBGE da cidade"
+    },
+    "estado": {
+      "type": "string",
+      "description": "Estado (UF)"
+    },
+    "cep": {
+      "type": "string",
+      "description": "CEP"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    },
+    "tipos": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Fornecedor",
+          "Cliente",
+          "Funcionario"
+        ]
+      },
+      "default": [],
+      "description": "Classifica\u00e7\u00f5es: Fornecedor/Cliente/Funcion\u00e1rio"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o fornecedor/cliente est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "tipo_pessoa"
+  ]
+}
