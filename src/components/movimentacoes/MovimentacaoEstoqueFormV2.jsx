@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -1412,16 +1413,19 @@ export default function MovimentacaoEstoqueFormV2({
 
                   {/* Centro de Custo (SEMPRE VISÍVEL exceto TRANSFERENCIA) */}
                   <div className="col-span-4 space-y-1">
-                    <Label className="text-xs">Centro de Custo {operacaoSelecionada?.exigeCentroCusto ? '*' : ''}</Label>
-                    <AutocompleteGenerico
-                      items={centrosCusto}
-                      value={centroCustoId}
-                      onChange={setCentroCustoId}
-                      placeholder="Selecione"
-                      displayField="nome"
-                      searchFields={["nome", "codigo"]}
-                      className="h-8"
-                    />
+                    <FL label="Centro de Custo" required={operacaoSelecionada?.exigeCentroCusto}>
+                      <div className="px-0.5 py-0.5">
+                        <AutocompleteGenerico
+                          items={centrosCusto}
+                          value={centroCustoId}
+                          onChange={setCentroCustoId}
+                          placeholder="SELECIONE"
+                          displayField="nome"
+                          searchFields={["nome", "codigo"]}
+                          className="h-7"
+                        />
+                      </div>
+                    </FL>
                   </div>
                 </div>
               )}
