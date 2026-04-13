@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -64,9 +63,7 @@ const formatarDataHora = (dataString) => {
 };
 
 export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosLote }) {
-  if (!lancamento) return null;
-  
-  const saldoInicial = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
+  const saldoInicial = lancamento ? (lancamento.valor_total || 0) - (lancamento.valor_pago || 0) : 0;
   
   const [formData, setFormData] = useState(() => {
     if (dadosLote) {
@@ -404,6 +401,8 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosL
   const valorBaixaAtual = parseMoeda(formData.valor_baixa);
   const saldoAposBaixaAtual = saldoInicial - valorBaixaAtual;
   const isBaixaParcial = saldoAposBaixaAtual > 0.01 && valorBaixaAtual > 0;
+
+  if (!lancamento) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>

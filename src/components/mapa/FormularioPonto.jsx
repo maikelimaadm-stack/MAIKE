@@ -1,3 +1,4 @@
+/* global google */
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPonto from "./CapturaGPSPonto";
 import SelecaoAreasMapa from "./SelecaoAreasMapa";
+import SelecaoDepositoMapa from "./SelecaoDepositoMapa";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -76,12 +78,13 @@ const createEmptyForm = () => ({
   alerta_sem_lancamento_dias: "10"
 });
 
-export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null }) {
+export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null, suggestedDepositoId = null }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [areaDetectada, setAreaDetectada] = useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [mostrarSelecaoAreasMapa, setMostrarSelecaoAreasMapa] = useState(false);
+  const [mostrarSelecaoDepositoMapa, setMostrarSelecaoDepositoMapa] = useState(false);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas || item?.coordenadas || null);
   const tipoAtual = item?.tipo || "";
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
@@ -120,6 +123,28 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const depositosDisponiveis = useMemo(() => {
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "") === "DEPOSITO");
   }, [pontosSuplementacao]);
+
+  const depositoMaisProximo = useMemo(() => {
+    const pontoCoords = coordenadasGPS || coordenadas || item?.coordenadas || null;
+    if (!window.google?.maps?.geometry?.spherical || !pontoCoords?.lat || !pontoCoords?.lng || !depositosDisponiveis.length) return null;
+
+    let nearest = null;
+    let minDistance = Infinity;
+
+    depositosDisponiveis.forEach((deposito) => {
+      if (!deposito?.coordenadas?.lat || !deposito?.coordenadas?.lng) return;
+      const distance = google.maps.geometry.spherical.computeDistanceBetween(
+        new google.maps.LatLng(pontoCoords.lat, pontoCoords.lng),
+        new google.maps.LatLng(deposito.coordenadas.lat, deposito.coordenadas.lng)
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = { ...deposito, distance };
+      }
+    });
+
+    return nearest;
+  }, [depositosDisponiveis, coordenadasGPS, coordenadas, item]);
 
   useEffect(() => {
     if (!item) {
@@ -239,6 +264,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setAreaDetectada(null);
     }
   }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual]);
+
+  useEffect(() => {
+    const suggestedId = suggestedDepositoId || (depositoMaisProximo?.distance <= 20 ? depositoMaisProximo.id : null);
+    if (!suggestedId) return;
+    setFormData((prev) => {
+      if (!normalizeText(prev.tipo || tipoAtual).includes("COCHO")) return prev;
+      if (prev.deposito_origem_id) return prev;
+      return { ...prev, deposito_origem_id: suggestedId };
+    });
+  }, [suggestedDepositoId, depositoMaisProximo, tipoAtual]);
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
@@ -484,8 +519,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           }));
           setMostrarSelecaoAreasMapa(false);
         }} />);
+  }
 
-
+  if (mostrarSelecaoDepositoMapa) {
+    return (
+      <SelecaoDepositoMapa
+        cochoCoords={coordenadasGPS || coordenadas || item?.coordenadas || null}
+        depositoSelecionadoId={formData.deposito_origem_id}
+        onSelect={(depositoId) => setFormData((prev) => ({ ...prev, deposito_origem_id: depositoId }))}
+        onClose={() => setMostrarSelecaoDepositoMapa(false)}
+      />);
   }
 
   return (
@@ -553,14 +596,25 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                 </div>
               </div>
 
-              <FL label="Depósito vinculado" required>
-                <Select value={formData.deposito_origem_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, deposito_origem_id: value }))}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o depósito" /></SelectTrigger>
-                  <SelectContent>
-                    {depositosDisponiveis.map((deposito) => <SelectItem key={deposito.id} value={deposito.id} className="text-xs">{deposito.nome_ponto}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FL>
+              <div className="space-y-1 lg:col-span-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="text-xs">Depósito vinculado *</Label>
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoDepositoMapa(true)}>Selecionar no mapa</Button>
+                </div>
+                <div className="rounded-md border border-slate-300">
+                  <Select value={formData.deposito_origem_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, deposito_origem_id: value }))}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o depósito" /></SelectTrigger>
+                    <SelectContent>
+                      {depositosDisponiveis.map((deposito) => <SelectItem key={deposito.id} value={deposito.id} className="text-xs">{deposito.nome_ponto}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {depositoMaisProximo && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                    Depósito mais próximo: <span className="font-semibold">{depositoMaisProximo.nome_ponto}</span> · {depositoMaisProximo.distance.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} m
+                  </div>
+                )}
+              </div>
               <FL label="Produto padrão">
                 <ProdutoSuplementacaoSelect value={formData.produto_padrao} onChange={(value) => setFormData((prev) => ({ ...prev, produto_padrao: value }))} />
               </FL>

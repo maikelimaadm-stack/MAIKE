@@ -1,3 +1,4 @@
+/* global google */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { base44 } from "@/api/base44Client";
@@ -93,7 +94,7 @@ function createAreaLabelOverlay({ map, position, text }) {
   return overlay;
 }
 
-const createPoint = (coords, lastPoint = null, detectedArea = null) => ({
+const createPoint = (coords, lastPoint = null, detectedArea = null, detectedDepositoId = "") => ({
   tempId: crypto.randomUUID(),
   nome: "",
   sigla: "",
@@ -114,6 +115,8 @@ const createPoint = (coords, lastPoint = null, detectedArea = null) => ({
   alerta_sem_lancamento_dias: lastPoint?.alerta_sem_lancamento_dias || "10",
   area_vinculada_id: lastPoint?.area_vinculada_id || detectedArea?.id || "",
   area_vinculada_ids: Array.isArray(lastPoint?.area_vinculada_ids) && lastPoint.area_vinculada_ids.length ? lastPoint.area_vinculada_ids : detectedArea?.id ? [detectedArea.id] : [],
+  deposito_origem_id: lastPoint?.deposito_origem_id || detectedDepositoId || "",
+  suggested_deposito_id: detectedDepositoId || "",
   tipo_categoria: lastPoint?.tipo_categoria || ""
 });
 
@@ -163,6 +166,15 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: pontosSuplementacao = [] } = useQuery({
+    queryKey: ["pontos-suplementacao-lote", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
   const activePoint = useMemo(() => pontos.find((p) => p.tempId === activePointId) || null, [pontos, activePointId]);
 
   const updatePoint = (tempId, changes) => {
@@ -182,6 +194,30 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
   };
 
   const SNAP_DISTANCE = 16;
+
+  const depositosDisponiveis = useMemo(() => {
+    return pontosSuplementacao.filter((ponto) => ponto.categoria_ponto === "DEPOSITO" && ponto.coordenadas?.lat && ponto.coordenadas?.lng);
+  }, [pontosSuplementacao]);
+
+  const detectNearestDeposito = (pontoCoords) => {
+    if (!window.google?.maps?.geometry?.spherical || !pontoCoords || !depositosDisponiveis.length) return "";
+
+    let nearestId = "";
+    let minDistance = Infinity;
+
+    depositosDisponiveis.forEach((deposito) => {
+      const distance = google.maps.geometry.spherical.computeDistanceBetween(
+        new google.maps.LatLng(pontoCoords.lat, pontoCoords.lng),
+        new google.maps.LatLng(deposito.coordenadas.lat, deposito.coordenadas.lng)
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestId = deposito.id;
+      }
+    });
+
+    return minDistance <= 20 ? nearestId : "";
+  };
 
   const detectAreaByCoords = (pontoCoords) => {
     if (!pontoCoords || !areas.length) return null;
@@ -460,7 +496,8 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
       const ultimoPonto = pontosRef.current.length > 0 ? pontosRef.current[pontosRef.current.length - 1] : null;
       const areaDetectada = detectAreaByCoords({ lat, lng });
-      const novo = createPoint({ lat, lng }, ultimoPonto, areaDetectada);
+      const depositoDetectadoId = detectNearestDeposito({ lat, lng });
+      const novo = createPoint({ lat, lng }, ultimoPonto, areaDetectada, depositoDetectadoId);
       setPontos((prev) => [...prev, novo]);
       setActivePointId(novo.tempId);
       setSheetOpen(true);
@@ -514,7 +551,10 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         let lat = event.latLng.lat(),lng = event.latLng.lng();
         const snapped = findNearestPoint(event.latLng, mapInstanceRef.current);
         if (snapped) {lat = snapped.lat;lng = snapped.lng;toast.success("🧲 Encaixado!", { duration: 600 });}
-        updatePoint(ponto.tempId, { coordenadas: { lat, lng } });
+        updatePoint(ponto.tempId, {
+          coordenadas: { lat, lng },
+          suggested_deposito_id: detectNearestDeposito({ lat, lng })
+        });
       });
 
       newMarkersRef.current.push(marker);
@@ -744,6 +784,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
               <FormularioPonto
               item={activePoint}
               coordenadas={activePoint.coordenadas}
+              suggestedDepositoId={activePoint.suggested_deposito_id || ""}
               onBatchUpdate={(data) => {
                 updatePoint(activePoint.tempId, data);
                 toast.success("Ponto configurado no lote!");

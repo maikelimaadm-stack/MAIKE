@@ -1,3 +1,4 @@
+/* global google */
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Trash2, Check, X, Navigation } from 'lucide-react';

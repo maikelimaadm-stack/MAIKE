@@ -1,3 +1,4 @@
+/* global google */
 import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { base44 } from "@/api/base44Client";
@@ -1125,6 +1126,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             coordenadas={currentMarker}
             usarGPS={usarGPS}
             item={itemEditando}
+            suggestedDepositoId={null}
             onSave={() => {
               setShowFormularioPonto(false);
               cancelarDesenho();
