@@ -267,13 +267,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   useEffect(() => {
     const suggestedId = suggestedDepositoId || (depositoMaisProximo?.distance <= 20 ? depositoMaisProximo.id : null);
-    if (!suggestedId) return;
+    if (!suggestedId || !depositosDisponiveis.some((deposito) => deposito.id === suggestedId)) return;
     setFormData((prev) => {
       if (!normalizeText(prev.tipo || tipoAtual).includes("COCHO")) return prev;
       if (prev.deposito_origem_id) return prev;
       return { ...prev, deposito_origem_id: suggestedId };
     });
-  }, [suggestedDepositoId, depositoMaisProximo?.id, depositoMaisProximo?.distance, tipoAtual]);
+  }, [suggestedDepositoId, depositoMaisProximo?.id, depositoMaisProximo?.distance, depositosDisponiveis, tipoAtual]);
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
