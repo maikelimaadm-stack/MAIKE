@@ -68,194 +68,16 @@ export default function LancamentoFinanceiro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: safras = [] } = useQuery({ // New query
-    queryKey: ['safras_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Safra.list('nome_safra');
-      return all.filter(s => s && s.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: centrosCusto = [] } = useQuery({ // New query
-    queryKey: ['centros_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.CentroCusto.list('nome');
-      return all.filter(c => c && c.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: planosContas = [] } = useQuery({ // New query
-    queryKey: ['planos_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PlanoContas.list('descricao');
-      return all.filter(p => p && p.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: gruposFinanceiros = [] } = useQuery({ // New query
-    queryKey: ['grupos_financeiros', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.GrupoFinanceiro.list('nome');
-      return all.filter(g => g && g.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      setShowSaveProgress(true); // Updated state name
-      setProgressoSalvamento({ etapa: 'Iniciando...', current: 10, total: 100 });
+      setShowSaveProgress(true);
+      setProgressoSalvamento({ etapa: 'Salvando...', current: 30, total: 100 });
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const user = await base44.auth.me();
+      const lanc = await base44.entities.LancamentoFinanceiro.create(data);
 
-      const origem_importacao = data.origem_importacao || (data.chave_nfe ? 'XML' : 'MANUAL');
-
-      if (data.parcelas && data.parcelas.length > 0) {
-        setProgressoSalvamento({ etapa: 'Criando parcelas...', current: 30, total: 100 });
-        const lancamentosCriados = [];
-
-        for (let i = 0; i < data.parcelas.length; i++) {
-          const parcela = data.parcelas[i];
-          const numero = await getNextNumber(empresaSelecionadaId);
-
-          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
-            const totalItem = parseFloat(p.valor_total) || 0;
-            const descontoItem = parseFloat(p.desconto_item) || 0;
-            return sum + (totalItem - descontoItem);
-          }, 0) || 0;
-          const valorOriginal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
-
-          const valorParcela = parcela.valor || 0;
-
-          const lanc = await base44.entities.LancamentoFinanceiro.create({
-            empresa_id: empresaSelecionadaId,
-            numero_lancamento: String(numero),
-            tipo: data.tipo,
-            tipo_documento: data.tipo_documento,
-            fornecedor_id: data.fornecedor_id,
-            fornecedor_nome: data.fornecedor_nome,
-            safra_id: data.safra_id,
-            safra_nome: data.safra_nome,
-            centro_custo_id: data.centro_custo_id,
-            centro_custo_nome: data.centro_custo_nome,
-            plano_contas_id: data.plano_contas_id,
-            plano_contas_nome: data.plano_contas_nome,
-            grupo_id: data.grupo_id,
-            grupo_nome: data.grupo_nome,
-            forma_pagamento_id: data.forma_pagamento_id,
-            forma_pagamento_nome: data.forma_pagamento_nome,
-            numero_documento: data.numero_documento,
-            chave_nfe: data.chave_nfe,
-            serie_documento: data.serie_documento,
-            numero_boleto: data.numero_boleto,
-            banco_boleto: data.banco_boleto,
-            cfop: data.cfop,
-            data_emissao: data.data_emissao,
-            data_vencimento: parcela.data,
-            valor_original: valorOriginal,
-            valor_produtos: data.valor_produtos || 0,
-            valor_frete: data.frete || 0,
-            valor_seguro: data.valor_seguro || 0,
-            valor_outras_despesas: data.outras_despesas || 0,
-            valor_desconto_total: data.valor_desconto_total || 0,
-            valor_ipi: data.valor_ipi || 0,
-            valor_icms: data.valor_icms || 0,
-            valor_pis: data.valor_pis || 0,
-            valor_cofins: data.valor_cofins || 0,
-            base_calculo_icms: data.base_calculo_icms || 0,
-            valor_total: valorParcela,
-            valor_juros: 0,
-            valor_multa: 0,
-            valor_desconto: 0,
-            valor_pago: 0,
-            status: 'Pendente',
-            observacoes: `${data.observacoes || ''} - PARCELA ${i + 1}/${data.parcelas.length}`.trim(),
-            observacoes_nfe: data.observacoes_nfe,
-            numero_parcela: i + 1,
-            total_parcelas: data.parcelas.length,
-            produtos_lancamento: data.produtos_selecionados,
-            anexos: data.anexos,
-            origem_importacao: origem_importacao,
-            usuario_lancamento: user.email
-          });
-
-
-          lancamentosCriados.push(lanc);
-          setProgressoSalvamento({ etapa: `Parcela ${i + 1}/${data.parcelas.length}`, current: 30 + (i + 1) * (40 / data.parcelas.length), total: 100 });
-        }
-
-        setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success(`${data.parcelas.length} lançamentos criados!`);
-        return lancamentosCriados[0];
-      } else {
-        setProgressoSalvamento({ etapa: 'Salvando...', current: 50, total: 100 });
-        const numero = await getNextNumber(empresaSelecionadaId);
-
-        const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
-          const totalItem = parseFloat(p.valor_total) || 0;
-          const descontoItem = parseFloat(p.desconto_item) || 0;
-          return sum + (totalItem - descontoItem);
-        }, 0) || 0;
-        const valorTotal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
-
-        const lanc = await base44.entities.LancamentoFinanceiro.create({
-          ...data,
-          empresa_id: empresaSelecionadaId,
-          numero_lancamento: String(numero),
-          valor_original: valorTotal,
-          valor_produtos: data.valor_produtos || 0,
-          valor_frete: data.frete || 0,
-          valor_seguro: data.valor_seguro || 0,
-          valor_outras_despesas: data.outras_despesas || 0,
-          valor_desconto_total: data.valor_desconto_total || 0,
-          valor_ipi: data.valor_ipi || 0,
-          valor_icms: data.valor_icms || 0,
-          valor_pis: data.valor_pis || 0,
-          valor_cofins: data.valor_cofins || 0,
-          base_calculo_icms: data.base_calculo_icms || 0,
-          valor_total: valorTotal,
-          valor_pago: data.conta_paga ? (data.valor_pago_total || 0) : 0,
-          valor_juros: 0,
-          valor_multa: 0,
-          valor_desconto: 0,
-          status: data.conta_paga ? 'Pago' : 'Pendente',
-          observacoes_nfe: data.observacoes_nfe,
-          origem_importacao: origem_importacao,
-          usuario_lancamento: user.email
-        });
-
-
-        if (data.conta_paga) {
-          setProgressoSalvamento({ etapa: 'Registrando baixa...', current: 85, total: 100 });
-          const allBaixas = await base44.entities.BaixaFinanceira.list();
-          const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b?.numero_baixa) || 0), 0);
-
-          await base44.entities.BaixaFinanceira.create({
-            empresa_id: empresaSelecionadaId,
-            numero_baixa: String(maxNumBaixa + 1),
-            lancamento_id: lanc.id,
-            data_baixa: data.data_pagamento,
-            valor_baixa: data.valor_pago_total || 0,
-            valor_juros: 0,
-            valor_multa: 0,
-            valor_desconto: 0,
-            forma_pagamento_id: data.forma_pagamento_paga_id,
-            forma_pagamento_nome: data.forma_pagamento_paga_nome,
-            observacoes: 'BAIXA AUTOMÁTICA NO CADASTRO',
-            usuario_responsavel: user.email
-          });
-        }
-
-        setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return lanc;
-      }
+      setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return lanc;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
@@ -325,7 +147,7 @@ export default function LancamentoFinanceiro() {
       await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, data);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setEditingLancamento(null);
-      setShowForm(false); // Hide the form after update
+      setShowForm(false);
       toast.success('Lançamento atualizado!');
     } else {
       createMutation.mutate(data);
@@ -461,12 +283,7 @@ export default function LancamentoFinanceiro() {
                 onCancelarBaixa={handleCancelarBaixa}
                 isLoading={false}
                 fornecedores={fornecedores}
-                produtos={produtos}
-                safras={safras} // New prop
-                centrosCusto={centrosCusto} // New prop
-                planosContas={planosContas} // New prop
-                gruposFinanceiros={gruposFinanceiros} // New prop
-                onUpdateLote={handleUpdateLote} // New prop
+                onUpdateLote={handleUpdateLote}
                 showConfigColunas={abaAtiva === 'pagar' ? showConfigColunas : false}
                 setShowConfigColunas={setShowConfigColunas}
               />
@@ -482,12 +299,7 @@ export default function LancamentoFinanceiro() {
                 onCancelarBaixa={handleCancelarBaixa}
                 isLoading={false}
                 fornecedores={fornecedores}
-                produtos={produtos}
-                safras={safras} // New prop
-                centrosCusto={centrosCusto} // New prop
-                planosContas={planosContas} // New prop
-                gruposFinanceiros={gruposFinanceiros} // New prop
-                onUpdateLote={handleUpdateLote} // New prop
+                onUpdateLote={handleUpdateLote}
                 showConfigColunas={abaAtiva === 'receber' ? showConfigColunas : false}
                 setShowConfigColunas={setShowConfigColunas}
               />
@@ -496,18 +308,13 @@ export default function LancamentoFinanceiro() {
         </>
       )}
 
-      {showForm && ( // Conditional rendering for the form
+      {showForm && (
         <FormularioCompraFinanceiro
           onSubmit={handleSubmit}
           onCancel={handleCancelForm}
           initialData={editingLancamento || dadosXML}
           fornecedores={fornecedores}
-          produtos={produtos}
-          safras={safras} // New prop
-          centrosCusto={centrosCusto} // New prop
-          planosContas={planosContas} // New prop
-          gruposFinanceiros={gruposFinanceiros} // New prop
-          tipoLancamento={editingLancamento?.tipo || dadosXML?.tipo || tipoLancamento} // Pass type for new entries or derived from existing
+          tipoLancamento={editingLancamento?.tipo || dadosXML?.tipo || tipoLancamento}
         />
       )}
 

@@ -7,7 +7,7 @@ const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 tex
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
 const INP = "w-full bg-transparent border-0 outline-none text-xs h-[26px] px-0 focus:ring-0";
 
-export default function RateioGruposSection({ rateios, onChange, grupos, valorTotal }) {
+export default function RateioGruposSection({ rateios, onChange, grupos, valorTotal, required, error }) {
   const totalRateado = rateios.reduce((sum, r) => sum + (r.valor || 0), 0);
   const restante = Math.max(0, valorTotal - totalRateado);
 
@@ -46,8 +46,10 @@ export default function RateioGruposSection({ rateios, onChange, grupos, valorTo
 
   return (
     <div className="border border-gray-200 rounded-lg">
-      <div className="flex justify-between items-center bg-slate-100 px-2 h-7 border-b border-gray-200 rounded-t-lg">
-        <span className="font-semibold text-xs text-slate-700">Rateio Grupo Financeiro</span>
+      <div className={`flex justify-between items-center px-2 h-7 border-b rounded-t-lg ${error ? 'bg-red-50 border-red-300' : 'bg-slate-100 border-gray-200'}`}>
+        <span className="font-semibold text-xs text-slate-700">
+          Rateio Grupo Financeiro{required && <span className="text-red-500 ml-0.5">*</span>}
+        </span>
         <button type="button" onClick={adicionarRateio} className="w-5 h-5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 flex items-center justify-center" disabled={restante <= 0.01 && rateios.length > 0}>
           <Plus className="w-3 h-3" />
         </button>

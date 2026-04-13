@@ -404,12 +404,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   onChange={(r) => handleChange('rateio_grupos', r)}
                   grupos={gruposComHierarquia}
                   valorTotal={valorLiquidoNum}
+                  required
+                  error={invalidFields.includes('rateio_grupos')}
                 />
                 <RateioCentrosCustoSection
                   rateios={form.rateio_centros_custo}
                   onChange={(r) => handleChange('rateio_centros_custo', r)}
                   centros={centrosComHierarquia}
                   valorTotal={valorLiquidoNum}
+                  required
+                  error={invalidFields.includes('rateio_centros_custo')}
                 />
               </div>
 
