@@ -1,0 +1,50 @@
+{
+  "name": "MotivoCompra",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do motivo de compra"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Planejado",
+        "Emergencial",
+        "ReposicaoEstoque",
+        "Manutencao",
+        "Investimento",
+        "Operacional",
+        "Outros"
+      ],
+      "description": "Categoria do motivo"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o opcional"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se est\u00e1 ativo"
+    },
+    "requer_aprovacao": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se requer aprova\u00e7\u00e3o para uso"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem num\u00e9rica para exibi\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "categoria"
+  ]
+}
