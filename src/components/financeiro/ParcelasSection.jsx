@@ -56,7 +56,7 @@ export default function ParcelasSection({ parcelas, onParcelasChange, valorTotal
     <div className="border border-gray-200 rounded-lg">
       <div className="flex justify-between items-center bg-slate-100 px-2 h-7 border-b border-gray-200 rounded-t-lg">
         <span className="font-semibold text-xs text-slate-700">Vencimentos / Parcelas</span>
-        <button type="button" onClick={adicionarParcela} className="w-5 h-5 rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center">
+        <button type="button" onClick={adicionarParcela} className="w-5 h-5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 flex items-center justify-center">
           <Plus className="w-3 h-3" />
         </button>
       </div>

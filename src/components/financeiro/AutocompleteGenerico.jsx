@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function AutocompleteGenerico({ 
@@ -64,7 +64,6 @@ export default function AutocompleteGenerico({
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <div className="relative">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
         <Input
           value={searchTerm}
           onChange={(e) => {
@@ -73,7 +72,7 @@ export default function AutocompleteGenerico({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className={`pl-8 pr-8 h-8 text-xs uppercase ${inputClassName}`}
+          className={`pl-2 pr-8 h-8 text-xs uppercase ${inputClassName}`}
           style={{ textTransform: 'uppercase' }}
         />
         {searchTerm && (

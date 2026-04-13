@@ -48,7 +48,7 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
     <div className="border border-gray-200 rounded-lg">
       <div className="flex justify-between items-center bg-slate-100 px-2 h-7 border-b border-gray-200 rounded-t-lg">
         <span className="font-semibold text-xs text-slate-700">Rateio Centro de Custo</span>
-        <button type="button" onClick={adicionarRateio} className="w-5 h-5 rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center" disabled={restante <= 0.01 && rateios.length > 0}>
+        <button type="button" onClick={adicionarRateio} className="w-5 h-5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 flex items-center justify-center" disabled={restante <= 0.01 && rateios.length > 0}>
           <Plus className="w-3 h-3" />
         </button>
       </div>
@@ -91,7 +91,7 @@ export default function RateioCentrosCustoSection({ rateios, onChange, centros, 
                   <td className={TD}>
                     <input value={formatarMoedaInput(rateio.valor)} onChange={(e) => atualizarRateio(index, 'valor_input', e.target.value)} placeholder="0,00" className={`${INP} text-right font-mono`} />
                   </td>
-                  <td className={`${TD} text-right font-mono text-slate-500 text-[11px]`}>{rateio.percentual ? `${rateio.percentual}%` : '0%'}</td>
+                  <td className={`${TD} text-right font-mono text-slate-500 text-[11px]`}>{(rateio.percentual != null ? rateio.percentual.toFixed(2) : '0,00').replace('.', ',')}%</td>
                   <td className={`${TD} text-center border-r-0`}>
                     <button type="button" onClick={() => removerRateio(index)} className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
                   </td>
