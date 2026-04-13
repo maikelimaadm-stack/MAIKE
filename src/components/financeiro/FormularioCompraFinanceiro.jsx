@@ -128,12 +128,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     enabled: !!empresaId,
   });
 
-  // Valores calculados
   const valorTotalNum = useMemo(() => parseNumero(form.valor_total), [form.valor_total]);
   const valorDescontoNum = useMemo(() => parseNumero(form.valor_desconto), [form.valor_desconto]);
   const valorLiquidoNum = useMemo(() => Math.max(0, valorTotalNum - valorDescontoNum), [valorTotalNum, valorDescontoNum]);
 
-  // Auto-gerar parcela 30 dias quando data emissão muda e não tem parcelas
   useEffect(() => {
     if (form.data_emissao && form.parcelas.length === 0) {
       const venc = calcularVencimento30Dias(form.data_emissao);
@@ -141,7 +139,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     }
   }, [form.data_emissao]);
 
-  // Atualizar valor da parcela única quando valor líquido muda
   useEffect(() => {
     if (form.parcelas.length === 1) {
       setForm(prev => ({ ...prev, parcelas: [{ ...prev.parcelas[0], valor: valorLiquidoNum }] }));
@@ -158,7 +155,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     return tiposDocumento.filter(t => t.tipo_movimento === tipoFiltro || t.tipo_movimento === 'Ambos');
   }, [tiposDocumento, form.tipo]);
 
-  // Grupos hierárquicos
   const gruposComHierarquia = useMemo(() => {
     return gruposFinanceiros.map(g => {
       const pai = g.grupo_pai_id ? gruposFinanceiros.find(p => p.id === g.grupo_pai_id) : null;
@@ -260,31 +256,56 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
             </CardTitle>
           </CardHeader>
           <CardContent className="p-1">
-            <form onSubmit={handleSubmit} className="space-y-0.5">
+            <form onSubmit={handleSubmit} className="space-y-1">
 
-              {/* DADOS PRINCIPAIS */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
-                <FL label="Tipo" required error={invalidFields.includes('tipo')}>
-                  <Select value={form.tipo} onValueChange={(v) => handleChange('tipo', v)}>
-                    <SelectTrigger className={SELECT_CLS}><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pagar" className="text-xs">PAGAR</SelectItem>
-                      <SelectItem value="Receber" className="text-xs">RECEBER</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FL>
-                <FL label="Data Emissão" required error={invalidFields.includes('data_emissao')}>
-                  <Input type="date" value={form.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} className={INPUT_CLS} />
-                </FL>
-                <FL label="Nº Documento">
-                  <Input value={form.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
-                </FL>
+              {/* LINHA 1: Tipo | Fornecedor/Cliente | Descrição */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-1">
+                <div className="lg:col-span-2">
+                  <FL label="Tipo" required error={invalidFields.includes('tipo')}>
+                    <Select value={form.tipo} onValueChange={(v) => handleChange('tipo', v)}>
+                      <SelectTrigger className={SELECT_CLS}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pagar" className="text-xs">PAGAR</SelectItem>
+                        <SelectItem value="Receber" className="text-xs">RECEBER</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FL>
+                </div>
+                <div className="lg:col-span-4">
+                  <FL label={form.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}>
+                    <AutocompleteGenerico
+                      items={fornecedores}
+                      value={form.tipo === 'Pagar' ? form.fornecedor_id : form.cliente_id}
+                      onChange={(v) => handleChange(form.tipo === 'Pagar' ? 'fornecedor_id' : 'cliente_id', v)}
+                      placeholder={form.tipo === 'Pagar' ? 'BUSCAR FORNECEDOR...' : 'BUSCAR CLIENTE...'}
+                      displayField="nome"
+                      searchFields={["nome", "cnpj", "cpf"]}
+                      renderItem={(f) => (
+                        <>
+                          <div className="text-xs font-medium text-slate-900">{f.nome}</div>
+                          {(f.cnpj || f.cpf) && <div className="text-[10px] text-slate-500">{f.cnpj ? `CNPJ: ${f.cnpj}` : `CPF: ${f.cpf}`}</div>}
+                        </>
+                      )}
+                      className="w-full"
+                      inputClassName={AC_INPUT_CLS}
+                    />
+                  </FL>
+                </div>
+                <div className="lg:col-span-6">
+                  <FL label="Descrição" required error={invalidFields.includes('descricao')}>
+                    <Input value={form.descricao} onChange={(e) => handleChange('descricao', e.target.value.toUpperCase())} placeholder="DESCRIÇÃO DO LANÇAMENTO" className={`${INPUT_CLS} uppercase`} />
+                  </FL>
+                </div>
+              </div>
+
+              {/* LINHA 2: Tipo Doc | Nº Doc | Data Emissão | Valor Total | Desconto | Líquido | Motivo | Forma Pgto | Conta Financeira */}
+              <div className="grid grid-cols-2 lg:grid-cols-9 gap-1">
                 <FL label="Tipo Documento">
                   <AutocompleteGenerico
                     items={tiposDocFiltrados}
                     value={form.tipo_documento_id}
                     onChange={(v) => handleChange('tipo_documento_id', v)}
-                    placeholder="BUSCAR TIPO..."
+                    placeholder="BUSCAR..."
                     displayField="nome"
                     searchFields={["nome", "sigla"]}
                     renderItem={(t) => <div className="text-xs text-slate-900">{t.sigla ? `${t.sigla} - ${t.nome}` : t.nome}</div>}
@@ -292,43 +313,43 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
-              </div>
-
-              <div className="grid grid-cols-1 gap-1">
-                <FL label="Descrição" required error={invalidFields.includes('descricao')}>
-                  <Input value={form.descricao} onChange={(e) => handleChange('descricao', e.target.value.toUpperCase())} placeholder="DESCRIÇÃO DO LANÇAMENTO" className={`${INPUT_CLS} uppercase`} />
+                <FL label="Nº Documento">
+                  <Input value={form.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
                 </FL>
-              </div>
-
-              {/* VALORES */}
-              <div className="grid grid-cols-3 gap-1">
+                <FL label="Data Emissão" required error={invalidFields.includes('data_emissao')}>
+                  <Input type="date" value={form.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} className={INPUT_CLS} />
+                </FL>
                 <FL label="Valor Total" required error={invalidFields.includes('valor_total')}>
                   <Input value={form.valor_total} onChange={(e) => handleChange('valor_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                 </FL>
-                <FL label="Valor Desconto">
+                <FL label="Desconto">
                   <Input value={form.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                 </FL>
                 <FL label="Valor Líquido">
                   <Input value={formatarMoeda(valorLiquidoNum)} readOnly className={`${INPUT_CLS} text-right font-mono bg-slate-100 font-bold`} />
                 </FL>
-              </div>
-
-              {/* PESSOA / PAGAMENTO */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
-                <FL label={form.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}>
+                <FL label="Motivo Compra">
                   <AutocompleteGenerico
-                    items={fornecedores}
-                    value={form.tipo === 'Pagar' ? form.fornecedor_id : form.cliente_id}
-                    onChange={(v) => handleChange(form.tipo === 'Pagar' ? 'fornecedor_id' : 'cliente_id', v)}
-                    placeholder={form.tipo === 'Pagar' ? 'BUSCAR FORNECEDOR...' : 'BUSCAR CLIENTE...'}
+                    items={motivosCompra}
+                    value={form.motivo_compra_id}
+                    onChange={(v) => handleChange('motivo_compra_id', v)}
+                    placeholder="BUSCAR..."
                     displayField="nome"
-                    searchFields={["nome", "cnpj", "cpf"]}
-                    renderItem={(f) => (
-                      <>
-                        <div className="text-xs font-medium text-slate-900">{f.nome}</div>
-                        {(f.cnpj || f.cpf) && <div className="text-[10px] text-slate-500">{f.cnpj ? `CNPJ: ${f.cnpj}` : `CPF: ${f.cpf}`}</div>}
-                      </>
-                    )}
+                    searchFields={["nome", "categoria"]}
+                    renderItem={(m) => <div className="text-xs text-slate-900">{m.nome}</div>}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
+                </FL>
+                <FL label="Forma Pagamento" required error={invalidFields.includes('forma_pagamento_id')}>
+                  <AutocompleteGenerico
+                    items={formasFiltradas}
+                    value={form.forma_pagamento_id}
+                    onChange={(v) => handleChange('forma_pagamento_id', v)}
+                    placeholder="BUSCAR..."
+                    displayField="nome"
+                    searchFields={["nome", "categoria"]}
+                    renderItem={(f) => <div className="text-xs text-slate-900">{f.nome}</div>}
                     className="w-full"
                     inputClassName={AC_INPUT_CLS}
                   />
@@ -338,7 +359,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     items={contasFinanceiras}
                     value={form.conta_financeira_id}
                     onChange={(v) => handleChange('conta_financeira_id', v)}
-                    placeholder="BUSCAR CONTA..."
+                    placeholder="BUSCAR..."
                     displayField="nome"
                     searchFields={["nome", "banco", "conta"]}
                     renderItem={(c) => (
@@ -351,91 +372,55 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
-                <FL label="Forma Pagamento" required error={invalidFields.includes('forma_pagamento_id')}>
-                  <AutocompleteGenerico
-                    items={formasFiltradas}
-                    value={form.forma_pagamento_id}
-                    onChange={(v) => handleChange('forma_pagamento_id', v)}
-                    placeholder="BUSCAR FORMA..."
-                    displayField="nome"
-                    searchFields={["nome", "categoria"]}
-                    renderItem={(f) => <div className="text-xs text-slate-900">{f.nome}</div>}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
-                </FL>
-                <FL label="Motivo de Compra">
-                  <AutocompleteGenerico
-                    items={motivosCompra}
-                    value={form.motivo_compra_id}
-                    onChange={(v) => handleChange('motivo_compra_id', v)}
-                    placeholder="BUSCAR MOTIVO..."
-                    displayField="nome"
-                    searchFields={["nome", "categoria"]}
-                    renderItem={(m) => <div className="text-xs text-slate-900">{m.nome}</div>}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
-                </FL>
               </div>
 
-              {/* RATEIO + PARCELAS LADO A LADO */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-                <div className="space-y-0.5">
-                  <RateioGruposSection
-                    rateios={form.rateio_grupos}
-                    onChange={(r) => handleChange('rateio_grupos', r)}
-                    grupos={gruposComHierarquia}
-                    valorTotal={valorLiquidoNum}
-                  />
-                  <RateioCentrosCustoSection
-                    rateios={form.rateio_centros_custo}
-                    onChange={(r) => handleChange('rateio_centros_custo', r)}
-                    centros={centrosComHierarquia}
-                    valorTotal={valorLiquidoNum}
-                  />
-                </div>
-                <ParcelasSection
-                  parcelas={form.parcelas}
-                  onParcelasChange={(p) => handleChange('parcelas', p)}
+              {/* LINHA 3: Parcelas (largura total) */}
+              <ParcelasSection
+                parcelas={form.parcelas}
+                onParcelasChange={(p) => handleChange('parcelas', p)}
+                valorTotal={valorLiquidoNum}
+                dataEmissao={form.data_emissao}
+              />
+
+              {/* LINHA 4: Rateio Grupo | Rateio Centro de Custo | Observações e Anexos */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+                <RateioGruposSection
+                  rateios={form.rateio_grupos}
+                  onChange={(r) => handleChange('rateio_grupos', r)}
+                  grupos={gruposComHierarquia}
                   valorTotal={valorLiquidoNum}
-                  dataEmissao={form.data_emissao}
                 />
-              </div>
-
-              {/* OBSERVAÇÕES E ANEXOS */}
-              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
-                <span className="font-semibold text-xs text-slate-700">Observações e Anexos</span>
-                <FL label="Observações">
-                  <Textarea value={form.observacao} onChange={(e) => handleChange('observacao', e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="min-h-12 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
-                </FL>
-                <div className="flex items-center gap-2 pt-1">
-                  <label className="cursor-pointer">
-                    <input type="file" className="hidden" onChange={handleUploadAnexo} accept=".pdf,.xml,.jpg,.jpeg,.png" />
-                    <Button type="button" variant="outline" size="sm" className="h-6 text-xs gap-1" asChild>
-                      <span>{uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}{uploadingFile ? 'Enviando...' : 'Anexar'}</span>
-                    </Button>
-                  </label>
-                </div>
-                {form.anexos_urls.length > 0 && (
-                  <div className="space-y-0.5 pt-0.5">
-                    {form.anexos_urls.map((url, i) => (
-                      <div key={i} className="flex items-center justify-between bg-white rounded px-2 py-0.5 text-xs border border-slate-200">
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[250px]">Anexo {i + 1}</a>
-                        <button type="button" className="text-slate-400 hover:text-red-500" onClick={() => setForm(prev => ({ ...prev, anexos_urls: prev.anexos_urls.filter((_, idx) => idx !== i) }))}>
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                <RateioCentrosCustoSection
+                  rateios={form.rateio_centros_custo}
+                  onChange={(r) => handleChange('rateio_centros_custo', r)}
+                  centros={centrosComHierarquia}
+                  valorTotal={valorLiquidoNum}
+                />
+                <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
+                  <span className="font-semibold text-xs text-slate-700">Observações e Anexos</span>
+                  <FL label="Observações">
+                    <Textarea value={form.observacao} onChange={(e) => handleChange('observacao', e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="min-h-12 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+                  </FL>
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="cursor-pointer">
+                      <input type="file" className="hidden" onChange={handleUploadAnexo} accept=".pdf,.xml,.jpg,.jpeg,.png" />
+                      <Button type="button" variant="outline" size="sm" className="h-6 text-xs gap-1" asChild>
+                        <span>{uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}{uploadingFile ? 'Enviando...' : 'Anexar'}</span>
+                      </Button>
+                    </label>
                   </div>
-                )}
-              </div>
-
-              {/* RESUMO */}
-              <div className="bg-slate-100 border border-slate-300 rounded p-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-800">VALOR LÍQUIDO:</span>
-                  <span className="font-mono font-bold text-slate-900 text-sm">{formatarMoeda(valorLiquidoNum)}</span>
+                  {form.anexos_urls.length > 0 && (
+                    <div className="space-y-0.5 pt-0.5">
+                      {form.anexos_urls.map((url, i) => (
+                        <div key={i} className="flex items-center justify-between bg-white rounded px-2 py-0.5 text-xs border border-slate-200">
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[250px]">Anexo {i + 1}</a>
+                          <button type="button" className="text-slate-400 hover:text-red-500" onClick={() => setForm(prev => ({ ...prev, anexos_urls: prev.anexos_urls.filter((_, idx) => idx !== i) }))}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
