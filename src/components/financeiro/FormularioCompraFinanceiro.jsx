@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Save, X, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import ComboboxFornecedor from "./ComboboxFornecedor.jsx";
 import AutocompleteGenerico from "./AutocompleteGenerico.jsx";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 import RateioGruposSection from "./RateioGruposSection.jsx";
@@ -45,7 +44,18 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-const REQUIRED_FIELDS = ['tipo', 'descricao', 'valor_total', 'data_emissao', 'data_vencimento', 'conta_financeira_id', 'forma_pagamento_id'];
+const calcularVencimento30Dias = (dataEmissao) => {
+  if (!dataEmissao) return new Date().toISOString().split('T')[0];
+  const d = new Date(dataEmissao + 'T00:00:00');
+  if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().split('T')[0];
+};
+
+const REQUIRED_FIELDS = ['tipo', 'descricao', 'valor_total', 'data_emissao', 'conta_financeira_id', 'forma_pagamento_id'];
+const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent";
+const SELECT_CLS = "h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent";
+const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7";
 
 export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores = [], tipoLancamento }) {
   const isEditing = !!initialData?.id;
@@ -60,32 +70,22 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const hoje = new Date().toISOString().split('T')[0];
     const defaults = {
       tipo: tipoLancamento || 'Pagar',
-      descricao: '',
-      status: 'Aberto',
-      valor_total: '',
-      data_emissao: hoje,
-      data_vencimento: hoje,
-      data_pagamento: '',
-      fornecedor_id: '',
-      cliente_id: '',
-      tipo_documento_id: '',
-      numero_documento: '',
-      conta_financeira_id: '',
-      forma_pagamento_id: '',
-      motivo_compra_id: '',
-      plano_contas_id: '',
-      parcelado: false,
-      parcelas: [],
-      rateio_grupos: [],
-      rateio_centros_custo: [],
-      observacao: '',
-      anexos_urls: [],
+      descricao: '', status: 'Aberto',
+      valor_total: '', valor_desconto: '', valor_liquido: '',
+      data_emissao: hoje, data_pagamento: '',
+      fornecedor_id: '', cliente_id: '',
+      tipo_documento_id: '', numero_documento: '',
+      conta_financeira_id: '', forma_pagamento_id: '',
+      motivo_compra_id: '', plano_contas_id: '',
+      parcelas: [], rateio_grupos: [], rateio_centros_custo: [],
+      observacao: '', anexos_urls: [],
     };
     if (!initialData) return defaults;
     return {
-      ...defaults,
-      ...initialData,
+      ...defaults, ...initialData,
       valor_total: initialData.valor_total ? formatarNumero(initialData.valor_total) : '',
+      valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : '',
+      valor_liquido: initialData.valor_liquido ? formatarNumero(initialData.valor_liquido) : '',
       parcelas: initialData.parcelas || [],
       rateio_grupos: initialData.rateio_grupos || [],
       rateio_centros_custo: initialData.rateio_centros_custo || [],
@@ -134,7 +134,36 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     enabled: !!empresaId,
   });
 
+  // Valores calculados
   const valorTotalNum = useMemo(() => parseNumero(form.valor_total), [form.valor_total]);
+  const valorDescontoNum = useMemo(() => parseNumero(form.valor_desconto), [form.valor_desconto]);
+  const valorLiquidoNum = useMemo(() => valorTotalNum - valorDescontoNum, [valorTotalNum, valorDescontoNum]);
+
+  // Auto-atualizar valor líquido quando total ou desconto mudam
+  useEffect(() => {
+    setForm(prev => ({ ...prev, valor_liquido: valorLiquidoNum > 0 ? formatarNumero(valorLiquidoNum) : '0' }));
+  }, [valorLiquidoNum]);
+
+  // Auto-gerar vencimento 30 dias quando data emissão muda (parcela padrão)
+  useEffect(() => {
+    if (form.data_emissao && form.parcelas.length === 0) {
+      const venc = calcularVencimento30Dias(form.data_emissao);
+      setForm(prev => ({
+        ...prev,
+        parcelas: [{ numero: 1, data_vencimento: venc, valor: valorLiquidoNum, status: 'Aberto' }]
+      }));
+    }
+  }, [form.data_emissao]);
+
+  // Atualizar valor da parcela única quando valor líquido muda
+  useEffect(() => {
+    if (form.parcelas.length === 1) {
+      setForm(prev => ({
+        ...prev,
+        parcelas: [{ ...prev.parcelas[0], valor: valorLiquidoNum }]
+      }));
+    }
+  }, [valorLiquidoNum]);
 
   const formasFiltradas = useMemo(() => {
     const tipoFiltro = form.tipo === 'Pagar' ? 'Saida' : 'Entrada';
@@ -145,6 +174,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const tipoFiltro = form.tipo === 'Pagar' ? 'Entrada' : 'Saida';
     return tiposDocumento.filter(t => t.tipo_movimento === tipoFiltro || t.tipo_movimento === 'Ambos');
   }, [tiposDocumento, form.tipo]);
+
+  // Grupos hierárquicos — mostra pai > filho
+  const gruposComHierarquia = useMemo(() => {
+    return gruposFinanceiros.map(g => {
+      const pai = g.grupo_pai_id ? gruposFinanceiros.find(p => p.id === g.grupo_pai_id) : null;
+      return { ...g, display_nome: pai ? `${pai.nome} > ${g.nome}` : g.nome };
+    });
+  }, [gruposFinanceiros]);
+
+  const centrosComHierarquia = useMemo(() => {
+    return centrosCusto.map(c => {
+      const pai = c.centro_custo_pai_id ? centrosCusto.find(p => p.id === c.centro_custo_pai_id) : null;
+      return { ...c, display_nome: pai ? `${pai.nome} > ${c.nome}` : c.nome };
+    });
+  }, [centrosCusto]);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -165,27 +209,25 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const missing = REQUIRED_FIELDS.filter(f => {
-      const v = form[f]; return v === '' || v === null || v === undefined;
-    });
+    const missing = REQUIRED_FIELDS.filter(f => { const v = form[f]; return v === '' || v === null || v === undefined; });
     if (missing.length > 0) { setInvalidFields(missing); toast.error('PREENCHA OS CAMPOS OBRIGATÓRIOS.'); return; }
-    if (valorTotalNum <= 0) { toast.error('Valor total deve ser maior que zero!'); return; }
+    if (valorLiquidoNum <= 0) { toast.error('Valor líquido deve ser maior que zero!'); return; }
 
     if (form.rateio_grupos.length > 0) {
       const total = form.rateio_grupos.reduce((s, r) => s + (r.valor || 0), 0);
-      if (Math.abs(total - valorTotalNum) > 0.01) { toast.error(`Rateio de grupos (${formatarMoeda(total)}) diferente do valor total!`); return; }
+      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de grupos (${formatarMoeda(total)}) diferente do valor líquido!`); return; }
     }
     if (form.rateio_centros_custo.length > 0) {
       const total = form.rateio_centros_custo.reduce((s, r) => s + (r.valor || 0), 0);
-      if (Math.abs(total - valorTotalNum) > 0.01) { toast.error(`Rateio de centros (${formatarMoeda(total)}) diferente do valor total!`); return; }
+      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Rateio de centros (${formatarMoeda(total)}) diferente do valor líquido!`); return; }
     }
-    if (form.parcelado && form.parcelas.length > 0) {
+    if (form.parcelas.length > 0) {
       const total = form.parcelas.reduce((s, p) => s + (p.valor || 0), 0);
-      if (Math.abs(total - valorTotalNum) > 0.01) { toast.error(`Total das parcelas (${formatarMoeda(total)}) diferente do valor total!`); return; }
+      if (Math.abs(total - valorLiquidoNum) > 0.01) { toast.error(`Total das parcelas (${formatarMoeda(total)}) diferente do valor líquido!`); return; }
     }
 
     setSalvando(true);
-    const fornecedor = fornecedores.find(f => f.id === form.fornecedor_id);
+    const fornecedor = fornecedores.find(f => f.id === (form.fornecedor_id || form.cliente_id));
     const tipoDoc = tiposDocumento.find(t => t.id === form.tipo_documento_id);
     const contaFin = contasFinanceiras.find(c => c.id === form.conta_financeira_id);
     const formaPag = formasPagamento.find(f => f.id === form.forma_pagamento_id);
@@ -193,14 +235,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const plano = planosContas.find(p => p.id === form.plano_contas_id);
 
     const data = {
-      empresa_id: empresaId,
-      tipo: form.tipo,
+      empresa_id: empresaId, tipo: form.tipo,
       descricao: form.descricao?.toUpperCase() || '',
       status: form.status || 'Aberto',
-      valor_total: valorTotalNum,
-      valor_pago: 0,
+      valor_total: valorTotalNum, valor_pago: 0,
       data_emissao: form.data_emissao,
-      data_vencimento: form.data_vencimento,
+      data_vencimento: form.parcelas[0]?.data_vencimento || calcularVencimento30Dias(form.data_emissao),
       data_pagamento: form.data_pagamento || undefined,
       fornecedor_id: form.fornecedor_id || undefined,
       fornecedor_nome: fornecedor?.nome || undefined,
@@ -217,9 +257,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       motivo_compra_nome: motivoC?.nome || undefined,
       plano_contas_id: form.plano_contas_id || undefined,
       plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
-      parcelado: form.parcelado,
-      quantidade_parcelas: form.parcelado ? form.parcelas.length : 1,
-      parcelas: form.parcelado ? form.parcelas : [],
+      parcelado: form.parcelas.length > 1,
+      quantidade_parcelas: form.parcelas.length,
+      parcelas: form.parcelas,
       rateio_grupos: form.rateio_grupos,
       rateio_centros_custo: form.rateio_centros_custo,
       observacao: form.observacao?.toUpperCase() || undefined,
@@ -228,9 +268,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     await onSubmit(data);
     setSalvando(false);
   };
-
-  const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent";
-  const SELECT_CLS = "h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent";
 
   return (
     <>
@@ -255,57 +292,80 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </SelectContent>
                   </Select>
                 </FL>
-                <FL label="Valor Total" required error={invalidFields.includes('valor_total')}>
-                  <Input
-                    value={form.valor_total}
-                    onChange={(e) => handleChange('valor_total', e.target.value.replace(/[^\d,]/g, ''))}
-                    placeholder="0,00"
-                    className={`${INPUT_CLS} text-right font-mono`}
-                  />
-                </FL>
                 <FL label="Data Emissão" required error={invalidFields.includes('data_emissao')}>
                   <Input type="date" value={form.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} className={INPUT_CLS} />
                 </FL>
-                <FL label="Data Vencimento" required error={invalidFields.includes('data_vencimento')}>
-                  <Input type="date" value={form.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} className={INPUT_CLS} />
+                <FL label="Nº Documento">
+                  <Input value={form.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
+                </FL>
+                <FL label="Status">
+                  <Input value={form.status || 'Aberto'} readOnly className={`${INPUT_CLS} bg-slate-100`} />
                 </FL>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-1 gap-1">
+              <div className="grid grid-cols-1 gap-1">
                 <FL label="Descrição" required error={invalidFields.includes('descricao')}>
-                  <Input
-                    value={form.descricao}
-                    onChange={(e) => handleChange('descricao', e.target.value.toUpperCase())}
-                    placeholder="DESCRIÇÃO DO LANÇAMENTO"
-                    className={`${INPUT_CLS} uppercase`}
-                  />
+                  <Input value={form.descricao} onChange={(e) => handleChange('descricao', e.target.value.toUpperCase())} placeholder="DESCRIÇÃO DO LANÇAMENTO" className={`${INPUT_CLS} uppercase`} />
                 </FL>
               </div>
 
+              {/* VALORES */}
+              <div className="grid grid-cols-3 gap-1">
+                <FL label="Valor Total" required error={invalidFields.includes('valor_total')}>
+                  <Input value={form.valor_total} onChange={(e) => handleChange('valor_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
+                </FL>
+                <FL label="Valor Desconto">
+                  <Input value={form.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
+                </FL>
+                <FL label="Valor Líquido">
+                  <Input value={formatarMoeda(valorLiquidoNum)} readOnly className={`${INPUT_CLS} text-right font-mono bg-slate-100 font-bold`} />
+                </FL>
+              </div>
+
+              {/* PESSOA / DOCUMENTO */}
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-1">
                 <FL label={form.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}>
-                  <ComboboxFornecedor
-                    fornecedores={fornecedores}
+                  <AutocompleteGenerico
+                    items={fornecedores}
                     value={form.tipo === 'Pagar' ? form.fornecedor_id : form.cliente_id}
                     onChange={(v) => handleChange(form.tipo === 'Pagar' ? 'fornecedor_id' : 'cliente_id', v)}
+                    placeholder={form.tipo === 'Pagar' ? 'BUSCAR FORNECEDOR...' : 'BUSCAR CLIENTE...'}
+                    displayField="nome"
+                    searchFields={["nome", "cnpj", "cpf"]}
+                    renderItem={(f) => (
+                      <>
+                        <div className="text-xs font-medium text-slate-900">{f.nome}</div>
+                        {(f.cnpj || f.cpf) && <div className="text-[10px] text-slate-500">{f.cnpj ? `CNPJ: ${f.cnpj}` : `CPF: ${f.cpf}`}</div>}
+                      </>
+                    )}
                     className="w-full"
+                    inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
                 <FL label="Tipo Documento">
-                  <Select value={form.tipo_documento_id || "__VAZIO__"} onValueChange={(v) => handleChange('tipo_documento_id', v === "__VAZIO__" ? "" : v)}>
-                    <SelectTrigger className={SELECT_CLS}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__VAZIO__" className="text-xs">SELECIONE</SelectItem>
-                      {tiposDocFiltrados.map(t => <SelectItem key={t.id} value={t.id} className="text-xs">{t.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico
+                    items={tiposDocFiltrados}
+                    value={form.tipo_documento_id}
+                    onChange={(v) => handleChange('tipo_documento_id', v)}
+                    placeholder="BUSCAR TIPO DOCUMENTO..."
+                    displayField="nome"
+                    searchFields={["nome", "sigla"]}
+                    renderItem={(t) => <div className="text-xs font-medium text-slate-900">{t.sigla ? `${t.sigla} - ${t.nome}` : t.nome}</div>}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
                 </FL>
-                <FL label="Nº Documento">
-                  <Input
-                    value={form.numero_documento}
-                    onChange={(e) => handleChange('numero_documento', e.target.value.toUpperCase())}
-                    placeholder="000000"
-                    className={`${INPUT_CLS} uppercase`}
+                <FL label="Motivo de Compra">
+                  <AutocompleteGenerico
+                    items={motivosCompra}
+                    value={form.motivo_compra_id}
+                    onChange={(v) => handleChange('motivo_compra_id', v)}
+                    placeholder="BUSCAR MOTIVO..."
+                    displayField="nome"
+                    searchFields={["nome", "categoria"]}
+                    renderItem={(m) => <div className="text-xs font-medium text-slate-900">{m.nome}</div>}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
                   />
                 </FL>
               </div>
@@ -315,96 +375,87 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 <span className="font-semibold text-xs text-slate-700">Conta e Pagamento</span>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-1">
                   <FL label="Conta Financeira" required error={invalidFields.includes('conta_financeira_id')}>
-                    <Select value={form.conta_financeira_id || "__VAZIO__"} onValueChange={(v) => handleChange('conta_financeira_id', v === "__VAZIO__" ? "" : v)}>
-                      <SelectTrigger className={SELECT_CLS}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__VAZIO__" className="text-xs">SELECIONE</SelectItem>
-                        {contasFinanceiras.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <AutocompleteGenerico
+                      items={contasFinanceiras}
+                      value={form.conta_financeira_id}
+                      onChange={(v) => handleChange('conta_financeira_id', v)}
+                      placeholder="BUSCAR CONTA..."
+                      displayField="nome"
+                      searchFields={["nome", "banco", "conta"]}
+                      renderItem={(c) => (
+                        <>
+                          <div className="text-xs font-medium text-slate-900">{c.nome}</div>
+                          {c.banco && <div className="text-[10px] text-slate-500">{c.banco}</div>}
+                        </>
+                      )}
+                      className="w-full"
+                      inputClassName={AC_INPUT_CLS}
+                    />
                   </FL>
                   <FL label="Forma Pagamento" required error={invalidFields.includes('forma_pagamento_id')}>
-                    <Select value={form.forma_pagamento_id || "__VAZIO__"} onValueChange={(v) => handleChange('forma_pagamento_id', v === "__VAZIO__" ? "" : v)}>
-                      <SelectTrigger className={SELECT_CLS}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__VAZIO__" className="text-xs">SELECIONE</SelectItem>
-                        {formasFiltradas.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <AutocompleteGenerico
+                      items={formasFiltradas}
+                      value={form.forma_pagamento_id}
+                      onChange={(v) => handleChange('forma_pagamento_id', v)}
+                      placeholder="BUSCAR FORMA..."
+                      displayField="nome"
+                      searchFields={["nome", "categoria"]}
+                      renderItem={(f) => <div className="text-xs font-medium text-slate-900">{f.nome}</div>}
+                      className="w-full"
+                      inputClassName={AC_INPUT_CLS}
+                    />
                   </FL>
-                  <FL label="Motivo de Compra">
-                    <Select value={form.motivo_compra_id || "__VAZIO__"} onValueChange={(v) => handleChange('motivo_compra_id', v === "__VAZIO__" ? "" : v)}>
-                      <SelectTrigger className={SELECT_CLS}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__VAZIO__" className="text-xs">SELECIONE</SelectItem>
-                        {motivosCompra.map(m => <SelectItem key={m.id} value={m.id} className="text-xs">{m.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </FL>
-                </div>
-                <div className="grid grid-cols-1 gap-1">
                   <FL label="Plano de Contas">
                     <AutocompleteGenerico
                       items={planosContas}
                       value={form.plano_contas_id}
                       onChange={(v) => handleChange('plano_contas_id', v)}
-                      placeholder="BUSCAR PLANO DE CONTAS..."
+                      placeholder="BUSCAR PLANO..."
                       displayField="descricao"
                       searchFields={["codigo", "descricao"]}
                       renderItem={(p) => <div className="text-xs font-medium text-slate-900">{p.codigo} - {p.descricao}</div>}
                       className="w-full"
-                      inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7"
+                      inputClassName={AC_INPUT_CLS}
                     />
                   </FL>
                 </div>
               </div>
 
-              {/* RATEIO GRUPO FINANCEIRO */}
-              <RateioGruposSection
-                rateios={form.rateio_grupos}
-                onChange={(r) => handleChange('rateio_grupos', r)}
-                grupos={gruposFinanceiros}
-                valorTotal={valorTotalNum}
-              />
-
-              {/* RATEIO CENTRO DE CUSTO */}
-              <RateioCentrosCustoSection
-                rateios={form.rateio_centros_custo}
-                onChange={(r) => handleChange('rateio_centros_custo', r)}
-                centros={centrosCusto}
-                valorTotal={valorTotalNum}
-              />
-
-              {/* PARCELAMENTO */}
-              <ParcelasSection
-                parcelado={form.parcelado}
-                parcelas={form.parcelas}
-                onParceladoChange={(v) => handleChange('parcelado', v)}
-                onParcelasChange={(p) => handleChange('parcelas', p)}
-                valorTotal={valorTotalNum}
-                dataVencimento={form.data_vencimento}
-              />
+              {/* RATEIO + PARCELAS LADO A LADO */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+                <div className="space-y-0.5">
+                  <RateioGruposSection
+                    rateios={form.rateio_grupos}
+                    onChange={(r) => handleChange('rateio_grupos', r)}
+                    grupos={gruposComHierarquia}
+                    valorTotal={valorLiquidoNum}
+                  />
+                  <RateioCentrosCustoSection
+                    rateios={form.rateio_centros_custo}
+                    onChange={(r) => handleChange('rateio_centros_custo', r)}
+                    centros={centrosComHierarquia}
+                    valorTotal={valorLiquidoNum}
+                  />
+                </div>
+                <ParcelasSection
+                  parcelas={form.parcelas}
+                  onParcelasChange={(p) => handleChange('parcelas', p)}
+                  valorTotal={valorLiquidoNum}
+                  dataEmissao={form.data_emissao}
+                />
+              </div>
 
               {/* OBSERVAÇÕES E ANEXOS */}
               <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
                 <span className="font-semibold text-xs text-slate-700">Observações e Anexos</span>
                 <FL label="Observações">
-                  <Textarea
-                    value={form.observacao}
-                    onChange={(e) => handleChange('observacao', e.target.value.toUpperCase())}
-                    placeholder="OBSERVAÇÕES..."
-                    className="min-h-12 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                    rows={2}
-                  />
+                  <Textarea value={form.observacao} onChange={(e) => handleChange('observacao', e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="min-h-12 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
                 </FL>
                 <div className="flex items-center gap-2 pt-1">
                   <label className="cursor-pointer">
                     <input type="file" className="hidden" onChange={handleUploadAnexo} accept=".pdf,.xml,.jpg,.jpeg,.png" />
                     <Button type="button" variant="outline" size="sm" className="h-6 text-xs gap-1" asChild>
-                      <span>
-                        {uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                        {uploadingFile ? 'Enviando...' : 'Anexar'}
-                      </span>
+                      <span>{uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}{uploadingFile ? 'Enviando...' : 'Anexar'}</span>
                     </Button>
                   </label>
                 </div>
@@ -413,9 +464,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     {form.anexos_urls.map((url, i) => (
                       <div key={i} className="flex items-center justify-between bg-white rounded px-2 py-0.5 text-xs border border-slate-200">
                         <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[250px]">Anexo {i + 1}</a>
-                        <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => setForm(prev => ({ ...prev, anexos_urls: prev.anexos_urls.filter((_, idx) => idx !== i) }))}>
+                        <button type="button" className="text-slate-400 hover:text-red-500" onClick={() => setForm(prev => ({ ...prev, anexos_urls: prev.anexos_urls.filter((_, idx) => idx !== i) }))}>
                           <X className="w-3 h-3" />
-                        </Button>
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -425,8 +476,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               {/* RESUMO */}
               <div className="bg-slate-100 border border-slate-300 rounded p-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-800">VALOR TOTAL DO LANÇAMENTO:</span>
-                  <span className="font-mono font-bold text-slate-900 text-sm">{formatarMoeda(valorTotalNum)}</span>
+                  <span className="font-bold text-slate-800">VALOR LÍQUIDO:</span>
+                  <span className="font-mono font-bold text-slate-900 text-sm">{formatarMoeda(valorLiquidoNum)}</span>
                 </div>
               </div>
 
@@ -444,8 +495,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       </motion.div>
 
       <DialogCadastroRapido
-        tipo={dialogCadastro.tipo}
-        open={dialogCadastro.open}
+        tipo={dialogCadastro.tipo} open={dialogCadastro.open}
         onClose={() => setDialogCadastro({ open: false, tipo: '' })}
         onSuccess={() => { queryClient.invalidateQueries(); setDialogCadastro({ open: false, tipo: '' }); }}
         tipoFinanceiro={form.tipo === 'Pagar' ? 'Despesa' : 'Receita'}
