@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,6 +77,8 @@ const getBadgeStyle = (status) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
+  { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
+  { id: 'acoes', label: 'Ações', default: true, fixo: true, width: 25 },
   { id: 'numero', label: 'Nº', default: true },
   { id: 'parcela', label: 'Parcela', default: false },
   { id: 'emissao', label: 'Emissão', default: true },
@@ -127,27 +130,30 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   });
   
   const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const padrao = COLUNAS_DISPONIVEIS.map(c => c.id);
     const saved = localStorage.getItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return [...new Set([...padrao, ...parsed])];
       } catch {
-        return COLUNAS_DISPONIVEIS.map(c => c.id);
+        return padrao;
       }
     }
-    return COLUNAS_DISPONIVEIS.map(c => c.id);
+    return padrao;
   });
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const padrao = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
     const saved = localStorage.getItem(`colunas_tabela_financeiro_${tipo.toLowerCase()}`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return [...new Set([...padrao, ...JSON.parse(saved)])];
       } catch {
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        return padrao;
       }
     }
-    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+    return padrao;
   });
 
   const toggleColuna = (colunaId) => {
@@ -384,6 +390,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   const renderCell = (coluna, lancamento) => {
     switch (coluna.id) {
+      case 'selecao':
+        return null;
+      case 'acoes':
+        return null;
       case 'numero':
         return <TableCell className="font-semibold text-xs border-r border-slate-200">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>;
       case 'parcela':
@@ -528,18 +538,27 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <Table className="w-full min-w-[1100px] border-separate border-spacing-0 table-fixed">
                   <TableHeader className="bg-white">
                     <TableRow className="sticky top-0 z-40 bg-white">
-                      <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                        <div className="flex items-center justify-center w-full h-full">
-                          <Checkbox 
-                            checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
-                            onCheckedChange={handleSelecionarTodos}
-                            className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                          />
-                        </div>
-                      </TableHead>
-                      <TableHead className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }} />
                       {colunasOrdenadas.map((coluna) => {
                         const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
+
+                        if (coluna.id === 'selecao') {
+                          return (
+                            <TableHead key="selecao" className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                              <div className="flex items-center justify-center w-full h-full">
+                                <Checkbox 
+                                  checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
+                                  onCheckedChange={handleSelecionarTodos}
+                                  className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                />
+                              </div>
+                            </TableHead>
+                          );
+                        }
+
+                        if (coluna.id === 'acoes') {
+                          return <TableHead key="acoes" className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" style={{ width: 25, minWidth: 25, maxWidth: 25 }} />;
+                        }
+
                         return (
                           <TableHead 
                             key={coluna.id}
@@ -575,69 +594,81 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               key={lancamento.id}
                               className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
                             >
-                              <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                                <div className="flex items-center justify-center w-full h-full">
-                                  <Checkbox
-                                    checked={selecionados.includes(lancamento.id)}
-                                    onCheckedChange={() => handleToggleSelecao(lancamento.id)}
-                                    className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                                  />
-                                </div>
-                              </TableCell>
-                              <TableCell className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start">
-                                    <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
-                                      <Eye className="w-3.5 h-3.5 mr-2" />
-                                      Ver Detalhes
-                                    </DropdownMenuItem>
-                                    {temProdutos && (
-                                      <DropdownMenuItem onClick={() => abrirProdutos(lancamento)} className="text-xs">
-                                        <Package className="w-3.5 h-3.5 mr-2" />
-                                        Ver Produtos ({lancamento.produtos_lancamento.length})
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
-                                      <Edit className="w-3.5 h-3.5 mr-2" />
-                                      Editar
-                                    </DropdownMenuItem>
-                                    {lancamento.parcelas && lancamento.parcelas.length > 0 && (
-                                      <DropdownMenuItem onClick={() => abrirParcelas(lancamento)} className="text-xs">
-                                        <Calendar className="w-3.5 h-3.5 mr-2" />
-                                        Ver Parcelas ({lancamento.parcelas.length})
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuSeparator />
-                                    {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
-                                      <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs">
-                                        <CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />
-                                        Dar Baixa
-                                      </DropdownMenuItem>
-                                    )}
-                                    {lancamento?.status === 'Pago' && onCancelarBaixa && (
-                                      <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs">
-                                        <XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />
-                                        Cancelar Baixa
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">
-                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                      Excluir
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                              {colunasOrdenadas.map(coluna => (
-                                <React.Fragment key={coluna.id}>
-                                  {renderCell(coluna, lancamento)}
-                                </React.Fragment>
-                              ))}
+                              {colunasOrdenadas.map((coluna) => {
+                                if (coluna.id === 'selecao') {
+                                  return (
+                                    <TableCell key={`${lancamento.id}-selecao`} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                                      <div className="flex items-center justify-center w-full h-full">
+                                        <Checkbox
+                                          checked={selecionados.includes(lancamento.id)}
+                                          onCheckedChange={() => handleToggleSelecao(lancamento.id)}
+                                          className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                        />
+                                      </div>
+                                    </TableCell>
+                                  );
+                                }
+
+                                if (coluna.id === 'acoes') {
+                                  return (
+                                    <TableCell key={`${lancamento.id}-acoes`} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" style={{ width: 25, minWidth: 25, maxWidth: 25 }}>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                                            <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start">
+                                          <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
+                                            <Eye className="w-3.5 h-3.5 mr-2" />
+                                            Ver Detalhes
+                                          </DropdownMenuItem>
+                                          {temProdutos && (
+                                            <DropdownMenuItem onClick={() => abrirProdutos(lancamento)} className="text-xs">
+                                              <Package className="w-3.5 h-3.5 mr-2" />
+                                              Ver Produtos ({lancamento.produtos_lancamento.length})
+                                            </DropdownMenuItem>
+                                          )}
+                                          <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
+                                            <Edit className="w-3.5 h-3.5 mr-2" />
+                                            Editar
+                                          </DropdownMenuItem>
+                                          {lancamento.parcelas && lancamento.parcelas.length > 0 && (
+                                            <DropdownMenuItem onClick={() => abrirParcelas(lancamento)} className="text-xs">
+                                              <Calendar className="w-3.5 h-3.5 mr-2" />
+                                              Ver Parcelas ({lancamento.parcelas.length})
+                                            </DropdownMenuItem>
+                                          )}
+                                          <DropdownMenuSeparator />
+                                          {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
+                                            <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs">
+                                              <CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />
+                                              Dar Baixa
+                                            </DropdownMenuItem>
+                                          )}
+                                          {lancamento?.status === 'Pago' && onCancelarBaixa && (
+                                            <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs">
+                                              <XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />
+                                              Cancelar Baixa
+                                            </DropdownMenuItem>
+                                          )}
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">
+                                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                            Excluir
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </TableCell>
+                                  );
+                                }
+
+                                return (
+                                  <React.Fragment key={coluna.id}>
+                                    {renderCell(coluna, lancamento)}
+                                  </React.Fragment>
+                                );
+                              })}
                             </TableRow>
                           );
                         })
@@ -753,74 +784,16 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-3 flex-1 overflow-auto">
-            <div className="space-y-1">
-              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
-              <div className="grid grid-cols-2 gap-2">
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.includes(coluna.id)}
-                      onChange={() => toggleColuna(coluna.id)}
-                      className="rounded"
-                    />
-                    <span>{coluna.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t pt-3">
-              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="colunas">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
-                      {colunasOrdem.map((colunaId, index) => {
-                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
-                        if (!coluna) return null;
-                        
-                        return (
-                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
-                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
-                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
-                              >
-                                <GripVertical className="w-4 h-4 text-slate-400" />
-                                <span className="flex-1">{coluna.label}</span>
-                                {colunasVisiveis.includes(colunaId) && (
-                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
-                                )}
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t">
-            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfiguracaoColunasMapaDialog
+        open={showConfigColunas}
+        onOpenChange={setShowConfigColunas}
+        colunasDisponiveis={COLUNAS_DISPONIVEIS}
+        colunasVisiveis={colunasVisiveis}
+        colunasOrdem={colunasOrdem}
+        toggleColuna={toggleColuna}
+        handleDragEnd={handleDragEnd}
+        droppableId={`colunas-financeiro-${tipo.toLowerCase()}`}
+      />
 
       <Dialog open={!!parcelasDialog} onOpenChange={(open) => !open && setParcelasDialog(null)}>
         <DialogContent className="max-w-3xl">
