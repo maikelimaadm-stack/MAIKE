@@ -134,12 +134,12 @@ const getFieldValue = (lancamento, colunaId) => {
   }
 };
 
-export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos, safras, centrosCusto, planosContas, gruposFinanceiros, onUpdateLote }) {
+export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos, safras, centrosCusto, planosContas, gruposFinanceiros, onUpdateLote, showConfigColunas, setShowConfigColunas }) {
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
   const [produtosDialog, setProdutosDialog] = useState(null);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  // showConfigColunas is now controlled by parent via props (same pattern as TabelaCategoriasManejo)
   const [selecionados, setSelecionados] = useState([]);
   const [parcelasDialog, setParcelasDialog] = useState(null);
   const [showEditarLote, setShowEditarLote] = useState(false);
@@ -490,7 +490,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowConfigColunas(true)}>Colunas</Button>
+
           </div>
         </div>
 

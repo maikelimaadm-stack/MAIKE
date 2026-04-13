@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Settings } from "lucide-react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
@@ -28,6 +28,7 @@ export default function LancamentoFinanceiro() {
   const [editingLancamento, setEditingLancamento] = useState(null);
   const [baixaLancamento, setBaixaLancamento] = useState(null);
   const [dadosBaixaLote, setDadosBaixaLote] = useState(null); // New state for batch baixa
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [showXmlImport, setShowXmlImport] = useState(false); // Renamed from showImportXML
   const [dadosXML, setDadosXML] = useState(null);
   const [showSaveProgress, setShowSaveProgress] = useState(false); // Renamed from showProgressoSalvamento
@@ -432,6 +433,9 @@ export default function LancamentoFinanceiro() {
               <h1 className="font-bold text-slate-800">Lançamentos Financeiros</h1>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+                <Settings className="w-4 h-4" />
+              </Button>
               <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
                 Importar XML
               </Button>
@@ -463,6 +467,8 @@ export default function LancamentoFinanceiro() {
                 planosContas={planosContas} // New prop
                 gruposFinanceiros={gruposFinanceiros} // New prop
                 onUpdateLote={handleUpdateLote} // New prop
+                showConfigColunas={abaAtiva === 'pagar' ? showConfigColunas : false}
+                setShowConfigColunas={setShowConfigColunas}
               />
             </TabsContent>
 
@@ -482,6 +488,8 @@ export default function LancamentoFinanceiro() {
                 planosContas={planosContas} // New prop
                 gruposFinanceiros={gruposFinanceiros} // New prop
                 onUpdateLote={handleUpdateLote} // New prop
+                showConfigColunas={abaAtiva === 'receber' ? showConfigColunas : false}
+                setShowConfigColunas={setShowConfigColunas}
               />
             </TabsContent>
           </Tabs>
