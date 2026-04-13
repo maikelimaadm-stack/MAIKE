@@ -120,8 +120,6 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
     document.body.style.userSelect = "none";
   };
 
-  useEffect(() => { setSelectedItems((prev) => prev.filter((id) => pontosComDetalhes.some((p) => p.id === id))); }, [pontosComDetalhes]);
-
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
@@ -150,6 +148,10 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
       return { ...item, detalhe_suplementacao: detalhe || null };
     });
   }, [pontos, pontosSuplementacao]);
+
+  useEffect(() => {
+    setSelectedItems((prev) => prev.filter((id) => pontosComDetalhes.some((p) => p.id === id)));
+  }, [pontosComDetalhes]);
 
   const getFieldValue = (item, colunaId) => {
     const detalhe = item.detalhe_suplementacao || {};
