@@ -142,9 +142,12 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
     const normalizar = (value = "") => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
     return pontos.map((item) => {
       const detalhe = pontosSuplementacao.find((pontoSup) => {
-        const mesmoNome = normalizar(pontoSup.nome_ponto) === normalizar(item.nome);
-        const mesmaSigla = item.sigla && normalizar(pontoSup.sigla) === normalizar(item.sigla);
-        return mesmoNome || mesmaSigla;
+        const mesmoNomeReferencia = normalizar(pontoSup.nome_ponto) === normalizar(item.nome);
+        const mesmaSiglaReferencia = item.sigla && normalizar(pontoSup.sigla) === normalizar(item.sigla);
+        const mesmoNomeSuplementacao = normalizar(pontoSup.nome_ponto) === normalizar(item.nome_ponto);
+        const mesmaSiglaSuplementacao = item.sigla && normalizar(pontoSup.sigla) === normalizar(item.sigla_ponto || item.sigla);
+        const mesmoIdSuplementacao = item.ponto_suplementacao_id && pontoSup.id === item.ponto_suplementacao_id;
+        return mesmoIdSuplementacao || mesmoNomeReferencia || mesmaSiglaReferencia || mesmoNomeSuplementacao || mesmaSiglaSuplementacao;
       });
       return { ...item, detalhe_suplementacao: detalhe || null };
     });
