@@ -139,67 +139,103 @@ export default function LancamentoFinanceiro() {
   // --- SUBMIT: Cria parcelas como registros individuais ---
   const handleSubmit = async (data) => {
     if (editingLancamento) {
-      // EDIÇÃO: campos comuns a propagar para todas as parcelas
-      const camposPropagar = {
-        tipo: data.tipo,
-        data_emissao: data.data_emissao,
-        fornecedor_id: data.fornecedor_id,
-        fornecedor_nome: data.fornecedor_nome,
-        cliente_id: data.cliente_id,
-        cliente_nome: data.cliente_nome,
-        tipo_documento_id: data.tipo_documento_id,
-        tipo_documento_nome: data.tipo_documento_nome,
-        numero_documento: data.numero_documento,
-        conta_financeira_id: data.conta_financeira_id,
-        conta_financeira_nome: data.conta_financeira_nome,
-        forma_pagamento_id: data.forma_pagamento_id,
-        forma_pagamento_nome: data.forma_pagamento_nome,
-        motivo_compra_id: data.motivo_compra_id,
-        motivo_compra_nome: data.motivo_compra_nome,
-        rateio_grupos: data.rateio_grupos,
-        rateio_centros_custo: data.rateio_centros_custo,
-        produtos_lancamento: data.produtos_lancamento,
-        observacao: data.observacao,
-        anexos_urls: data.anexos_urls,
-      };
+      setShowSaveProgress(true);
+      setProgressoSalvamento({ etapa: 'Atualizando...', current: 5, total: 100 });
 
       const parcelas = data.parcelas || [];
       const totalParcelas = Math.max(parcelas.length, 1);
       const valorTotalLancamento = parcelas.reduce((s, p) => s + (p.valor || 0), 0) || data.valor_total;
 
-      if (editingLancamento.parcelamento_grupo_id && totalParcelas > 1) {
-        // Edição de grupo parcelado: atualizar cada parcela individualmente
-        const registrosDoGrupo = lancamentos
-          .filter(l => l.parcelamento_grupo_id === editingLancamento.parcelamento_grupo_id)
-          .sort((a, b) => (a.numero_parcela_seq || 0) - (b.numero_parcela_seq || 0));
+      // Estratégia: excluir todos os registros antigos do grupo e recriar
+      if (editingLancamento.parcelamento_grupo_id) {
+        const registrosAntigos = lancamentos.filter(
+          l => l.parcelamento_grupo_id === editingLancamento.parcelamento_grupo_id
+        );
 
-        for (let i = 0; i < registrosDoGrupo.length; i++) {
-          const registro = registrosDoGrupo[i];
-          const parcelaData = parcelas[i] || {};
-          await base44.entities.LancamentoFinanceiro.update(registro.id, {
-            ...camposPropagar,
-            descricao: `${data.descricao} - PARCELA ${i + 1}/${totalParcelas}`,
-            valor_total: parcelaData.valor || registro.valor_total,
-            valor_total_lancamento: valorTotalLancamento,
-            data_vencimento: parcelaData.data_vencimento || registro.data_vencimento,
-            total_parcelas_grupo: totalParcelas,
-          });
+        // Verificar baixas antes de excluir
+        const baixas = await base44.entities.BaixaFinanceira.list();
+        for (const reg of registrosAntigos) {
+          if (baixas.find(b => b && b.lancamento_id === reg.id)) {
+            toast.error(`Parcela ${reg.numero_parcela_seq || ''} possui baixa. Cancele antes de editar.`);
+            setShowSaveProgress(false);
+            return;
+          }
         }
-        toast.info(`${registrosDoGrupo.length} parcela(s) do grupo atualizadas.`);
+
+        setProgressoSalvamento({ etapa: 'Removendo parcelas antigas...', current: 15, total: 100 });
+        for (const reg of registrosAntigos) {
+          await base44.entities.LancamentoFinanceiro.delete(reg.id);
+        }
       } else {
-        // Edição de lançamento avulso (sem parcelas)
-        await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, {
-          ...camposPropagar,
-          descricao: data.descricao,
-          valor_total: data.valor_total,
-          valor_total_lancamento: data.valor_total,
-          data_vencimento: data.data_vencimento || (parcelas[0]?.data_vencimento) || editingLancamento.data_vencimento,
+        // Lançamento avulso: excluir o registro antigo
+        const baixas = await base44.entities.BaixaFinanceira.list();
+        if (baixas.find(b => b && b.lancamento_id === editingLancamento.id)) {
+          toast.error('Lançamento possui baixa. Cancele antes de editar.');
+          setShowSaveProgress(false);
+          return;
+        }
+        setProgressoSalvamento({ etapa: 'Removendo registro antigo...', current: 15, total: 100 });
+        await base44.entities.LancamentoFinanceiro.delete(editingLancamento.id);
+      }
+
+      // Recriar todos os registros com os novos dados
+      const grupoId = totalParcelas > 1 ? (editingLancamento.parcelamento_grupo_id || gerarGrupoId()) : null;
+      let baseNumero = parseInt(await getNextNumeroLancamento(empresaSelecionadaId));
+
+      for (let i = 0; i < totalParcelas; i++) {
+        const parcela = parcelas[i] || {};
+        const obsParcela = parcela.observacao_parcela ? parcela.observacao_parcela.toUpperCase() : '';
+
+        await base44.entities.LancamentoFinanceiro.create({
+          empresa_id: data.empresa_id,
+          numero_lancamento: String(baseNumero + i),
+          tipo: data.tipo,
+          descricao: totalParcelas > 1 ? `${data.descricao} - PARCELA ${i + 1}/${totalParcelas}` : data.descricao,
+          status: 'Aberto',
+          valor_total: parcela.valor || data.valor_total,
+          valor_total_lancamento: valorTotalLancamento,
+          valor_pago: 0,
+          data_emissao: data.data_emissao,
+          data_vencimento: parcela.data_vencimento || data.data_vencimento,
+          fornecedor_id: data.fornecedor_id,
+          fornecedor_nome: data.fornecedor_nome,
+          cliente_id: data.cliente_id,
+          cliente_nome: data.cliente_nome,
+          tipo_documento_id: data.tipo_documento_id,
+          tipo_documento_nome: data.tipo_documento_nome,
+          numero_documento: data.numero_documento,
+          conta_financeira_id: data.conta_financeira_id,
+          conta_financeira_nome: data.conta_financeira_nome,
+          forma_pagamento_id: data.forma_pagamento_id,
+          forma_pagamento_nome: data.forma_pagamento_nome,
+          motivo_compra_id: data.motivo_compra_id,
+          motivo_compra_nome: data.motivo_compra_nome,
+          parcelamento_grupo_id: grupoId,
+          numero_parcela_seq: i + 1,
+          total_parcelas_grupo: totalParcelas,
+          is_registro_principal: i === 0,
+          rateio_grupos: data.rateio_grupos,
+          rateio_centros_custo: data.rateio_centros_custo,
+          produtos_lancamento: data.produtos_lancamento,
+          observacao: data.observacao,
+          observacao_parcela: obsParcela || undefined,
+          anexos_urls: data.anexos_urls,
+        });
+
+        setProgressoSalvamento({
+          etapa: `Criando parcela ${i + 1} de ${totalParcelas}...`,
+          current: 20 + Math.round(((i + 1) / totalParcelas) * 75),
+          total: 100
         });
       }
+
+      setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
+      await new Promise(resolve => setTimeout(resolve, 400));
 
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setEditingLancamento(null);
       setShowForm(false);
+      setShowSaveProgress(false);
       toast.success('Lançamento atualizado!');
       return;
     }

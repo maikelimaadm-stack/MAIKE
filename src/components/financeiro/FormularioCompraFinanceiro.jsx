@@ -154,11 +154,72 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     }
   }, [form.data_emissao]);
 
+  // Auto-ajustar parcelas e rateios quando valor líquido mudar
   useEffect(() => {
-    // Só auto-ajustar valor da parcela quando é 1 parcela e NÃO está editando
-    if (form.parcelas.length === 1 && !isEditing) {
-      setForm(prev => ({ ...prev, parcelas: [{ ...prev.parcelas[0], valor: valorLiquidoNum }] }));
-    }
+    if (valorLiquidoNum <= 0) return;
+
+    setForm(prev => {
+      const updates = {};
+
+      // Auto-ajustar parcelas proporcionalmente
+      if (prev.parcelas.length > 0) {
+        const totalParcelasAtual = prev.parcelas.reduce((s, p) => s + (p.valor || 0), 0);
+        if (totalParcelasAtual > 0 && Math.abs(totalParcelasAtual - valorLiquidoNum) > 0.01) {
+          const fator = valorLiquidoNum / totalParcelasAtual;
+          let somaAjustada = 0;
+          const novasParcelas = prev.parcelas.map((p, i) => {
+            if (i === prev.parcelas.length - 1) {
+              return { ...p, valor: Number((valorLiquidoNum - somaAjustada).toFixed(2)) };
+            }
+            const novoValor = Number((p.valor * fator).toFixed(2));
+            somaAjustada += novoValor;
+            return { ...p, valor: novoValor };
+          });
+          updates.parcelas = novasParcelas;
+        } else if (prev.parcelas.length === 1) {
+          updates.parcelas = [{ ...prev.parcelas[0], valor: valorLiquidoNum }];
+        }
+      }
+
+      // Auto-ajustar rateio grupos proporcionalmente
+      if (prev.rateio_grupos.length > 0) {
+        const totalGrupos = prev.rateio_grupos.reduce((s, r) => s + (r.valor || 0), 0);
+        if (totalGrupos > 0 && Math.abs(totalGrupos - valorLiquidoNum) > 0.01) {
+          const fator = valorLiquidoNum / totalGrupos;
+          let soma = 0;
+          updates.rateio_grupos = prev.rateio_grupos.map((r, i) => {
+            if (i === prev.rateio_grupos.length - 1) {
+              const val = Number((valorLiquidoNum - soma).toFixed(2));
+              return { ...r, valor: val, percentual: valorLiquidoNum > 0 ? Number(((val / valorLiquidoNum) * 100).toFixed(2)) : 0 };
+            }
+            const novoValor = Number((r.valor * fator).toFixed(2));
+            soma += novoValor;
+            return { ...r, valor: novoValor, percentual: valorLiquidoNum > 0 ? Number(((novoValor / valorLiquidoNum) * 100).toFixed(2)) : 0 };
+          });
+        }
+      }
+
+      // Auto-ajustar rateio centros de custo proporcionalmente
+      if (prev.rateio_centros_custo.length > 0) {
+        const totalCentros = prev.rateio_centros_custo.reduce((s, r) => s + (r.valor || 0), 0);
+        if (totalCentros > 0 && Math.abs(totalCentros - valorLiquidoNum) > 0.01) {
+          const fator = valorLiquidoNum / totalCentros;
+          let soma = 0;
+          updates.rateio_centros_custo = prev.rateio_centros_custo.map((r, i) => {
+            if (i === prev.rateio_centros_custo.length - 1) {
+              const val = Number((valorLiquidoNum - soma).toFixed(2));
+              return { ...r, valor: val, percentual: valorLiquidoNum > 0 ? Number(((val / valorLiquidoNum) * 100).toFixed(2)) : 0 };
+            }
+            const novoValor = Number((r.valor * fator).toFixed(2));
+            soma += novoValor;
+            return { ...r, valor: novoValor, percentual: valorLiquidoNum > 0 ? Number(((novoValor / valorLiquidoNum) * 100).toFixed(2)) : 0 };
+          });
+        }
+      }
+
+      if (Object.keys(updates).length === 0) return prev;
+      return { ...prev, ...updates };
+    });
   }, [valorLiquidoNum]);
 
   const formasFiltradas = useMemo(() => {
