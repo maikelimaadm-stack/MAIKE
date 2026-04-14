@@ -12,6 +12,7 @@ import { getLocalEstoque, getLabelOperacao } from "./utils/movimentacaoUtils";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
+  { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 90 },
   { id: "data", label: "Data/Hora", default: true, sortable: true, align: "left", width: 150 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 110 },
@@ -38,7 +39,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: "parcela_seq", label: "Seq.", default: false, sortable: true, align: "center", width: 70 },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
+const DEFAULT_VISIBLE_COLUMNS_PRINCIPAIS = ["selecao", "acoes", "numero", "data", "tipo", "tipo_detalhado", "fornecedor", "cliente", "local_origem", "local_destino", "numero_documento", "tipo_documento", "motivo", "status", "total_itens"];
+const DEFAULT_VISIBLE_COLUMNS_MOVIMENTACOES = ["selecao", "numero", "data", "tipo", "tipo_detalhado", "produto", "quantidade", "unidade", "valor_unitario", "valor_total", "fornecedor", "cliente", "local_origem", "local_destino", "numero_documento", "tipo_documento", "motivo", "lotes", "status"];
 const COLUMN_WIDTHS_KEY = "colunas_largura_movimentacoes_estoque";
 const MIN_COLUMN_WIDTH = 80;
 
@@ -113,15 +115,17 @@ export default function TabelaMovimentacoes({
   });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const saved = localStorage.getItem("colunas_movimentacoes");
+    const storageKey = modoVisualizacao === "principais" ? "colunas_movimentacoes_principais" : "colunas_movimentacoes_itens";
+    const defaults = modoVisualizacao === "principais" ? DEFAULT_VISIBLE_COLUMNS_PRINCIPAIS : DEFAULT_VISIBLE_COLUMNS_MOVIMENTACOES;
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
-        return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));
+        return Array.from(new Set([...JSON.parse(saved), ...defaults]));
       } catch {
-        return DEFAULT_VISIBLE_COLUMNS;
+        return defaults;
       }
     }
-    return DEFAULT_VISIBLE_COLUMNS;
+    return defaults;
   });
 
   const lastTapRef = useRef({ id: null, time: 0 });
@@ -174,6 +178,7 @@ export default function TabelaMovimentacoes({
     return colunasOrdem
       .map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id))
       .filter((c) => c && colunasVisiveis.includes(c.id))
+      .filter((c) => modoVisualizacao === "principais" || c.id !== "acoes")
       .filter((c) => modoVisualizacao !== "principais" || !COLUNAS_OCULTAS_PRINCIPAIS.includes(c.id));
   }, [colunasOrdem, colunasVisiveis, modoVisualizacao]);
 
@@ -182,7 +187,8 @@ export default function TabelaMovimentacoes({
       ? colunasVisiveis.filter((id) => id !== colunaId)
       : [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
-    localStorage.setItem("colunas_movimentacoes", JSON.stringify(novas));
+    const storageKey = modoVisualizacao === "principais" ? "colunas_movimentacoes_principais" : "colunas_movimentacoes_itens";
+    localStorage.setItem(storageKey, JSON.stringify(novas));
   };
 
   const handleDragEnd = (result) => {
@@ -195,7 +201,7 @@ export default function TabelaMovimentacoes({
   };
 
   const toggleResizeMode = (colunaId) => {
-    if (colunaId === "selecao") return;
+    if (colunaId === "selecao" || (modoVisualizacao !== "principais" && colunaId === "acoes")) return;
     setResizeColumnId((prev) => (prev === colunaId ? null : colunaId));
   };
 
@@ -559,6 +565,10 @@ export default function TabelaMovimentacoes({
                           );
                         }
 
+                        if (coluna.id === "acoes") {
+                          return <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />;
+                        }
+
                         const filterControl = renderFilterControl(coluna.id);
 
                         return (
@@ -620,6 +630,21 @@ export default function TabelaMovimentacoes({
                                   <TableCell key={`${item.id}-selecao`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
                                     <div className="flex items-center justify-center w-full h-full">
                                       <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} disabled={item.status !== "Ativa" || modoVisualizacao !== "principais"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                    </div>
+                                  </TableCell>
+                                );
+                              }
+
+                              if (coluna.id === "acoes") {
+                                return (
+                                  <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300">
+                                    <div className="flex items-center justify-center w-full h-full gap-0.5">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}>
+                                        <span className="text-[10px] font-semibold text-slate-600">E</span>
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onDelete?.(item.id); }}>
+                                        <span className="text-[10px] font-semibold text-red-600">X</span>
+                                      </Button>
                                     </div>
                                   </TableCell>
                                 );
