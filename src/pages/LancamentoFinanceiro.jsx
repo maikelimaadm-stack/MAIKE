@@ -75,6 +75,15 @@ export default function LancamentoFinanceiro() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: baixas = [] } = useQuery({
+    queryKey: ['baixas_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.BaixaFinanceira.list();
+      return all.filter(b => b && b.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       const lancamento = lancamentos.find(l => l.id === id);
@@ -129,6 +138,7 @@ export default function LancamentoFinanceiro() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['baixas_financeiro'] });
       toast.success('Baixa cancelada!');
     },
     onError: (error) => {
@@ -381,6 +391,7 @@ export default function LancamentoFinanceiro() {
         status: 'Pago'
       });
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['baixas_financeiro'] });
       toast.success('Baixa aplicada com sucesso!');
     } else {
       setBaixaLancamento(lancamento);
@@ -479,6 +490,8 @@ export default function LancamentoFinanceiro() {
                 onUpdateLote={handleUpdateLote}
                 showConfigColunas={abaAtiva === 'lancamentos' ? showConfigColunas : false}
                 setShowConfigColunas={setShowConfigColunas}
+                baixas={baixas}
+                allLancamentos={lancamentos}
               />
             </TabsContent>
 
@@ -503,6 +516,8 @@ export default function LancamentoFinanceiro() {
                     onUpdateLote={handleUpdateLote}
                     showConfigColunas={abaAtiva === 'pagar' && subAbaPagar === 'principais' ? showConfigColunas : false}
                     setShowConfigColunas={setShowConfigColunas}
+                    baixas={baixas}
+                    allLancamentos={lancamentos}
                   />
                 </TabsContent>
                 <TabsContent value="parcelas" className="mt-1">
@@ -519,6 +534,8 @@ export default function LancamentoFinanceiro() {
                     onUpdateLote={handleUpdateLote}
                     showConfigColunas={abaAtiva === 'pagar' && subAbaPagar === 'parcelas' ? showConfigColunas : false}
                     setShowConfigColunas={setShowConfigColunas}
+                    baixas={baixas}
+                    allLancamentos={lancamentos}
                   />
                 </TabsContent>
               </Tabs>
@@ -545,6 +562,8 @@ export default function LancamentoFinanceiro() {
                     onUpdateLote={handleUpdateLote}
                     showConfigColunas={abaAtiva === 'receber' && subAbaReceber === 'principais' ? showConfigColunas : false}
                     setShowConfigColunas={setShowConfigColunas}
+                    baixas={baixas}
+                    allLancamentos={lancamentos}
                   />
                 </TabsContent>
                 <TabsContent value="parcelas" className="mt-1">
@@ -561,6 +580,8 @@ export default function LancamentoFinanceiro() {
                     onUpdateLote={handleUpdateLote}
                     showConfigColunas={abaAtiva === 'receber' && subAbaReceber === 'parcelas' ? showConfigColunas : false}
                     setShowConfigColunas={setShowConfigColunas}
+                    baixas={baixas}
+                    allLancamentos={lancamentos}
                   />
                 </TabsContent>
               </Tabs>

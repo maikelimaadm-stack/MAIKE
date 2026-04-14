@@ -173,6 +173,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosL
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['baixas_financeiro'] });
       refetchBaixas();
       setFormData({
         data_baixa: new Date().toISOString().split('T')[0],
@@ -184,10 +185,10 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosL
         numero_comprovante: "",
         observacoes: "",
         anexos: [],
-        proxima_previsao: "" // Reset proxima_previsao
+        proxima_previsao: ""
       });
       toast.success('Baixa registrada com sucesso!');
-      if (onSuccess) onSuccess(); // Call onSuccess prop if provided
+      if (onSuccess) onSuccess();
     },
     onError: (error) => {
       toast.error(error.message || 'Erro ao registrar baixa.');
@@ -228,6 +229,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosL
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['baixas_financeiro'] });
       refetchBaixas();
       setEditandoBaixa(null);
       toast.success('Baixa atualizada com sucesso!');
@@ -264,6 +266,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosL
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['baixas_financeiro'] });
       refetchBaixas();
       toast.success('Baixa excluída com sucesso!');
     },

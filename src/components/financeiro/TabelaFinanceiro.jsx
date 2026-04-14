@@ -73,7 +73,9 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
   { id: 'acoes', label: 'Ações', default: true, fixo: true, width: 25 },
   { id: 'numero_lancamento', label: 'Nº', default: true, sortable: true, width: 70 },
+  { id: 'tipo_lancamento', label: 'Tipo', default: true, sortable: true, width: 80 },
   { id: 'parcela_info', label: 'Parcelas', default: true, width: 70 },
+  { id: 'parcelas_pagas', label: 'Parc. Pagas', default: false, width: 90 },
   { id: 'emissao', label: 'Emissão', default: true, sortable: true, width: 100 },
   { id: 'vencimento', label: 'Vencimento', default: true, sortable: true, width: 100 },
   { id: 'dias', label: 'Dias', default: true, width: 80 },
@@ -90,6 +92,15 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'forma_pagamento', label: 'Forma Pgto', default: false, sortable: true, width: 120 },
   { id: 'grupo_financeiro', label: 'Grupo Financeiro', default: false, sortable: true, width: 160 },
   { id: 'centro_custo', label: 'Centro de Custo', default: false, sortable: true, width: 160 },
+  { id: 'usuario_lancamento', label: 'Usuário Lanç.', default: false, width: 160 },
+  { id: 'data_baixa', label: 'Data Baixa', default: false, sortable: true, width: 100 },
+  { id: 'forma_pgto_baixa', label: 'Forma Pgto Baixa', default: false, width: 130 },
+  { id: 'valor_juros_baixa', label: 'Juros Baixa', default: false, align: 'right', width: 100 },
+  { id: 'valor_multa_baixa', label: 'Multa Baixa', default: false, align: 'right', width: 100 },
+  { id: 'valor_desconto_baixa', label: 'Desc. Baixa', default: false, align: 'right', width: 100 },
+  { id: 'comprovante_baixa', label: 'Comprovante', default: false, width: 120 },
+  { id: 'usuario_baixa', label: 'Usuário Baixa', default: false, width: 160 },
+  { id: 'obs_baixa', label: 'Obs. Baixa', default: false, width: 200 },
   { id: 'observacao', label: 'Observação', default: false, width: 200 },
   { id: 'observacao_parcela', label: 'Obs. Parcela', default: false, width: 200 },
 ];
@@ -106,11 +117,13 @@ const getRateioNomes = (arr, campo) => {
 const getFieldValue = (lancamento, colunaId) => {
   switch (colunaId) {
     case 'numero_lancamento': return lancamento.numero_lancamento || '';
+    case 'tipo_lancamento': return lancamento.tipo || '';
     case 'parcela_info': {
       const seq = lancamento.numero_parcela_seq;
       const total = lancamento.total_parcelas_grupo;
       return (seq && total && total > 1) ? `${seq}/${total}` : '1/1';
     }
+    case 'parcelas_pagas': return '';
     case 'emissao': return formatarData(lancamento.data_emissao);
     case 'vencimento': return formatarData(lancamento.data_vencimento);
     case 'dias': return '';
@@ -126,13 +139,22 @@ const getFieldValue = (lancamento, colunaId) => {
     case 'grupo_financeiro': return getRateioNomes(lancamento?.rateio_grupos, 'grupo_financeiro_nome');
     case 'centro_custo': return getRateioNomes(lancamento?.rateio_centros_custo, 'centro_custo_nome');
     case 'motivo_compra': return lancamento.motivo_compra_nome || '';
+    case 'usuario_lancamento': return lancamento.created_by || '';
+    case 'data_baixa': return '';
+    case 'forma_pgto_baixa': return '';
+    case 'valor_juros_baixa': return '';
+    case 'valor_multa_baixa': return '';
+    case 'valor_desconto_baixa': return '';
+    case 'comprovante_baixa': return '';
+    case 'usuario_baixa': return '';
+    case 'obs_baixa': return '';
     case 'observacao': return lancamento.observacao || '';
     case 'observacao_parcela': return lancamento.observacao_parcela || '';
     default: return '';
   }
 };
 
-export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, modoTela = "contas", onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas }) {
+export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, modoTela = "contas", onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas, baixas = [], allLancamentos = [] }) {
   // modoTela: "lancamentos" = permite editar/excluir (se sem baixa), "contas" = somente visualização/baixa
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -315,6 +337,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
       let aValue, bValue;
       switch (sortField) {
         case 'numero_lancamento': aValue = parseInt(a?.numero_lancamento) || 0; bValue = parseInt(b?.numero_lancamento) || 0; break;
+        case 'tipo_lancamento': aValue = (a?.tipo || '').toLowerCase(); bValue = (b?.tipo || '').toLowerCase(); break;
         case 'emissao': aValue = new Date(a?.data_emissao).getTime(); bValue = new Date(b?.data_emissao).getTime(); break;
         case 'vencimento': aValue = new Date(a?.data_vencimento).getTime(); bValue = new Date(b?.data_vencimento).getTime(); break;
         case 'descricao': aValue = (a?.descricao || '').toLowerCase(); bValue = (b?.descricao || '').toLowerCase(); break;
@@ -339,43 +362,84 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
 
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
-  // Helpers para modo "principais": mostrar valor total do lançamento e descrição original
+  // Helpers para modo "principais": consolidar dados do grupo
   const getDescricaoPrincipal = (lancamento) => {
     if (modoVisualizacao !== 'principais') return lancamento?.descricao || '-';
-    // Remover sufixo "- PARCELA X/Y" da descrição
     const desc = lancamento?.descricao || '-';
     return desc.replace(/\s*-\s*PARCELA\s+\d+\/\d+$/i, '');
   };
 
   const getValorExibicao = (lancamento) => {
-    // No modo "principais", se é registro principal de grupo, mostra valor_total_lancamento
     if (modoVisualizacao === 'principais' && lancamento?.parcelamento_grupo_id && lancamento?.is_registro_principal) {
       return lancamento?.valor_total_lancamento || lancamento?.valor_total || 0;
     }
     return lancamento?.valor_total || 0;
   };
 
+  // Consolidar dados de baixa e parcelas para registros principais
+  const getConsolidadoPrincipal = useMemo(() => {
+    const cache = {};
+    return (lancamento) => {
+      if (!lancamento?.id) return null;
+      if (cache[lancamento.id]) return cache[lancamento.id];
+
+      let parcelasDoGrupo = [lancamento];
+      if (lancamento.parcelamento_grupo_id && modoVisualizacao === 'principais') {
+        parcelasDoGrupo = allLancamentos.filter(l => l.parcelamento_grupo_id === lancamento.parcelamento_grupo_id);
+      }
+
+      const totalParcelas = parcelasDoGrupo.length;
+      const parcelasPagas = parcelasDoGrupo.filter(p => p.status === 'Pago' || p.status === 'Recebido').length;
+      const valorPagoTotal = parcelasDoGrupo.reduce((s, p) => s + (p.valor_pago || 0), 0);
+
+      // Buscar baixas das parcelas
+      const idsGrupo = parcelasDoGrupo.map(p => p.id);
+      const baixasGrupo = baixas.filter(b => idsGrupo.includes(b.lancamento_id));
+      const ultimaBaixa = baixasGrupo.sort((a, b) => (b.data_baixa || '').localeCompare(a.data_baixa || ''))[0] || null;
+
+      const totalJuros = baixasGrupo.reduce((s, b) => s + (b.valor_juros || 0), 0);
+      const totalMulta = baixasGrupo.reduce((s, b) => s + (b.valor_multa || 0), 0);
+      const totalDesconto = baixasGrupo.reduce((s, b) => s + (b.valor_desconto || 0), 0);
+
+      const result = { totalParcelas, parcelasPagas, valorPagoTotal, ultimaBaixa, baixasGrupo, totalJuros, totalMulta, totalDesconto };
+      cache[lancamento.id] = result;
+      return result;
+    };
+  }, [allLancamentos, baixas, modoVisualizacao]);
+
+  // Baixa direta do lançamento individual (modo parcelas)
+  const getBaixaDoLancamento = (lancamento) => {
+    if (!lancamento?.id) return null;
+    const baixasLanc = baixas.filter(b => b.lancamento_id === lancamento.id);
+    return baixasLanc.sort((a, b) => (b.data_baixa || '').localeCompare(a.data_baixa || ''))[0] || null;
+  };
+
   const renderCell = (lancamento, colunaId) => {
+    const consolidado = modoVisualizacao === 'principais' ? getConsolidadoPrincipal(lancamento) : null;
+    const baixaLanc = modoVisualizacao !== 'principais' ? getBaixaDoLancamento(lancamento) : null;
+    const baixaRef = consolidado?.ultimaBaixa || baixaLanc;
+
     switch (colunaId) {
       case 'numero_lancamento': return <span className="font-mono font-semibold text-slate-700">{lancamento?.numero_lancamento || '-'}</span>;
+      case 'tipo_lancamento': {
+        const isPagar = lancamento?.tipo === 'Pagar';
+        return <Badge variant="outline" className={`text-[10px] ${isPagar ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{isPagar ? 'PAGAR' : 'RECEBER'}</Badge>;
+      }
       case 'parcela_info': {
         const seq = lancamento?.numero_parcela_seq;
         const total = lancamento?.total_parcelas_grupo;
         if (modoVisualizacao === 'principais' && total && total > 1) {
-          return (
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px]">
-              {total}x
-            </Badge>
-          );
+          return <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px]">{total}x</Badge>;
         }
         if (seq && total && total > 1) {
-          return (
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px]">
-              {seq}/{total}
-            </Badge>
-          );
+          return <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px]">{seq}/{total}</Badge>;
         }
         return <span className="text-slate-400 text-[10px]">1/1</span>;
+      }
+      case 'parcelas_pagas': {
+        if (!consolidado) return '-';
+        const { parcelasPagas, totalParcelas } = consolidado;
+        return <Badge variant="outline" className={`text-[10px] ${parcelasPagas === totalParcelas ? 'bg-emerald-50 text-emerald-700' : parcelasPagas > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-500'}`}>{parcelasPagas}/{totalParcelas}</Badge>;
       }
       case 'emissao': return <span className="text-slate-600">{formatarData(lancamento?.data_emissao)}</span>;
       case 'vencimento': return <span className="text-slate-600">{formatarData(lancamento?.data_vencimento)}</span>;
@@ -385,14 +449,59 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
       case 'tipo_documento': return <span className="text-slate-600">{lancamento?.tipo_documento_nome || '-'}</span>;
       case 'documento': return <span className="font-mono text-slate-600">{lancamento?.numero_documento || '-'}</span>;
       case 'motivo_compra': return <span className="text-slate-600">{lancamento?.motivo_compra_nome || '-'}</span>;
-      case 'valor_total': return <span className="font-mono font-semibold">{formatarMoeda(getValorExibicao(lancamento))}</span>;
-      case 'valor_pago': return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</span>;
-      case 'saldo': return <span className="font-mono font-semibold text-slate-700">{formatarMoeda(getValorExibicao(lancamento) - (lancamento?.valor_pago || 0))}</span>;
-      case 'status': return <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge>;
+      case 'valor_total': {
+        if (modoVisualizacao === 'principais' && consolidado) {
+          return <span className="font-mono font-semibold">{formatarMoeda(getValorExibicao(lancamento))}</span>;
+        }
+        return <span className="font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</span>;
+      }
+      case 'valor_pago': {
+        if (modoVisualizacao === 'principais' && consolidado) {
+          return <span className="font-mono text-emerald-700 font-semibold">{formatarMoeda(consolidado.valorPagoTotal)}</span>;
+        }
+        return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</span>;
+      }
+      case 'saldo': {
+        if (modoVisualizacao === 'principais' && consolidado) {
+          const vlrTotal = getValorExibicao(lancamento);
+          const saldo = vlrTotal - consolidado.valorPagoTotal;
+          return <span className={`font-mono font-semibold ${saldo > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatarMoeda(saldo)}</span>;
+        }
+        return <span className="font-mono font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</span>;
+      }
+      case 'status': {
+        if (modoVisualizacao === 'principais' && consolidado) {
+          const { parcelasPagas, totalParcelas } = consolidado;
+          let statusConsolidado = lancamento?.status || 'Aberto';
+          if (parcelasPagas === totalParcelas && totalParcelas > 0) statusConsolidado = lancamento?.tipo === 'Receber' ? 'Recebido' : 'Pago';
+          else if (parcelasPagas > 0) statusConsolidado = 'Parcial';
+          return <Badge variant="outline" className={`${getBadgeStyle(statusConsolidado)} text-xs`}>{statusConsolidado}</Badge>;
+        }
+        return <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge>;
+      }
       case 'conta_financeira': return <span className="text-slate-600">{lancamento?.conta_financeira_nome || '-'}</span>;
       case 'forma_pagamento': return <span className="text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</span>;
       case 'grupo_financeiro': return <span className="text-slate-600">{getRateioNomes(lancamento?.rateio_grupos, 'grupo_financeiro_nome')}</span>;
       case 'centro_custo': return <span className="text-slate-600">{getRateioNomes(lancamento?.rateio_centros_custo, 'centro_custo_nome')}</span>;
+      case 'usuario_lancamento': return <span className="text-slate-600 text-[10px]">{lancamento?.created_by || '-'}</span>;
+      // Colunas de baixa
+      case 'data_baixa': return <span className="text-slate-600">{baixaRef ? formatarData(baixaRef.data_baixa) : '-'}</span>;
+      case 'forma_pgto_baixa': return <span className="text-slate-600">{baixaRef?.forma_pagamento_nome || '-'}</span>;
+      case 'valor_juros_baixa': {
+        const val = modoVisualizacao === 'principais' && consolidado ? consolidado.totalJuros : (baixaRef?.valor_juros || 0);
+        return <span className="font-mono text-slate-600">{val > 0 ? formatarMoeda(val) : '-'}</span>;
+      }
+      case 'valor_multa_baixa': {
+        const val = modoVisualizacao === 'principais' && consolidado ? consolidado.totalMulta : (baixaRef?.valor_multa || 0);
+        return <span className="font-mono text-slate-600">{val > 0 ? formatarMoeda(val) : '-'}</span>;
+      }
+      case 'valor_desconto_baixa': {
+        const val = modoVisualizacao === 'principais' && consolidado ? consolidado.totalDesconto : (baixaRef?.valor_desconto || 0);
+        return <span className="font-mono text-slate-600">{val > 0 ? formatarMoeda(val) : '-'}</span>;
+      }
+      case 'comprovante_baixa': return <span className="font-mono text-slate-600">{baixaRef?.numero_comprovante || '-'}</span>;
+      case 'usuario_baixa': return <span className="text-slate-600 text-[10px]">{baixaRef?.usuario_responsavel || '-'}</span>;
+      case 'obs_baixa': return <span className="text-slate-600 truncate">{baixaRef?.observacoes || '-'}</span>;
       case 'observacao': return <span className="text-slate-600 truncate">{lancamento?.observacao || '-'}</span>;
       case 'observacao_parcela': return <span className="text-slate-600 truncate">{lancamento?.observacao_parcela || '-'}</span>;
       default: return '-';
