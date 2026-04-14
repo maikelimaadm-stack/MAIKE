@@ -90,7 +90,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
       {itens.length === 0 ? (
         <div className="text-[11px] text-slate-400 text-center py-4">Nenhum produto adicionado. Clique em + para adicionar.</div>
       ) : (
-        <div className="overflow-visible max-h-[400px]">
+        <div className="overflow-auto max-h-[308px]">
           <table className="w-full border-collapse border-separate border-spacing-0 table-fixed min-w-[900px]">
             <colgroup>
               <col style={{ width: 240 }} />
