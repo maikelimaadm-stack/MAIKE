@@ -259,8 +259,8 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
           {/* ===== CARD CABEÇALHO ===== */}
           <Card className="shadow-sm border-slate-300">
             <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-              <CardTitle className="text-sm font-semibold text-slate-900">
-                {isEditing ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
+              <CardTitle className="text-sm font-semibold text-slate-900 uppercase">
+                {isEditing ? 'EDITAR MOVIMENTAÇÃO' : 'NOVA MOVIMENTAÇÃO DE ESTOQUE'}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-1 space-y-1">

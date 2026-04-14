@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Loader2 } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import { getLocalEstoque, getLabelOperacao } from "./utils/movimentacaoUtils";
 
 const COLUNAS_DISPONIVEIS = [
@@ -79,7 +79,8 @@ const COLUNAS_OCULTAS_PRINCIPAIS = ["produto", "quantidade", "unidade", "valor_u
 export default function TabelaMovimentacoes({
   movimentacoes = [],
   onEdit,
-  onCancel,
+  onDelete,
+  onExportSelected,
   isLoading,
   showConfigColunas,
   setShowConfigColunas,
@@ -92,8 +93,6 @@ export default function TabelaMovimentacoes({
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [filtrosColunas, setFiltrosColunas] = useState({});
-  const [isCancelingBulk, setIsCancelingBulk] = useState(false);
-  const [cancelProgress, setCancelProgress] = useState({ current: 0, total: 0 });
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const [columnWidths, setColumnWidths] = useState(() => {
@@ -345,48 +344,23 @@ export default function TabelaMovimentacoes({
   };
 
   const toggleSelectAll = () => {
-    const registrosAtivos = movimentacoesFiltradas.filter((item) => item.status === "Ativa");
-    if (selectedItems.length === registrosAtivos.length && registrosAtivos.length > 0) {
+    const registrosSelecionaveis = movimentacoesFiltradas.filter((item) => item.status === "Ativa" && modoVisualizacao === "principais");
+    if (selectedItems.length === registrosSelecionaveis.length && registrosSelecionaveis.length > 0) {
       setSelectedItems([]);
       return;
     }
-    setSelectedItems(registrosAtivos.map((item) => item.id));
+    setSelectedItems(registrosSelecionaveis.map((item) => item.id));
   };
 
   const handleRowTouch = (item, event) => {
     const now = Date.now();
-    if (lastTapRef.current.id === item.id && now - lastTapRef.current.time < 300) {
+    if (modoVisualizacao === "principais" && lastTapRef.current.id === item.id && now - lastTapRef.current.time < 300) {
       event.preventDefault();
       onEdit(item);
     }
     lastTapRef.current = { id: item.id, time: now };
   };
 
-  const handleBulkCancel = async () => {
-    if (!selectedItems.length) return;
-    if (!window.confirm(`⚠️ ATENÇÃO: Você está prestes a cancelar ${selectedItems.length} movimentação(ões) selecionada(s). Esta ação não pode ser desfeita. Deseja continuar?`)) return;
-
-    setIsCancelingBulk(true);
-    setCancelProgress({ current: 0, total: selectedItems.length });
-
-    let canceled = 0;
-    for (const id of selectedItems) {
-      try {
-        await onCancel(id, true);
-      } catch (e) {
-        console.error('Erro ao cancelar:', e);
-      }
-      canceled += 1;
-      setCancelProgress({ current: canceled, total: selectedItems.length });
-    }
-
-    setTimeout(() => {
-      setIsCancelingBulk(false);
-      setSelectedItems([]);
-    }, 300);
-  };
-
-  const cancelProgressPercentage = cancelProgress.total > 0 ? Math.round((cancelProgress.current / cancelProgress.total) * 100) : 0;
 
   const getBadgeTipo = (tipo) => {
     const config = {
@@ -562,17 +536,10 @@ export default function TabelaMovimentacoes({
             {movimentacoesFiltradas.length} de {movimentacoes.length} registros
           </div>
           <div className="flex gap-2 flex-wrap">
-            {selectedItems.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleBulkCancel} className="text-xs text-red-600">Cancelar Selecionadas</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {selectedItems.length > 0 && modoVisualizacao === "principais" && (
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onExportSelected?.(selectedItems)}>
+                Exportar ({selectedItems.length})
+              </Button>
             )}
           </div>
         </div>
@@ -592,7 +559,7 @@ export default function TabelaMovimentacoes({
                           return (
                             <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
                               <div className="flex items-center justify-center w-full h-full">
-                                <Checkbox checked={selectedItems.length === movimentacoesFiltradas.filter((item) => item.status === "Ativa").length && movimentacoesFiltradas.filter((item) => item.status === "Ativa").length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                <Checkbox checked={modoVisualizacao === "principais" && selectedItems.length === movimentacoesFiltradas.filter((item) => item.status === "Ativa").length && movimentacoesFiltradas.filter((item) => item.status === "Ativa").length > 0} onCheckedChange={toggleSelectAll} disabled={modoVisualizacao !== "principais"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                               </div>
                             </TableHead>
                           );
@@ -606,7 +573,7 @@ export default function TabelaMovimentacoes({
 
                         return (
                           <TableHead key={coluna.id} style={{ width, minWidth: width, maxWidth: width }} className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7">
-                            <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                            <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis uppercase">
                               {coluna.label}
                             </div>
 
@@ -655,7 +622,7 @@ export default function TabelaMovimentacoes({
                       movimentacoesOrdenadas.map((item) => {
                         const bloqueadoDireto = item.bloqueado_exclusao_estoque || (item.exclusao_somente_em && item.exclusao_somente_em !== "estoque") || ["suplementacao", "transferencia_enviada", "transferencia_recebida"].includes(item.tipo_detalhado);
                         return (
-                          <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => onEdit(item)} onTouchEnd={(event) => handleRowTouch(item, event)}>
+                          <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => modoVisualizacao === "principais" && onEdit(item)} onTouchEnd={(event) => handleRowTouch(item, event)}>
                             {colunasOrdenadas.map((coluna) => {
                               const width = columnWidths[coluna.id] || coluna.width || 160;
 
@@ -663,13 +630,16 @@ export default function TabelaMovimentacoes({
                                 return (
                                   <TableCell key={`${item.id}-selecao`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
                                     <div className="flex items-center justify-center w-full h-full">
-                                      <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} disabled={item.status !== "Ativa"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                      <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} disabled={item.status !== "Ativa" || modoVisualizacao !== "principais"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                                     </div>
                                   </TableCell>
                                 );
                               }
 
                               if (coluna.id === "acoes") {
+                                if (modoVisualizacao !== "principais") {
+                                  return <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 h-7 border-r border-b border-gray-300" />;
+                                }
                                 return (
                                   <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
                                     <div className="flex items-center justify-center w-full h-full">
@@ -680,9 +650,9 @@ export default function TabelaMovimentacoes({
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="start">
-                                          <DropdownMenuItem onClick={() => onEdit(item)} disabled={item.status === "Cancelada" || bloqueadoDireto} className="text-xs">Editar</DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => onEdit(item)} disabled={item.status === "Cancelada" || bloqueadoDireto} className="text-xs uppercase">Editar</DropdownMenuItem>
                                           <DropdownMenuSeparator />
-                                          <DropdownMenuItem onClick={() => onCancel(item.id)} disabled={item.status === "Cancelada" || bloqueadoDireto} className="text-xs text-red-600">Cancelar</DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => onDelete(item.id)} disabled={item.status === "Cancelada" || bloqueadoDireto} className="text-xs text-red-600 uppercase">Excluir</DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     </div>
@@ -692,7 +662,7 @@ export default function TabelaMovimentacoes({
 
                               const numericCols = ["quantidade", "valor_unitario", "valor_total"];
                               return (
-                                <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words ${numericCols.includes(coluna.id) ? "text-right font-mono" : ""}`}>
+                                <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words uppercase ${numericCols.includes(coluna.id) ? "text-right font-mono" : ""}`}>
                                   {renderCell(item, coluna.id)}
                                 </TableCell>
                               );
@@ -720,29 +690,6 @@ export default function TabelaMovimentacoes({
         droppableId="colunas-movimentacoes-estoque"
       />
 
-      <Dialog open={isCancelingBulk} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin text-red-600" />
-              Cancelando Movimentações
-            </DialogTitle>
-            <DialogDescription>
-              Aguarde enquanto cancelamos as movimentações selecionadas...
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Progresso</span>
-                <span className="font-semibold text-slate-900">{cancelProgress.current} de {cancelProgress.total}</span>
-              </div>
-              <Progress value={cancelProgressPercentage} className="h-3" />
-              <p className="text-center text-sm font-medium text-red-600">{cancelProgressPercentage}%</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

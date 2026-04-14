@@ -532,93 +532,65 @@ export default function MovimentacoesEstoque() {
   const handleConfirmDelete = async () => {
     const mov = movimentacoes.find(m => m.id === deleteConfirmId);
     if (!mov) return;
+    if (!mov.is_registro_principal) {
+      toast.error('Somente registros principais podem ser excluídos.');
+      return;
+    }
 
     const bloqueado = mov.bloqueado_exclusao_estoque
       || (mov.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque')
       || ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(mov.tipo_detalhado);
     if (bloqueado) {
-      toast.error('Esse lançamento não pode ser cancelado pela tela de estoque.');
+      toast.error('Esse lançamento não pode ser excluído pela tela de estoque.');
       return;
     }
 
-    // Se é registro principal de um grupo, cancelar todas as movimentações do grupo
-    const registrosParaCancelar = mov.movimentacao_grupo_id
+    const registrosParaExcluir = mov.movimentacao_grupo_id
       ? movimentacoes.filter(m => m.movimentacao_grupo_id === mov.movimentacao_grupo_id)
       : [mov];
 
-    for (const reg of registrosParaCancelar) {
+    for (const reg of registrosParaExcluir) {
       const produto = produtos.find(p => p.id === reg.produto_id);
       if (produto) {
         let novoEstoque = produto.estoque_atual || 0;
         if (reg.tipo_movimentacao === 'Entrada') {
           novoEstoque -= reg.quantidade;
-          // Reverter lote FIFO
-          const lotes = await base44.entities.EstoqueLoteNota.filter({
-            produto_id: reg.produto_id,
-            local_estoque_id: reg.local_estoque_destino || '',
-          });
-          const loteCorr = lotes.find(l =>
-            l.quantidade_disponivel >= reg.quantidade &&
-            (l.numero_documento || '') === (reg.numero_documento || '')
-          ) || lotes.find(l => l.quantidade_disponivel >= reg.quantidade);
-          if (loteCorr) {
-            const novoDisp = loteCorr.quantidade_disponivel - reg.quantidade;
-            await base44.entities.EstoqueLoteNota.update(loteCorr.id, {
-              quantidade_disponivel: novoDisp,
-              status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel',
-            });
-          }
         } else if (reg.tipo_movimentacao === 'Saída') {
           novoEstoque += reg.quantidade;
-          await base44.entities.EstoqueLoteNota.create({
-            empresa_id: empresaSelecionadaId,
-            produto_id: reg.produto_id,
-            produto_nome: reg.produto_nome || produto.nome_produto,
-            local_estoque_id: reg.local_estoque_origem || '',
-            local_estoque_nome: reg.local_origem || '',
-            numero_documento: 'REV-' + (reg.numero_movimentacao || ''),
-            data_documento: new Date().toISOString().slice(0, 10),
-            custo_unitario: reg.valor_unitario || 0,
-            quantidade_entrada: reg.quantidade,
-            quantidade_disponivel: reg.quantidade,
-            status: 'Disponivel',
-          });
         }
         await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
       }
-      await base44.entities.MovimentacaoEstoque.update(reg.id, {
-        status: 'Cancelada',
-        data_cancelamento: new Date().toISOString(),
-        motivo_cancelamento: 'CANCELAMENTO'
-      });
+      await base44.entities.MovimentacaoEstoque.delete(reg.id);
     }
 
     queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
     queryClient.invalidateQueries({ queryKey: ['produtos'] });
-    toast.success('Movimentação cancelada!');
+    toast.success('Registro excluído com sucesso!');
     setDeleteConfirmId(null);
   };
 
-  const handleCancel = async (id, isBulk = false) => {
-    if (!isBulk) {
-      handleDelete(id);
-      return;
-    }
-    // Bulk: cancelar diretamente
-    const mov = movimentacoes.find(m => m.id === id);
-    if (!mov) return;
-    const bloqueado = mov.bloqueado_exclusao_estoque
-      || (mov.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque')
-      || ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(mov.tipo_detalhado);
-    if (bloqueado) return;
-
-    const produto = produtos.find(p => p.id === mov.produto_id);
-    if (!produto) return;
-    let novoEstoque = produto.estoque_atual || 0;
-    if (mov.tipo_movimentacao === 'Entrada') novoEstoque -= mov.quantidade;
-    else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
-    await base44.entities.MovimentacaoEstoque.update(id, { status: 'Cancelada', data_cancelamento: new Date().toISOString(), motivo_cancelamento: 'CANCELAMENTO' });
-    await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
+  const handleExportSelected = (ids) => {
+    const selecionados = movPrincipais.filter(m => ids.includes(m.id));
+    if (!selecionados.length) return;
+    const csvRows = [['Nº', 'Data', 'Tipo', 'Tipo Detalhado', 'Documento', 'Local Origem', 'Local Destino', 'Motivo'].join(';')];
+    selecionados.forEach(m => {
+      csvRows.push([
+        m.numero_movimentacao,
+        format(new Date(m.data_movimentacao), 'dd/MM/yyyy'),
+        (m.tipo_movimentacao || '').toUpperCase(),
+        (getLabelOperacao(m.tipo_detalhado) || '').toUpperCase(),
+        (m.numero_documento || '').toUpperCase(),
+        (m.local_origem || '').toUpperCase(),
+        (m.local_destino || '').toUpperCase(),
+        (m.motivo_movimentacao || '').toUpperCase(),
+      ].join(';'));
+    });
+    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `movimentacoes_principais_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    toast.success('Exportado com sucesso!');
   };
 
   const handleExport = () => {
@@ -671,7 +643,8 @@ export default function MovimentacoesEstoque() {
               <TabelaMovimentacoes
                 movimentacoes={movPrincipais}
                 onEdit={handleEdit}
-                onCancel={handleCancel}
+                onDelete={handleDelete}
+                onExportSelected={handleExportSelected}
                 isLoading={isLoading}
                 showConfigColunas={abaAtiva === 'principais' ? showConfigColunas : false}
                 setShowConfigColunas={setShowConfigColunas}
@@ -683,7 +656,8 @@ export default function MovimentacoesEstoque() {
               <TabelaMovimentacoes
                 movimentacoes={movTodas}
                 onEdit={handleEdit}
-                onCancel={handleCancel}
+                onDelete={handleDelete}
+                onExportSelected={handleExportSelected}
                 isLoading={isLoading}
                 showConfigColunas={abaAtiva === 'movimentacoes' ? showConfigColunas : false}
                 setShowConfigColunas={setShowConfigColunas}
@@ -718,10 +692,10 @@ export default function MovimentacoesEstoque() {
       <ConfirmDialog
         open={!!deleteConfirmId}
         onOpenChange={() => setDeleteConfirmId(null)}
-        title="Confirmar cancelamento"
-        description="Tem certeza que deseja cancelar esta movimentação e reverter o estoque? Se for um grupo, todas as movimentações vinculadas serão canceladas."
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja excluir este registro principal? Se for um grupo, todas as movimentações vinculadas serão excluídas."
         onConfirm={handleConfirmDelete}
-        confirmText="Cancelar Movimentação"
+        confirmText="Excluir Registro"
         cancelText="Voltar"
         variant="destructive"
       />
