@@ -595,8 +595,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
                       lancamentosOrdenados.map((lancamento) => {
                         if (!lancamento) return null;
                         const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
-                        // Só pode dar baixa em parcelas (não em registros principais/avulsos)
-                        const isRegistroPrincipalOuAvulso = !lancamento.parcelamento_grupo_id || lancamento.is_registro_principal;
+                        // Só pode dar baixa na sub-aba "parcelas" (não na aba "principais")
+                        const podeDarBaixa = modoVisualizacao === 'parcelas';
 
                         return (
                           <TableRow key={lancamento.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100">
@@ -628,8 +628,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
                                             <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">Editar</DropdownMenuItem>
                                           )}
                                           <DropdownMenuSeparator />
-                                          {!isRegistroPrincipalOuAvulso && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs text-emerald-600">Dar Baixa</DropdownMenuItem>}
-                                          {!isRegistroPrincipalOuAvulso && (lancamento?.status === 'Pago' || lancamento?.status === 'Recebido') && onCancelarBaixa && <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs text-orange-600">Cancelar Baixa</DropdownMenuItem>}
+                                          {podeDarBaixa && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs text-emerald-600">Dar Baixa</DropdownMenuItem>}
+                                          {podeDarBaixa && (lancamento?.status === 'Pago' || lancamento?.status === 'Recebido') && onCancelarBaixa && <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs text-orange-600">Cancelar Baixa</DropdownMenuItem>}
                                           {modoTela === 'lancamentos' && lancamento?.valor_pago === 0 && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && (
                                             <>
                                               <DropdownMenuSeparator />
