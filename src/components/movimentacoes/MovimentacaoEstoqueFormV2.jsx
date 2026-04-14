@@ -342,7 +342,20 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
 
               {exibeCliente && (
                 <FL label="Cliente" required error={invalidFields.includes('cliente_nome')}>
-                  <Input value={clienteNome} onChange={(e) => setClienteNome(e.target.value.toUpperCase())} placeholder="NOME DO CLIENTE" className={`${INPUT_CLS} uppercase`} />
+                  <AutocompleteGenerico
+                    items={fornecedores}
+                    value={clienteNome}
+                    onChange={(v) => {
+                      const clienteSelecionado = fornecedores.find(f => f.id === v);
+                      setClienteNome(clienteSelecionado?.nome || '');
+                      handleChange('cliente_nome', v);
+                    }}
+                    placeholder="BUSCAR CLIENTE..."
+                    displayField="nome"
+                    searchFields={["nome", "cnpj", "cpf"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
                 </FL>
               )}
 
