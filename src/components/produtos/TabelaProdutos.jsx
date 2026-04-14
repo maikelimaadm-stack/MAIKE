@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Progress } from "@/components/ui/progress";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import ConfiguracaoColunasProdutosDialog from "@/components/produtos/ConfiguracaoColunasProdutosDialog";
-import { MoreVertical, Loader2 } from "lucide-react";
+import { MoreVertical, Loader2, Search, Settings, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 const VALOR_TODOS = "__TODOS__";
 
@@ -320,22 +320,28 @@ export default function TabelaProdutos({
 
   return (
     <>
-      <div className="space-y-4">
-        <Card>
+      <div className="space-y-1">
+        <Card className="shadow-sm border-slate-300">
           <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
               <div className="md:col-span-2 space-y-1">
-                <Label className="text-xs">Buscar</Label>
-                <Input
-                  placeholder="Buscar produto, código, categoria..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8 text-xs"
-                />
+                <Label className="text-xs uppercase">Buscar</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Input
+                    placeholder="Buscar produto, código, categoria..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 h-8 text-xs"
+                  />
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm("")} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-slate-400" /></button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Categoria</Label>
+                <Label className="text-xs uppercase">Categoria</Label>
                 <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
@@ -348,7 +354,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Unidade</Label>
+                <Label className="text-xs uppercase">Unidade</Label>
                 <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
@@ -361,7 +367,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Local</Label>
+                <Label className="text-xs uppercase">Local</Label>
                 <Select value={filtroLocal} onValueChange={setFiltroLocal}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
@@ -374,7 +380,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Tipo Consumo</Label>
+                <Label className="text-xs uppercase">Tipo Consumo</Label>
                 <Select value={filtroTipoConsumo} onValueChange={setFiltroTipoConsumo}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
@@ -387,9 +393,9 @@ export default function TabelaProdutos({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-1 mt-2">
               <div className="space-y-1">
-                <Label className="text-xs">Estoque</Label>
+                <Label className="text-xs uppercase">Estoque</Label>
                 <Select value={filtroEstoque} onValueChange={setFiltroEstoque}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
@@ -434,16 +440,16 @@ export default function TabelaProdutos({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm border-slate-300">
           <CardContent className="p-0">
-            <div className="overflow-auto max-h-[500px]">
+            <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-white border-b">
+                  <TableRow className="bg-slate-50 border-b">
                     {colunasOrdenadas.map((coluna) => {
                       if (coluna.id === "selecao") {
                         return (
-                          <TableHead key="selecao" className="text-xs font-bold py-1 px-2 border border-black w-10">
+                          <TableHead key="selecao" className="text-xs font-bold py-2 px-2 border-r border-slate-200 w-10">
                             <Checkbox
                               checked={selectedItems.length === produtosFiltrados.length && produtosFiltrados.length > 0}
                               onCheckedChange={toggleSelectAll}
@@ -453,14 +459,14 @@ export default function TabelaProdutos({
                       }
 
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-xs font-bold py-1 px-2 border border-black w-10"></TableHead>;
+                        return <TableHead key="acoes" className="text-xs font-bold py-2 px-2 border-r border-slate-200 w-10"></TableHead>;
                       }
 
                       const isRight = coluna.align === "right";
                       return (
                         <TableHead
                           key={coluna.id}
-                          className={`text-xs font-bold py-1 px-3 border border-black ${coluna.sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${isRight ? "text-right" : ""}`}
+                          className={`text-xs font-bold py-2 px-3 border-r border-slate-200 ${coluna.sortable ? "cursor-pointer hover:bg-slate-100" : ""} ${isRight ? "text-right" : ""}`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}
                         >
                           <div className={`${isRight ? "text-right" : ""}`}>
@@ -474,13 +480,13 @@ export default function TabelaProdutos({
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                      <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400">
                         Carregando...
                       </TableCell>
                     </TableRow>
                   ) : paginatedProdutos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
+                      <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400">
                         Nenhum produto encontrado
                       </TableCell>
                     </TableRow>
@@ -489,11 +495,11 @@ export default function TabelaProdutos({
                       const estoqueAbaixoMinimo = Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0);
 
                       return (
-                        <TableRow key={produto.id} className={`hover:bg-gray-50 border-b ${estoqueAbaixoMinimo ? "bg-red-50/40" : ""}`}>
+                        <TableRow key={produto.id} className={`hover:bg-slate-50 transition-colors border-b ${estoqueAbaixoMinimo ? "bg-red-50/40" : ""}`}>
                           {colunasOrdenadas.map((coluna) => {
                             if (coluna.id === "selecao") {
                               return (
-                                <TableCell key={`${produto.id}-selecao`} className="text-xs py-1 px-2 border border-gray-300">
+                                <TableCell key={`${produto.id}-selecao`} className="text-xs py-2 px-2 border-r border-slate-200">
                                   <Checkbox
                                     checked={selectedItems.includes(produto.id)}
                                     onCheckedChange={() => toggleSelectItem(produto.id)}
@@ -504,7 +510,7 @@ export default function TabelaProdutos({
 
                             if (coluna.id === "acoes") {
                               return (
-                                <TableCell key={`${produto.id}-acoes`} className="text-xs py-1 px-2 border border-gray-300 text-center">
+                                <TableCell key={`${produto.id}-acoes`} className="text-xs py-2 px-2 border-r border-slate-200 text-center">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -531,7 +537,7 @@ export default function TabelaProdutos({
                             return (
                               <TableCell
                                 key={`${produto.id}-${coluna.id}`}
-                                className={`text-xs py-1 px-3 border border-gray-300 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
+                                className={`text-xs py-2 px-3 border-r border-slate-200 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
                               >
                                 {renderCell(produto, coluna.id)}
                               </TableCell>

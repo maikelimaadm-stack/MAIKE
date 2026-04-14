@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
+import { Settings, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, Plus } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -457,33 +457,33 @@ export default function Produtos() {
     : 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-1">
       {!showForm && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
           <div>
             <h1 className="text-lg font-bold text-slate-900">Produtos</h1>
             <p className="text-xs text-slate-600">Cadastro, importação e gestão de produtos</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
-              <Settings className="w-4 h-4" />
-            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
               Atualizar
             </Button>
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
+              <Download className="w-3.5 h-3.5" />
               Exportar
             </Button>
             <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
               Modelo
             </Button>
             <label>
               <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer" asChild>
-                <span>Importar</span>
+                <span><Upload className="w-3.5 h-3.5" /> Importar</span>
               </Button>
               <input type="file" accept=".csv" onChange={handleImport} className="hidden" disabled={showImportProgress} />
             </label>
             <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-3.5 h-3.5" />
               Novo Produto
             </Button>
           </div>
