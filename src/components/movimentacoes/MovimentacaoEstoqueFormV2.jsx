@@ -118,9 +118,9 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
     setInvalidFields(prev => prev.filter(f => f !== field));
   };
 
-  const handleFinanceiroSalvo = (data) => {
+  const handleFinanceiroSalvo = async (data) => {
     setDadosFinanceiro(data);
-    toast.success('Dados financeiros integrados!');
+    toast.success('Dados financeiros vinculados à movimentação!');
   };
 
   const handleSubmit = (e) => {

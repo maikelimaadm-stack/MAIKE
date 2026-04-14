@@ -9,6 +9,61 @@ import { Settings, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+const getNextNumeroLancamento = async (empresaId) => {
+  const all = await base44.entities.LancamentoFinanceiro.list();
+  const filtered = all.filter(l => l && l.empresa_id === empresaId);
+  return String(filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento, 10) || 0), 0) + 1);
+};
+
+const gerarLancamentoFinanceiroPayload = async (dadosFinanceiro, empresaId) => {
+  const parcelas = dadosFinanceiro.parcelas || [];
+  const totalParcelas = Math.max(parcelas.length, 1);
+  const grupoId = totalParcelas > 1 ? `GRP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` : null;
+  const valorTotalLancamento = parcelas.reduce((s, p) => s + (p.valor || 0), 0) || dadosFinanceiro.valor_total;
+  const numeroBase = parseInt(await getNextNumeroLancamento(empresaId), 10);
+
+  return Array.from({ length: totalParcelas }).map((_, i) => {
+    const parcela = parcelas[i] || {};
+    const obsParcela = parcela.observacao_parcela ? parcela.observacao_parcela.toUpperCase() : '';
+
+    return {
+      empresa_id: dadosFinanceiro.empresa_id,
+      numero_lancamento: String(numeroBase + i),
+      tipo: dadosFinanceiro.tipo,
+      descricao: totalParcelas > 1 ? `${dadosFinanceiro.descricao} - PARCELA ${i + 1}/${totalParcelas}` : dadosFinanceiro.descricao,
+      status: 'Aberto',
+      valor_total: parcela.valor || dadosFinanceiro.valor_total,
+      valor_total_lancamento: valorTotalLancamento,
+      valor_pago: 0,
+      data_emissao: dadosFinanceiro.data_emissao,
+      data_vencimento: parcela.data_vencimento || dadosFinanceiro.data_vencimento,
+      data_pagamento: dadosFinanceiro.data_pagamento || undefined,
+      fornecedor_id: dadosFinanceiro.fornecedor_id,
+      fornecedor_nome: dadosFinanceiro.fornecedor_nome,
+      cliente_id: dadosFinanceiro.cliente_id,
+      cliente_nome: dadosFinanceiro.cliente_nome,
+      tipo_documento_id: dadosFinanceiro.tipo_documento_id,
+      tipo_documento_nome: dadosFinanceiro.tipo_documento_nome,
+      numero_documento: dadosFinanceiro.numero_documento,
+      conta_financeira_id: dadosFinanceiro.conta_financeira_id,
+      conta_financeira_nome: dadosFinanceiro.conta_financeira_nome,
+      forma_pagamento_id: dadosFinanceiro.forma_pagamento_id,
+      forma_pagamento_nome: dadosFinanceiro.forma_pagamento_nome,
+      motivo_compra_id: dadosFinanceiro.motivo_compra_id,
+      motivo_compra_nome: dadosFinanceiro.motivo_compra_nome,
+      parcelamento_grupo_id: grupoId,
+      numero_parcela_seq: i + 1,
+      total_parcelas_grupo: totalParcelas,
+      is_registro_principal: i === 0,
+      rateio_grupos: dadosFinanceiro.rateio_grupos,
+      rateio_centros_custo: dadosFinanceiro.rateio_centros_custo,
+      observacao: dadosFinanceiro.observacao,
+      observacao_parcela: obsParcela || undefined,
+      anexos_urls: dadosFinanceiro.anexos_urls || [],
+    };
+  });
+};
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import MovimentacaoEstoqueFormV2 from "../components/movimentacoes/MovimentacaoEstoqueFormV2";
@@ -66,6 +121,7 @@ export default function MovimentacoesEstoque() {
 
   const handleSubmit = async (formData) => {
     const { tipo_movimentacao, tipo_detalhado, data_movimentacao, local_estoque_origem, local_origem, local_estoque_destino, local_destino, observacoes: obs, dados_financeiro, produtos_selecionados } = formData;
+    let lancamentosFinanceirosCriados = [];
 
     setShowSaveProgress(true);
     setProgressoSalvamento({ etapa: 'Preparando...', current: 5, total: 100 });
@@ -108,6 +164,13 @@ export default function MovimentacoesEstoque() {
       return !isNaN(n) && n > max ? n : max;
     }, 0);
     let seqNum = maxNum;
+
+    if (dados_financeiro) {
+      const payloadsFinanceiros = await gerarLancamentoFinanceiroPayload(dados_financeiro, empresaSelecionadaId);
+      lancamentosFinanceirosCriados = await Promise.all(
+        payloadsFinanceiros.map((payload) => base44.entities.LancamentoFinanceiro.create(payload))
+      );
+    }
 
     const fornId = dados_financeiro?.fornecedor_id || '';
     const fornNome = dados_financeiro?.fornecedor_nome || '';
@@ -162,6 +225,7 @@ export default function MovimentacoesEstoque() {
         estoqueDepois = estoqueAntes + item.quantidade;
         await base44.entities.MovimentacaoEstoque.create({
           ...baseMov,
+          lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           local_estoque_destino: local_estoque_destino || '',
           local_destino: local_destino || '',
           saldo_antes: estoqueAntes,
@@ -225,6 +289,7 @@ export default function MovimentacoesEstoque() {
 
         await base44.entities.MovimentacaoEstoque.create({
           ...baseMov,
+          lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           local_estoque_origem: local_estoque_origem || '',
           local_origem: local_origem || '',
           saldo_antes: estoqueAntes,
@@ -262,6 +327,7 @@ export default function MovimentacoesEstoque() {
 
         await base44.entities.MovimentacaoEstoque.create({
           ...baseMov,
+          lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           tipo_movimentacao: 'Saída',
           valor_unitario: custoMedioTransf,
           valor_total: item.quantidade * custoMedioTransf,

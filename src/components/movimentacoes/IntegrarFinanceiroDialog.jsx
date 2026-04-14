@@ -4,7 +4,7 @@ import FormularioCompraFinanceiro from "../financeiro/FormularioCompraFinanceiro
 
 export default function IntegrarFinanceiroDialog({ open, onOpenChange, onSave, fornecedores, dadosFinanceiro }) {
   const handleSubmitFinanceiro = async (data) => {
-    onSave(data);
+    await onSave(data);
     onOpenChange(false);
   };
 
