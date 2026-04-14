@@ -429,17 +429,17 @@ export default function LancamentoFinanceiro() {
   const lancamentosPagar = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
   const lancamentosReceber = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
-  // Principais: registro principal do grupo OU lançamentos avulsos (sem grupo)
-  const isPrincipalOuAvulso = (l) => !l.parcelamento_grupo_id || l.is_registro_principal;
-  // Parcelas: todos os registros que fazem parte de um grupo de parcelamento (inclui parcela 1, 2, 3...)
-  const isParcela = (l) => !!l.parcelamento_grupo_id && l.total_parcelas_grupo > 1;
+  // Principais: sempre o registro principal do lançamento
+  const isPrincipal = (l) => l.is_registro_principal === true;
+  // Parcelas: qualquer registro que represente parcela, inclusive quando houver apenas 1 parcela
+  const isParcela = (l) => typeof l.numero_parcela_seq === 'number' && l.numero_parcela_seq >= 1;
 
-  // Lançamentos únicos (para aba Lançamentos): só principais e avulsos
-  const lancamentosPrincipais = useMemo(() => lancamentos.filter(isPrincipalOuAvulso), [lancamentos]);
+  // Lançamentos: apenas registros principais
+  const lancamentosPrincipais = useMemo(() => lancamentos.filter(isPrincipal), [lancamentos]);
 
-  const pagarPrincipais = useMemo(() => lancamentosPagar.filter(isPrincipalOuAvulso), [lancamentosPagar]);
+  const pagarPrincipais = useMemo(() => lancamentosPagar.filter(isPrincipal), [lancamentosPagar]);
   const pagarParcelas = useMemo(() => lancamentosPagar.filter(isParcela), [lancamentosPagar]);
-  const receberPrincipais = useMemo(() => lancamentosReceber.filter(isPrincipalOuAvulso), [lancamentosReceber]);
+  const receberPrincipais = useMemo(() => lancamentosReceber.filter(isPrincipal), [lancamentosReceber]);
   const receberParcelas = useMemo(() => lancamentosReceber.filter(isParcela), [lancamentosReceber]);
 
   return (
