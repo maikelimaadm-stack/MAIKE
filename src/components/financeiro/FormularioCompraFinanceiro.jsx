@@ -27,9 +27,11 @@ const FL = ({ label, required, error, children }) => (
   </div>
 );
 
-const parseNumero = (str) => {
-  if (!str) return 0;
-  return parseMoedaInput(str);
+const parseNumero = (val) => {
+  if (val === null || val === undefined || val === '') return 0;
+  // Se já é número, retorna diretamente
+  if (typeof val === 'number') return val;
+  return parseMoedaInput(val);
 };
 
 
@@ -153,7 +155,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   }, [form.data_emissao]);
 
   useEffect(() => {
-    if (form.parcelas.length === 1) {
+    // Só auto-ajustar valor da parcela quando é 1 parcela e NÃO está editando
+    if (form.parcelas.length === 1 && !isEditing) {
       setForm(prev => ({ ...prev, parcelas: [{ ...prev.parcelas[0], valor: valorLiquidoNum }] }));
     }
   }, [valorLiquidoNum]);

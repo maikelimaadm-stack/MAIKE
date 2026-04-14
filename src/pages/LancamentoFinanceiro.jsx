@@ -77,7 +77,29 @@ export default function LancamentoFinanceiro() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
+      const lancamento = lancamentos.find(l => l.id === id);
       const baixas = await base44.entities.BaixaFinanceira.list();
+
+      // Se é registro principal de um grupo, excluir todas as parcelas do grupo
+      if (lancamento?.parcelamento_grupo_id) {
+        const parcelasDoGrupo = lancamentos.filter(
+          l => l.parcelamento_grupo_id === lancamento.parcelamento_grupo_id
+        );
+        // Verificar se alguma parcela tem baixa
+        for (const parcela of parcelasDoGrupo) {
+          const baixaAssociada = baixas.find(b => b && b.lancamento_id === parcela.id);
+          if (baixaAssociada) {
+            throw new Error(`Parcela ${parcela.numero_parcela_seq || ''} possui baixa associada. Cancele a baixa primeiro.`);
+          }
+        }
+        // Excluir todas as parcelas do grupo
+        for (const parcela of parcelasDoGrupo) {
+          await base44.entities.LancamentoFinanceiro.delete(parcela.id);
+        }
+        return;
+      }
+
+      // Lançamento avulso (sem grupo)
       const baixaAssociada = baixas.find(b => b && b.lancamento_id === id);
       if (baixaAssociada) {
         throw new Error('Não é possível excluir lançamento com baixa associada. Cancele a baixa primeiro.');
