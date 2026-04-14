@@ -5,24 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import { getLocalEstoque, getLabelOperacao } from "./utils/movimentacaoUtils";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
-  { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 90 },
   { id: "data", label: "Data/Hora", default: true, sortable: true, align: "left", width: 150 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 110 },
@@ -32,7 +21,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: "unidade", label: "UN", default: true, sortable: true, align: "left", width: 80 },
   { id: "valor_unitario", label: "Vlr Unit.", default: true, sortable: true, align: "right", width: 120 },
   { id: "valor_total", label: "Vlr Total", default: true, sortable: true, align: "right", width: 130 },
-  { id: "fornecedor", label: "Cliente/Fornecedor", default: true, sortable: true, align: "left", width: 180 },
+  { id: "fornecedor", label: "Fornecedor", default: true, sortable: true, align: "left", width: 180 },
+  { id: "cliente", label: "Cliente", default: true, sortable: true, align: "left", width: 180 },
   { id: "local_origem", label: "Local Origem", default: true, sortable: true, align: "left", width: 170 },
   { id: "local_destino", label: "Local Destino", default: true, sortable: true, align: "left", width: 170 },
   { id: "local_estoque", label: "Resumo Local", default: false, sortable: true, align: "left", width: 190 },
@@ -205,7 +195,7 @@ export default function TabelaMovimentacoes({
   };
 
   const toggleResizeMode = (colunaId) => {
-    if (colunaId === "selecao" || colunaId === "acoes") return;
+    if (colunaId === "selecao") return;
     setResizeColumnId((prev) => (prev === colunaId ? null : colunaId));
   };
 
@@ -251,7 +241,9 @@ export default function TabelaMovimentacoes({
           ? formatarMoeda(itensGrupo.reduce((sum, mov) => sum + (Number(mov.valor_total) || 0), 0))
           : formatarMoeda(item.valor_total);
       case "fornecedor":
-        return item.fornecedor_nome || item.cliente_nome || "";
+        return item.fornecedor_nome || "";
+      case "cliente":
+        return item.cliente_nome || "";
       case "local_origem":
         return item.local_origem || "";
       case "local_destino":
@@ -409,7 +401,9 @@ export default function TabelaMovimentacoes({
         return formatarMoeda(item.valor_total);
       }
       case "fornecedor":
-        return item.fornecedor_nome || item.cliente_nome || "-";
+        return item.fornecedor_nome || "-";
+      case "cliente":
+        return item.cliente_nome || "-";
       case "local_origem":
         return item.local_origem || "-";
       case "local_destino":
@@ -565,10 +559,6 @@ export default function TabelaMovimentacoes({
                           );
                         }
 
-                        if (coluna.id === "acoes") {
-                          return <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />;
-                        }
-
                         const filterControl = renderFilterControl(coluna.id);
 
                         return (
@@ -620,7 +610,6 @@ export default function TabelaMovimentacoes({
                       </TableRow>
                     ) : (
                       movimentacoesOrdenadas.map((item) => {
-                        const bloqueadoDireto = item.bloqueado_exclusao_estoque || (item.exclusao_somente_em && item.exclusao_somente_em !== "estoque") || ["suplementacao", "transferencia_enviada", "transferencia_recebida"].includes(item.tipo_detalhado);
                         return (
                           <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => modoVisualizacao === "principais" && onEdit(item)} onTouchEnd={(event) => handleRowTouch(item, event)}>
                             {colunasOrdenadas.map((coluna) => {
@@ -631,30 +620,6 @@ export default function TabelaMovimentacoes({
                                   <TableCell key={`${item.id}-selecao`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
                                     <div className="flex items-center justify-center w-full h-full">
                                       <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} disabled={item.status !== "Ativa" || modoVisualizacao !== "principais"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                                    </div>
-                                  </TableCell>
-                                );
-                              }
-
-                              if (coluna.id === "acoes") {
-                                if (modoVisualizacao !== "principais") {
-                                  return <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 h-7 border-r border-b border-gray-300" />;
-                                }
-                                return (
-                                  <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center justify-center w-full h-full">
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                                            <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start">
-                                          <DropdownMenuItem onClick={() => onEdit(item)} disabled={item.status === "Cancelada" || bloqueadoDireto} className="text-xs uppercase">Editar</DropdownMenuItem>
-                                          <DropdownMenuSeparator />
-                                          <DropdownMenuItem onClick={() => onDelete(item.id)} disabled={item.status === "Cancelada" || bloqueadoDireto} className="text-xs text-red-600 uppercase">Excluir</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
                                     </div>
                                   </TableCell>
                                 );
