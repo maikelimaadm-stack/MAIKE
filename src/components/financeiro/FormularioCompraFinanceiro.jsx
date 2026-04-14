@@ -73,11 +73,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       observacao: '', anexos_urls: [],
     };
     if (!initialData) return defaults;
+    // Na edição, o registro individual não tem mais array de parcelas
+    // Montamos uma parcela única a partir dos dados do registro
+    const parcelasIniciais = initialData.parcelas || [];
+    if (parcelasIniciais.length === 0 && initialData.id) {
+      // Registro existente sem array parcelas: criar parcela única
+      parcelasIniciais.push({
+        numero: initialData.numero_parcela_seq || 1,
+        data_vencimento: initialData.data_vencimento || '',
+        valor: initialData.valor_total || 0,
+        status: initialData.status || 'Aberto',
+        observacao_parcela: initialData.observacao_parcela || '',
+      });
+    }
     return {
       ...defaults, ...initialData,
       valor_total: initialData.valor_total || '',
       valor_desconto: initialData.valor_desconto || '',
-      parcelas: initialData.parcelas || [],
+      parcelas: parcelasIniciais,
       rateio_grupos: initialData.rateio_grupos || [],
       rateio_centros_custo: initialData.rateio_centros_custo || [],
       anexos_urls: initialData.anexos_urls || [],
@@ -247,7 +260,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       motivo_compra_nome: motivoC?.nome || undefined,
       parcelado: form.parcelas.length > 1,
       quantidade_parcelas: form.parcelas.length,
-      parcelas: form.parcelas,
+      parcelas: form.parcelas, // Usado pela página para gerar registros individuais
       rateio_grupos: form.rateio_grupos,
       rateio_centros_custo: form.rateio_centros_custo,
       observacao: form.observacao?.toUpperCase() || undefined,

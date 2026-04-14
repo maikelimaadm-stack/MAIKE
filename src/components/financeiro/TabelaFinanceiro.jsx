@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, Download, MoreVertical, Calendar, Edit2, Layers, X, Package, Filter, ArrowDownAZ, ArrowUpZA } from "lucide-react";
+import { Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, Download, MoreVertical, Edit2, Layers, X, Package, Filter, ArrowDownAZ, ArrowUpZA } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +72,8 @@ const getBadgeStyle = (status) => {
 const COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
   { id: 'acoes', label: 'Ações', default: true, fixo: true, width: 25 },
+  { id: 'numero_lancamento', label: 'Nº', default: true, sortable: true, width: 70 },
+  { id: 'parcela_info', label: 'Parcela', default: true, width: 70 },
   { id: 'emissao', label: 'Emissão', default: true, sortable: true, width: 100 },
   { id: 'vencimento', label: 'Vencimento', default: true, sortable: true, width: 100 },
   { id: 'dias', label: 'Dias', default: true, width: 80 },
@@ -80,7 +82,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'tipo_documento', label: 'Tipo Doc', default: true, sortable: true, width: 100 },
   { id: 'documento', label: 'Nº Doc', default: true, width: 100 },
   { id: 'motivo_compra', label: 'Motivo Compra', default: false, sortable: true, width: 140 },
-  { id: 'valor_total', label: 'Vlr. Total', default: true, sortable: true, align: 'right', width: 120 },
+  { id: 'valor_total', label: 'Vlr. Parcela', default: true, sortable: true, align: 'right', width: 120 },
   { id: 'valor_pago', label: 'Vlr. Pago', default: true, align: 'right', width: 120 },
   { id: 'saldo', label: 'Vlr. Saldo', default: true, sortable: true, align: 'right', width: 120 },
   { id: 'status', label: 'Status', default: true, sortable: true, width: 120 },
@@ -88,8 +90,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'forma_pagamento', label: 'Forma Pgto', default: false, sortable: true, width: 120 },
   { id: 'grupo_financeiro', label: 'Grupo Financeiro', default: false, sortable: true, width: 160 },
   { id: 'centro_custo', label: 'Centro de Custo', default: false, sortable: true, width: 160 },
-  { id: 'parcelas_info', label: 'Parcelas', default: false, width: 100 },
   { id: 'observacao', label: 'Observação', default: false, width: 200 },
+  { id: 'observacao_parcela', label: 'Obs. Parcela', default: false, width: 200 },
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
@@ -103,26 +105,29 @@ const getRateioNomes = (arr, campo) => {
 
 const getFieldValue = (lancamento, colunaId) => {
   switch (colunaId) {
-    case 'numero': return lancamento.numero_lancamento || '';
-    case 'parcela': return (lancamento.numero_parcela && lancamento.total_parcelas) ? `${lancamento.numero_parcela}/${lancamento.total_parcelas}` : '';
+    case 'numero_lancamento': return lancamento.numero_lancamento || '';
+    case 'parcela_info': {
+      const seq = lancamento.numero_parcela_seq;
+      const total = lancamento.total_parcelas_grupo;
+      return (seq && total && total > 1) ? `${seq}/${total}` : '1/1';
+    }
     case 'emissao': return formatarData(lancamento.data_emissao);
     case 'vencimento': return formatarData(lancamento.data_vencimento);
     case 'dias': return '';
     case 'fornecedor_cliente': return lancamento.fornecedor_nome || lancamento.cliente_nome || '';
-    case 'tipo_documento': return lancamento.tipo_documento || '';
+    case 'tipo_documento': return lancamento.tipo_documento_nome || '';
     case 'documento': return lancamento.numero_documento || '';
-    case 'chave_nfe': return lancamento.chave_nfe || '';
-    case 'serie': return lancamento.serie_documento || '';
-    case 'cfop': return lancamento.cfop || '';
     case 'valor_total': return lancamento.valor_total != null ? String(lancamento.valor_total) : '';
     case 'valor_pago': return lancamento.valor_pago != null ? String(lancamento.valor_pago) : '';
     case 'saldo': { const s = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0); return String(s); }
     case 'status': return lancamento.status || '';
-    case 'safra': return lancamento.safra_nome || '';
-    case 'centro_custo': return lancamento.centro_custo_nome || '';
-    case 'plano_contas': return lancamento.plano_contas_nome || '';
-    case 'grupo': return lancamento.grupo_nome || '';
+    case 'conta_financeira': return lancamento.conta_financeira_nome || '';
     case 'forma_pagamento': return lancamento.forma_pagamento_nome || '';
+    case 'grupo_financeiro': return getRateioNomes(lancamento?.rateio_grupos, 'grupo_financeiro_nome');
+    case 'centro_custo': return getRateioNomes(lancamento?.rateio_centros_custo, 'centro_custo_nome');
+    case 'motivo_compra': return lancamento.motivo_compra_nome || '';
+    case 'observacao': return lancamento.observacao || '';
+    case 'observacao_parcela': return lancamento.observacao_parcela || '';
     default: return '';
   }
 };
@@ -134,7 +139,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [produtosDialog, setProdutosDialog] = useState(null);
   // showConfigColunas is now controlled by parent via props (same pattern as TabelaCategoriasManejo)
   const [selecionados, setSelecionados] = useState([]);
-  const [parcelasDialog, setParcelasDialog] = useState(null);
   const [showEditarLote, setShowEditarLote] = useState(false);
   const [edicaoLote, setEdicaoLote] = useState({ observacoes: "" });
 
@@ -304,6 +308,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     sorted.sort((a, b) => {
       let aValue, bValue;
       switch (sortField) {
+        case 'numero_lancamento': aValue = parseInt(a?.numero_lancamento) || 0; bValue = parseInt(b?.numero_lancamento) || 0; break;
         case 'emissao': aValue = new Date(a?.data_emissao).getTime(); bValue = new Date(b?.data_emissao).getTime(); break;
         case 'vencimento': aValue = new Date(a?.data_vencimento).getTime(); bValue = new Date(b?.data_vencimento).getTime(); break;
         case 'descricao': aValue = (a?.descricao || '').toLowerCase(); bValue = (b?.descricao || '').toLowerCase(); break;
@@ -330,6 +335,19 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   const renderCell = (lancamento, colunaId) => {
     switch (colunaId) {
+      case 'numero_lancamento': return <span className="font-mono font-semibold text-slate-700">{lancamento?.numero_lancamento || '-'}</span>;
+      case 'parcela_info': {
+        const seq = lancamento?.numero_parcela_seq;
+        const total = lancamento?.total_parcelas_grupo;
+        if (seq && total && total > 1) {
+          return (
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px]">
+              {seq}/{total}
+            </Badge>
+          );
+        }
+        return <span className="text-slate-400 text-[10px]">1/1</span>;
+      }
       case 'emissao': return <span className="text-slate-600">{formatarData(lancamento?.data_emissao)}</span>;
       case 'vencimento': return <span className="text-slate-600">{formatarData(lancamento?.data_vencimento)}</span>;
       case 'dias': return (lancamento?.status === 'Aberto' || lancamento?.status === 'Parcial') ? <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>{calcularDias(lancamento?.data_vencimento)}</span> : null;
@@ -341,22 +359,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       case 'valor_total': return <span className="font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</span>;
       case 'valor_pago': return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</span>;
       case 'saldo': return <span className="font-mono font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</span>;
-      case 'status': return (
-        <div className="flex flex-col gap-1">
-          <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge>
-          {lancamento?.parcelas && lancamento.parcelas.length > 1 && (
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px] cursor-pointer hover:bg-slate-200" onClick={() => setParcelasDialog(lancamento)}>
-              <Calendar className="w-2.5 h-2.5 mr-0.5" />{lancamento.parcelas.length}x
-            </Badge>
-          )}
-        </div>
-      );
+      case 'status': return <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge>;
       case 'conta_financeira': return <span className="text-slate-600">{lancamento?.conta_financeira_nome || '-'}</span>;
       case 'forma_pagamento': return <span className="text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</span>;
       case 'grupo_financeiro': return <span className="text-slate-600">{getRateioNomes(lancamento?.rateio_grupos, 'grupo_financeiro_nome')}</span>;
       case 'centro_custo': return <span className="text-slate-600">{getRateioNomes(lancamento?.rateio_centros_custo, 'centro_custo_nome')}</span>;
-      case 'parcelas_info': return lancamento?.parcelas?.length > 0 ? <Badge variant="outline" className="text-[10px]">{lancamento.parcelas.length}x</Badge> : '-';
       case 'observacao': return <span className="text-slate-600 truncate">{lancamento?.observacao || '-'}</span>;
+      case 'observacao_parcela': return <span className="text-slate-600 truncate">{lancamento?.observacao_parcela || '-'}</span>;
       default: return '-';
     }
   };
@@ -553,6 +562,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       lancamentosOrdenados.map((lancamento) => {
                         if (!lancamento) return null;
                         const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
+                        const isPrincipal = lancamento.is_registro_principal;
 
                         return (
                           <TableRow key={lancamento.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100">
@@ -580,8 +590,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                         <DropdownMenuContent align="start">
                                           <DropdownMenuItem onClick={() => setDetalhesAberto(lancamento)} className="text-xs"><Eye className="w-3.5 h-3.5 mr-2" />Ver Detalhes</DropdownMenuItem>
                                           {temProdutos && <DropdownMenuItem onClick={() => setProdutosDialog(lancamento)} className="text-xs"><Package className="w-3.5 h-3.5 mr-2" />Ver Produtos ({lancamento.produtos_lancamento.length})</DropdownMenuItem>}
-                                          <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs"><Edit className="w-3.5 h-3.5 mr-2" />Editar</DropdownMenuItem>
-                                          {lancamento.parcelas && lancamento.parcelas.length > 0 && <DropdownMenuItem onClick={() => setParcelasDialog(lancamento)} className="text-xs"><Calendar className="w-3.5 h-3.5 mr-2" />Ver Parcelas ({lancamento.parcelas.length})</DropdownMenuItem>}
+                                          <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs"><Edit className="w-3.5 h-3.5 mr-2" />{lancamento.parcelamento_grupo_id && !lancamento.is_registro_principal ? 'Editar (via Principal)' : 'Editar'}</DropdownMenuItem>
                                           <DropdownMenuSeparator />
                                           {lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs"><CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />Dar Baixa</DropdownMenuItem>}
                                           {(lancamento?.status === 'Pago' || lancamento?.status === 'Recebido') && onCancelarBaixa && <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs"><XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />Cancelar Baixa</DropdownMenuItem>}
@@ -646,47 +655,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         toggleColuna={toggleColuna} handleDragEnd={handleDragEnd} droppableId={`colunas-financeiro-${tipo.toLowerCase()}`}
       />
 
-      {/* Parcelas Dialog */}
-      <Dialog open={!!parcelasDialog} onOpenChange={(open) => !open && setParcelasDialog(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle className="text-sm">Parcelas - {parcelasDialog?.descricao || 'Lançamento'}</DialogTitle></DialogHeader>
-          {parcelasDialog && (
-            <div className="space-y-3">
-              <Card className="shadow-sm border-slate-200"><CardContent className="p-2"><div className="grid grid-cols-2 gap-2 text-xs"><div><strong>Fornecedor/Cliente:</strong> {parcelasDialog.fornecedor_nome || parcelasDialog.cliente_nome || '-'}</div><div><strong>Documento:</strong> {parcelasDialog.numero_documento || '-'}</div><div><strong>Total:</strong> {formatarMoeda(parcelasDialog.valor_total || 0)}</div><div><strong>Status:</strong> {parcelasDialog.status || '-'}</div></div></CardContent></Card>
-              <div className="border rounded overflow-auto max-h-96">
-                <Table>
-                  <TableHeader><TableRow className="bg-slate-50"><TableHead className="text-xs">Nº</TableHead><TableHead className="text-xs">Vencimento</TableHead><TableHead className="text-xs text-right">Valor</TableHead><TableHead className="text-xs">Status</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {parcelasDialog.parcelas?.map((parcela, index) => {
-                      return (
-                        <TableRow key={index}>
-                          <TableCell className="font-semibold text-xs">{parcela.numero || index + 1}</TableCell>
-                          <TableCell className="text-xs">{formatarData(parcela.data_vencimento)}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{formatarMoeda(parcela.valor || 0)}</TableCell>
-                          <TableCell><Badge variant="outline" className={`text-xs ${parcela.status === 'Pago' || parcela.status === 'Recebido' ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-700 border-orange-300'}`}>{parcela.status || 'Aberto'}</Badge></TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    <TableRow className="bg-slate-100 border-t-2 font-semibold">
-                      <TableCell colSpan={2} className="text-xs">TOTAL</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatarMoeda(parcelasDialog.parcelas?.reduce((s, p) => s + (p.valor || 0), 0) || 0)}</TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Detalhes Dialog */}
       <Dialog open={!!detalhesAberto} onOpenChange={(open) => !open && setDetalhesAberto(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">{detalhesAberto?.descricao || 'Lançamento'}</DialogTitle></DialogHeader>
           {detalhesAberto && (
             <div className="space-y-3">
-              <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs font-semibold">Informações Gerais</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-2 text-xs"><div><strong>Tipo:</strong> {detalhesAberto.tipo}</div><div><strong>Descrição:</strong> {detalhesAberto.descricao || '-'}</div><div><strong>Emissão:</strong> {formatarData(detalhesAberto.data_emissao)}</div><div><strong>Vencimento:</strong> {formatarData(detalhesAberto.data_vencimento)}</div><div><strong>Tipo Doc:</strong> {detalhesAberto.tipo_documento_nome || '-'}</div><div><strong>Nº Doc:</strong> {detalhesAberto.numero_documento || '-'}</div><div><strong>Conta Financeira:</strong> {detalhesAberto.conta_financeira_nome || '-'}</div><div><strong>Forma Pagamento:</strong> {detalhesAberto.forma_pagamento_nome || '-'}</div><div><strong>Motivo Compra:</strong> {detalhesAberto.motivo_compra_nome || '-'}</div><div><strong>Status:</strong> {detalhesAberto.status || '-'}</div>{detalhesAberto.rateio_grupos?.length > 0 && <div className="col-span-2"><strong>Grupos Financeiros:</strong> {getRateioNomes(detalhesAberto.rateio_grupos, 'grupo_financeiro_nome')}</div>}{detalhesAberto.rateio_centros_custo?.length > 0 && <div className="col-span-2"><strong>Centros de Custo:</strong> {getRateioNomes(detalhesAberto.rateio_centros_custo, 'centro_custo_nome')}</div>}</CardContent></Card>
+              <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs font-semibold">Informações Gerais</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-2 text-xs"><div><strong>Nº Lançamento:</strong> {detalhesAberto.numero_lancamento || '-'}</div><div><strong>Parcela:</strong> {detalhesAberto.numero_parcela_seq && detalhesAberto.total_parcelas_grupo > 1 ? `${detalhesAberto.numero_parcela_seq}/${detalhesAberto.total_parcelas_grupo}` : '1/1'}</div><div><strong>Tipo:</strong> {detalhesAberto.tipo}</div><div><strong>Descrição:</strong> {detalhesAberto.descricao || '-'}</div><div><strong>Emissão:</strong> {formatarData(detalhesAberto.data_emissao)}</div><div><strong>Vencimento:</strong> {formatarData(detalhesAberto.data_vencimento)}</div><div><strong>Tipo Doc:</strong> {detalhesAberto.tipo_documento_nome || '-'}</div><div><strong>Nº Doc:</strong> {detalhesAberto.numero_documento || '-'}</div><div><strong>Conta Financeira:</strong> {detalhesAberto.conta_financeira_nome || '-'}</div><div><strong>Forma Pagamento:</strong> {detalhesAberto.forma_pagamento_nome || '-'}</div><div><strong>Motivo Compra:</strong> {detalhesAberto.motivo_compra_nome || '-'}</div><div><strong>Status:</strong> {detalhesAberto.status || '-'}</div>{detalhesAberto.is_registro_principal && <div className="col-span-2"><Badge className="bg-emerald-100 text-emerald-800 text-[10px]">Registro Principal</Badge></div>}{detalhesAberto.rateio_grupos?.length > 0 && <div className="col-span-2"><strong>Grupos Financeiros:</strong> {getRateioNomes(detalhesAberto.rateio_grupos, 'grupo_financeiro_nome')}</div>}{detalhesAberto.rateio_centros_custo?.length > 0 && <div className="col-span-2"><strong>Centros de Custo:</strong> {getRateioNomes(detalhesAberto.rateio_centros_custo, 'centro_custo_nome')}</div>}</CardContent></Card>
               {tipo === 'Pagar' && detalhesAberto.fornecedor_id && (
                 <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs font-semibold">Fornecedor</CardTitle></CardHeader><CardContent className="space-y-1 text-xs">{(() => { const f = fornecedorDoLancamento(detalhesAberto); return f ? <><div><strong>Nome:</strong> {f.nome}</div><div><strong>CPF/CNPJ:</strong> {f.cpf || f.cnpj || '-'}</div></> : <div className="text-slate-500">Não encontrado</div>; })()}</CardContent></Card>
               )}

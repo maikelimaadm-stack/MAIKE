@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Download, Plus, Settings } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
@@ -15,24 +15,30 @@ import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
 import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
 import ImportarNFeFinanceiro from "../components/financeiro/ImportarNFeFinanceiro.jsx";
 
-const getNextNumber = async (empresaId) => {
+// Gera próximo número sequencial de lançamento
+const getNextNumeroLancamento = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
   const filtered = all.filter(l => l && l.empresa_id === empresaId);
-  return filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento) || 0), 0) + 1;
+  return String(filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento) || 0), 0) + 1);
 };
 
+// Gera um ID de grupo único
+const gerarGrupoId = () => `GRP-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
 export default function LancamentoFinanceiro() {
-  const [abaAtiva, setAbaAtiva] = useState("pagar"); // Changed initial state from "pesquisar" to "pagar"
-  const [tipoLancamento, setTipoLancamento] = useState("Pagar"); // New state to hold "Pagar" or "Receber" string
-  const [showForm, setShowForm] = useState(false); // New state to control FormularioCompraFinanceiro visibility
+  const [abaAtiva, setAbaAtiva] = useState("pagar");
+  const [tipoLancamento, setTipoLancamento] = useState("Pagar");
+  const [showForm, setShowForm] = useState(false);
   const [editingLancamento, setEditingLancamento] = useState(null);
   const [baixaLancamento, setBaixaLancamento] = useState(null);
-  const [dadosBaixaLote, setDadosBaixaLote] = useState(null); // New state for batch baixa
+  const [dadosBaixaLote, setDadosBaixaLote] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [showXmlImport, setShowXmlImport] = useState(false); // Renamed from showImportXML
+  const [showXmlImport, setShowXmlImport] = useState(false);
   const [dadosXML, setDadosXML] = useState(null);
-  const [showSaveProgress, setShowSaveProgress] = useState(false); // Renamed from showProgressoSalvamento
+  const [showSaveProgress, setShowSaveProgress] = useState(false);
   const [progressoSalvamento, setProgressoSalvamento] = useState({ etapa: '', current: 0, total: 100 });
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [cancelarBaixaConfirmId, setCancelarBaixaConfirmId] = useState(null);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -68,41 +74,13 @@ export default function LancamentoFinanceiro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data) => {
-      setShowSaveProgress(true);
-      setProgressoSalvamento({ etapa: 'Salvando...', current: 30, total: 100 });
-
-      const lanc = await base44.entities.LancamentoFinanceiro.create(data);
-
-      setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return lanc;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-      setShowForm(false); // Hide the form after success
-      setEditingLancamento(null);
-      setDadosXML(null);
-      setShowSaveProgress(false); // Hide progress dialog
-      toast.success('Lançamento salvo com sucesso!');
-    },
-    onError: (error) => {
-      setShowSaveProgress(false); // Updated state name
-      toast.error('Erro ao salvar: ' + (error.message || 'Erro desconhecido'));
-    }
-  });
-
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       const baixas = await base44.entities.BaixaFinanceira.list();
       const baixaAssociada = baixas.find(b => b && b.lancamento_id === id);
-      
       if (baixaAssociada) {
         throw new Error('Não é possível excluir lançamento com baixa associada. Cancele a baixa primeiro.');
       }
-      
       return base44.entities.LancamentoFinanceiro.delete(id);
     },
     onSuccess: () => {
@@ -118,20 +96,13 @@ export default function LancamentoFinanceiro() {
     mutationFn: async (lancamentoId) => {
       const baixas = await base44.entities.BaixaFinanceira.list();
       const baixasDoLancamento = baixas.filter(b => b && b.lancamento_id === lancamentoId);
-      
       for (const baixa of baixasDoLancamento) {
         await base44.entities.BaixaFinanceira.delete(baixa.id);
       }
-      
-      const lancamentosList = await base44.entities.LancamentoFinanceiro.list(); // Re-fetch to find specific lancamento
-      const lancamento = lancamentosList.find(l => l && l.id === lancamentoId);
-      
-      if (lancamento) {
-        await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
-          status: 'Pendente',
-          valor_pago: 0
-        });
-      }
+      await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
+        status: 'Aberto',
+        valor_pago: 0
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
@@ -142,144 +113,209 @@ export default function LancamentoFinanceiro() {
     }
   });
 
+  // --- SUBMIT: Cria parcelas como registros individuais ---
   const handleSubmit = async (data) => {
     if (editingLancamento) {
-      await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, data);
+      // EDIÇÃO: Se é registro principal, propaga para parcelas do mesmo grupo
+      const camposPropagar = {
+        tipo: data.tipo,
+        descricao: data.descricao,
+        data_emissao: data.data_emissao,
+        fornecedor_id: data.fornecedor_id,
+        fornecedor_nome: data.fornecedor_nome,
+        cliente_id: data.cliente_id,
+        cliente_nome: data.cliente_nome,
+        tipo_documento_id: data.tipo_documento_id,
+        tipo_documento_nome: data.tipo_documento_nome,
+        numero_documento: data.numero_documento,
+        conta_financeira_id: data.conta_financeira_id,
+        conta_financeira_nome: data.conta_financeira_nome,
+        forma_pagamento_id: data.forma_pagamento_id,
+        forma_pagamento_nome: data.forma_pagamento_nome,
+        motivo_compra_id: data.motivo_compra_id,
+        motivo_compra_nome: data.motivo_compra_nome,
+        rateio_grupos: data.rateio_grupos,
+        rateio_centros_custo: data.rateio_centros_custo,
+        produtos_lancamento: data.produtos_lancamento,
+        observacao: data.observacao,
+        anexos_urls: data.anexos_urls,
+      };
+
+      // Atualiza o registro principal com todos os dados
+      await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, {
+        ...camposPropagar,
+        valor_total: data.valor_total,
+        data_vencimento: data.data_vencimento,
+      });
+
+      // Se faz parte de um grupo, propaga para as outras parcelas
+      if (editingLancamento.parcelamento_grupo_id) {
+        const parceirasDoGrupo = lancamentos.filter(
+          l => l.parcelamento_grupo_id === editingLancamento.parcelamento_grupo_id && l.id !== editingLancamento.id
+        );
+        for (const parcela of parceirasDoGrupo) {
+          await base44.entities.LancamentoFinanceiro.update(parcela.id, camposPropagar);
+        }
+        if (parceirasDoGrupo.length > 0) {
+          toast.info(`${parceirasDoGrupo.length} parcela(s) do grupo atualizadas automaticamente.`);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setEditingLancamento(null);
       setShowForm(false);
       toast.success('Lançamento atualizado!');
-    } else {
-      // Se tem mais de 1 parcela, cria um registro separado para cada parcela
-      const parcelas = data.parcelas || [];
-      if (parcelas.length > 1) {
-        setShowSaveProgress(true);
-        setProgressoSalvamento({ etapa: 'Criando parcelas...', current: 0, total: 100 });
-        const totalParcelas = parcelas.length;
-        for (let i = 0; i < totalParcelas; i++) {
-          const parcela = parcelas[i];
-          const obsParcela = parcela.observacao_parcela ? parcela.observacao_parcela.toUpperCase() : '';
-          const obsGeral = data.observacao || '';
-          const obsCompleta = [obsGeral, obsParcela].filter(Boolean).join(' | ');
-          const dadosParcela = {
-            ...data,
-            valor_total: parcela.valor,
-            valor_pago: 0,
-            data_vencimento: parcela.data_vencimento,
-            descricao: `${data.descricao} - PARCELA ${parcela.numero}/${totalParcelas}`,
-            observacao: obsCompleta || undefined,
-            parcelado: true,
-            quantidade_parcelas: totalParcelas,
-            parcelas: [{ ...parcela, numero: 1 }], // Cada registro guarda só sua parcela
-          };
-          await base44.entities.LancamentoFinanceiro.create(dadosParcela);
-          setProgressoSalvamento({ etapa: `Parcela ${i + 1} de ${totalParcelas}...`, current: Math.round(((i + 1) / totalParcelas) * 100), total: 100 });
-        }
-        await new Promise(resolve => setTimeout(resolve, 300));
-        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-        queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-        setShowForm(false);
-        setEditingLancamento(null);
-        setDadosXML(null);
-        setShowSaveProgress(false);
-        toast.success(`${totalParcelas} parcelas lançadas com sucesso!`);
-      } else {
-        // Parcela única — manter observação da parcela se existir
-        if (parcelas.length === 1 && parcelas[0].observacao_parcela) {
-          const obsParcela = parcelas[0].observacao_parcela.toUpperCase();
-          const obsGeral = data.observacao || '';
-          data.observacao = [obsGeral, obsParcela].filter(Boolean).join(' | ');
-        }
-        createMutation.mutate(data);
+      return;
+    }
+
+    // CRIAÇÃO: Cada parcela vira um registro separado
+    const parcelas = data.parcelas || [];
+    const totalParcelas = Math.max(parcelas.length, 1);
+    const grupoId = totalParcelas > 1 ? gerarGrupoId() : null;
+    const valorTotalLancamento = parcelas.reduce((s, p) => s + (p.valor || 0), 0) || data.valor_total;
+
+    setShowSaveProgress(true);
+    setProgressoSalvamento({ etapa: 'Gerando numeração...', current: 5, total: 100 });
+
+    let baseNumero = parseInt(await getNextNumeroLancamento(empresaSelecionadaId));
+
+    for (let i = 0; i < totalParcelas; i++) {
+      const parcela = parcelas[i] || {};
+      const obsParcela = parcela.observacao_parcela ? parcela.observacao_parcela.toUpperCase() : '';
+      
+      const dadosParcela = {
+        empresa_id: data.empresa_id,
+        numero_lancamento: String(baseNumero + i),
+        tipo: data.tipo,
+        descricao: totalParcelas > 1 ? `${data.descricao} - PARCELA ${i + 1}/${totalParcelas}` : data.descricao,
+        status: 'Aberto',
+        valor_total: parcela.valor || data.valor_total,
+        valor_total_lancamento: valorTotalLancamento,
+        valor_pago: 0,
+        data_emissao: data.data_emissao,
+        data_vencimento: parcela.data_vencimento || data.data_vencimento,
+        fornecedor_id: data.fornecedor_id,
+        fornecedor_nome: data.fornecedor_nome,
+        cliente_id: data.cliente_id,
+        cliente_nome: data.cliente_nome,
+        tipo_documento_id: data.tipo_documento_id,
+        tipo_documento_nome: data.tipo_documento_nome,
+        numero_documento: data.numero_documento,
+        conta_financeira_id: data.conta_financeira_id,
+        conta_financeira_nome: data.conta_financeira_nome,
+        forma_pagamento_id: data.forma_pagamento_id,
+        forma_pagamento_nome: data.forma_pagamento_nome,
+        motivo_compra_id: data.motivo_compra_id,
+        motivo_compra_nome: data.motivo_compra_nome,
+        parcelamento_grupo_id: grupoId,
+        numero_parcela_seq: i + 1,
+        total_parcelas_grupo: totalParcelas,
+        is_registro_principal: i === 0,
+        rateio_grupos: data.rateio_grupos,
+        rateio_centros_custo: data.rateio_centros_custo,
+        produtos_lancamento: data.produtos_lancamento,
+        observacao: data.observacao,
+        observacao_parcela: obsParcela || undefined,
+        anexos_urls: data.anexos_urls,
+      };
+
+      await base44.entities.LancamentoFinanceiro.create(dadosParcela);
+      setProgressoSalvamento({
+        etapa: totalParcelas > 1 ? `Parcela ${i + 1} de ${totalParcelas}...` : 'Salvando...',
+        current: Math.round(((i + 1) / totalParcelas) * 95),
+        total: 100
+      });
+    }
+
+    setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+    queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+    setShowForm(false);
+    setEditingLancamento(null);
+    setDadosXML(null);
+    setShowSaveProgress(false);
+    toast.success(totalParcelas > 1 ? `${totalParcelas} parcelas lançadas com sucesso!` : 'Lançamento salvo com sucesso!');
+  };
+
+  const handleDelete = (id) => setDeleteConfirmId(id);
+
+  const handleEdit = (lanc) => {
+    // Só permite editar pelo registro principal se for parcelado
+    if (lanc.parcelamento_grupo_id && !lanc.is_registro_principal) {
+      // Busca o registro principal
+      const principal = lancamentos.find(
+        l => l.parcelamento_grupo_id === lanc.parcelamento_grupo_id && l.is_registro_principal
+      );
+      if (principal) {
+        toast.info('Redirecionando para o registro principal para edição...');
+        setEditingLancamento(principal);
+        setShowForm(true);
+        return;
       }
     }
-  };
-
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-
-  const handleDelete = (id) => {
-    setDeleteConfirmId(id);
-  };
-
-  const handleEdit = (lanc) => { // New handler for TabelaFinanceiro onEdit
     setEditingLancamento(lanc);
-    setShowForm(true); // Show form for editing
+    setShowForm(true);
   };
 
   const handleBaixa = async (lancamento, dadosLote = null) => {
     if (dadosLote?.baixa_automatica_lote) {
-      // Baixa automática em lote - executar direto
-      try {
-        const user = await base44.auth.me();
-        const allBaixas = await base44.entities.BaixaFinanceira.list();
-        const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b?.numero_baixa) || 0), 0);
-        
-        const saldoDisponivel = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
-        
-        await base44.entities.BaixaFinanceira.create({
-          empresa_id: empresaSelecionadaId,
-          numero_baixa: String(maxNumBaixa + 1),
-          lancamento_id: lancamento.id,
-          data_baixa: dadosLote.data_baixa,
-          valor_baixa: saldoDisponivel,
-          valor_juros: 0,
-          valor_multa: 0,
-          valor_desconto: 0,
-          forma_pagamento_id: dadosLote.forma_pagamento_id,
-          forma_pagamento_nome: dadosLote.forma_pagamento_nome, // Corrected: should be nome, not id again
-          observacoes: (dadosLote.observacoes || 'BAIXA EM LOTE').toUpperCase(),
-          usuario_responsavel: user.email
-        });
+      const user = await base44.auth.me();
+      const allBaixas = await base44.entities.BaixaFinanceira.list();
+      const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b?.numero_baixa) || 0), 0);
+      const saldoDisponivel = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
 
-        await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
-          valor_pago: lancamento.valor_total,
-          status: 'Pago'
-        });
-        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-        toast.success('Baixa em lote aplicada com sucesso!');
-      } catch (error) {
-        console.error('Erro ao dar baixa em lote:', error);
-        toast.error('Erro ao aplicar baixa em lote: ' + (error.message || 'Erro desconhecido'));
-        throw error;
-      }
+      await base44.entities.BaixaFinanceira.create({
+        empresa_id: empresaSelecionadaId,
+        numero_baixa: String(maxNumBaixa + 1),
+        lancamento_id: lancamento.id,
+        data_baixa: dadosLote.data_baixa,
+        valor_baixa: saldoDisponivel,
+        valor_juros: 0,
+        valor_multa: 0,
+        valor_desconto: 0,
+        forma_pagamento_id: dadosLote.forma_pagamento_id,
+        forma_pagamento_nome: dadosLote.forma_pagamento_nome,
+        observacoes: (dadosLote.observacoes || 'BAIXA EM LOTE').toUpperCase(),
+        usuario_responsavel: user.email
+      });
+
+      await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
+        valor_pago: lancamento.valor_total,
+        status: 'Pago'
+      });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      toast.success('Baixa aplicada com sucesso!');
     } else {
-      // Baixa normal - abrir dialog
       setBaixaLancamento(lancamento);
       setDadosBaixaLote(dadosLote);
     }
   };
 
-  const [cancelarBaixaConfirmId, setCancelarBaixaConfirmId] = useState(null);
-
-  const handleCancelarBaixa = (lancamento) => {
-    setCancelarBaixaConfirmId(lancamento.id);
-  };
+  const handleCancelarBaixa = (lancamento) => setCancelarBaixaConfirmId(lancamento.id);
 
   const handleImportarXMLSuccess = (dadosImportados) => {
     setDadosXML(dadosImportados);
-    setShowXmlImport(false); // Hide XML import dialog
-    setShowForm(true); // Show form pre-filled with XML data
+    setShowXmlImport(false);
+    setShowForm(true);
   };
 
-  const handleNewLancamento = () => { // Replaced handleNovoCadastro
+  const handleNewLancamento = () => {
     setEditingLancamento(null);
     setDadosXML(null);
-    setShowForm(true); // Show form for new entry
+    setShowForm(true);
   };
 
-  const handleCancelForm = () => { // Replaced handleCancelarCadastro
+  const handleCancelForm = () => {
     setEditingLancamento(null);
     setDadosXML(null);
-    setShowForm(false); // Hide the form
+    setShowForm(false);
   };
 
   const handleUpdateLote = async (ids, dadosAtualizados) => {
     for (const id of ids) {
-      try {
-        await base44.entities.LancamentoFinanceiro.update(id, dadosAtualizados);
-      } catch (error) {
-        console.error('Erro ao atualizar:', error);
-      }
+      await base44.entities.LancamentoFinanceiro.update(id, dadosAtualizados);
     }
     queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
   };
@@ -289,20 +325,20 @@ export default function LancamentoFinanceiro() {
 
   return (
     <div className="p-1 md:p-1 space-y-1">
-      {!showForm && ( // Conditional rendering for the main list view
+      {!showForm && !baixaLancamento && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
             <div>
               <h1 className="font-bold text-slate-800">Lançamentos Financeiros</h1>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+              <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border-input">
                 <Settings className="w-4 h-4" />
               </Button>
               <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 shadow h-7 hover:bg-emerald-600">
+              <Button onClick={handleNewLancamento} size="sm" className="bg-lime-900 hover:bg-emerald-600 text-white h-7 text-xs px-3">
                 Adicionar
               </Button>
             </div>
@@ -322,7 +358,7 @@ export default function LancamentoFinanceiro() {
                 onDelete={handleDelete}
                 onBaixa={handleBaixa}
                 onCancelarBaixa={handleCancelarBaixa}
-                isLoading={false}
+                isLoading={loadingLancamentos}
                 fornecedores={fornecedores}
                 onUpdateLote={handleUpdateLote}
                 showConfigColunas={abaAtiva === 'pagar' ? showConfigColunas : false}
@@ -338,7 +374,7 @@ export default function LancamentoFinanceiro() {
                 onDelete={handleDelete}
                 onBaixa={handleBaixa}
                 onCancelarBaixa={handleCancelarBaixa}
-                isLoading={false}
+                isLoading={loadingLancamentos}
                 fornecedores={fornecedores}
                 onUpdateLote={handleUpdateLote}
                 showConfigColunas={abaAtiva === 'receber' ? showConfigColunas : false}
@@ -373,8 +409,8 @@ export default function LancamentoFinanceiro() {
       )}
 
       <ImportarNFeFinanceiro
-        open={showXmlImport} // Updated state name
-        onClose={() => setShowXmlImport(false)} // Updated state name
+        open={showXmlImport}
+        onClose={() => setShowXmlImport(false)}
         onSuccess={handleImportarXMLSuccess}
         fornecedores={fornecedores}
         produtos={produtos}
@@ -385,10 +421,7 @@ export default function LancamentoFinanceiro() {
         onOpenChange={() => setDeleteConfirmId(null)}
         title="Confirmar exclusão"
         description="Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
-        onConfirm={() => {
-          deleteMutation.mutate(deleteConfirmId);
-          setDeleteConfirmId(null);
-        }}
+        onConfirm={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }}
         confirmText="Excluir"
         cancelText="Cancelar"
         variant="destructive"
@@ -399,17 +432,13 @@ export default function LancamentoFinanceiro() {
         onOpenChange={() => setCancelarBaixaConfirmId(null)}
         title="Cancelar baixa"
         description="Deseja cancelar a baixa deste lançamento? O valor pago será zerado."
-        onConfirm={() => {
-          cancelarBaixaMutation.mutate(cancelarBaixaConfirmId);
-          setCancelarBaixaConfirmId(null);
-        }}
+        onConfirm={() => { cancelarBaixaMutation.mutate(cancelarBaixaConfirmId); setCancelarBaixaConfirmId(null); }}
         confirmText="Cancelar Baixa"
         cancelText="Voltar"
         variant="warning"
       />
 
       <Dialog open={showSaveProgress} onOpenChange={() => {}}>
- {/* Updated state name */}
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Salvando...</DialogTitle>

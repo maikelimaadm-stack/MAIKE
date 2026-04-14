@@ -6,6 +6,10 @@
       "type": "string",
       "description": "ID da empresa"
     },
+    "numero_lancamento": {
+      "type": "string",
+      "description": "N\u00famero sequencial autom\u00e1tico do lan\u00e7amento"
+    },
     "tipo": {
       "type": "string",
       "enum": [
@@ -28,16 +32,20 @@
         "Cancelado"
       ],
       "default": "Aberto",
-      "description": "Status atual do lan\u00e7amento"
+      "description": "Status atual do lan\u00e7amento/parcela"
     },
     "valor_total": {
       "type": "number",
-      "description": "Valor total l\u00edquido do lan\u00e7amento"
+      "description": "Valor desta parcela"
     },
     "valor_pago": {
       "type": "number",
       "default": 0,
-      "description": "Valor j\u00e1 pago/recebido"
+      "description": "Valor j\u00e1 pago/recebido desta parcela"
+    },
+    "valor_total_lancamento": {
+      "type": "number",
+      "description": "Valor total original do lan\u00e7amento inteiro (soma de todas as parcelas)"
     },
     "data_emissao": {
       "type": "string",
@@ -47,12 +55,12 @@
     "data_vencimento": {
       "type": "string",
       "format": "date",
-      "description": "Data de vencimento (parcela \u00fanica ou primeira parcela)"
+      "description": "Data de vencimento desta parcela"
     },
     "data_pagamento": {
       "type": "string",
       "format": "date",
-      "description": "Data efetiva de pagamento/recebimento"
+      "description": "Data efetiva de pagamento/recebimento desta parcela"
     },
     "fornecedor_id": {
       "type": "string",
@@ -72,7 +80,7 @@
     },
     "tipo_documento_id": {
       "type": "string",
-      "description": "ID do tipo de documento (cadastro TipoDocumento)"
+      "description": "ID do tipo de documento"
     },
     "tipo_documento_nome": {
       "type": "string",
@@ -84,7 +92,7 @@
     },
     "conta_financeira_id": {
       "type": "string",
-      "description": "ID da conta financeira vinculada (cadastro ContaFinanceira)"
+      "description": "ID da conta financeira vinculada"
     },
     "conta_financeira_nome": {
       "type": "string",
@@ -92,7 +100,7 @@
     },
     "forma_pagamento_id": {
       "type": "string",
-      "description": "ID da forma de pagamento (cadastro FormaPagamento)"
+      "description": "ID da forma de pagamento"
     },
     "forma_pagamento_nome": {
       "type": "string",
@@ -100,88 +108,46 @@
     },
     "motivo_compra_id": {
       "type": "string",
-      "description": "ID do motivo de compra (cadastro MotivoCompra)"
+      "description": "ID do motivo de compra"
     },
     "motivo_compra_nome": {
       "type": "string",
       "description": "Nome do motivo de compra (cache)"
     },
-    "parcelado": {
+    "parcelamento_grupo_id": {
+      "type": "string",
+      "description": "ID \u00fanico que agrupa todas as parcelas de um mesmo lan\u00e7amento"
+    },
+    "numero_parcela_seq": {
+      "type": "number",
+      "description": "N\u00famero sequencial da parcela (1, 2, 3...)"
+    },
+    "total_parcelas_grupo": {
+      "type": "number",
+      "description": "Total de parcelas neste grupo"
+    },
+    "is_registro_principal": {
       "type": "boolean",
       "default": false,
-      "description": "Se o lan\u00e7amento \u00e9 parcelado"
-    },
-    "quantidade_parcelas": {
-      "type": "number",
-      "description": "N\u00famero total de parcelas"
-    },
-    "parcelas": {
-      "type": "array",
-      "description": "Lista de parcelas com data e valor individual",
-      "items": {
-        "type": "object",
-        "properties": {
-          "numero": {
-            "type": "number",
-            "description": "N\u00famero da parcela (1, 2, 3...)"
-          },
-          "data_vencimento": {
-            "type": "string",
-            "format": "date",
-            "description": "Data de vencimento da parcela"
-          },
-          "valor": {
-            "type": "number",
-            "description": "Valor da parcela"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "Aberto",
-              "Pago",
-              "Recebido",
-              "Cancelado"
-            ],
-            "description": "Status individual da parcela"
-          },
-          "data_pagamento": {
-            "type": "string",
-            "format": "date",
-            "description": "Data efetiva de pagamento da parcela"
-          },
-          "valor_pago": {
-            "type": "number",
-            "description": "Valor efetivamente pago nesta parcela"
-          }
-        },
-        "required": [
-          "numero",
-          "data_vencimento",
-          "valor"
-        ]
-      }
+      "description": "Indica se \u00e9 o registro principal do grupo (parcela 1). Edi\u00e7\u00f5es aqui propagam para as demais."
     },
     "rateio_grupos": {
       "type": "array",
-      "description": "Distribui\u00e7\u00e3o do valor por grupos financeiros (receita/despesa). Soma dos valores deve ser igual ao valor_total. O percentual \u00e9 calculado automaticamente.",
+      "description": "Distribui\u00e7\u00e3o por grupos financeiros",
       "items": {
         "type": "object",
         "properties": {
           "grupo_financeiro_id": {
-            "type": "string",
-            "description": "ID do grupo financeiro"
+            "type": "string"
           },
           "grupo_financeiro_nome": {
-            "type": "string",
-            "description": "Nome do grupo financeiro (cache)"
+            "type": "string"
           },
           "valor": {
-            "type": "number",
-            "description": "Valor distribu\u00eddo neste grupo"
+            "type": "number"
           },
           "percentual": {
-            "type": "number",
-            "description": "Percentual calculado automaticamente (valor / valor_total * 100)"
+            "type": "number"
           }
         },
         "required": [
@@ -192,25 +158,21 @@
     },
     "rateio_centros_custo": {
       "type": "array",
-      "description": "Distribui\u00e7\u00e3o do valor por centros de custo. Soma dos valores deve ser igual ao valor_total. O percentual \u00e9 calculado automaticamente.",
+      "description": "Distribui\u00e7\u00e3o por centros de custo",
       "items": {
         "type": "object",
         "properties": {
           "centro_custo_id": {
-            "type": "string",
-            "description": "ID do centro de custo"
+            "type": "string"
           },
           "centro_custo_nome": {
-            "type": "string",
-            "description": "Nome do centro de custo (cache)"
+            "type": "string"
           },
           "valor": {
-            "type": "number",
-            "description": "Valor distribu\u00eddo neste centro de custo"
+            "type": "number"
           },
           "percentual": {
-            "type": "number",
-            "description": "Percentual calculado automaticamente (valor / valor_total * 100)"
+            "type": "number"
           }
         },
         "required": [
@@ -264,7 +226,11 @@
     },
     "observacao": {
       "type": "string",
-      "description": "Observa\u00e7\u00f5es gerais"
+      "description": "Observa\u00e7\u00f5es gerais do lan\u00e7amento"
+    },
+    "observacao_parcela": {
+      "type": "string",
+      "description": "Observa\u00e7\u00e3o espec\u00edfica desta parcela"
     },
     "anexos_urls": {
       "type": "array",
