@@ -75,7 +75,6 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
   const [numeroDocumento, setNumeroDocumento] = useState(initialData?.numero_documento || '');
   const [dataDocumento, setDataDocumento] = useState(initialData?.data_documento || '');
   const [tipoDocumentoId, setTipoDocumentoId] = useState(initialData?.tipo_documento_id || '');
-  const [chaveDocumento, setChaveDocumento] = useState(initialData?.chave_documento || '');
   const [motivoMovimentacao, setMotivoMovimentacao] = useState(initialData?.motivo_movimentacao || '');
   const [invalidFields, setInvalidFields] = useState([]);
 
@@ -225,7 +224,6 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
       tipo_documento: dadosFinanceiro?.tipo_documento_nome || tipoDocumentoSelecionado?.nome || undefined,
       numero_documento: dadosFinanceiro?.numero_documento || numeroDocumento?.toUpperCase() || undefined,
       data_documento: dadosFinanceiro?.data_emissao || dataDocumento || undefined,
-      chave_documento: chaveDocumento?.toUpperCase() || undefined,
       motivo_movimentacao: motivoMovimentacao?.toUpperCase() || undefined,
       observacoes: observacoes?.toUpperCase() || undefined,
       dados_financeiro: dadosFinanceiro || undefined,
@@ -325,63 +323,64 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
                 )}
               </div>
 
-              {exibeFornecedor && (
-                <FL label="Fornecedor" required error={invalidFields.includes('fornecedor_id')}>
-                  <AutocompleteGenerico
-                    items={fornecedores}
-                    value={fornecedorId}
-                    onChange={(v) => { setFornecedorId(v); handleChange('fornecedor_id', v); }}
-                    placeholder="BUSCAR FORNECEDOR..."
-                    displayField="nome"
-                    searchFields={["nome", "cnpj", "cpf"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
-                </FL>
-              )}
+              {(exibeFornecedor || exibeCliente || exibeCamposDocumento) && (
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+                  {exibeFornecedor && (
+                    <FL label="Fornecedor" required error={invalidFields.includes('fornecedor_id')}>
+                      <AutocompleteGenerico
+                        items={fornecedores}
+                        value={fornecedorId}
+                        onChange={(v) => { setFornecedorId(v); handleChange('fornecedor_id', v); }}
+                        placeholder="BUSCAR FORNECEDOR..."
+                        displayField="nome"
+                        searchFields={["nome", "cnpj", "cpf"]}
+                        className="w-full"
+                        inputClassName={AC_INPUT_CLS}
+                      />
+                    </FL>
+                  )}
 
-              {exibeCliente && (
-                <FL label="Cliente" required error={invalidFields.includes('cliente_nome')}>
-                  <AutocompleteGenerico
-                    items={fornecedores}
-                    value={clienteNome}
-                    onChange={(v) => {
-                      const clienteSelecionado = fornecedores.find(f => f.id === v);
-                      setClienteNome(clienteSelecionado?.nome || '');
-                      handleChange('cliente_nome', v);
-                    }}
-                    placeholder="BUSCAR CLIENTE..."
-                    displayField="nome"
-                    searchFields={["nome", "cnpj", "cpf"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
-                </FL>
-              )}
+                  {exibeCliente && (
+                    <FL label="Cliente" required error={invalidFields.includes('cliente_nome')}>
+                      <AutocompleteGenerico
+                        items={fornecedores}
+                        value={clienteNome}
+                        onChange={(v) => {
+                          const clienteSelecionado = fornecedores.find(f => f.id === v);
+                          setClienteNome(clienteSelecionado?.nome || '');
+                          handleChange('cliente_nome', v);
+                        }}
+                        placeholder="BUSCAR CLIENTE..."
+                        displayField="nome"
+                        searchFields={["nome", "cnpj", "cpf"]}
+                        className="w-full"
+                        inputClassName={AC_INPUT_CLS}
+                      />
+                    </FL>
+                  )}
 
-              {exibeCamposDocumento && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
-                  <FL label="Tipo Documento" required error={invalidFields.includes('tipo_documento_id')}>
-                    <AutocompleteGenerico
-                      items={tiposDocumento}
-                      value={tipoDocumentoId}
-                      onChange={(v) => { setTipoDocumentoId(v); handleChange('tipo_documento_id', v); }}
-                      placeholder="BUSCAR..."
-                      displayField="nome"
-                      searchFields={["nome", "sigla"]}
-                      className="w-full"
-                      inputClassName={AC_INPUT_CLS}
-                    />
-                  </FL>
-                  <FL label="Nº Documento" required error={invalidFields.includes('numero_documento')}>
-                    <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
-                  </FL>
-                  <FL label="Data Documento" required error={invalidFields.includes('data_documento')}>
-                    <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className={INPUT_CLS} />
-                  </FL>
-                  <FL label="Chave Documento">
-                    <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value.toUpperCase())} placeholder="CHAVE DE ACESSO" className={`${INPUT_CLS} uppercase`} />
-                  </FL>
+                  {exibeCamposDocumento && (
+                    <>
+                      <FL label="Tipo Documento" required error={invalidFields.includes('tipo_documento_id')}>
+                        <AutocompleteGenerico
+                          items={tiposDocumento}
+                          value={tipoDocumentoId}
+                          onChange={(v) => { setTipoDocumentoId(v); handleChange('tipo_documento_id', v); }}
+                          placeholder="BUSCAR..."
+                          displayField="nome"
+                          searchFields={["nome", "sigla"]}
+                          className="w-full"
+                          inputClassName={AC_INPUT_CLS}
+                        />
+                      </FL>
+                      <FL label="Nº Documento" required error={invalidFields.includes('numero_documento')}>
+                        <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
+                      </FL>
+                      <FL label="Data Documento" required error={invalidFields.includes('data_documento')}>
+                        <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className={INPUT_CLS} />
+                      </FL>
+                    </>
+                  )}
                 </div>
               )}
 
