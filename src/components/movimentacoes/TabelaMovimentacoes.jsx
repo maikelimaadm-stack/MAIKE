@@ -229,11 +229,23 @@ export default function TabelaMovimentacoes({
     return [item];
   };
 
+  const getNumeroExibicao = (item, index) => {
+    if (modoVisualizacao === "principais") {
+      return String(index + 1);
+    }
+
+    if (item.numero_movimentacao_seq) {
+      return String(item.numero_movimentacao_seq);
+    }
+
+    return String(index + 1);
+  };
+
   const getFieldValue = (item, colunaId) => {
     const itensGrupo = modoVisualizacao === "principais" ? getGrupoItens(item) : [item];
     switch (colunaId) {
       case "numero":
-        return String(item.numero_movimentacao || "");
+        return "";
       case "data":
         return formatarData(item.data_movimentacao);
       case "tipo":
@@ -348,7 +360,7 @@ export default function TabelaMovimentacoes({
   };
 
   const toggleSelectAll = () => {
-    const registrosSelecionaveis = movimentacoesFiltradas.filter((item) => item.status === "Ativa" && modoVisualizacao === "principais");
+    const registrosSelecionaveis = movimentacoesFiltradas.filter((item) => item.status === "Ativa");
     if (selectedItems.length === registrosSelecionaveis.length && registrosSelecionaveis.length > 0) {
       setSelectedItems([]);
       return;
@@ -530,7 +542,7 @@ export default function TabelaMovimentacoes({
             {movimentacoesFiltradas.length} de {movimentacoes.length} registros
           </div>
           <div className="flex gap-2 flex-wrap">
-            {selectedItems.length > 0 && modoVisualizacao === "principais" && (
+            {selectedItems.length > 0 && (
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onExportSelected?.(selectedItems)}>
                 Exportar ({selectedItems.length})
               </Button>
@@ -553,7 +565,7 @@ export default function TabelaMovimentacoes({
                           return (
                             <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
                               <div className="flex items-center justify-center w-full h-full">
-                                <Checkbox checked={modoVisualizacao === "principais" && selectedItems.length === movimentacoesFiltradas.filter((item) => item.status === "Ativa").length && movimentacoesFiltradas.filter((item) => item.status === "Ativa").length > 0} onCheckedChange={toggleSelectAll} disabled={modoVisualizacao !== "principais"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                <Checkbox checked={selectedItems.length === movimentacoesFiltradas.filter((item) => item.status === "Ativa").length && movimentacoesFiltradas.filter((item) => item.status === "Ativa").length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                               </div>
                             </TableHead>
                           );
@@ -623,7 +635,7 @@ export default function TabelaMovimentacoes({
                                 return (
                                   <TableCell key={`${item.id}-selecao`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
                                     <div className="flex items-center justify-center w-full h-full">
-                                      <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} disabled={item.status !== "Ativa" || modoVisualizacao !== "principais"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                      <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} disabled={item.status !== "Ativa"} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                                     </div>
                                   </TableCell>
                                 );
@@ -653,7 +665,7 @@ export default function TabelaMovimentacoes({
                               const numericCols = ["quantidade", "valor_unitario", "valor_total"];
                               return (
                                 <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle text-left border-r border-b border-gray-300 whitespace-normal break-words uppercase ${numericCols.includes(coluna.id) ? "font-mono" : ""}`}>
-                                  {renderCell(item, coluna.id)}
+                                  {coluna.id === "numero" ? getNumeroExibicao(item, movimentacoesOrdenadas.findIndex((mov) => mov.id === item.id)) : renderCell(item, coluna.id)}
                                 </TableCell>
                               );
                             })}
