@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, FileText } from "lucide-react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
@@ -26,7 +26,7 @@ const getNextNumeroLancamento = async (empresaId) => {
 const gerarGrupoId = () => `GRP-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
 export default function LancamentoFinanceiro() {
-  const [abaAtiva, setAbaAtiva] = useState("pagar");
+  const [abaAtiva, setAbaAtiva] = useState("lancamentos");
   const [subAbaPagar, setSubAbaPagar] = useState("principais");
   const [subAbaReceber, setSubAbaReceber] = useState("principais");
   const [tipoLancamento, setTipoLancamento] = useState("Pagar");
@@ -343,24 +343,82 @@ export default function LancamentoFinanceiro() {
               <h1 className="font-bold text-slate-800">Lançamentos Financeiros</h1>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border-input">
-                <Settings className="w-4 h-4" />
-              </Button>
-              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
-                Importar XML
-              </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="bg-lime-900 hover:bg-emerald-600 text-white h-7 text-xs px-3">
-                Adicionar
-              </Button>
+              {(abaAtiva === 'pagar' || abaAtiva === 'receber') && (
+                <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border-input">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </div>
 
-          <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }}>
-            <TabsList className="grid w-full max-w-md grid-cols-2 h-8 bg-slate-100">
+          <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); if (v === 'pagar') setTipoLancamento('Pagar'); else if (v === 'receber') setTipoLancamento('Receber'); }}>
+            <TabsList className="grid w-full max-w-lg grid-cols-3 h-8 bg-slate-100">
+              <TabsTrigger value="lancamentos" className="text-xs gap-1"><FileText className="w-3 h-3" />Lançamentos</TabsTrigger>
               <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
               <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
             </TabsList>
 
+            {/* ABA LANÇAMENTOS - criação de novos */}
+            <TabsContent value="lancamentos" className="mt-1">
+              <Card className="border shadow-sm">
+                <CardContent className="p-4 space-y-4">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-800">Novo Lançamento</h2>
+                      <p className="text-xs text-slate-500">Crie novos lançamentos financeiros (Pagar ou Receber). Eles aparecerão nas abas correspondentes.</p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
+                        Importar XML
+                      </Button>
+                      <Button onClick={() => { setTipoLancamento('Pagar'); handleNewLancamento(); }} size="sm" className="bg-red-600 hover:bg-red-700 text-white h-7 text-xs px-3">
+                        <Plus className="w-3.5 h-3.5" /> Conta a Pagar
+                      </Button>
+                      <Button onClick={() => { setTipoLancamento('Receber'); handleNewLancamento(); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs px-3">
+                        <Plus className="w-3.5 h-3.5" /> Conta a Receber
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Resumo rápido dos lançamentos */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 border rounded-lg p-3">
+                      <p className="text-[10px] text-slate-500 uppercase">Total Registros</p>
+                      <p className="text-lg font-bold text-slate-800">{lancamentos.length}</p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-[10px] text-red-600 uppercase">Contas a Pagar</p>
+                      <p className="text-lg font-bold text-red-700">{lancamentosPagar.length}</p>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                      <p className="text-[10px] text-emerald-600 uppercase">Contas a Receber</p>
+                      <p className="text-lg font-bold text-emerald-700">{lancamentosReceber.length}</p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <p className="text-[10px] text-amber-600 uppercase">Em Aberto</p>
+                      <p className="text-lg font-bold text-amber-700">{lancamentos.filter(l => l.status === 'Aberto' || l.status === 'Parcial').length}</p>
+                    </div>
+                  </div>
+
+                  {/* Tabela completa de todos os lançamentos para consulta */}
+                  <TabelaFinanceiro
+                    lancamentos={lancamentos}
+                    tipo="Todos"
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onBaixa={handleBaixa}
+                    onCancelarBaixa={handleCancelarBaixa}
+                    isLoading={loadingLancamentos}
+                    fornecedores={fornecedores}
+                    onUpdateLote={handleUpdateLote}
+                    showConfigColunas={abaAtiva === 'lancamentos' ? showConfigColunas : false}
+                    setShowConfigColunas={setShowConfigColunas}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ABA CONTAS A PAGAR - consulta e gerenciamento */}
             <TabsContent value="pagar" className="mt-0 space-y-1">
               <Tabs value={subAbaPagar} onValueChange={setSubAbaPagar}>
                 <TabsList className="h-7 bg-slate-50 border">
@@ -371,6 +429,7 @@ export default function LancamentoFinanceiro() {
                   <TabelaFinanceiro
                     lancamentos={pagarPrincipais}
                     tipo="Pagar"
+                    modoVisualizacao="principais"
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onBaixa={handleBaixa}
@@ -386,6 +445,7 @@ export default function LancamentoFinanceiro() {
                   <TabelaFinanceiro
                     lancamentos={pagarParcelas}
                     tipo="Pagar"
+                    modoVisualizacao="parcelas"
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onBaixa={handleBaixa}
@@ -400,6 +460,7 @@ export default function LancamentoFinanceiro() {
               </Tabs>
             </TabsContent>
 
+            {/* ABA CONTAS A RECEBER - consulta e gerenciamento */}
             <TabsContent value="receber" className="mt-0 space-y-1">
               <Tabs value={subAbaReceber} onValueChange={setSubAbaReceber}>
                 <TabsList className="h-7 bg-slate-50 border">
@@ -410,6 +471,7 @@ export default function LancamentoFinanceiro() {
                   <TabelaFinanceiro
                     lancamentos={receberPrincipais}
                     tipo="Receber"
+                    modoVisualizacao="principais"
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onBaixa={handleBaixa}
@@ -425,6 +487,7 @@ export default function LancamentoFinanceiro() {
                   <TabelaFinanceiro
                     lancamentos={receberParcelas}
                     tipo="Receber"
+                    modoVisualizacao="parcelas"
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onBaixa={handleBaixa}

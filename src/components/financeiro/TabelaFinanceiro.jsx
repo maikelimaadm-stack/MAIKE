@@ -73,7 +73,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
   { id: 'acoes', label: 'Ações', default: true, fixo: true, width: 25 },
   { id: 'numero_lancamento', label: 'Nº', default: true, sortable: true, width: 70 },
-  { id: 'parcela_info', label: 'Parcela', default: true, width: 70 },
+  { id: 'parcela_info', label: 'Parcelas', default: true, width: 70 },
   { id: 'emissao', label: 'Emissão', default: true, sortable: true, width: 100 },
   { id: 'vencimento', label: 'Vencimento', default: true, sortable: true, width: 100 },
   { id: 'dias', label: 'Dias', default: true, width: 80 },
@@ -132,7 +132,7 @@ const getFieldValue = (lancamento, colunaId) => {
   }
 };
 
-export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas }) {
+export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas }) {
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
@@ -192,8 +192,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id)).filter(c => c && colunasVisiveis.includes(c.id));
-  }, [colunasOrdem, colunasVisiveis]);
+    return colunasOrdem.map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id)).filter(c => c && colunasVisiveis.includes(c.id)).map(c => {
+      // Label dinâmico conforme modo de visualização
+      if (modoVisualizacao === 'principais' && c.id === 'valor_total') return { ...c, label: 'Vlr. Total' };
+      if (modoVisualizacao === 'principais' && c.id === 'saldo') return { ...c, label: 'Saldo Total' };
+      return c;
+    });
+  }, [colunasOrdem, colunasVisiveis, modoVisualizacao]);
 
   // --- Resize logic (same as TabelaCategoriasManejo) ---
   const toggleResizeMode = (colunaId) => {
@@ -333,12 +338,35 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
+  // Helpers para modo "principais": mostrar valor total do lançamento e descrição original
+  const getDescricaoPrincipal = (lancamento) => {
+    if (modoVisualizacao !== 'principais') return lancamento?.descricao || '-';
+    // Remover sufixo "- PARCELA X/Y" da descrição
+    const desc = lancamento?.descricao || '-';
+    return desc.replace(/\s*-\s*PARCELA\s+\d+\/\d+$/i, '');
+  };
+
+  const getValorExibicao = (lancamento) => {
+    // No modo "principais", se é registro principal de grupo, mostra valor_total_lancamento
+    if (modoVisualizacao === 'principais' && lancamento?.parcelamento_grupo_id && lancamento?.is_registro_principal) {
+      return lancamento?.valor_total_lancamento || lancamento?.valor_total || 0;
+    }
+    return lancamento?.valor_total || 0;
+  };
+
   const renderCell = (lancamento, colunaId) => {
     switch (colunaId) {
       case 'numero_lancamento': return <span className="font-mono font-semibold text-slate-700">{lancamento?.numero_lancamento || '-'}</span>;
       case 'parcela_info': {
         const seq = lancamento?.numero_parcela_seq;
         const total = lancamento?.total_parcelas_grupo;
+        if (modoVisualizacao === 'principais' && total && total > 1) {
+          return (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px]">
+              {total}x
+            </Badge>
+          );
+        }
         if (seq && total && total > 1) {
           return (
             <Badge variant="outline" className="bg-slate-100 text-slate-700 text-[10px]">
@@ -351,14 +379,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       case 'emissao': return <span className="text-slate-600">{formatarData(lancamento?.data_emissao)}</span>;
       case 'vencimento': return <span className="text-slate-600">{formatarData(lancamento?.data_vencimento)}</span>;
       case 'dias': return (lancamento?.status === 'Aberto' || lancamento?.status === 'Parcial') ? <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>{calcularDias(lancamento?.data_vencimento)}</span> : null;
-      case 'descricao': return <span className="text-slate-800 font-medium">{lancamento?.descricao || '-'}</span>;
+      case 'descricao': return <span className="text-slate-800 font-medium">{getDescricaoPrincipal(lancamento)}</span>;
       case 'fornecedor_cliente': return lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-';
       case 'tipo_documento': return <span className="text-slate-600">{lancamento?.tipo_documento_nome || '-'}</span>;
       case 'documento': return <span className="font-mono text-slate-600">{lancamento?.numero_documento || '-'}</span>;
       case 'motivo_compra': return <span className="text-slate-600">{lancamento?.motivo_compra_nome || '-'}</span>;
-      case 'valor_total': return <span className="font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</span>;
+      case 'valor_total': return <span className="font-mono font-semibold">{formatarMoeda(getValorExibicao(lancamento))}</span>;
       case 'valor_pago': return <span className="font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</span>;
-      case 'saldo': return <span className="font-mono font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</span>;
+      case 'saldo': return <span className="font-mono font-semibold text-slate-700">{formatarMoeda(getValorExibicao(lancamento) - (lancamento?.valor_pago || 0))}</span>;
       case 'status': return <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge>;
       case 'conta_financeira': return <span className="text-slate-600">{lancamento?.conta_financeira_nome || '-'}</span>;
       case 'forma_pagamento': return <span className="text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</span>;
