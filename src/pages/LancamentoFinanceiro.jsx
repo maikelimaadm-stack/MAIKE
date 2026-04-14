@@ -139,10 +139,9 @@ export default function LancamentoFinanceiro() {
   // --- SUBMIT: Cria parcelas como registros individuais ---
   const handleSubmit = async (data) => {
     if (editingLancamento) {
-      // EDIÇÃO: Se é registro principal, propaga para parcelas do mesmo grupo
+      // EDIÇÃO: campos comuns a propagar para todas as parcelas
       const camposPropagar = {
         tipo: data.tipo,
-        descricao: data.descricao,
         data_emissao: data.data_emissao,
         fornecedor_id: data.fornecedor_id,
         fornecedor_nome: data.fornecedor_nome,
@@ -164,24 +163,38 @@ export default function LancamentoFinanceiro() {
         anexos_urls: data.anexos_urls,
       };
 
-      // Atualiza o registro principal com todos os dados
-      await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, {
-        ...camposPropagar,
-        valor_total: data.valor_total,
-        data_vencimento: data.data_vencimento,
-      });
+      const parcelas = data.parcelas || [];
+      const totalParcelas = Math.max(parcelas.length, 1);
+      const valorTotalLancamento = parcelas.reduce((s, p) => s + (p.valor || 0), 0) || data.valor_total;
 
-      // Se faz parte de um grupo, propaga para as outras parcelas
-      if (editingLancamento.parcelamento_grupo_id) {
-        const parceirasDoGrupo = lancamentos.filter(
-          l => l.parcelamento_grupo_id === editingLancamento.parcelamento_grupo_id && l.id !== editingLancamento.id
-        );
-        for (const parcela of parceirasDoGrupo) {
-          await base44.entities.LancamentoFinanceiro.update(parcela.id, camposPropagar);
+      if (editingLancamento.parcelamento_grupo_id && totalParcelas > 1) {
+        // Edição de grupo parcelado: atualizar cada parcela individualmente
+        const registrosDoGrupo = lancamentos
+          .filter(l => l.parcelamento_grupo_id === editingLancamento.parcelamento_grupo_id)
+          .sort((a, b) => (a.numero_parcela_seq || 0) - (b.numero_parcela_seq || 0));
+
+        for (let i = 0; i < registrosDoGrupo.length; i++) {
+          const registro = registrosDoGrupo[i];
+          const parcelaData = parcelas[i] || {};
+          await base44.entities.LancamentoFinanceiro.update(registro.id, {
+            ...camposPropagar,
+            descricao: `${data.descricao} - PARCELA ${i + 1}/${totalParcelas}`,
+            valor_total: parcelaData.valor || registro.valor_total,
+            valor_total_lancamento: valorTotalLancamento,
+            data_vencimento: parcelaData.data_vencimento || registro.data_vencimento,
+            total_parcelas_grupo: totalParcelas,
+          });
         }
-        if (parceirasDoGrupo.length > 0) {
-          toast.info(`${parceirasDoGrupo.length} parcela(s) do grupo atualizadas automaticamente.`);
-        }
+        toast.info(`${registrosDoGrupo.length} parcela(s) do grupo atualizadas.`);
+      } else {
+        // Edição de lançamento avulso (sem parcelas)
+        await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, {
+          ...camposPropagar,
+          descricao: data.descricao,
+          valor_total: data.valor_total,
+          valor_total_lancamento: data.valor_total,
+          data_vencimento: data.data_vencimento || (parcelas[0]?.data_vencimento) || editingLancamento.data_vencimento,
+        });
       }
 
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
