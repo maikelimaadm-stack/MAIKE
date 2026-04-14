@@ -222,7 +222,7 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
                     <Input type="date" value={dataMovimentacao} onChange={(e) => setDataMovimentacao(e.target.value)} className={INPUT_CLS} />
                   </FL>
                 </div>
-                <div className="lg:col-span-5">
+                <div className={ehTransferencia ? "lg:col-span-3" : "lg:col-span-5"}>
                   <FL label={tipo === 'Entrada' ? 'Local de Estoque (Destino)' : 'Local de Estoque (Origem)'} required error={invalidFields.includes('local_origem') || invalidFields.includes('local_destino')}>
                     <AutocompleteGenerico
                       items={locais}
@@ -240,25 +240,23 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
                     />
                   </FL>
                 </div>
+                {ehTransferencia && (
+                  <div className="lg:col-span-2">
+                    <FL label="Local Estoque (Destino)" required error={invalidFields.includes('local_destino')}>
+                      <AutocompleteGenerico
+                        items={locais}
+                        value={localDestinoId}
+                        onChange={(v) => { setLocalDestinoId(v); handleChange('local_destino', v); }}
+                        placeholder="BUSCAR DESTINO..."
+                        displayField="nome"
+                        searchFields={["nome"]}
+                        className="w-full"
+                        inputClassName={AC_INPUT_CLS}
+                      />
+                    </FL>
+                  </div>
+                )}
               </div>
-
-              {/* Linha 2: Local destino (só transferência) */}
-              {ehTransferencia && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-1 border-t">
-                  <FL label="Local de Estoque (Destino)" required error={invalidFields.includes('local_destino')}>
-                    <AutocompleteGenerico
-                      items={locais}
-                      value={localDestinoId}
-                      onChange={(v) => { setLocalDestinoId(v); handleChange('local_destino', v); }}
-                      placeholder="BUSCAR LOCAL DESTINO..."
-                      displayField="nome"
-                      searchFields={["nome"]}
-                      className="w-full"
-                      inputClassName={AC_INPUT_CLS}
-                    />
-                  </FL>
-                </div>
-              )}
 
               {/* Observações */}
               <FL label="Observações">

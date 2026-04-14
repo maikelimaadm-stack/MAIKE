@@ -90,7 +90,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
       {itens.length === 0 ? (
         <div className="text-[11px] text-slate-400 text-center py-4">Nenhum produto adicionado. Clique em + para adicionar.</div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-visible max-h-[400px]">
           <table className="w-full border-collapse border-separate border-spacing-0 table-fixed min-w-[900px]">
             <colgroup>
               <col style={{ width: 240 }} />
@@ -127,6 +127,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                       placeholder="BUSCAR PRODUTO..."
                       displayField="display"
                       searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                      renderItem={(p) => <div className="text-xs text-slate-900">{p.display}</div>}
                       className="w-full"
                       inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[26px] text-xs px-0 uppercase"
                     />
