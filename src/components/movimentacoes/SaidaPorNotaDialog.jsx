@@ -73,7 +73,7 @@ export default function SaidaPorNotaDialog({ open, onOpenChange, lotes = [], pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-2">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-2" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader className="pb-1">
           <DialogTitle className="text-sm font-semibold text-slate-900">
             Saída por Nota — {produtoNome}

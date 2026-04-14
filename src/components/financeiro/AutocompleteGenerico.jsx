@@ -98,12 +98,13 @@ export default function AutocompleteGenerico({
     if (!open) return null;
 
     const content = itensFiltrados.length > 0 ? (
-      <div ref={dropdownRef} style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+      <div ref={dropdownRef} style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto" data-autocomplete-dropdown="true">
         {itensFiltrados.map((item) => (
           <div
             key={item.id}
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
+            onTouchEnd={(e) => { e.stopPropagation(); handleSelect(item); }}
             className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
               value === item.id ? 'bg-emerald-50' : ''
             }`}
@@ -122,7 +123,7 @@ export default function AutocompleteGenerico({
         ))}
       </div>
     ) : searchTerm ? (
-      <div ref={dropdownRef} style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg">
+      <div ref={dropdownRef} style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg" data-autocomplete-dropdown="true">
         <div className="px-3 py-6 text-center text-xs text-slate-500">
           Nenhum item encontrado
         </div>
