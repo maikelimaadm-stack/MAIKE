@@ -325,14 +325,18 @@ export default function LancamentoFinanceiro() {
   const lancamentosPagar = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
   const lancamentosReceber = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
-  // Sub-filtros: Principais (registro principal ou sem parcelamento) vs Parcelas (não-principal de grupo)
+  // Principais: registro principal do grupo OU lançamentos avulsos (sem grupo)
   const isPrincipalOuAvulso = (l) => !l.parcelamento_grupo_id || l.is_registro_principal;
-  const isParcelaNaoPrincipal = (l) => l.parcelamento_grupo_id && !l.is_registro_principal;
+  // Parcelas: todos os registros que fazem parte de um grupo de parcelamento (inclui parcela 1, 2, 3...)
+  const isParcela = (l) => !!l.parcelamento_grupo_id && l.total_parcelas_grupo > 1;
+
+  // Lançamentos únicos (para aba Lançamentos): só principais e avulsos
+  const lancamentosPrincipais = useMemo(() => lancamentos.filter(isPrincipalOuAvulso), [lancamentos]);
 
   const pagarPrincipais = useMemo(() => lancamentosPagar.filter(isPrincipalOuAvulso), [lancamentosPagar]);
-  const pagarParcelas = useMemo(() => lancamentosPagar.filter(isParcelaNaoPrincipal), [lancamentosPagar]);
+  const pagarParcelas = useMemo(() => lancamentosPagar.filter(isParcela), [lancamentosPagar]);
   const receberPrincipais = useMemo(() => lancamentosReceber.filter(isPrincipalOuAvulso), [lancamentosReceber]);
-  const receberParcelas = useMemo(() => lancamentosReceber.filter(isParcelaNaoPrincipal), [lancamentosReceber]);
+  const receberParcelas = useMemo(() => lancamentosReceber.filter(isParcela), [lancamentosReceber]);
 
   return (
     <div className="p-1 md:p-1 space-y-1">
@@ -354,8 +358,8 @@ export default function LancamentoFinanceiro() {
           <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); if (v === 'pagar') setTipoLancamento('Pagar'); else if (v === 'receber') setTipoLancamento('Receber'); }}>
             <TabsList className="grid w-full max-w-lg grid-cols-3 h-8 bg-slate-100">
               <TabsTrigger value="lancamentos" className="text-xs gap-1"><FileText className="w-3 h-3" />Lançamentos</TabsTrigger>
-              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
-              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
+              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({pagarPrincipais.length})</TabsTrigger>
+              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({receberPrincipais.length})</TabsTrigger>
             </TabsList>
 
             {/* ABA LANÇAMENTOS - criação de novos */}
@@ -384,26 +388,27 @@ export default function LancamentoFinanceiro() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="bg-slate-50 border rounded-lg p-3">
                       <p className="text-[10px] text-slate-500 uppercase">Total Registros</p>
-                      <p className="text-lg font-bold text-slate-800">{lancamentos.length}</p>
+                      <p className="text-lg font-bold text-slate-800">{lancamentosPrincipais.length}</p>
                     </div>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <p className="text-[10px] text-red-600 uppercase">Contas a Pagar</p>
-                      <p className="text-lg font-bold text-red-700">{lancamentosPagar.length}</p>
+                      <p className="text-lg font-bold text-red-700">{pagarPrincipais.length}</p>
                     </div>
                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                       <p className="text-[10px] text-emerald-600 uppercase">Contas a Receber</p>
-                      <p className="text-lg font-bold text-emerald-700">{lancamentosReceber.length}</p>
+                      <p className="text-lg font-bold text-emerald-700">{receberPrincipais.length}</p>
                     </div>
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <p className="text-[10px] text-amber-600 uppercase">Em Aberto</p>
-                      <p className="text-lg font-bold text-amber-700">{lancamentos.filter(l => l.status === 'Aberto' || l.status === 'Parcial').length}</p>
+                      <p className="text-lg font-bold text-amber-700">{lancamentosPrincipais.filter(l => l.status === 'Aberto' || l.status === 'Parcial').length}</p>
                     </div>
                   </div>
 
-                  {/* Tabela completa de todos os lançamentos para consulta */}
+                  {/* Tabela apenas de registros principais/avulsos */}
                   <TabelaFinanceiro
-                    lancamentos={lancamentos}
+                    lancamentos={lancamentosPrincipais}
                     tipo="Todos"
+                    modoVisualizacao="principais"
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onBaixa={handleBaixa}
