@@ -40,7 +40,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
   const [notaDialog, setNotaDialog] = useState(null); // { index, lotes, produto_nome }
 
   // Produtos disponíveis no local de estoque (para saída)
-  const [produtosDisponiveis, setProdutosDisponiveis] = useState(null); // Set de produto_ids
+  const [produtosDisponiveis, setProdutosDisponiveis] = useState(null); // Map produto_id => saldo
 
   // Carregar produtos disponíveis quando é saída e tem local selecionado
   useEffect(() => {
@@ -52,8 +52,12 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
       status: 'Disponivel',
       local_estoque_id: localEstoqueOrigemId,
     }).then(lotes => {
-      const ids = new Set(lotes.filter(l => l.quantidade_disponivel > 0).map(l => l.produto_id));
-      setProdutosDisponiveis(ids);
+      const saldoPorProduto = lotes.reduce((acc, lote) => {
+        if (!lote.produto_id || (lote.quantidade_disponivel || 0) <= 0) return acc;
+        acc[lote.produto_id] = (acc[lote.produto_id] || 0) + (lote.quantidade_disponivel || 0);
+        return acc;
+      }, {});
+      setProdutosDisponiveis(saldoPorProduto);
     });
   }, [isSaida, localEstoqueOrigemId]);
 
@@ -261,10 +265,11 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
   const produtosItems = useMemo(() => {
     let list = produtos.filter(p => p.ativo !== false);
     if (isSaida && produtosDisponiveis) {
-      list = list.filter(p => produtosDisponiveis.has(p.id));
+      list = list.filter(p => (produtosDisponiveis[p.id] || 0) > 0);
     }
     return list.map(p => ({
       ...p,
+      saldo_disponivel_local: produtosDisponiveis?.[p.id] || 0,
       display: `${p.nome_produto}${p.codigo_interno ? ` (${p.codigo_interno})` : ''}`
     }));
   }, [produtos, isSaida, produtosDisponiveis]);
@@ -338,7 +343,12 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                         placeholder="BUSCAR PRODUTO..."
                         displayField="display"
                         searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                        renderItem={(p) => <div className="text-xs text-slate-900">{p.display}</div>}
+                        renderItem={(p) => (
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-slate-900">{p.display}</span>
+                            {isSaida && <span className="font-mono text-emerald-700">Saldo: {formatarQuantidade(p.saldo_disponivel_local || 0)}</span>}
+                          </div>
+                        )}
                         className="w-full"
                         inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[26px] text-xs px-0 uppercase"
                       />
@@ -401,7 +411,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                     </td>
                     {isSaida && (
                       <td className={`${TD} text-right font-mono text-[11px] ${saldoInsuf ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
-                        {item._saldo_disponivel != null ? formatarQuantidade(item._saldo_disponivel) : '-'}
+                        {item.produto_id ? formatarQuantidade(item._saldo_disponivel ?? produtosDisponiveis?.[item.produto_id] ?? 0) : '-'}
                         {saldoInsuf && <span className="ml-0.5">⚠</span>}
                       </td>
                     )}

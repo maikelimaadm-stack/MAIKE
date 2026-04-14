@@ -25,22 +25,25 @@ const COLUNAS_DISPONIVEIS = [
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 90 },
   { id: "data", label: "Data/Hora", default: true, sortable: true, align: "left", width: 150 },
-  { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 120 },
-  { id: "tipo_detalhado", label: "Tipo Detalhado", default: true, sortable: true, align: "left", width: 160 },
+  { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 110 },
+  { id: "tipo_detalhado", label: "Operação", default: true, sortable: true, align: "left", width: 150 },
   { id: "produto", label: "Produto", default: true, sortable: true, align: "left", width: 180 },
   { id: "quantidade", label: "Quantidade", default: true, sortable: true, align: "right", width: 120 },
-  { id: "unidade", label: "UN", default: true, sortable: true, align: "left", width: 90 },
+  { id: "unidade", label: "UN", default: true, sortable: true, align: "left", width: 80 },
   { id: "valor_unitario", label: "Vlr Unit.", default: true, sortable: true, align: "right", width: 120 },
   { id: "valor_total", label: "Vlr Total", default: true, sortable: true, align: "right", width: 130 },
-  { id: "fornecedor", label: "Fornecedor/Cliente", default: true, sortable: true, align: "left", width: 180 },
-  { id: "local_estoque", label: "Local Estoque", default: true, sortable: true, align: "left", width: 180 },
-  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 110 },
-  { id: "numero_documento", label: "Nº Documento", default: false, sortable: true, align: "left", width: 130 },
-  { id: "cfop", label: "CFOP", default: false, sortable: true, align: "left", width: 100 },
+  { id: "fornecedor", label: "Cliente/Fornecedor", default: true, sortable: true, align: "left", width: 180 },
+  { id: "local_origem", label: "Local Origem", default: true, sortable: true, align: "left", width: 170 },
+  { id: "local_destino", label: "Local Destino", default: true, sortable: true, align: "left", width: 170 },
+  { id: "local_estoque", label: "Resumo Local", default: false, sortable: true, align: "left", width: 190 },
+  { id: "numero_documento", label: "Nº Documento", default: true, sortable: true, align: "left", width: 130 },
+  { id: "tipo_documento", label: "Tipo Documento", default: true, sortable: true, align: "left", width: 150 },
+  { id: "motivo", label: "Motivo", default: true, sortable: true, align: "left", width: 170 },
+  { id: "lotes", label: "Lotes/Notas", default: true, sortable: false, align: "left", width: 180 },
   { id: "centro_custo", label: "Centro de Custo", default: false, sortable: true, align: "left", width: 160 },
-  { id: "motivo", label: "Motivo", default: false, sortable: true, align: "left", width: 170 },
   { id: "observacoes", label: "Observações", default: false, sortable: true, align: "left", width: 220 },
   { id: "responsavel", label: "Responsável", default: false, sortable: true, align: "left", width: 160 },
+  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 110 },
   { id: "total_itens", label: "Itens", default: true, sortable: true, align: "center", width: 70 },
   { id: "parcela_seq", label: "Seq.", default: false, sortable: true, align: "center", width: 70 },
 ];
@@ -250,18 +253,24 @@ export default function TabelaMovimentacoes({
           : formatarMoeda(item.valor_total);
       case "fornecedor":
         return item.fornecedor_nome || item.cliente_nome || "";
+      case "local_origem":
+        return item.local_origem || "";
+      case "local_destino":
+        return item.local_destino || "";
       case "local_estoque":
         return getLocalEstoque(item) || "";
       case "status":
         return item.status || "";
       case "numero_documento":
         return item.numero_documento || "";
-      case "cfop":
-        return item.cfop || "";
+      case "tipo_documento":
+        return item.tipo_documento || "";
       case "centro_custo":
         return item.centro_custo_nome || "";
       case "motivo":
         return item.motivo_movimentacao || "";
+      case "lotes":
+        return item.lotes_consumidos?.length ? `${item.lotes_consumidos.length} lote(s)` : "";
       case "observacoes":
         return item.observacoes || "";
       case "responsavel":
@@ -427,18 +436,24 @@ export default function TabelaMovimentacoes({
       }
       case "fornecedor":
         return item.fornecedor_nome || item.cliente_nome || "-";
+      case "local_origem":
+        return item.local_origem || "-";
+      case "local_destino":
+        return item.local_destino || "-";
       case "local_estoque":
         return getLocalEstoque(item) || "-";
       case "status":
         return <Badge variant="outline" className={`text-xs ${item.status === "Ativa" ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-red-100 text-red-800 border-red-300"}`}>{item.status}</Badge>;
       case "numero_documento":
         return item.numero_documento || "-";
-      case "cfop":
-        return item.cfop || "-";
+      case "tipo_documento":
+        return item.tipo_documento || "-";
       case "centro_custo":
         return item.centro_custo_nome || "-";
       case "motivo":
         return item.motivo_movimentacao || "-";
+      case "lotes":
+        return item.lotes_consumidos?.length ? item.lotes_consumidos.map(l => l.numero_documento || 'S/N').join(', ') : "-";
       case "observacoes":
         return item.observacoes || "-";
       case "responsavel":
