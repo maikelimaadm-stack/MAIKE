@@ -111,9 +111,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
       return all.filter((produto) => {
-        const categoriaSuplementacao = normalizeText(produto.categoria).includes("SUPLEMENTAC");
+        const ehNutricaoAnimal = produto.tipo_uso === "Nutrição Animal";
         const produtoMarcadoNoPonto = ponto?.produto_padrao && normalizeText(produto.nome_produto) === normalizeText(ponto.produto_padrao);
-        return produto.empresa_id === empresaSelecionadaId && (categoriaSuplementacao || produtoMarcadoNoPonto);
+        return produto.empresa_id === empresaSelecionadaId && (ehNutricaoAnimal || produtoMarcadoNoPonto);
       });
     },
     enabled: !!empresaSelecionadaId,

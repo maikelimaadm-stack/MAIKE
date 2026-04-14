@@ -304,8 +304,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               <Textarea value={formData.descricao} onChange={(e) => handleChange('descricao', e.target.value)} placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} rows={2} />
             </FL>
 
-            {/* Seção de Suplementação */}
-            {formData.categoria?.toUpperCase()?.includes("SUPLEMENTA") && (
+            {/* Seção de Suplementação - aparece quando tipo_uso = Nutrição Animal */}
+            {formData.tipo_uso === "Nutrição Animal" && (
               <div className="border border-indigo-200 bg-indigo-50/50 rounded-lg p-1 space-y-0.5">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1">
                   <span className="font-semibold text-xs text-slate-700">Configuração de Suplementação</span>

@@ -35,7 +35,7 @@ function ProdutoSuplementacaoSelect({ value, onChange }) {
     queryKey: ["produtos-suplementacao", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId && normalizeText(produto.categoria).includes("SUPLEMENTAC"));
+      return all.filter((produto) => produto.empresa_id === empresaSelecionadaId && produto.tipo_uso === "Nutrição Animal");
     },
     enabled: !!empresaSelecionadaId
   });
