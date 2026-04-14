@@ -242,7 +242,7 @@ export default function MovimentacoesEstoque() {
         numero_movimentacao: String(seqNum).padStart(6, '0'),
         tipo_movimentacao,
         tipo_detalhado,
-        data_movimentacao: data_movimentacao + 'T00:00:00',
+        data_movimentacao,
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
         produto_codigo: prod.codigo_interno || '',
@@ -622,10 +622,10 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleExport = () => {
-    const csvRows = [['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Local Estoque', 'Documento', 'Motivo'].join(';')];
+    const csvRows = [['Nº', 'Data', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Local Estoque', 'Documento', 'Motivo'].join(';')];
     movimentacoes.forEach(m => {
       csvRows.push([
-        m.numero_movimentacao, format(new Date(m.data_movimentacao), 'dd/MM/yyyy HH:mm'),
+        m.numero_movimentacao, format(new Date(m.data_movimentacao), 'dd/MM/yyyy'),
         m.tipo_movimentacao, getLabelOperacao(m.tipo_detalhado), m.produto_nome,
         m.quantidade, getLocalEstoque(m), m.numero_documento || '', m.motivo_movimentacao || ''
       ].join(';'));

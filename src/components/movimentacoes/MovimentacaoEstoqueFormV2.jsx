@@ -188,6 +188,14 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
       return;
     }
 
+    if (tipo === 'Saída') {
+      const itemComSaldoInsuficiente = itens.find(it => it.produto_id && it.quantidade > 0 && (it._saldo_insuficiente || (it._saldo_disponivel != null && it.quantidade > it._saldo_disponivel)));
+      if (itemComSaldoInsuficiente) {
+        toast.error(`O produto ${itemComSaldoInsuficiente.produto_nome || 'selecionado'} está com saldo insuficiente.`);
+        return;
+      }
+    }
+
     // Se integrado com financeiro, validar que totais batem
     if (valorLiquidoFinanceiro != null) {
       const totalProdutos = itens.reduce((sum, it) => sum + (it.valor_liquido || 0), 0);
