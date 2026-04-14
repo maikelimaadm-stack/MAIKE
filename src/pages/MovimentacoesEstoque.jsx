@@ -185,31 +185,13 @@ export default function MovimentacoesEstoque() {
 
     // Se editando: excluir registros antigos do grupo e recriar
     if (editingMovimentacao) {
-      if (editingMovimentacao.movimentacao_grupo_id) {
-        const registrosAntigos = movimentacoes.filter(
-          m => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id
-        );
-        setProgressoSalvamento({ etapa: 'Removendo registros antigos...', current: 10, total: 100 });
-        // Reverter estoque dos registros antigos
-        for (const mov of registrosAntigos) {
-          const produto = produtos.find(p => p.id === mov.produto_id);
-          if (produto) {
-            let novoEstoque = produto.estoque_atual || 0;
-            if (mov.tipo_movimentacao === 'Entrada') novoEstoque -= mov.quantidade;
-            else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
-            await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
-          }
+      const registrosAntigos = editingMovimentacao.movimentacao_grupo_id
+        ? movimentacoes.filter(m => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id)
+        : [editingMovimentacao];
 
-          const lotesVinculados = estoqueLoteNota.filter(lote => lote.movimentacao_entrada_id === mov.id);
-          for (const lote of lotesVinculados) {
-            await base44.entities.EstoqueLoteNota.delete(lote.id);
-          }
+      setProgressoSalvamento({ etapa: 'Revertendo registros antigos...', current: 10, total: 100 });
 
-          await base44.entities.MovimentacaoEstoque.delete(mov.id);
-        }
-      } else {
-        // Avulso
-        const mov = editingMovimentacao;
+      for (const mov of registrosAntigos) {
         const produto = produtos.find(p => p.id === mov.produto_id);
         if (produto) {
           let novoEstoque = produto.estoque_atual || 0;
@@ -218,9 +200,28 @@ export default function MovimentacoesEstoque() {
           await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
         }
 
-        const lotesVinculados = estoqueLoteNota.filter(lote => lote.movimentacao_entrada_id === mov.id);
-        for (const lote of lotesVinculados) {
-          await base44.entities.EstoqueLoteNota.delete(lote.id);
+        if (mov.tipo_movimentacao === 'Entrada') {
+          const loteEntrada = estoqueLoteNota.find(lote => lote.movimentacao_entrada_id === mov.id);
+          if (loteEntrada?.id) {
+            await base44.entities.EstoqueLoteNota.update(loteEntrada.id, {
+              quantidade_entrada: 0,
+              quantidade_disponivel: 0,
+              status: 'Esgotado',
+            });
+          }
+        }
+
+        if (mov.tipo_movimentacao === 'Saída' && Array.isArray(mov.lotes_consumidos)) {
+          for (const consumo of mov.lotes_consumidos) {
+            if (!consumo?.lote_id || !consumo?.quantidade_consumida) continue;
+            const loteConsumido = estoqueLoteNota.find(lote => lote.id === consumo.lote_id);
+            if (!loteConsumido) continue;
+            const quantidadeRestaurada = (loteConsumido.quantidade_disponivel || 0) + (consumo.quantidade_consumida || 0);
+            await base44.entities.EstoqueLoteNota.update(loteConsumido.id, {
+              quantidade_disponivel: quantidadeRestaurada,
+              status: quantidadeRestaurada > 0 ? 'Disponivel' : 'Esgotado',
+            });
+          }
         }
 
         await base44.entities.MovimentacaoEstoque.delete(mov.id);
@@ -321,6 +322,10 @@ export default function MovimentacoesEstoque() {
           ? lotesNotaRelacionadosEdicao.find(lote => lote.produto_id === item.produto_id)
           : null;
 
+        const quantidadeJaConsumida = loteExistenteEdicao
+          ? Math.max(0, (loteExistenteEdicao.quantidade_entrada || 0) - (loteExistenteEdicao.quantidade_disponivel || 0))
+          : 0;
+
         const payloadLoteNota = {
           empresa_id: empresaSelecionadaId,
           produto_id: item.produto_id,
@@ -333,9 +338,9 @@ export default function MovimentacoesEstoque() {
           fornecedor_nome: fornNome || '',
           custo_unitario: item.valor_liquido_unitario || item.valor_unitario || 0,
           quantidade_entrada: item.quantidade,
-          quantidade_disponivel: item.quantidade,
+          quantidade_disponivel: Math.max(0, item.quantidade - quantidadeJaConsumida),
           movimentacao_entrada_id: movimentacaoCriada.id,
-          status: 'Disponivel',
+          status: Math.max(0, item.quantidade - quantidadeJaConsumida) > 0 ? 'Disponivel' : 'Esgotado',
         };
 
         if (loteExistenteEdicao?.id) {
@@ -351,6 +356,8 @@ export default function MovimentacoesEstoque() {
       else if (tipo_movimentacao === 'Saída' && tipo_detalhado !== 'transferencia') {
         estoqueDepois = estoqueAntes - item.quantidade;
 
+        let lotesConsumidosSaida = [];
+
         // Se saída por nota com lotes manuais
         if (item.lotes_consumidos && item.lotes_consumidos.length > 0) {
           for (const lc of item.lotes_consumidos) {
@@ -360,6 +367,13 @@ export default function MovimentacoesEstoque() {
               await base44.entities.EstoqueLoteNota.update(lc.lote_id, {
                 quantidade_disponivel: novoDisp,
                 status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel',
+              });
+              lotesConsumidosSaida.push({
+                lote_id: lc.lote_id,
+                numero_documento: lote[0].numero_documento || '',
+                fornecedor_nome: lote[0].fornecedor_nome || '',
+                quantidade_consumida: lc.quantidade_consumida,
+                custo_unitario: lote[0].custo_unitario || 0,
               });
             }
           }
@@ -381,12 +395,22 @@ export default function MovimentacoesEstoque() {
               quantidade_disponivel: novoDisp,
               status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel',
             });
+            if (consumir > 0) {
+              lotesConsumidosSaida.push({
+                lote_id: lote.id,
+                numero_documento: lote.numero_documento || '',
+                fornecedor_nome: lote.fornecedor_nome || '',
+                quantidade_consumida: consumir,
+                custo_unitario: lote.custo_unitario || 0,
+              });
+            }
             qtdRestante -= consumir;
           }
         }
 
         await base44.entities.MovimentacaoEstoque.create({
           ...baseMov,
+          lotes_consumidos: lotesConsumidosSaida,
           lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           local_estoque_origem: local_estoque_origem || '',
           local_origem: local_origem || '',
