@@ -6,15 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, MoreVertical } from "lucide-react";
 import { getLocalEstoque, getLabelOperacao } from "./utils/movimentacaoUtils";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 90 },
-  { id: "data", label: "Data/Hora", default: true, sortable: true, align: "left", width: 150 },
+  { id: "data", label: "Data", default: true, sortable: true, align: "left", width: 110 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 110 },
   { id: "tipo_detalhado", label: "Operação", default: true, sortable: true, align: "left", width: 150 },
   { id: "produto", label: "Produto", default: true, sortable: true, align: "left", width: 180 },
@@ -22,8 +29,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: "unidade", label: "UN", default: true, sortable: true, align: "left", width: 80 },
   { id: "valor_unitario", label: "Vlr Unit.", default: true, sortable: true, align: "right", width: 120 },
   { id: "valor_total", label: "Vlr Total", default: true, sortable: true, align: "right", width: 130 },
-  { id: "fornecedor", label: "Fornecedor", default: true, sortable: true, align: "left", width: 180 },
-  { id: "cliente", label: "Cliente", default: true, sortable: true, align: "left", width: 180 },
+  { id: "cliente_fornecedor", label: "Cliente/Fornecedor", default: true, sortable: true, align: "left", width: 220 },
   { id: "local_origem", label: "Local Origem", default: true, sortable: true, align: "left", width: 170 },
   { id: "local_destino", label: "Local Destino", default: true, sortable: true, align: "left", width: 170 },
   { id: "local_estoque", label: "Resumo Local", default: false, sortable: true, align: "left", width: 190 },
@@ -39,8 +45,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: "parcela_seq", label: "Seq.", default: false, sortable: true, align: "center", width: 70 },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS_PRINCIPAIS = ["selecao", "acoes", "numero", "data", "tipo", "tipo_detalhado", "fornecedor", "cliente", "local_origem", "local_destino", "numero_documento", "tipo_documento", "motivo", "status", "total_itens"];
-const DEFAULT_VISIBLE_COLUMNS_MOVIMENTACOES = ["selecao", "numero", "data", "tipo", "tipo_detalhado", "produto", "quantidade", "unidade", "valor_unitario", "valor_total", "fornecedor", "cliente", "local_origem", "local_destino", "numero_documento", "tipo_documento", "motivo", "lotes", "status"];
+const DEFAULT_VISIBLE_COLUMNS_PRINCIPAIS = ["selecao", "acoes", "numero", "data", "tipo", "tipo_detalhado", "cliente_fornecedor", "local_origem", "local_destino", "numero_documento", "tipo_documento", "motivo", "status", "total_itens"];
+const DEFAULT_VISIBLE_COLUMNS_MOVIMENTACOES = ["selecao", "numero", "data", "tipo", "tipo_detalhado", "produto", "quantidade", "unidade", "valor_unitario", "valor_total", "cliente_fornecedor", "local_origem", "local_destino", "numero_documento", "tipo_documento", "motivo", "lotes", "status"];
 const COLUMN_WIDTHS_KEY = "colunas_largura_movimentacoes_estoque";
 const MIN_COLUMN_WIDTH = 80;
 
@@ -62,7 +68,7 @@ const formatarData = (dataString) => {
   if (!dataString) return "-";
   const date = new Date(dataString);
   if (isNaN(date.getTime())) return "-";
-  return `${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  return date.toLocaleDateString("pt-BR");
 };
 
 // Na visualização "principais", ocultar colunas de detalhe individual de produto
@@ -246,10 +252,8 @@ export default function TabelaMovimentacoes({
         return modoVisualizacao === "principais"
           ? formatarMoeda(itensGrupo.reduce((sum, mov) => sum + (Number(mov.valor_total) || 0), 0))
           : formatarMoeda(item.valor_total);
-      case "fornecedor":
-        return item.fornecedor_nome || "";
-      case "cliente":
-        return item.cliente_nome || "";
+      case "cliente_fornecedor":
+        return item.cliente_nome || item.fornecedor_nome || "";
       case "local_origem":
         return item.local_origem || "";
       case "local_destino":
@@ -406,10 +410,8 @@ export default function TabelaMovimentacoes({
         }
         return formatarMoeda(item.valor_total);
       }
-      case "fornecedor":
-        return item.fornecedor_nome || "-";
-      case "cliente":
-        return item.cliente_nome || "-";
+      case "cliente_fornecedor":
+        return item.cliente_nome || item.fornecedor_nome || "-";
       case "local_origem":
         return item.local_origem || "-";
       case "local_destino":
@@ -638,13 +640,19 @@ export default function TabelaMovimentacoes({
                               if (coluna.id === "acoes") {
                                 return (
                                   <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300">
-                                    <div className="flex items-center justify-center w-full h-full gap-0.5">
-                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}>
-                                        <span className="text-[10px] font-semibold text-slate-600">E</span>
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onDelete?.(item.id); }}>
-                                        <span className="text-[10px] font-semibold text-red-600">X</span>
-                                      </Button>
+                                    <div className="flex items-center justify-center w-full h-full">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                                            <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start">
+                                          <DropdownMenuItem onClick={() => onEdit?.(item)} className="text-xs">Editar</DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => onDelete?.(item.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     </div>
                                   </TableCell>
                                 );

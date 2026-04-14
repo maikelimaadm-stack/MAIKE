@@ -243,7 +243,7 @@ export default function MovimentacoesEstoque() {
 
       const baseMov = {
         empresa_id: empresaSelecionadaId,
-        numero_movimentacao: String(seqNum).padStart(6, '0'),
+        numero_movimentacao: String(seqNum),
         tipo_movimentacao,
         tipo_detalhado,
         tipo_documento: tipoDocumentoNome || undefined,
