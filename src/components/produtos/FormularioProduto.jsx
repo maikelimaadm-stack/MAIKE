@@ -39,7 +39,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
   const [formData, setFormData] = useState(() => {
     const defaults = {
-      nome_produto: "", codigo_interno: "", codigo_barras: "",
+      nome_produto: "", tipo_uso: "", codigo_interno: "", codigo_barras: "",
       categoria: "", marca: "", descricao: "", unidade_medida: "",
       preco_custo: "", preco_venda: "", estoque_minimo: "",
       local_estoque: "", tipo_consumo: "",
@@ -169,6 +169,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
     const data = {
       nome_produto: formData.nome_produto?.toUpperCase(),
+      tipo_uso: formData.tipo_uso || undefined,
       codigo_interno: formData.codigo_interno?.toUpperCase(),
       codigo_barras: formData.codigo_barras || undefined,
       categoria: formData.categoria?.toUpperCase() || undefined,
@@ -202,10 +203,27 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         </CardHeader>
         <CardContent className="p-1">
           <form onSubmit={handleSubmit} className="space-y-0.5">
-            {/* LINHA 1: Nome | Código | Cód Barras */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+            {/* LINHA 1: Nome | Tipo de Uso | Código | Cód Barras */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
               <FL label="Nome do Produto" required error={invalidFields.includes('nome_produto')}>
                 <Input ref={nomeProdutoRef} value={formData.nome_produto} onChange={(e) => handleChange('nome_produto', e.target.value)} placeholder="NOME DO PRODUTO" className={`${INPUT_CLS} uppercase`} style={{ textTransform: 'uppercase' }} />
+              </FL>
+              <FL label="Tipo de Uso">
+                <Select value={formData.tipo_uso || ""} onValueChange={(value) => handleChange('tipo_uso', value)}>
+                  <SelectTrigger className={SELECT_CLS}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Administrativo" className="text-xs">ADMINISTRATIVO</SelectItem>
+                    <SelectItem value="Infraestrutura" className="text-xs">INFRAESTRUTURA</SelectItem>
+                    <SelectItem value="Investimento" className="text-xs">INVESTIMENTO</SelectItem>
+                    <SelectItem value="Lavoura" className="text-xs">LAVOURA</SelectItem>
+                    <SelectItem value="Manutenção" className="text-xs">MANUTENÇÃO</SelectItem>
+                    <SelectItem value="Máquinas" className="text-xs">MÁQUINAS</SelectItem>
+                    <SelectItem value="Nutrição Animal" className="text-xs">NUTRIÇÃO ANIMAL</SelectItem>
+                    <SelectItem value="Operacional" className="text-xs">OPERACIONAL</SelectItem>
+                    <SelectItem value="Outros" className="text-xs">OUTROS</SelectItem>
+                    <SelectItem value="Produção Animal" className="text-xs">PRODUÇÃO ANIMAL</SelectItem>
+                  </SelectContent>
+                </Select>
               </FL>
               <FL label="Código Interno" required error={invalidFields.includes('codigo_interno')}>
                 <Input ref={codigoInternoRef} value={formData.codigo_interno} onChange={(e) => handleChange('codigo_interno', e.target.value)} placeholder="CÓDIGO INTERNO" className={`${INPUT_CLS} uppercase`} style={{ textTransform: 'uppercase' }} />

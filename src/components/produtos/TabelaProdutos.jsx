@@ -21,6 +21,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 70 },
   { id: "nome", label: "Nome do Produto", default: true, sortable: true, align: "left", width: 260 },
+  { id: "tipo_uso", label: "Tipo de Uso", default: true, sortable: true, align: "left", width: 130 },
   { id: "codigo", label: "Código Interno", default: true, sortable: true, align: "left", width: 120 },
   { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 140 },
   { id: "marca", label: "Marca", default: true, sortable: true, align: "left", width: 140 },
@@ -48,6 +49,7 @@ const formatarNumero = (numero) => {
 function getFieldValue(item, colunaId) {
   if (colunaId === "numero") return item.numero_produto || "";
   if (colunaId === "nome") return item.nome_produto || "";
+  if (colunaId === "tipo_uso") return item.tipo_uso || "";
   if (colunaId === "codigo") return item.codigo_interno || "";
   if (colunaId === "categoria") return item.categoria || "";
   if (colunaId === "marca") return item.marca || "";
@@ -227,6 +229,7 @@ export default function TabelaProdutos({
     const estoqueAbaixoMinimo = Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0);
     if (colunaId === "numero") return <span className="font-mono">{produto.numero_produto || "-"}</span>;
     if (colunaId === "nome") return <span className={`uppercase ${produto.ativo === false ? 'text-slate-400 line-through' : ''}`}>{produto.nome_produto || "-"}</span>;
+    if (colunaId === "tipo_uso") return produto.tipo_uso || "-";
     if (colunaId === "codigo") return produto.codigo_interno || "-";
     if (colunaId === "categoria") return produto.categoria || "-";
     if (colunaId === "marca") return produto.marca || "-";
