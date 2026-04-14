@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +37,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: "barras", label: "Cód. Barras", default: false, sortable: true, align: "left" },
   { id: "local", label: "Local Estoque", default: false, sortable: true, align: "left" },
   { id: "tipo_consumo", label: "Tipo Consumo", default: false, sortable: true, align: "left" },
+  { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center" },
 ];
 
 const formatarNumero = (numero) => {
@@ -206,6 +206,10 @@ export default function TabelaProdutos({
           aValue = String(a.tipo_consumo || "").toLowerCase();
           bValue = String(b.tipo_consumo || "").toLowerCase();
           break;
+        case "ativo":
+          aValue = a.ativo !== false ? "ativo" : "inativo";
+          bValue = b.ativo !== false ? "ativo" : "inativo";
+          break;
         case "nome":
         default:
           aValue = String(a.nome_produto || "").toLowerCase();
@@ -298,7 +302,7 @@ export default function TabelaProdutos({
     const estoqueAbaixoMinimo = Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0);
 
     if (colunaId === "numero") return produto.numero_produto || "-";
-    if (colunaId === "nome") return produto.nome_produto || "-";
+    if (colunaId === "nome") return <span className={produto.ativo === false ? 'text-slate-400 line-through' : ''}>{produto.nome_produto || "-"}</span>;
     if (colunaId === "codigo") return produto.codigo_interno || "-";
     if (colunaId === "categoria") return produto.categoria || "-";
     if (colunaId === "unidade") return produto.unidade_medida || "-";
@@ -315,6 +319,7 @@ export default function TabelaProdutos({
     if (colunaId === "barras") return produto.codigo_barras || "-";
     if (colunaId === "local") return produto.local_estoque || "-";
     if (colunaId === "tipo_consumo") return produto.tipo_consumo || "-";
+    if (colunaId === "ativo") return produto.ativo !== false ? <Badge className="text-[10px] bg-emerald-100 text-emerald-700">Ativo</Badge> : <Badge className="text-[10px] bg-slate-100 text-slate-500">Inativo</Badge>;
     return "-";
   };
 
@@ -325,7 +330,7 @@ export default function TabelaProdutos({
           <CardContent className="p-3">
             <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
               <div className="md:col-span-2 space-y-1">
-                <Label className="text-xs uppercase">Buscar</Label>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">BUSCAR</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <Input
@@ -341,7 +346,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs uppercase">Categoria</Label>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">CATEGORIA</label>
                 <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
@@ -354,7 +359,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs uppercase">Unidade</Label>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">UNIDADE</label>
                 <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
@@ -367,7 +372,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs uppercase">Local</Label>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">LOCAL</label>
                 <Select value={filtroLocal} onValueChange={setFiltroLocal}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
@@ -380,7 +385,7 @@ export default function TabelaProdutos({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs uppercase">Tipo Consumo</Label>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">TIPO CONSUMO</label>
                 <Select value={filtroTipoConsumo} onValueChange={setFiltroTipoConsumo}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
@@ -395,7 +400,7 @@ export default function TabelaProdutos({
 
             <div className="grid grid-cols-2 md:grid-cols-6 gap-1 mt-2">
               <div className="space-y-1">
-                <Label className="text-xs uppercase">Estoque</Label>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">ESTOQUE</label>
                 <Select value={filtroEstoque} onValueChange={setFiltroEstoque}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>

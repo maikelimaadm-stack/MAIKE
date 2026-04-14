@@ -1,0 +1,106 @@
+{
+  "name": "Produto",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa (vincula o produto a uma empresa)"
+    },
+    "numero_produto": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico do produto (gerado automaticamente)"
+    },
+    "nome_produto": {
+      "type": "string",
+      "description": "Nome do produto"
+    },
+    "codigo_interno": {
+      "type": "string",
+      "description": "C\u00f3digo interno do produto"
+    },
+    "codigo_barras": {
+      "type": "string",
+      "description": "C\u00f3digo de barras"
+    },
+    "categoria": {
+      "type": "string",
+      "description": "Categoria do produto"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o detalhada"
+    },
+    "unidade_medida": {
+      "type": "string",
+      "description": "Unidade de medida"
+    },
+    "preco_custo": {
+      "type": "number",
+      "description": "Pre\u00e7o de custo"
+    },
+    "preco_venda": {
+      "type": "number",
+      "description": "Pre\u00e7o de venda"
+    },
+    "estoque_atual": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade em estoque"
+    },
+    "estoque_minimo": {
+      "type": "number",
+      "default": 0,
+      "description": "Estoque m\u00ednimo"
+    },
+    "local_estoque": {
+      "type": "string",
+      "description": "Local de armazenamento do estoque"
+    },
+    "tipo_consumo": {
+      "type": "string",
+      "enum": [
+        "CONSUMO_DIARIO",
+        "CONSUMO_LIVRE"
+      ],
+      "description": "Tipo de consumo: CONSUMO_DIARIO (ra\u00e7\u00e3o, proteinado) ou CONSUMO_LIVRE (sal mineral)"
+    },
+    "percentual_consumo_pv": {
+      "type": "number",
+      "description": "Percentual de consumo sobre peso vivo (%PV). Ex: 0.3 = 0.3%"
+    },
+    "consumo_minimo_pv": {
+      "type": "number",
+      "description": "Percentual m\u00ednimo de consumo sobre peso vivo (%PV)"
+    },
+    "consumo_maximo_pv": {
+      "type": "number",
+      "description": "Percentual m\u00e1ximo de consumo sobre peso vivo (%PV)"
+    },
+    "unidade_principal_estoque": {
+      "type": "string",
+      "enum": [
+        "KG",
+        "SACO"
+      ],
+      "default": "KG",
+      "description": "Unidade principal de movimenta\u00e7\u00e3o: KG ou SACO"
+    },
+    "peso_por_saco_kg": {
+      "type": "number",
+      "description": "Peso de cada saco em kg (obrigat\u00f3rio quando unidade = SACO)"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o produto est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome_produto"
+  ]
+}
