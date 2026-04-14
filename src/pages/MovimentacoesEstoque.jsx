@@ -192,8 +192,9 @@ export default function MovimentacoesEstoque() {
       setProgressoSalvamento({ etapa: 'Revertendo registros antigos...', current: 10, total: 100 });
 
       for (const mov of registrosAntigos) {
-        const produto = produtos.find(p => p.id === mov.produto_id);
-        if (produto) {
+        const prodDbArr = await base44.entities.Produto.filter({ id: mov.produto_id });
+        if (prodDbArr.length > 0) {
+          const produto = prodDbArr[0];
           let novoEstoque = produto.estoque_atual || 0;
           if (mov.tipo_movimentacao === 'Entrada') novoEstoque -= mov.quantidade;
           else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
@@ -268,7 +269,9 @@ export default function MovimentacoesEstoque() {
       const prod = produtos.find(p => p.id === item.produto_id);
       if (!prod) { toast.error(`Produto ${item.produto_nome} não encontrado`); setShowSaveProgress(false); return; }
 
-      const estoqueAntes = prod.estoque_atual || 0;
+      // Fetch fresh product data from DB to get the true stock (especially if we just reverted it)
+      const prodDbArr = await base44.entities.Produto.filter({ id: item.produto_id });
+      const estoqueAntes = prodDbArr.length > 0 ? (prodDbArr[0].estoque_atual || 0) : (prod.estoque_atual || 0);
       let estoqueDepois = estoqueAntes;
 
       const baseMov = {
