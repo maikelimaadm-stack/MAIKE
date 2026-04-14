@@ -113,6 +113,24 @@ export default function MovimentacoesEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: lancamentosFinanceiros = [] } = useQuery({
+    queryKey: ['lancamentos_financeiros_movimentacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.LancamentoFinanceiro.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: baixasFinanceiras = [] } = useQuery({
+    queryKey: ['baixas_financeiras_movimentacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.BaixaFinanceira.list();
+      return all.filter(b => b.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   // Classificação: principais = sempre registro principal | movimentações = todos os itens/produtos
   const isPrincipal = (m) => m.is_registro_principal === true;
   const isMovimentacaoItem = (m) => typeof m.numero_movimentacao_seq === 'number' && m.numero_movimentacao_seq >= 1;
@@ -122,6 +140,28 @@ export default function MovimentacoesEstoque() {
   const handleSubmit = async (formData) => {
     const { tipo_movimentacao, tipo_detalhado, data_movimentacao, local_estoque_origem, local_origem, local_estoque_destino, local_destino, observacoes: obs, dados_financeiro, produtos_selecionados } = formData;
     let lancamentosFinanceirosCriados = [];
+
+    const movimentacoesEditadas = editingMovimentacao?.movimentacao_grupo_id
+      ? movimentacoes.filter(m => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id)
+      : editingMovimentacao ? [editingMovimentacao] : [];
+
+    const lancamentoFinanceiroOrigem = movimentacoesEditadas.length > 0
+      ? lancamentosFinanceiros.find(l => l.id === movimentacoesEditadas[0]?.lancamento_origem_id)
+      : null;
+
+    const grupoFinanceiroOrigemId = lancamentoFinanceiroOrigem?.parcelamento_grupo_id || null;
+    const lancamentosFinanceirosRelacionados = lancamentoFinanceiroOrigem
+      ? lancamentosFinanceiros.filter(l => (grupoFinanceiroOrigemId ? l.parcelamento_grupo_id === grupoFinanceiroOrigemId : l.id === lancamentoFinanceiroOrigem.id))
+      : [];
+
+    const possuiBaixaFinanceira = lancamentosFinanceirosRelacionados.some(l =>
+      baixasFinanceiras.some(b => b.lancamento_id === l.id)
+    );
+
+    if (editingMovimentacao?.lancamento_origem_id && possuiBaixaFinanceira) {
+      toast.error('Não é possível editar esta movimentação porque o financeiro já teve baixa.');
+      return;
+    }
 
     setShowSaveProgress(true);
     setProgressoSalvamento({ etapa: 'Preparando...', current: 5, total: 100 });
@@ -164,6 +204,13 @@ export default function MovimentacoesEstoque() {
       return !isNaN(n) && n > max ? n : max;
     }, 0);
     let seqNum = maxNum;
+
+    if (editingMovimentacao?.lancamento_origem_id && lancamentosFinanceirosRelacionados.length > 0) {
+      setProgressoSalvamento({ etapa: 'Atualizando integração financeira...', current: 20, total: 100 });
+      for (const lanc of lancamentosFinanceirosRelacionados) {
+        await base44.entities.LancamentoFinanceiro.delete(lanc.id);
+      }
+    }
 
     if (dados_financeiro) {
       const payloadsFinanceiros = await gerarLancamentoFinanceiroPayload(dados_financeiro, empresaSelecionadaId);
@@ -384,6 +431,42 @@ export default function MovimentacoesEstoque() {
       }
     }
 
+    const lancamentoFinanceiroOrigem = registroPrincipal.lancamento_origem_id
+      ? lancamentosFinanceiros.find(l => l.id === registroPrincipal.lancamento_origem_id)
+      : null;
+
+    const grupoFinanceiroOrigemId = lancamentoFinanceiroOrigem?.parcelamento_grupo_id || null;
+    const lancamentosFinanceirosRelacionados = lancamentoFinanceiroOrigem
+      ? lancamentosFinanceiros.filter(l => (grupoFinanceiroOrigemId ? l.parcelamento_grupo_id === grupoFinanceiroOrigemId : l.id === lancamentoFinanceiroOrigem.id))
+      : [];
+
+    const possuiBaixaFinanceira = lancamentosFinanceirosRelacionados.some(l =>
+      baixasFinanceiras.some(b => b.lancamento_id === l.id)
+    );
+
+    if (registroPrincipal.lancamento_origem_id && possuiBaixaFinanceira) {
+      toast.error('Não é possível editar esta movimentação porque o financeiro já teve baixa.');
+      return;
+    }
+
+    const dadosFinanceiroReconstruidos = lancamentoFinanceiroOrigem
+      ? {
+          ...lancamentoFinanceiroOrigem,
+          valor_total: lancamentoFinanceiroOrigem.valor_total_lancamento || lancamentosFinanceirosRelacionados.reduce((sum, l) => sum + (l.valor_total || 0), 0),
+          parcelas: lancamentosFinanceirosRelacionados.length > 0
+            ? lancamentosFinanceirosRelacionados
+                .sort((a, b) => (a.numero_parcela_seq || 0) - (b.numero_parcela_seq || 0))
+                .map(l => ({
+                  numero: l.numero_parcela_seq || 1,
+                  data_vencimento: l.data_vencimento,
+                  valor: l.valor_total || 0,
+                  status: l.status || 'Aberto',
+                  observacao_parcela: l.observacao_parcela || '',
+                }))
+            : [],
+        }
+      : null;
+
     // Se faz parte de um grupo, reconstruir os produtos a partir dos registros
     if (registroPrincipal.movimentacao_grupo_id && registroPrincipal.total_movimentacoes_grupo > 1) {
       const todasMovs = movimentacoes
@@ -405,12 +488,14 @@ export default function MovimentacoesEstoque() {
 
       setEditingMovimentacao({
         ...registroPrincipal,
+        dados_financeiro_integrado: dadosFinanceiroReconstruidos,
         produtos_para_editar: produtosReconstruidos,
       });
     } else {
       // Avulso: apenas 1 produto
       setEditingMovimentacao({
         ...registroPrincipal,
+        dados_financeiro_integrado: dadosFinanceiroReconstruidos,
         produtos_para_editar: [{
           produto_id: registroPrincipal.produto_id,
           produto_nome: registroPrincipal.produto_nome,

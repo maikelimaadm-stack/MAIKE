@@ -67,7 +67,7 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
 
   // ===== Integração financeira =====
   const [showFinanceiro, setShowFinanceiro] = useState(false);
-  const [dadosFinanceiro, setDadosFinanceiro] = useState(null);
+  const [dadosFinanceiro, setDadosFinanceiro] = useState(initialData?.dados_financeiro_integrado || null);
 
   // ===== Itens/Produtos =====
   const [itens, setItens] = useState(() => {
