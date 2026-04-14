@@ -17,10 +17,11 @@ export default function AutocompleteGenerico({
 }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dropdownPos, setDropdownPos] = useState(null);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
-  const [rect, setRect] = useState(null);
+  const portalContainerRef = useRef(null);
 
   const itemSelecionado = items.find(item => item.id === value);
 
@@ -29,6 +30,53 @@ export default function AutocompleteGenerico({
       setSearchTerm(itemSelecionado[displayField] || "");
     }
   }, [itemSelecionado, displayField]);
+
+  // Encontrar o container do portal: o DialogContent mais próximo ou o body
+  useEffect(() => {
+    if (wrapperRef.current) {
+      const dialogContent = wrapperRef.current.closest('[role="dialog"]');
+      portalContainerRef.current = dialogContent || null;
+    }
+  }, []);
+
+  const calcPosition = useCallback(() => {
+    if (!inputRef.current) return;
+    const r = inputRef.current.getBoundingClientRect();
+    
+    const container = portalContainerRef.current;
+    if (container) {
+      // Se estamos dentro de um Dialog, calcular posição relativa ao Dialog
+      const containerRect = container.getBoundingClientRect();
+      setDropdownPos({
+        top: r.bottom - containerRect.top + 2,
+        left: r.left - containerRect.left,
+        width: r.width,
+        inDialog: true
+      });
+    } else {
+      // Fora de Dialog, usar posição fixa na viewport
+      setDropdownPos({
+        top: r.bottom + 2,
+        left: r.left,
+        width: r.width,
+        inDialog: false
+      });
+    }
+  }, []);
+
+  // Recalcular posição quando abre ou quando rola o scroll
+  useEffect(() => {
+    if (!open) return;
+    calcPosition();
+    
+    const handleScroll = () => calcPosition();
+    document.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      document.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [open, calcPosition]);
 
   // Fechar ao clicar fora
   useEffect(() => {
@@ -48,21 +96,6 @@ export default function AutocompleteGenerico({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open, itemSelecionado, displayField]);
-
-  // Atualizar posição do dropdown continuamente enquanto aberto
-  useEffect(() => {
-    if (!open || !inputRef.current) return;
-    let rafId;
-    const update = () => {
-      if (inputRef.current) {
-        const r = inputRef.current.getBoundingClientRect();
-        setRect({ top: r.bottom + 2, left: r.left, width: r.width });
-      }
-      rafId = requestAnimationFrame(update);
-    };
-    update();
-    return () => cancelAnimationFrame(rafId);
-  }, [open]);
 
   const itensFiltrados = items.filter(item => {
     const search = searchTerm.toLowerCase();
@@ -85,29 +118,32 @@ export default function AutocompleteGenerico({
   };
 
   const hasResults = itensFiltrados.length > 0;
+  const showEmpty = open && searchTerm && !hasResults;
 
-  // Renderizar dropdown via portal no body para escapar overflow do Dialog
-  const renderDropdown = () => {
-    if (!open || !rect) return null;
+  const renderDropdownContent = () => {
+    if (!open || !dropdownPos) return null;
 
-    const style = {
-      position: 'fixed',
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      zIndex: 999999,
-    };
+    const style = dropdownPos.inDialog
+      ? { position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999 }
+      : { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999 };
 
     let content = null;
 
     if (hasResults) {
       content = (
-        <div ref={dropdownRef} style={style} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+        <div
+          ref={dropdownRef}
+          style={style}
+          className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto"
+        >
           {itensFiltrados.map((item) => (
             <div
               key={item.id}
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSelect(item);
+              }}
               className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
                 value === item.id ? 'bg-emerald-50' : ''
               }`}
@@ -126,9 +162,13 @@ export default function AutocompleteGenerico({
           ))}
         </div>
       );
-    } else if (searchTerm) {
+    } else if (showEmpty) {
       content = (
-        <div ref={dropdownRef} style={style} className="bg-white border border-slate-200 rounded-md shadow-lg">
+        <div
+          ref={dropdownRef}
+          style={style}
+          className="bg-white border border-slate-200 rounded-md shadow-lg"
+        >
           <div className="px-3 py-6 text-center text-xs text-slate-500">
             Nenhum item encontrado
           </div>
@@ -136,12 +176,24 @@ export default function AutocompleteGenerico({
       );
     }
 
+    return content;
+  };
+
+  const renderDropdown = () => {
+    const content = renderDropdownContent();
     if (!content) return null;
+
+    const container = portalContainerRef.current;
+    if (container) {
+      // Dentro de um Dialog: renderizar via portal no DialogContent
+      return ReactDOM.createPortal(content, container);
+    }
+    // Fora de Dialog: renderizar via portal no body
     return ReactDOM.createPortal(content, document.body);
   };
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
+    <div ref={wrapperRef} className={`relative ${className || ''}`}>
       <div className="relative">
         <Input
           ref={inputRef}
@@ -149,8 +201,12 @@ export default function AutocompleteGenerico({
           onChange={(e) => {
             setSearchTerm(e.target.value);
             if (!open) setOpen(true);
+            calcPosition();
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            calcPosition();
+            setOpen(true);
+          }}
           placeholder={placeholder}
           className={`pr-8 h-8 text-xs uppercase ${inputClassName}`}
           style={{ textTransform: 'uppercase' }}

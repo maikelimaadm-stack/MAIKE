@@ -11,14 +11,14 @@ export default function IntegrarFinanceiroDialog({ open, onOpenChange, onSave, f
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[1100px] max-h-[92vh] p-0 gap-0"
+        className="max-w-[1100px] max-h-[92vh] p-0 gap-0 overflow-x-visible overflow-y-visible"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
         {/* Título acessível oculto - o FormularioCompraFinanceiro já tem seu próprio header visual */}
         <DialogTitle className="sr-only">Novo Lançamento Financeiro</DialogTitle>
         <DialogDescription className="sr-only">Preencha os dados financeiros para integrar com a movimentação de estoque</DialogDescription>
-        <div className="max-h-[92vh] overflow-y-auto">
+        <div className="max-h-[88vh] overflow-y-auto overflow-x-hidden">
           <FormularioCompraFinanceiro
             onSubmit={handleSubmitFinanceiro}
             onCancel={() => onOpenChange(false)}
