@@ -132,7 +132,8 @@ const getFieldValue = (lancamento, colunaId) => {
   }
 };
 
-export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas }) {
+export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, modoTela = "contas", onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas }) {
+  // modoTela: "lancamentos" = permite editar/excluir (se sem baixa), "contas" = somente visualização/baixa
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
@@ -497,10 +498,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
                 <DropdownMenuContent>
                   <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs"><Edit2 className="w-3.5 h-3.5 mr-2" />Editar Lote</DropdownMenuItem>
+                  {modoTela === 'lancamentos' && <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs"><Edit2 className="w-3.5 h-3.5 mr-2" />Editar Lote</DropdownMenuItem>}
                   <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs"><Download className="w-3.5 h-3.5 mr-2" />Exportar</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600"><Trash2 className="w-3.5 h-3.5 mr-2" />Excluir</DropdownMenuItem>
+                  {modoTela === 'lancamentos' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600"><Trash2 className="w-3.5 h-3.5 mr-2" />Excluir</DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -618,12 +623,18 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
                                         <DropdownMenuContent align="start">
                                           <DropdownMenuItem onClick={() => setDetalhesAberto(lancamento)} className="text-xs"><Eye className="w-3.5 h-3.5 mr-2" />Ver Detalhes</DropdownMenuItem>
                                           {temProdutos && <DropdownMenuItem onClick={() => setProdutosDialog(lancamento)} className="text-xs"><Package className="w-3.5 h-3.5 mr-2" />Ver Produtos ({lancamento.produtos_lancamento.length})</DropdownMenuItem>}
-                                          <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs"><Edit className="w-3.5 h-3.5 mr-2" />{lancamento.parcelamento_grupo_id && !lancamento.is_registro_principal ? 'Editar (via Principal)' : 'Editar'}</DropdownMenuItem>
+                                          {modoTela === 'lancamentos' && lancamento?.valor_pago === 0 && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && (
+                                            <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs"><Edit className="w-3.5 h-3.5 mr-2" />Editar</DropdownMenuItem>
+                                          )}
                                           <DropdownMenuSeparator />
                                           {lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs"><CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />Dar Baixa</DropdownMenuItem>}
                                           {(lancamento?.status === 'Pago' || lancamento?.status === 'Recebido') && onCancelarBaixa && <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs"><XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />Cancelar Baixa</DropdownMenuItem>}
-                                          <DropdownMenuSeparator />
-                                          <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600"><Trash2 className="w-3.5 h-3.5 mr-2" />Excluir</DropdownMenuItem>
+                                          {modoTela === 'lancamentos' && lancamento?.valor_pago === 0 && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && (
+                                            <>
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600"><Trash2 className="w-3.5 h-3.5 mr-2" />Excluir</DropdownMenuItem>
+                                            </>
+                                          )}
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     </div>
