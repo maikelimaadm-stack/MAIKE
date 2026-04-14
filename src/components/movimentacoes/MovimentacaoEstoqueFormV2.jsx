@@ -320,6 +320,8 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
             onChange={setItens}
             produtos={produtos}
             valorLiquidoFinanceiro={valorLiquidoFinanceiro}
+            tipoMovimentacao={tipo}
+            localEstoqueOrigemId={localOrigemId}
           />
 
           {/* ===== BOTÕES ===== */}
