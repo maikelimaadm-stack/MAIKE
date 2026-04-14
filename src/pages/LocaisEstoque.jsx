@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { Settings, MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
@@ -24,6 +25,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'nome', label: 'Nome', default: true, sortable: true, align: 'left', width: 220 },
   { id: 'capacidade', label: 'Capacidade', default: true, sortable: true, align: 'left', width: 150 },
   { id: 'descricao', label: 'Descrição', default: true, sortable: false, align: 'left', width: 250 },
+  { id: 'ativo', label: 'Ativo', default: true, sortable: true, align: 'center', width: 80 },
 ];
 const DEFAULT_VISIBLE = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
 const STORAGE_PREFIX = "colunas_locais_estoque";
@@ -37,13 +39,14 @@ function getFieldValue(item, colId) {
   if (colId === "nome") return item.nome || "";
   if (colId === "capacidade") return item.capacidade || "";
   if (colId === "descricao") return item.descricao || "";
+  if (colId === "ativo") return item.ativo !== false ? "Ativo" : "Inativo";
   return "";
 }
 
 export default function LocaisEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [formData, setFormData] = useState({ nome: "", descricao: "", capacidade: "" });
+  const [formData, setFormData] = useState({ nome: "", descricao: "", capacidade: "", ativo: true });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [selectedItems, setSelectedItems] = useState([]);
@@ -71,8 +74,8 @@ export default function LocaisEstoque() {
   const updateMutation = useMutation({ mutationFn: ({ id, data }) => base44.entities.LocalEstoque.update(id, data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); setShowForm(false); setEditing(null); toast.success('Local atualizado!'); }, onError: (err) => toast.error(err.message || 'Erro.') });
   const deleteMutation = useMutation({ mutationFn: async (ids) => { const prods = await base44.entities.Produto.list(); const movs = await base44.entities.MovimentacaoEstoque.list(); for (const id of ids) { const l = locais.find(x => x.id === id); if (prods.some(p => p.local_estoque === l?.nome)) throw new Error(`❌ "${l?.nome}" possui produtos vinculados!`); if (movs.some(m => m.local_estoque_origem === l?.nome || m.local_estoque_destino === l?.nome)) throw new Error(`❌ "${l?.nome}" possui movimentações vinculadas!`); await base44.entities.LocalEstoque.delete(id); } }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); toast.success('Local(is) excluído(s)!'); setSelectedItems([]); }, onError: (err) => toast.error(err.message || 'Erro.') });
 
-  const handleSubmit = (e) => { e.preventDefault(); const ne = {}; if (!formData.nome?.trim()) ne.nome = true; setErrors(ne); if (Object.keys(ne).length > 0) { toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS."); return; } const data = { nome: formData.nome.toUpperCase(), descricao: formData.descricao?.toUpperCase() || undefined, capacidade: formData.capacidade?.toUpperCase() || undefined }; if (editing) updateMutation.mutate({ id: editing.id, data }); else createMutation.mutate(data); };
-  const handleEdit = (item) => { setEditing(item); setFormData({ nome: item.nome || "", descricao: item.descricao || "", capacidade: item.capacidade || "" }); setShowForm(true); };
+  const handleSubmit = (e) => { e.preventDefault(); const ne = {}; if (!formData.nome?.trim()) ne.nome = true; setErrors(ne); if (Object.keys(ne).length > 0) { toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS."); return; } const data = { nome: formData.nome.toUpperCase(), descricao: formData.descricao?.toUpperCase() || undefined, capacidade: formData.capacidade?.toUpperCase() || undefined, ativo: formData.ativo }; if (editing) updateMutation.mutate({ id: editing.id, data }); else createMutation.mutate(data); };
+  const handleEdit = (item) => { setEditing(item); setFormData({ nome: item.nome || "", descricao: item.descricao || "", capacidade: item.capacidade || "", ativo: item.ativo !== false }); setShowForm(true); };
   const handleRequestDelete = (id) => { const ids = Array.isArray(id) ? id : [id]; setDeleteState({ open: true, ids }); };
   const handleConfirmDelete = () => { deleteMutation.mutate(deleteState.ids); setDeleteState({ open: false, ids: [] }); };
 
@@ -123,7 +126,7 @@ export default function LocaisEstoque() {
     );
   };
 
-  const renderCell = (item, colId) => { if (colId === "numero") return item.numero_local || "-"; if (colId === "nome") return <span className="uppercase font-medium">{item.nome || "-"}</span>; if (colId === "capacidade") return item.capacidade || "-"; if (colId === "descricao") return item.descricao || "-"; return "-"; };
+  const renderCell = (item, colId) => { if (colId === "numero") return item.numero_local || "-"; if (colId === "nome") return <span className={`uppercase font-medium ${item.ativo === false ? 'text-slate-400 line-through' : ''}`}>{item.nome || "-"}</span>; if (colId === "capacidade") return item.capacidade || "-"; if (colId === "descricao") return item.descricao || "-"; if (colId === "ativo") return item.ativo !== false ? <Badge className="text-[10px] bg-emerald-100 text-emerald-700">Ativo</Badge> : <Badge className="text-[10px] bg-slate-100 text-slate-500">Inativo</Badge>; return "-"; };
 
   return (
     <div className="p-1 md:p-1 space-y-1">
@@ -132,7 +135,7 @@ export default function LocaisEstoque() {
           <div><h1 className="font-bold text-slate-800">Locais de Estoque</h1></div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7"><Settings className="w-4 h-4" /></Button>
-            <Button onClick={() => { setShowForm(true); setEditing(null); setFormData({ nome: "", descricao: "", capacidade: "" }); setErrors({}); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Adicionar</Button>
+            <Button onClick={() => { setShowForm(true); setEditing(null); setFormData({ nome: "", descricao: "", capacidade: "", ativo: true }); setErrors({}); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Adicionar</Button>
           </div>
         </div>
       )}
@@ -146,6 +149,12 @@ export default function LocaisEstoque() {
                     <FL label="Nome" required error={errors.nome} dataField="nome"><Input value={formData.nome} onChange={(e) => { setErrors(p => ({ ...p, nome: false })); setFormData(p => ({ ...p, nome: e.target.value })); }} placeholder="GALPÃO 1" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} /></FL>
                     <FL label="Capacidade" dataField="capacidade"><Input value={formData.capacidade} onChange={(e) => setFormData(p => ({ ...p, capacidade: e.target.value }))} placeholder="500 SACAS" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} /></FL>
                     <FL label="Descrição" dataField="descricao"><Textarea value={formData.descricao} onChange={(e) => setFormData(p => ({ ...p, descricao: e.target.value }))} placeholder="DESCRIÇÃO" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} /></FL>
+                  </div>
+                  <div className="flex flex-wrap gap-6 py-1 px-1">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="le_ativo" checked={formData.ativo} onCheckedChange={(v) => setFormData(p => ({ ...p, ativo: v }))} />
+                      <label htmlFor="le_ativo" className="text-xs text-slate-700 cursor-pointer">Ativo</label>
+                    </div>
                   </div>
                   <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }} size="sm" className="h-7 text-xs px-3">Cancelar</Button><Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{editing ? 'Atualizar' : 'Salvar'}</Button></div>
                 </form>

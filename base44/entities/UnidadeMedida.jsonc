@@ -1,0 +1,27 @@
+{
+  "name": "UnidadeMedida",
+  "type": "object",
+  "properties": {
+    "numero_unidade": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da unidade (gerado automaticamente)"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla da unidade (ex: UN, KG, LT)"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o completa da unidade"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a unidade est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "sigla",
+    "descricao"
+  ]
+}
