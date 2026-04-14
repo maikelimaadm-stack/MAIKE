@@ -70,7 +70,23 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
   const [dadosFinanceiro, setDadosFinanceiro] = useState(null);
 
   // ===== Itens/Produtos =====
-  const [itens, setItens] = useState([]);
+  const [itens, setItens] = useState(() => {
+    if (initialData?.produtos_para_editar) {
+      return initialData.produtos_para_editar.map(p => ({
+        produto_id: p.produto_id || '',
+        produto_nome: p.produto_nome || '',
+        unidade_medida: p.unidade_medida || '',
+        quantidade: p.quantidade || 0,
+        valor_unitario: p.valor_unitario || 0,
+        valor_total: p.valor_total || 0,
+        valor_desconto: p.valor_desconto || 0,
+        valor_liquido: p.valor_liquido || p.valor_total || 0,
+        valor_liquido_unitario: p.valor_liquido_unitario || p.valor_unitario || 0,
+        _lotes_consumidos: p.lotes_consumidos || null,
+      }));
+    }
+    return [];
+  });
 
   // ===== Queries =====
   const { data: locais = [] } = useQuery({
@@ -174,6 +190,8 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
         valor_desconto: it.valor_desconto,
         valor_liquido: it.valor_liquido,
         valor_liquido_unitario: it.valor_liquido_unitario,
+        lotes_consumidos: it._lotes_consumidos || null,
+        modo_saida_fifo: it._lotes_consumidos ? 'por_nota' : 'automatico',
       })),
     });
   };

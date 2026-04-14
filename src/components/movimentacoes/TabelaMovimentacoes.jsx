@@ -41,6 +41,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: "motivo", label: "Motivo", default: false, sortable: true, align: "left", width: 170 },
   { id: "observacoes", label: "Observações", default: false, sortable: true, align: "left", width: 220 },
   { id: "responsavel", label: "Responsável", default: false, sortable: true, align: "left", width: 160 },
+  { id: "total_itens", label: "Itens", default: true, sortable: true, align: "center", width: 70 },
+  { id: "parcela_seq", label: "Seq.", default: false, sortable: true, align: "center", width: 70 },
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
@@ -75,6 +77,8 @@ export default function TabelaMovimentacoes({
   isLoading,
   showConfigColunas,
   setShowConfigColunas,
+  modoVisualizacao = "principais",
+  allMovimentacoes = [],
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
@@ -98,15 +102,19 @@ export default function TabelaMovimentacoes({
   });
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const allIds = COLUNAS_DISPONIVEIS.map((c) => c.id);
     const saved = localStorage.getItem("colunas_ordem_movimentacoes");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Adicionar novas colunas que não existiam no saved
+        const missing = allIds.filter(id => !parsed.includes(id));
+        return [...parsed, ...missing];
       } catch {
-        return COLUNAS_DISPONIVEIS.map((c) => c.id);
+        return allIds;
       }
     }
-    return COLUNAS_DISPONIVEIS.map((c) => c.id);
+    return allIds;
   });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -240,6 +248,10 @@ export default function TabelaMovimentacoes({
         return item.observacoes || "";
       case "responsavel":
         return item.usuario_responsavel || "";
+      case "total_itens":
+        return String(item.total_movimentacoes_grupo || 1);
+      case "parcela_seq":
+        return item.numero_movimentacao_seq ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1/1";
       default:
         return "";
     }
@@ -332,7 +344,11 @@ export default function TabelaMovimentacoes({
 
     let canceled = 0;
     for (const id of selectedItems) {
-      await onCancel(id, true);
+      try {
+        await onCancel(id, true);
+      } catch (e) {
+        console.error('Erro ao cancelar:', e);
+      }
       canceled += 1;
       setCancelProgress({ current: canceled, total: selectedItems.length });
     }
@@ -393,6 +409,12 @@ export default function TabelaMovimentacoes({
         return item.observacoes || "-";
       case "responsavel":
         return item.usuario_responsavel || "-";
+      case "total_itens":
+        return item.total_movimentacoes_grupo > 1 ? (
+          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">{item.total_movimentacoes_grupo} itens</Badge>
+        ) : "1";
+      case "parcela_seq":
+        return item.numero_movimentacao_seq ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1/1";
       default:
         return "-";
     }

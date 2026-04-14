@@ -1,0 +1,307 @@
+{
+  "name": "MovimentacaoEstoque",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "numero_movimentacao": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da movimenta\u00e7\u00e3o (gerado automaticamente)"
+    },
+    "tipo_movimentacao": {
+      "type": "string",
+      "enum": [
+        "Entrada",
+        "Sa\u00edda",
+        "Transfer\u00eancia",
+        "Ajuste"
+      ],
+      "description": "Tipo de movimenta\u00e7\u00e3o"
+    },
+    "tipo_detalhado": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o detalhada do tipo (COMPRA, VENDA, TRANSFER\u00caNCIA, etc.)"
+    },
+    "tipo_documento": {
+      "type": "string",
+      "description": "Tipo do documento (NF-e, Recibo, etc.)"
+    },
+    "numero_documento": {
+      "type": "string",
+      "description": "N\u00famero do documento"
+    },
+    "chave_documento": {
+      "type": "string",
+      "description": "Chave de acesso do documento (NF-e)"
+    },
+    "data_documento": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do documento"
+    },
+    "data_movimentacao": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data e hora da movimenta\u00e7\u00e3o"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto"
+    },
+    "produto_nome": {
+      "type": "string",
+      "description": "Nome do produto"
+    },
+    "produto_codigo": {
+      "type": "string",
+      "description": "C\u00f3digo do produto"
+    },
+    "produto_categoria": {
+      "type": "string",
+      "description": "Categoria do produto"
+    },
+    "quantidade": {
+      "type": "number",
+      "description": "Quantidade movimentada"
+    },
+    "unidade_medida": {
+      "type": "string",
+      "description": "Unidade de medida"
+    },
+    "valor_unitario": {
+      "type": "number",
+      "description": "Valor unit\u00e1rio do produto"
+    },
+    "valor_total": {
+      "type": "number",
+      "description": "Valor total da movimenta\u00e7\u00e3o"
+    },
+    "local_origem": {
+      "type": "string",
+      "description": "Local de origem"
+    },
+    "local_destino": {
+      "type": "string",
+      "description": "Local de destino"
+    },
+    "local_estoque_origem": {
+      "type": "string",
+      "description": "Local de estoque de origem"
+    },
+    "local_estoque_destino": {
+      "type": "string",
+      "description": "Local de estoque de destino"
+    },
+    "custo_medio_antes": {
+      "type": "number",
+      "description": "Custo m\u00e9dio antes da movimenta\u00e7\u00e3o"
+    },
+    "custo_medio_depois": {
+      "type": "number",
+      "description": "Custo m\u00e9dio ap\u00f3s a movimenta\u00e7\u00e3o"
+    },
+    "saldo_antes": {
+      "type": "number",
+      "description": "Saldo em estoque antes da movimenta\u00e7\u00e3o"
+    },
+    "saldo_depois": {
+      "type": "number",
+      "description": "Saldo em estoque ap\u00f3s a movimenta\u00e7\u00e3o"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor"
+    },
+    "cliente_nome": {
+      "type": "string",
+      "description": "Nome do cliente (para sa\u00eddas)"
+    },
+    "safra_id": {
+      "type": "string",
+      "description": "ID da safra vinculada"
+    },
+    "safra_nome": {
+      "type": "string",
+      "description": "Nome da safra"
+    },
+    "centro_custo_id": {
+      "type": "string",
+      "description": "ID do centro de custo"
+    },
+    "centro_custo_nome": {
+      "type": "string",
+      "description": "Nome do centro de custo"
+    },
+    "lancamento_origem_id": {
+      "type": "string",
+      "description": "ID do lan\u00e7amento financeiro de origem (se veio do financeiro)"
+    },
+    "motivo_movimentacao": {
+      "type": "string",
+      "description": "Motivo da movimenta\u00e7\u00e3o"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    },
+    "responsavel": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio respons\u00e1vel"
+    },
+    "usuario_responsavel": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio respons\u00e1vel (alternativo)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Ativa",
+        "Cancelada"
+      ],
+      "default": "Ativa",
+      "description": "Status da movimenta\u00e7\u00e3o"
+    },
+    "vinculado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se a sa\u00edda est\u00e1 vinculada a algo"
+    },
+    "tipo_vinculo": {
+      "type": "string",
+      "enum": [
+        "lote",
+        "area",
+        "maquina"
+      ],
+      "description": "Tipo de v\u00ednculo (lote, \u00e1rea ou m\u00e1quina)"
+    },
+    "lote_vinculado_id": {
+      "type": "string",
+      "description": "ID do lote vinculado"
+    },
+    "lote_vinculado_nome": {
+      "type": "string",
+      "description": "Nome do lote vinculado"
+    },
+    "area_vinculada_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea vinculada"
+    },
+    "area_vinculada_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea vinculada"
+    },
+    "maquina_vinculada_id": {
+      "type": "string",
+      "description": "ID da m\u00e1quina vinculada"
+    },
+    "maquina_vinculada_nome": {
+      "type": "string",
+      "description": "Nome da m\u00e1quina vinculada"
+    },
+    "origem_sistema": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "deposito",
+        "suplementacao",
+        "reversao"
+      ],
+      "default": "manual",
+      "description": "Origem da movimenta\u00e7\u00e3o no sistema"
+    },
+    "deposito_id": {
+      "type": "string",
+      "description": "ID do dep\u00f3sito relacionado"
+    },
+    "ponto_suplementacao_id": {
+      "type": "string",
+      "description": "ID do cocho relacionado"
+    },
+    "movimento_pai_id": {
+      "type": "string",
+      "description": "ID da movimenta\u00e7\u00e3o pai vinculada"
+    },
+    "movimento_filho_id": {
+      "type": "string",
+      "description": "ID da movimenta\u00e7\u00e3o filha vinculada"
+    },
+    "bloqueado_exclusao_estoque": {
+      "type": "boolean",
+      "default": false,
+      "description": "Bloqueia edi\u00e7\u00e3o ou exclus\u00e3o direta na tela geral de estoque"
+    },
+    "exclusao_somente_em": {
+      "type": "string",
+      "enum": [
+        "estoque",
+        "deposito",
+        "cocho"
+      ],
+      "description": "Define onde a exclus\u00e3o pode ser feita"
+    },
+    "movimentacao_grupo_id": {
+      "type": "string",
+      "description": "ID \u00fanico que agrupa todas as movimenta\u00e7\u00f5es de um mesmo lan\u00e7amento"
+    },
+    "numero_movimentacao_seq": {
+      "type": "number",
+      "description": "N\u00famero sequencial da movimenta\u00e7\u00e3o dentro do grupo (1, 2, 3...)"
+    },
+    "total_movimentacoes_grupo": {
+      "type": "number",
+      "description": "Total de movimenta\u00e7\u00f5es neste grupo"
+    },
+    "is_registro_principal": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica se \u00e9 o registro principal do grupo (movimenta\u00e7\u00e3o 1)"
+    },
+    "modo_saida_fifo": {
+      "type": "string",
+      "enum": [
+        "automatico",
+        "por_nota"
+      ],
+      "description": "Modo de sa\u00edda FIFO: autom\u00e1tico ou sele\u00e7\u00e3o manual por nota"
+    },
+    "lotes_consumidos": {
+      "type": "array",
+      "description": "Detalhamento dos lotes FIFO consumidos nesta sa\u00edda",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lote_id": {
+            "type": "string"
+          },
+          "numero_documento": {
+            "type": "string"
+          },
+          "fornecedor_nome": {
+            "type": "string"
+          },
+          "quantidade_consumida": {
+            "type": "number"
+          },
+          "custo_unitario": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "empresa_id",
+    "tipo_movimentacao",
+    "data_movimentacao",
+    "produto_id",
+    "quantidade",
+    "unidade_medida"
+  ]
+}

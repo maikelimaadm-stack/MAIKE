@@ -1,9 +1,11 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Plus, X, Eye } from "lucide-react";
+import { Plus, X, Eye, FileText } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 import { formatarMoedaInput, parseMoedaInput, formatarMoeda } from "@/components/financeiro/moedaUtils";
 import FifoPreviewDialog from "./FifoPreviewDialog";
+import SaidaPorNotaDialog from "./SaidaPorNotaDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 text-center align-middle whitespace-nowrap h-7 px-2 border-r border-b border-gray-200";
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
@@ -13,9 +15,31 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
   const totalLiquidoProdutos = itens.reduce((sum, r) => sum + (r.valor_liquido || 0), 0);
   const isSaida = tipoMovimentacao === 'Saída';
 
+  // Modo FIFO: automático ou por_nota
+  const [modoFifo, setModoFifo] = useState('automatico');
+
   // Cache de lotes FIFO por produto+local
   const [lotesCache, setLotesCache] = useState({});
-  const [fifoPreview, setFifoPreview] = useState(null); // { index, lotes, produto_nome }
+  const [fifoPreview, setFifoPreview] = useState(null);
+  const [notaDialog, setNotaDialog] = useState(null); // { index, lotes, produto_nome }
+
+  // Produtos disponíveis no local de estoque (para saída)
+  const [produtosDisponiveis, setProdutosDisponiveis] = useState(null); // Set de produto_ids
+
+  // Carregar produtos disponíveis quando é saída e tem local selecionado
+  useEffect(() => {
+    if (!isSaida || !localEstoqueOrigemId) {
+      setProdutosDisponiveis(null);
+      return;
+    }
+    base44.entities.EstoqueLoteNota.filter({
+      status: 'Disponivel',
+      local_estoque_id: localEstoqueOrigemId,
+    }).then(lotes => {
+      const ids = new Set(lotes.filter(l => l.quantidade_disponivel > 0).map(l => l.produto_id));
+      setProdutosDisponiveis(ids);
+    });
+  }, [isSaida, localEstoqueOrigemId]);
 
   // Carregar lotes FIFO quando muda para saída ou muda o local
   useEffect(() => {
@@ -37,7 +61,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
     });
   }, [isSaida, localEstoqueOrigemId, itens.map(it => it.produto_id).join(',')]);
 
-  // Simula FIFO para calcular custo de saída
+  // Simula FIFO automático
   const calcularCustoFifo = (produtoId, quantidade) => {
     const cacheKey = `${produtoId}_${localEstoqueOrigemId}`;
     const lotes = lotesCache[cacheKey] || [];
@@ -61,7 +85,8 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
     onChange([...itens, {
       produto_id: '', produto_nome: '', unidade_medida: '',
       quantidade: 0, valor_unitario: 0, valor_total: 0,
-      valor_desconto: 0, valor_liquido: 0, valor_liquido_unitario: 0
+      valor_desconto: 0, valor_liquido: 0, valor_liquido_unitario: 0,
+      _lotes_consumidos: null,
     }]);
   };
 
@@ -69,6 +94,8 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
 
   const recalcularSaida = (newItem) => {
     if (!isSaida || !newItem.produto_id || newItem.quantidade <= 0) return newItem;
+    // Se modo por_nota e já tem lotes selecionados, não recalcula automático
+    if (modoFifo === 'por_nota' && newItem._lotes_consumidos) return newItem;
     const fifo = calcularCustoFifo(newItem.produto_id, newItem.quantidade);
     newItem.valor_unitario = fifo.custoMedio;
     newItem.valor_total = fifo.custoTotal;
@@ -78,6 +105,19 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
     newItem._saldo_insuficiente = fifo.saldoInsuficiente;
     newItem._saldo_disponivel = fifo.saldoDisponivel;
     return newItem;
+  };
+
+  const carregarLotesProduto = async (produtoId) => {
+    if (!produtoId || !localEstoqueOrigemId) return;
+    const cacheKey = `${produtoId}_${localEstoqueOrigemId}`;
+    if (lotesCache[cacheKey]) return;
+    const lotes = await base44.entities.EstoqueLoteNota.filter({
+      produto_id: produtoId,
+      status: 'Disponivel',
+      local_estoque_id: localEstoqueOrigemId,
+    });
+    lotes.sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
+    setLotesCache(prev => ({ ...prev, [cacheKey]: lotes }));
   };
 
   const atualizarItem = (index, campo, valor) => {
@@ -90,6 +130,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
         newItem.produto_id = valor;
         newItem.produto_nome = prod?.nome_produto || '';
         newItem.unidade_medida = prod?.unidade_medida || '';
+        newItem._lotes_consumidos = null;
         if (!isSaida) {
           newItem.valor_unitario = prod?.preco_custo || 0;
           const total = newItem.quantidade * newItem.valor_unitario;
@@ -97,28 +138,16 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
           newItem.valor_liquido = Math.max(0, total - (newItem.valor_desconto || 0));
           newItem.valor_liquido_unitario = newItem.quantidade > 0 ? newItem.valor_liquido / newItem.quantidade : 0;
         }
-
-        // Carregar lotes FIFO se saída
         if (isSaida && valor && localEstoqueOrigemId) {
-          const cacheKey = `${valor}_${localEstoqueOrigemId}`;
-          if (!lotesCache[cacheKey]) {
-            base44.entities.EstoqueLoteNota.filter({
-              produto_id: valor,
-              status: 'Disponivel',
-              local_estoque_id: localEstoqueOrigemId,
-            }).then(lotes => {
-              lotes.sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
-              setLotesCache(prev => ({ ...prev, [cacheKey]: lotes }));
-            });
-          }
+          carregarLotesProduto(valor);
           newItem = recalcularSaida(newItem);
         }
-
         return newItem;
       }
 
       if (campo === 'quantidade_input') {
         newItem.quantidade = parseMoedaInput(valor);
+        newItem._lotes_consumidos = null; // Reset seleção manual ao mudar quantidade
         if (isSaida) {
           newItem = recalcularSaida(newItem);
         } else {
@@ -151,14 +180,15 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
     onChange(updated);
   };
 
-  // Recalcular FIFO sempre que lotes carregarem
+  // Recalcular FIFO automático quando lotes carregam
   useEffect(() => {
-    if (!isSaida) return;
+    if (!isSaida || modoFifo === 'por_nota') return;
     const hasChanges = itens.some(it => it.produto_id && it.quantidade > 0);
     if (!hasChanges) return;
 
     const recalculated = itens.map(item => {
       if (!item.produto_id || item.quantidade <= 0) return item;
+      if (item._lotes_consumidos) return item; // não recalcular se tem seleção manual
       return recalcularSaida({ ...item });
     });
 
@@ -174,22 +204,66 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
     setFifoPreview({ index, lotes, produto_nome: item.produto_nome, quantidade: item.quantidade });
   };
 
+  const abrirSaidaPorNota = (index) => {
+    const item = itens[index];
+    if (!item.produto_id) return;
+    const cacheKey = `${item.produto_id}_${localEstoqueOrigemId}`;
+    const lotes = lotesCache[cacheKey] || [];
+    setNotaDialog({ index, lotes, produto_nome: item.produto_nome });
+  };
+
+  const handleConfirmarNota = (lotesConfirmados, totalQtd, custoMedio, custoTotal) => {
+    if (!notaDialog) return;
+    const updated = itens.map((item, i) => {
+      if (i !== notaDialog.index) return item;
+      return {
+        ...item,
+        quantidade: totalQtd,
+        valor_unitario: custoMedio,
+        valor_total: custoTotal,
+        valor_liquido: custoTotal,
+        valor_liquido_unitario: custoMedio,
+        valor_desconto: 0,
+        _lotes_consumidos: lotesConfirmados,
+        _saldo_insuficiente: false,
+        _saldo_disponivel: null,
+      };
+    });
+    onChange(updated);
+    setNotaDialog(null);
+  };
+
+  // Filtrar produtos: na saída, só mostrar os que têm saldo no local
   const produtosItems = useMemo(() => {
-    return produtos.filter(p => p.ativo !== false).map(p => ({
+    let list = produtos.filter(p => p.ativo !== false);
+    if (isSaida && produtosDisponiveis) {
+      list = list.filter(p => produtosDisponiveis.has(p.id));
+    }
+    return list.map(p => ({
       ...p,
       display: `${p.nome_produto}${p.codigo_interno ? ` (${p.codigo_interno})` : ''}`
     }));
-  }, [produtos]);
+  }, [produtos, isSaida, produtosDisponiveis]);
 
   const temDiferencaFinanceiro = valorLiquidoFinanceiro != null && Math.abs(totalLiquidoProdutos - valorLiquidoFinanceiro) > 0.01;
 
   return (
     <div className="border border-gray-200 rounded-lg">
       <div className="flex justify-between items-center px-2 h-7 bg-slate-100 border-b border-gray-200 rounded-t-lg">
-        <span className="font-semibold text-xs text-slate-700">
-          Produtos da Movimentação
-          {isSaida && <span className="text-[10px] text-orange-600 ml-2 font-normal">(FIFO — custo automático pelas entradas)</span>}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-xs text-slate-700">Produtos da Movimentação</span>
+          {isSaida && (
+            <Select value={modoFifo} onValueChange={setModoFifo}>
+              <SelectTrigger className="h-5 w-[130px] text-[10px] border-slate-300 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="automatico" className="text-[11px]">FIFO Automático</SelectItem>
+                <SelectItem value="por_nota" className="text-[11px]">Saída por Nota</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         <button type="button" onClick={adicionarItem} className="w-5 h-5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 flex items-center justify-center">
           <Plus className="w-3 h-3" />
         </button>
@@ -198,17 +272,18 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
       {itens.length === 0 ? (
         <div className="text-[11px] text-slate-400 text-center py-4">Nenhum produto adicionado. Clique em + para adicionar.</div>
       ) : (
-        <div className="overflow-x-auto" style={{ overflowY: 'visible' }}>
+        <div className="overflow-visible max-h-[260px]" style={{ overflowX: 'auto', overflowY: 'auto' }}>
           <table className="w-full border-collapse border-separate border-spacing-0 table-fixed min-w-[900px]">
             <colgroup>
               <col style={{ width: 240 }} />
               <col style={{ width: 90 }} />
-              <col style={{ width: 60 }} />
+              <col style={{ width: 55 }} />
               <col style={{ width: 100 }} />
               <col style={{ width: 100 }} />
+              {!isSaida && <col style={{ width: 100 }} />}
               <col style={{ width: 100 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 100 }} />
+              {isSaida && <col style={{ width: 90 }} />}
+              {!isSaida && <col style={{ width: 100 }} />}
               <col style={{ width: 28 }} />
             </colgroup>
             <thead>
@@ -216,7 +291,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                 <th className={`${TH} text-left`}>Produto</th>
                 <th className={TH}>Quantidade</th>
                 <th className={TH}>UN</th>
-                <th className={TH}>{isSaida ? 'Custo Unit. (FIFO)' : 'Vlr. Unit.'}</th>
+                <th className={TH}>{isSaida ? 'Custo Unit.' : 'Vlr. Unit.'}</th>
                 <th className={TH}>{isSaida ? 'Custo Total' : 'Vlr. Total'}</th>
                 {!isSaida && <th className={TH}>Vlr. Desconto</th>}
                 <th className={TH}>Vlr. Líquido</th>
@@ -228,9 +303,10 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
             <tbody>
               {itens.map((item, index) => {
                 const saldoInsuf = item._saldo_insuficiente;
+                const temLoteManual = !!item._lotes_consumidos;
                 return (
-                  <tr key={index} className={`hover:bg-gray-50 ${saldoInsuf ? 'bg-red-50' : ''}`}>
-                    <td className={`${TD} overflow-visible relative z-20`}>
+                  <tr key={index} className={`hover:bg-gray-50 ${saldoInsuf ? 'bg-red-50' : ''} ${temLoteManual ? 'bg-blue-50' : ''}`}>
+                    <td className={`${TD} overflow-visible relative`}>
                       <AutocompleteGenerico
                         items={produtosItems}
                         value={item.produto_id}
@@ -244,12 +320,16 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                       />
                     </td>
                     <td className={TD}>
-                      <input
-                        value={formatarMoedaInput(item.quantidade)}
-                        onChange={(e) => atualizarItem(index, 'quantidade_input', e.target.value)}
-                        placeholder="0,00"
-                        className={`${INP} text-center font-mono`}
-                      />
+                      {isSaida && modoFifo === 'por_nota' && temLoteManual ? (
+                        <span className="text-center block font-mono text-[11px]">{formatarMoedaInput(item.quantidade)}</span>
+                      ) : (
+                        <input
+                          value={formatarMoedaInput(item.quantidade)}
+                          onChange={(e) => atualizarItem(index, 'quantidade_input', e.target.value)}
+                          placeholder="0,00"
+                          className={`${INP} text-center font-mono`}
+                        />
+                      )}
                     </td>
                     <td className={`${TD} text-center text-[11px] text-slate-500 font-mono`}>
                       {item.unidade_medida || '-'}
@@ -258,9 +338,14 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                       {isSaida ? (
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-right font-mono text-[11px] text-slate-600">{formatarMoedaInput(item.valor_unitario)}</span>
-                          {item.produto_id && (
+                          {item.produto_id && modoFifo === 'automatico' && (
                             <button type="button" onClick={() => abrirFifoPreview(index)} className="text-blue-500 hover:text-blue-700" title="Ver lotes FIFO">
                               <Eye className="w-3 h-3" />
+                            </button>
+                          )}
+                          {item.produto_id && modoFifo === 'por_nota' && (
+                            <button type="button" onClick={() => abrirSaidaPorNota(index)} className="text-orange-500 hover:text-orange-700" title="Selecionar notas">
+                              <FileText className="w-3 h-3" />
                             </button>
                           )}
                         </div>
@@ -332,6 +417,16 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
           lotes={fifoPreview.lotes}
           produtoNome={fifoPreview.produto_nome}
           quantidadeSaida={fifoPreview.quantidade}
+        />
+      )}
+
+      {notaDialog && (
+        <SaidaPorNotaDialog
+          open={!!notaDialog}
+          onOpenChange={() => setNotaDialog(null)}
+          lotes={notaDialog.lotes}
+          produtoNome={notaDialog.produto_nome}
+          onConfirmar={handleConfirmarNota}
         />
       )}
     </div>
