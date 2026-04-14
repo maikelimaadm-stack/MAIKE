@@ -156,8 +156,8 @@ export default function MovimentacoesEstoque() {
 
     const lotesNotaRelacionadosEdicao = editingMovimentacao
       ? estoqueLoteNota.filter(lote => {
-          if (movimentacoesEditadas.some(m => m.numero_documento && lote.numero_documento === m.numero_documento && lote.produto_id === m.produto_id)) return true;
-          if (movimentacoesEditadas.some(m => m.data_documento && lote.data_documento === m.data_documento && lote.produto_id === m.produto_id)) return true;
+          if (movimentacoesEditadas.some(m => lote.movimentacao_entrada_id && lote.movimentacao_entrada_id === m.id)) return true;
+          if (movimentacoesEditadas.some(m => m.numero_documento && lote.numero_documento === m.numero_documento && lote.produto_id === m.produto_id && lote.local_estoque_id === (m.local_estoque_destino || m.local_estoque_origem))) return true;
           return false;
         })
       : [];
@@ -199,6 +199,12 @@ export default function MovimentacoesEstoque() {
             else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
             await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
           }
+
+          const lotesVinculados = estoqueLoteNota.filter(lote => lote.movimentacao_entrada_id === mov.id);
+          for (const lote of lotesVinculados) {
+            await base44.entities.EstoqueLoteNota.delete(lote.id);
+          }
+
           await base44.entities.MovimentacaoEstoque.delete(mov.id);
         }
       } else {
@@ -211,6 +217,12 @@ export default function MovimentacoesEstoque() {
           else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
           await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
         }
+
+        const lotesVinculados = estoqueLoteNota.filter(lote => lote.movimentacao_entrada_id === mov.id);
+        for (const lote of lotesVinculados) {
+          await base44.entities.EstoqueLoteNota.delete(lote.id);
+        }
+
         await base44.entities.MovimentacaoEstoque.delete(mov.id);
       }
     }
@@ -296,7 +308,7 @@ export default function MovimentacoesEstoque() {
       // ===== ENTRADA =====
       if (tipo_movimentacao === 'Entrada') {
         estoqueDepois = estoqueAntes + item.quantidade;
-        await base44.entities.MovimentacaoEstoque.create({
+        const movimentacaoCriada = await base44.entities.MovimentacaoEstoque.create({
           ...baseMov,
           lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           local_estoque_destino: local_estoque_destino || '',
@@ -322,6 +334,7 @@ export default function MovimentacoesEstoque() {
           custo_unitario: item.valor_liquido_unitario || item.valor_unitario || 0,
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: item.quantidade,
+          movimentacao_entrada_id: movimentacaoCriada.id,
           status: 'Disponivel',
         };
 
@@ -410,7 +423,7 @@ export default function MovimentacoesEstoque() {
         }
         if (totalQtd > 0) custoMedioTransf = totalCusto / totalQtd;
 
-        await base44.entities.MovimentacaoEstoque.create({
+        const movimentacaoTransferenciaCriada = await base44.entities.MovimentacaoEstoque.create({
           ...baseMov,
           lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           tipo_movimentacao: 'Saída',
@@ -440,8 +453,9 @@ export default function MovimentacoesEstoque() {
           custo_unitario: custoMedioTransf,
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: item.quantidade,
+          movimentacao_entrada_id: movimentacaoTransferenciaCriada.id,
           status: 'Disponivel',
-        };
+          };
 
         if (loteTransferenciaExistente?.id) {
           await base44.entities.EstoqueLoteNota.update(loteTransferenciaExistente.id, payloadTransferencia);
