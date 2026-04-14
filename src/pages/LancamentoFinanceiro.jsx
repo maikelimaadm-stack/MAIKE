@@ -3,11 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Settings, FileText } from "lucide-react";
+import { Settings, FileText } from "lucide-react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
@@ -27,7 +26,6 @@ const gerarGrupoId = () => `GRP-${Date.now()}-${Math.random().toString(36).subst
 
 export default function LancamentoFinanceiro() {
   const [abaAtiva, setAbaAtiva] = useState("lancamentos");
-  const [subAbaLancamentos, setSubAbaLancamentos] = useState("principais");
   const [subAbaPagar, setSubAbaPagar] = useState("principais");
   const [subAbaReceber, setSubAbaReceber] = useState("principais");
   const [tipoLancamento, setTipoLancamento] = useState("Pagar");
@@ -333,8 +331,6 @@ export default function LancamentoFinanceiro() {
 
   // Lançamentos únicos (para aba Lançamentos): só principais e avulsos
   const lancamentosPrincipais = useMemo(() => lancamentos.filter(isPrincipalOuAvulso), [lancamentos]);
-  // Todas as parcelas (para sub-aba Parcelas em Lançamentos)
-  const lancamentosParcelas = useMemo(() => lancamentos.filter(isParcela), [lancamentos]);
 
   const pagarPrincipais = useMemo(() => lancamentosPagar.filter(isPrincipalOuAvulso), [lancamentosPagar]);
   const pagarParcelas = useMemo(() => lancamentosPagar.filter(isParcela), [lancamentosPagar]);
@@ -346,75 +342,50 @@ export default function LancamentoFinanceiro() {
       {!showForm && !baixaLancamento && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-           <div>
-             <h1 className="font-bold text-slate-800">Lançamentos Financeiros</h1>
-           </div>
-           <div className="flex gap-2 flex-wrap">
-             {abaAtiva === 'lancamentos' && (
-               <>
-                 <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
-                   Importar XML
-                 </Button>
-                 <Button onClick={() => { handleNewLancamento(); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs px-3">
-                   <Plus className="w-3.5 h-3.5" /> Novo Lançamento
-                 </Button>
-               </>
-             )}
-             <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border-input">
-               <Settings className="w-4 h-4" />
-             </Button>
-           </div>
+            <div>
+              <h1 className="font-bold text-slate-800">Lançamentos Financeiros</h1>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+                <Settings className="w-4 h-4" />
+              </Button>
+              {abaAtiva === 'lancamentos' && (
+                <>
+                  <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-7 text-xs">
+                    Importar XML
+                  </Button>
+                  <Button onClick={() => { handleNewLancamento(); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
+                    Adicionar
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
             <TabsList className="grid w-full max-w-lg grid-cols-3 h-8 bg-slate-100">
-              <TabsTrigger value="lancamentos" className="text-xs gap-1"><FileText className="w-3 h-3" />Lançamentos</TabsTrigger>
+              <TabsTrigger value="lancamentos" className="text-xs gap-1"><FileText className="w-3 h-3" />Lançamentos ({lancamentosPrincipais.length})</TabsTrigger>
               <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({pagarPrincipais.length})</TabsTrigger>
               <TabsTrigger value="receber" className="text-xs">Contas a Receber ({receberPrincipais.length})</TabsTrigger>
             </TabsList>
 
-            {/* ABA LANÇAMENTOS - com sub-abas Principais/Parcelas */}
-            <TabsContent value="lancamentos" className="mt-0 space-y-1">
-              <Tabs value={subAbaLancamentos} onValueChange={setSubAbaLancamentos}>
-                <TabsList className="h-7 bg-slate-50 border">
-                  <TabsTrigger value="principais" className="text-[11px] h-5 px-2">Principais ({lancamentosPrincipais.length})</TabsTrigger>
-                  <TabsTrigger value="parcelas" className="text-[11px] h-5 px-2">Parcelas ({lancamentosParcelas.length})</TabsTrigger>
-                </TabsList>
-                <TabsContent value="principais" className="mt-1">
-                  <TabelaFinanceiro
-                    lancamentos={lancamentosPrincipais}
-                    tipo="Todos"
-                    modoVisualizacao="principais"
-                    modoTela="lancamentos"
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onBaixa={handleBaixa}
-                    onCancelarBaixa={handleCancelarBaixa}
-                    isLoading={loadingLancamentos}
-                    fornecedores={fornecedores}
-                    onUpdateLote={handleUpdateLote}
-                    showConfigColunas={abaAtiva === 'lancamentos' && subAbaLancamentos === 'principais' ? showConfigColunas : false}
-                    setShowConfigColunas={setShowConfigColunas}
-                  />
-                </TabsContent>
-                <TabsContent value="parcelas" className="mt-1">
-                  <TabelaFinanceiro
-                    lancamentos={lancamentosParcelas}
-                    tipo="Todos"
-                    modoVisualizacao="parcelas"
-                    modoTela="lancamentos"
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onBaixa={handleBaixa}
-                    onCancelarBaixa={handleCancelarBaixa}
-                    isLoading={loadingLancamentos}
-                    fornecedores={fornecedores}
-                    onUpdateLote={handleUpdateLote}
-                    showConfigColunas={abaAtiva === 'lancamentos' && subAbaLancamentos === 'parcelas' ? showConfigColunas : false}
-                    setShowConfigColunas={setShowConfigColunas}
-                  />
-                </TabsContent>
-              </Tabs>
+            {/* ABA LANÇAMENTOS - apenas registros principais (sem sub-abas) */}
+            <TabsContent value="lancamentos" className="mt-1">
+              <TabelaFinanceiro
+                lancamentos={lancamentosPrincipais}
+                tipo="Todos"
+                modoVisualizacao="principais"
+                modoTela="lancamentos"
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onBaixa={handleBaixa}
+                onCancelarBaixa={handleCancelarBaixa}
+                isLoading={loadingLancamentos}
+                fornecedores={fornecedores}
+                onUpdateLote={handleUpdateLote}
+                showConfigColunas={abaAtiva === 'lancamentos' ? showConfigColunas : false}
+                setShowConfigColunas={setShowConfigColunas}
+              />
             </TabsContent>
 
             {/* ABA CONTAS A PAGAR - consulta e gerenciamento */}
