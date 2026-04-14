@@ -13,6 +13,7 @@ import MovimentacoesLote from './pages/MovimentacoesLote';
 import ContasFinanceiras from './pages/ContasFinanceiras';
 import TiposDocumento from './pages/TiposDocumento';
 import MotivosCompra from './pages/MotivosCompra';
+import Marcas from './pages/Marcas';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -87,6 +88,11 @@ const AuthenticatedApp = () => {
       <Route path="/MotivosCompra" element={
         <LayoutWrapper currentPageName="MotivosCompra">
           <MotivosCompra />
+        </LayoutWrapper>
+      } />
+      <Route path="/Marcas" element={
+        <LayoutWrapper currentPageName="Marcas">
+          <Marcas />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />

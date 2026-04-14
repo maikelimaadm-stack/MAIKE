@@ -28,11 +28,19 @@ const FL = ({ label, required, error, children }) => (
   </div>
 );
 
+const parseNumero = (val) => {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  return parseMoedaInput(val);
+};
+
 export default function FormularioProduto({ onSubmit, onCancel, initialData, isEditing }) {
+  const empresaId = localStorage.getItem('empresa_selecionada_id');
+
   const [formData, setFormData] = useState(() => {
     const defaults = {
       nome_produto: "", codigo_interno: "", codigo_barras: "",
-      categoria: "", descricao: "", unidade_medida: "",
+      categoria: "", marca: "", descricao: "", unidade_medida: "",
       preco_custo: "", preco_venda: "", estoque_minimo: "",
       local_estoque: "", tipo_consumo: "",
       percentual_consumo_pv: "", consumo_minimo_pv: "", consumo_maximo_pv: "",
@@ -66,62 +74,73 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     initialData: [],
   });
 
-  // Items para AutocompleteGenerico (precisa de id + campo display)
+  const { data: marcas = [] } = useQuery({
+    queryKey: ['marcas_form', empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.Marca.list();
+      return all.filter(m => m.empresa_id === empresaId && m.ativo !== false);
+    },
+    enabled: !!empresaId,
+    initialData: [],
+  });
+
+  // Categorias com hierarquia: mostra apenas subcategorias (que têm pai), exibindo "PAI > FILHO"
   const categoriasItems = useMemo(() => {
-    const fixas = [{ id: '__SUPLEMENTACAO__', nome: 'SUPLEMENTAÇÃO' }];
-    const fromDb = categorias.filter(c => c.ativo !== false).map(c => ({ id: c.id, nome: c.nome }));
-    return [...fixas, ...fromDb];
+    const ativas = categorias.filter(c => c.ativo !== false);
+    // Categorias raiz (sem pai) - NÃO permitem lançamento
+    // Subcategorias (com pai) - permitem lançamento, exibidas como "Grupo > Subcategoria"
+    const items = [];
+    ativas.forEach(cat => {
+      if (cat.categoria_pai_id) {
+        const pai = ativas.find(p => p.id === cat.categoria_pai_id);
+        items.push({
+          id: cat.nome,
+          nome: pai ? `${pai.nome} > ${cat.nome}` : cat.nome,
+          nome_busca: `${pai?.nome || ''} ${cat.nome}`,
+        });
+      } else {
+        // Verificar se tem filhos - se não tem, permite como item avulso
+        const temFilhos = ativas.some(c => c.categoria_pai_id === cat.id);
+        if (!temFilhos) {
+          items.push({ id: cat.nome, nome: cat.nome, nome_busca: cat.nome });
+        }
+      }
+    });
+    return items;
   }, [categorias]);
 
   const unidadesItems = useMemo(() => {
-    return unidades.filter(u => u.ativo !== false).map(u => ({ id: u.sigla, nome: u.sigla, descricao: u.descricao, display: `${u.sigla} - ${u.descricao}` }));
+    return unidades.filter(u => u.ativo !== false).map(u => ({ id: u.sigla, nome: `${u.sigla} - ${u.descricao}`, sigla: u.sigla, descricao: u.descricao }));
   }, [unidades]);
 
   const locaisItems = useMemo(() => {
     return locais.filter(l => l.ativo !== false).map(l => ({ id: l.nome, nome: l.nome }));
   }, [locais]);
 
+  const marcasItems = useMemo(() => {
+    return marcas.map(m => ({ id: m.nome, nome: m.nome }));
+  }, [marcas]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setInvalidFields(prev => prev.filter(f => f !== field));
   };
 
-  // Autocomplete handlers que mapeiam id -> valor do campo
-  const handleCategoriaChange = (id) => {
-    const item = categoriasItems.find(c => c.id === id);
-    handleChange('categoria', item?.nome || '');
-  };
-
-  const handleUnidadeChange = (id) => {
-    handleChange('unidade_medida', id || '');
-  };
-
-  const handleLocalChange = (id) => {
-    handleChange('local_estoque', id || '');
-  };
-
   // Valor monetário helpers
-  const precoCustoNum = useMemo(() => {
-    if (typeof formData.preco_custo === 'number') return formData.preco_custo;
-    return parseMoedaInput(formData.preco_custo);
-  }, [formData.preco_custo]);
+  const precoCustoNum = useMemo(() => parseNumero(formData.preco_custo), [formData.preco_custo]);
+  const precoVendaNum = useMemo(() => parseNumero(formData.preco_venda), [formData.preco_venda]);
+  const estoqueMinNum = useMemo(() => parseNumero(formData.estoque_minimo), [formData.estoque_minimo]);
+  const percentualPVNum = useMemo(() => parseNumero(formData.percentual_consumo_pv), [formData.percentual_consumo_pv]);
+  const consumoMinPVNum = useMemo(() => parseNumero(formData.consumo_minimo_pv), [formData.consumo_minimo_pv]);
+  const consumoMaxPVNum = useMemo(() => parseNumero(formData.consumo_maximo_pv), [formData.consumo_maximo_pv]);
+  const pesoSacoNum = useMemo(() => parseNumero(formData.peso_por_saco_kg), [formData.peso_por_saco_kg]);
 
-  const precoVendaNum = useMemo(() => {
-    if (typeof formData.preco_venda === 'number') return formData.preco_venda;
-    return parseMoedaInput(formData.preco_venda);
-  }, [formData.preco_venda]);
-
-  const estoqueMinNum = useMemo(() => {
-    if (typeof formData.estoque_minimo === 'number') return formData.estoque_minimo;
-    return parseMoedaInput(formData.estoque_minimo);
-  }, [formData.estoque_minimo]);
-
-  // Encontrar ID da categoria selecionada para o autocomplete
-  const categoriaSelectedId = useMemo(() => {
-    if (!formData.categoria) return '';
-    const item = categoriasItems.find(c => c.nome === formData.categoria);
+  // Encontrar ID para autocomplete baseado no valor string
+  const findItemId = (items, value) => {
+    if (!value) return '';
+    const item = items.find(i => i.id === value || i.nome === value);
     return item?.id || '';
-  }, [formData.categoria, categoriasItems]);
+  };
 
   const scrollToField = (element) => {
     if (!element) return;
@@ -135,10 +154,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     if (!formData.nome_produto?.trim()) missingFields.push('nome_produto');
     if (!formData.codigo_interno?.trim()) missingFields.push('codigo_interno');
     if (!formData.unidade_medida?.trim()) missingFields.push('unidade_medida');
-    if (formData.unidade_principal_estoque === "SACO" && !formData.peso_por_saco_kg) missingFields.push('peso_por_saco_kg');
+    if (!formData.categoria?.trim()) missingFields.push('categoria');
+    if (!formData.local_estoque?.trim()) missingFields.push('local_estoque');
+    if (formData.unidade_principal_estoque === "SACO" && !pesoSacoNum) missingFields.push('peso_por_saco_kg');
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
+      toast.error('Preencha os campos obrigatórios!');
       if (missingFields[0] === 'nome_produto') scrollToField(nomeProdutoRef.current);
       if (missingFields[0] === 'codigo_interno') scrollToField(codigoInternoRef.current);
       if (missingFields[0] === 'peso_por_saco_kg') scrollToField(pesoSacoRef.current);
@@ -150,6 +172,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       codigo_interno: formData.codigo_interno?.toUpperCase(),
       codigo_barras: formData.codigo_barras || undefined,
       categoria: formData.categoria?.toUpperCase() || undefined,
+      marca: formData.marca?.toUpperCase() || undefined,
       descricao: formData.descricao?.toUpperCase() || undefined,
       unidade_medida: formData.unidade_medida?.toUpperCase(),
       preco_custo: precoCustoNum,
@@ -157,11 +180,11 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       estoque_minimo: estoqueMinNum,
       local_estoque: formData.local_estoque?.toUpperCase() || undefined,
       tipo_consumo: formData.tipo_consumo || undefined,
-      percentual_consumo_pv: parseFloat(formData.percentual_consumo_pv) || undefined,
-      consumo_minimo_pv: parseFloat(formData.consumo_minimo_pv) || undefined,
-      consumo_maximo_pv: parseFloat(formData.consumo_maximo_pv) || undefined,
+      percentual_consumo_pv: percentualPVNum || undefined,
+      consumo_minimo_pv: consumoMinPVNum || undefined,
+      consumo_maximo_pv: consumoMaxPVNum || undefined,
       unidade_principal_estoque: formData.unidade_principal_estoque || "KG",
-      peso_por_saco_kg: formData.unidade_principal_estoque === "SACO" ? parseFloat(formData.peso_por_saco_kg) || undefined : undefined,
+      peso_por_saco_kg: formData.unidade_principal_estoque === "SACO" ? pesoSacoNum || undefined : undefined,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
       ativo: formData.ativo,
     };
@@ -192,16 +215,16 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               </FL>
             </div>
 
-            {/* LINHA 2: Categoria | Unidade | Local */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Categoria">
+            {/* LINHA 2: Categoria | Unidade | Local | Marca */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+              <FL label="Categoria" required error={invalidFields.includes('categoria')}>
                 <AutocompleteGenerico
                   items={categoriasItems}
-                  value={categoriaSelectedId}
-                  onChange={handleCategoriaChange}
+                  value={findItemId(categoriasItems, formData.categoria)}
+                  onChange={(id) => handleChange('categoria', id || '')}
                   placeholder="BUSCAR CATEGORIA..."
                   displayField="nome"
-                  searchFields={["nome"]}
+                  searchFields={["nome", "nome_busca"]}
                   className="w-full"
                   inputClassName={AC_INPUT_CLS}
                 />
@@ -209,22 +232,34 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               <FL label="Unidade de Medida" required error={invalidFields.includes('unidade_medida')}>
                 <AutocompleteGenerico
                   items={unidadesItems}
-                  value={formData.unidade_medida}
-                  onChange={handleUnidadeChange}
+                  value={findItemId(unidadesItems, formData.unidade_medida)}
+                  onChange={(id) => handleChange('unidade_medida', id || '')}
                   placeholder="BUSCAR UNIDADE..."
-                  displayField="display"
-                  searchFields={["nome", "descricao"]}
-                  renderItem={(u) => <div className="text-xs text-slate-900">{u.nome} - {u.descricao}</div>}
+                  displayField="nome"
+                  searchFields={["sigla", "descricao", "nome"]}
+                  renderItem={(u) => <div className="text-xs text-slate-900">{u.sigla} - {u.descricao}</div>}
                   className="w-full"
                   inputClassName={AC_INPUT_CLS}
                 />
               </FL>
-              <FL label="Local de Estoque">
+              <FL label="Local de Estoque" required error={invalidFields.includes('local_estoque')}>
                 <AutocompleteGenerico
                   items={locaisItems}
-                  value={formData.local_estoque}
-                  onChange={handleLocalChange}
+                  value={findItemId(locaisItems, formData.local_estoque)}
+                  onChange={(id) => handleChange('local_estoque', id || '')}
                   placeholder="BUSCAR LOCAL..."
+                  displayField="nome"
+                  searchFields={["nome"]}
+                  className="w-full"
+                  inputClassName={AC_INPUT_CLS}
+                />
+              </FL>
+              <FL label="Marca">
+                <AutocompleteGenerico
+                  items={marcasItems}
+                  value={findItemId(marcasItems, formData.marca)}
+                  onChange={(id) => handleChange('marca', id || '')}
+                  placeholder="BUSCAR MARCA..."
                   displayField="nome"
                   searchFields={["nome"]}
                   className="w-full"
@@ -280,13 +315,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                     </Select>
                   </FL>
                   <FL label="%PV consumo padrão">
-                    <Input type="number" step="0.001" value={formData.percentual_consumo_pv} onChange={(e) => handleChange('percentual_consumo_pv', e.target.value)} placeholder="0.30" className={INPUT_CLS} />
+                    <Input value={formatarMoedaInput(percentualPVNum)} onChange={(e) => handleChange('percentual_consumo_pv', e.target.value)} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                   </FL>
                   <FL label="%PV mínimo">
-                    <Input type="number" step="0.001" value={formData.consumo_minimo_pv} onChange={(e) => handleChange('consumo_minimo_pv', e.target.value)} placeholder="0.15" className={INPUT_CLS} />
+                    <Input value={formatarMoedaInput(consumoMinPVNum)} onChange={(e) => handleChange('consumo_minimo_pv', e.target.value)} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                   </FL>
                   <FL label="%PV máximo">
-                    <Input type="number" step="0.001" value={formData.consumo_maximo_pv} onChange={(e) => handleChange('consumo_maximo_pv', e.target.value)} placeholder="0.60" className={INPUT_CLS} />
+                    <Input value={formatarMoedaInput(consumoMaxPVNum)} onChange={(e) => handleChange('consumo_maximo_pv', e.target.value)} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                   </FL>
                 </div>
                 <div className="text-[10px] text-indigo-700 bg-indigo-100 rounded px-2 py-1">
@@ -310,7 +345,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 </FL>
                 {formData.unidade_principal_estoque === "SACO" && (
                   <FL label="Peso por saco (kg)" required error={invalidFields.includes('peso_por_saco_kg')}>
-                    <Input ref={pesoSacoRef} type="number" step="0.1" value={formData.peso_por_saco_kg} onChange={(e) => handleChange('peso_por_saco_kg', e.target.value)} placeholder="40" className={INPUT_CLS} />
+                    <Input ref={pesoSacoRef} value={formatarMoedaInput(pesoSacoNum)} onChange={(e) => handleChange('peso_por_saco_kg', e.target.value)} placeholder="0,00" className={`${INPUT_CLS} text-right font-mono`} />
                   </FL>
                 )}
               </div>

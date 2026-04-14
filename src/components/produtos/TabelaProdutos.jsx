@@ -23,6 +23,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: "nome", label: "Nome do Produto", default: true, sortable: true, align: "left", width: 260 },
   { id: "codigo", label: "Código Interno", default: true, sortable: true, align: "left", width: 120 },
   { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 140 },
+  { id: "marca", label: "Marca", default: true, sortable: true, align: "left", width: 140 },
   { id: "unidade", label: "Unidade", default: true, sortable: true, align: "left", width: 80 },
   { id: "preco_custo", label: "Preço Custo", default: true, sortable: true, align: "right", width: 110 },
   { id: "preco_venda", label: "Preço Venda", default: true, sortable: true, align: "right", width: 110 },
@@ -49,6 +50,7 @@ function getFieldValue(item, colunaId) {
   if (colunaId === "nome") return item.nome_produto || "";
   if (colunaId === "codigo") return item.codigo_interno || "";
   if (colunaId === "categoria") return item.categoria || "";
+  if (colunaId === "marca") return item.marca || "";
   if (colunaId === "unidade") return item.unidade_medida || "";
   if (colunaId === "preco_custo") return String(item.preco_custo || 0);
   if (colunaId === "preco_venda") return String(item.preco_venda || 0);
@@ -227,6 +229,7 @@ export default function TabelaProdutos({
     if (colunaId === "nome") return <span className={`uppercase ${produto.ativo === false ? 'text-slate-400 line-through' : ''}`}>{produto.nome_produto || "-"}</span>;
     if (colunaId === "codigo") return produto.codigo_interno || "-";
     if (colunaId === "categoria") return produto.categoria || "-";
+    if (colunaId === "marca") return produto.marca || "-";
     if (colunaId === "unidade") return produto.unidade_medida || "-";
     if (colunaId === "preco_custo") return `R$ ${formatarNumero(produto.preco_custo || 0)}`;
     if (colunaId === "preco_venda") return `R$ ${formatarNumero(produto.preco_venda || 0)}`;

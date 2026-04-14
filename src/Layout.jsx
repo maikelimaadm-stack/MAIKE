@@ -164,6 +164,7 @@ const DEFAULT_MENU = [
   { id: "cad-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
   { id: "cad-categorias", title: "Categorias", url: "Categorias" },
   { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
+  { id: "cad-marcas", title: "Marcas", url: "Marcas" },
   { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" }]
 
 },
