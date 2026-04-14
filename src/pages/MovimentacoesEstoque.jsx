@@ -219,10 +219,14 @@ export default function MovimentacoesEstoque() {
       );
     }
 
-    const fornId = dados_financeiro?.fornecedor_id || '';
-    const fornNome = dados_financeiro?.fornecedor_nome || '';
-    const numDoc = dados_financeiro?.numero_documento || '';
-    const dataDoc = dados_financeiro?.data_emissao || '';
+    const fornId = dados_financeiro?.fornecedor_id || formData.fornecedor_id || '';
+    const fornNome = dados_financeiro?.fornecedor_nome || formData.fornecedor_nome || '';
+    const clienteNome = dados_financeiro?.cliente_nome || formData.cliente_nome || '';
+    const tipoDocumentoId = dados_financeiro?.tipo_documento_id || formData.tipo_documento_id || '';
+    const tipoDocumentoNome = dados_financeiro?.tipo_documento_nome || formData.tipo_documento || '';
+    const numDoc = dados_financeiro?.numero_documento || formData.numero_documento || '';
+    const dataDoc = dados_financeiro?.data_emissao || formData.data_documento || '';
+    const motivoCompra = formData.motivo_movimentacao || '';
 
     const user = await base44.auth.me();
     const totalProdutos = produtos_selecionados.length;
@@ -242,18 +246,23 @@ export default function MovimentacoesEstoque() {
         numero_movimentacao: String(seqNum).padStart(6, '0'),
         tipo_movimentacao,
         tipo_detalhado,
+        tipo_documento: tipoDocumentoNome || undefined,
+        tipo_documento_id: tipoDocumentoId || undefined,
         data_movimentacao,
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
         produto_codigo: prod.codigo_interno || '',
+        produto_categoria: prod.categoria || '',
         quantidade: item.quantidade,
         unidade_medida: item.unidade || prod.unidade_medida || '',
         valor_unitario: item.valor_liquido_unitario || item.valor_unitario || 0,
         valor_total: item.valor_liquido || item.valor_total || 0,
-        fornecedor_id: fornId,
-        fornecedor_nome: fornNome,
-        numero_documento: numDoc,
+        fornecedor_id: fornId || undefined,
+        fornecedor_nome: fornNome || undefined,
+        cliente_nome: clienteNome || undefined,
+        numero_documento: numDoc || undefined,
         data_documento: dataDoc || undefined,
+        motivo_movimentacao: motivoCompra || undefined,
         observacoes: obs || '',
         responsavel: user?.email || '',
         usuario_responsavel: user?.email || '',
@@ -393,6 +402,8 @@ export default function MovimentacoesEstoque() {
           local_estoque_nome: local_destino || '',
           numero_documento: numDoc || 'TRANSF',
           data_documento: data_movimentacao || '',
+          fornecedor_id: fornId || '',
+          fornecedor_nome: fornNome || '',
           custo_unitario: custoMedioTransf,
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: item.quantidade,
