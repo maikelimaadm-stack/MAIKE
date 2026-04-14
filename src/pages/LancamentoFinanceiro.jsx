@@ -244,19 +244,42 @@ export default function LancamentoFinanceiro() {
 
   const handleEdit = (lanc) => {
     // Só permite editar pelo registro principal se for parcelado
+    let registroPrincipal = lanc;
     if (lanc.parcelamento_grupo_id && !lanc.is_registro_principal) {
-      // Busca o registro principal
       const principal = lancamentos.find(
         l => l.parcelamento_grupo_id === lanc.parcelamento_grupo_id && l.is_registro_principal
       );
       if (principal) {
         toast.info('Redirecionando para o registro principal para edição...');
-        setEditingLancamento(principal);
-        setShowForm(true);
-        return;
+        registroPrincipal = principal;
       }
     }
-    setEditingLancamento(lanc);
+
+    // Se faz parte de um grupo parcelado, reconstruir as parcelas a partir dos registros existentes
+    if (registroPrincipal.parcelamento_grupo_id && registroPrincipal.total_parcelas_grupo > 1) {
+      const todasParcelas = lancamentos
+        .filter(l => l.parcelamento_grupo_id === registroPrincipal.parcelamento_grupo_id)
+        .sort((a, b) => (a.numero_parcela_seq || 0) - (b.numero_parcela_seq || 0));
+
+      const parcelasReconstruidas = todasParcelas.map(p => ({
+        numero: p.numero_parcela_seq || 1,
+        data_vencimento: p.data_vencimento || '',
+        valor: p.valor_total || 0,
+        status: p.status || 'Aberto',
+        observacao_parcela: p.observacao_parcela || '',
+      }));
+
+      // Usar valor_total_lancamento como valor total do formulário
+      const valorTotal = registroPrincipal.valor_total_lancamento || todasParcelas.reduce((s, p) => s + (p.valor_total || 0), 0);
+
+      setEditingLancamento({
+        ...registroPrincipal,
+        valor_total: valorTotal,
+        parcelas: parcelasReconstruidas,
+      });
+    } else {
+      setEditingLancamento(registroPrincipal);
+    }
     setShowForm(true);
   };
 
