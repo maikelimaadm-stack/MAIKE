@@ -19,7 +19,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
-  const [transferMode, setTransferMode] = useState("local");
 
   const { data: lotesNota = [] } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
@@ -146,10 +145,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
-        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferMode("local"); setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>}
-        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferMode("local"); setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>}
-        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferMode("transferencia"); setTransferDirection("saida"); setShowTransferencia(true); }}>Transferência</Button>}
+      <div className="grid grid-cols-3 sm:grid-cols-3 gap-1">
+        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>}
+        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>}
         {permissions.visualizar_historico_cocho !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
@@ -295,8 +293,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
       <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-sm">{transferMode === "transferencia" ? "Transferência entre Locais" : transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</DialogTitle></DialogHeader>
-          <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} mode={transferMode} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+          <DialogHeader><DialogTitle className="text-sm">{transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</DialogTitle></DialogHeader>
+          <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
         </DialogContent>
       </Dialog>
 
