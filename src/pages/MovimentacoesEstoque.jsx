@@ -453,7 +453,13 @@ export default function MovimentacoesEstoque() {
     );
 
     if (registroPrincipal.lancamento_origem_id && possuiBaixaFinanceira) {
-      toast.error('Não é possível editar esta movimentação porque o financeiro já teve baixa.');
+      const lancamentosComBaixa = lancamentosFinanceirosRelacionados.filter(l =>
+        baixasFinanceiras.some(b => b.lancamento_id === l.id)
+      );
+      const detalheParcelas = lancamentosComBaixa
+        .map(l => l.total_parcelas_grupo > 1 ? `parcela ${l.numero_parcela_seq}/${l.total_parcelas_grupo}` : 'registro financeiro')
+        .join(', ');
+      toast.error(`Não é possível editar esta movimentação porque o financeiro já teve baixa (${detalheParcelas}).`);
       return;
     }
 

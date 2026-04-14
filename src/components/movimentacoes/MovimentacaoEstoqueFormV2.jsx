@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link2 } from "lucide-react";
+import {
+  OPERACOES_COM_CLIENTE,
+  OPERACOES_COM_DOCUMENTO,
+  OPERACOES_COM_FINANCEIRO,
+  OPERACOES_COM_FORNECEDOR,
+  OPERACOES_COM_MOTIVO,
+} from "./movimentacaoOperacaoRules";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -63,6 +70,13 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
   const [localOrigemId, setLocalOrigemId] = useState(initialData?.local_estoque_origem || '');
   const [localDestinoId, setLocalDestinoId] = useState(initialData?.local_estoque_destino || '');
   const [observacoes, setObservacoes] = useState(initialData?.observacoes || '');
+  const [fornecedorId, setFornecedorId] = useState(initialData?.fornecedor_id || '');
+  const [clienteNome, setClienteNome] = useState(initialData?.cliente_nome || '');
+  const [numeroDocumento, setNumeroDocumento] = useState(initialData?.numero_documento || '');
+  const [dataDocumento, setDataDocumento] = useState(initialData?.data_documento || '');
+  const [tipoDocumentoId, setTipoDocumentoId] = useState(initialData?.tipo_documento_id || '');
+  const [chaveDocumento, setChaveDocumento] = useState(initialData?.chave_documento || '');
+  const [motivoMovimentacao, setMotivoMovimentacao] = useState(initialData?.motivo_movimentacao || '');
   const [invalidFields, setInvalidFields] = useState([]);
 
   // ===== Integração financeira =====
@@ -94,11 +108,25 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
     queryFn: () => base44.entities.LocalEstoque.list(),
   });
 
+  const { data: tiposDocumento = [] } = useQuery({
+    queryKey: ['tipos_documento_movimentacao_form', empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.TipoDocumento.list();
+      return all.filter(t => t.empresa_id === empresaId && t.ativo !== false);
+    },
+    enabled: !!empresaId,
+  });
+
   const operacoesDisponiveis = useMemo(() => {
     return tipo === 'Entrada' ? OPERACOES_ENTRADA : OPERACOES_SAIDA;
   }, [tipo]);
 
   const ehTransferencia = operacao === 'transferencia';
+  const podeIntegrarFinanceiro = OPERACOES_COM_FINANCEIRO.includes(operacao);
+  const exibeCamposDocumento = OPERACOES_COM_DOCUMENTO.includes(operacao) && !dadosFinanceiro;
+  const exibeFornecedor = OPERACOES_COM_FORNECEDOR.includes(operacao) && !dadosFinanceiro;
+  const exibeCliente = OPERACOES_COM_CLIENTE.includes(operacao) && !dadosFinanceiro;
+  const exibeMotivoMovimentacao = OPERACOES_COM_MOTIVO.includes(operacao);
 
   // Dados vindos do financeiro
   const fornecedorNomeFinanceiro = dadosFinanceiro?.fornecedor_nome || '';
@@ -145,6 +173,15 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
       return;
     }
 
+    if (exibeFornecedor && !fornecedorId) missing.push('fornecedor_id');
+    if (exibeCliente && !clienteNome) missing.push('cliente_nome');
+    if (exibeCamposDocumento) {
+      if (!tipoDocumentoId) missing.push('tipo_documento_id');
+      if (!numeroDocumento) missing.push('numero_documento');
+      if (!dataDocumento) missing.push('data_documento');
+    }
+    if (exibeMotivoMovimentacao && !motivoMovimentacao) missing.push('motivo_movimentacao');
+
     // Validar que todos os itens tem produto e quantidade
     const itensInvalidos = itens.some(it => !it.produto_id || it.quantidade <= 0);
     if (itensInvalidos) {
@@ -170,6 +207,9 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
     const localOrigem = locais.find(l => l.id === localOrigemId);
     const localDestino = locais.find(l => l.id === localDestinoId);
 
+    const fornecedorSelecionado = fornecedores.find(f => f.id === fornecedorId);
+    const tipoDocumentoSelecionado = tiposDocumento.find(t => t.id === tipoDocumentoId);
+
     onSubmit({
       tipo_movimentacao: tipo,
       tipo_detalhado: operacao,
@@ -178,6 +218,15 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
       local_origem: localOrigem?.nome || undefined,
       local_estoque_destino: localDestinoId || (tipo === 'Entrada' ? localOrigemId : undefined),
       local_destino: localDestino?.nome || (tipo === 'Entrada' ? localOrigem?.nome : undefined),
+      fornecedor_id: dadosFinanceiro?.fornecedor_id || fornecedorId || undefined,
+      fornecedor_nome: dadosFinanceiro?.fornecedor_nome || fornecedorSelecionado?.nome || undefined,
+      cliente_nome: dadosFinanceiro?.cliente_nome || clienteNome?.toUpperCase() || undefined,
+      tipo_documento_id: dadosFinanceiro?.tipo_documento_id || tipoDocumentoId || undefined,
+      tipo_documento: dadosFinanceiro?.tipo_documento_nome || tipoDocumentoSelecionado?.nome || undefined,
+      numero_documento: dadosFinanceiro?.numero_documento || numeroDocumento?.toUpperCase() || undefined,
+      data_documento: dadosFinanceiro?.data_emissao || dataDocumento || undefined,
+      chave_documento: chaveDocumento?.toUpperCase() || undefined,
+      motivo_movimentacao: motivoMovimentacao?.toUpperCase() || undefined,
       observacoes: observacoes?.toUpperCase() || undefined,
       dados_financeiro: dadosFinanceiro || undefined,
       produtos_selecionados: itens.map(it => ({
@@ -276,29 +325,84 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
                 )}
               </div>
 
+              {exibeFornecedor && (
+                <FL label="Fornecedor" required error={invalidFields.includes('fornecedor_id')}>
+                  <AutocompleteGenerico
+                    items={fornecedores}
+                    value={fornecedorId}
+                    onChange={(v) => { setFornecedorId(v); handleChange('fornecedor_id', v); }}
+                    placeholder="BUSCAR FORNECEDOR..."
+                    displayField="nome"
+                    searchFields={["nome", "cnpj", "cpf"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
+                </FL>
+              )}
+
+              {exibeCliente && (
+                <FL label="Cliente" required error={invalidFields.includes('cliente_nome')}>
+                  <Input value={clienteNome} onChange={(e) => setClienteNome(e.target.value.toUpperCase())} placeholder="NOME DO CLIENTE" className={`${INPUT_CLS} uppercase`} />
+                </FL>
+              )}
+
+              {exibeCamposDocumento && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
+                  <FL label="Tipo Documento" required error={invalidFields.includes('tipo_documento_id')}>
+                    <AutocompleteGenerico
+                      items={tiposDocumento}
+                      value={tipoDocumentoId}
+                      onChange={(v) => { setTipoDocumentoId(v); handleChange('tipo_documento_id', v); }}
+                      placeholder="BUSCAR..."
+                      displayField="nome"
+                      searchFields={["nome", "sigla"]}
+                      className="w-full"
+                      inputClassName={AC_INPUT_CLS}
+                    />
+                  </FL>
+                  <FL label="Nº Documento" required error={invalidFields.includes('numero_documento')}>
+                    <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value.toUpperCase())} placeholder="000000" className={`${INPUT_CLS} uppercase`} />
+                  </FL>
+                  <FL label="Data Documento" required error={invalidFields.includes('data_documento')}>
+                    <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className={INPUT_CLS} />
+                  </FL>
+                  <FL label="Chave Documento">
+                    <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value.toUpperCase())} placeholder="CHAVE DE ACESSO" className={`${INPUT_CLS} uppercase`} />
+                  </FL>
+                </div>
+              )}
+
+              {exibeMotivoMovimentacao && (
+                <FL label="Motivo da Movimentação" required error={invalidFields.includes('motivo_movimentacao')}>
+                  <Input value={motivoMovimentacao} onChange={(e) => setMotivoMovimentacao(e.target.value.toUpperCase())} placeholder="INFORME O MOTIVO" className={`${INPUT_CLS} uppercase`} />
+                </FL>
+              )}
+
               {/* Observações */}
               <FL label="Observações">
                 <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent min-h-[36px]" rows={1} />
               </FL>
 
               {/* Botão Integrar Financeiro */}
-              <div className="flex items-center gap-2 pt-1 border-t">
-                <Button
-                  type="button"
-                  variant={dadosFinanceiro ? "default" : "outline"}
-                  size="sm"
-                  className={`h-7 text-xs gap-1 ${dadosFinanceiro ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
-                  onClick={() => setShowFinanceiro(true)}
-                >
-                  <Link2 className="w-3.5 h-3.5" />
-                  {dadosFinanceiro ? 'Financeiro Integrado ✓' : 'Integrar com Financeiro?'}
-                </Button>
-                {dadosFinanceiro && (
-                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={() => setDadosFinanceiro(null)}>
-                    Remover integração
+              {podeIntegrarFinanceiro && (
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <Button
+                    type="button"
+                    variant={dadosFinanceiro ? "default" : "outline"}
+                    size="sm"
+                    className={`h-7 text-xs gap-1 ${dadosFinanceiro ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+                    onClick={() => setShowFinanceiro(true)}
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    {dadosFinanceiro ? 'Financeiro Integrado ✓' : 'Integrar com Financeiro?'}
                   </Button>
-                )}
-              </div>
+                  {dadosFinanceiro && (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={() => setDadosFinanceiro(null)}>
+                      Remover integração
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Resumo do financeiro integrado */}
               {dadosFinanceiro && (
