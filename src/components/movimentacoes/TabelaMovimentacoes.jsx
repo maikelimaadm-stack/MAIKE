@@ -70,6 +70,9 @@ const formatarData = (dataString) => {
   return `${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 };
 
+// Na visualização "principais", ocultar colunas de detalhe individual de produto
+const COLUNAS_OCULTAS_PRINCIPAIS = ["produto", "quantidade", "unidade", "valor_unitario"];
+
 export default function TabelaMovimentacoes({
   movimentacoes = [],
   onEdit,
@@ -176,8 +179,11 @@ export default function TabelaMovimentacoes({
   }, []);
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
-  }, [colunasOrdem, colunasVisiveis]);
+    return colunasOrdem
+      .map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id))
+      .filter((c) => c && colunasVisiveis.includes(c.id))
+      .filter((c) => modoVisualizacao !== "principais" || !COLUNAS_OCULTAS_PRINCIPAIS.includes(c.id));
+  }, [colunasOrdem, colunasVisiveis, modoVisualizacao]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId)

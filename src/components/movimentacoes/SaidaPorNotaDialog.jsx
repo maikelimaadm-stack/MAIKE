@@ -35,6 +35,9 @@ export default function SaidaPorNotaDialog({ open, onOpenChange, lotes = [], pro
     });
   };
 
+  // Estado para digitação livre no campo de quantidade
+  const [qtdInputs, setQtdInputs] = useState({});
+
   const setQuantidade = (loteId, val) => {
     const lote = lotes.find(l => l.id === loteId);
     const max = lote?.quantidade_disponivel || 0;
@@ -42,6 +45,7 @@ export default function SaidaPorNotaDialog({ open, onOpenChange, lotes = [], pro
     if (num < 0) num = 0;
     if (num > max) num = max;
     setSelecionados(prev => ({ ...prev, [loteId]: num }));
+    setQtdInputs(prev => { const n = { ...prev }; delete n[loteId]; return n; });
   };
 
   const totalSelecionado = Object.values(selecionados).reduce((s, v) => s + v, 0);
@@ -130,11 +134,16 @@ export default function SaidaPorNotaDialog({ open, onOpenChange, lotes = [], pro
                       <td className={TD}>
                         {isSel ? (
                           <input
-                            value={fmt(qtd)}
+                            value={qtdInputs[lote.id] != null ? qtdInputs[lote.id] : fmt(qtd)}
                             onChange={(e) => {
-                              const raw = e.target.value.replace(/[^\d,]/g, '');
-                              const num = parseFloat(raw.replace(',', '.')) || 0;
-                              setQuantidade(lote.id, num);
+                              const raw = e.target.value.replace(/[^\d,\.]/g, '');
+                              setQtdInputs(prev => ({ ...prev, [lote.id]: raw }));
+                            }}
+                            onBlur={() => {
+                              const raw = qtdInputs[lote.id];
+                              if (raw != null) {
+                                setQuantidade(lote.id, raw);
+                              }
                             }}
                             className={INP}
                           />

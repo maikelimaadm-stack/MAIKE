@@ -11,7 +11,7 @@ export default function IntegrarFinanceiroDialog({ open, onOpenChange, onSave, f
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[1100px] max-h-[92vh] overflow-y-auto p-2">
+      <DialogContent className="max-w-[1100px] max-h-[92vh] overflow-y-auto overflow-x-visible p-2">
         <DialogHeader className="pb-1">
           <DialogTitle className="text-sm font-semibold text-slate-900">Integrar com Financeiro</DialogTitle>
         </DialogHeader>

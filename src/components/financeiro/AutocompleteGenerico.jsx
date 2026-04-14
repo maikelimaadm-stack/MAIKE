@@ -18,6 +18,7 @@ export default function AutocompleteGenerico({
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const wrapperRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   const itemSelecionado = items.find(item => item.id === value);
 
@@ -29,7 +30,10 @@ export default function AutocompleteGenerico({
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+      // Verificar se o clique foi dentro do wrapper OU dentro do dropdown portaleado
+      const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(event.target);
+      const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+      if (!isInsideWrapper && !isInsideDropdown) {
         setOpen(false);
         if (itemSelecionado) {
           setSearchTerm(itemSelecionado[displayField] || "");
@@ -94,11 +98,12 @@ export default function AutocompleteGenerico({
     if (!open) return null;
 
     const content = itensFiltrados.length > 0 ? (
-      <div style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+      <div ref={dropdownRef} style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
         {itensFiltrados.map((item) => (
           <div
             key={item.id}
-            onMouseDown={(e) => { e.preventDefault(); handleSelect(item); }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
             className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
               value === item.id ? 'bg-emerald-50' : ''
             }`}
@@ -117,7 +122,7 @@ export default function AutocompleteGenerico({
         ))}
       </div>
     ) : searchTerm ? (
-      <div style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg">
+      <div ref={dropdownRef} style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg">
         <div className="px-3 py-6 text-center text-xs text-slate-500">
           Nenhum item encontrado
         </div>
