@@ -71,7 +71,7 @@ const formatarData = (dataString) => {
 };
 
 // Na visualização "principais", ocultar colunas de detalhe individual de produto
-const COLUNAS_OCULTAS_PRINCIPAIS = ["produto", "quantidade", "unidade", "valor_unitario"];
+const COLUNAS_OCULTAS_PRINCIPAIS = ["produto", "quantidade", "unidade", "valor_unitario", "parcela_seq"];
 
 export default function TabelaMovimentacoes({
   movimentacoes = [],
@@ -216,7 +216,15 @@ export default function TabelaMovimentacoes({
     document.body.style.userSelect = "none";
   };
 
+  const getGrupoItens = (item) => {
+    if (item.movimentacao_grupo_id) {
+      return allMovimentacoes.filter((mov) => mov.movimentacao_grupo_id === item.movimentacao_grupo_id);
+    }
+    return [item];
+  };
+
   const getFieldValue = (item, colunaId) => {
+    const itensGrupo = modoVisualizacao === "principais" ? getGrupoItens(item) : [item];
     switch (colunaId) {
       case "numero":
         return String(item.numero_movimentacao || "");
@@ -229,13 +237,17 @@ export default function TabelaMovimentacoes({
       case "produto":
         return item.produto_nome || "";
       case "quantidade":
-        return formatarNumero(item.quantidade);
+        return modoVisualizacao === "principais"
+          ? formatarNumero(itensGrupo.reduce((sum, mov) => sum + (Number(mov.quantidade) || 0), 0))
+          : formatarNumero(item.quantidade);
       case "unidade":
         return item.unidade_medida || "";
       case "valor_unitario":
         return formatarMoeda(item.valor_unitario);
       case "valor_total":
-        return formatarMoeda(item.valor_total);
+        return modoVisualizacao === "principais"
+          ? formatarMoeda(itensGrupo.reduce((sum, mov) => sum + (Number(mov.valor_total) || 0), 0))
+          : formatarMoeda(item.valor_total);
       case "fornecedor":
         return item.fornecedor_nome || item.cliente_nome || "";
       case "local_estoque":
@@ -255,9 +267,9 @@ export default function TabelaMovimentacoes({
       case "responsavel":
         return item.usuario_responsavel || "";
       case "total_itens":
-        return String(item.total_movimentacoes_grupo || 1);
+        return String(getGrupoItens(item).length || 1);
       case "parcela_seq":
-        return item.numero_movimentacao_seq ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1/1";
+        return item.numero_movimentacao_seq && (item.total_movimentacoes_grupo || 1) > 1 ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1x";
       default:
         return "";
     }
@@ -387,16 +399,32 @@ export default function TabelaMovimentacoes({
         return <Badge variant="outline" className={`${getBadgeTipo(item.tipo_movimentacao)} text-xs`}>{item.tipo_movimentacao}</Badge>;
       case "tipo_detalhado":
         return getLabelOperacao(item.tipo_detalhado);
-      case "produto":
+      case "produto": {
+        if (modoVisualizacao === "principais") {
+          const itensGrupo = getGrupoItens(item);
+          const totalItens = itensGrupo.length;
+          return <span className="text-slate-700 font-medium">{totalItens > 1 ? `${totalItens} produtos` : '1 produto'}</span>;
+        }
         return item.produto_nome || "-";
-      case "quantidade":
+      }
+      case "quantidade": {
+        if (modoVisualizacao === "principais") {
+          const totalQuantidade = getGrupoItens(item).reduce((sum, mov) => sum + (Number(mov.quantidade) || 0), 0);
+          return formatarNumero(totalQuantidade);
+        }
         return formatarNumero(item.quantidade);
+      }
       case "unidade":
         return item.unidade_medida || "-";
       case "valor_unitario":
         return formatarMoeda(item.valor_unitario);
-      case "valor_total":
+      case "valor_total": {
+        if (modoVisualizacao === "principais") {
+          const totalValor = getGrupoItens(item).reduce((sum, mov) => sum + (Number(mov.valor_total) || 0), 0);
+          return formatarMoeda(totalValor);
+        }
         return formatarMoeda(item.valor_total);
+      }
       case "fornecedor":
         return item.fornecedor_nome || item.cliente_nome || "-";
       case "local_estoque":
@@ -415,12 +443,12 @@ export default function TabelaMovimentacoes({
         return item.observacoes || "-";
       case "responsavel":
         return item.usuario_responsavel || "-";
-      case "total_itens":
-        return item.total_movimentacoes_grupo > 1 ? (
-          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">{item.total_movimentacoes_grupo} itens</Badge>
-        ) : "1";
+      case "total_itens": {
+        const totalItens = getGrupoItens(item).length || 1;
+        return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">{totalItens} {totalItens > 1 ? 'itens' : 'item'}</Badge>;
+      }
       case "parcela_seq":
-        return item.numero_movimentacao_seq ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1/1";
+        return item.numero_movimentacao_seq && (item.total_movimentacoes_grupo || 1) > 1 ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1x";
       default:
         return "-";
     }

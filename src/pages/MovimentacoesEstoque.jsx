@@ -113,11 +113,11 @@ export default function MovimentacoesEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Classificação: principais vs movimentações (igual financeiro)
-  const isPrincipalOuAvulso = (m) => !m.movimentacao_grupo_id || m.is_registro_principal;
-  const isMovimentacaoGrupo = (m) => !!m.movimentacao_grupo_id && m.total_movimentacoes_grupo > 1;
-  const movPrincipais = useMemo(() => movimentacoes.filter(isPrincipalOuAvulso), [movimentacoes]);
-  const movTodas = useMemo(() => movimentacoes.filter(isMovimentacaoGrupo), [movimentacoes]);
+  // Classificação: principais = sempre registro principal | movimentações = todos os itens/produtos
+  const isPrincipal = (m) => m.is_registro_principal === true;
+  const isMovimentacaoItem = (m) => typeof m.numero_movimentacao_seq === 'number' && m.numero_movimentacao_seq >= 1;
+  const movPrincipais = useMemo(() => movimentacoes.filter(isPrincipal), [movimentacoes]);
+  const movTodas = useMemo(() => movimentacoes.filter(isMovimentacaoItem), [movimentacoes]);
 
   const handleSubmit = async (formData) => {
     const { tipo_movimentacao, tipo_detalhado, data_movimentacao, local_estoque_origem, local_origem, local_estoque_destino, local_destino, observacoes: obs, dados_financeiro, produtos_selecionados } = formData;
