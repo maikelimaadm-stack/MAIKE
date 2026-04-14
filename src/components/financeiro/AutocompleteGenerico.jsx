@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -18,7 +19,8 @@ export default function AutocompleteGenerico({
   const [searchTerm, setSearchTerm] = useState("");
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
-  const [pos, setPos] = useState(null);
+  const dropdownRef = useRef(null);
+  const [rect, setRect] = useState(null);
 
   const itemSelecionado = items.find(item => item.id === value);
 
@@ -28,9 +30,13 @@ export default function AutocompleteGenerico({
     }
   }, [itemSelecionado, displayField]);
 
+  // Fechar ao clicar fora
   useEffect(() => {
+    if (!open) return;
     function handleClickOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+      const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(event.target);
+      const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+      if (!isInsideWrapper && !isInsideDropdown) {
         setOpen(false);
         if (itemSelecionado) {
           setSearchTerm(itemSelecionado[displayField] || "");
@@ -39,30 +45,24 @@ export default function AutocompleteGenerico({
         }
       }
     }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open, itemSelecionado, displayField]);
 
-  const calcPos = useCallback(() => {
-    if (!inputRef.current) return;
-    const rect = inputRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 2, left: rect.left, width: rect.width });
-  }, []);
-
+  // Atualizar posição do dropdown continuamente enquanto aberto
   useEffect(() => {
-    if (open) {
-      calcPos();
-      const handler = () => calcPos();
-      window.addEventListener('scroll', handler, true);
-      window.addEventListener('resize', handler);
-      return () => {
-        window.removeEventListener('scroll', handler, true);
-        window.removeEventListener('resize', handler);
-      };
-    }
-  }, [open, calcPos]);
+    if (!open || !inputRef.current) return;
+    let rafId;
+    const update = () => {
+      if (inputRef.current) {
+        const r = inputRef.current.getBoundingClientRect();
+        setRect({ top: r.bottom + 2, left: r.left, width: r.width });
+      }
+      rafId = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(rafId);
+  }, [open]);
 
   const itensFiltrados = items.filter(item => {
     const search = searchTerm.toLowerCase();
@@ -84,42 +84,25 @@ export default function AutocompleteGenerico({
     setOpen(false);
   };
 
-  const showDropdown = open && pos;
   const hasResults = itensFiltrados.length > 0;
-  const showEmpty = open && searchTerm && !hasResults;
 
-  return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            if (!open) setOpen(true);
-            calcPos();
-          }}
-          onFocus={() => { setOpen(true); calcPos(); }}
-          placeholder={placeholder}
-          className={`pr-8 h-8 text-xs uppercase ${inputClassName}`}
-          style={{ textTransform: 'uppercase' }}
-        />
-        {searchTerm && (
-          <button
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleClear(); }}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
+  // Renderizar dropdown via portal no body para escapar overflow do Dialog
+  const renderDropdown = () => {
+    if (!open || !rect) return null;
 
-      {showDropdown && hasResults && (
-        <div
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 99999 }}
-          className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto"
-        >
+    const style = {
+      position: 'fixed',
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 999999,
+    };
+
+    let content = null;
+
+    if (hasResults) {
+      content = (
+        <div ref={dropdownRef} style={style} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {itensFiltrados.map((item) => (
             <div
               key={item.id}
@@ -142,18 +125,47 @@ export default function AutocompleteGenerico({
             </div>
           ))}
         </div>
-      )}
-
-      {showEmpty && (
-        <div
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 99999 }}
-          className="bg-white border border-slate-200 rounded-md shadow-lg"
-        >
+      );
+    } else if (searchTerm) {
+      content = (
+        <div ref={dropdownRef} style={style} className="bg-white border border-slate-200 rounded-md shadow-lg">
           <div className="px-3 py-6 text-center text-xs text-slate-500">
             Nenhum item encontrado
           </div>
         </div>
-      )}
+      );
+    }
+
+    if (!content) return null;
+    return ReactDOM.createPortal(content, document.body);
+  };
+
+  return (
+    <div ref={wrapperRef} className={`relative ${className}`}>
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (!open) setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          className={`pr-8 h-8 text-xs uppercase ${inputClassName}`}
+          style={{ textTransform: 'uppercase' }}
+        />
+        {searchTerm && (
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleClear(); }}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      {renderDropdown()}
     </div>
   );
 }
