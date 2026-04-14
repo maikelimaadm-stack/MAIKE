@@ -69,7 +69,9 @@ const getBadgeStyle = (status) => {
   return styles[status] || 'bg-slate-100 text-slate-700';
 };
 
-const COLUNAS_DISPONIVEIS = [
+const COLUNAS_BAIXA_IDS = ['data_baixa', 'forma_pgto_baixa', 'valor_juros_baixa', 'valor_multa_baixa', 'valor_desconto_baixa', 'comprovante_baixa', 'usuario_baixa', 'obs_baixa', 'parcelas_pagas'];
+
+const TODAS_COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
   { id: 'acoes', label: 'Ações', default: true, fixo: true, width: 25 },
   { id: 'numero_lancamento', label: 'Nº', default: true, sortable: true, width: 70 },
@@ -105,7 +107,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacao_parcela', label: 'Obs. Parcela', default: false, width: 200 },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+const ALL_DEFAULT_VISIBLE_COLUMNS = TODAS_COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
 const COLUMN_WIDTHS_KEY = "colunas_largura_financeiro";
 const MIN_COLUMN_WIDTH = 80;
 
@@ -155,7 +157,13 @@ const getFieldValue = (lancamento, colunaId) => {
 };
 
 export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, modoTela = "contas", onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, onUpdateLote, showConfigColunas, setShowConfigColunas, baixas = [], allLancamentos = [] }) {
-  // modoTela: "lancamentos" = permite editar/excluir (se sem baixa), "contas" = somente visualização/baixa
+  // modoTela: "lancamentos" = apenas colunas de lançamento (sem baixa), "contas" = todas as colunas
+  const COLUNAS_DISPONIVEIS = useMemo(() => {
+    if (modoTela === 'lancamentos') return TODAS_COLUNAS_DISPONIVEIS.filter(c => !COLUNAS_BAIXA_IDS.includes(c.id));
+    return TODAS_COLUNAS_DISPONIVEIS;
+  }, [modoTela]);
+  const DEFAULT_VISIBLE_COLUMNS = useMemo(() => COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id), [COLUNAS_DISPONIVEIS]);
+
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
@@ -195,8 +203,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem(`colunas_tabela_financeiro_${tipo.toLowerCase()}`);
-    if (saved) { try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch { /* fallback */ } }
-    return DEFAULT_VISIBLE_COLUMNS;
+    if (saved) { try { return Array.from(new Set([...JSON.parse(saved), ...ALL_DEFAULT_VISIBLE_COLUMNS])); } catch { /* fallback */ } }
+    return ALL_DEFAULT_VISIBLE_COLUMNS;
   });
 
   const toggleColuna = (colunaId) => {
@@ -215,7 +223,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id)).filter(c => c && colunasVisiveis.includes(c.id)).map(c => {
+    const idsDisponiveis = new Set(COLUNAS_DISPONIVEIS.map(c => c.id));
+    return colunasOrdem.map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id)).filter(c => c && colunasVisiveis.includes(c.id) && idsDisponiveis.has(c.id)).map(c => {
       // Label dinâmico conforme modo de visualização
       if (modoVisualizacao === 'principais' && c.id === 'valor_total') return { ...c, label: 'Vlr. Total' };
       if (modoVisualizacao === 'principais' && c.id === 'saldo') return { ...c, label: 'Saldo Total' };
