@@ -73,22 +73,30 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       observacao: '', anexos_urls: [],
     };
     if (!initialData) return defaults;
+    // Na edição do registro principal, usar valor_total_lancamento (valor total original)
+    // e limpar o sufixo "- PARCELA X/Y" da descrição
+    const isRegistroPrincipalGrupo = initialData.parcelamento_grupo_id && initialData.is_registro_principal;
+    const valorEditar = isRegistroPrincipalGrupo
+      ? (initialData.valor_total_lancamento || initialData.valor_total || 0)
+      : (initialData.valor_total || 0);
+    const descricaoLimpa = (initialData.descricao || '').replace(/\s*-\s*PARCELA\s+\d+\/\d+$/i, '');
+
     // Na edição, o registro individual não tem mais array de parcelas
     // Montamos uma parcela única a partir dos dados do registro
     const parcelasIniciais = initialData.parcelas || [];
     if (parcelasIniciais.length === 0 && initialData.id) {
-      // Registro existente sem array parcelas: criar parcela única
       parcelasIniciais.push({
-        numero: initialData.numero_parcela_seq || 1,
+        numero: 1,
         data_vencimento: initialData.data_vencimento || '',
-        valor: initialData.valor_total || 0,
+        valor: valorEditar,
         status: initialData.status || 'Aberto',
         observacao_parcela: initialData.observacao_parcela || '',
       });
     }
     return {
       ...defaults, ...initialData,
-      valor_total: initialData.valor_total || '',
+      descricao: descricaoLimpa,
+      valor_total: valorEditar,
       valor_desconto: initialData.valor_desconto || '',
       parcelas: parcelasIniciais,
       rateio_grupos: initialData.rateio_grupos || [],
