@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -61,16 +62,83 @@ export default function AutocompleteGenerico({
     setOpen(false);
   };
 
+  const inputRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+
+  const updateDropdownPosition = useCallback(() => {
+    if (!wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 2,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 9999,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      updateDropdownPosition();
+      const onScroll = () => updateDropdownPosition();
+      window.addEventListener('scroll', onScroll, true);
+      window.addEventListener('resize', onScroll);
+      return () => {
+        window.removeEventListener('scroll', onScroll, true);
+        window.removeEventListener('resize', onScroll);
+      };
+    }
+  }, [open, updateDropdownPosition]);
+
+  const renderDropdown = () => {
+    if (!open) return null;
+
+    const content = itensFiltrados.length > 0 ? (
+      <div style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+        {itensFiltrados.map((item) => (
+          <div
+            key={item.id}
+            onMouseDown={(e) => { e.preventDefault(); handleSelect(item); }}
+            className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
+              value === item.id ? 'bg-emerald-50' : ''
+            }`}
+          >
+            {renderItem ? renderItem(item) : (
+              <>
+                <div className="text-xs font-medium text-slate-900">
+                  {item[displayField]}
+                </div>
+                {renderSubtext && (
+                  <div className="text-[10px] text-slate-500">{renderSubtext(item)}</div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : searchTerm ? (
+      <div style={dropdownStyle} className="bg-white border border-slate-200 rounded-md shadow-lg">
+        <div className="px-3 py-6 text-center text-xs text-slate-500">
+          Nenhum item encontrado
+        </div>
+      </div>
+    ) : null;
+
+    if (!content) return null;
+    return ReactDOM.createPortal(content, document.body);
+  };
+
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <div className="relative">
         <Input
+          ref={inputRef}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => { setOpen(true); updateDropdownPosition(); }}
           placeholder={placeholder}
           className={`pr-8 h-8 text-xs uppercase ${inputClassName}`}
           style={{ textTransform: 'uppercase' }}
@@ -86,38 +154,7 @@ export default function AutocompleteGenerico({
         )}
       </div>
 
-      {open && itensFiltrados.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
-          {itensFiltrados.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleSelect(item)}
-              className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
-                value === item.id ? 'bg-emerald-50' : ''
-              }`}
-            >
-              {renderItem ? renderItem(item) : (
-                <>
-                  <div className="text-xs font-medium text-slate-900">
-                    {item[displayField]}
-                  </div>
-                  {renderSubtext && (
-                    <div className="text-[10px] text-slate-500">{renderSubtext(item)}</div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {open && searchTerm && itensFiltrados.length === 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg">
-          <div className="px-3 py-6 text-center text-xs text-slate-500">
-            Nenhum item encontrado
-          </div>
-        </div>
-      )}
+      {renderDropdown()}
     </div>
   );
 }

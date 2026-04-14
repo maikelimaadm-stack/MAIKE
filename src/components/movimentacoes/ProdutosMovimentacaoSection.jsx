@@ -11,6 +11,22 @@ const TH = "sticky top-0 z-10 bg-white text-[11px] font-medium text-gray-900 tex
 const TD = "px-2 py-0 text-xs align-middle border-r border-b border-gray-300 h-7";
 const INP = "w-full bg-transparent border-0 outline-none text-xs h-[26px] px-0 focus:ring-0";
 
+// Formatação de quantidade (NÃO é moeda - aceita valor direto com vírgula decimal)
+function formatarQuantidade(val) {
+  if (val === null || val === undefined || val === '') return '';
+  const num = typeof val === 'string' ? parseFloat(val.replace(',', '.')) : val;
+  if (isNaN(num) || num === 0) return '';
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+}
+
+function parseQuantidade(str) {
+  if (!str) return 0;
+  // Remove pontos de milhar, troca vírgula por ponto
+  const cleaned = String(str).replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
 export default function ProdutosMovimentacaoSection({ itens, onChange, produtos, valorLiquidoFinanceiro, tipoMovimentacao, localEstoqueOrigemId }) {
   const totalLiquidoProdutos = itens.reduce((sum, r) => sum + (r.valor_liquido || 0), 0);
   const isSaida = tipoMovimentacao === 'Saída';
@@ -145,9 +161,17 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
         return newItem;
       }
 
-      if (campo === 'quantidade_input') {
-        newItem.quantidade = parseMoedaInput(valor);
-        newItem._lotes_consumidos = null; // Reset seleção manual ao mudar quantidade
+      if (campo === 'quantidade_raw') {
+        // Permite digitação livre, só valida no blur
+        newItem._qtd_input = valor;
+        return newItem;
+      }
+
+      if (campo === 'quantidade_blur') {
+        const qtd = parseQuantidade(newItem._qtd_input != null ? newItem._qtd_input : String(newItem.quantidade));
+        newItem.quantidade = qtd;
+        delete newItem._qtd_input;
+        newItem._lotes_consumidos = null;
         if (isSaida) {
           newItem = recalcularSaida(newItem);
         } else {
@@ -272,8 +296,8 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
       {itens.length === 0 ? (
         <div className="text-[11px] text-slate-400 text-center py-4">Nenhum produto adicionado. Clique em + para adicionar.</div>
       ) : (
-        <div className="overflow-visible max-h-[260px]" style={{ overflowX: 'auto', overflowY: 'auto' }}>
-          <table className="w-full border-collapse border-separate border-spacing-0 table-fixed min-w-[900px]">
+        <div className="max-h-[260px]" style={{ overflowX: 'auto', overflowY: 'auto' }}>
+          <table className="w-full border-separate border-spacing-0 table-fixed min-w-[900px]">
             <colgroup>
               <col style={{ width: 240 }} />
               <col style={{ width: 90 }} />
@@ -321,12 +345,13 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                     </td>
                     <td className={TD}>
                       {isSaida && modoFifo === 'por_nota' && temLoteManual ? (
-                        <span className="text-center block font-mono text-[11px]">{formatarMoedaInput(item.quantidade)}</span>
+                        <span className="text-center block font-mono text-[11px]">{formatarQuantidade(item.quantidade)}</span>
                       ) : (
                         <input
-                          value={formatarMoedaInput(item.quantidade)}
-                          onChange={(e) => atualizarItem(index, 'quantidade_input', e.target.value)}
-                          placeholder="0,00"
+                          value={item._qtd_input != null ? item._qtd_input : formatarQuantidade(item.quantidade)}
+                          onChange={(e) => atualizarItem(index, 'quantidade_raw', e.target.value)}
+                          onBlur={() => atualizarItem(index, 'quantidade_blur', '')}
+                          placeholder="0"
                           className={`${INP} text-center font-mono`}
                         />
                       )}
@@ -376,7 +401,7 @@ export default function ProdutosMovimentacaoSection({ itens, onChange, produtos,
                     </td>
                     {isSaida && (
                       <td className={`${TD} text-right font-mono text-[11px] ${saldoInsuf ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
-                        {item._saldo_disponivel != null ? formatarMoedaInput(item._saldo_disponivel) : '-'}
+                        {item._saldo_disponivel != null ? formatarQuantidade(item._saldo_disponivel) : '-'}
                         {saldoInsuf && <span className="ml-0.5">⚠</span>}
                       </td>
                     )}
