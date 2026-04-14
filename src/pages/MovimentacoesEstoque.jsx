@@ -431,8 +431,16 @@ export default function MovimentacoesEstoque() {
       }
     }
 
-    const lancamentoFinanceiroOrigem = registroPrincipal.lancamento_origem_id
-      ? lancamentosFinanceiros.find(l => l.id === registroPrincipal.lancamento_origem_id)
+    const movimentacoesDoGrupo = registroPrincipal.movimentacao_grupo_id
+      ? movimentacoes.filter(m => m.movimentacao_grupo_id === registroPrincipal.movimentacao_grupo_id)
+      : [registroPrincipal];
+
+    const lancamentoOrigemId = registroPrincipal.lancamento_origem_id
+      || movimentacoesDoGrupo.find(m => m.lancamento_origem_id)?.lancamento_origem_id
+      || null;
+
+    const lancamentoFinanceiroOrigem = lancamentoOrigemId
+      ? lancamentosFinanceiros.find(l => l.id === lancamentoOrigemId)
       : null;
 
     const grupoFinanceiroOrigemId = lancamentoFinanceiroOrigem?.parcelamento_grupo_id || null;
