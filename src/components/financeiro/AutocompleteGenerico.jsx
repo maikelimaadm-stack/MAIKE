@@ -54,11 +54,11 @@ export default function AutocompleteGenerico({
     });
   });
 
-  const handleSelect = (item) => {
+  const handleSelect = useCallback((item) => {
     onChange(item.id);
     setSearchTerm(item[displayField] || "");
     setOpen(false);
-  };
+  }, [onChange, displayField]);
 
   const handleClear = () => {
     onChange("");
@@ -102,9 +102,8 @@ export default function AutocompleteGenerico({
         {itensFiltrados.map((item) => (
           <div
             key={item.id}
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
-            onTouchEnd={(e) => { e.stopPropagation(); handleSelect(item); }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
+            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(item); }}
             className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
               value === item.id ? 'bg-emerald-50' : ''
             }`}
