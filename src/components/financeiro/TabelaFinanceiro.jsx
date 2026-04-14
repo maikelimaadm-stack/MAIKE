@@ -595,7 +595,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
                       lancamentosOrdenados.map((lancamento) => {
                         if (!lancamento) return null;
                         const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
-                        const isPrincipal = lancamento.is_registro_principal;
+                        // Só pode dar baixa em parcelas (não em registros principais/avulsos)
+                        const isRegistroPrincipalOuAvulso = !lancamento.parcelamento_grupo_id || lancamento.is_registro_principal;
 
                         return (
                           <TableRow key={lancamento.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100">
@@ -621,18 +622,18 @@ export default function TabelaFinanceiro({ lancamentos, tipo, modoVisualizacao, 
                                           <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="start">
-                                          <DropdownMenuItem onClick={() => setDetalhesAberto(lancamento)} className="text-xs"><Eye className="w-3.5 h-3.5 mr-2" />Ver Detalhes</DropdownMenuItem>
-                                          {temProdutos && <DropdownMenuItem onClick={() => setProdutosDialog(lancamento)} className="text-xs"><Package className="w-3.5 h-3.5 mr-2" />Ver Produtos ({lancamento.produtos_lancamento.length})</DropdownMenuItem>}
+                                          <DropdownMenuItem onClick={() => setDetalhesAberto(lancamento)} className="text-xs">Ver Detalhes</DropdownMenuItem>
+                                          {temProdutos && <DropdownMenuItem onClick={() => setProdutosDialog(lancamento)} className="text-xs">Ver Produtos ({lancamento.produtos_lancamento.length})</DropdownMenuItem>}
                                           {modoTela === 'lancamentos' && lancamento?.valor_pago === 0 && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && (
-                                            <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs"><Edit className="w-3.5 h-3.5 mr-2" />Editar</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">Editar</DropdownMenuItem>
                                           )}
                                           <DropdownMenuSeparator />
-                                          {lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs"><CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />Dar Baixa</DropdownMenuItem>}
-                                          {(lancamento?.status === 'Pago' || lancamento?.status === 'Recebido') && onCancelarBaixa && <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs"><XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />Cancelar Baixa</DropdownMenuItem>}
+                                          {!isRegistroPrincipalOuAvulso && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs text-emerald-600">Dar Baixa</DropdownMenuItem>}
+                                          {!isRegistroPrincipalOuAvulso && (lancamento?.status === 'Pago' || lancamento?.status === 'Recebido') && onCancelarBaixa && <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs text-orange-600">Cancelar Baixa</DropdownMenuItem>}
                                           {modoTela === 'lancamentos' && lancamento?.valor_pago === 0 && lancamento?.status !== 'Pago' && lancamento?.status !== 'Recebido' && lancamento?.status !== 'Cancelado' && (
                                             <>
                                               <DropdownMenuSeparator />
-                                              <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600"><Trash2 className="w-3.5 h-3.5 mr-2" />Excluir</DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
                                             </>
                                           )}
                                         </DropdownMenuContent>

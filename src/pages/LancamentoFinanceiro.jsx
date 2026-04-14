@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Settings, FileText } from "lucide-react";
+import { Settings } from "lucide-react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
@@ -364,7 +364,7 @@ export default function LancamentoFinanceiro() {
 
           <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
             <TabsList className="grid w-full max-w-lg grid-cols-3 h-8 bg-slate-100">
-              <TabsTrigger value="lancamentos" className="text-xs gap-1"><FileText className="w-3 h-3" />Lançamentos ({lancamentosPrincipais.length})</TabsTrigger>
+              <TabsTrigger value="lancamentos" className="text-xs">Lançamentos ({lancamentosPrincipais.length})</TabsTrigger>
               <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({pagarPrincipais.length})</TabsTrigger>
               <TabsTrigger value="receber" className="text-xs">Contas a Receber ({receberPrincipais.length})</TabsTrigger>
             </TabsList>
