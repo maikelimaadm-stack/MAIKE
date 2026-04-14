@@ -18,7 +18,7 @@ import {
 import { formatQuantidadeTecnica } from "../suplementacao/formatters";
 import { produtoSuportaSacos, sacosParaKg, kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 
-export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
+export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", mode = "local", onSuccess, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const direction = initialDirection;
@@ -52,17 +52,19 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
   const outrosLocais = useMemo(() => locais.filter((l) => l.id !== deposito.local_estoque_id), [locais, deposito.local_estoque_id]);
 
-  const localOrigemId = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
-  const localOrigemNome = direction === "entrada"
+  const isTransferencia = mode === "transferencia";
+
+  const localOrigemId = direction === "entrada" && !isTransferencia ? localRelacionadoId : deposito.local_estoque_id;
+  const localOrigemNome = direction === "entrada" && !isTransferencia
     ? outrosLocais.find((l) => l.id === localRelacionadoId)?.nome || ""
     : deposito.local_estoque_nome;
-  const localDestinoId = direction === "entrada" ? deposito.local_estoque_id : localRelacionadoId;
-  const localDestinoNome = direction === "entrada"
+  const localDestinoId = direction === "entrada" && !isTransferencia ? deposito.local_estoque_id : localRelacionadoId;
+  const localDestinoNome = direction === "entrada" && !isTransferencia
     ? deposito.local_estoque_nome
     : outrosLocais.find((l) => l.id === localRelacionadoId)?.nome || "";
 
-  const localFonteId = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
-  const localFonteNome = direction === "entrada"
+  const localFonteId = direction === "entrada" && !isTransferencia ? localRelacionadoId : deposito.local_estoque_id;
+  const localFonteNome = direction === "entrada" && !isTransferencia
     ? outrosLocais.find((l) => l.id === localRelacionadoId)?.nome || ""
     : deposito.local_estoque_nome;
 
@@ -105,7 +107,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       await registrarTransferenciaEntreLocais({
         empresaId: empresaSelecionadaId, userEmail: user?.email, produto: produtoSelecionado,
         quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
-        observacoes: observacoes || `Transferência pelo depósito ${deposito.nome_ponto}`, lotesNota,
+        observacoes: observacoes || `${isTransferencia ? 'Transferência' : direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
       });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "movimentacoes", "produtos", "historico-deposito"].includes(q.queryKey[0]) });
       toast.success("Transferência registrada.");
@@ -120,13 +122,13 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="py-2 px-3 border-b bg-slate-50">
-        <CardTitle className="text-sm font-semibold text-slate-900">{direction === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</CardTitle>
+        <CardTitle className="text-sm font-semibold text-slate-900">{isTransferencia ? "Transferência entre Locais" : direction === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
         <form onSubmit={handleSubmit} className="space-y-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
             <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">{isTransferencia ? "Local de Destino" : direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={localRelacionadoId} onValueChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}>
                 <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o local" /></SelectTrigger>
                 <SelectContent>{outrosLocais.map((l) => <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>)}</SelectContent>
