@@ -326,7 +326,7 @@ export default function TabelaProdutos({
   return (
     <>
       <div className="space-y-1">
-        <Card className="shadow-sm border-slate-300">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="grid grid-cols-2 md:grid-cols-6 gap-1">
               <div className="md:col-span-2 space-y-1">
@@ -337,7 +337,7 @@ export default function TabelaProdutos({
                     placeholder="Buscar produto, código, categoria..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 h-8 text-xs"
+                    className="pl-9 h-7 text-xs"
                   />
                   {searchTerm && (
                     <button onClick={() => setSearchTerm("")} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-slate-400" /></button>
@@ -348,7 +348,7 @@ export default function TabelaProdutos({
               <div className="space-y-1">
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">CATEGORIA</label>
                 <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                     {categorias.map((item) => (
@@ -361,7 +361,7 @@ export default function TabelaProdutos({
               <div className="space-y-1">
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">UNIDADE</label>
                 <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todas</SelectItem>
                     {unidades.map((item) => (
@@ -374,7 +374,7 @@ export default function TabelaProdutos({
               <div className="space-y-1">
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">LOCAL</label>
                 <Select value={filtroLocal} onValueChange={setFiltroLocal}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     {locais.map((item) => (
@@ -387,7 +387,7 @@ export default function TabelaProdutos({
               <div className="space-y-1">
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">TIPO CONSUMO</label>
                 <Select value={filtroTipoConsumo} onValueChange={setFiltroTipoConsumo}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     {tiposConsumo.map((item) => (
@@ -402,7 +402,7 @@ export default function TabelaProdutos({
               <div className="space-y-1">
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">ESTOQUE</label>
                 <Select value={filtroEstoque} onValueChange={setFiltroEstoque}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={VALOR_TODOS} className="text-xs">Todos</SelectItem>
                     <SelectItem value="baixo" className="text-xs">Estoque Baixo</SelectItem>
@@ -445,16 +445,16 @@ export default function TabelaProdutos({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-300">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-0">
             <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50 border-b">
-                    {colunasOrdenadas.map((coluna) => {
-                      if (coluna.id === "selecao") {
-                        return (
-                          <TableHead key="selecao" className="text-xs font-bold py-2 px-2 border-r border-slate-200 w-10">
+                  <TableRow className="bg-slate-50 border-b border-slate-200">
+                   {colunasOrdenadas.map((coluna) => {
+                     if (coluna.id === "selecao") {
+                       return (
+                         <TableHead key="selecao" className="text-[11px] font-bold py-1.5 px-2 border-r border-slate-200 w-10">
                             <Checkbox
                               checked={selectedItems.length === produtosFiltrados.length && produtosFiltrados.length > 0}
                               onCheckedChange={toggleSelectAll}
@@ -464,14 +464,15 @@ export default function TabelaProdutos({
                       }
 
                       if (coluna.id === "acoes") {
-                        return <TableHead key="acoes" className="text-xs font-bold py-2 px-2 border-r border-slate-200 w-10"></TableHead>;
+                        return <TableHead key="acoes" className="text-[11px] font-bold py-1.5 px-2 border-r border-slate-200 w-10"></TableHead>;
                       }
 
                       const isRight = coluna.align === "right";
+                      const isCenter = coluna.align === "center";
                       return (
                         <TableHead
                           key={coluna.id}
-                          className={`text-xs font-bold py-2 px-3 border-r border-slate-200 ${coluna.sortable ? "cursor-pointer hover:bg-slate-100" : ""} ${isRight ? "text-right" : ""}`}
+                          className={`text-[11px] font-bold py-1.5 px-3 border-r border-slate-200 ${coluna.sortable ? "cursor-pointer hover:bg-slate-100" : ""} ${isRight ? "text-right" : ""} ${isCenter ? "text-center" : ""}`}
                           onClick={() => coluna.sortable && handleSort(coluna.id)}
                         >
                           <div className={`${isRight ? "text-right" : ""}`}>
@@ -500,11 +501,11 @@ export default function TabelaProdutos({
                       const estoqueAbaixoMinimo = Number(produto.estoque_atual || 0) <= Number(produto.estoque_minimo || 0);
 
                       return (
-                        <TableRow key={produto.id} className={`hover:bg-slate-50 transition-colors border-b ${estoqueAbaixoMinimo ? "bg-red-50/40" : ""}`}>
+                        <TableRow key={produto.id} className={`hover:bg-slate-50 transition-colors border-b border-slate-100 ${estoqueAbaixoMinimo ? "bg-red-50/40" : ""}`}>
                           {colunasOrdenadas.map((coluna) => {
                             if (coluna.id === "selecao") {
                               return (
-                                <TableCell key={`${produto.id}-selecao`} className="text-xs py-2 px-2 border-r border-slate-200">
+                                <TableCell key={`${produto.id}-selecao`} className="text-xs py-1.5 px-2 border-r border-slate-200">
                                   <Checkbox
                                     checked={selectedItems.includes(produto.id)}
                                     onCheckedChange={() => toggleSelectItem(produto.id)}
@@ -515,7 +516,7 @@ export default function TabelaProdutos({
 
                             if (coluna.id === "acoes") {
                               return (
-                                <TableCell key={`${produto.id}-acoes`} className="text-xs py-2 px-2 border-r border-slate-200 text-center">
+                                <TableCell key={`${produto.id}-acoes`} className="text-xs py-1.5 px-2 border-r border-slate-200 text-center">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -541,8 +542,8 @@ export default function TabelaProdutos({
 
                             return (
                               <TableCell
-                                key={`${produto.id}-${coluna.id}`}
-                                className={`text-xs py-2 px-3 border-r border-slate-200 ${coluna.align === "right" ? "text-right font-mono" : ""}`}
+                              key={`${produto.id}-${coluna.id}`}
+                              className={`text-xs py-1.5 px-3 border-r border-slate-200 ${coluna.align === "right" ? "text-right font-mono" : ""} ${coluna.align === "center" ? "text-center" : ""}`}
                               >
                                 {renderCell(produto, coluna.id)}
                               </TableCell>
