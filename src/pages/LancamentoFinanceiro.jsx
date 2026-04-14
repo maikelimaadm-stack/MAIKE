@@ -27,6 +27,8 @@ const gerarGrupoId = () => `GRP-${Date.now()}-${Math.random().toString(36).subst
 
 export default function LancamentoFinanceiro() {
   const [abaAtiva, setAbaAtiva] = useState("pagar");
+  const [subAbaPagar, setSubAbaPagar] = useState("principais");
+  const [subAbaReceber, setSubAbaReceber] = useState("principais");
   const [tipoLancamento, setTipoLancamento] = useState("Pagar");
   const [showForm, setShowForm] = useState(false);
   const [editingLancamento, setEditingLancamento] = useState(null);
@@ -323,6 +325,15 @@ export default function LancamentoFinanceiro() {
   const lancamentosPagar = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
   const lancamentosReceber = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
+  // Sub-filtros: Principais (registro principal ou sem parcelamento) vs Parcelas (não-principal de grupo)
+  const isPrincipalOuAvulso = (l) => !l.parcelamento_grupo_id || l.is_registro_principal;
+  const isParcelaNaoPrincipal = (l) => l.parcelamento_grupo_id && !l.is_registro_principal;
+
+  const pagarPrincipais = useMemo(() => lancamentosPagar.filter(isPrincipalOuAvulso), [lancamentosPagar]);
+  const pagarParcelas = useMemo(() => lancamentosPagar.filter(isParcelaNaoPrincipal), [lancamentosPagar]);
+  const receberPrincipais = useMemo(() => lancamentosReceber.filter(isPrincipalOuAvulso), [lancamentosReceber]);
+  const receberParcelas = useMemo(() => lancamentosReceber.filter(isParcelaNaoPrincipal), [lancamentosReceber]);
+
   return (
     <div className="p-1 md:p-1 space-y-1">
       {!showForm && !baixaLancamento && (
@@ -350,36 +361,82 @@ export default function LancamentoFinanceiro() {
               <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pagar" className="mt-0">
-              <TabelaFinanceiro
-                lancamentos={lancamentosPagar}
-                tipo="Pagar"
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onBaixa={handleBaixa}
-                onCancelarBaixa={handleCancelarBaixa}
-                isLoading={loadingLancamentos}
-                fornecedores={fornecedores}
-                onUpdateLote={handleUpdateLote}
-                showConfigColunas={abaAtiva === 'pagar' ? showConfigColunas : false}
-                setShowConfigColunas={setShowConfigColunas}
-              />
+            <TabsContent value="pagar" className="mt-0 space-y-1">
+              <Tabs value={subAbaPagar} onValueChange={setSubAbaPagar}>
+                <TabsList className="h-7 bg-slate-50 border">
+                  <TabsTrigger value="principais" className="text-[11px] h-5 px-2">Principais ({pagarPrincipais.length})</TabsTrigger>
+                  <TabsTrigger value="parcelas" className="text-[11px] h-5 px-2">Parcelas ({pagarParcelas.length})</TabsTrigger>
+                </TabsList>
+                <TabsContent value="principais" className="mt-1">
+                  <TabelaFinanceiro
+                    lancamentos={pagarPrincipais}
+                    tipo="Pagar"
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onBaixa={handleBaixa}
+                    onCancelarBaixa={handleCancelarBaixa}
+                    isLoading={loadingLancamentos}
+                    fornecedores={fornecedores}
+                    onUpdateLote={handleUpdateLote}
+                    showConfigColunas={abaAtiva === 'pagar' && subAbaPagar === 'principais' ? showConfigColunas : false}
+                    setShowConfigColunas={setShowConfigColunas}
+                  />
+                </TabsContent>
+                <TabsContent value="parcelas" className="mt-1">
+                  <TabelaFinanceiro
+                    lancamentos={pagarParcelas}
+                    tipo="Pagar"
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onBaixa={handleBaixa}
+                    onCancelarBaixa={handleCancelarBaixa}
+                    isLoading={loadingLancamentos}
+                    fornecedores={fornecedores}
+                    onUpdateLote={handleUpdateLote}
+                    showConfigColunas={abaAtiva === 'pagar' && subAbaPagar === 'parcelas' ? showConfigColunas : false}
+                    setShowConfigColunas={setShowConfigColunas}
+                  />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
-            <TabsContent value="receber" className="mt-0">
-              <TabelaFinanceiro
-                lancamentos={lancamentosReceber}
-                tipo="Receber"
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onBaixa={handleBaixa}
-                onCancelarBaixa={handleCancelarBaixa}
-                isLoading={loadingLancamentos}
-                fornecedores={fornecedores}
-                onUpdateLote={handleUpdateLote}
-                showConfigColunas={abaAtiva === 'receber' ? showConfigColunas : false}
-                setShowConfigColunas={setShowConfigColunas}
-              />
+            <TabsContent value="receber" className="mt-0 space-y-1">
+              <Tabs value={subAbaReceber} onValueChange={setSubAbaReceber}>
+                <TabsList className="h-7 bg-slate-50 border">
+                  <TabsTrigger value="principais" className="text-[11px] h-5 px-2">Principais ({receberPrincipais.length})</TabsTrigger>
+                  <TabsTrigger value="parcelas" className="text-[11px] h-5 px-2">Parcelas ({receberParcelas.length})</TabsTrigger>
+                </TabsList>
+                <TabsContent value="principais" className="mt-1">
+                  <TabelaFinanceiro
+                    lancamentos={receberPrincipais}
+                    tipo="Receber"
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onBaixa={handleBaixa}
+                    onCancelarBaixa={handleCancelarBaixa}
+                    isLoading={loadingLancamentos}
+                    fornecedores={fornecedores}
+                    onUpdateLote={handleUpdateLote}
+                    showConfigColunas={abaAtiva === 'receber' && subAbaReceber === 'principais' ? showConfigColunas : false}
+                    setShowConfigColunas={setShowConfigColunas}
+                  />
+                </TabsContent>
+                <TabsContent value="parcelas" className="mt-1">
+                  <TabelaFinanceiro
+                    lancamentos={receberParcelas}
+                    tipo="Receber"
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onBaixa={handleBaixa}
+                    onCancelarBaixa={handleCancelarBaixa}
+                    isLoading={loadingLancamentos}
+                    fornecedores={fornecedores}
+                    onUpdateLote={handleUpdateLote}
+                    showConfigColunas={abaAtiva === 'receber' && subAbaReceber === 'parcelas' ? showConfigColunas : false}
+                    setShowConfigColunas={setShowConfigColunas}
+                  />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </>
