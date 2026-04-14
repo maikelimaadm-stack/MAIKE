@@ -126,7 +126,8 @@ export default function TabelaMovimentacoes({
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
-        return Array.from(new Set([...JSON.parse(saved), ...defaults]));
+        const parsed = JSON.parse(saved).filter((id) => id !== "fornecedor" && id !== "cliente");
+        return Array.from(new Set([...parsed, ...defaults]));
       } catch {
         return defaults;
       }
@@ -189,9 +190,10 @@ export default function TabelaMovimentacoes({
   }, [colunasOrdem, colunasVisiveis, modoVisualizacao]);
 
   const toggleColuna = (colunaId) => {
-    const novas = colunasVisiveis.includes(colunaId)
+    const novasBase = colunasVisiveis.includes(colunaId)
       ? colunasVisiveis.filter((id) => id !== colunaId)
       : [...colunasVisiveis, colunaId];
+    const novas = novasBase.filter((id) => id !== "fornecedor" && id !== "cliente");
     setColunasVisiveis(novas);
     const storageKey = modoVisualizacao === "principais" ? "colunas_movimentacoes_principais" : "colunas_movimentacoes_itens";
     localStorage.setItem(storageKey, JSON.stringify(novas));
@@ -253,7 +255,7 @@ export default function TabelaMovimentacoes({
           ? formatarMoeda(itensGrupo.reduce((sum, mov) => sum + (Number(mov.valor_total) || 0), 0))
           : formatarMoeda(item.valor_total);
       case "cliente_fornecedor":
-        return item.cliente_nome || item.fornecedor_nome || "";
+        return item.fornecedor_nome || item.cliente_nome || "";
       case "local_origem":
         return item.local_origem || "";
       case "local_destino":
@@ -364,16 +366,6 @@ export default function TabelaMovimentacoes({
   };
 
 
-  const getBadgeTipo = (tipo) => {
-    const config = {
-      Entrada: "bg-blue-100 text-blue-800 border-blue-300",
-      Saída: "bg-orange-100 text-orange-800 border-orange-300",
-      Transferência: "bg-purple-100 text-purple-800 border-purple-300",
-      Ajuste: "bg-slate-100 text-slate-800 border-slate-300",
-    };
-    return config[tipo] || "";
-  };
-
   const renderCell = (item, colunaId) => {
     switch (colunaId) {
       case "numero":
@@ -381,7 +373,7 @@ export default function TabelaMovimentacoes({
       case "data":
         return formatarData(item.data_movimentacao);
       case "tipo":
-        return <Badge variant="outline" className={`${getBadgeTipo(item.tipo_movimentacao)} text-xs`}>{item.tipo_movimentacao}</Badge>;
+        return item.tipo_movimentacao || "-";
       case "tipo_detalhado":
         return getLabelOperacao(item.tipo_detalhado);
       case "produto": {
@@ -411,7 +403,7 @@ export default function TabelaMovimentacoes({
         return formatarMoeda(item.valor_total);
       }
       case "cliente_fornecedor":
-        return item.cliente_nome || item.fornecedor_nome || "-";
+        return item.fornecedor_nome || item.cliente_nome || "-";
       case "local_origem":
         return item.local_origem || "-";
       case "local_destino":
@@ -419,7 +411,7 @@ export default function TabelaMovimentacoes({
       case "local_estoque":
         return getLocalEstoque(item) || "-";
       case "status":
-        return <Badge variant="outline" className={`text-xs ${item.status === "Ativa" ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-red-100 text-red-800 border-red-300"}`}>{item.status}</Badge>;
+        return item.status || "-";
       case "numero_documento":
         return item.numero_documento || "-";
       case "tipo_documento":
@@ -436,7 +428,7 @@ export default function TabelaMovimentacoes({
         return item.usuario_responsavel || "-";
       case "total_itens": {
         const totalItens = getGrupoItens(item).length || 1;
-        return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">{totalItens} {totalItens > 1 ? 'itens' : 'item'}</Badge>;
+        return `${totalItens} ${totalItens > 1 ? 'itens' : 'item'}`;
       }
       case "parcela_seq":
         return item.numero_movimentacao_seq && (item.total_movimentacoes_grupo || 1) > 1 ? `${item.numero_movimentacao_seq}/${item.total_movimentacoes_grupo || 1}` : "1x";
@@ -660,7 +652,7 @@ export default function TabelaMovimentacoes({
 
                               const numericCols = ["quantidade", "valor_unitario", "valor_total"];
                               return (
-                                <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words uppercase ${numericCols.includes(coluna.id) ? "text-right font-mono" : ""}`}>
+                                <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle text-left border-r border-b border-gray-300 whitespace-normal break-words uppercase ${numericCols.includes(coluna.id) ? "font-mono" : ""}`}>
                                   {renderCell(item, coluna.id)}
                                 </TableCell>
                               );
