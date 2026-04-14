@@ -131,6 +131,15 @@ export default function MovimentacoesEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: estoqueLoteNota = [] } = useQuery({
+    queryKey: ['estoque_lote_nota_movimentacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.EstoqueLoteNota.list('-created_date');
+      return all.filter(item => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   // Classificação: principais = sempre registro principal | movimentações = todos os itens/produtos
   const isPrincipal = (m) => m.is_registro_principal === true;
   const isMovimentacaoItem = (m) => typeof m.numero_movimentacao_seq === 'number' && m.numero_movimentacao_seq >= 1;
@@ -144,6 +153,14 @@ export default function MovimentacoesEstoque() {
     const movimentacoesEditadas = editingMovimentacao?.movimentacao_grupo_id
       ? movimentacoes.filter(m => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id)
       : editingMovimentacao ? [editingMovimentacao] : [];
+
+    const lotesNotaRelacionadosEdicao = editingMovimentacao
+      ? estoqueLoteNota.filter(lote => {
+          if (movimentacoesEditadas.some(m => m.numero_documento && lote.numero_documento === m.numero_documento && lote.produto_id === m.produto_id)) return true;
+          if (movimentacoesEditadas.some(m => m.data_documento && lote.data_documento === m.data_documento && lote.produto_id === m.produto_id)) return true;
+          return false;
+        })
+      : [];
 
     const lancamentoFinanceiroOrigem = movimentacoesEditadas.length > 0
       ? lancamentosFinanceiros.find(l => l.id === movimentacoesEditadas[0]?.lancamento_origem_id)
@@ -287,7 +304,12 @@ export default function MovimentacoesEstoque() {
           saldo_antes: estoqueAntes,
           saldo_depois: estoqueDepois,
         });
-        await base44.entities.EstoqueLoteNota.create({
+
+        const loteExistenteEdicao = editingMovimentacao
+          ? lotesNotaRelacionadosEdicao.find(lote => lote.produto_id === item.produto_id)
+          : null;
+
+        const payloadLoteNota = {
           empresa_id: empresaSelecionadaId,
           produto_id: item.produto_id,
           produto_nome: item.produto_nome,
@@ -301,7 +323,14 @@ export default function MovimentacoesEstoque() {
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: item.quantidade,
           status: 'Disponivel',
-        });
+        };
+
+        if (loteExistenteEdicao?.id) {
+          await base44.entities.EstoqueLoteNota.update(loteExistenteEdicao.id, payloadLoteNota);
+        } else {
+          await base44.entities.EstoqueLoteNota.create(payloadLoteNota);
+        }
+
         await base44.entities.Produto.update(prod.id, { estoque_atual: estoqueDepois });
       }
 
@@ -394,7 +423,11 @@ export default function MovimentacoesEstoque() {
           saldo_antes: estoqueAntes,
           saldo_depois: estoqueDepois,
         });
-        await base44.entities.EstoqueLoteNota.create({
+        const loteTransferenciaExistente = editingMovimentacao
+          ? lotesNotaRelacionadosEdicao.find(lote => lote.produto_id === item.produto_id)
+          : null;
+
+        const payloadTransferencia = {
           empresa_id: empresaSelecionadaId,
           produto_id: item.produto_id,
           produto_nome: item.produto_nome,
@@ -408,7 +441,13 @@ export default function MovimentacoesEstoque() {
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: item.quantidade,
           status: 'Disponivel',
-        });
+        };
+
+        if (loteTransferenciaExistente?.id) {
+          await base44.entities.EstoqueLoteNota.update(loteTransferenciaExistente.id, payloadTransferencia);
+        } else {
+          await base44.entities.EstoqueLoteNota.create(payloadTransferencia);
+        }
       }
 
       setProgressoSalvamento({
@@ -423,6 +462,7 @@ export default function MovimentacoesEstoque() {
 
     queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
     queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    queryClient.invalidateQueries({ queryKey: ['estoque_lote_nota_movimentacao'] });
     setShowForm(false);
     setEditingMovimentacao(null);
     setShowSaveProgress(false);
