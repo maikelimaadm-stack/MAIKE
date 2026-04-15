@@ -25,7 +25,7 @@ const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h
 const READONLY_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-slate-50/50";
 
 function calcularConsumo({ medicaoAnterior, medicaoAtual, litros }) {
-  if (!medicaoAnterior || !medicaoAtual || !litros) return null;
+  if (medicaoAnterior == null || medicaoAtual == null || !litros) return null;
   if (medicaoAtual <= medicaoAnterior) return null;
   const uso = medicaoAtual - medicaoAnterior;
   const consumo = uso / litros;
