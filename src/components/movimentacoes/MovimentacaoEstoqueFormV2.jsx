@@ -91,7 +91,7 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
         unidade_medida: p.unidade_medida || '',
         quantidade: p.quantidade || 0,
         valor_unitario: p.valor_unitario || 0,
-        valor_total: p.valor_total || 0,
+        valor_total: (p.quantidade || 0) * (p.valor_unitario || 0),
         valor_desconto: p.valor_desconto || 0,
         valor_liquido: p.valor_liquido || p.valor_total || 0,
         valor_liquido_unitario: p.valor_liquido_unitario || p.valor_unitario || 0,
