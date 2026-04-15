@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, Loader2 } from "lucide-react";
+import { Settings, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Progress } from "@/components/ui/progress";
@@ -30,6 +30,49 @@ export default function LancamentosAbastecimento() {
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  const handleExport = () => {
+    if (abastecimentos.length === 0) {
+      toast.error("Não há dados para exportar");
+      return;
+    }
+    
+    // Filtramos apenas os visíveis se houver selecionados, mas aqui exportaremos tudo ou selecionados
+    const paraExportar = selecionados.length > 0 
+      ? abastecimentos.filter(a => selecionados.includes(a.id))
+      : abastecimentos;
+
+    const csvRows = [
+      ['Data', 'Ativo', 'Categoria', 'Tipo Medição', 'Grupo Atividade', 'Tipo Serviço', 'Responsável', 'Local Estoque', 'Produto', 'Litros', 'Medição', 'Med. Anterior', 'Uso', 'Consumo', 'Observações'].join(';')
+    ];
+
+    paraExportar.forEach(m => {
+      csvRows.push([
+        m.data_abastecimento,
+        m.maquina_nome || '',
+        m.maquina_categoria || '',
+        m.maquina_tipo_medicao || '',
+        m.grupo_atividade_nome || '',
+        m.tipo_servico || '',
+        m.responsavel || '',
+        m.local_estoque_nome || '',
+        m.produto_nome || '',
+        m.quantidade_litros || '',
+        m.medicao || '',
+        m.medicao_anterior || '',
+        m.uso_realizado || '',
+        m.consumo_calculado || '',
+        (m.observacoes || '').replace(/;/g, ',')
+      ].join(';'));
+    });
+
+    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `abastecimentos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success("Exportado com sucesso!");
+  };
 
   const { data: abastecimentos = [] } = useQuery({
     queryKey: ["abastecimentos", empresaSelecionadaId, maquinas.length],
@@ -90,10 +133,13 @@ export default function LancamentosAbastecimento() {
           <h1 className="font-bold text-slate-800">Lançamento de Abastecimento</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
             <Settings className="w-4 h-4" />
           </Button>
-          <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shadow h-7 hover:bg-emerald-600">
+          <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs">
+            Exportar
+          </Button>
+          <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
             Adicionar
           </Button>
         </div>
