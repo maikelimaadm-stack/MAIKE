@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,17 +61,55 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
 
   const { data: user } = useQuery({ queryKey: ['user-transf-lote'], queryFn: () => base44.auth.me() });
 
-  const produtoSelecionado = useMemo(() => produtos.find(p => p.id === produtoId) || null, [produtos, produtoId]);
   const localOrigem = useMemo(() => locais.find(l => l.id === localOrigemId) || null, [locais, localOrigemId]);
+
+  const produtosFiltrados = useMemo(() => {
+    if (!localOrigemId) return [];
+    return produtos.filter(p => {
+      const saldo = obterSaldoProdutoLocal(lotesNota, p.id, localOrigemId);
+      return saldo > 0;
+    });
+  }, [produtos, localOrigemId, lotesNota]);
+
+  const produtoSelecionado = useMemo(() => produtos.find(p => p.id === produtoId) || null, [produtos, produtoId]);
 
   const saldoOrigem = useMemo(() => {
     if (!produtoSelecionado || !localOrigemId) return 0;
     return obterSaldoProdutoLocal(lotesNota, produtoSelecionado.id, localOrigemId);
   }, [produtoSelecionado, localOrigemId, lotesNota]);
 
-  const totalDestinoQtd = useMemo(() => {
+  const isNutricaoAnimal = produtoSelecionado?.tipo_uso === 'Nutrição Animal';
+  const pesoSaco = Number(produtoSelecionado?.peso_por_saco_kg) || 0;
+  const permiteConversao = isNutricaoAnimal && pesoSaco > 0;
+
+  const [unidadeTransferencia, setUnidadeTransferencia] = useState('KG');
+
+  useEffect(() => {
+    if (produtoSelecionado) {
+      setUnidadeTransferencia(produtoSelecionado.unidade_principal_estoque === 'SACO' ? 'SACO' : 'KG');
+    }
+  }, [produtoSelecionado]);
+
+  const getQtdEmKg = (val) => {
+    const q = parseFloat(String(val).replace(',', '.')) || 0;
+    if (unidadeTransferencia === 'SACO' && permiteConversao) return q * pesoSaco;
+    return q;
+  };
+
+  const totalDestinoQtdKg = useMemo(() => {
+    return destinos.reduce((sum, d) => sum + getQtdEmKg(d.quantidade), 0);
+  }, [destinos, unidadeTransferencia, permiteConversao, pesoSaco]);
+
+  const totalDestinoExibicao = useMemo(() => {
     return destinos.reduce((sum, d) => sum + (parseFloat(String(d.quantidade).replace(',', '.')) || 0), 0);
   }, [destinos]);
+
+  const saldoOrigemExibicao = useMemo(() => {
+    if (unidadeTransferencia === 'SACO' && permiteConversao) {
+      return saldoOrigem / pesoSaco;
+    }
+    return saldoOrigem;
+  }, [saldoOrigem, unidadeTransferencia, permiteConversao, pesoSaco]);
 
   const locaisDestinos = useMemo(() => locais.filter(l => l.id !== localOrigemId), [locais, localOrigemId]);
 
@@ -91,8 +129,8 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
     if (destinosValidos.length === 0) { toast.error('Adicione ao menos um local de destino com quantidade!'); return; }
     if (missing.length > 0) { setInvalidFields(missing); toast.error('Preencha os campos obrigatórios!'); return; }
 
-    if (totalDestinoQtd > saldoOrigem) {
-      toast.error(`Quantidade total (${totalDestinoQtd.toFixed(2)}) excede o saldo disponível (${saldoOrigem.toFixed(2)}).`);
+    if (totalDestinoQtdKg > saldoOrigem) {
+      toast.error(`Quantidade total em KG (${totalDestinoQtdKg.toFixed(2)}) excede o saldo disponível (${saldoOrigem.toFixed(2)} KG).`);
       return;
     }
 
@@ -110,7 +148,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
         lotesNota: lotesDisponiveis,
         produtoId: produtoSelecionado.id,
         localEstoqueId: localOrigemId,
-        quantidade: totalDestinoQtd,
+        quantidade: totalDestinoQtdKg,
       });
       if (!resultadoGlobal.sucesso) throw new Error(resultadoGlobal.erro);
 
@@ -119,7 +157,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
       // Para cada destino, criar par Saída+Entrada com rateio proporcional
       for (let idx = 0; idx < destinosValidos.length; idx++) {
         const destino = destinosValidos[idx];
-        const qtdDestino = parseFloat(String(destino.quantidade).replace(',', '.'));
+        const qtdDestino = getQtdEmKg(destino.quantidade);
         const localDestino = locais.find(l => l.id === destino.localDestinoId);
         if (!localDestino) continue;
 
@@ -287,27 +325,13 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                     <Input type="date" value={dataMovimentacao} onChange={e => setDataMovimentacao(e.target.value)} className={INPUT_CLS} />
                   </FL>
                 </div>
-                <div className="lg:col-span-4">
-                  <FL label="Produto (Origem)" required error={invalidFields.includes('produto')}>
-                    <AutocompleteGenerico
-                      items={produtos}
-                      value={produtoId}
-                      onChange={v => { setProdutoId(v); }}
-                      placeholder="BUSCAR PRODUTO..."
-                      displayField="nome_produto"
-                      searchFields={["nome_produto", "codigo_interno"]}
-                      className="w-full"
-                      inputClassName={AC_INPUT_CLS}
-                    />
-                  </FL>
-                </div>
-                <div className="lg:col-span-4">
-                  <FL label="Local de Estoque (Origem)" required error={invalidFields.includes('local_origem')}>
+                <div className="lg:col-span-3">
+                  <FL label="Local (Origem)" required error={invalidFields.includes('local_origem')}>
                     <AutocompleteGenerico
                       items={locais}
                       value={localOrigemId}
-                      onChange={v => { setLocalOrigemId(v); }}
-                      placeholder="BUSCAR LOCAL ORIGEM..."
+                      onChange={v => { setLocalOrigemId(v); setProdutoId(''); }}
+                      placeholder="BUSCAR LOCAL..."
                       displayField="nome"
                       searchFields={["nome"]}
                       className="w-full"
@@ -315,10 +339,40 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                     />
                   </FL>
                 </div>
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3">
+                  <FL label="Produto (Origem)" required error={invalidFields.includes('produto')}>
+                    <AutocompleteGenerico
+                      items={produtosFiltrados}
+                      value={produtoId}
+                      onChange={v => { setProdutoId(v); }}
+                      placeholder={localOrigemId ? "BUSCAR PRODUTO..." : "SELECIONE O LOCAL"}
+                      displayField="nome_produto"
+                      searchFields={["nome_produto", "codigo_interno"]}
+                      className="w-full"
+                      inputClassName={AC_INPUT_CLS}
+                      disabled={!localOrigemId}
+                    />
+                  </FL>
+                </div>
+                {permiteConversao && (
+                  <div className="lg:col-span-2">
+                    <FL label="Unidade Transf.">
+                      <Select value={unidadeTransferencia} onValueChange={setUnidadeTransferencia}>
+                        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="KG" className="text-xs">KG</SelectItem>
+                          <SelectItem value="SACO" className="text-xs">SACO</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FL>
+                  </div>
+                )}
+                <div className={permiteConversao ? "lg:col-span-2" : "lg:col-span-4"}>
                   <label className="text-[12px] text-slate-500 pl-1 leading-none">Saldo disponível</label>
                   <div className="h-7 flex items-center px-3 bg-slate-100 rounded-md border border-slate-300 text-xs font-semibold text-emerald-700">
-                    {saldoOrigem.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {produtoSelecionado?.unidade_medida || 'KG'}
+                    {saldoOrigemExibicao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {unidadeTransferencia}
                   </div>
                 </div>
               </div>
@@ -354,7 +408,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                       <tbody>
                         {destinos.map((d, idx) => {
                           const qtd = parseFloat(String(d.quantidade).replace(',', '.')) || 0;
-                          const excede = totalDestinoQtd > saldoOrigem;
+                          const excede = totalDestinoQtdKg > saldoOrigem;
                           return (
                             <tr key={idx} className={`hover:bg-gray-50 ${excede && qtd > 0 ? 'bg-red-50' : ''}`}>
                               <td className="text-xs py-0.5 px-1 border-b border-gray-100 overflow-visible relative">
@@ -380,7 +434,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                                 />
                               </td>
                               <td className="text-xs py-0.5 px-2 border-b border-gray-100 border-l border-gray-100 text-center text-slate-500 font-mono">
-                                {produtoSelecionado?.unidade_medida || 'KG'}
+                                {unidadeTransferencia}
                               </td>
                               <td className="text-xs py-0.5 px-1 border-b border-gray-100 border-l border-gray-100 text-center">
                                 <button type="button" onClick={() => removeDestino(idx)} className="text-slate-400 hover:text-red-500">
@@ -395,9 +449,12 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                   </div>
                 )}
 
-                <div className={`flex justify-between text-[11px] px-2 h-[26px] items-center rounded-b-lg border-t ${totalDestinoQtd > saldoOrigem ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                  <span className="font-semibold">Total a transferir: {totalDestinoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {produtoSelecionado?.unidade_medida || 'KG'}</span>
-                  {totalDestinoQtd > saldoOrigem && <span className="font-bold">⚠ EXCEDE O SALDO!</span>}
+                <div className={`flex justify-between text-[11px] px-2 h-[26px] items-center rounded-b-lg border-t ${totalDestinoQtdKg > saldoOrigem ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                  <span className="font-semibold">
+                    Total a transferir: {totalDestinoExibicao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {unidadeTransferencia} 
+                    {unidadeTransferencia === 'SACO' && permiteConversao ? ` (${totalDestinoQtdKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG)` : ''}
+                  </span>
+                  {totalDestinoQtdKg > saldoOrigem && <span className="font-bold">⚠ EXCEDE O SALDO!</span>}
                 </div>
               </div>
 
