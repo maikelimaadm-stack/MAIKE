@@ -11,11 +11,15 @@ const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "data_abastecimento", label: "Data", default: true, width: 100 },
-  { id: "maquina_nome", label: "Ativo", default: true, width: 220 },
+  { id: "maquina_nome", label: "Ativo", default: true, width: 180 },
+  { id: "grupo_atividade_nome", label: "Grupo Atividade", default: true, width: 160 },
+  { id: "tipo_servico", label: "Tipo Serviço", default: true, width: 140 },
+  { id: "responsavel", label: "Responsável", default: true, width: 140 },
+  { id: "local_estoque_nome", label: "Local Estoque", default: true, width: 160 },
   { id: "produto_nome", label: "Produto", default: true, width: 180 },
-  { id: "quantidade_litros", label: "Quantidade", default: true, width: 120, align: "right" },
-  { id: "responsavel", label: "Responsável", default: true, width: 160 },
-  { id: "medicao", label: "Medição", default: true, width: 120, align: "right" },
+  { id: "quantidade_litros", label: "Quantidade", default: true, width: 100, align: "right" },
+  { id: "medicao", label: "Medição", default: true, width: 100, align: "right" },
+  { id: "observacoes", label: "Observações", default: false, width: 200 },
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);

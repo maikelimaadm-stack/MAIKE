@@ -80,6 +80,30 @@
     "observacoes": {
       "type": "string",
       "description": "Observa\u00e7\u00f5es"
+    },
+    "grupo_atividade_id": {
+      "type": "string",
+      "description": "ID do grupo de atividade vinculado ao tipo de servi\u00e7o"
+    },
+    "grupo_atividade_nome": {
+      "type": "string",
+      "description": "Nome do grupo de atividade (cache)"
+    },
+    "tipo_servico": {
+      "type": "string",
+      "description": "Tipo de servi\u00e7o selecionado"
+    },
+    "responsavel": {
+      "type": "string",
+      "description": "Nome do respons\u00e1vel pelo abastecimento"
+    },
+    "local_estoque_id": {
+      "type": "string",
+      "description": "ID do local de estoque utilizado"
+    },
+    "local_estoque_nome": {
+      "type": "string",
+      "description": "Nome do local de estoque (cache)"
     }
   },
   "required": [
