@@ -45,7 +45,19 @@
     },
     "medicao": {
       "type": "number",
-      "description": "Medi\u00e7\u00e3o do ativo no momento do abastecimento"
+      "description": "Medi\u00e7\u00e3o do ativo no momento do abastecimento (nova medi\u00e7\u00e3o)"
+    },
+    "medicao_anterior": {
+      "type": "number",
+      "description": "Medi\u00e7\u00e3o do \u00faltimo abastecimento anterior"
+    },
+    "uso_realizado": {
+      "type": "number",
+      "description": "Diferen\u00e7a entre medi\u00e7\u00e3o atual e anterior (horas ou km)"
+    },
+    "consumo_calculado": {
+      "type": "number",
+      "description": "Consumo calculado: uso_realizado / quantidade_litros"
     },
     "tanque_cheio": {
       "type": "boolean",

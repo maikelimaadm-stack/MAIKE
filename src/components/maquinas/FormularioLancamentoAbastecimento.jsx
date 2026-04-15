@@ -24,6 +24,14 @@ const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-tran
 const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs";
 const READONLY_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-slate-50/50";
 
+function calcularConsumo({ medicaoAnterior, medicaoAtual, litros }) {
+  if (!medicaoAnterior || !medicaoAtual || !litros) return null;
+  if (medicaoAtual <= medicaoAnterior) return null;
+  const uso = medicaoAtual - medicaoAnterior;
+  const consumo = uso / litros;
+  return { uso: Number(uso.toFixed(2)), consumo: Number(consumo.toFixed(2)) };
+}
+
 export default function FormularioLancamentoAbastecimento({ abastecimento, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [invalidFields, setInvalidFields] = useState([]);
@@ -97,6 +105,16 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     enabled: !!empresaSelecionadaId,
   });
 
+  // Buscar todos os abastecimentos do ativo para pegar o último
+  const { data: abastecimentosDoAtivo = [] } = useQuery({
+    queryKey: ["abastecimentos-ativo", empresaSelecionadaId, formData.maquina_id],
+    queryFn: async () => {
+      const all = await base44.entities.AbastecimentoMaquina.list("-data_abastecimento");
+      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.maquina_id === formData.maquina_id && a.medicao != null);
+    },
+    enabled: !!empresaSelecionadaId && !!formData.maquina_id,
+  });
+
   // ========== DERIVADOS ==========
 
   const maquinaSelecionada = useMemo(() => maquinas.find((m) => m.id === formData.maquina_id), [maquinas, formData.maquina_id]);
@@ -105,6 +123,18 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     if (!maquinaSelecionada) return [];
     return (maquinaSelecionada.produtos_combustiveis_vinculados || []).map((v) => v.produto_id);
   }, [maquinaSelecionada]);
+
+  // Locais que têm saldo dos combustíveis vinculados ao ativo
+  const locaisFiltrados = useMemo(() => {
+    if (produtosCombustivelIds.length === 0) return [];
+    const locaisComSaldo = new Set();
+    lotesEstoque.forEach((lote) => {
+      if (produtosCombustivelIds.includes(lote.produto_id) && (lote.quantidade_disponivel || 0) > 0) {
+        locaisComSaldo.add(lote.local_estoque_id);
+      }
+    });
+    return locais.filter((l) => locaisComSaldo.has(l.id));
+  }, [locais, lotesEstoque, produtosCombustivelIds]);
 
   // Produtos disponíveis = combustíveis vinculados ao ativo que possuem saldo no local selecionado
   const produtosDisponiveis = useMemo(() => {
@@ -118,22 +148,44 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     return todosProdutos.filter((p) => produtosComSaldo.has(p.id));
   }, [todosProdutos, lotesEstoque, formData.local_estoque_id, produtosCombustivelIds]);
 
-  // Tipos de tarefa filtrados pelo grupo selecionado
   const tiposFiltrados = useMemo(() => {
     if (!formData.grupo_atividade_id) return [];
     return tiposTarefa.filter((t) => t.grupo_atividade_id === formData.grupo_atividade_id);
   }, [tiposTarefa, formData.grupo_atividade_id]);
 
+  // Último abastecimento do ativo (para calcular consumo)
+  const ultimoAbastecimento = useMemo(() => {
+    if (abastecimentosDoAtivo.length === 0) return null;
+    // Se estamos editando, ignorar o próprio registro
+    const filtrados = abastecimento?.id
+      ? abastecimentosDoAtivo.filter((a) => a.id !== abastecimento.id)
+      : abastecimentosDoAtivo;
+    return filtrados[0] || null;
+  }, [abastecimentosDoAtivo, abastecimento?.id]);
+
+  const medicaoAnterior = ultimoAbastecimento?.medicao || null;
+
+  // Cálculo de consumo em tempo real
+  const consumoPreview = useMemo(() => {
+    if (!maquinaSelecionada || maquinaSelecionada.tipo_medicao === "Nenhum") return null;
+    if (!medicaoAnterior) return null;
+    return calcularConsumo({
+      medicaoAnterior,
+      medicaoAtual: Number(formData.medicao || 0),
+      litros: Number(formData.quantidade_litros || 0),
+    });
+  }, [maquinaSelecionada, medicaoAnterior, formData.medicao, formData.quantidade_litros]);
+
+  const unidadeConsumo = maquinaSelecionada?.tipo_medicao === "Horímetro" ? "H/L" : "KM/L";
+
   // ========== EFEITOS ==========
 
-  // Quando troca ativo: limpa produto e medição (mantém local)
   useEffect(() => {
     if (!abastecimento) {
       setFormData((prev) => ({ ...prev, produto_id: "", medicao: "" }));
     }
   }, [formData.maquina_id]);
 
-  // Quando troca local: limpa produto, tenta selecionar o principal
   useEffect(() => {
     if (!formData.local_estoque_id) {
       setFormData((prev) => ({ ...prev, produto_id: "" }));
@@ -154,14 +206,12 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     }
   }, [formData.local_estoque_id, produtosDisponiveis.length]);
 
-  // Quando troca grupo: limpa tipo de serviço
   useEffect(() => {
     if (!abastecimento) {
       setFormData((prev) => ({ ...prev, tipo_servico: "" }));
     }
   }, [formData.grupo_atividade_id]);
 
-  // Carregar saldo disponível
   useEffect(() => {
     if (!empresaSelecionadaId || !formData.produto_id || !formData.local_estoque_id) {
       setSaldoDisponivel(null);
@@ -172,17 +222,6 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       .reduce((acc, l) => acc + (l.quantidade_disponivel || 0), 0);
     setSaldoDisponivel(saldo);
   }, [empresaSelecionadaId, formData.produto_id, formData.local_estoque_id, lotesEstoque]);
-
-  // ========== CÁLCULO CONSUMO ==========
-
-  const consumoCalculado = useMemo(() => {
-    if (!maquinaSelecionada || maquinaSelecionada.tipo_medicao === "Nenhum") return null;
-    const atual = Number(maquinaSelecionada.medicao_atual || 0);
-    const nova = Number(formData.medicao || 0);
-    const qtd = Number(formData.quantidade_litros || 0);
-    if (!nova || !qtd || nova <= atual) return null;
-    return ((nova - atual) / qtd).toFixed(2);
-  }, [maquinaSelecionada, formData.medicao, formData.quantidade_litros]);
 
   // ========== MUTATION ==========
 
@@ -196,10 +235,34 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       if (quantidade <= 0) throw new Error("Quantidade deve ser maior que zero");
       if ((saldoDisponivel || 0) < quantidade) throw new Error("Saldo insuficiente no local selecionado");
 
-      const medicaoAtual = Number(maquinaSelecionada.medicao_atual || 0);
       const novaMedicao = Number(data.medicao || 0);
-      if (maquinaSelecionada.tipo_medicao !== "Nenhum" && novaMedicao <= medicaoAtual) {
-        throw new Error("Nova medição deve ser maior que a medição atual");
+
+      // Validação de medição com base no último abastecimento
+      if (maquinaSelecionada.tipo_medicao !== "Nenhum") {
+        if (medicaoAnterior != null && novaMedicao <= medicaoAnterior) {
+          throw new Error(`Nova medição (${novaMedicao}) deve ser maior que a última medição (${medicaoAnterior})`);
+        }
+        const medicaoAtualAtivo = Number(maquinaSelecionada.medicao_atual || 0);
+        if (novaMedicao <= medicaoAtualAtivo) {
+          throw new Error(`Nova medição (${novaMedicao}) deve ser maior que a medição atual do ativo (${medicaoAtualAtivo})`);
+        }
+      }
+
+      // Calcular consumo
+      let consumoData = { medicao_anterior: null, uso_realizado: null, consumo_calculado: null };
+      if (maquinaSelecionada.tipo_medicao !== "Nenhum" && medicaoAnterior != null) {
+        const resultado = calcularConsumo({
+          medicaoAnterior,
+          medicaoAtual: novaMedicao,
+          litros: quantidade,
+        });
+        if (resultado) {
+          consumoData = {
+            medicao_anterior: medicaoAnterior,
+            uso_realizado: resultado.uso,
+            consumo_calculado: resultado.consumo,
+          };
+        }
       }
 
       // FIFO
@@ -237,6 +300,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         data_abastecimento: data.data_abastecimento,
         quantidade_litros: quantidade,
         medicao: maquinaSelecionada.tipo_medicao !== "Nenhum" ? novaMedicao : null,
+        medicao_anterior: consumoData.medicao_anterior,
+        uso_realizado: consumoData.uso_realizado,
+        consumo_calculado: consumoData.consumo_calculado,
         operador: data.responsavel,
         observacoes: data.observacoes || "",
         local_estoque_id: data.local_estoque_id,
@@ -324,11 +390,12 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
   // ========== RENDER ==========
 
+  const temMedicao = maquinaSelecionada && maquinaSelecionada.tipo_medicao !== "Nenhum";
+
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
       <form onSubmit={handleSubmit} className="space-y-1">
 
-        {/* ===== CARD PRINCIPAL ===== */}
         <Card className="shadow-sm border-slate-300">
           <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
             <CardTitle className="text-sm font-semibold text-slate-900 uppercase">
@@ -341,58 +408,22 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
             <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
               <div className="lg:col-span-2">
                 <FL label="Data" required error={invalidFields.includes("data_abastecimento")}>
-                  <Input
-                    type="date"
-                    value={formData.data_abastecimento}
-                    onChange={(e) => handleChange("data_abastecimento", e.target.value)}
-                    className={INPUT_CLS}
-                  />
+                  <Input type="date" value={formData.data_abastecimento} onChange={(e) => handleChange("data_abastecimento", e.target.value)} className={INPUT_CLS} />
                 </FL>
               </div>
               <div className="lg:col-span-4">
                 <FL label="Ativo" required error={invalidFields.includes("maquina_id")}>
-                  <AutocompleteGenerico
-                    items={maquinas}
-                    value={formData.maquina_id}
-                    onChange={(v) => handleChange("maquina_id", v)}
-                    placeholder="BUSCAR ATIVO..."
-                    displayField="nome"
-                    searchFields={["nome", "codigo", "placa", "identificador_curto"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                    renderSubtext={(item) => [item.categoria, item.placa].filter(Boolean).join(" | ")}
-                  />
+                  <AutocompleteGenerico items={maquinas} value={formData.maquina_id} onChange={(v) => handleChange("maquina_id", v)} placeholder="BUSCAR ATIVO..." displayField="nome" searchFields={["nome", "codigo", "placa", "identificador_curto"]} className="w-full" inputClassName={AC_INPUT_CLS} renderSubtext={(item) => [item.categoria, item.placa].filter(Boolean).join(" | ")} />
                 </FL>
               </div>
               <div className="lg:col-span-3">
                 <FL label="Grupo de Atividade" required error={invalidFields.includes("grupo_atividade_id")}>
-                  <AutocompleteGenerico
-                    items={gruposAtividade}
-                    value={formData.grupo_atividade_id}
-                    onChange={(v) => handleChange("grupo_atividade_id", v)}
-                    placeholder="BUSCAR GRUPO..."
-                    displayField="nome_grupo"
-                    searchFields={["nome_grupo"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
+                  <AutocompleteGenerico items={gruposAtividade} value={formData.grupo_atividade_id} onChange={(v) => handleChange("grupo_atividade_id", v)} placeholder="BUSCAR GRUPO..." displayField="nome_grupo" searchFields={["nome_grupo"]} className="w-full" inputClassName={AC_INPUT_CLS} />
                 </FL>
               </div>
               <div className="lg:col-span-3">
                 <FL label="Tipo de Serviço" required error={invalidFields.includes("tipo_servico")}>
-                  <AutocompleteGenerico
-                    items={tiposFiltrados}
-                    value={tiposFiltrados.find((t) => t.nome_tipo === formData.tipo_servico)?.id || ""}
-                    onChange={(v) => {
-                      const tipo = tiposFiltrados.find((t) => t.id === v);
-                      handleChange("tipo_servico", tipo?.nome_tipo || "");
-                    }}
-                    placeholder={!formData.grupo_atividade_id ? "SELECIONE O GRUPO" : "BUSCAR TIPO..."}
-                    displayField="nome_tipo"
-                    searchFields={["nome_tipo"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
+                  <AutocompleteGenerico items={tiposFiltrados} value={tiposFiltrados.find((t) => t.nome_tipo === formData.tipo_servico)?.id || ""} onChange={(v) => { const tipo = tiposFiltrados.find((t) => t.id === v); handleChange("tipo_servico", tipo?.nome_tipo || ""); }} placeholder={!formData.grupo_atividade_id ? "SELECIONE O GRUPO" : "BUSCAR TIPO..."} displayField="nome_tipo" searchFields={["nome_tipo"]} className="w-full" inputClassName={AC_INPUT_CLS} />
                 </FL>
               </div>
             </div>
@@ -401,98 +432,56 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
             <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
               <div className="lg:col-span-4">
                 <FL label="Responsável" required error={invalidFields.includes("responsavel")}>
-                  <Input
-                    value={formData.responsavel}
-                    onChange={(e) => handleChange("responsavel", e.target.value.toUpperCase())}
-                    className={`${INPUT_CLS} uppercase`}
-                    style={{ textTransform: "uppercase" }}
-                    placeholder="DIGITE O RESPONSÁVEL"
-                  />
+                  <Input value={formData.responsavel} onChange={(e) => handleChange("responsavel", e.target.value.toUpperCase())} className={`${INPUT_CLS} uppercase`} style={{ textTransform: "uppercase" }} placeholder="DIGITE O RESPONSÁVEL" />
                 </FL>
               </div>
             </div>
 
-            {/* Linha 3: Local Estoque | Produto | Quantidade | Saldo */}
+            {/* Linha 3: Local Estoque | Produto | Saldo | Quantidade */}
             <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
               <div className="lg:col-span-4">
                 <FL label="Local de Estoque (Origem)" required error={invalidFields.includes("local_estoque_id")}>
-                  <AutocompleteGenerico
-                    items={locais}
-                    value={formData.local_estoque_id}
-                    onChange={(v) => handleChange("local_estoque_id", v)}
-                    placeholder="BUSCAR LOCAL..."
-                    displayField="nome"
-                    searchFields={["nome", "descricao"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                  />
+                  <AutocompleteGenerico items={locaisFiltrados} value={formData.local_estoque_id} onChange={(v) => handleChange("local_estoque_id", v)} placeholder={!maquinaSelecionada ? "SELECIONE O ATIVO" : "BUSCAR LOCAL..."} displayField="nome" searchFields={["nome", "descricao"]} className="w-full" inputClassName={AC_INPUT_CLS} />
                 </FL>
               </div>
               <div className="lg:col-span-3">
                 <FL label="Produto Combustível" required error={invalidFields.includes("produto_id")}>
-                  <AutocompleteGenerico
-                    items={produtosDisponiveis}
-                    value={formData.produto_id}
-                    onChange={(v) => handleChange("produto_id", v)}
-                    placeholder={!formData.local_estoque_id ? "SELECIONE O LOCAL" : !maquinaSelecionada ? "SELECIONE O ATIVO" : "BUSCAR PRODUTO..."}
-                    displayField="nome_produto"
-                    searchFields={["nome_produto", "codigo_interno"]}
-                    className="w-full"
-                    inputClassName={AC_INPUT_CLS}
-                    renderSubtext={(item) => item.unidade_medida || ""}
-                  />
+                  <AutocompleteGenerico items={produtosDisponiveis} value={formData.produto_id} onChange={(v) => handleChange("produto_id", v)} placeholder={!formData.local_estoque_id ? "SELECIONE O LOCAL" : !maquinaSelecionada ? "SELECIONE O ATIVO" : "BUSCAR PRODUTO..."} displayField="nome_produto" searchFields={["nome_produto", "codigo_interno"]} className="w-full" inputClassName={AC_INPUT_CLS} renderSubtext={(item) => item.unidade_medida || ""} />
                 </FL>
               </div>
               <div className="lg:col-span-2">
                 <FL label="Saldo Atual">
-                  <Input
-                    readOnly
-                    value={saldoDisponivel == null ? "" : saldoDisponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    className={READONLY_CLS}
-                  />
+                  <Input readOnly value={saldoDisponivel == null ? "" : saldoDisponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} className={READONLY_CLS} />
                 </FL>
               </div>
               <div className="lg:col-span-3">
                 <FL label="Quantidade Abastecimento" required error={invalidFields.includes("quantidade_litros")}>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={formData.quantidade_litros}
-                    onChange={(e) => handleChange("quantidade_litros", e.target.value)}
-                    className={INPUT_CLS}
-                    placeholder="0,00"
-                  />
+                  <Input type="number" step="0.01" min="0.01" value={formData.quantidade_litros} onChange={(e) => handleChange("quantidade_litros", e.target.value)} className={INPUT_CLS} placeholder="0,00" />
                 </FL>
               </div>
             </div>
 
-            {/* Linha 4: Medição (condicional) */}
-            {maquinaSelecionada && maquinaSelecionada.tipo_medicao !== "Nenhum" && (
+            {/* Linha 4: Medição */}
+            {temMedicao && (
               <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
                 <div className="lg:col-span-3">
-                  <FL label="Medição Atual">
-                    <Input readOnly value={maquinaSelecionada.medicao_atual || 0} className={READONLY_CLS} />
+                  <FL label="Última Medição">
+                    <Input readOnly value={medicaoAnterior != null ? medicaoAnterior : "Sem registro anterior"} className={READONLY_CLS} />
                   </FL>
                 </div>
                 <div className="lg:col-span-3">
                   <FL label="Nova Medição" required error={invalidFields.includes("medicao")}>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.medicao}
-                      onChange={(e) => handleChange("medicao", e.target.value)}
-                      className={INPUT_CLS}
-                    />
+                    <Input type="number" step="0.01" value={formData.medicao} onChange={(e) => handleChange("medicao", e.target.value)} className={INPUT_CLS} />
                   </FL>
                 </div>
                 <div className="lg:col-span-3">
-                  <FL label="Consumo">
-                    <Input
-                      readOnly
-                      value={consumoCalculado ? `${consumoCalculado} ${maquinaSelecionada.tipo_medicao === "Horímetro" ? "H/L" : "KM/L"}` : ""}
-                      className={READONLY_CLS}
-                    />
+                  <FL label={`Uso (${maquinaSelecionada.tipo_medicao === "Horímetro" ? "Horas" : "KM"})`}>
+                    <Input readOnly value={consumoPreview ? consumoPreview.uso : ""} className={READONLY_CLS} />
+                  </FL>
+                </div>
+                <div className="lg:col-span-3">
+                  <FL label={`Consumo (${unidadeConsumo})`}>
+                    <Input readOnly value={consumoPreview ? consumoPreview.consumo : medicaoAnterior == null ? "Sem anterior" : ""} className={READONLY_CLS} />
                   </FL>
                 </div>
               </div>
@@ -500,24 +489,15 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
             {/* Observações */}
             <FL label="Observações">
-              <Textarea
-                value={formData.observacoes}
-                onChange={(e) => handleChange("observacoes", e.target.value.toUpperCase())}
-                placeholder="OBSERVAÇÕES..."
-                className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent min-h-[36px]"
-                style={{ textTransform: "uppercase" }}
-                rows={1}
-              />
+              <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value.toUpperCase())} placeholder="OBSERVAÇÕES..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent min-h-[36px]" style={{ textTransform: "uppercase" }} rows={1} />
             </FL>
 
           </CardContent>
         </Card>
 
-        {/* ===== BOTÕES ===== */}
+        {/* Botões */}
         <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">
-            Cancelar
-          </Button>
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
           <Button type="submit" disabled={mutation.isPending} size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
             {mutation.isPending ? "Salvando..." : "Salvar"}
           </Button>
