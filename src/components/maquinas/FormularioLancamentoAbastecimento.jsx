@@ -9,16 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 
-const FL = ({ label, required, error, children }) => (
-  <div>
+const FL = ({ label, required, error, children }) =>
+<div>
     <label className="text-[12px] text-slate-500 pl-1 leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
       {children}
     </div>
-  </div>
-);
+  </div>;
+
 
 const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent";
 const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs";
@@ -32,9 +32,9 @@ function calcularConsumo({ medicaoAnterior, medicaoAtual, litros }) {
   if (medicaoAnterior == null || medicaoAtual == null || !litros) return null;
   if (medicaoAtual <= medicaoAnterior) return null;
   const uso = medicaoAtual - medicaoAnterior;
-  
+
   // Fórmula: Litros abastecidos / Uso (Horas ou KM) -> L/H ou L/KM
-  const consumo = litros / uso; 
+  const consumo = litros / uso;
 
   const confiavel = litros >= MIN_LITROS_CONFIAVEL && consumo >= MIN_CONSUMO && consumo <= MAX_CONSUMO;
   return { uso: Number(uso.toFixed(2)), consumo: Number(consumo.toFixed(2)), confiavel };
@@ -55,7 +55,7 @@ function calcularConsumoMedio(abastecimentos) {
     }
   }
   if (litrosTotal === 0 || usoTotal === 0) return null;
-  
+
   // Fórmula média: Total Litros / Total Uso
   const media = litrosTotal / usoTotal;
 
@@ -78,7 +78,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     produto_id: abastecimento?.produto_id || "",
     quantidade_litros: abastecimento?.quantidade_litros || "",
     medicao: abastecimento?.medicao || "",
-    observacoes: abastecimento?.observacoes || "",
+    observacoes: abastecimento?.observacoes || ""
   });
 
   const handleChange = (field, value) => {
@@ -92,22 +92,22 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     queryKey: ["maquinas-abastecimento", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Maquina.list();
-      return all
-        .filter((m) => m.empresa_id === empresaSelecionadaId && m.status !== "Inativo" && m.status !== "Vendido")
-        .sort((a, b) => a.nome.localeCompare(b.nome));
+      return all.
+      filter((m) => m.empresa_id === empresaSelecionadaId && m.status !== "Inativo" && m.status !== "Vendido").
+      sort((a, b) => a.nome.localeCompare(b.nome));
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: todosProdutos = [] } = useQuery({
     queryKey: ["produtos-empresa-abast", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all
-        .filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false)
-        .sort((a, b) => a.nome_produto.localeCompare(b.nome_produto));
+      return all.
+      filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false).
+      sort((a, b) => a.nome_produto.localeCompare(b.nome_produto));
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: locais = [] } = useQuery({
@@ -115,27 +115,27 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     queryFn: async () => {
       const all = await base44.entities.LocalEstoque.list();
       return all.sort((a, b) => a.nome.localeCompare(b.nome));
-    },
+    }
   });
 
   const { data: gruposAtividade = [] } = useQuery({
     queryKey: ["grupos-atividade-abastecimento"],
     queryFn: async () => {
       const all = await base44.entities.GrupoAtividade.list();
-      return all
-        .filter((g) => g.ativo !== false)
-        .sort((a, b) => a.nome_grupo.localeCompare(b.nome_grupo));
-    },
+      return all.
+      filter((g) => g.ativo !== false).
+      sort((a, b) => a.nome_grupo.localeCompare(b.nome_grupo));
+    }
   });
 
   const { data: tiposTarefa = [] } = useQuery({
     queryKey: ["tipos-tarefa-abastecimento"],
     queryFn: async () => {
       const all = await base44.entities.TipoTarefa.list();
-      return all
-        .filter((t) => t.ativo !== false)
-        .sort((a, b) => a.nome_tipo.localeCompare(b.nome_tipo));
-    },
+      return all.
+      filter((t) => t.ativo !== false).
+      sort((a, b) => a.nome_tipo.localeCompare(b.nome_tipo));
+    }
   });
 
   const { data: lotesEstoque = [] } = useQuery({
@@ -144,7 +144,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       const all = await base44.entities.EstoqueLoteNota.list();
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === "Disponivel" && (l.quantidade_disponivel || 0) > 0);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   // Buscar todos os abastecimentos do ativo para pegar o último
@@ -154,7 +154,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       const all = await base44.entities.AbastecimentoMaquina.list("-data_abastecimento");
       return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.maquina_id === formData.maquina_id && a.medicao != null);
     },
-    enabled: !!empresaSelecionadaId && !!formData.maquina_id,
+    enabled: !!empresaSelecionadaId && !!formData.maquina_id
   });
 
   // ========== DERIVADOS ==========
@@ -199,9 +199,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
   const ultimoAbastecimento = useMemo(() => {
     if (abastecimentosDoAtivo.length === 0) return null;
     // Se estamos editando, ignorar o próprio registro
-    const filtrados = abastecimento?.id
-      ? abastecimentosDoAtivo.filter((a) => a.id !== abastecimento.id)
-      : abastecimentosDoAtivo;
+    const filtrados = abastecimento?.id ?
+    abastecimentosDoAtivo.filter((a) => a.id !== abastecimento.id) :
+    abastecimentosDoAtivo;
     return filtrados[0] || null;
   }, [abastecimentosDoAtivo, abastecimento?.id]);
 
@@ -221,9 +221,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
   // Média dos últimos 3 abastecimentos
   const consumoMedio = useMemo(() => {
     if (!maquinaSelecionada || maquinaSelecionada.tipo_medicao === "Nenhum") return null;
-    const filtrados = abastecimento?.id
-      ? abastecimentosDoAtivo.filter((a) => a.id !== abastecimento.id)
-      : abastecimentosDoAtivo;
+    const filtrados = abastecimento?.id ?
+    abastecimentosDoAtivo.filter((a) => a.id !== abastecimento.id) :
+    abastecimentosDoAtivo;
     // Pegar os últimos 3 que tenham medicao_anterior
     const comAnterior = filtrados.filter((a) => a.medicao_anterior != null).slice(0, 3);
     return calcularConsumoMedio(comAnterior);
@@ -270,9 +270,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       setSaldoDisponivel(null);
       return;
     }
-    const saldo = lotesEstoque
-      .filter((l) => l.produto_id === formData.produto_id && l.local_estoque_id === formData.local_estoque_id)
-      .reduce((acc, l) => acc + (l.quantidade_disponivel || 0), 0);
+    const saldo = lotesEstoque.
+    filter((l) => l.produto_id === formData.produto_id && l.local_estoque_id === formData.local_estoque_id).
+    reduce((acc, l) => acc + (l.quantidade_disponivel || 0), 0);
     setSaldoDisponivel(saldo);
   }, [empresaSelecionadaId, formData.produto_id, formData.local_estoque_id, lotesEstoque]);
 
@@ -313,15 +313,15 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
           consumoData = {
             medicao_anterior: medicaoAnterior,
             uso_realizado: resultado.uso,
-            consumo_calculado: resultado.confiavel ? resultado.consumo : null,
+            consumo_calculado: resultado.confiavel ? resultado.consumo : null
           };
         }
       }
 
       // FIFO
-      const lotesLocal = lotesEstoque
-        .filter((l) => l.produto_id === data.produto_id && l.local_estoque_id === data.local_estoque_id)
-        .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+      const lotesLocal = lotesEstoque.
+      filter((l) => l.produto_id === data.produto_id && l.local_estoque_id === data.local_estoque_id).
+      sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
 
       let restante = quantidade;
       const lotesConsumidos = [];
@@ -334,7 +334,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
             numero_documento: lote.numero_documento,
             fornecedor_nome: lote.fornecedor_nome,
             quantidade_consumida: consumir,
-            custo_unitario: lote.custo_unitario,
+            custo_unitario: lote.custo_unitario
           });
           restante -= consumir;
         }
@@ -363,7 +363,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         grupo_atividade_id: data.grupo_atividade_id,
         grupo_atividade_nome: grupoSel?.nome_grupo || "",
         tipo_servico: data.tipo_servico,
-        responsavel: data.responsavel,
+        responsavel: data.responsavel
       });
 
       const referencia = abastecimentoCriado.id;
@@ -393,7 +393,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         numero_movimentacao_seq: 1,
         total_movimentacoes_grupo: 1,
         bloqueado_exclusao_estoque: true,
-        exclusao_somente_em: "estoque",
+        exclusao_somente_em: "estoque"
       });
 
       for (const item of lotesConsumidos) {
@@ -401,7 +401,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         const novaQtd = (lote.quantidade_disponivel || 0) - item.quantidade_consumida;
         await base44.entities.EstoqueLoteNota.update(item.lote_id, {
           quantidade_disponivel: novaQtd,
-          status: novaQtd > 0 ? "Disponivel" : "Esgotado",
+          status: novaQtd > 0 ? "Disponivel" : "Esgotado"
         });
       }
 
@@ -415,7 +415,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       toast.success("Abastecimento lançado com sucesso");
       onSave();
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => toast.error(error.message)
   });
 
   // ========== SUBMIT ==========
@@ -476,7 +476,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
               </div>
               <div className="lg:col-span-3">
                 <FL label="Tipo de Serviço" required error={invalidFields.includes("tipo_servico")}>
-                  <AutocompleteGenerico items={tiposFiltrados} value={tiposFiltrados.find((t) => t.nome_tipo === formData.tipo_servico)?.id || ""} onChange={(v) => { const tipo = tiposFiltrados.find((t) => t.id === v); handleChange("tipo_servico", tipo?.nome_tipo || ""); }} placeholder={!formData.grupo_atividade_id ? "SELECIONE O GRUPO" : "BUSCAR TIPO..."} displayField="nome_tipo" searchFields={["nome_tipo"]} className="w-full" inputClassName={AC_INPUT_CLS} />
+                  <AutocompleteGenerico items={tiposFiltrados} value={tiposFiltrados.find((t) => t.nome_tipo === formData.tipo_servico)?.id || ""} onChange={(v) => {const tipo = tiposFiltrados.find((t) => t.id === v);handleChange("tipo_servico", tipo?.nome_tipo || "");}} placeholder={!formData.grupo_atividade_id ? "SELECIONE O GRUPO" : "BUSCAR TIPO..."} displayField="nome_tipo" searchFields={["nome_tipo"]} className="w-full" inputClassName={AC_INPUT_CLS} />
                 </FL>
               </div>
             </div>
@@ -515,8 +515,8 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
             </div>
 
             {/* Linha 4: Medição */}
-            {temMedicao && (
-              <>
+            {temMedicao &&
+            <>
                 <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
                   <div className="lg:col-span-2">
                     <FL label="Última Medição">
@@ -536,16 +536,16 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
                   <div className="lg:col-span-3">
                     <FL label={`Consumo Atual (${unidadeConsumo})`}>
                       <Input
-                        readOnly
-                        value={
-                          consumoPreview
-                            ? consumoPreview.confiavel
-                              ? consumoPreview.consumo
-                              : `${consumoPreview.consumo} ⚠`
-                            : medicaoAnterior == null ? "Sem anterior" : ""
-                        }
-                        className={`${READONLY_CLS} ${consumoPreview && !consumoPreview.confiavel ? "text-amber-600 font-semibold" : ""}`}
-                      />
+                      readOnly
+                      value={
+                      consumoPreview ?
+                      consumoPreview.confiavel ?
+                      consumoPreview.consumo :
+                      `${consumoPreview.consumo} ⚠` :
+                      medicaoAnterior == null ? "Sem anterior" : ""
+                      }
+                      className={`${READONLY_CLS} ${consumoPreview && !consumoPreview.confiavel ? "text-amber-600 font-semibold" : ""}`} />
+                    
                     </FL>
                   </div>
                   <div className="lg:col-span-3">
@@ -554,13 +554,13 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
                     </FL>
                   </div>
                 </div>
-                {consumoPreview && !consumoPreview.confiavel && (
-                  <div className="lg:col-span-12 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                {consumoPreview && !consumoPreview.confiavel &&
+              <div className="lg:col-span-12 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 hidden">
                     ⚠ Consumo não confiável — abastecimento pequeno (&lt;{MIN_LITROS_CONFIAVEL}L) ou valor fora da faixa ({MIN_CONSUMO}–{MAX_CONSUMO} {unidadeConsumo}). O valor NÃO será salvo. Referência: média últimos 3 = {consumoMedio != null ? `${consumoMedio} ${unidadeConsumo}` : "indisponível"}.
                   </div>
-                )}
+              }
               </>
-            )}
+            }
 
             {/* Observações */}
             <FL label="Observações">
@@ -578,6 +578,6 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
           </Button>
         </div>
       </form>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
