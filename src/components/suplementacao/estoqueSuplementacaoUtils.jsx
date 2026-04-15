@@ -213,6 +213,8 @@ export async function registrarSaidaSuplementacao({
 
   const quantidadeFinal = parseNumber(quantidade);
   const estoqueAtual = produto.estoque_atual || 0;
+  const saldoAntesLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localOrigemId);
+  
   const conferencia = conferirDivergenciaEstoque({
     lotesNota,
     produtoId: produto.id,
@@ -254,10 +256,13 @@ export async function registrarSaidaSuplementacao({
     ponto_suplementacao_id: pontoSuplementacaoId || undefined,
     bloqueado_exclusao_estoque: true,
     exclusao_somente_em: "cocho",
-    saldo_antes: estoqueAtual,
-    saldo_depois: Math.max(0, estoqueAtual - quantidadeFinal),
+    is_registro_principal: true,
+    numero_movimentacao_seq: 1,
+    total_movimentacoes_grupo: 1,
+    saldo_antes: saldoAntesLocal,
+    saldo_depois: Math.max(0, saldoAntesLocal - quantidadeFinal),
     custo_medio_antes: produto.preco_custo || 0,
-    custo_medio_depois: produto.preco_custo || 0,
+    custo_medio_depois: resultado.custoMedioPonderado || 0,
     usuario_responsavel: userEmail || "Sistema",
     status: "Ativa",
   });
@@ -298,6 +303,9 @@ export async function registrarTransferenciaEntreLocais({
   }
 
   const estoqueAtual = produto.estoque_atual || 0;
+  const saldoAntesOrigem = obterSaldoProdutoLocal(lotesDisponiveis, produto.id, localOrigemId);
+  const saldoAntesDestino = obterSaldoProdutoLocal(lotesDisponiveis, produto.id, localDestinoId);
+  
   const conferencia = conferirDivergenciaEstoque({
     lotesNota: lotesDisponiveis,
     produtoId: produto.id,
@@ -335,10 +343,13 @@ export async function registrarTransferenciaEntreLocais({
     origem_sistema: "deposito",
     bloqueado_exclusao_estoque: true,
     exclusao_somente_em: "deposito",
-    saldo_antes: estoqueAtual,
-    saldo_depois: estoqueAtual,
+    is_registro_principal: true,
+    numero_movimentacao_seq: 1,
+    total_movimentacoes_grupo: 1,
+    saldo_antes: saldoAntesOrigem,
+    saldo_depois: Math.max(0, saldoAntesOrigem - quantidadeFinal),
     custo_medio_antes: produto.preco_custo || 0,
-    custo_medio_depois: produto.preco_custo || 0,
+    custo_medio_depois: resultado.custoMedioPonderado || 0,
     usuario_responsavel: userEmail || "Sistema",
     status: "Ativa",
   });
@@ -369,10 +380,13 @@ export async function registrarTransferenciaEntreLocais({
     bloqueado_exclusao_estoque: true,
     exclusao_somente_em: "deposito",
     movimento_pai_id: movimentacaoSaida.id,
-    saldo_antes: estoqueAtual,
-    saldo_depois: estoqueAtual,
+    is_registro_principal: false,
+    numero_movimentacao_seq: 2,
+    total_movimentacoes_grupo: 2,
+    saldo_antes: saldoAntesDestino,
+    saldo_depois: saldoAntesDestino + quantidadeFinal,
     custo_medio_antes: produto.preco_custo || 0,
-    custo_medio_depois: produto.preco_custo || 0,
+    custo_medio_depois: resultado.custoMedioPonderado || 0,
     usuario_responsavel: userEmail || "Sistema",
     status: "Ativa",
   });
