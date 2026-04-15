@@ -554,11 +554,11 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
                     </FL>
                   </div>
                 </div>
-                {consumoPreview && !consumoPreview.confiavel &&
-              <div className="lg:col-span-12 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 hidden">
-                    ⚠ Consumo não confiável — abastecimento pequeno (&lt;{MIN_LITROS_CONFIAVEL}L) ou valor fora da faixa ({MIN_CONSUMO}–{MAX_CONSUMO} {unidadeConsumo}). O valor NÃO será salvo. Referência: média últimos 3 = {consumoMedio != null ? `${consumoMedio} ${unidadeConsumo}` : "indisponível"}.
-                  </div>
-              }
+                
+
+
+
+              
               </>
             }
 
