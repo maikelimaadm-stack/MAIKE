@@ -257,7 +257,10 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300 bg-white">
         <CardHeader className="flex flex-col space-y-1.5 p-6 bg-white border-b py-1 px-1">
-...
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            {maquina ? "Editar Ativo" : "Novo Ativo"}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-1 bg-white">
           <form onSubmit={handleSubmit} className="space-y-1 bg-white">
             <div className="border border-slate-200 bg-white rounded-lg p-1 space-y-1">
