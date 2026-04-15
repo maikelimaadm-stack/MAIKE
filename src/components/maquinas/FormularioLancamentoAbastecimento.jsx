@@ -24,22 +24,23 @@ const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-tran
 const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs";
 const READONLY_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-slate-50/50";
 
-const MIN_LITROS_CONFIAVEL = 20;
-const MIN_CONSUMO = 0.2;
-const MAX_CONSUMO = 50;
+const MIN_LITROS_CONFIAVEL = 10;
+const MIN_CONSUMO = 0.1;
+const MAX_CONSUMO = 200;
 
 function calcularConsumo({ medicaoAnterior, medicaoAtual, litros }) {
   if (medicaoAnterior == null || medicaoAtual == null || !litros) return null;
   if (medicaoAtual <= medicaoAnterior) return null;
   const uso = medicaoAtual - medicaoAnterior;
-  const consumo = uso / litros;
+  
+  // Fórmula: Litros abastecidos / Uso (Horas ou KM) -> L/H ou L/KM
+  const consumo = litros / uso; 
+
   const confiavel = litros >= MIN_LITROS_CONFIAVEL && consumo >= MIN_CONSUMO && consumo <= MAX_CONSUMO;
   return { uso: Number(uso.toFixed(2)), consumo: Number(consumo.toFixed(2)), confiavel };
 }
 
 function calcularConsumoMedio(abastecimentos) {
-  // Recebe os últimos N abastecimentos (já ordenados desc), calcula média
-  // Cada item deve ter: medicao, medicao_anterior, quantidade_litros
   const validos = abastecimentos.filter(
     (a) => a.medicao != null && a.medicao_anterior != null && a.quantidade_litros >= MIN_LITROS_CONFIAVEL
   );
@@ -54,7 +55,10 @@ function calcularConsumoMedio(abastecimentos) {
     }
   }
   if (litrosTotal === 0 || usoTotal === 0) return null;
-  const media = usoTotal / litrosTotal;
+  
+  // Fórmula média: Total Litros / Total Uso
+  const media = litrosTotal / usoTotal;
+
   if (media < MIN_CONSUMO || media > MAX_CONSUMO) return null;
   return Number(media.toFixed(2));
 }
@@ -210,7 +214,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     return calcularConsumo({
       medicaoAnterior,
       medicaoAtual: Number(formData.medicao || 0),
-      litros: Number(formData.quantidade_litros || 0),
+      litros: Number(formData.quantidade_litros || 0)
     });
   }, [maquinaSelecionada, medicaoAnterior, formData.medicao, formData.quantidade_litros]);
 
@@ -225,7 +229,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     return calcularConsumoMedio(comAnterior);
   }, [abastecimentosDoAtivo, maquinaSelecionada, abastecimento?.id]);
 
-  const unidadeConsumo = maquinaSelecionada?.tipo_medicao === "Horímetro" ? "H/L" : "KM/L";
+  const unidadeConsumo = maquinaSelecionada?.tipo_medicao === "Horímetro" ? "L/H" : "L/KM";
 
   // ========== EFEITOS ==========
 
@@ -303,7 +307,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         const resultado = calcularConsumo({
           medicaoAnterior,
           medicaoAtual: novaMedicao,
-          litros: quantidade,
+          litros: quantidade
         });
         if (resultado) {
           consumoData = {
@@ -551,7 +555,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
                   </div>
                 </div>
                 {consumoPreview && !consumoPreview.confiavel && (
-                  <div className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  <div className="lg:col-span-12 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
                     ⚠ Consumo não confiável — abastecimento pequeno (&lt;{MIN_LITROS_CONFIAVEL}L) ou valor fora da faixa ({MIN_CONSUMO}–{MAX_CONSUMO} {unidadeConsumo}). O valor NÃO será salvo. Referência: média últimos 3 = {consumoMedio != null ? `${consumoMedio} ${unidadeConsumo}` : "indisponível"}.
                   </div>
                 )}
