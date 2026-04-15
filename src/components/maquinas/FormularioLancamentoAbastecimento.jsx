@@ -54,11 +54,11 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     queryFn: () => base44.entities.LocalEstoque.list(),
   });
 
-  const { data: usuarios = [] } = useQuery({
-    queryKey: ["usuarios-responsaveis"],
+  const { data: tiposServico = [] } = useQuery({
+    queryKey: ["tipos-servico-abastecimento"],
     queryFn: async () => {
-      const all = await base44.entities.User.list();
-      return all;
+      const all = await base44.entities.TipoTarefa.list("-updated_date");
+      return all.filter((item) => item.ativo !== false);
     },
   });
 
@@ -265,18 +265,24 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
                 <div>
                   <label className="text-xs uppercase">Tipo de Serviço *</label>
                   <Select value={formData.tipo_servico} onValueChange={(value) => setFormData({ ...formData, tipo_servico: value })}>
-                    <SelectTrigger className={getFieldClassName(tentouSalvar && !formData.tipo_servico)}><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={getFieldClassName(tentouSalvar && !formData.tipo_servico)}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ABASTECIMENTO" className="text-xs uppercase">ABASTECIMENTO</SelectItem>
+                      {tiposServico.map((item) => (
+                        <SelectItem key={item.id} value={item.nome_tipo} className="text-xs uppercase">
+                          {item.nome_tipo}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <label className="text-xs uppercase">Responsável *</label>
-                  <Select value={formData.responsavel} onValueChange={(value) => setFormData({ ...formData, responsavel: value })}>
-                    <SelectTrigger className={getFieldClassName(tentouSalvar && !formData.responsavel)}><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>{usuarios.map((u) => <SelectItem key={u.id} value={u.full_name || u.email} className="text-xs uppercase">{u.full_name || u.email}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <Input
+                    value={formData.responsavel}
+                    onChange={(e) => setFormData({ ...formData, responsavel: e.target.value.toUpperCase() })}
+                    className={getFieldClassName(tentouSalvar && !formData.responsavel)}
+                    placeholder="DIGITE O RESPONSÁVEL"
+                  />
                 </div>
               </div>
             </div>
