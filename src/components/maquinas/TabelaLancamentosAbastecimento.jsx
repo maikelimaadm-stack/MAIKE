@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 
 const LS_VISIBLE = "colunas_visiveis_abastecimentos";
@@ -398,16 +398,10 @@ export default function TabelaLancamentosAbastecimento({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`sticky top-0 z-40 relative text-gray-900 px-2 pr-7 text-xs font-bold border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7 ${sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${coluna.align === "right" ? "text-right" : "text-left"}`}
-                          onClick={sortable ? () => handleSort(coluna.id) : undefined}
+                          className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7 ${coluna.align === "right" ? "text-right" : "text-left"}`}
                         >
-                          <div className={`flex items-center gap-0.5 ${coluna.align === "right" ? "justify-end" : "justify-start"} overflow-hidden`}>
+                          <div className={`inline-flex items-center h-full w-full overflow-hidden ${coluna.align === "right" ? "justify-end" : "justify-start"}`}>
                             <span className="truncate">{coluna.label}</span>
-                            {sortable && sortCol === coluna.id && (
-                              sortDir === "asc"
-                                ? <ArrowUp className="w-3 h-3 shrink-0" />
-                                : <ArrowDown className="w-3 h-3 shrink-0" />
-                            )}
                           </div>
 
                           {filterControl && (

@@ -358,8 +358,10 @@ export default function TabelaProdutos({
 
                         const filterControl = renderFilterControl(coluna.id);
                         return (
-                          <TableHead key={coluna.id} style={{ width, minWidth: width, maxWidth: width }} className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7">
-                            <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">{coluna.label}</div>
+                          <TableHead key={coluna.id} style={{ width, minWidth: width, maxWidth: width }} className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7 ${coluna.align === "right" ? "text-right" : "text-left"}`}>
+                            <div className={`inline-flex items-center h-full w-full overflow-hidden ${coluna.align === "right" ? "justify-end" : coluna.align === "center" ? "justify-center" : "justify-start"}`}>
+                              <span className="truncate">{coluna.label}</span>
+                            </div>
                             {filterControl && (
                               <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                 {filterControl}
@@ -421,7 +423,7 @@ export default function TabelaProdutos({
                                 );
                               }
                               return (
-                                <TableCell key={`${produto.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words ${coluna.align === "right" ? "text-right font-mono" : ""} ${coluna.align === "center" ? "text-center" : ""}`}>
+                                <TableCell key={`${produto.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words overflow-hidden ${coluna.align === "right" ? "text-right font-mono" : "uppercase"} ${coluna.align === "center" ? "text-center" : ""}`}>
                                   {renderCell(produto, coluna.id)}
                                 </TableCell>
                               );
