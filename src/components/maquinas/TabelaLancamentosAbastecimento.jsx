@@ -25,6 +25,9 @@ const COLUNAS_DISPONIVEIS = [
   { id: "acoes", label: "", default: true, fixo: true, width: 28 },
   { id: "data_abastecimento", label: "Data", default: true, width: 90 },
   { id: "maquina_nome", label: "Ativo", default: true, width: 180 },
+  { id: "maquina_identificador", label: "ID Ativo", default: false, width: 100 },
+  { id: "maquina_categoria", label: "Categoria Ativo", default: false, width: 130 },
+  { id: "maquina_tipo_medicao", label: "Tipo Medição", default: true, width: 120 },
   { id: "grupo_atividade_nome", label: "Grupo Atividade", default: true, width: 150 },
   { id: "tipo_servico", label: "Tipo Serviço", default: true, width: 140 },
   { id: "responsavel", label: "Responsável", default: true, width: 130 },
@@ -122,7 +125,7 @@ export default function TabelaLancamentosAbastecimento({ abastecimentos = [], se
     else onSelecionadosChange(dados.map((m) => m.id));
   };
 
-  const SORTABLE = ["data_abastecimento", "maquina_nome", "responsavel", "produto_nome", "quantidade_litros", "medicao", "consumo_calculado"];
+  const SORTABLE = ["data_abastecimento", "maquina_nome", "maquina_categoria", "maquina_tipo_medicao", "maquina_identificador", "responsavel", "produto_nome", "quantidade_litros", "medicao", "consumo_calculado"];
 
   const renderCell = (item, colunaId) => {
     if (colunaId === "data_abastecimento") return formatDate(item.data_abastecimento);

@@ -22,13 +22,35 @@ export default function LancamentosAbastecimento() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
-  const { data: abastecimentos = [] } = useQuery({
-    queryKey: ["abastecimentos", empresaSelecionadaId],
+  const { data: maquinas = [] } = useQuery({
+    queryKey: ["maquinas", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AbastecimentoMaquina.list();
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId).sort((a, b) => new Date(b.data_abastecimento) - new Date(a.data_abastecimento));
+      const all = await base44.entities.Maquina.list();
+      return all.filter((m) => m.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: abastecimentos = [] } = useQuery({
+    queryKey: ["abastecimentos", empresaSelecionadaId, maquinas.length],
+    queryFn: async () => {
+      const all = await base44.entities.AbastecimentoMaquina.list();
+      const filtrados = all.filter((item) => item.empresa_id === empresaSelecionadaId);
+      
+      // Enriquecer dados com informações da máquina
+      const enriquecidos = filtrados.map((abast) => {
+        const maquina = maquinas.find(m => m.id === abast.maquina_id);
+        return {
+          ...abast,
+          maquina_categoria: maquina?.categoria || "-",
+          maquina_identificador: maquina?.identificador_curto || "-",
+          maquina_tipo_medicao: maquina?.tipo_medicao || "Nenhum"
+        };
+      });
+
+      return enriquecidos.sort((a, b) => new Date(b.data_abastecimento) - new Date(a.data_abastecimento));
+    },
+    enabled: !!empresaSelecionadaId && maquinas.length >= 0,
   });
 
   const deleteMutation = useMutation({
