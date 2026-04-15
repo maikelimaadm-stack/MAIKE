@@ -1,0 +1,30 @@
+{
+  "name": "TipoAtivo",
+  "type": "object",
+  "properties": {
+    "nome": {
+      "type": "string",
+      "description": "Nome do tipo de ativo"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "M\u00e1quina",
+        "Equipamento",
+        "Implemento",
+        "Ve\u00edculo",
+        "Ferramenta"
+      ],
+      "description": "Categoria relacionada ao tipo"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o tipo est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "nome",
+    "categoria"
+  ]
+}

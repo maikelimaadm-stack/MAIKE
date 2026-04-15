@@ -1,0 +1,92 @@
+{
+  "name": "AbastecimentoMaquina",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "maquina_id": {
+      "type": "string",
+      "description": "ID do ativo"
+    },
+    "maquina_nome": {
+      "type": "string",
+      "description": "Nome do ativo (cache)"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto combust\u00edvel utilizado"
+    },
+    "produto_nome": {
+      "type": "string",
+      "description": "Nome do produto combust\u00edvel"
+    },
+    "data_abastecimento": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do abastecimento"
+    },
+    "tipo_combustivel": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o legada do combust\u00edvel"
+    },
+    "quantidade_litros": {
+      "type": "number",
+      "description": "Quantidade em litros"
+    },
+    "valor_litro": {
+      "type": "number",
+      "description": "Valor por litro"
+    },
+    "valor_total": {
+      "type": "number",
+      "description": "Valor total"
+    },
+    "medicao": {
+      "type": "number",
+      "description": "Medi\u00e7\u00e3o do ativo no momento do abastecimento"
+    },
+    "tanque_cheio": {
+      "type": "boolean",
+      "default": true,
+      "description": "Tanque cheio?"
+    },
+    "local_abastecimento": {
+      "type": "string",
+      "enum": [
+        "Fazenda",
+        "Posto Externo",
+        "Caminh\u00e3o Comboio"
+      ],
+      "description": "Local do abastecimento"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor (cache)"
+    },
+    "numero_cupom": {
+      "type": "string",
+      "description": "N\u00famero do cupom/NF"
+    },
+    "operador": {
+      "type": "string",
+      "description": "Operador/motorista"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "maquina_id",
+    "data_abastecimento",
+    "produto_id",
+    "quantidade_litros"
+  ]
+}

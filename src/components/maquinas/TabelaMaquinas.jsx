@@ -14,16 +14,14 @@ const COLUNAS_DISPONIVEIS = [
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
   { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 90 },
   { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 180 },
-  { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 130 },
-  { id: "marca", label: "Marca", default: false, sortable: true, align: "left", width: 130 },
-  { id: "modelo", label: "Modelo", default: false, sortable: true, align: "left", width: 130 },
+  { id: "identificador_curto", label: "Identificador", default: true, sortable: true, align: "left", width: 130 },
+  { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 130 },
+  { id: "tipo", label: "Tipo", default: true, sortable: true, align: "left", width: 140 },
   { id: "marca_modelo", label: "Marca / Modelo", default: true, sortable: true, align: "left", width: 180 },
   { id: "placa", label: "Placa", default: true, sortable: true, align: "left", width: 110 },
-  { id: "ano_fabricacao", label: "Ano", default: false, sortable: true, align: "right", width: 90 },
-  { id: "potencia_cv", label: "Potência (CV)", default: false, sortable: true, align: "right", width: 110 },
-  { id: "horimetro", label: "Horímetro", default: true, sortable: true, align: "right", width: 110 },
-  { id: "hodometro", label: "Hodômetro", default: false, sortable: true, align: "right", width: 110 },
-  { id: "combustivel", label: "Combustível", default: false, sortable: true, align: "left", width: 120 },
+  { id: "tipo_medicao", label: "Tipo Medição", default: true, sortable: true, align: "left", width: 120 },
+  { id: "medicao_atual", label: "Medição Atual", default: true, sortable: true, align: "right", width: 120 },
+  { id: "combustiveis", label: "Combustíveis", default: false, sortable: true, align: "left", width: 180 },
   { id: "custo_hora", label: "Custo / H", default: true, sortable: true, align: "right", width: 120 },
   { id: "localizacao", label: "Localização", default: false, sortable: true, align: "left", width: 150 },
   { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 140 },
@@ -38,16 +36,7 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 };
 
-export default function TabelaMaquinas({
-  maquinas = [],
-  selecionados = [],
-  onSelecionadosChange,
-  onView,
-  onEdit,
-  onDelete,
-  showConfigColunas,
-  setShowConfigColunas,
-}) {
+export default function TabelaMaquinas({ maquinas = [], selecionados = [], onSelecionadosChange, onView, onEdit, onDelete, showConfigColunas, setShowConfigColunas }) {
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
@@ -137,16 +126,14 @@ export default function TabelaMaquinas({
   const getFieldValue = (item, colunaId) => {
     if (colunaId === "codigo") return item.codigo || "";
     if (colunaId === "nome") return item.nome || "";
+    if (colunaId === "identificador_curto") return item.identificador_curto || "";
+    if (colunaId === "categoria") return item.categoria || "";
     if (colunaId === "tipo") return item.tipo || "";
-    if (colunaId === "marca") return item.marca || "";
-    if (colunaId === "modelo") return item.modelo || "";
     if (colunaId === "marca_modelo") return `${item.marca || ""} ${item.modelo || ""}`.trim();
     if (colunaId === "placa") return item.placa || "";
-    if (colunaId === "ano_fabricacao") return item.ano_fabricacao != null ? String(item.ano_fabricacao) : "";
-    if (colunaId === "potencia_cv") return item.potencia_cv != null ? String(item.potencia_cv) : "";
-    if (colunaId === "horimetro") return item.horimetro_atual != null ? String(item.horimetro_atual) : "";
-    if (colunaId === "hodometro") return item.hodometro_atual != null ? String(item.hodometro_atual) : "";
-    if (colunaId === "combustivel") return item.tipo_combustivel || "";
+    if (colunaId === "tipo_medicao") return item.tipo_medicao || "";
+    if (colunaId === "medicao_atual") return item.medicao_atual != null ? String(item.medicao_atual) : "";
+    if (colunaId === "combustiveis") return (item.produtos_combustiveis_vinculados || []).map((p) => p.produto_nome).join(", ");
     if (colunaId === "custo_hora") return item.custo_hora != null ? String(item.custo_hora) : "";
     if (colunaId === "localizacao") return item.localizacao_atual || "";
     if (colunaId === "status") return item.status || "";
@@ -179,7 +166,7 @@ export default function TabelaMaquinas({
   const maquinasOrdenadas = useMemo(() => {
     const sorted = [...maquinasFiltradas];
     sorted.sort((a, b) => {
-      if (["horimetro", "custo_hora"].includes(sortConfig.key)) {
+      if (["medicao_atual", "custo_hora"].includes(sortConfig.key)) {
         const aNum = Number(getFieldValue(a, sortConfig.key) || 0);
         const bNum = Number(getFieldValue(b, sortConfig.key) || 0);
         if (aNum < bNum) return sortConfig.direction === "asc" ? -1 : 1;
@@ -202,8 +189,10 @@ export default function TabelaMaquinas({
   };
 
   const renderCell = (item, colunaId) => {
-    if (colunaId === "horimetro") return item.horimetro_atual ? `${item.horimetro_atual}h` : "-";
-    if (colunaId === "hodometro") return item.hodometro_atual ? `${item.hodometro_atual} km` : "-";
+    if (colunaId === "medicao_atual") {
+      if (!item.tipo_medicao || item.tipo_medicao === "Nenhum" || item.medicao_atual == null) return "-";
+      return item.tipo_medicao === "Horímetro" ? `${item.medicao_atual}h` : `${item.medicao_atual} km`;
+    }
     if (colunaId === "custo_hora") return item.custo_hora ? formatarMoeda(item.custo_hora) : "-";
     return getFieldValue(item, colunaId) || "-";
   };
@@ -283,7 +272,7 @@ export default function TabelaMaquinas({
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
             <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[980px]" : "min-w-[1250px]"} border-separate border-spacing-0 table-fixed`}>
+              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[980px]" : "min-w-[1450px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
                     {colunasOrdenadas.map((coluna) => {
@@ -297,7 +286,7 @@ export default function TabelaMaquinas({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {maquinasOrdenadas.length === 0 ? <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhuma máquina encontrada</TableCell></TableRow> : maquinasOrdenadas.map((item) => <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100">{colunasOrdenadas.map((coluna) => { const width = columnWidths[coluna.id] || coluna.width || 160; if (coluna.id === "selecao") return <TableCell key={`${item.id}-selecao`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center px-0 h-7 border-r border-b border-gray-300"><div className="flex items-center justify-center w-full h-full"><Checkbox checked={selecionados.includes(item.id)} onCheckedChange={(checked) => onSelecionadosChange(checked ? [...selecionados, item.id] : selecionados.filter((id) => id !== item.id))} className="h-4 w-4 rounded-full border-2 border-gray-400" /></div></TableCell>; if (coluna.id === "acoes") return <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center px-0 h-7 border-r border-b border-gray-300"><div className="flex items-center justify-center w-full h-full"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem onClick={() => onView(item)} className="text-xs">Ver Ficha</DropdownMenuItem><DropdownMenuItem onClick={() => onEdit(item)} className="text-xs">Editar</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => onDelete(item)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></TableCell>; return <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words ${coluna.align === 'right' ? 'text-right font-mono' : ''}`}>{renderCell(item, coluna.id)}</TableCell>; })}</TableRow>)}
+                  {maquinasOrdenadas.length === 0 ? <TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum ativo encontrado</TableCell></TableRow> : maquinasOrdenadas.map((item) => <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100">{colunasOrdenadas.map((coluna) => { const width = columnWidths[coluna.id] || coluna.width || 160; if (coluna.id === "selecao") return <TableCell key={`${item.id}-selecao`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center px-0 h-7 border-r border-b border-gray-300"><div className="flex items-center justify-center w-full h-full"><Checkbox checked={selecionados.includes(item.id)} onCheckedChange={(checked) => onSelecionadosChange(checked ? [...selecionados, item.id] : selecionados.filter((id) => id !== item.id))} className="h-4 w-4 rounded-full border-2 border-gray-400" /></div></TableCell>; if (coluna.id === "acoes") return <TableCell key={`${item.id}-acoes`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center px-0 h-7 border-r border-b border-gray-300"><div className="flex items-center justify-center w-full h-full"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem onClick={() => onView(item)} className="text-xs">Ver Ficha</DropdownMenuItem><DropdownMenuItem onClick={() => onEdit(item)} className="text-xs">Editar</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => onDelete(item)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></TableCell>; return <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words ${coluna.align === 'right' ? 'text-right font-mono' : ''}`}>{renderCell(item, coluna.id)}</TableCell>; })}</TableRow>)}
                 </TableBody>
               </Table>
             </div>

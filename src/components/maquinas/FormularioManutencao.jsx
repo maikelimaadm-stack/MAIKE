@@ -18,12 +18,11 @@ export default function FormularioManutencao({ maquina, onSave, onCancel }) {
     tipo_manutencao: 'Corretiva',
     categoria: '',
     descricao: '',
-    horimetro: maquina.horimetro_atual || '',
-    hodometro: maquina.hodometro_atual || '',
+    medicao: maquina.tipo_medicao !== 'Nenhum' ? (maquina.medicao_atual || '') : '',
     fornecedor_id: '',
     valor_pecas: '',
     valor_mao_obra: '',
-    proxima_manutencao_horimetro: '',
+    proxima_manutencao_medicao: '',
     proxima_manutencao_data: '',
     numero_os: '',
     numero_nf: '',
@@ -49,30 +48,32 @@ export default function FormularioManutencao({ maquina, onSave, onCancel }) {
         empresa_id: empresaSelecionadaId,
         maquina_id: maquina.id,
         maquina_nome: maquina.nome,
-        ...data,
+        tipo_manutencao: data.tipo_manutencao,
+        categoria: data.categoria,
+        descricao: data.descricao,
+        data_manutencao: data.data_manutencao,
+        medicao: data.medicao ? parseFloat(data.medicao) : null,
+        fornecedor_id: data.fornecedor_id,
         fornecedor_nome: fornecedor?.nome || '',
         valor_pecas: parseFloat(data.valor_pecas) || 0,
         valor_mao_obra: parseFloat(data.valor_mao_obra) || 0,
         valor_total: valorTotal,
-        horimetro: data.horimetro ? parseFloat(data.horimetro) : null,
-        hodometro: data.hodometro ? parseFloat(data.hodometro) : null,
-        proxima_manutencao_horimetro: data.proxima_manutencao_horimetro ? parseFloat(data.proxima_manutencao_horimetro) : null,
+        proxima_manutencao_horimetro: data.proxima_manutencao_medicao ? parseFloat(data.proxima_manutencao_medicao) : null,
+        proxima_manutencao_data: data.proxima_manutencao_data,
+        numero_os: data.numero_os,
+        numero_nf: data.numero_nf,
+        status: data.status,
+        observacoes: data.observacoes,
       };
 
       await base44.entities.ManutencaoMaquina.create(payload);
 
-      // Atualizar status da máquina se em manutenção
-      if (data.status === 'Em Andamento' || data.status === 'Agendada') {
-        await base44.entities.Maquina.update(maquina.id, { status: 'Em Manutenção' });
-      }
-
-      // Atualizar horímetro/hodômetro
       const updates = {};
-      if (data.horimetro && parseFloat(data.horimetro) > (maquina.horimetro_atual || 0)) {
-        updates.horimetro_atual = parseFloat(data.horimetro);
+      if (data.status === 'Em Andamento' || data.status === 'Agendada') {
+        updates.status = 'Em Manutenção';
       }
-      if (data.hodometro && parseFloat(data.hodometro) > (maquina.hodometro_atual || 0)) {
-        updates.hodometro_atual = parseFloat(data.hodometro);
+      if (maquina.tipo_medicao !== 'Nenhum' && data.medicao && parseFloat(data.medicao) > (maquina.medicao_atual || 0)) {
+        updates.medicao_atual = parseFloat(data.medicao);
       }
       if (Object.keys(updates).length > 0) {
         await base44.entities.Maquina.update(maquina.id, updates);
@@ -101,23 +102,13 @@ export default function FormularioManutencao({ maquina, onSave, onCancel }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Data *</Label>
-          <Input
-            type="date"
-            value={formData.data_manutencao}
-            onChange={(e) => setFormData({ ...formData, data_manutencao: e.target.value })}
-            className="h-8 text-xs"
-            required
-          />
+          <Input type="date" value={formData.data_manutencao} onChange={(e) => setFormData({ ...formData, data_manutencao: e.target.value })} className="h-8 text-xs" required />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Tipo *</Label>
           <Select value={formData.tipo_manutencao} onValueChange={(v) => setFormData({ ...formData, tipo_manutencao: v })}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIPOS.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
-            </SelectContent>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>{TIPOS.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
@@ -126,20 +117,14 @@ export default function FormularioManutencao({ maquina, onSave, onCancel }) {
         <div className="space-y-1">
           <Label className="text-xs">Categoria *</Label>
           <Select value={formData.categoria} onValueChange={(v) => setFormData({ ...formData, categoria: v })}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {CATEGORIAS.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
-            </SelectContent>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Status</Label>
           <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="Agendada" className="text-xs">Agendada</SelectItem>
               <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
@@ -152,98 +137,54 @@ export default function FormularioManutencao({ maquina, onSave, onCancel }) {
 
       <div className="space-y-1">
         <Label className="text-xs">Descrição</Label>
-        <Textarea
-          value={formData.descricao}
-          onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-          rows={2}
-          placeholder="Descreva o serviço realizado..."
-          className="text-xs"
-        />
+        <Textarea value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} rows={2} placeholder="Descreva o serviço realizado..." className="text-xs" />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Valor Peças (R$)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.valor_pecas}
-            onChange={(e) => setFormData({ ...formData, valor_pecas: e.target.value })}
-            className="h-8 text-xs"
-          />
+          <Input type="number" step="0.01" value={formData.valor_pecas} onChange={(e) => setFormData({ ...formData, valor_pecas: e.target.value })} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Mão de Obra (R$)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.valor_mao_obra}
-            onChange={(e) => setFormData({ ...formData, valor_mao_obra: e.target.value })}
-            className="h-8 text-xs"
-          />
+          <Input type="number" step="0.01" value={formData.valor_mao_obra} onChange={(e) => setFormData({ ...formData, valor_mao_obra: e.target.value })} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Total</Label>
-          <Input
-            value={`R$ ${valorTotal.toFixed(2)}`}
-            readOnly
-            className="h-8 text-xs font-semibold bg-slate-50"
-          />
+          <Input value={`R$ ${valorTotal.toFixed(2)}`} readOnly className="h-8 text-xs font-semibold bg-slate-50" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Horímetro</Label>
-          <Input
-            type="number"
-            value={formData.horimetro}
-            onChange={(e) => setFormData({ ...formData, horimetro: e.target.value })}
-            className="h-8 text-xs"
-          />
+      {maquina.tipo_medicao !== 'Nenhum' && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">{maquina.tipo_medicao}</Label>
+            <Input type="number" value={formData.medicao} onChange={(e) => setFormData({ ...formData, medicao: e.target.value })} className="h-8 text-xs" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Próxima Manutenção ({maquina.tipo_medicao})</Label>
+            <Input type="number" value={formData.proxima_manutencao_medicao} onChange={(e) => setFormData({ ...formData, proxima_manutencao_medicao: e.target.value })} className="h-8 text-xs" placeholder="Ex: 500" />
+          </div>
         </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Fornecedor/Oficina</Label>
           <Select value={formData.fornecedor_id} onValueChange={(v) => setFormData({ ...formData, fornecedor_id: v })}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
-            </SelectContent>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>{fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Próxima Manutenção (Horímetro)</Label>
-          <Input
-            type="number"
-            value={formData.proxima_manutencao_horimetro}
-            onChange={(e) => setFormData({ ...formData, proxima_manutencao_horimetro: e.target.value })}
-            className="h-8 text-xs"
-            placeholder="Ex: 500"
-          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Próxima Manutenção (Data)</Label>
-          <Input
-            type="date"
-            value={formData.proxima_manutencao_data}
-            onChange={(e) => setFormData({ ...formData, proxima_manutencao_data: e.target.value })}
-            className="h-8 text-xs"
-          />
+          <Input type="date" value={formData.proxima_manutencao_data} onChange={(e) => setFormData({ ...formData, proxima_manutencao_data: e.target.value })} className="h-8 text-xs" />
         </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={mutation.isPending} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-          {mutation.isPending ? 'Salvando...' : 'Salvar'}
-        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">Cancelar</Button>
+        <Button type="submit" disabled={mutation.isPending} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">{mutation.isPending ? 'Salvando...' : 'Salvar'}</Button>
       </div>
     </form>
   );

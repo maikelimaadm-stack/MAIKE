@@ -1,18 +1,18 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 const FL = ({ label, required, error, children }) => (
   <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+    <label className="text-[12px] text-slate-500 pl-1 leading-none uppercase">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
@@ -21,9 +21,9 @@ const FL = ({ label, required, error, children }) => (
   </div>
 );
 
-const TIPOS = ["Trator", "Colheitadeira", "Plantadeira", "Pulverizador", "Caminhão", "Pickup", "Motocicleta", "Implemento", "Outro"];
-const COMBUSTIVEIS = ["Diesel", "Gasolina", "Etanol", "Flex", "Elétrico", "Não Aplicável"];
-const REQUIRED_FIELDS = ["nome", "tipo"];
+const CATEGORIAS = ["Máquina", "Equipamento", "Implemento", "Veículo", "Ferramenta"];
+const TIPOS_MEDICAO = ["Horímetro", "Hodômetro", "Nenhum"];
+const REQUIRED_FIELDS = ["nome", "categoria", "tipo_medicao"];
 
 export default function FormularioMaquina({ maquina, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -38,9 +38,29 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: tiposAtivo = [] } = useQuery({
+    queryKey: ["tipos-ativo", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.TipoAtivo.list();
+      return all.filter((item) => item.ativo !== false);
+    },
+  });
+
+  const { data: produtos = [] } = useQuery({
+    queryKey: ["produtos-combustivel-ativos", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false && ((p.categoria || "").toLowerCase().includes("combust") || (p.nome_produto || "").toLowerCase().includes("diesel") || (p.nome_produto || "").toLowerCase().includes("gasolina") || (p.nome_produto || "").toLowerCase().includes("etanol") || (p.nome_produto || "").toLowerCase().includes("arla")));
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const [formData, setFormData] = useState({
     codigo: maquina?.codigo || "",
     nome: maquina?.nome || "",
+    identificador_curto: maquina?.identificador_curto || "",
+    categoria: maquina?.categoria || "",
+    tipo_id: maquina?.tipo_id || "",
     tipo: maquina?.tipo || "",
     marca: maquina?.marca || "",
     modelo: maquina?.modelo || "",
@@ -49,13 +69,12 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     chassi: maquina?.chassi || "",
     renavam: maquina?.renavam || "",
     potencia_cv: maquina?.potencia_cv || "",
-    horimetro_atual: maquina?.horimetro_atual || "",
-    hodometro_atual: maquina?.hodometro_atual || "",
+    tipo_medicao: maquina?.tipo_medicao || "Nenhum",
+    medicao_atual: maquina?.medicao_atual || maquina?.horimetro_atual || maquina?.hodometro_atual || "",
     data_aquisicao: maquina?.data_aquisicao || "",
     valor_aquisicao: maquina?.valor_aquisicao || "",
     valor_atual: maquina?.valor_atual || "",
     consumo_medio: maquina?.consumo_medio || "",
-    tipo_combustivel: maquina?.tipo_combustivel || "",
     capacidade_tanque: maquina?.capacidade_tanque || "",
     vida_util_horas: maquina?.vida_util_horas || "",
     custo_hora: maquina?.custo_hora || "",
@@ -63,11 +82,48 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     status: maquina?.status || "Ativo",
     localizacao_atual: maquina?.localizacao_atual || "",
     observacoes: maquina?.observacoes || "",
+    produtos_combustiveis_vinculados: maquina?.produtos_combustiveis_vinculados || [],
   });
 
-  const getFieldClassName = (field) => {
-    if (!tentouSalvar || !REQUIRED_FIELDS.includes(field) || formData[field]) return "h-8 text-xs uppercase";
-    return "h-8 text-xs uppercase border-red-500 bg-red-50 focus-visible:ring-red-500";
+  const tiposFiltrados = useMemo(() => {
+    return tiposAtivo.filter((item) => item.categoria === formData.categoria);
+  }, [tiposAtivo, formData.categoria]);
+
+  const handleChange = (field, value) => {
+    const uppercaseFields = ["codigo", "nome", "identificador_curto", "marca", "modelo", "placa", "chassi", "renavam", "observacoes"];
+    setFormData((prev) => {
+      const nextValue = uppercaseFields.includes(field) ? String(value).toUpperCase() : value;
+      if (field === "categoria") {
+        return { ...prev, categoria: nextValue, tipo_id: "", tipo: "" };
+      }
+      if (field === "tipo_medicao" && value === "Nenhum") {
+        return { ...prev, tipo_medicao: value, medicao_atual: "" };
+      }
+      return { ...prev, [field]: nextValue };
+    });
+  };
+
+  const toggleProduto = (produto) => {
+    setFormData((prev) => {
+      const exists = prev.produtos_combustiveis_vinculados.some((item) => item.produto_id === produto.id);
+      if (exists) {
+        return {
+          ...prev,
+          produtos_combustiveis_vinculados: prev.produtos_combustiveis_vinculados.filter((item) => item.produto_id !== produto.id),
+        };
+      }
+      return {
+        ...prev,
+        produtos_combustiveis_vinculados: [...prev.produtos_combustiveis_vinculados, { produto_id: produto.id, produto_nome: produto.nome_produto, principal: prev.produtos_combustiveis_vinculados.length === 0 }],
+      };
+    });
+  };
+
+  const definirPrincipal = (produtoId) => {
+    setFormData((prev) => ({
+      ...prev,
+      produtos_combustiveis_vinculados: prev.produtos_combustiveis_vinculados.map((item) => ({ ...item, principal: item.produto_id === produtoId })),
+    }));
   };
 
   const mutation = useMutation({
@@ -77,8 +133,7 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
         empresa_id: empresaSelecionadaId,
         ano_fabricacao: data.ano_fabricacao ? parseInt(data.ano_fabricacao) : null,
         potencia_cv: data.potencia_cv ? parseFloat(data.potencia_cv) : null,
-        horimetro_atual: data.horimetro_atual ? parseFloat(data.horimetro_atual) : null,
-        hodometro_atual: data.hodometro_atual ? parseFloat(data.hodometro_atual) : null,
+        medicao_atual: data.tipo_medicao !== "Nenhum" && data.medicao_atual ? parseFloat(data.medicao_atual) : null,
         valor_aquisicao: data.valor_aquisicao ? parseFloat(data.valor_aquisicao) : null,
         valor_atual: data.valor_atual ? parseFloat(data.valor_atual) : null,
         consumo_medio: data.consumo_medio ? parseFloat(data.consumo_medio) : null,
@@ -88,11 +143,14 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
         valor_combustivel_litro: data.valor_combustivel_litro ? parseFloat(data.valor_combustivel_litro) : null,
       };
 
+      delete payload.horimetro_atual;
+      delete payload.hodometro_atual;
+
       if (maquina) return base44.entities.Maquina.update(maquina.id, payload);
       return base44.entities.Maquina.create(payload);
     },
     onSuccess: () => {
-      toast.success(maquina ? "Máquina atualizada!" : "Máquina cadastrada!");
+      toast.success(maquina ? "Ativo atualizado!" : "Ativo cadastrado!");
       onSave();
     },
     onError: (error) => {
@@ -100,16 +158,15 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     },
   });
 
-  const handleChange = (field, value) => {
-    const uppercaseFields = ["codigo", "nome", "marca", "modelo", "placa", "chassi", "renavam", "observacoes"];
-    setFormData((prev) => ({ ...prev, [field]: uppercaseFields.includes(field) ? String(value).toUpperCase() : value }));
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     setTentouSalvar(true);
     if (REQUIRED_FIELDS.some((field) => !formData[field])) {
       toast.error("Preencha os campos obrigatórios");
+      return;
+    }
+    if (formData.tipo_medicao !== "Nenhum" && !formData.medicao_atual) {
+      toast.error("Informe a medição atual");
       return;
     }
     mutation.mutate(formData);
@@ -120,57 +177,105 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
       <Card className="shadow-sm border-slate-300">
         <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
           <CardTitle className="text-sm font-semibold text-slate-900">
-            {maquina ? "Editar Máquina" : "Nova Máquina"}
+            {maquina ? "Editar Ativo" : "Novo Ativo"}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-0.5">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Código"><Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="TRT001" /></FL>
-              <FL label="Nome da Máquina" required error={tentouSalvar && !formData.nome}><Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="NOME DA MÁQUINA" /></FL>
-              <FL label="Tipo" required error={tentouSalvar && !formData.tipo}>
-                <Select value={formData.tipo} onValueChange={(v) => handleChange("tipo", v)}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                  <SelectContent>{TIPOS.map((t) => <SelectItem key={t} value={t} className="text-xs uppercase">{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </FL>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
-              <FL label="Marca"><Input value={formData.marca} onChange={(e) => handleChange("marca", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="MARCA" /></FL>
-              <FL label="Modelo"><Input value={formData.modelo} onChange={(e) => handleChange("modelo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="MODELO" /></FL>
-              <FL label="Ano Fabricação"><Input type="number" value={formData.ano_fabricacao} onChange={(e) => handleChange("ano_fabricacao", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="2024" /></FL>
-              <FL label="Status">
-                <Select value={formData.status} onValueChange={(v) => handleChange("status", v)}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="Ativo" className="text-xs">Ativo</SelectItem><SelectItem value="Em Manutenção" className="text-xs">Em Manutenção</SelectItem><SelectItem value="Inativo" className="text-xs">Inativo</SelectItem><SelectItem value="Vendido" className="text-xs">Vendido</SelectItem></SelectContent>
-                </Select>
-              </FL>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
-              <FL label="Placa"><Input value={formData.placa} onChange={(e) => handleChange("placa", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="ABC1D23" /></FL>
-              <FL label="Chassi"><Input value={formData.chassi} onChange={(e) => handleChange("chassi", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="CHASSI" /></FL>
-              <FL label="Renavam"><Input value={formData.renavam} onChange={(e) => handleChange("renavam", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="RENAVAM" /></FL>
-              <FL label="Potência (CV)"><Input type="number" value={formData.potencia_cv} onChange={(e) => handleChange("potencia_cv", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
-              <FL label="Data Aquisição"><Input type="date" value={formData.data_aquisicao} onChange={(e) => handleChange("data_aquisicao", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-            </div>
-            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
-              <span className="font-semibold text-xs text-slate-700">Operação e Abastecimento</span>
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-1">
-                <FL label="Horímetro Atual"><Input type="number" value={formData.horimetro_atual} onChange={(e) => handleChange("horimetro_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="HORAS" /></FL>
-                <FL label="Hodômetro Atual"><Input type="number" value={formData.hodometro_atual} onChange={(e) => handleChange("hodometro_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="KM" /></FL>
-                <FL label="Combustível">
-                  <Select value={formData.tipo_combustivel} onValueChange={(v) => handleChange("tipo_combustivel", v)}>
+          <form onSubmit={handleSubmit} className="space-y-1">
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <span className="font-semibold text-xs text-slate-700 uppercase">Identificação</span>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+                <FL label="Código"><Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="COD001" /></FL>
+                <FL label="Nome do Ativo" required error={tentouSalvar && !formData.nome}><Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="NOME DO ATIVO" /></FL>
+                <FL label="Identificador Curto"><Input value={formData.identificador_curto} onChange={(e) => handleChange("identificador_curto", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="TRATOR 01" /></FL>
+                <FL label="Categoria" required error={tentouSalvar && !formData.categoria}>
+                  <Select value={formData.categoria} onValueChange={(v) => handleChange("categoria", v)}>
                     <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>{COMBUSTIVEIS.map((c) => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                    <SelectContent>{CATEGORIAS.map((item) => <SelectItem key={item} value={item} className="text-xs uppercase">{item}</SelectItem>)}</SelectContent>
                   </Select>
                 </FL>
-                <FL label="Capacidade Tanque (L)"><Input type="number" value={formData.capacidade_tanque} onChange={(e) => handleChange("capacidade_tanque", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
-                <FL label="Consumo Médio"><Input type="number" step="0.1" value={formData.consumo_medio} onChange={(e) => handleChange("consumo_medio", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="L/H" /></FL>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+                <FL label="Tipo">
+                  <Select value={formData.tipo_id} onValueChange={(v) => {
+                    const tipo = tiposFiltrados.find((item) => item.id === v);
+                    setFormData((prev) => ({ ...prev, tipo_id: v, tipo: tipo?.nome || "" }));
+                  }}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder={formData.categoria ? "SELECIONE" : "SELECIONE A CATEGORIA"} /></SelectTrigger>
+                    <SelectContent>{tiposFiltrados.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs uppercase">{item.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                </FL>
+                <FL label="Marca"><Input value={formData.marca} onChange={(e) => handleChange("marca", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="MARCA" /></FL>
+                <FL label="Modelo"><Input value={formData.modelo} onChange={(e) => handleChange("modelo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="MODELO" /></FL>
+                <FL label="Ano Fabricação"><Input type="number" value={formData.ano_fabricacao} onChange={(e) => handleChange("ano_fabricacao", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="2024" /></FL>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
+                <FL label="Placa"><Input value={formData.placa} onChange={(e) => handleChange("placa", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="ABC1D23" /></FL>
+                <FL label="Chassi"><Input value={formData.chassi} onChange={(e) => handleChange("chassi", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="CHASSI" /></FL>
+                <FL label="Renavam"><Input value={formData.renavam} onChange={(e) => handleChange("renavam", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="RENAVAM" /></FL>
+                <FL label="Potência (CV)"><Input type="number" value={formData.potencia_cv} onChange={(e) => handleChange("potencia_cv", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
+                <FL label="Status">
+                  <Select value={formData.status} onValueChange={(v) => handleChange("status", v)}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="Ativo" className="text-xs">Ativo</SelectItem><SelectItem value="Em Manutenção" className="text-xs">Em Manutenção</SelectItem><SelectItem value="Inativo" className="text-xs">Inativo</SelectItem><SelectItem value="Vendido" className="text-xs">Vendido</SelectItem></SelectContent>
+                  </Select>
+                </FL>
               </div>
             </div>
-            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-0.5">
-              <span className="font-semibold text-xs text-slate-700">Custos Operacionais</span>
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-1">
+
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <span className="font-semibold text-xs text-slate-700 uppercase">Operação</span>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+                <FL label="Tipo de Medição" required error={tentouSalvar && !formData.tipo_medicao}>
+                  <Select value={formData.tipo_medicao} onValueChange={(v) => handleChange("tipo_medicao", v)}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
+                    <SelectContent>{TIPOS_MEDICAO.map((item) => <SelectItem key={item} value={item} className="text-xs uppercase">{item}</SelectItem>)}</SelectContent>
+                  </Select>
+                </FL>
+                {formData.tipo_medicao !== "Nenhum" && (
+                  <FL label={formData.tipo_medicao === "Horímetro" ? "Medição Atual (H)" : "Medição Atual (KM)"} required error={tentouSalvar && !formData.medicao_atual}>
+                    <Input type="number" value={formData.medicao_atual} onChange={(e) => handleChange("medicao_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" />
+                  </FL>
+                )}
+                <FL label="Capacidade Tanque (L)"><Input type="number" value={formData.capacidade_tanque} onChange={(e) => handleChange("capacidade_tanque", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
+                <FL label="Consumo Médio"><Input type="number" step="0.1" value={formData.consumo_medio} onChange={(e) => handleChange("consumo_medio", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></FL>
+                <FL label="Localização Atual">
+                  <Select value={formData.localizacao_atual} onValueChange={(v) => handleChange("localizacao_atual", v)}>
+                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE A ÁREA" /></SelectTrigger>
+                    <SelectContent>{areas.map((a) => <SelectItem key={a.id} value={a.nome} className="text-xs uppercase">{a.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                </FL>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[12px] text-slate-500 pl-1 leading-none uppercase">Combustíveis Vinculados</label>
+                <div className="rounded-md border border-slate-300 p-2 space-y-2 bg-white">
+                  {produtos.length === 0 ? (
+                    <div className="text-xs text-slate-400">Nenhum produto combustível encontrado</div>
+                  ) : produtos.map((produto) => {
+                    const vinculado = formData.produtos_combustiveis_vinculados.some((item) => item.produto_id === produto.id);
+                    const principal = formData.produtos_combustiveis_vinculados.some((item) => item.produto_id === produto.id && item.principal);
+                    return (
+                      <div key={produto.id} className="flex items-center justify-between gap-2 border-b border-slate-100 last:border-b-0 pb-2 last:pb-0">
+                        <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                          <Checkbox checked={vinculado} onCheckedChange={() => toggleProduto(produto)} />
+                          <span className="uppercase">{produto.nome_produto}</span>
+                        </label>
+                        {vinculado && (
+                          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                            <Checkbox checked={principal} onCheckedChange={() => definirPrincipal(produto.id)} />
+                            <span>Principal</span>
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <span className="font-semibold text-xs text-slate-700 uppercase">Custos</span>
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
                 <FL label="Vida Útil (H)"><Input type="number" value={formData.vida_util_horas} onChange={(e) => handleChange("vida_util_horas", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="10000" /></FL>
                 <FL label="Custo / Hora"><Input type="number" step="0.01" value={formData.custo_hora} onChange={(e) => handleChange("custo_hora", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
                 <FL label="Combustível / L"><Input type="number" step="0.01" value={formData.valor_combustivel_litro} onChange={(e) => handleChange("valor_combustivel_litro", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
@@ -178,19 +283,13 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
                 <FL label="Valor Atual"><Input type="number" step="0.01" value={formData.valor_atual} onChange={(e) => handleChange("valor_atual", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></FL>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Localização Atual">
-                <Select value={formData.localizacao_atual} onValueChange={(v) => handleChange("localizacao_atual", v)}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE A ÁREA" /></SelectTrigger>
-                  <SelectContent>{areas.map((a) => <SelectItem key={a.id} value={a.nome} className="text-xs uppercase">{a.nome}</SelectItem>)}</SelectContent>
-                </Select>
+
+            <div className="grid grid-cols-1 gap-1">
+              <FL label="Observações">
+                <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} rows={3} className="text-xs uppercase min-h-[84px] border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="OBSERVAÇÕES GERAIS" />
               </FL>
-              <div className="lg:col-span-2">
-                <FL label="Observações">
-                  <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} rows={3} className="text-xs uppercase min-h-[84px] border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="OBSERVAÇÕES GERAIS" />
-                </FL>
-              </div>
             </div>
+
             <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button type="submit" disabled={mutation.isPending} size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{mutation.isPending ? "Salvando..." : maquina ? "Atualizar" : "Salvar"}</Button>

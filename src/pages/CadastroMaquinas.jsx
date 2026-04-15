@@ -69,7 +69,7 @@ export default function CadastroMaquinas() {
     <div className="p-1 md:p-1 space-y-1">
       {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="font-bold text-slate-800">Cadastro de Máquinas</h1>
+          <h1 className="font-bold text-slate-800">Cadastro de Ativos Fixos</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
           {!showForm &&
@@ -102,7 +102,7 @@ export default function CadastroMaquinas() {
             {isDeletingBulk && (
               <Card className="rounded-xl border bg-card text-card-foreground shadow">
                 <CardContent className="p-3 space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-700"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Excluindo máquinas selecionadas...</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-700"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Excluindo ativos selecionados...</div>
                   <Progress value={deleteProgress.total ? deleteProgress.current / deleteProgress.total * 100 : 0} />
                 </CardContent>
               </Card>
@@ -122,12 +122,12 @@ export default function CadastroMaquinas() {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)} title="Confirmar exclusão" description="Tem certeza que deseja excluir esta máquina? Esta ação não pode ser desfeita." onConfirm={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
-      <ConfirmDialog open={bulkDeleteConfirm} onOpenChange={() => setBulkDeleteConfirm(false)} title="Confirmar exclusão" description={`Tem certeza que deseja excluir ${selecionados.length} máquina(s)? Esta ação não pode ser desfeita.`} onConfirm={executeBulkDelete} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
+      <ConfirmDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)} title="Confirmar exclusão" description="Tem certeza que deseja excluir este ativo? Esta ação não pode ser desfeita." onConfirm={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
+      <ConfirmDialog open={bulkDeleteConfirm} onOpenChange={() => setBulkDeleteConfirm(false)} title="Confirmar exclusão" description={`Tem certeza que deseja excluir ${selecionados.length} ativo(s)? Esta ação não pode ser desfeita.`} onConfirm={executeBulkDelete} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
 
       <Dialog open={showFicha} onOpenChange={setShowFicha}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-sm">Ficha da Máquina</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm">Ficha do Ativo</DialogTitle></DialogHeader>
           {selectedMaquina && <FichaMaquina maquina={selectedMaquina} onClose={() => setShowFicha(false)} />}
         </DialogContent>
       </Dialog>

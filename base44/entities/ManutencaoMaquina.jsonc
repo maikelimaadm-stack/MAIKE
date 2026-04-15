@@ -1,0 +1,115 @@
+{
+  "name": "ManutencaoMaquina",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "maquina_id": {
+      "type": "string",
+      "description": "ID do ativo"
+    },
+    "maquina_nome": {
+      "type": "string",
+      "description": "Nome do ativo (cache)"
+    },
+    "tipo_manutencao": {
+      "type": "string",
+      "enum": [
+        "Preventiva",
+        "Corretiva",
+        "Preditiva"
+      ],
+      "description": "Tipo de manuten\u00e7\u00e3o"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Troca de \u00d3leo",
+        "Filtros",
+        "Pneus",
+        "Freios",
+        "Motor",
+        "Transmiss\u00e3o",
+        "Hidr\u00e1ulico",
+        "El\u00e9trico",
+        "Funilaria",
+        "Revis\u00e3o Geral",
+        "Outro"
+      ],
+      "description": "Categoria da manuten\u00e7\u00e3o"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do servi\u00e7o"
+    },
+    "data_manutencao": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da manuten\u00e7\u00e3o"
+    },
+    "medicao": {
+      "type": "number",
+      "description": "Medi\u00e7\u00e3o do ativo no momento da manuten\u00e7\u00e3o"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor/oficina"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor (cache)"
+    },
+    "valor_pecas": {
+      "type": "number",
+      "description": "Valor das pe\u00e7as"
+    },
+    "valor_mao_obra": {
+      "type": "number",
+      "description": "Valor da m\u00e3o de obra"
+    },
+    "valor_total": {
+      "type": "number",
+      "description": "Valor total"
+    },
+    "proxima_manutencao_horimetro": {
+      "type": "number",
+      "description": "Pr\u00f3xima manuten\u00e7\u00e3o por medi\u00e7\u00e3o"
+    },
+    "proxima_manutencao_data": {
+      "type": "string",
+      "format": "date",
+      "description": "Pr\u00f3xima manuten\u00e7\u00e3o (data)"
+    },
+    "numero_os": {
+      "type": "string",
+      "description": "N\u00famero da OS"
+    },
+    "numero_nf": {
+      "type": "string",
+      "description": "N\u00famero da NF"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Agendada",
+        "Em Andamento",
+        "Conclu\u00edda",
+        "Cancelada"
+      ],
+      "default": "Conclu\u00edda",
+      "description": "Status da manuten\u00e7\u00e3o"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "maquina_id",
+    "tipo_manutencao",
+    "data_manutencao"
+  ]
+}
