@@ -97,10 +97,6 @@ export default function TabelaLancamentosAbastecimento({
   const [sortCol, setSortCol] = useState("data_abastecimento");
   const [sortDir, setSortDir] = useState("desc");
 
-  // Paginação
-  const [pagina, setPagina] = useState(1);
-  const [itensPorPagina, setItensPorPagina] = useState(50);
-
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   // Resize listeners
@@ -234,10 +230,6 @@ export default function TabelaLancamentosAbastecimento({
     });
     return sorted;
   }, [dadosFiltrados, sortCol, sortDir]);
-
-  const totalPaginas = Math.max(1, Math.ceil(dadosOrdenados.length / itensPorPagina));
-  const paginaAtual = Math.min(pagina, totalPaginas);
-  const dadosPaginados = dadosOrdenados.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
 
   const toggleSelectAll = () => {
     if (selecionados.length === dadosFiltrados.length && dadosFiltrados.length > 0) onSelecionadosChange([]);
@@ -406,7 +398,7 @@ export default function TabelaLancamentosAbastecimento({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`sticky top-0 z-40 relative text-gray-900 px-2 pr-7 text-xs font-bold border-r border-b border-gray-200 bg-white whitespace-nowrap h-7 ${sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${coluna.align === "right" ? "text-right" : "text-left"}`}
+                          className={`sticky top-0 z-40 relative text-gray-900 px-2 pr-7 text-xs font-bold border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7 ${sortable ? "cursor-pointer hover:bg-gray-50" : ""} ${coluna.align === "right" ? "text-right" : "text-left"}`}
                           onClick={sortable ? () => handleSort(coluna.id) : undefined}
                         >
                           <div className={`flex items-center gap-0.5 ${coluna.align === "right" ? "justify-end" : "justify-start"} overflow-hidden`}>
@@ -451,13 +443,13 @@ export default function TabelaLancamentosAbastecimento({
                 </TableHeader>
 
                 <TableBody>
-                  {dadosPaginados.length === 0 ? (
+                  {dadosOrdenados.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                         Nenhum lançamento encontrado
                       </TableCell>
                     </TableRow>
-                  ) : dadosPaginados.map((item) => (
+                  ) : dadosOrdenados.map((item) => (
                     <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100" onDoubleClick={() => onEdit(item)}>
                       {colunasOrdenadas.map((coluna) => {
                         const width = columnWidths[coluna.id] || coluna.width || 120;
@@ -502,7 +494,7 @@ export default function TabelaLancamentosAbastecimento({
                           <TableCell
                             key={`${item.id}-${coluna.id}`}
                             style={{ width, minWidth: width, maxWidth: width }}
-                            className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-nowrap ${coluna.align === "right" || numericCols.includes(coluna.id) ? "text-right font-mono" : "uppercase"}`}
+                            className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden ${coluna.align === "right" || numericCols.includes(coluna.id) ? "text-right font-mono" : "uppercase"}`}
                           >
                             {renderCell(item, coluna.id)}
                           </TableCell>
@@ -515,33 +507,6 @@ export default function TabelaLancamentosAbastecimento({
             </div>
           </div>
 
-          {/* Paginação */}
-          <div className="flex items-center justify-between p-2 border-t bg-white">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">Itens por página:</span>
-              <Select value={String(itensPorPagina)} onValueChange={(v) => { setItensPorPagina(Number(v)); setPagina(1); }}>
-                <SelectTrigger className="h-7 w-16 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[25, 50, 100, 200].map((n) => (
-                    <SelectItem key={n} value={String(n)} className="text-xs">{n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">
-                {(paginaAtual - 1) * itensPorPagina + 1}–{Math.min(paginaAtual * itensPorPagina, dadosOrdenados.length)} de {dadosOrdenados.length}
-              </span>
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)}>
-                Anterior
-              </Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
-                Próxima
-              </Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
