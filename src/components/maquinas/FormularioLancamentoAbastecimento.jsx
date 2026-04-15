@@ -88,7 +88,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     queryKey: ["maquinas-abastecimento", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Maquina.list();
-      return all.filter((m) => m.empresa_id === empresaSelecionadaId && m.status !== "Inativo" && m.status !== "Vendido");
+      return all
+        .filter((m) => m.empresa_id === empresaSelecionadaId && m.status !== "Inativo" && m.status !== "Vendido")
+        .sort((a, b) => a.nome.localeCompare(b.nome));
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -97,21 +99,28 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     queryKey: ["produtos-empresa-abast", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
+      return all
+        .filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false)
+        .sort((a, b) => a.nome_produto.localeCompare(b.nome_produto));
     },
     enabled: !!empresaSelecionadaId,
   });
 
   const { data: locais = [] } = useQuery({
     queryKey: ["locais-estoque-abastecimento"],
-    queryFn: () => base44.entities.LocalEstoque.list(),
+    queryFn: async () => {
+      const all = await base44.entities.LocalEstoque.list();
+      return all.sort((a, b) => a.nome.localeCompare(b.nome));
+    },
   });
 
   const { data: gruposAtividade = [] } = useQuery({
     queryKey: ["grupos-atividade-abastecimento"],
     queryFn: async () => {
       const all = await base44.entities.GrupoAtividade.list();
-      return all.filter((g) => g.ativo !== false);
+      return all
+        .filter((g) => g.ativo !== false)
+        .sort((a, b) => a.nome_grupo.localeCompare(b.nome_grupo));
     },
   });
 
@@ -119,7 +128,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     queryKey: ["tipos-tarefa-abastecimento"],
     queryFn: async () => {
       const all = await base44.entities.TipoTarefa.list();
-      return all.filter((t) => t.ativo !== false);
+      return all
+        .filter((t) => t.ativo !== false)
+        .sort((a, b) => a.nome_tipo.localeCompare(b.nome_tipo));
     },
   });
 
@@ -437,7 +448,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         <Card className="shadow-sm border-slate-300">
           <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
             <CardTitle className="text-sm font-semibold text-slate-900 uppercase">
-              {abastecimento ? "Editar Lançamento de Abastecimento" : "Novo Lançamento de Abastecimento"}
+              {abastecimento ? "Editar Lançamento de Abastecimento" : "Lançamento de Abastecimento"}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-1 space-y-1">
@@ -466,7 +477,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
               </div>
             </div>
 
-            {/* Linha 2: Responsável */}
+            {/* Linha 2: Responsável | Local Estoque | Produto | Saldo | Quantidade */}
             <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
               <div className="lg:col-span-4">
                 <FL label="Responsável" required error={invalidFields.includes("responsavel")}>

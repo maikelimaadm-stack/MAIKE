@@ -253,7 +253,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2026-04-13-financeiro-menus-v3'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2026-04-15-abastecimento-v1'; // Atualizar esta versão quando adicionar novos menus
 
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
