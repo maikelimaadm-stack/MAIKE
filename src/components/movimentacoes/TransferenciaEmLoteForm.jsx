@@ -86,7 +86,12 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
 
   useEffect(() => {
     if (produtoSelecionado) {
-      setUnidadeTransferencia(produtoSelecionado.unidade_principal_estoque === 'SACO' ? 'SACO' : 'KG');
+      const pSaco = Number(produtoSelecionado.peso_por_saco_kg) || 0;
+      if (produtoSelecionado.tipo_uso === 'Nutrição Animal' && pSaco > 0) {
+        setUnidadeTransferencia(produtoSelecionado.unidade_principal_estoque === 'SACO' ? 'SACO' : 'KG');
+      } else {
+        setUnidadeTransferencia(produtoSelecionado.unidade_medida || 'UN');
+      }
     }
   }, [produtoSelecionado]);
 
@@ -130,7 +135,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
     if (missing.length > 0) { setInvalidFields(missing); toast.error('Preencha os campos obrigatórios!'); return; }
 
     if (totalDestinoQtdKg > saldoOrigem) {
-      toast.error(`Quantidade total em KG (${totalDestinoQtdKg.toFixed(2)}) excede o saldo disponível (${saldoOrigem.toFixed(2)} KG).`);
+      toast.error(`Quantidade total excede o saldo disponível (${saldoOrigem.toFixed(2)} ${produtoSelecionado.unidade_medida || 'UN'}).`);
       return;
     }
 
@@ -191,7 +196,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
           produto_codigo: produtoSelecionado.codigo_interno || '',
           produto_categoria: produtoSelecionado.categoria || '',
           quantidade: qtdDestino,
-          unidade_medida: produtoSelecionado.unidade_medida || 'KG',
+          unidade_medida: produtoSelecionado.unidade_medida || 'UN',
           valor_unitario: resultado.custoMedioPonderado,
           valor_total: resultado.valorTotal,
           local_estoque_origem: localOrigemId,
@@ -257,7 +262,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
           produto_codigo: produtoSelecionado.codigo_interno || '',
           produto_categoria: produtoSelecionado.categoria || '',
           quantidade: qtdDestino,
-          unidade_medida: produtoSelecionado.unidade_medida || 'KG',
+          unidade_medida: produtoSelecionado.unidade_medida || 'UN',
           valor_unitario: resultado.custoMedioPonderado,
           valor_total: resultado.valorTotal,
           local_estoque_origem: localOrigemId,
