@@ -45,10 +45,14 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
   const [progresso, setProgresso] = useState({ show: false, etapa: '', current: 0 });
   const [invalidFields, setInvalidFields] = useState([]);
 
-  const { data: locais = [] } = useQuery({
+  const { data: locaisRaw = [] } = useQuery({
     queryKey: ['locais_estoque_form'],
     queryFn: () => base44.entities.LocalEstoque.list(),
   });
+
+  const locais = useMemo(() => {
+    return [...locaisRaw].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+  }, [locaisRaw]);
 
   const { data: lotesNota = [] } = useQuery({
     queryKey: ['estoque_lote_nota_transf_lote', empresaId],
@@ -404,10 +408,10 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                       </colgroup>
                       <thead>
                         <tr>
-                          <th className="text-xs py-1 px-2 text-left font-semibold text-slate-600 border-b border-gray-200 bg-white">Local de Destino</th>
-                          <th className="text-xs py-1 px-2 text-center font-semibold text-slate-600 border-b border-gray-200 bg-white border-l border-gray-100">Quantidade</th>
-                          <th className="text-xs py-1 px-2 text-center font-semibold text-slate-600 border-b border-gray-200 bg-white border-l border-gray-100">UN</th>
-                          <th className="text-xs py-1 px-2 border-b border-gray-200 bg-white border-l border-gray-100"></th>
+                          <th className="text-xs py-1 px-2 text-left font-semibold text-slate-600 border-b border-r border-gray-200 bg-white">Local de Destino</th>
+                          <th className="text-xs py-1 px-2 text-center font-semibold text-slate-600 border-b border-r border-gray-200 bg-white">Quantidade</th>
+                          <th className="text-xs py-1 px-2 text-center font-semibold text-slate-600 border-b border-r border-gray-200 bg-white">UN</th>
+                          <th className="text-xs py-1 px-2 border-b border-gray-200 bg-white"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -416,7 +420,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                           const excede = totalDestinoQtdKg > saldoOrigem;
                           return (
                             <tr key={idx} className={`hover:bg-gray-50 ${excede && qtd > 0 ? 'bg-red-50' : ''}`}>
-                              <td className="text-xs py-0.5 px-1 border-b border-gray-100 overflow-visible relative">
+                              <td className="text-xs py-0.5 px-1 border-b border-r border-gray-300 overflow-visible relative">
                                 <AutocompleteGenerico
                                   items={locaisDestinos}
                                   value={d.localDestinoId}
@@ -428,7 +432,7 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                                   inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[26px] text-xs px-0 uppercase"
                                 />
                               </td>
-                              <td className="text-xs py-0.5 px-1 border-b border-gray-100 border-l border-gray-100">
+                              <td className="text-xs py-0.5 px-1 border-b border-r border-gray-300">
                                 <input
                                   type="text"
                                   inputMode="decimal"
@@ -438,10 +442,10 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                                   className="w-full h-[26px] text-xs text-center font-mono bg-transparent border-0 outline-none focus:outline-none"
                                 />
                               </td>
-                              <td className="text-xs py-0.5 px-2 border-b border-gray-100 border-l border-gray-100 text-center text-slate-500 font-mono">
+                              <td className="text-xs py-0.5 px-2 border-b border-r border-gray-300 text-center text-slate-500 font-mono">
                                 {unidadeTransferencia}
                               </td>
-                              <td className="text-xs py-0.5 px-1 border-b border-gray-100 border-l border-gray-100 text-center">
+                              <td className="text-xs py-0.5 px-1 border-b border-gray-300 text-center">
                                 <button type="button" onClick={() => removeDestino(idx)} className="text-slate-400 hover:text-red-500">
                                   <X className="w-3.5 h-3.5" />
                                 </button>
