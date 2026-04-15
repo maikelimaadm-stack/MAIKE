@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, ArrowRightLeft } from "lucide-react";
+import { Plus, X, ArrowRightLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -323,52 +323,81 @@ export default function TransferenciaEmLoteForm({ onCancel, produtos = [] }) {
                 </div>
               </div>
 
-              {/* Lista de destinos */}
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-700">Locais de Destino</span>
-                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addDestino}>
-                    <Plus className="w-3.5 h-3.5" /> Adicionar Destino
-                  </Button>
+              {/* Tabela de destinos */}
+              <div className="border border-gray-200 rounded-lg">
+                <div className="flex justify-between items-center px-2 h-7 bg-slate-100 border-b border-gray-200 rounded-t-lg">
+                  <span className="font-semibold text-xs text-slate-700">Locais de Destino</span>
+                  <button type="button" onClick={addDestino} className="w-5 h-5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 flex items-center justify-center">
+                    <Plus className="w-3 h-3" />
+                  </button>
                 </div>
 
-                {destinos.map((d, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_200px_auto] gap-1 items-end">
-                    <FL label={`Destino ${idx + 1}`}>
-                      <AutocompleteGenerico
-                        items={locaisDestinos}
-                        value={d.localDestinoId}
-                        onChange={v => updateDestino(idx, 'localDestinoId', v)}
-                        placeholder="BUSCAR DESTINO..."
-                        displayField="nome"
-                        searchFields={["nome"]}
-                        className="w-full"
-                        inputClassName={AC_INPUT_CLS}
-                      />
-                    </FL>
-                    <FL label="Quantidade">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={d.quantidade}
-                        onChange={e => updateDestino(idx, 'quantidade', e.target.value)}
-                        placeholder="0,00"
-                        className={INPUT_CLS}
-                      />
-                    </FL>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 self-end mb-0.5" onClick={() => removeDestino(idx)} disabled={destinos.length === 1}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                {destinos.length === 0 ? (
+                  <div className="text-[11px] text-slate-400 text-center py-4">Nenhum destino adicionado. Clique em + para adicionar.</div>
+                ) : (
+                  <div className="max-h-[260px]" style={{ overflowX: 'auto', overflowY: 'auto' }}>
+                    <table className="w-full border-separate border-spacing-0 table-fixed min-w-[600px]">
+                      <colgroup>
+                        <col style={{ width: '100%' }} />
+                        <col style={{ width: 130 }} />
+                        <col style={{ width: 90 }} />
+                        <col style={{ width: 28 }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th className="text-xs py-1 px-2 text-left font-semibold text-slate-600 border-b border-gray-200 bg-white">Local de Destino</th>
+                          <th className="text-xs py-1 px-2 text-center font-semibold text-slate-600 border-b border-gray-200 bg-white border-l border-gray-100">Quantidade</th>
+                          <th className="text-xs py-1 px-2 text-center font-semibold text-slate-600 border-b border-gray-200 bg-white border-l border-gray-100">UN</th>
+                          <th className="text-xs py-1 px-2 border-b border-gray-200 bg-white border-l border-gray-100"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {destinos.map((d, idx) => {
+                          const qtd = parseFloat(String(d.quantidade).replace(',', '.')) || 0;
+                          const excede = totalDestinoQtd > saldoOrigem;
+                          return (
+                            <tr key={idx} className={`hover:bg-gray-50 ${excede && qtd > 0 ? 'bg-red-50' : ''}`}>
+                              <td className="text-xs py-0.5 px-1 border-b border-gray-100 overflow-visible relative">
+                                <AutocompleteGenerico
+                                  items={locaisDestinos}
+                                  value={d.localDestinoId}
+                                  onChange={v => updateDestino(idx, 'localDestinoId', v)}
+                                  placeholder="BUSCAR DESTINO..."
+                                  displayField="nome"
+                                  searchFields={["nome"]}
+                                  className="w-full"
+                                  inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[26px] text-xs px-0 uppercase"
+                                />
+                              </td>
+                              <td className="text-xs py-0.5 px-1 border-b border-gray-100 border-l border-gray-100">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={d.quantidade}
+                                  onChange={e => updateDestino(idx, 'quantidade', e.target.value)}
+                                  placeholder="0,00"
+                                  className="w-full h-[26px] text-xs text-center font-mono bg-transparent border-0 outline-none focus:outline-none"
+                                />
+                              </td>
+                              <td className="text-xs py-0.5 px-2 border-b border-gray-100 border-l border-gray-100 text-center text-slate-500 font-mono">
+                                {produtoSelecionado?.unidade_medida || 'KG'}
+                              </td>
+                              <td className="text-xs py-0.5 px-1 border-b border-gray-100 border-l border-gray-100 text-center">
+                                <button type="button" onClick={() => removeDestino(idx)} className="text-slate-400 hover:text-red-500">
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
+                )}
 
-                {/* Totalizador */}
-                <div className="flex items-center justify-end gap-3 pt-1 border-t border-slate-200 text-xs">
-                  <span className="text-slate-600">Total a transferir:</span>
-                  <span className={`font-bold font-mono ${totalDestinoQtd > saldoOrigem ? 'text-red-600' : 'text-emerald-700'}`}>
-                    {totalDestinoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {produtoSelecionado?.unidade_medida || 'KG'}
-                  </span>
-                  {totalDestinoQtd > saldoOrigem && <span className="text-red-500 text-[10px]">Excede o saldo!</span>}
+                <div className={`flex justify-between text-[11px] px-2 h-[26px] items-center rounded-b-lg border-t ${totalDestinoQtd > saldoOrigem ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                  <span className="font-semibold">Total a transferir: {totalDestinoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {produtoSelecionado?.unidade_medida || 'KG'}</span>
+                  {totalDestinoQtd > saldoOrigem && <span className="font-bold">⚠ EXCEDE O SALDO!</span>}
                 </div>
               </div>
 
