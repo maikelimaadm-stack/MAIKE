@@ -24,12 +24,39 @@ const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-tran
 const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs";
 const READONLY_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-slate-50/50";
 
+const MIN_LITROS_CONFIAVEL = 20;
+const MIN_CONSUMO = 0.2;
+const MAX_CONSUMO = 50;
+
 function calcularConsumo({ medicaoAnterior, medicaoAtual, litros }) {
   if (medicaoAnterior == null || medicaoAtual == null || !litros) return null;
   if (medicaoAtual <= medicaoAnterior) return null;
   const uso = medicaoAtual - medicaoAnterior;
   const consumo = uso / litros;
-  return { uso: Number(uso.toFixed(2)), consumo: Number(consumo.toFixed(2)) };
+  const confiavel = litros >= MIN_LITROS_CONFIAVEL && consumo >= MIN_CONSUMO && consumo <= MAX_CONSUMO;
+  return { uso: Number(uso.toFixed(2)), consumo: Number(consumo.toFixed(2)), confiavel };
+}
+
+function calcularConsumoMedio(abastecimentos) {
+  // Recebe os últimos N abastecimentos (já ordenados desc), calcula média
+  // Cada item deve ter: medicao, medicao_anterior, quantidade_litros
+  const validos = abastecimentos.filter(
+    (a) => a.medicao != null && a.medicao_anterior != null && a.quantidade_litros >= MIN_LITROS_CONFIAVEL
+  );
+  if (validos.length === 0) return null;
+  let usoTotal = 0;
+  let litrosTotal = 0;
+  for (const a of validos) {
+    const uso = a.medicao - a.medicao_anterior;
+    if (uso > 0) {
+      usoTotal += uso;
+      litrosTotal += a.quantidade_litros;
+    }
+  }
+  if (litrosTotal === 0 || usoTotal === 0) return null;
+  const media = usoTotal / litrosTotal;
+  if (media < MIN_CONSUMO || media > MAX_CONSUMO) return null;
+  return Number(media.toFixed(2));
 }
 
 export default function FormularioLancamentoAbastecimento({ abastecimento, onSave, onCancel }) {
@@ -168,13 +195,24 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
   // Cálculo de consumo em tempo real
   const consumoPreview = useMemo(() => {
     if (!maquinaSelecionada || maquinaSelecionada.tipo_medicao === "Nenhum") return null;
-    if (!medicaoAnterior) return null;
+    if (medicaoAnterior == null) return null;
     return calcularConsumo({
       medicaoAnterior,
       medicaoAtual: Number(formData.medicao || 0),
       litros: Number(formData.quantidade_litros || 0),
     });
   }, [maquinaSelecionada, medicaoAnterior, formData.medicao, formData.quantidade_litros]);
+
+  // Média dos últimos 3 abastecimentos
+  const consumoMedio = useMemo(() => {
+    if (!maquinaSelecionada || maquinaSelecionada.tipo_medicao === "Nenhum") return null;
+    const filtrados = abastecimento?.id
+      ? abastecimentosDoAtivo.filter((a) => a.id !== abastecimento.id)
+      : abastecimentosDoAtivo;
+    // Pegar os últimos 3 que tenham medicao_anterior
+    const comAnterior = filtrados.filter((a) => a.medicao_anterior != null).slice(0, 3);
+    return calcularConsumoMedio(comAnterior);
+  }, [abastecimentosDoAtivo, maquinaSelecionada, abastecimento?.id]);
 
   const unidadeConsumo = maquinaSelecionada?.tipo_medicao === "Horímetro" ? "H/L" : "KM/L";
 
@@ -260,7 +298,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
           consumoData = {
             medicao_anterior: medicaoAnterior,
             uso_realizado: resultado.uso,
-            consumo_calculado: resultado.consumo,
+            consumo_calculado: resultado.confiavel ? resultado.consumo : null,
           };
         }
       }
@@ -463,28 +501,50 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
             {/* Linha 4: Medição */}
             {temMedicao && (
-              <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
-                <div className="lg:col-span-3">
-                  <FL label="Última Medição">
-                    <Input readOnly value={medicaoAnterior != null ? medicaoAnterior : "Sem registro anterior"} className={READONLY_CLS} />
-                  </FL>
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
+                  <div className="lg:col-span-2">
+                    <FL label="Última Medição">
+                      <Input readOnly value={medicaoAnterior != null ? medicaoAnterior : "Sem anterior"} className={READONLY_CLS} />
+                    </FL>
+                  </div>
+                  <div className="lg:col-span-2">
+                    <FL label="Nova Medição" required error={invalidFields.includes("medicao")}>
+                      <Input type="number" step="0.01" value={formData.medicao} onChange={(e) => handleChange("medicao", e.target.value)} className={INPUT_CLS} />
+                    </FL>
+                  </div>
+                  <div className="lg:col-span-2">
+                    <FL label={`Uso (${maquinaSelecionada.tipo_medicao === "Horímetro" ? "Horas" : "KM"})`}>
+                      <Input readOnly value={consumoPreview ? consumoPreview.uso : ""} className={READONLY_CLS} />
+                    </FL>
+                  </div>
+                  <div className="lg:col-span-3">
+                    <FL label={`Consumo Atual (${unidadeConsumo})`}>
+                      <Input
+                        readOnly
+                        value={
+                          consumoPreview
+                            ? consumoPreview.confiavel
+                              ? consumoPreview.consumo
+                              : `${consumoPreview.consumo} ⚠`
+                            : medicaoAnterior == null ? "Sem anterior" : ""
+                        }
+                        className={`${READONLY_CLS} ${consumoPreview && !consumoPreview.confiavel ? "text-amber-600 font-semibold" : ""}`}
+                      />
+                    </FL>
+                  </div>
+                  <div className="lg:col-span-3">
+                    <FL label={`Média Últ. 3 (${unidadeConsumo})`}>
+                      <Input readOnly value={consumoMedio != null ? consumoMedio : "Sem histórico"} className={`${READONLY_CLS} font-semibold text-emerald-700`} />
+                    </FL>
+                  </div>
                 </div>
-                <div className="lg:col-span-3">
-                  <FL label="Nova Medição" required error={invalidFields.includes("medicao")}>
-                    <Input type="number" step="0.01" value={formData.medicao} onChange={(e) => handleChange("medicao", e.target.value)} className={INPUT_CLS} />
-                  </FL>
-                </div>
-                <div className="lg:col-span-3">
-                  <FL label={`Uso (${maquinaSelecionada.tipo_medicao === "Horímetro" ? "Horas" : "KM"})`}>
-                    <Input readOnly value={consumoPreview ? consumoPreview.uso : ""} className={READONLY_CLS} />
-                  </FL>
-                </div>
-                <div className="lg:col-span-3">
-                  <FL label={`Consumo (${unidadeConsumo})`}>
-                    <Input readOnly value={consumoPreview ? consumoPreview.consumo : medicaoAnterior == null ? "Sem anterior" : ""} className={READONLY_CLS} />
-                  </FL>
-                </div>
-              </div>
+                {consumoPreview && !consumoPreview.confiavel && (
+                  <div className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    ⚠ Consumo não confiável — abastecimento pequeno (&lt;{MIN_LITROS_CONFIAVEL}L) ou valor fora da faixa ({MIN_CONSUMO}–{MAX_CONSUMO} {unidadeConsumo}). O valor NÃO será salvo. Referência: média últimos 3 = {consumoMedio != null ? `${consumoMedio} ${unidadeConsumo}` : "indisponível"}.
+                  </div>
+                )}
+              </>
             )}
 
             {/* Observações */}
