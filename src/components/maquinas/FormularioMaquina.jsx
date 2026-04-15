@@ -87,7 +87,7 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     queryKey: ["produtos-combustivel-ativos", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false && ((p.categoria || "").toLowerCase().includes("combust") || (p.nome_produto || "").toLowerCase().includes("diesel") || (p.nome_produto || "").toLowerCase().includes("gasolina") || (p.nome_produto || "").toLowerCase().includes("etanol") || (p.nome_produto || "").toLowerCase().includes("arla")));
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -255,15 +255,12 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300">
-        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <CardTitle className="text-sm font-semibold text-slate-900">
-            {maquina ? "Editar Ativo" : "Novo Ativo"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-1">
-            <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+      <Card className="shadow-sm border-slate-300 bg-white">
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-white border-b py-1 px-1">
+...
+        <CardContent className="p-1 bg-white">
+          <form onSubmit={handleSubmit} className="space-y-1 bg-white">
+            <div className="border border-slate-200 bg-white rounded-lg p-1 space-y-1">
               <span className="font-semibold text-xs text-slate-700">Identificação</span>
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
                 <FL label="Código"><Input value={formData.codigo} onChange={(e) => handleChange("codigo", e.target.value)} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="COD001" /></FL>
@@ -315,7 +312,7 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
             </div>
 
             {(categoriaConfig.medicao || categoriaConfig.combustivel || categoriaConfig.consumoOpcional || formData.localizacao_atual || formData.categoria === "Máquina" || formData.categoria === "Veículo" || formData.categoria === "Equipamento") && (
-              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <div className="border border-slate-200 bg-white rounded-lg p-1 space-y-1">
                 <span className="font-semibold text-xs text-slate-700">Operação</span>
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
                   {categoriaConfig.medicao && (
@@ -371,7 +368,7 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
             )}
 
             {(formData.categoria !== "Ferramenta" && (categoriaConfig.custosComplexos || formData.valor_aquisicao || formData.valor_atual)) && (
-              <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-1 space-y-1">
+              <div className="border border-slate-200 bg-white rounded-lg p-1 space-y-1">
                 <span className="font-semibold text-xs text-slate-700">Custos</span>
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-1">
                   {categoriaConfig.custosComplexos && <FL label="Vida útil (h)"><Input type="number" value={formData.vida_util_horas} onChange={(e) => handleChange("vida_util_horas", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="10000" /></FL>}
