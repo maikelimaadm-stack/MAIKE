@@ -237,7 +237,7 @@ export default function TabelaLancamentosAbastecimento({
   };
 
   const renderFilterControl = (colunaId) => {
-    const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
+    const buttonClass = `h-4 w-4 min-w-4 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
     const columnLabel = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId)?.label || colunaId;
     const options = columnOptions[colunaId] || [];
     const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
@@ -255,7 +255,7 @@ export default function TabelaLancamentosAbastecimento({
       >
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
-            <Filter className="w-2 h-2" />
+            <Filter className="w-3 h-3" />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
@@ -398,14 +398,14 @@ export default function TabelaLancamentosAbastecimento({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7 ${coluna.align === "right" ? "text-right" : "text-left"}`}
+                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7"
                         >
-                          <div className={`inline-flex items-center h-full w-full overflow-hidden ${coluna.align === "right" ? "justify-end" : "justify-start"}`}>
-                            <span className="truncate">{coluna.label}</span>
+                          <div className="inline-flex items-center justify-center h-full w-full overflow-hidden">
+                            <span className="truncate text-center w-full">{coluna.label}</span>
                           </div>
 
                           {filterControl && (
-                            <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1"
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-0.5 bg-white pl-1"
                               onClick={(e) => e.stopPropagation()}>
                               {filterControl}
                               <button
@@ -488,7 +488,7 @@ export default function TabelaLancamentosAbastecimento({
                           <TableCell
                             key={`${item.id}-${coluna.id}`}
                             style={{ width, minWidth: width, maxWidth: width }}
-                            className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden ${coluna.align === "right" || numericCols.includes(coluna.id) ? "text-right font-mono" : "uppercase"}`}
+                            className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden text-right"
                           >
                             {renderCell(item, coluna.id)}
                           </TableCell>
