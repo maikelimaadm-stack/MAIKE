@@ -69,6 +69,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import MovimentacaoEstoqueFormV2 from "../components/movimentacoes/MovimentacaoEstoqueFormV2";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
 import ImportarNFeMovimentacao from "../components/movimentacoes/ImportarNFeMovimentacao";
+import TransferenciaEmLoteForm from "../components/movimentacoes/TransferenciaEmLoteForm";
 import { getLabelOperacao, getLocalEstoque } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const gerarGrupoId = () => `MOV-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
@@ -77,6 +78,7 @@ export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
   const [showImportXML, setShowImportXML] = useState(false);
+  const [showTransferenciaLote, setShowTransferenciaLote] = useState(false);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [showSaveProgress, setShowSaveProgress] = useState(false);
   const [progressoSalvamento, setProgressoSalvamento] = useState({ etapa: '', current: 0, total: 100 });
@@ -229,8 +231,9 @@ export default function MovimentacoesEstoque() {
       }
     }
 
-    // Gerar número sequencial
-    const maxNum = movimentacoes.reduce((max, m) => {
+    // Gerar número sequencial — busca o maior número real no banco
+    const todasMovsRecentes = await base44.entities.MovimentacaoEstoque.list('-created_date', 200);
+    const maxNum = todasMovsRecentes.reduce((max, m) => {
       const n = parseInt(m.numero_movimentacao, 10);
       return !isNaN(n) && n > max ? n : max;
     }, 0);
@@ -704,7 +707,7 @@ export default function MovimentacoesEstoque() {
 
   return (
     <div className="p-1 md:p-1 space-y-1">
-      {!showForm && (
+      {!showForm && !showTransferenciaLote && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
             <div>
@@ -720,7 +723,10 @@ export default function MovimentacoesEstoque() {
               <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs">
                 Exportar
               </Button>
-              <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
+              <Button onClick={() => { setShowTransferenciaLote(true); setShowForm(false); setEditingMovimentacao(null); }} size="sm" variant="outline" className="h-7 text-xs bg-slate-100">
+                Transferência Lote
+              </Button>
+              <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); setShowTransferenciaLote(false); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
                 Adicionar
               </Button>
             </div>
@@ -769,6 +775,12 @@ export default function MovimentacoesEstoque() {
             initialData={editingMovimentacao}
             produtos={produtos}
             fornecedores={fornecedores}
+          />
+        )}
+        {showTransferenciaLote && (
+          <TransferenciaEmLoteForm
+            onCancel={() => setShowTransferenciaLote(false)}
+            produtos={produtos}
           />
         )}
       </AnimatePresence>

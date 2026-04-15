@@ -20,9 +20,13 @@ export const obterSaldoTransferivelProduto = ({ produto, lotesNota, localEstoque
 };
 
 export async function getNextSystemNumber() {
-  const movimentacoes = await base44.entities.MovimentacaoEstoque.list("-created_date", 1);
-  const ultimoNumero = parseInt(movimentacoes?.[0]?.numero_movimentacao) || 0;
-  return ultimoNumero > 0 ? ultimoNumero + 1 : 1;
+  // Busca o maior número registrado (não depende de ordenação por data)
+  const movimentacoes = await base44.entities.MovimentacaoEstoque.list("-created_date", 200);
+  const maiorNumero = movimentacoes.reduce((max, m) => {
+    const n = parseInt(m.numero_movimentacao, 10);
+    return !isNaN(n) && n > max ? n : max;
+  }, 0);
+  return maiorNumero + 1;
 }
 
 function getValidFifoDate(lote) {
