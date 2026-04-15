@@ -14,6 +14,7 @@ import ContasFinanceiras from './pages/ContasFinanceiras';
 import TiposDocumento from './pages/TiposDocumento';
 import MotivosCompra from './pages/MotivosCompra';
 import Marcas from './pages/Marcas';
+import LancamentosAbastecimento from './pages/LancamentosAbastecimento';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
