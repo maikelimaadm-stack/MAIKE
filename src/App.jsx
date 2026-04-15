@@ -95,6 +95,11 @@ const AuthenticatedApp = () => {
           <Marcas />
         </LayoutWrapper>
       } />
+      <Route path="/LancamentosAbastecimento" element={
+        <LayoutWrapper currentPageName="LancamentosAbastecimento">
+          <LancamentosAbastecimento />
+        </LayoutWrapper>
+      } />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
