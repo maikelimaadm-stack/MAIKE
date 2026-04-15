@@ -5,16 +5,28 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 
-const REQUIRED_FIELDS = ["data_abastecimento", "maquina_id", "grupo_atividade_id", "tipo_servico", "responsavel", "local_estoque_id", "produto_id", "quantidade_litros"];
+const FL = ({ label, required, error, children }) => (
+  <div>
+    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+      {children}
+    </div>
+  </div>
+);
+
+const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent";
+const AC_INPUT_CLS = "border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs";
+const READONLY_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-slate-50/50";
 
 export default function FormularioLancamentoAbastecimento({ abastecimento, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
-  const [tentouSalvar, setTentouSalvar] = useState(false);
+  const [invalidFields, setInvalidFields] = useState([]);
   const [saldoDisponivel, setSaldoDisponivel] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -31,6 +43,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
   });
 
   const handleChange = (field, value) => {
+    setInvalidFields((prev) => prev.filter((f) => f !== field));
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -46,7 +59,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
   });
 
   const { data: todosProdutos = [] } = useQuery({
-    queryKey: ["produtos-empresa", empresaSelecionadaId],
+    queryKey: ["produtos-empresa-abast", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
       return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
@@ -88,25 +101,12 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
   const maquinaSelecionada = useMemo(() => maquinas.find((m) => m.id === formData.maquina_id), [maquinas, formData.maquina_id]);
 
-  // IDs dos produtos combustíveis vinculados ao ativo selecionado
   const produtosCombustivelIds = useMemo(() => {
     if (!maquinaSelecionada) return [];
     return (maquinaSelecionada.produtos_combustiveis_vinculados || []).map((v) => v.produto_id);
   }, [maquinaSelecionada]);
 
-  // Locais de estoque que possuem saldo de algum combustível vinculado ao ativo
-  const locaisFiltrados = useMemo(() => {
-    if (produtosCombustivelIds.length === 0) return [];
-    const locaisComSaldo = new Set();
-    lotesEstoque.forEach((lote) => {
-      if (produtosCombustivelIds.includes(lote.produto_id) && (lote.quantidade_disponivel || 0) > 0) {
-        locaisComSaldo.add(lote.local_estoque_id);
-      }
-    });
-    return locais.filter((l) => locaisComSaldo.has(l.id));
-  }, [locais, lotesEstoque, produtosCombustivelIds]);
-
-  // Produtos disponíveis = combustíveis do ativo que possuem saldo no local selecionado
+  // Produtos disponíveis = combustíveis vinculados ao ativo que possuem saldo no local selecionado
   const produtosDisponiveis = useMemo(() => {
     if (!formData.local_estoque_id || produtosCombustivelIds.length === 0) return [];
     const produtosComSaldo = new Set();
@@ -126,15 +126,14 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
   // ========== EFEITOS ==========
 
-  // Quando troca ativo: limpa local, produto, medição
+  // Quando troca ativo: limpa produto e medição (mantém local)
   useEffect(() => {
-    if (!formData.maquina_id) return;
     if (!abastecimento) {
-      setFormData((prev) => ({ ...prev, local_estoque_id: "", produto_id: "", medicao: "" }));
+      setFormData((prev) => ({ ...prev, produto_id: "", medicao: "" }));
     }
   }, [formData.maquina_id]);
 
-  // Quando troca local: limpa produto, tenta selecionar o principal se houver só um
+  // Quando troca local: limpa produto, tenta selecionar o principal
   useEffect(() => {
     if (!formData.local_estoque_id) {
       setFormData((prev) => ({ ...prev, produto_id: "" }));
@@ -144,7 +143,6 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       if (produtosDisponiveis.length === 1) {
         setFormData((prev) => ({ ...prev, produto_id: produtosDisponiveis[0].id }));
       } else {
-        // Verificar se o produto principal do ativo está disponível
         const vinculados = maquinaSelecionada?.produtos_combustiveis_vinculados || [];
         const principal = vinculados.find((v) => v.principal);
         if (principal && produtosDisponiveis.find((p) => p.id === principal.produto_id)) {
@@ -305,221 +303,226 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setTentouSalvar(true);
-    for (const field of REQUIRED_FIELDS) {
-      if (!formData[field]) {
-        toast.error("Preencha os campos obrigatórios");
-        return;
-      }
-    }
-    if (maquinaSelecionada?.tipo_medicao !== "Nenhum" && !formData.medicao) {
-      toast.error("Informe a nova medição");
+    const missing = [];
+    if (!formData.data_abastecimento) missing.push("data_abastecimento");
+    if (!formData.maquina_id) missing.push("maquina_id");
+    if (!formData.grupo_atividade_id) missing.push("grupo_atividade_id");
+    if (!formData.tipo_servico) missing.push("tipo_servico");
+    if (!formData.responsavel) missing.push("responsavel");
+    if (!formData.local_estoque_id) missing.push("local_estoque_id");
+    if (!formData.produto_id) missing.push("produto_id");
+    if (!formData.quantidade_litros) missing.push("quantidade_litros");
+    if (maquinaSelecionada?.tipo_medicao !== "Nenhum" && !formData.medicao) missing.push("medicao");
+
+    if (missing.length > 0) {
+      setInvalidFields(missing);
+      toast.error("Preencha os campos obrigatórios");
       return;
     }
     mutation.mutate(formData);
   };
 
-  // ========== HELPERS ==========
-
-  const hasError = (field) => tentouSalvar && !formData[field];
-
-  const fieldClass = (field, readOnly = false) => {
-    if (hasError(field)) return "h-8 text-xs border-red-500 bg-red-50 focus-visible:ring-red-500";
-    if (readOnly) return "h-8 text-xs bg-slate-50";
-    return "h-8 text-xs";
-  };
-
   // ========== RENDER ==========
 
   return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300 bg-white max-w-[1600px] w-full mx-auto">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 py-1 px-3">
-          <CardTitle className="text-sm font-semibold text-slate-900">
-            {abastecimento ? "Editar Lançamento de Abastecimento" : "Novo Lançamento de Abastecimento"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-2">
-          <form onSubmit={handleSubmit} className="space-y-1">
+    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+      <form onSubmit={handleSubmit} className="space-y-1">
 
-            {/* === DADOS GERAIS === */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[11px] leading-tight">Data *</Label>
-                <Input
-                  type="date"
-                  value={formData.data_abastecimento}
-                  onChange={(e) => handleChange("data_abastecimento", e.target.value)}
-                  className={fieldClass("data_abastecimento")}
-                />
+        {/* ===== CARD PRINCIPAL ===== */}
+        <Card className="shadow-sm border-slate-300">
+          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+            <CardTitle className="text-sm font-semibold text-slate-900 uppercase">
+              {abastecimento ? "Editar Lançamento de Abastecimento" : "Novo Lançamento de Abastecimento"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-1 space-y-1">
+
+            {/* Linha 1: Data | Ativo | Grupo | Tipo Serviço */}
+            <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
+              <div className="lg:col-span-2">
+                <FL label="Data" required error={invalidFields.includes("data_abastecimento")}>
+                  <Input
+                    type="date"
+                    value={formData.data_abastecimento}
+                    onChange={(e) => handleChange("data_abastecimento", e.target.value)}
+                    className={INPUT_CLS}
+                  />
+                </FL>
               </div>
-
-              <div className="space-y-1">
-                <Label className="text-[11px] leading-tight">Ativo *</Label>
-                <AutocompleteGenerico
-                  items={maquinas}
-                  value={formData.maquina_id}
-                  onChange={(v) => handleChange("maquina_id", v)}
-                  placeholder="Selecione o ativo"
-                  displayField="nome"
-                  searchFields={["nome", "codigo", "placa", "identificador_curto"]}
-                  renderSubtext={(item) => [item.categoria, item.placa].filter(Boolean).join(" | ")}
-                />
-                {hasError("maquina_id") && <p className="text-[10px] text-red-500">Obrigatório</p>}
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[11px] leading-tight">Grupo de Atividade *</Label>
-                <AutocompleteGenerico
-                  items={gruposAtividade}
-                  value={formData.grupo_atividade_id}
-                  onChange={(v) => handleChange("grupo_atividade_id", v)}
-                  placeholder="Selecione o grupo"
-                  displayField="nome_grupo"
-                  searchFields={["nome_grupo"]}
-                />
-                {hasError("grupo_atividade_id") && <p className="text-[10px] text-red-500">Obrigatório</p>}
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[11px] leading-tight">Tipo de Serviço *</Label>
-                <AutocompleteGenerico
-                  items={tiposFiltrados}
-                  value={tiposFiltrados.find((t) => t.nome_tipo === formData.tipo_servico)?.id || ""}
-                  onChange={(v) => {
-                    const tipo = tiposFiltrados.find((t) => t.id === v);
-                    handleChange("tipo_servico", tipo?.nome_tipo || "");
-                  }}
-                  placeholder={!formData.grupo_atividade_id ? "Selecione o grupo primeiro" : "Selecione o tipo"}
-                  displayField="nome_tipo"
-                  searchFields={["nome_tipo"]}
-                />
-                {hasError("tipo_servico") && <p className="text-[10px] text-red-500">Obrigatório</p>}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[11px] leading-tight">Responsável *</Label>
-                <Input
-                  value={formData.responsavel}
-                  onChange={(e) => handleChange("responsavel", e.target.value.toUpperCase())}
-                  className={fieldClass("responsavel")}
-                  placeholder="Digite o responsável"
-                  style={{ textTransform: "uppercase" }}
-                />
-              </div>
-            </div>
-
-            {/* === ABASTECIMENTO === */}
-            <div className="pt-1 border-t">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[11px] leading-tight">Local de Estoque *</Label>
+              <div className="lg:col-span-4">
+                <FL label="Ativo" required error={invalidFields.includes("maquina_id")}>
                   <AutocompleteGenerico
-                    items={locaisFiltrados}
+                    items={maquinas}
+                    value={formData.maquina_id}
+                    onChange={(v) => handleChange("maquina_id", v)}
+                    placeholder="BUSCAR ATIVO..."
+                    displayField="nome"
+                    searchFields={["nome", "codigo", "placa", "identificador_curto"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                    renderSubtext={(item) => [item.categoria, item.placa].filter(Boolean).join(" | ")}
+                  />
+                </FL>
+              </div>
+              <div className="lg:col-span-3">
+                <FL label="Grupo de Atividade" required error={invalidFields.includes("grupo_atividade_id")}>
+                  <AutocompleteGenerico
+                    items={gruposAtividade}
+                    value={formData.grupo_atividade_id}
+                    onChange={(v) => handleChange("grupo_atividade_id", v)}
+                    placeholder="BUSCAR GRUPO..."
+                    displayField="nome_grupo"
+                    searchFields={["nome_grupo"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
+                </FL>
+              </div>
+              <div className="lg:col-span-3">
+                <FL label="Tipo de Serviço" required error={invalidFields.includes("tipo_servico")}>
+                  <AutocompleteGenerico
+                    items={tiposFiltrados}
+                    value={tiposFiltrados.find((t) => t.nome_tipo === formData.tipo_servico)?.id || ""}
+                    onChange={(v) => {
+                      const tipo = tiposFiltrados.find((t) => t.id === v);
+                      handleChange("tipo_servico", tipo?.nome_tipo || "");
+                    }}
+                    placeholder={!formData.grupo_atividade_id ? "SELECIONE O GRUPO" : "BUSCAR TIPO..."}
+                    displayField="nome_tipo"
+                    searchFields={["nome_tipo"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
+                  />
+                </FL>
+              </div>
+            </div>
+
+            {/* Linha 2: Responsável */}
+            <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
+              <div className="lg:col-span-4">
+                <FL label="Responsável" required error={invalidFields.includes("responsavel")}>
+                  <Input
+                    value={formData.responsavel}
+                    onChange={(e) => handleChange("responsavel", e.target.value.toUpperCase())}
+                    className={`${INPUT_CLS} uppercase`}
+                    style={{ textTransform: "uppercase" }}
+                    placeholder="DIGITE O RESPONSÁVEL"
+                  />
+                </FL>
+              </div>
+            </div>
+
+            {/* Linha 3: Local Estoque | Produto | Quantidade | Saldo */}
+            <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
+              <div className="lg:col-span-4">
+                <FL label="Local de Estoque (Origem)" required error={invalidFields.includes("local_estoque_id")}>
+                  <AutocompleteGenerico
+                    items={locais}
                     value={formData.local_estoque_id}
                     onChange={(v) => handleChange("local_estoque_id", v)}
-                    placeholder={!maquinaSelecionada ? "Selecione o ativo primeiro" : "Selecione o local"}
+                    placeholder="BUSCAR LOCAL..."
                     displayField="nome"
                     searchFields={["nome", "descricao"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
                   />
-                  {hasError("local_estoque_id") && <p className="text-[10px] text-red-500">Obrigatório</p>}
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-[11px] leading-tight">Saldo Atual</Label>
-                  <Input
-                    readOnly
-                    value={saldoDisponivel == null ? "" : saldoDisponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    className={fieldClass("", true)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-[11px] leading-tight">Produto *</Label>
+                </FL>
+              </div>
+              <div className="lg:col-span-3">
+                <FL label="Produto Combustível" required error={invalidFields.includes("produto_id")}>
                   <AutocompleteGenerico
                     items={produtosDisponiveis}
                     value={formData.produto_id}
                     onChange={(v) => handleChange("produto_id", v)}
-                    placeholder={!formData.local_estoque_id ? "Selecione o local primeiro" : "Selecione o produto"}
+                    placeholder={!formData.local_estoque_id ? "SELECIONE O LOCAL" : !maquinaSelecionada ? "SELECIONE O ATIVO" : "BUSCAR PRODUTO..."}
                     displayField="nome_produto"
                     searchFields={["nome_produto", "codigo_interno"]}
+                    className="w-full"
+                    inputClassName={AC_INPUT_CLS}
                     renderSubtext={(item) => item.unidade_medida || ""}
                   />
-                  {hasError("produto_id") && <p className="text-[10px] text-red-500">Obrigatório</p>}
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-[11px] leading-tight">Quantidade *</Label>
+                </FL>
+              </div>
+              <div className="lg:col-span-2">
+                <FL label="Saldo Atual">
+                  <Input
+                    readOnly
+                    value={saldoDisponivel == null ? "" : saldoDisponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    className={READONLY_CLS}
+                  />
+                </FL>
+              </div>
+              <div className="lg:col-span-3">
+                <FL label="Quantidade Abastecimento" required error={invalidFields.includes("quantidade_litros")}>
                   <Input
                     type="number"
                     step="0.01"
                     min="0.01"
                     value={formData.quantidade_litros}
                     onChange={(e) => handleChange("quantidade_litros", e.target.value)}
-                    className={fieldClass("quantidade_litros")}
+                    className={INPUT_CLS}
                     placeholder="0,00"
                   />
-                </div>
+                </FL>
               </div>
             </div>
 
-            {/* === MEDIÇÃO === */}
+            {/* Linha 4: Medição (condicional) */}
             {maquinaSelecionada && maquinaSelecionada.tipo_medicao !== "Nenhum" && (
-              <div className="pt-1 border-t">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] leading-tight">Medição Atual</Label>
-                    <Input readOnly value={maquinaSelecionada.medicao_atual || 0} className={fieldClass("", true)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] leading-tight">Nova Medição *</Label>
+              <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
+                <div className="lg:col-span-3">
+                  <FL label="Medição Atual">
+                    <Input readOnly value={maquinaSelecionada.medicao_atual || 0} className={READONLY_CLS} />
+                  </FL>
+                </div>
+                <div className="lg:col-span-3">
+                  <FL label="Nova Medição" required error={invalidFields.includes("medicao")}>
                     <Input
                       type="number"
                       step="0.01"
                       value={formData.medicao}
                       onChange={(e) => handleChange("medicao", e.target.value)}
-                      className={fieldClass("medicao")}
+                      className={INPUT_CLS}
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] leading-tight">Consumo</Label>
+                  </FL>
+                </div>
+                <div className="lg:col-span-3">
+                  <FL label="Consumo">
                     <Input
                       readOnly
                       value={consumoCalculado ? `${consumoCalculado} ${maquinaSelecionada.tipo_medicao === "Horímetro" ? "H/L" : "KM/L"}` : ""}
-                      className={fieldClass("", true)}
+                      className={READONLY_CLS}
                     />
-                  </div>
+                  </FL>
                 </div>
               </div>
             )}
 
-            {/* === OBSERVAÇÕES === */}
-            <div className="pt-1 border-t space-y-1">
-              <Label className="text-[11px] leading-tight">Observações</Label>
+            {/* Observações */}
+            <FL label="Observações">
               <Textarea
                 value={formData.observacoes}
                 onChange={(e) => handleChange("observacoes", e.target.value.toUpperCase())}
-                className="text-xs"
+                placeholder="OBSERVAÇÕES..."
+                className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent min-h-[36px]"
                 style={{ textTransform: "uppercase" }}
-                rows={2}
-                placeholder="Observações adicionais"
+                rows={1}
               />
-            </div>
+            </FL>
 
-            {/* === BOTÕES === */}
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={mutation.isPending} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-                {mutation.isPending ? "Salvando..." : "Salvar"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* ===== BOTÕES ===== */}
+        <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={mutation.isPending} size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
+            {mutation.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </form>
     </motion.div>
   );
 }
