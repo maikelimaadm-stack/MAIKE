@@ -22,30 +22,30 @@ const formatDate = (d) => {
 };
 
 const fmt2 = (v) =>
-  v != null && v !== ""
-    ? Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "-";
+v != null && v !== "" ?
+Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
+"-";
 
 const COLUNAS_DISPONIVEIS = [
-  { id: "selecao", label: "Sel.", default: true, fixo: true, width: 28 },
-  { id: "acoes", label: "", default: true, fixo: true, width: 28 },
-  { id: "data_abastecimento", label: "Data", default: true, width: 90 },
-  { id: "maquina_nome", label: "Ativo", default: true, width: 180 },
-  { id: "maquina_identificador", label: "ID Ativo", default: false, width: 100 },
-  { id: "maquina_categoria", label: "Categoria", default: false, width: 130 },
-  { id: "maquina_tipo_medicao", label: "Tipo Med.", default: true, width: 110 },
-  { id: "grupo_atividade_nome", label: "Grupo Atividade", default: true, width: 150 },
-  { id: "tipo_servico", label: "Tipo Serviço", default: true, width: 140 },
-  { id: "responsavel", label: "Responsável", default: true, width: 130 },
-  { id: "local_estoque_nome", label: "Local Estoque", default: false, width: 140 },
-  { id: "produto_nome", label: "Produto", default: true, width: 160 },
-  { id: "quantidade_litros", label: "Litros", default: true, width: 80, align: "right" },
-  { id: "medicao", label: "Medição", default: true, width: 90, align: "right" },
-  { id: "medicao_anterior", label: "Med. Anterior", default: true, width: 100, align: "right" },
-  { id: "uso_realizado", label: "Uso (H/KM)", default: true, width: 90, align: "right" },
-  { id: "consumo_calculado", label: "Consumo", default: true, width: 90, align: "right" },
-  { id: "observacoes", label: "Observações", default: false, width: 200 },
-];
+{ id: "selecao", label: "Sel.", default: true, fixo: true, width: 28 },
+{ id: "acoes", label: "", default: true, fixo: true, width: 28 },
+{ id: "data_abastecimento", label: "Data", default: true, width: 90 },
+{ id: "maquina_nome", label: "Ativo", default: true, width: 180 },
+{ id: "maquina_identificador", label: "ID Ativo", default: false, width: 100 },
+{ id: "maquina_categoria", label: "Categoria", default: false, width: 130 },
+{ id: "maquina_tipo_medicao", label: "Tipo Med.", default: true, width: 110 },
+{ id: "grupo_atividade_nome", label: "Grupo Atividade", default: true, width: 150 },
+{ id: "tipo_servico", label: "Tipo Serviço", default: true, width: 140 },
+{ id: "responsavel", label: "Responsável", default: true, width: 130 },
+{ id: "local_estoque_nome", label: "Local Estoque", default: false, width: 140 },
+{ id: "produto_nome", label: "Produto", default: true, width: 160 },
+{ id: "quantidade_litros", label: "Litros", default: true, width: 80, align: "right" },
+{ id: "medicao", label: "Medição", default: true, width: 90, align: "right" },
+{ id: "medicao_anterior", label: "Med. Anterior", default: true, width: 100, align: "right" },
+{ id: "uso_realizado", label: "Uso (H/KM)", default: true, width: 90, align: "right" },
+{ id: "consumo_calculado", label: "Consumo", default: true, width: 90, align: "right" },
+{ id: "observacoes", label: "Observações", default: false, width: 200 }];
+
 
 const DEFAULT_VISIBLE = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 const DEFAULT_ORDER = COLUNAS_DISPONIVEIS.map((c) => c.id);
@@ -60,11 +60,11 @@ const loadLS = (key, fallback) => {
 };
 
 const SORTABLE = [
-  "data_abastecimento", "maquina_nome", "maquina_categoria", "maquina_tipo_medicao",
-  "maquina_identificador", "responsavel", "produto_nome", "quantidade_litros",
-  "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado",
-  "grupo_atividade_nome", "tipo_servico", "local_estoque_nome",
-];
+"data_abastecimento", "maquina_nome", "maquina_categoria", "maquina_tipo_medicao",
+"maquina_identificador", "responsavel", "produto_nome", "quantidade_litros",
+"medicao", "medicao_anterior", "uso_realizado", "consumo_calculado",
+"grupo_atividade_nome", "tipo_servico", "local_estoque_nome"];
+
 
 export default function TabelaLancamentosAbastecimento({
   abastecimentos = [],
@@ -73,7 +73,7 @@ export default function TabelaLancamentosAbastecimento({
   onEdit,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas,
+  setShowConfigColunas
 }) {
   const tableRef = useRef(null);
   const dragRef = useRef(null);
@@ -140,10 +140,10 @@ export default function TabelaLancamentosAbastecimento({
   };
 
   const colunasOrdenadas = useMemo(() =>
-    colunasOrdem
-      .map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id))
-      .filter((c) => c && colunasVisiveis.includes(c.id)),
-    [colunasOrdem, colunasVisiveis]
+  colunasOrdem.
+  map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).
+  filter((c) => c && colunasVisiveis.includes(c.id)),
+  [colunasOrdem, colunasVisiveis]
   );
 
   const toggleColuna = useCallback((id) => {
@@ -166,20 +166,20 @@ export default function TabelaLancamentosAbastecimento({
   }, []);
 
   const handleSort = (col) => {
-    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortCol(col); setSortDir("asc"); }
+    if (sortCol === col) setSortDir((d) => d === "asc" ? "desc" : "asc");else
+    {setSortCol(col);setSortDir("asc");}
   };
 
   // Valor de célula para filtro/ordenação
   const getFieldValue = (item, colunaId) => {
     switch (colunaId) {
-      case "data_abastecimento": return formatDate(item.data_abastecimento);
-      case "quantidade_litros": return item.quantidade_litros != null ? fmt2(item.quantidade_litros) : "-";
-      case "medicao": return item.medicao != null ? fmt2(item.medicao) : "-";
-      case "medicao_anterior": return item.medicao_anterior != null ? fmt2(item.medicao_anterior) : "-";
-      case "uso_realizado": return item.uso_realizado != null ? fmt2(item.uso_realizado) : "-";
-      case "consumo_calculado": return item.consumo_calculado != null ? fmt2(item.consumo_calculado) : "NÃO CONF.";
-      default: return (item[colunaId] || "-").toString().toUpperCase();
+      case "data_abastecimento":return formatDate(item.data_abastecimento);
+      case "quantidade_litros":return item.quantidade_litros != null ? fmt2(item.quantidade_litros) : "-";
+      case "medicao":return item.medicao != null ? fmt2(item.medicao) : "-";
+      case "medicao_anterior":return item.medicao_anterior != null ? fmt2(item.medicao_anterior) : "-";
+      case "uso_realizado":return item.uso_realizado != null ? fmt2(item.uso_realizado) : "-";
+      case "consumo_calculado":return item.consumo_calculado != null ? fmt2(item.consumo_calculado) : "NÃO CONF.";
+      default:return (item[colunaId] || "-").toString().toUpperCase();
     }
   };
 
@@ -188,7 +188,7 @@ export default function TabelaLancamentosAbastecimento({
     const opts = {};
     COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).forEach((col) => {
       opts[col.id] = [...new Set(abastecimentos.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+      a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
       );
     });
     return opts;
@@ -217,9 +217,9 @@ export default function TabelaLancamentosAbastecimento({
     sorted.sort((a, b) => {
       let va = a[sortCol] ?? "";
       let vb = b[sortCol] ?? "";
-      if (sortCol === "data_abastecimento") { va = va || ""; vb = vb || ""; }
-      else if (["quantidade_litros", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"].includes(sortCol)) {
-        va = Number(va) || 0; vb = Number(vb) || 0;
+      if (sortCol === "data_abastecimento") {va = va || "";vb = vb || "";} else
+      if (["quantidade_litros", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"].includes(sortCol)) {
+        va = Number(va) || 0;vb = Number(vb) || 0;
         return sortDir === "asc" ? va - vb : vb - va;
       }
       if (typeof va === "string") va = va.toLowerCase();
@@ -232,8 +232,8 @@ export default function TabelaLancamentosAbastecimento({
   }, [dadosFiltrados, sortCol, sortDir]);
 
   const toggleSelectAll = () => {
-    if (selecionados.length === dadosFiltrados.length && dadosFiltrados.length > 0) onSelecionadosChange([]);
-    else onSelecionadosChange(dadosFiltrados.map((m) => m.id));
+    if (selecionados.length === dadosFiltrados.length && dadosFiltrados.length > 0) onSelecionadosChange([]);else
+    onSelecionadosChange(dadosFiltrados.map((m) => m.id));
   };
 
   const renderFilterControl = (colunaId) => {
@@ -251,8 +251,8 @@ export default function TabelaLancamentosAbastecimento({
           setMenuFiltroAberto(open ? colunaId : null);
           setBuscaFiltroMenu("");
           setFiltroTemp(open ? { colunaId, valores: [...getValoresFiltro(colunaId)] } : { colunaId: null, valores: [] });
-        }}
-      >
+        }}>
+        
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
             <Filter className="w-3 h-3" />
@@ -261,19 +261,19 @@ export default function TabelaLancamentosAbastecimento({
         <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
           <div className="p-1 space-y-0.5 border-b">
             <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
-              onClick={() => { handleSort(colunaId); setSortDir("asc"); setMenuFiltroAberto(null); }}>
+            onClick={() => {handleSort(colunaId);setSortDir("asc");setMenuFiltroAberto(null);}}>
               <ArrowDownAZ className="w-4 h-4 mr-2" /> Classificar do Menor para o Maior
             </button>
             <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
-              onClick={() => { setSortCol(colunaId); setSortDir("desc"); setMenuFiltroAberto(null); }}>
+            onClick={() => {setSortCol(colunaId);setSortDir("desc");setMenuFiltroAberto(null);}}>
               <ArrowUpZA className="w-4 h-4 mr-2" /> Classificar do Maior para o Menor
             </button>
             <button
               type="button"
               className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? "hover:bg-slate-100 text-slate-700" : "text-slate-300 cursor-not-allowed"}`}
               disabled={!hasActiveFilter(colunaId)}
-              onClick={() => { clearColumnFilter(colunaId); setMenuFiltroAberto(null); }}
-            >
+              onClick={() => {clearColumnFilter(colunaId);setMenuFiltroAberto(null);}}>
+              
               <X className="w-4 h-4 mr-2" /> Limpar Filtro de "{columnLabel}"
             </button>
           </div>
@@ -289,53 +289,53 @@ export default function TabelaLancamentosAbastecimento({
                       return { ...prev, valores: checked ? [...new Set([...restantes, ...filteredOptions])] : restantes };
                     });
                   }}
-                  className="h-3.5 w-3.5 shrink-0"
-                />
+                  className="h-3.5 w-3.5 shrink-0" />
+                
                 <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">(Selecionar Tudo)</span>
               </label>
-              {filteredOptions.map((option) => (
-                <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
+              {filteredOptions.map((option) =>
+              <label key={option} className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50 whitespace-nowrap overflow-hidden">
                   <Checkbox
-                    checked={valoresSelecionados.includes(option)}
-                    onCheckedChange={(checked) => {
-                      setFiltroTemp((prev) => ({
-                        ...prev,
-                        valores: checked ? [...prev.valores, option] : prev.valores.filter((i) => i !== option),
-                      }));
-                    }}
-                    className="h-3.5 w-3.5 shrink-0"
-                  />
+                  checked={valoresSelecionados.includes(option)}
+                  onCheckedChange={(checked) => {
+                    setFiltroTemp((prev) => ({
+                      ...prev,
+                      valores: checked ? [...prev.valores, option] : prev.valores.filter((i) => i !== option)
+                    }));
+                  }}
+                  className="h-3.5 w-3.5 shrink-0" />
+                
                   <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
                 </label>
-              ))}
+              )}
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" className="h-8 text-xs"
-                onClick={() => { setMenuFiltroAberto(null); setBuscaFiltroMenu(""); setFiltroTemp({ colunaId: null, valores: [] }); }}>
+              onClick={() => {setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
                 Cancelar
               </Button>
               <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => { setValoresFiltro(colunaId, filtroTemp.valores); setMenuFiltroAberto(null); setBuscaFiltroMenu(""); setFiltroTemp({ colunaId: null, valores: [] }); }}>
+              onClick={() => {setValoresFiltro(colunaId, filtroTemp.valores);setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
                 OK
               </Button>
             </div>
           </div>
         </PopoverContent>
-      </Popover>
-    );
+      </Popover>);
+
   };
 
   const renderCell = (item, colunaId) => {
     switch (colunaId) {
-      case "data_abastecimento": return formatDate(item.data_abastecimento);
-      case "quantidade_litros": return fmt2(item.quantidade_litros);
-      case "medicao": return fmt2(item.medicao);
-      case "medicao_anterior": return item.medicao_anterior != null ? fmt2(item.medicao_anterior) : "-";
-      case "uso_realizado": return item.uso_realizado != null ? fmt2(item.uso_realizado) : "-";
+      case "data_abastecimento":return formatDate(item.data_abastecimento);
+      case "quantidade_litros":return fmt2(item.quantidade_litros);
+      case "medicao":return fmt2(item.medicao);
+      case "medicao_anterior":return item.medicao_anterior != null ? fmt2(item.medicao_anterior) : "-";
+      case "uso_realizado":return item.uso_realizado != null ? fmt2(item.uso_realizado) : "-";
       case "consumo_calculado":
         if (item.consumo_calculado == null) return <span className="text-amber-500 text-xs">NÃO CONF.</span>;
         return <span className="font-semibold text-emerald-700">{fmt2(item.consumo_calculado)}</span>;
-      default: return (item[colunaId] || "-").toString().toUpperCase();
+      default:return (item[colunaId] || "-").toString().toUpperCase();
     }
   };
 
@@ -347,14 +347,14 @@ export default function TabelaLancamentosAbastecimento({
           {dadosFiltrados.length} de {abastecimentos.length} registros
         </div>
         <div className="flex gap-2 flex-wrap">
-          {hasAnyFilter && (
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={clearAllFilters}>
+          {hasAnyFilter &&
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={clearAllFilters}>
               <X className="w-3 h-3 mr-1" /> Limpar Filtros
             </Button>
-          )}
-          {selecionados.length > 0 && (
-            <span className="text-xs text-slate-500 self-center">{selecionados.length} selecionado(s)</span>
-          )}
+          }
+          {selecionados.length > 0 &&
+          <span className="text-xs text-slate-500 self-center">{selecionados.length} selecionado(s)</span>
+          }
         </div>
       </div>
 
@@ -363,12 +363,12 @@ export default function TabelaLancamentosAbastecimento({
           <div className="relative overflow-hidden">
             <div
               className="relative w-full overflow-auto max-h-[calc(100dvh-220px)] md:max-h-[calc(100dvh-160px)]"
-              style={{ overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}
-            >
+              style={{ overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}>
+              
               <Table
                 ref={tableRef}
-                className={`w-full ${isMobile ? "min-w-[1100px]" : "min-w-[1300px]"} border-separate border-spacing-0 table-fixed`}
-              >
+                className={`w-full ${isMobile ? "min-w-[1100px]" : "min-w-[1300px]"} border-separate border-spacing-0 table-fixed`}>
+                
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
                     {colunasOrdenadas.map((coluna) => {
@@ -377,19 +377,19 @@ export default function TabelaLancamentosAbastecimento({
 
                       if (coluna.id === "selecao") return (
                         <TableHead key="selecao" style={{ width: coluna.width, minWidth: coluna.width, maxWidth: coluna.width }}
-                          className="sticky top-0 z-40 h-7 p-0 bg-white text-center border-r border-b border-gray-200">
+                        className="sticky top-0 z-40 h-7 p-0 bg-white text-center border-r border-b border-gray-200">
                           <div className="flex items-center justify-center w-full h-full">
                             <Checkbox checked={selecionados.length === dadosFiltrados.length && dadosFiltrados.length > 0}
-                              onCheckedChange={toggleSelectAll}
-                              className="peer shrink-0 shadow h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                            onCheckedChange={toggleSelectAll}
+                            className="peer shrink-0 shadow h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                           </div>
-                        </TableHead>
-                      );
+                        </TableHead>);
+
 
                       if (coluna.id === "acoes") return (
                         <TableHead key="acoes" style={{ width: coluna.width, minWidth: coluna.width, maxWidth: coluna.width }}
-                          className="sticky top-0 z-40 h-7 p-0 bg-white border-r border-b border-gray-200" />
-                      );
+                        className="sticky top-0 z-40 h-7 p-0 bg-white border-r border-b border-gray-200" />);
+
 
                       const sortable = SORTABLE.includes(coluna.id);
                       const filterControl = !coluna.fixo ? renderFilterControl(coluna.id) : null;
@@ -398,73 +398,73 @@ export default function TabelaLancamentosAbastecimento({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7"
-                        >
+                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-normal break-words overflow-hidden h-7">
+                          
                           <div className="inline-flex items-center justify-center h-full w-full overflow-hidden">
                             <span className="truncate text-center w-full">{coluna.label}</span>
                           </div>
 
-                          {filterControl && (
-                            <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-0.5 bg-white pl-1"
-                              onClick={(e) => e.stopPropagation()}>
+                          {filterControl &&
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-0.5 bg-white pl-1"
+                          onClick={(e) => e.stopPropagation()}>
                               {filterControl}
                               <button
-                                type="button"
-                                className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? "text-emerald-600 bg-emerald-100" : "text-slate-300 hover:text-slate-500"}`}
-                                onClick={(e) => { e.stopPropagation(); setResizeColumnId((prev) => prev === coluna.id ? null : coluna.id); }}
-                                onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setResizeColumnId((prev) => prev === coluna.id ? null : coluna.id); }}
-                                title="Redimensionar coluna"
-                              >
+                              type="button"
+                              className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? "text-emerald-600 bg-emerald-100" : "text-slate-300 hover:text-slate-500"}`}
+                              onClick={(e) => {e.stopPropagation();setResizeColumnId((prev) => prev === coluna.id ? null : coluna.id);}}
+                              onTouchEnd={(e) => {e.stopPropagation();e.preventDefault();setResizeColumnId((prev) => prev === coluna.id ? null : coluna.id);}}
+                              title="Redimensionar coluna">
+                              
                                 <GripVertical className="w-2.5 h-2.5" />
                               </button>
                             </div>
-                          )}
+                          }
 
-                          {isResizing && (
-                            <div
-                              className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800"
-                              onMouseDown={(e) => startDragResize(e, coluna.id)}
-                              onTouchStart={(e) => startDragResize(e, coluna.id)}
-                              onClick={(e) => { e.stopPropagation(); setResizeColumnId(null); }}
-                            >
+                          {isResizing &&
+                          <div
+                            className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800"
+                            onMouseDown={(e) => startDragResize(e, coluna.id)}
+                            onTouchStart={(e) => startDragResize(e, coluna.id)}
+                            onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}>
+                            
                               <GripVertical className="w-3.5 h-3.5 text-white" />
                             </div>
-                          )}
-                        </TableHead>
-                      );
+                          }
+                        </TableHead>);
+
                     })}
                   </TableRow>
                 </TableHeader>
 
                 <TableBody>
-                  {dadosOrdenados.length === 0 ? (
-                    <TableRow>
+                  {dadosOrdenados.length === 0 ?
+                  <TableRow>
                       <TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">
                         Nenhum lançamento encontrado
                       </TableCell>
-                    </TableRow>
-                  ) : dadosOrdenados.map((item) => (
-                    <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100" onDoubleClick={() => onEdit(item)}>
+                    </TableRow> :
+                  dadosOrdenados.map((item) =>
+                  <TableRow key={item.id} className="transition-colors border-b hover:bg-gray-100" onDoubleClick={() => onEdit(item)}>
                       {colunasOrdenadas.map((coluna) => {
-                        const width = columnWidths[coluna.id] || coluna.width || 120;
+                      const width = columnWidths[coluna.id] || coluna.width || 120;
 
-                        if (coluna.id === "selecao") return (
-                          <TableCell key={`${item.id}-selecao`} style={{ width: coluna.width, minWidth: coluna.width, maxWidth: coluna.width }}
-                            className="p-0 text-center px-0 h-7 border-r border-b border-gray-200"
-                            onClick={(e) => e.stopPropagation()}>
+                      if (coluna.id === "selecao") return (
+                        <TableCell key={`${item.id}-selecao`} style={{ width: coluna.width, minWidth: coluna.width, maxWidth: coluna.width }}
+                        className="p-0 text-center px-0 h-7 border-r border-b border-gray-200"
+                        onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center w-full h-full">
                               <Checkbox
-                                checked={selecionados.includes(item.id)}
-                                onCheckedChange={(checked) => onSelecionadosChange(checked ? [...selecionados, item.id] : selecionados.filter((id) => id !== item.id))}
-                                className="peer shrink-0 shadow h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                              />
+                              checked={selecionados.includes(item.id)}
+                              onCheckedChange={(checked) => onSelecionadosChange(checked ? [...selecionados, item.id] : selecionados.filter((id) => id !== item.id))}
+                              className="peer shrink-0 shadow h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                            
                             </div>
-                          </TableCell>
-                        );
+                          </TableCell>);
 
-                        if (coluna.id === "acoes") return (
-                          <TableCell key={`${item.id}-acoes`} style={{ width: coluna.width, minWidth: coluna.width, maxWidth: coluna.width }}
-                            className="p-0 text-center px-0 h-7 border-r border-b border-gray-200">
+
+                      if (coluna.id === "acoes") return (
+                        <TableCell key={`${item.id}-acoes`} style={{ width: coluna.width, minWidth: coluna.width, maxWidth: coluna.width }}
+                        className="p-0 text-center px-0 h-7 border-r border-b border-gray-200">
                             <div className="flex items-center justify-center w-full h-full">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -480,22 +480,22 @@ export default function TabelaLancamentosAbastecimento({
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
-                          </TableCell>
-                        );
+                          </TableCell>);
 
-                        const numericCols = ["quantidade_litros", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"];
-                        return (
-                          <TableCell
-                            key={`${item.id}-${coluna.id}`}
-                            style={{ width, minWidth: width, maxWidth: width }}
-                            className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden text-right"
-                          >
+
+                      const numericCols = ["quantidade_litros", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"];
+                      return (
+                        <TableCell
+                          key={`${item.id}-${coluna.id}`}
+                          style={{ width, minWidth: width, maxWidth: width }} className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden text-left">
+
+                          
                             {renderCell(item, coluna.id)}
-                          </TableCell>
-                        );
-                      })}
+                          </TableCell>);
+
+                    })}
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -512,8 +512,8 @@ export default function TabelaLancamentosAbastecimento({
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}
         handleDragEnd={handleDragEnd}
-        droppableId="colunas-abastecimentos"
-      />
-    </div>
-  );
+        droppableId="colunas-abastecimentos" />
+      
+    </div>);
+
 }
