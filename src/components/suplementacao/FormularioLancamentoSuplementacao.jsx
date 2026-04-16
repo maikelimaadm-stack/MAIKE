@@ -566,22 +566,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             )}
 
 
-            {/* Duração do novo lançamento */}
-            {quantidadeKg > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
-                <div className="flex items-center justify-between gap-1 flex-wrap">
-                  <div className="text-xs font-semibold text-slate-900">Duração do novo lançamento</div>
-                  <Badge variant="outline" className="text-xs">{statusDuracao.label}</Badge>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. média</div><div className="font-bold text-slate-900">{frequenciaMedia > 0 ? `${formatDecimal(frequenciaMedia, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Duração estimada</div><div className="font-bold text-slate-900">{duracaoDiasInteira > 0 ? `${formatDecimal(duracaoDiasInteira, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Próxima reposição</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Total disponível</div><div className="font-bold text-slate-900">{totalDisponivelNovo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
-                </div>
-                <div className="text-[10px] text-slate-600">{statusDuracao.message}</div>
-              </div>
-            )}
 
             {/* Consumo do fechamento / estimativa */}
             {ultimoEvento && (() => {
