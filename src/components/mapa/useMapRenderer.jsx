@@ -449,8 +449,8 @@ export default function useMapRenderer(mapInstanceRef) {
             if (!proj || !this._pos) return;
             const pos = proj.fromLatLngToDivPixel(this._pos);
             if (!pos) return;
-            div.style.left = (pos.x + 10) + 'px';
-            div.style.top = (pos.y - 20) + 'px';
+            div.style.left = (pos.x + 20) + 'px';
+            div.style.top = (pos.y - 30) + 'px';
           };
           indicatorOverlay.onRemove = function() { div.parentNode?.removeChild(div); };
           indicatorOverlay.setMap(map);
