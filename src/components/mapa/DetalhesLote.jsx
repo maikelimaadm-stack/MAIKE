@@ -229,12 +229,18 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             if (quantidadeMover <= 0) continue;
             // Unificação automática: buscar lote com mesmo nome+categoria no destino
             const loteExistente = encontrarLoteDestinoCompativel(lote, mov.categoria);
+            const identificadorPayload = {
+              identificador_nome: lote.identificador_nome || null,
+              identificador_sigla: lote.identificador_sigla || null,
+              identificador_cor: lote.identificador_cor || null,
+            };
 
             if (quantidadeMover === (lote.quantidade_cabecas || 0)) {
               if (loteExistente) {
                 // Unificar automaticamente com lote existente de mesmo nome+categoria
                 const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
-                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
+                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
+                  ...identificadorPayload
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
                 await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
@@ -247,7 +253,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             } else {
               if (loteExistente) {
                 const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
-                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover
+                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
+                  ...identificadorPayload
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
               } else {
@@ -267,6 +274,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   sistema_produtivo: lote.sistema_produtivo,
                   categoria_manejo_id: lote.categoria_manejo_id,
                   categoria_manejo_nome: lote.categoria_manejo_nome,
+                  identificador_nome: lote.identificador_nome || null,
+                  identificador_sigla: lote.identificador_sigla || null,
+                  identificador_cor: lote.identificador_cor || null,
                   data_entrada: formData.data_movimentacao,
                   motivo_entrada: 'Outros',
                   motivo_outros: 'Movimentação parcial',

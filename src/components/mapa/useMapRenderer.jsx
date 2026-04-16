@@ -363,6 +363,7 @@ export default function useMapRenderer(mapInstanceRef) {
       const offsetCenter = new google.maps.LatLng(centroidLat + latSpan * 0.12, centroidLng);
       const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
       const cats = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase().trim()).filter(Boolean))].sort();
+      const loteReferencia = lotesNaArea[0] || null;
       let cfg;
       if (cats.length === 1) {
         cfg = iconesConfig.find(ic => ic.tipo_entidade === 'Lote' && ic.categoria?.toUpperCase().trim() === cats[0]);
@@ -413,7 +414,7 @@ export default function useMapRenderer(mapInstanceRef) {
         marker._center = offsetCenter;
         marker._areaId = areaId;
         marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
-        marker.addListener('dragend', (e) => { marker.setPosition(marker._center); onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
+        marker.addListener('dragend', (e) => { onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
         markerStateCache.set(key, JSON.stringify({
           lat: offsetCenter.lat(),
           lng: offsetCenter.lng(),
@@ -428,14 +429,14 @@ export default function useMapRenderer(mapInstanceRef) {
         markersRef.current.set(key, marker);
       }
 
-      // --- Identificadores de Lote unificados com ícone ---
-      const identificadores = lotesNaArea
-        .filter((l) => l.identificador_cor || l.identificador_sigla || l.identificador_nome)
-        .map((l) => ({
-          cor: l.identificador_cor || '#64748b',
-          nome: l.identificador_nome,
-          sigla: l.identificador_sigla || l.identificador_nome
-        }));
+      // --- Identificador visual do lote ---
+      const identificadores = loteReferencia && (loteReferencia.identificador_cor || loteReferencia.identificador_sigla || loteReferencia.identificador_nome)
+        ? [{
+            cor: loteReferencia.identificador_cor || '#64748b',
+            nome: loteReferencia.identificador_nome,
+            sigla: loteReferencia.identificador_sigla || loteReferencia.identificador_nome
+          }]
+        : [];
       let indicatorOverlay = lotesIndicatorsRef.current.get(key);
       const stateStr = JSON.stringify({
         identificadores,
@@ -460,9 +461,9 @@ export default function useMapRenderer(mapInstanceRef) {
             if (!proj || !this._pos) return;
             const pos = proj.fromLatLngToDivPixel(this._pos);
             if (!pos) return;
-            div.style.left = `${pos.x + 18}px`;
-            div.style.top = `${pos.y - 25}px`;
-            div.style.transform = 'translate(-100%, -50%)';
+            div.style.left = `${pos.x}px`;
+            div.style.top = `${pos.y - 32}px`;
+            div.style.transform = 'translate(-50%, -50%)';
           };
           indicatorOverlay.onRemove = function() { div.parentNode?.removeChild(div); };
           indicatorOverlay.setMap(map);
@@ -470,7 +471,7 @@ export default function useMapRenderer(mapInstanceRef) {
         }
         indicatorOverlay._pos = offsetCenter;
         if (indicatorOverlay._state !== stateStr) {
-          indicatorOverlay._div.innerHTML = identificadores.map((i, index) => `<div title="${i.nome || i.sigla || ''}" style="min-width:18px;height:18px;padding:0 4px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);margin-left:${index === 0 ? '0' : '-5px'};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;line-height:1;">${i.sigla ? String(i.sigla).substring(0,4) : ''}</div>`).join('');
+          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:20px;height:20px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;line-height:1;">${i.sigla ? String(i.sigla).substring(0,3) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
         try { indicatorOverlay.draw(); } catch(e) {}
