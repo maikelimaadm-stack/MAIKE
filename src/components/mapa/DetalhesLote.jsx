@@ -112,7 +112,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   });
 
   const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id);
-  const loadingInicial = loadingLotesArea || !areaAtual;
 
   const atualizarLoteDestinoLocal = (lista, loteAtualizado) => {
     if (!loteAtualizado?.id) return;
@@ -134,6 +133,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id,
     staleTime: 60 * 1000
   });
+
+  const loadingInicial = loadingLotesArea || !areaAtual;
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
