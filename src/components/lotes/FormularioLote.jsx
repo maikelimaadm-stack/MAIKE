@@ -26,6 +26,7 @@ const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
 const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = [
 "nome",
+"identificador_nome",
 "raca_predominante",
 "cidade_origem",
 "estado_origem",
@@ -49,6 +50,18 @@ const REQUIRED_FIELDS = [
 "setor_id",
 "area_entrada_id",
 "sistema_produtivo"];
+
+const CORES_DISPONIVEIS = [
+  { nome: "Branco", cor: "#f8f9fa" },
+  { nome: "Cinza claro", cor: "#d8dee2" },
+  { nome: "Preto", cor: "#2c303e" },
+  { nome: "Azul escuro", cor: "#0d67ad" },
+  { nome: "Azul celeste", cor: "#61aad9" },
+  { nome: "Amarelo", cor: "#efcb19" },
+  { nome: "Verde claro", cor: "#92ca25" },
+  { nome: "Laranja", cor: "#f5a01b" },
+  { nome: "Roxo", cor: "#966fe1" },
+];
 
 
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
@@ -93,7 +106,9 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     valor_frete: "",
     motivo_ajuste: "",
     motivo_outros: "",
-    observacoes: ""
+    observacoes: "",
+    identificador_nome: "",
+    identificador_cor: ""
   });
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -237,6 +252,8 @@ const dataToSave = {
   origem: formData.motivo_entrada?.toUpperCase() || "",
   observacoes: formData.observacoes?.toUpperCase() || "",
   quantidade_cabecas: quantidade,
+  identificador_nome: formData.identificador_nome?.toUpperCase() || "",
+  identificador_cor: formData.identificador_cor || "",
   peso_medio_kg: peso,
   idade_media_meses: parseInt(formData.idade_media_meses) || 0,
   valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
@@ -279,6 +296,37 @@ const dataToSave = {
               <FL label="Nome do Lote" required error={errors.nome} dataField="nome">
                 <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
               </FL>
+              <FL label="Identificador (Nome)">
+                <Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: A1" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} maxLength={5} />
+              </FL>
+              <FL label="Identificador (Cor)">
+                <Select value={formData.identificador_cor || SELECT_EMPTY} onValueChange={(value) => handleChange("identificador_cor", value === SELECT_EMPTY ? "" : value)}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                    <SelectValue placeholder="SELECIONE">
+                      {formData.identificador_cor ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: formData.identificador_cor }} />
+                          {CORES_DISPONIVEIS.find((c) => c.cor === formData.identificador_cor)?.nome?.toUpperCase() || 'SELECIONE'}
+                        </span>
+                      ) : "SELECIONE"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                    {CORES_DISPONIVEIS.map((c) => (
+                      <SelectItem key={c.cor} value={c.cor} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: c.cor }} />
+                          {c.nome.toUpperCase()}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FL>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas">
                 <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>

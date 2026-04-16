@@ -51,6 +51,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const userCircleRef = useRef(null);
   // Guardar cor atual de cada polígono para poder atualizar sem recriar
   const polyColorRef = useRef(new Map());
+  const lotesIndicatorsRef = useRef(new Map());
 
   const clearAll = useCallback(() => {
     polygonsRef.current.forEach(p => p.setMap(null));
@@ -62,6 +63,8 @@ export default function useMapRenderer(mapInstanceRef) {
     polylinesRef.current.forEach(l => l.setMap(null));
     polylinesRef.current.clear();
     polyColorRef.current.clear();
+    lotesIndicatorsRef.current.forEach(i => i.setMap(null));
+    lotesIndicatorsRef.current.clear();
     if (userMarkerRef.current) { userMarkerRef.current.setMap(null); userMarkerRef.current = null; }
     if (userCircleRef.current) { userCircleRef.current.setMap(null); userCircleRef.current = null; }
   }, []);
@@ -341,6 +344,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     const currentIds = new Set(Object.keys(lotesPorArea).map(id => prefix + id));
     markersRef.current.forEach((m, id) => { if (id.startsWith(prefix) && !currentIds.has(id)) { m.setMap(null); markersRef.current.delete(id); } });
+    lotesIndicatorsRef.current.forEach((ind, id) => { if (id.startsWith(prefix) && !currentIds.has(id)) { ind.setMap(null); lotesIndicatorsRef.current.delete(id); } });
     if (!show) return;
 
     Object.entries(lotesPorArea).forEach(([areaId, lotesNaArea]) => {
@@ -423,6 +427,45 @@ export default function useMapRenderer(mapInstanceRef) {
       }));
 
       markersRef.current.set(key, marker);
+
+      // --- Identificadores de Lote (Bolinhas coloridas) ---
+      const identificadores = lotesNaArea.filter(l => l.identificador_cor).map(l => ({ cor: l.identificador_cor, nome: l.identificador_nome }));
+      let indicatorOverlay = lotesIndicatorsRef.current.get(key);
+      const stateStr = JSON.stringify(identificadores);
+
+      if (identificadores.length > 0) {
+        if (!indicatorOverlay) {
+          indicatorOverlay = new google.maps.OverlayView();
+          const div = document.createElement('div');
+          div.style.position = 'absolute';
+          div.style.display = 'flex';
+          div.style.gap = '2px';
+          div.style.pointerEvents = 'auto';
+          div.style.zIndex = '2500';
+          indicatorOverlay._div = div;
+          indicatorOverlay.onAdd = function() { this.getPanes().overlayMouseTarget.appendChild(div); };
+          indicatorOverlay.draw = function() {
+            const proj = this.getProjection();
+            if (!proj || !this._pos) return;
+            const pos = proj.fromLatLngToDivPixel(this._pos);
+            if (!pos) return;
+            div.style.left = (pos.x + 10) + 'px';
+            div.style.top = (pos.y - 20) + 'px';
+          };
+          indicatorOverlay.onRemove = function() { div.parentNode?.removeChild(div); };
+          indicatorOverlay.setMap(map);
+          lotesIndicatorsRef.current.set(key, indicatorOverlay);
+        }
+        indicatorOverlay._pos = offsetCenter;
+        if (indicatorOverlay._state !== stateStr) {
+          indicatorOverlay._div.innerHTML = identificadores.map(i => `<div title="${i.nome || ''}" style="width:16px;height:16px;border-radius:50%;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);margin-left:-6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">${i.nome ? i.nome.substring(0,2) : ''}</div>`).join('');
+          indicatorOverlay._state = stateStr;
+        }
+        try { indicatorOverlay.draw(); } catch(e) {}
+      } else if (indicatorOverlay) {
+        indicatorOverlay.setMap(null);
+        lotesIndicatorsRef.current.delete(key);
+      }
     });
   }, [mapInstanceRef]);
 

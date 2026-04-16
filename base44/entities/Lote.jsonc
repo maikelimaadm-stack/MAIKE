@@ -1,0 +1,200 @@
+{
+  "name": "Lote",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do lote"
+    },
+    "identificador_nome": {
+      "type": "string",
+      "description": "Nome/Abrevia\u00e7\u00e3o para exibi\u00e7\u00e3o no indicador visual"
+    },
+    "identificador_cor": {
+      "type": "string",
+      "description": "Cor de fundo do indicador visual do lote no mapa"
+    },
+    "numero_lote": {
+      "type": "string",
+      "description": "N\u00famero sequencial do lote"
+    },
+    "quantidade_cabecas": {
+      "type": "number",
+      "description": "Quantidade ATUAL de cabe\u00e7as (alterada pelas movimenta\u00e7\u00f5es)"
+    },
+    "quantidade_entrada": {
+      "type": "number",
+      "description": "Quantidade original de cabe\u00e7as no cadastro (IMUT\u00c1VEL)"
+    },
+    "categoria": {
+      "type": "string",
+      "description": "Categoria ATUAL do lote (alterada pelas movimenta\u00e7\u00f5es)"
+    },
+    "categoria_entrada": {
+      "type": "string",
+      "description": "Categoria original no cadastro (IMUT\u00c1VEL)"
+    },
+    "categoria_manejo_id": {
+      "type": "string",
+      "description": "ID da categoria de manejo ATUAL"
+    },
+    "categoria_manejo_nome": {
+      "type": "string",
+      "description": "Nome da categoria de manejo ATUAL"
+    },
+    "categoria_manejo_entrada_id": {
+      "type": "string",
+      "description": "ID da categoria de manejo original no cadastro (IMUT\u00c1VEL)"
+    },
+    "categoria_manejo_entrada_nome": {
+      "type": "string",
+      "description": "Nome da categoria de manejo original no cadastro (IMUT\u00c1VEL)"
+    },
+    "sexo": {
+      "type": "string",
+      "enum": [
+        "Macho",
+        "F\u00eamea",
+        "Misto"
+      ],
+      "description": "Sexo predominante do lote"
+    },
+    "peso_medio_kg": {
+      "type": "number",
+      "description": "Peso m\u00e9dio ATUAL dos animais em kg (alterado pelas pesagens)"
+    },
+    "peso_entrada_kg": {
+      "type": "number",
+      "description": "Peso m\u00e9dio original no cadastro (IMUT\u00c1VEL)"
+    },
+    "idade_media_meses": {
+      "type": "number",
+      "description": "Idade m\u00e9dia dos animais em meses"
+    },
+    "setor_id": {
+      "type": "string",
+      "description": "ID do setor vinculado ao lote"
+    },
+    "setor_nome": {
+      "type": "string",
+      "description": "Nome do setor vinculado ao lote"
+    },
+    "area_entrada_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea/piquete de entrada do lote (registro fixo do cadastro)"
+    },
+    "area_entrada_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea de entrada (cache, registro fixo do cadastro)"
+    },
+    "area_atual_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea/piquete ATUAL do lote (atualizado pelas movimenta\u00e7\u00f5es do mapa)"
+    },
+    "area_atual_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea atual (cache, atualizado pelas movimenta\u00e7\u00f5es do mapa)"
+    },
+    "raca_predominante": {
+      "type": "string",
+      "description": "Ra\u00e7a predominante no lote"
+    },
+    "sistema_produtivo": {
+      "type": "string",
+      "description": "Sistema produtivo (Cria, Recria, Engorda, Ciclo Completo)"
+    },
+    "data_entrada": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de entrada do lote na propriedade"
+    },
+    "motivo_entrada": {
+      "type": "string",
+      "enum": [
+        "Compra",
+        "Ajuste",
+        "Invent\u00e1rio",
+        "Outros"
+      ],
+      "description": "Motivo da entrada do lote"
+    },
+    "origem": {
+      "type": "string",
+      "description": "Origem do lote (Compra, Nascimento, MOVIMENTA\u00c7\u00c3O, etc)"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor (para compra)"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor (para compra)"
+    },
+    "nota_fiscal": {
+      "type": "string",
+      "description": "N\u00famero da nota fiscal (para compra)"
+    },
+    "chave_nfe": {
+      "type": "string",
+      "description": "Chave de acesso da NF-e (para compra)"
+    },
+    "numero_gta": {
+      "type": "string",
+      "description": "N\u00famero da GTA (para compra)"
+    },
+    "cidade_origem": {
+      "type": "string",
+      "description": "Cidade de origem dos animais (para compra)"
+    },
+    "estado_origem": {
+      "type": "string",
+      "description": "Estado de origem dos animais (para compra)"
+    },
+    "valor_total_compra": {
+      "type": "number",
+      "description": "Valor total da compra do lote"
+    },
+    "valor_por_cabeca": {
+      "type": "number",
+      "description": "Valor por cabe\u00e7a"
+    },
+    "valor_frete": {
+      "type": "number",
+      "description": "Valor do frete (para compra)"
+    },
+    "motivo_ajuste": {
+      "type": "string",
+      "description": "Motivo do ajuste (quando motivo_entrada = Ajuste)"
+    },
+    "motivo_outros": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do motivo (quando motivo_entrada = Outros)"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre o lote"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Ativo",
+        "Inativo",
+        "Vendido",
+        "Abatido",
+        "Transferido"
+      ],
+      "default": "Ativo",
+      "description": "Status do lote"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "quantidade_cabecas",
+    "motivo_entrada"
+  ]
+}
