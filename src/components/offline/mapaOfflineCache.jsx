@@ -58,5 +58,11 @@ export async function refreshMapaCacheEntry(cacheKey, empresaId) {
 }
 
 export async function warmMapaCache(empresaId) {
-  await Promise.all(CACHE_KEYS.map((cacheKey) => refreshMapaCacheEntry(cacheKey, cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaId)));
+  for (const cacheKey of CACHE_KEYS) {
+    try {
+      await refreshMapaCacheEntry(cacheKey, cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaId);
+    } catch (e) {
+      console.error(`Erro ao carregar cache para ${cacheKey}:`, e);
+    }
+  }
 }
