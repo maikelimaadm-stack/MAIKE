@@ -42,7 +42,7 @@ const COLUNAS_DISPONIVEIS = [
 { id: "quantidade_litros", label: "Litros", default: true, width: 80, align: "right" },
 { id: "valor_litro", label: "Vlr. Unit.", default: true, width: 95, align: "right" },
 { id: "valor_total", label: "Vlr. Total", default: true, width: 105, align: "right" },
-{ id: "medicao", label: "Medição", default: true, width: 90, align: "right" }
+{ id: "medicao", label: "Medição", default: true, width: 90, align: "right" },
 { id: "medicao_anterior", label: "Med. Anterior", default: true, width: 100, align: "right" },
 { id: "uso_realizado", label: "Uso (H/KM)", default: true, width: 90, align: "right" },
 { id: "consumo_calculado", label: "Consumo", default: true, width: 90, align: "right" },
