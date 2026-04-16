@@ -373,6 +373,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
       const valorTotalSaida = lotesConsumidos.reduce((acc, item) => acc + ((item.quantidade_consumida || 0) * (item.custo_unitario || 0)), 0);
       const valorUnitarioSaida = quantidade > 0 ? valorTotalSaida / quantidade : 0;
+      const referenciaMovimentacao = crypto.randomUUID();
 
       const grupoSel = gruposAtividade.find((g) => g.id === data.grupo_atividade_id);
       const localEstoqueSel = locais.find((l) => l.id === data.local_estoque_id);
@@ -398,10 +399,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         grupo_atividade_id: data.grupo_atividade_id,
         grupo_atividade_nome: grupoSel?.nome_grupo || "",
         tipo_servico: data.tipo_servico,
-        responsavel: data.responsavel
+        responsavel: data.responsavel,
+        referencia_movimentacao: referenciaMovimentacao
       });
-
-      const referencia = abastecimentoCriado.id;
 
       await base44.entities.MovimentacaoEstoque.create({
         empresa_id: empresaSelecionadaId,
@@ -422,8 +422,8 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         vinculado: true,
         tipo_vinculo: "maquina",
         lotes_consumidos: lotesConsumidos,
-        referencia,
-        observacoes: `Saída automática por abastecimento ${referencia}`,
+        referencia: referenciaMovimentacao,
+        observacoes: `Saída automática por abastecimento ${abastecimentoCriado.id}`,
         status: "Ativa",
         origem_sistema: "manual",
         is_registro_principal: true,

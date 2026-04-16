@@ -100,7 +100,10 @@ export default function LancamentosAbastecimento() {
 
   const deleteMutation = useMutation({
     mutationFn: async (item) => {
-      const movimentacoes = await base44.entities.MovimentacaoEstoque.filter({ referencia: item.id });
+      const movimentacoes = item.referencia_movimentacao
+        ? await base44.entities.MovimentacaoEstoque.filter({ referencia: item.referencia_movimentacao })
+        : [];
+
       for (const mov of movimentacoes) {
         for (const lote of mov.lotes_consumidos || []) {
           const loteAtual = await base44.entities.EstoqueLoteNota.get(lote.lote_id);
@@ -111,13 +114,13 @@ export default function LancamentosAbastecimento() {
         }
         await base44.entities.MovimentacaoEstoque.delete(mov.id);
       }
+
       if (item.maquina_id && item.medicao != null) {
         const historico = abastecimentos.filter((a) => a.maquina_id === item.maquina_id && a.id !== item.id && a.medicao != null).sort((a, b) => new Date(b.data_abastecimento) - new Date(a.data_abastecimento));
         const medicaoAnterior = historico[0]?.medicao;
-        if (medicaoAnterior != null) {
-          await base44.entities.Maquina.update(item.maquina_id, { medicao_atual: medicaoAnterior });
-        }
+        await base44.entities.Maquina.update(item.maquina_id, { medicao_atual: medicaoAnterior ?? 0 });
       }
+
       await base44.entities.AbastecimentoMaquina.delete(item.id);
     },
     onSuccess: () => {
