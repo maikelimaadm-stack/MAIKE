@@ -46,6 +46,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const [mostrarConsumoLote, setMostrarConsumoLote] = useState(false);
   const [formData, setFormData] = useState({
     data_lancamento: getTodayLocalYMD(),
+    data_fim_consumo_anterior: "",
     produto: ponto?.produto_padrao || "",
     quantidade_total_kg: "",
     sobra_kg: "0",
@@ -92,7 +93,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && areaIdsVinculados.length > 0,
   });
 
-  const fatores = [];
 
   const { data: ultimoEvento } = useQuery({
     queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
@@ -153,7 +153,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
   const pesoMedioGeral = pesoMedioPonderadoLotes(lotes);
-  const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, formData.data_lancamento) : null;
+  const closingDateForPreviousPeriod = formData.data_fim_consumo_anterior || formData.data_lancamento;
+  const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, closingDateForPreviousPeriod) : null;
 
   const produtoSelecionado = useMemo(() => {
     return produtosSuplementacao.find((produto) => normalizeText(produto.nome_produto) === normalizeText(formData.produto)) || null;
@@ -173,26 +174,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const sobraInformada = parseNumber(formData.sobra_kg || 0);
 
-  // Fator legado (compatibilidade)
-  const getFatorLote = (lote) => {
-    const match = fatores.find((item) =>
-      normalizeText(item.categoria) === normalizeText(lote.categoria) ||
-      normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_nome) ||
-      normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_id)
-    );
-    return match?.fator || 1;
-  };
-
-  const lotesSemFator = lotes.filter((lote) => !fatores.some((item) =>
-    normalizeText(item.categoria) === normalizeText(lote.categoria) ||
-    normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_nome) ||
-    normalizeText(item.categoria) === normalizeText(lote.categoria_manejo_id)
-  ));
-
-  const pesoTotalConsumo = lotes.reduce((total, lote) => {
-    const fator = getFatorLote(lote);
-    return total + ((lote.quantidade_cabecas || 0) * fator);
-  }, 0);
 
   // %PV consumo esperado
   const pctPV = Number(produtoSelecionado?.percentual_consumo_pv || 0);
@@ -352,20 +333,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
 
     try {
-      const totalPassos = (ultimoEvento ? 1 : 0) + (depositoVinculado?.local_estoque_id ? 1 : 0) + 1 + lotes.length;
+      const totalPassos = (depositoVinculado?.local_estoque_id ? 1 : 0) + 1;
       let passoAtual = 0;
       setProgresso({ show: true, atual: 0, total: totalPassos, mensagem: "Iniciando lançamento..." });
-
-      if (ultimoEvento && diasPeriodo > 0) {
-        setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Fechando período anterior..." });
-        const { fecharPeriodoSupplementacao } = await import("../utils/consumoUtils");
-        await fecharPeriodoSupplementacao({
-          evento: ultimoEvento,
-          diasPeriodo,
-          sobraInicial: ultimoEvento.sobra_kg || 0,
-          sobraFinal: parseNumber(formData.sobra_kg || 0),
-        });
-      }
 
       let movimentoEstoque = null;
       if (depositoVinculado?.local_estoque_id && produtoSelecionado) {
@@ -411,40 +381,66 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_diario_grupo_kg: null,
         total_cabecas_afetadas: totalCabecas,
         peso_medio_lotes_kg: pesoMedioGeral || null,
-        peso_total_consumo: pesoTotalConsumo,
+        peso_total_consumo: totalCabecas,
         consumo_esperado_pv_kg: consumoEsperadoGrupoDiaPV > 0 ? consumoEsperadoGrupoDiaPV : null,
         percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
         movimentacao_estoque_id: movimentoEstoque?.id || null,
         observacoes: formData.observacoes || null,
       });
 
-      for (let index = 0; index < lotes.length; index++) {
-        const lote = lotes[index];
-        const fator = getFatorLote(lote);
+      const lotesPayload = lotes.map((lote) => {
         const pesoMedioLote = Number(lote.peso_medio_kg || 0);
         const consumoEsperadoLotePV = pctPV > 0 && pesoMedioLote > 0
           ? consumoEsperadoPorCabecaDia(pesoMedioLote, pctPV) * (lote.quantidade_cabecas || 0)
           : null;
+        const percentualLote = totalCabecas > 0 ? (lote.quantidade_cabecas || 0) / totalCabecas : 0;
 
-        setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: `Registrando lote ${index + 1}/${lotes.length}...` });
-        await base44.entities.SuplementacaoLote.create({
+        return {
           empresa_id: empresaSelecionadaId,
           suplementacao_evento_id: novoEvento.id,
           lote_id: lote.id,
           lote_nome: lote.nome,
           categoria: lote.categoria,
-          fator_consumo: fator,
+          fator_consumo: 1,
           peso_medio_lote_kg: pesoMedioLote || null,
           consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
           data_lancamento: formData.data_lancamento,
           produto: formData.produto,
           cabecas_na_area: lote.quantidade_cabecas,
-          peso_consumo_lote: (lote.quantidade_cabecas || 0) * fator,
+          peso_consumo_lote: lote.quantidade_cabecas || 0,
+          percentual_consumo_lote: percentualLote,
           dias_periodo: null,
           consumo_unitario_dia: null,
           consumo_por_cabeca_dia_kg: null,
           consumo_total_lote_periodo_kg: null,
-        });
+        };
+      });
+
+      if (lotesPayload.length > 0) {
+        await base44.entities.SuplementacaoLote.bulkCreate(lotesPayload);
+      }
+
+      try {
+        if (ultimoEvento) {
+          const diasPeriodoCalculado = calcularDiasPeriodo(
+            ultimoEvento.data_lancamento,
+            closingDateForPreviousPeriod
+          );
+
+          if (diasPeriodoCalculado > 0) {
+            const { fecharPeriodoSupplementacao } = await import("../utils/consumoUtils");
+            await fecharPeriodoSupplementacao({
+              evento: ultimoEvento,
+              diasPeriodo: diasPeriodoCalculado,
+              sobraInicial: ultimoEvento.sobra_kg || 0,
+              sobraFinal: parseNumber(formData.sobra_kg || 0),
+            });
+          } else {
+            toast.warn("Datas inconsistentes — período anterior não foi fechado.");
+          }
+        }
+      } catch (err) {
+        toast.warn("Falha ao fechar período anterior, mas o lançamento foi salvo.");
       }
 
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "lotes-nota-suplementacao", "mapa-eventos-supl", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
@@ -482,10 +478,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {!depositoVinculado?.local_estoque_id && <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-600">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</div>}
 
             {/* Formulário principal */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div>
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">Data do lançamento <span className="text-red-500">*</span></label>
                 <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_lancamento} onChange={(e) => setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
+              </div>
+              <div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Data fim consumo anterior</label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_fim_consumo_anterior} onChange={(e) => setFormData((prev) => ({ ...prev, data_fim_consumo_anterior: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
               </div>
               <div>
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto <span className="text-red-500">*</span></label>
@@ -632,9 +632,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 {mostrarConsumoLote && (
                   <div className="space-y-1">
                     {lotes.map((lote) => {
-                      const fator = getFatorLote(lote);
-                      const pesoConsumoLote = (lote.quantidade_cabecas || 0) * fator;
-                      const percentualConsumo = pesoTotalConsumo > 0 ? (pesoConsumoLote / pesoTotalConsumo) * 100 : 0;
+                      const percentualConsumo = totalCabecas > 0 ? ((lote.quantidade_cabecas || 0) / totalCabecas) * 100 : 0;
                       const pesoMedioLote = Number(lote.peso_medio_kg || 0);
                       const quantidadeLoteKg = totalDisponivelNovo * (percentualConsumo / 100);
                       const consumoPlanejadoLoteCabDia = lote.quantidade_cabecas > 0 && frequenciaMedia > 0 ? safeDivide(quantidadeLoteKg, lote.quantidade_cabecas * frequenciaMedia) : 0;

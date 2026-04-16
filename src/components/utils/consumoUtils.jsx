@@ -44,18 +44,18 @@ export function calcularDiasPeriodo(dataInicio, dataFim) {
  * @param {number} pesoTotalConsumo - Soma dos pesos de consumo (cabeças × fatores)
  * @returns {{ consumoTotal, consumoDiarioGrupo, consumoUnitarioDia }}
  */
-export function calcularConsumo({ fornecido, sobraFinal, sobraInicial, diasPeriodo, pesoTotalConsumo }) {
+export function calcularConsumo({ fornecido, sobraFinal, sobraInicial, diasPeriodo, totalCabecas }) {
   const fornecidoNum = Number(fornecido || 0);
   const sobraFinalNum = Number(sobraFinal || 0);
   const sobraInicialNum = Number(sobraInicial || 0);
   const dias = Math.max(1, Number(diasPeriodo || 1));
-  const pesoConsumo = Number(pesoTotalConsumo || 0);
+  const cabecas = Number(totalCabecas || 0);
 
   const consumoTotal = Math.max(0, fornecidoNum - sobraFinalNum + sobraInicialNum);
   const consumoDiarioGrupo = safeDivide(consumoTotal, dias);
-  const consumoUnitarioDia = safeDivide(consumoTotal, dias * pesoConsumo);
+  const consumoPorCabecaDia = safeDivide(consumoDiarioGrupo, cabecas);
 
-  return { consumoTotal, consumoDiarioGrupo, consumoUnitarioDia };
+  return { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia };
 }
 
 /**
@@ -67,16 +67,18 @@ export function calcularConsumo({ fornecido, sobraFinal, sobraInicial, diasPerio
  * @param {number} diasPeriodo - Número de dias do período
  * @returns {{ consumoPorCabecaDia, consumoTotalLotePeriodo }}
  */
-export function calcularConsumoLote({ consumoUnitarioDia, fatorConsumo, cabecas, diasPeriodo }) {
-  const fator = Number(fatorConsumo || 1);
+export function calcularConsumoLote({ consumoDiarioGrupo, totalCabecas, cabecas, diasPeriodo }) {
+  const consumoDiaGrupo = Number(consumoDiarioGrupo || 0);
+  const totalCab = Number(totalCabecas || 0);
   const cab = Number(cabecas || 0);
   const dias = Math.max(1, Number(diasPeriodo || 1));
-  const unitario = Number(consumoUnitarioDia || 0);
 
-  const consumoPorCabecaDia = unitario * fator;
-  const consumoTotalLotePeriodo = consumoPorCabecaDia * cab * dias;
+  const percentualLote = safeDivide(cab, totalCab);
+  const consumoDiarioLote = consumoDiaGrupo * percentualLote;
+  const consumoPorCabecaDia = safeDivide(consumoDiarioLote, cab);
+  const consumoTotalLotePeriodo = consumoDiarioLote * dias;
 
-  return { consumoPorCabecaDia, consumoTotalLotePeriodo };
+  return { percentualLote, consumoDiarioLote, consumoPorCabecaDia, consumoTotalLotePeriodo };
 }
 
 /**
@@ -89,15 +91,14 @@ export function calcularConsumoLote({ consumoUnitarioDia, fatorConsumo, cabecas,
  * @param {function} onProgress - Callback de progresso (opcional)
  */
 export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) {
-  const { consumoTotal, consumoDiarioGrupo, consumoUnitarioDia } = calcularConsumo({
+  const { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia } = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
     sobraInicial: sobraInicial ?? evento.sobra_kg,
     diasPeriodo,
-    pesoTotalConsumo: evento.peso_total_consumo,
+    totalCabecas: evento.total_cabecas_afetadas,
   });
 
-  // Atualiza o evento
   await base44.entities.SuplementacaoEvento.update(evento.id, {
     sobra_kg: Number(sobraFinal || 0),
     dias_periodo: diasPeriodo,
@@ -106,27 +107,26 @@ export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFi
 
   if (onProgress) onProgress("Atualizando lotes do período...");
 
-  // Atualiza todos os lotes do evento
   const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
   const lotesDoEvento = todosLotesSupl.filter((l) => l.suplementacao_evento_id === evento.id);
 
-  for (const loteSupl of lotesDoEvento) {
-    const { consumoPorCabecaDia, consumoTotalLotePeriodo } = calcularConsumoLote({
-      consumoUnitarioDia,
-      fatorConsumo: loteSupl.fator_consumo,
+  await Promise.all(lotesDoEvento.map((loteSupl) => {
+    const { consumoPorCabecaDia: consumoCabecaLote, consumoTotalLotePeriodo } = calcularConsumoLote({
+      consumoDiarioGrupo,
+      totalCabecas: evento.total_cabecas_afetadas,
       cabecas: loteSupl.cabecas_na_area,
       diasPeriodo,
     });
 
-    await base44.entities.SuplementacaoLote.update(loteSupl.id, {
+    return base44.entities.SuplementacaoLote.update(loteSupl.id, {
       dias_periodo: diasPeriodo,
-      consumo_unitario_dia: consumoUnitarioDia,
-      consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
+      consumo_unitario_dia: consumoPorCabecaDia,
+      consumo_por_cabeca_dia_kg: consumoCabecaLote,
       consumo_total_lote_periodo_kg: consumoTotalLotePeriodo,
     });
-  }
+  }));
 
-  return { consumoTotal, consumoDiarioGrupo, consumoUnitarioDia };
+  return { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia };
 }
 
 /**
