@@ -132,15 +132,18 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
-              <AutocompleteGenerico
-                items={outrosLocais}
-                value={localRelacionadoId}
-                onChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}
-                placeholder="PESQUISE O LOCAL"
-                displayField="nome"
-                searchFields={["nome", "numero_local"]}
-                inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent"
-              />
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
+                <AutocompleteGenerico
+                  items={outrosLocais}
+                  value={localRelacionadoId}
+                  onChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}
+                  placeholder="BUSCAR LOCAL..."
+                  displayField="nome"
+                  searchFields={["nome", "numero_local"]}
+                  className="w-full"
+                  inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs"
+                />
+              </div>
             </div>
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto de Suplementação <span className="text-red-500">*</span></label>
