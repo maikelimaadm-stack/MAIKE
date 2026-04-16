@@ -113,16 +113,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     queryFn: async () => {
       const fetchWithCache = async (cacheKey) => {
         const cached = await getMapaCachedData(cacheKey, empresaSelecionadaId);
+        if (cached?.length) return cached;
         if (navigator.onLine) {
-          if (cached?.length) {
-            refreshMapaCacheEntry(cacheKey, empresaSelecionadaId).then(fresh => {
-              if (fresh?.length) queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId] });
-            });
-            return cached;
-          }
           return await refreshMapaCacheEntry(cacheKey, empresaSelecionadaId) || [];
         }
-        return cached || [];
+        return [];
       };
 
       const [movimentacoesRaw, suplementacoesRaw, eventosSuplementacaoRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw] = await Promise.all([
@@ -133,6 +128,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         fetchWithCache('eventoSanitario'),
         fetchWithCache('manejoTecnico')
       ]);
+
+      if (navigator.onLine) {
+        refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).then(() => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId] }));
+      }
 
       const matchLote = (nome, id) => {
         // Se temos IDs de lote, PRIORIZAR match por ID para evitar mistura entre lotes de mesmo nome
@@ -329,16 +328,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     queryKey: ['todas-movimentacoes-global', empresaSelecionadaId],
     queryFn: async () => {
       const cached = await getMapaCachedData('movimentacoes', empresaSelecionadaId);
+      if (cached?.length) return cached;
       if (navigator.onLine) {
-        if (cached?.length) {
-          refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).then(fresh => {
-            if (fresh?.length) queryClient.setQueryData(['todas-movimentacoes-global', empresaSelecionadaId], fresh);
-          });
-          return cached;
-        }
         return await refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId);
       }
-      return cached || [];
+      return [];
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -348,16 +342,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     queryKey: ['todos-lotes-global', empresaSelecionadaId],
     queryFn: async () => {
       const cached = await getMapaCachedData('lotes', empresaSelecionadaId);
+      if (cached?.length) return cached;
       if (navigator.onLine) {
-        if (cached?.length) {
-          refreshMapaCacheEntry('lotes', empresaSelecionadaId).then(fresh => {
-            if (fresh?.length) queryClient.setQueryData(['todos-lotes-global', empresaSelecionadaId], fresh);
-          });
-          return cached;
-        }
         return await refreshMapaCacheEntry('lotes', empresaSelecionadaId);
       }
-      return cached || [];
+      return [];
     },
     enabled: !!empresaSelecionadaId,
   });

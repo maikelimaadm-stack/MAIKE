@@ -401,37 +401,43 @@ export default function useMapRenderer(mapInstanceRef) {
         }
         existing._lotesNaArea = lotesNaArea;
         existing._center = offsetCenter;
-        return;
+        existing._areaId = areaId;
+      } else {
+        const marker = new google.maps.Marker({
+          position: offsetCenter, map, icon,
+          label: { text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' },
+          title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: !!canDragLotes
+        });
+        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
+        marker._lotesNaArea = lotesNaArea;
+        marker._center = offsetCenter;
+        marker._areaId = areaId;
+        marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
+        marker.addListener('dragend', (e) => { marker.setPosition(marker._center); onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
+        markerStateCache.set(key, JSON.stringify({
+          lat: offsetCenter.lat(),
+          lng: offsetCenter.lng(),
+          totalCabecas,
+          totalAlertas,
+          title: area.nome,
+          draggable: !!canDragLotes,
+          iconUrl: cfg?.icone_url || '',
+          categories: cats.join('|')
+        }));
+
+        markersRef.current.set(key, marker);
       }
 
-      const marker = new google.maps.Marker({
-        position: offsetCenter, map, icon,
-        label: { text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' },
-        title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: !!canDragLotes
-      });
-      if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
-      marker._lotesNaArea = lotesNaArea;
-      marker._center = offsetCenter;
-      marker._areaId = areaId;
-      marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
-      marker.addListener('dragend', (e) => { marker.setPosition(marker._center); onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
-      markerStateCache.set(key, JSON.stringify({
-        lat: offsetCenter.lat(),
-        lng: offsetCenter.lng(),
-        totalCabecas,
-        totalAlertas,
-        title: area.nome,
-        draggable: !!canDragLotes,
-        iconUrl: cfg?.icone_url || '',
-        categories: cats.join('|')
-      }));
-
-      markersRef.current.set(key, marker);
-
       // --- Identificadores de Lote (Bolinhas coloridas) ---
-      const identificadores = lotesNaArea.filter(l => l.identificador_cor).map(l => ({ cor: l.identificador_cor, nome: l.identificador_nome }));
+      const identificadores = lotesNaArea
+        .filter((l) => l.identificador_cor)
+        .map((l) => ({ cor: l.identificador_cor, nome: l.identificador_nome }));
       let indicatorOverlay = lotesIndicatorsRef.current.get(key);
-      const stateStr = JSON.stringify(identificadores);
+      const stateStr = JSON.stringify({
+        identificadores,
+        lat: offsetCenter.lat(),
+        lng: offsetCenter.lng()
+      });
 
       if (identificadores.length > 0) {
         if (!indicatorOverlay) {
@@ -439,8 +445,9 @@ export default function useMapRenderer(mapInstanceRef) {
           const div = document.createElement('div');
           div.style.position = 'absolute';
           div.style.display = 'flex';
-          div.style.gap = '2px';
-          div.style.pointerEvents = 'auto';
+          div.style.alignItems = 'center';
+          div.style.gap = '0';
+          div.style.pointerEvents = 'none';
           div.style.zIndex = '2500';
           indicatorOverlay._div = div;
           indicatorOverlay.onAdd = function() { this.getPanes().overlayMouseTarget.appendChild(div); };
@@ -449,8 +456,9 @@ export default function useMapRenderer(mapInstanceRef) {
             if (!proj || !this._pos) return;
             const pos = proj.fromLatLngToDivPixel(this._pos);
             if (!pos) return;
-            div.style.left = (pos.x + 20) + 'px';
-            div.style.top = (pos.y - 30) + 'px';
+            div.style.left = `${pos.x + 18}px`;
+            div.style.top = `${pos.y - 25}px`;
+            div.style.transform = 'translate(-100%, -50%)';
           };
           indicatorOverlay.onRemove = function() { div.parentNode?.removeChild(div); };
           indicatorOverlay.setMap(map);
@@ -458,7 +466,7 @@ export default function useMapRenderer(mapInstanceRef) {
         }
         indicatorOverlay._pos = offsetCenter;
         if (indicatorOverlay._state !== stateStr) {
-          indicatorOverlay._div.innerHTML = identificadores.map(i => `<div title="${i.nome || ''}" style="width:16px;height:16px;border-radius:50%;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);margin-left:-6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">${i.nome ? i.nome.substring(0,2) : ''}</div>`).join('');
+          indicatorOverlay._div.innerHTML = identificadores.map((i, index) => `<div title="${i.nome || ''}" style="width:16px;height:16px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);margin-left:${index === 0 ? '0' : '-5px'};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">${i.nome ? i.nome.substring(0,2) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
         try { indicatorOverlay.draw(); } catch(e) {}
