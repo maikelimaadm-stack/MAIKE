@@ -428,10 +428,14 @@ export default function useMapRenderer(mapInstanceRef) {
         markersRef.current.set(key, marker);
       }
 
-      // --- Identificadores de Lote (Bolinhas coloridas) ---
+      // --- Identificadores de Lote unificados com ícone ---
       const identificadores = lotesNaArea
-        .filter((l) => l.identificador_cor)
-        .map((l) => ({ cor: l.identificador_cor, nome: l.identificador_nome }));
+        .filter((l) => l.identificador_cor || l.identificador_sigla || l.identificador_nome)
+        .map((l) => ({
+          cor: l.identificador_cor || '#64748b',
+          nome: l.identificador_nome,
+          sigla: l.identificador_sigla || l.identificador_nome
+        }));
       let indicatorOverlay = lotesIndicatorsRef.current.get(key);
       const stateStr = JSON.stringify({
         identificadores,
@@ -466,7 +470,7 @@ export default function useMapRenderer(mapInstanceRef) {
         }
         indicatorOverlay._pos = offsetCenter;
         if (indicatorOverlay._state !== stateStr) {
-          indicatorOverlay._div.innerHTML = identificadores.map((i, index) => `<div title="${i.nome || ''}" style="width:16px;height:16px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);margin-left:${index === 0 ? '0' : '-5px'};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">${i.nome ? i.nome.substring(0,2) : ''}</div>`).join('');
+          indicatorOverlay._div.innerHTML = identificadores.map((i, index) => `<div title="${i.nome || i.sigla || ''}" style="min-width:18px;height:18px;padding:0 4px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);margin-left:${index === 0 ? '0' : '-5px'};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;line-height:1;">${i.sigla ? String(i.sigla).substring(0,4) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
         try { indicatorOverlay.draw(); } catch(e) {}

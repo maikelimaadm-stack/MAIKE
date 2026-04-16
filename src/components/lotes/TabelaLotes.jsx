@@ -21,6 +21,7 @@ const COLUNAS_DISPONIVEIS = [
 { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
 { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
 { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 200 },
+{ id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
 { id: "cabecas", label: "Cabeças", default: true, sortable: true, align: "right", width: 100 },
 { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 160 },
 { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left", width: 100 },
@@ -146,6 +147,7 @@ export default function TabelaLotes({
   const getFieldValue = (lote, colunaId) => {
     if (colunaId === "codigo") return String(lote.numero_lote || "");
     if (colunaId === "nome") return lote.nome || "";
+    if (colunaId === "identificador") return [lote.identificador_nome, lote.identificador_sigla].filter(Boolean).join(' - ');
     if (colunaId === "cabecas") return String(lote.quantidade_entrada || lote.quantidade_cabecas || "");
     if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "";
     if (colunaId === "sexo") return lote.sexo || "";
@@ -229,6 +231,7 @@ export default function TabelaLotes({
   const renderCell = (lote, colunaId) => {
     if (colunaId === "codigo") return lote.numero_lote || "-";
     if (colunaId === "nome") return lote.nome || "-";
+    if (colunaId === "identificador") return [lote.identificador_nome, lote.identificador_sigla].filter(Boolean).join(' - ') || "-";
     if (colunaId === "cabecas") return lote.quantidade_entrada || lote.quantidade_cabecas || "-";
     if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "-";
     if (colunaId === "sexo") return lote.sexo || "-";

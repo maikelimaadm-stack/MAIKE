@@ -699,6 +699,17 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 </div>
                 <div className="grid grid-cols-3 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Identificador</div>
+                    <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                      {lote.identificador_cor && <span className="inline-block w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />}
+                      <span>{lote.identificador_nome || '-'}</span>
+                    </div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                    <div className="text-slate-500">Sigla</div>
+                    <div className="font-semibold text-slate-900">{lote.identificador_sigla || '-'}</div>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
                     <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
                   </div>

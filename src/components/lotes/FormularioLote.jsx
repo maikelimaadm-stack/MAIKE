@@ -27,6 +27,7 @@ const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = [
 "nome",
 "identificador_nome",
+"identificador_sigla",
 "raca_predominante",
 "cidade_origem",
 "estado_origem",
@@ -108,6 +109,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     motivo_outros: "",
     observacoes: "",
     identificador_nome: "",
+    identificador_sigla: "",
     identificador_cor: ""
   });
 
@@ -253,6 +255,7 @@ const dataToSave = {
   observacoes: formData.observacoes?.toUpperCase() || "",
   quantidade_cabecas: quantidade,
   identificador_nome: formData.identificador_nome?.toUpperCase() || "",
+  identificador_sigla: formData.identificador_sigla?.toUpperCase() || "",
   identificador_cor: formData.identificador_cor || "",
   peso_medio_kg: peso,
   idade_media_meses: parseInt(formData.idade_media_meses) || 0,
@@ -297,7 +300,10 @@ const dataToSave = {
                 <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
               </FL>
               <FL label="Identificador (Nome)">
-                <Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: A1" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} maxLength={5} />
+                <Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
+              </FL>
+              <FL label="Identificador (Sigla)">
+                <Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value)} placeholder="EX: CF" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} maxLength={4} />
               </FL>
               <FL label="Identificador (Cor)">
                 <Select value={formData.identificador_cor || SELECT_EMPTY} onValueChange={(value) => handleChange("identificador_cor", value === SELECT_EMPTY ? "" : value)}>
