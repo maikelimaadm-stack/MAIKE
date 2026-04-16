@@ -55,7 +55,8 @@ export default function MapaGeral() {
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
   const [showLotes, setShowLotes] = useState(true);
-  const [showPontosSuplementacao, setShowPontosSuplementacao] = useState(true);
+  const [showCochos, setShowCochos] = useState(true);
+  const [showDepositos, setShowDepositos] = useState(true);
   const [showAlertas, setShowAlertas] = useState(true);
   const [showUserLocation, setShowUserLocation] = useState(false);
   const [showNomesAreas, setShowNomesAreas] = useState(true);
@@ -98,7 +99,12 @@ export default function MapaGeral() {
     if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
     if (typeof state.showLotes === 'boolean') setShowLotes(state.showLotes);
     if (typeof state.showTaskIcons === 'boolean') setShowTaskIcons(state.showTaskIcons);
-    if (typeof state.showPontosSuplementacao === 'boolean') setShowPontosSuplementacao(state.showPontosSuplementacao);
+    if (typeof state.showCochos === 'boolean') setShowCochos(state.showCochos);
+    if (typeof state.showDepositos === 'boolean') setShowDepositos(state.showDepositos);
+    if (typeof state.showPontosSuplementacao === 'boolean') {
+      setShowCochos(state.showPontosSuplementacao);
+      setShowDepositos(state.showPontosSuplementacao);
+    }
     if (typeof state.showAlertas === 'boolean') setShowAlertas(state.showAlertas);
     if (typeof state.showUserLocation === 'boolean') setShowUserLocation(state.showUserLocation);
     if (typeof state.showNomesAreas === 'boolean') setShowNomesAreas(state.showNomesAreas);
@@ -122,7 +128,8 @@ export default function MapaGeral() {
       showLinhas,
       showLotes,
       showTaskIcons,
-      showPontosSuplementacao,
+      showCochos,
+      showDepositos,
       showAlertas,
       showUserLocation,
       showNomesAreas,
@@ -137,7 +144,7 @@ export default function MapaGeral() {
       filtroPesoMax,
       modoColoracao
     }));
-  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, showPontosSuplementacao, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -334,6 +341,14 @@ export default function MapaGeral() {
       return areaIds.some((id) => areaIdsFiltrados.has(id));
     });
   }, [filtroSetor, pontosSuplementacaoDecorados, areaIdsFiltrados]);
+
+  const cochosFiltrados = useMemo(() => {
+    return pontosSuplementacaoFiltrados.filter((ponto) => normalizeText(ponto.categoria_ponto || 'COCHO') !== 'DEPOSITO');
+  }, [pontosSuplementacaoFiltrados]);
+
+  const depositosFiltrados = useMemo(() => {
+    return pontosSuplementacaoFiltrados.filter((ponto) => normalizeText(ponto.categoria_ponto || '') === 'DEPOSITO');
+  }, [pontosSuplementacaoFiltrados]);
 
   const tarefasMapaFiltradas = useMemo(() => {
     if (filtroSetor === 'todos') return tarefasMapa;
@@ -733,18 +748,22 @@ export default function MapaGeral() {
   }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
-    if (!showPontosSuplementacao) return pontos;
-    // Ocultar pontos de referência de tipo Cocho/Depósito quando suplementação ativa
-    // (evita sobreposição com markers de PontoSuplementacao)
     return pontos.filter((p) => {
       const tipo = (p.tipo || '').toUpperCase().trim();
       return tipo !== 'COCHO' && tipo !== 'COCHOS' && tipo !== 'DEPOSITO' && tipo !== 'DEPÓSITO';
     });
-  }, [pontos, showPontosSuplementacao]);
+  }, [pontos]);
 
   useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_pontos_referencia]);
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
-  useEffect(() => {if (mapReady) renderer.syncPontosSuplementacao(pontosSuplementacaoFiltrados, mapaGeralPermissions.visualizar_cochos_suplementacao && showPontosSuplementacao, iconesConfig, handleClickPontoSupl);}, [pontosSuplementacaoFiltrados, showPontosSuplementacao, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
+  useEffect(() => {
+    if (!mapReady) return;
+    const pontosVisiveis = [
+      ...(showCochos ? cochosFiltrados : []),
+      ...(showDepositos ? depositosFiltrados : [])
+    ];
+    renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
+  }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
@@ -765,7 +784,10 @@ export default function MapaGeral() {
     if (!mapaGeralPermissions.visualizar_pontos_referencia) setShowPontos(false);
     if (!mapaGeralPermissions.visualizar_linhas) setShowLinhas(false);
     if (!mapaGeralPermissions.visualizar_lotes) setShowLotes(false);
-    if (!mapaGeralPermissions.visualizar_cochos_suplementacao) setShowPontosSuplementacao(false);
+    if (!mapaGeralPermissions.visualizar_cochos_suplementacao) {
+      setShowCochos(false);
+      setShowDepositos(false);
+    }
     if (!mapaGeralPermissions.visualizar_alertas) setShowAlertas(false);
     if (!mapaGeralPermissions.visualizar_localizacao) setShowUserLocation(false);
     if (!mapaGeralPermissions.visualizar_filtros_camadas) setShowFiltros(false);
@@ -865,7 +887,8 @@ export default function MapaGeral() {
               showLinhas={showLinhas} setShowLinhas={setShowLinhas}
               showLotes={showLotes} setShowLotes={setShowLotes}
               showTarefas={showTaskIcons} setShowTarefas={setShowTaskIcons}
-              showPontosSuplementacao={showPontosSuplementacao} setShowPontosSuplementacao={setShowPontosSuplementacao}
+              showCochos={showCochos} setShowCochos={setShowCochos}
+              showDepositos={showDepositos} setShowDepositos={setShowDepositos}
               showHectaresAreas={showHectaresAreas} setShowHectaresAreas={setShowHectaresAreas}
               showAlertas={showAlertas} setShowAlertas={setShowAlertas}
               showUserLocation={showUserLocation} setShowUserLocation={setShowUserLocation}
