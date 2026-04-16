@@ -20,13 +20,14 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const [showHistorico, setShowHistorico] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
 
-  const { data: lotesNota = [] } = useQuery({
+  const { data: lotesNota = [], isLoading: loadingSaldo } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
     queryFn: async () => {
       const all = await base44.entities.EstoqueLoteNota.list();
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.local_estoque_id === deposito.local_estoque_id && lote.status === "Disponivel");
     },
-    enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id
+    enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
+    staleTime: 60 * 1000
   });
 
   const { data: produtos = [] } = useQuery({
@@ -35,7 +36,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       const all = await base44.entities.Produto.list();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -44,34 +46,38 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 10 * 60 * 1000
   });
 
-  const { data: pontosSuplementacao = [] } = useQuery({
+  const { data: pontosSuplementacao = [], isLoading: loadingCochos } = useQuery({
     queryKey: ["cochos-vinculados-deposito", deposito.id],
     queryFn: async () => {
       const all = await base44.entities.PontoSuplementacao.list();
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 60 * 1000
   });
 
-  const { data: lotes = [] } = useQuery({
+  const { data: lotes = [], isLoading: loadingLotes } = useQuery({
     queryKey: ["lotes-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Ativo");
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 60 * 1000
   });
 
-  const { data: areas = [] } = useQuery({
+  const { data: areas = [], isLoading: loadingAreas } = useQuery({
     queryKey: ["areas-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
       return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: movimentacoes = [] } = useQuery({
@@ -136,6 +142,19 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["saldo-deposito", "cochos-vinculados-deposito", "movimentacoes-deposito-detalhe", "mapa-pontos-supl", "mapa-pontos", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
+
+  const loadingInicial = loadingSaldo || loadingCochos || loadingLotes || loadingAreas;
+
+  if (loadingInicial) {
+    return (
+      <div className="space-y-1" translate="no">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
+          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+          <span className="text-xs font-medium text-slate-700">Carregando detalhes do depósito...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-1" translate="no">

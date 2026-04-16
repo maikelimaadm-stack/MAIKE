@@ -68,7 +68,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     staleTime: 10 * 60 * 1000
   });
 
-  const { data: produtos = [] } = useQuery({
+  const { data: produtos = [], isLoading: loadingProdutos } = useQuery({
     queryKey: ["produtos-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
@@ -78,7 +78,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: lotes = [] } = useQuery({
+  const { data: lotes = [], isLoading: loadingLotes } = useQuery({
     queryKey: ["lotes-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
@@ -88,7 +88,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     staleTime: 60 * 1000
   });
 
-  const { data: areas = [] } = useQuery({
+  const { data: areas = [], isLoading: loadingAreas } = useQuery({
     queryKey: ["areas-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
@@ -183,7 +183,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;
   }
 
-  if (loadingEventos) {
+  const loadingInicial = loadingEventos || loadingProdutos || loadingLotes || loadingAreas;
+
+  if (loadingInicial) {
     return (
       <div className="space-y-1" translate="no">
         <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">

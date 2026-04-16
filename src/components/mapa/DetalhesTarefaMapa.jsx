@@ -264,7 +264,12 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <CardSection title="Últimos eventos">
         <div className="space-y-2 text-[10px]">
-          {historico.length === 0 ?
+          {loadingHistorico ? (
+            <div className="rounded-lg border border-slate-200 bg-white p-3 flex items-center gap-3">
+              <div className="animate-spin w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full" />
+              <span className="text-slate-500">Carregando histórico...</span>
+            </div>
+          ) : historico.length === 0 ?
           <div className="text-slate-500">Nenhum evento registrado.</div> :
 
           historico.slice(0, 3).map((item) =>

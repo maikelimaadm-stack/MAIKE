@@ -112,6 +112,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   });
 
   const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id);
+  const loadingInicial = loadingLotesArea || !areaAtual;
 
   const atualizarLoteDestinoLocal = (lista, loteAtualizado) => {
     if (!loteAtualizado?.id) return;
@@ -630,6 +631,17 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     onClose();
     window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
+
+  if (loadingInicial) {
+    return (
+      <div className="space-y-2" translate="no">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
+          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+          <span className="text-xs font-medium text-slate-700">Carregando detalhes do lote...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
