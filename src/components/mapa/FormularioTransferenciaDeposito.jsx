@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import AutocompleteGenerico from "../financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
 import {
   normalizeText,
@@ -50,7 +51,11 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     enabled: !!empresaSelecionadaId,
   });
 
-  const outrosLocais = useMemo(() => locais.filter((l) => l.id !== deposito.local_estoque_id), [locais, deposito.local_estoque_id]);
+  const outrosLocais = useMemo(() => {
+    return locais
+      .filter((l) => l.id !== deposito.local_estoque_id)
+      .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" }));
+  }, [locais, deposito.local_estoque_id]);
 
   const localOrigemId = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
   const localOrigemNome = direction === "entrada"
@@ -127,10 +132,15 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={localRelacionadoId} onValueChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o local" /></SelectTrigger>
-                <SelectContent>{outrosLocais.map((l) => <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>)}</SelectContent>
-              </Select></div>
+              <AutocompleteGenerico
+                items={outrosLocais}
+                value={localRelacionadoId}
+                onChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}
+                placeholder="PESQUISE O LOCAL"
+                displayField="nome"
+                searchFields={["nome", "numero_local"]}
+                inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent"
+              />
             </div>
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto de Suplementação <span className="text-red-500">*</span></label>
