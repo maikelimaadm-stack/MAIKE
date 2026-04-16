@@ -16,9 +16,8 @@ import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
-import { evaluateConsumoFaixa, getSupplementRule } from "./suplementacaoRules";
-import { quantidadeParaKg, produtoSuportaSacos, formatQuantidadeComUnidade, kgParaSacos } from "./unidadeConversaoUtils";
-import { consumoEsperadoPorCabecaDia, consumoEsperadoGrupoDia, pesoMedioPonderadoLotes, avaliarConsumoPV } from "./consumoPVUtils";
+import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
+import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoPVUtils";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -224,16 +223,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     return { status: "normal", label: "Dentro do limite", message: "A duração estimada ficou dentro da faixa esperada do cocho." };
   })();
 
-  const regraProduto = getSupplementRule(formData.produto);
-  const avaliacaoPV = pctPV > 0 && pesoMedioGeral > 0
-    ? avaliarConsumoPV(consumoEstimadoCabDia, pesoMedioGeral, produtoSelecionado)
-    : null;
-  const avaliacaoFallback = evaluateConsumoFaixa(consumoEstimadoCabDia, formData.produto, {
-    min: ponto?.limite_minimo_consumo || undefined,
-    idealMin: ponto?.consumo_ideal_por_cabeca_kg || undefined,
-    idealMax: ponto?.limite_maximo_consumo || undefined,
-  });
-  const avaliacaoTecnica = avaliacaoPV || avaliacaoFallback;
 
   // Médias recentes
   const mediaRecente7Dias = (() => {
@@ -341,19 +330,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }
     }
 
-    if (["critico_baixo", "critico_alto"].includes(avaliacaoTecnica.status)) {
-      const confirmarCritico = window.confirm(`${avaliacaoTecnica.message}\n\nDeseja salvar mesmo assim?`);
-      if (!confirmarCritico) return;
-    }
-
     if (statusDuracao.status === "baixo" || statusDuracao.status === "alto") {
       const confirmarDuracao = window.confirm(`${statusDuracao.message}\n\nDeseja salvar mesmo assim?`);
       if (!confirmarDuracao) return;
-    }
-
-    if (["abaixo_ideal", "acima_ideal"].includes(avaliacaoTecnica.status)) {
-      const confirmar = window.confirm(`${avaliacaoTecnica.message}\n\nDeseja salvar mesmo assim?`);
-      if (!confirmar) return;
     }
 
     try {
@@ -587,25 +566,20 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             )}
 
 
-            {/* Validação técnica - ANTES do fechamento */}
+            {/* Duração do novo lançamento */}
             {quantidadeKg > 0 && totalCabecas > 0 && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                 <div className="flex items-center justify-between gap-1 flex-wrap">
-                  <div className="text-xs font-semibold text-slate-900">Validação técnica do novo lançamento</div>
+                  <div className="text-xs font-semibold text-slate-900">Duração do novo lançamento</div>
                   <Badge variant="outline" className="text-xs">{statusDuracao.label}</Badge>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Freq. média</div><div className="font-bold text-slate-900">{frequenciaMedia > 0 ? `${formatDecimal(frequenciaMedia, 0, true)} dia(s)` : '-'}</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Duração estimada</div><div className="font-bold text-slate-900">{duracaoDiasInteira > 0 ? `${formatDecimal(duracaoDiasInteira, 0, true)} dia(s)` : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Próxima Reposição</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{consumoEstimadoCabDia > 0 ? consumoEstimadoCabDia.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : '-'}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Próxima reposição</div><div className="font-bold text-slate-900">{dataEstimadaProxima ? dataEstimadaProxima.toLocaleDateString('pt-BR') : '-'}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Total disponível</div><div className="font-bold text-slate-900">{totalDisponivelNovo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
                 </div>
-                <div className="text-[10px] text-slate-600">
-                  {statusDuracao.message}
-                  {avaliacaoTecnica?.message ? ` • ${avaliacaoTecnica.message}` : ""}
-                  {avaliacaoPV && consumoEsperadoCabDiaPV > 0 ? ` • Esperado (%PV): ${consumoEsperadoCabDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg/cab/dia` : ""}
-                  {!avaliacaoPV && regraProduto?.label ? ` • Regra: ${regraProduto.label}` : ""}
-                </div>
+                <div className="text-[10px] text-slate-600">{statusDuracao.message}</div>
               </div>
             )}
 
@@ -661,27 +635,28 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                       const percentualConsumo = totalCabecas > 0 ? ((lote.quantidade_cabecas || 0) / totalCabecas) * 100 : 0;
                       const pesoMedioLote = Number(lote.peso_medio_kg || 0);
                       const quantidadeLoteKg = totalDisponivelNovo * (percentualConsumo / 100);
-                      const consumoPlanejadoLoteCabDia = lote.quantidade_cabecas > 0 && frequenciaMedia > 0 ? safeDivide(quantidadeLoteKg, lote.quantidade_cabecas * frequenciaMedia) : 0;
-                      const avaliacaoLotePV = pctPV > 0 && pesoMedioLote > 0 ? avaliarConsumoPV(consumoPlanejadoLoteCabDia, pesoMedioLote, produtoSelecionado) : null;
-                      const avaliacaoLoteFallback = evaluateConsumoFaixa(consumoPlanejadoLoteCabDia, formData.produto, {
-                        min: ponto?.limite_minimo_consumo || undefined,
-                        idealMin: ponto?.consumo_ideal_por_cabeca_kg || undefined,
-                        idealMax: ponto?.limite_maximo_consumo || undefined,
-                      });
-                      const avaliacaoLote = avaliacaoLotePV || avaliacaoLoteFallback;
+                      const duracaoLoteDias = lote.quantidade_cabecas > 0 && consumoEsperadoCabDiaPV > 0
+                        ? Math.max(0, Math.round(safeDivide(quantidadeLoteKg, consumoEsperadoCabDiaPV * (lote.quantidade_cabecas || 0))))
+                        : duracaoDiasInteira;
+                      const dataReposicaoLote = (() => {
+                        const dataBase = parseDateLocal(formData.data_lancamento);
+                        if (!dataBase || duracaoLoteDias <= 0) return null;
+                        return new Date(dataBase.getTime() + duracaoLoteDias * 86400000);
+                      })();
                       return (
                         <div key={lote.id} className="rounded-lg border border-slate-200 bg-white p-2 space-y-1">
                           <div className="flex items-center justify-between gap-2">
                             <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
-                            <Badge variant="outline" className="text-[10px]">{avaliacaoLote?.status === 'dentro_ideal' ? 'Dentro do ideal' : 'Validar'}</Badge>
+                            <Badge variant="outline" className="text-[10px]">{formatDecimal(percentualConsumo, 1)}%</Badge>
                           </div>
                           <div className="text-[10px] text-slate-600">Área: {lote.area_atual_nome || areaNomesResolvidos.join(', ') || ponto.area_vinculada_nome || '-'}</div>
-                          <div className="grid grid-cols-3 gap-1 text-[10px]">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-1 text-[10px]">
                             <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
                             <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : '-'}</div></div>
-                            <div><div className="text-slate-500">% Consumo</div><div className="font-bold text-slate-900">{formatDecimal(percentualConsumo, 1)}%</div></div>
+                            <div><div className="text-slate-500">Qtd. lote</div><div className="font-bold text-slate-900">{formatDecimal(quantidadeLoteKg, 2)} kg</div></div>
+                            <div><div className="text-slate-500">Duração</div><div className="font-bold text-slate-900">{duracaoLoteDias > 0 ? `${formatDecimal(duracaoLoteDias, 0, true)} dia(s)` : '-'}</div></div>
+                            <div><div className="text-slate-500">Próx. reposição</div><div className="font-bold text-slate-900">{dataReposicaoLote ? dataReposicaoLote.toLocaleDateString('pt-BR') : '-'}</div></div>
                           </div>
-                          <div className="text-[10px] text-slate-600">Validação técnica do novo lançamento: {avaliacaoLote?.message || 'Sem referência técnica.'}</div>
                         </div>
                       );
                     })}
