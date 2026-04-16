@@ -1,7 +1,7 @@
 /* global google */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
@@ -49,6 +49,7 @@ const loadGoogleMapsScript = () => {
 };
 
 export default function MapaGeral() {
+  const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('satellite');
