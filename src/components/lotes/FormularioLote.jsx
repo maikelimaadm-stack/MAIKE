@@ -303,7 +303,7 @@ const dataToSave = {
                 <Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
               </FL>
               <FL label="Identificador (Sigla)">
-                <Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent font-bold" style={{ textTransform: "uppercase" }} maxLength={2} />
+                <Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} maxLength={2} />
               </FL>
               <FL label="Identificador (Cor)">
                 <Select value={formData.identificador_cor || SELECT_EMPTY} onValueChange={(value) => handleChange("identificador_cor", value === SELECT_EMPTY ? "" : value)}>
