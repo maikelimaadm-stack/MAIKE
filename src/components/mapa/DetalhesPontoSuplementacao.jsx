@@ -48,13 +48,14 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const [showHistorico, setShowHistorico] = useState(false);
   const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
 
-  const { data: eventos = [] } = useQuery({
+  const { data: eventos = [], isLoading: loadingEventos } = useQuery({
     queryKey: ["eventos-ponto", ponto.id],
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoEvento.list();
       return all.filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === ponto.id).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
     },
-    enabled: !!empresaSelecionadaId && !!ponto?.id
+    enabled: !!empresaSelecionadaId && !!ponto?.id,
+    staleTime: 60 * 1000
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -63,7 +64,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 10 * 60 * 1000
   });
 
   const { data: produtos = [] } = useQuery({
@@ -72,7 +74,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       const all = await base44.entities.Produto.list();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: lotes = [] } = useQuery({
@@ -81,7 +84,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       const all = await base44.entities.Lote.list();
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Ativo");
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 60 * 1000
   });
 
   const { data: areas = [] } = useQuery({
@@ -90,7 +94,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       const all = await base44.entities.AreaPastagem.list();
       return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const indicador = useMemo(() => getCochoIndicator(ponto, eventos), [ponto, eventos]);
@@ -176,6 +181,17 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
   if (isDeposito) {
     return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;
+  }
+
+  if (loadingEventos) {
+    return (
+      <div className="space-y-1" translate="no">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
+          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+          <span className="text-xs font-medium text-slate-700">Carregando detalhes do cocho...</span>
+        </div>
+      </div>
+    );
   }
 
   return (

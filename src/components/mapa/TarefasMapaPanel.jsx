@@ -16,7 +16,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const { data: tarefas = [] } = useQuery({
+  const { data: tarefas = [], isLoading: loadingTarefas } = useQuery({
     queryKey: ['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId],
     queryFn: async () => {
       const all = await base44.entities.LancamentoTarefa.list('-updated_date');
@@ -28,6 +28,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
+    staleTime: 60 * 1000,
   });
 
   const { data: iconesPrioridade = [] } = useQuery({
@@ -36,7 +37,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === 'Prioridade Tarefa');
     },
-    initialData: []
+    initialData: [],
+    staleTime: 10 * 60 * 1000
   });
 
   useEffect(() => {
@@ -147,6 +149,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   return (
     <div className="space-y-1 w-full min-w-0 overflow-x-auto">
+      {loadingTarefas ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
+          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+          <span className="text-xs font-medium text-slate-700">Carregando tarefas...</span>
+        </div>
+      ) : (
       <TabelaLancamentosTarefas
         tarefas={tarefas}
         grupos={grupos}
@@ -164,6 +172,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         headerTitle={panelTitulo}
         headerDescription={panelSubtitulo}
       />
+      )}
 
       <Dialog open={showForm} onOpenChange={(open) => {
         setShowForm(open);

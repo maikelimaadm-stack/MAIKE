@@ -65,7 +65,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     }
   }, [showEvento, currentTarefa.status]);
 
-  const { data: historico = [] } = useQuery({
+  const { data: historico = [], isLoading: loadingHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
       const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
@@ -73,7 +73,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       filter((item) => item.tarefa_id === currentTarefa.id).
       sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
     },
-    initialData: []
+    initialData: [],
+    staleTime: 60 * 1000
   });
 
   const { data: iconesPrioridade = [] } = useQuery({
@@ -82,7 +83,8 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === "Prioridade Tarefa");
     },
-    initialData: []
+    initialData: [],
+    staleTime: 10 * 60 * 1000
   });
 
   const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);

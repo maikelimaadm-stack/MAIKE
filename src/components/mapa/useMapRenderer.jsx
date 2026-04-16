@@ -308,16 +308,20 @@ export default function useMapRenderer(mapInstanceRef) {
 
       if (markersRef.current.has(key)) {
         const marker = markersRef.current.get(key);
+        const nextState = JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome_ponto, iconUrl: iconUrl || '', category: categoriaPonto });
+        if (markerStateCache.get(key) === nextState) return;
         marker.setPosition({ lat: coords.lat, lng: coords.lng });
         marker.setTitle(ponto.nome_ponto);
         marker.setIcon(icon);
         if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 40);
+        markerStateCache.set(key, nextState);
         return;
       }
 
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome_ponto, zIndex: 500 });
       if (iconUrl) applyMarkerIconPreservingAspectRatio(marker, iconUrl, 40);
       marker.addListener('click', () => onClick(ponto));
+      markerStateCache.set(key, JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome_ponto, iconUrl: iconUrl || '', category: categoriaPonto }));
       markersRef.current.set(key, marker);
     });
   }, [mapInstanceRef]);
@@ -370,14 +374,27 @@ export default function useMapRenderer(mapInstanceRef) {
 
       if (markersRef.current.has(key)) {
         const existing = markersRef.current.get(key);
-        const lbl = existing.getLabel();
-        if (lbl?.text !== String(totalCabecas)) existing.setLabel({ text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' });
-        existing.setPosition(offsetCenter);
-        existing.setTitle(area.nome);
-        existing.setZIndex(totalAlertas > 0 ? 2000 : 1000);
-        existing.setDraggable(!!canDragLotes);
-        existing.setIcon(icon);
-        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
+        const nextState = JSON.stringify({
+          lat: offsetCenter.lat(),
+          lng: offsetCenter.lng(),
+          totalCabecas,
+          totalAlertas,
+          title: area.nome,
+          draggable: !!canDragLotes,
+          iconUrl: cfg?.icone_url || '',
+          categories: cats.join('|')
+        });
+        if (markerStateCache.get(key) !== nextState) {
+          const lbl = existing.getLabel();
+          if (lbl?.text !== String(totalCabecas)) existing.setLabel({ text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' });
+          existing.setPosition(offsetCenter);
+          existing.setTitle(area.nome);
+          existing.setZIndex(totalAlertas > 0 ? 2000 : 1000);
+          existing.setDraggable(!!canDragLotes);
+          existing.setIcon(icon);
+          if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
+          markerStateCache.set(key, nextState);
+        }
         existing._lotesNaArea = lotesNaArea;
         existing._center = offsetCenter;
         return;
@@ -394,6 +411,16 @@ export default function useMapRenderer(mapInstanceRef) {
       marker._areaId = areaId;
       marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
       marker.addListener('dragend', (e) => { marker.setPosition(marker._center); onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
+      markerStateCache.set(key, JSON.stringify({
+        lat: offsetCenter.lat(),
+        lng: offsetCenter.lng(),
+        totalCabecas,
+        totalAlertas,
+        title: area.nome,
+        draggable: !!canDragLotes,
+        iconUrl: cfg?.icone_url || '',
+        categories: cats.join('|')
+      }));
 
       markersRef.current.set(key, marker);
     });
@@ -434,11 +461,15 @@ export default function useMapRenderer(mapInstanceRef) {
 
       if (markersRef.current.has(key)) {
         const marker = markersRef.current.get(key);
-        marker.setPosition(position);
-        marker.setTitle(t.titulo);
-        marker.setZIndex(t.prioridade === 'Urgente' ? 3000 : 2500);
-        marker.setIcon(icon);
-        if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 28);
+        const nextState = JSON.stringify({ lat: position.lat, lng: position.lng, title: t.titulo, prioridade: t.prioridade, iconUrl: cfg?.icone_url || '' });
+        if (markerStateCache.get(key) !== nextState) {
+          marker.setPosition(position);
+          marker.setTitle(t.titulo);
+          marker.setZIndex(t.prioridade === 'Urgente' ? 3000 : 2500);
+          marker.setIcon(icon);
+          if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 28);
+          markerStateCache.set(key, nextState);
+        }
         marker._tarefa = t;
         return;
       }
@@ -450,6 +481,7 @@ export default function useMapRenderer(mapInstanceRef) {
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(m, cfg.icone_url, 28);
       m._tarefa = t;
       m.addListener('click', () => onClickTarefa(m._tarefa));
+      markerStateCache.set(key, JSON.stringify({ lat: position.lat, lng: position.lng, title: t.titulo, prioridade: t.prioridade, iconUrl: cfg?.icone_url || '' }));
       markersRef.current.set(key, m);
     });
   }, [mapInstanceRef]);

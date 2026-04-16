@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [categoriaSelecionadaJuncao, setCategoriaSelecionadaJuncao] = useState(null);
   const [areaDestinoPreSelecionada, setAreaDestinoPreSelecionada] = useState(null);
   const queryClient = useQueryClient();
-  const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me() });
+  const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me(), staleTime: 10 * 60 * 1000 });
 
   // Listener para abrir movimentação via drag-and-drop
   React.useEffect(() => {
@@ -79,7 +79,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter((i) => i.ativo !== false);
-    }
+    },
+    staleTime: 10 * 60 * 1000
   });
 
   // Agrupar lotes por categoria
@@ -106,7 +107,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       const all = await base44.entities.AreaPastagem.list();
       return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id);
@@ -122,13 +124,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   };
 
   // Buscar todos os lotes ativos na mesma área (para métricas da área)
-  const { data: todosLotesNaArea = [] } = useQuery({
+  const { data: todosLotesNaArea = [], isLoading: loadingLotesArea } = useQuery({
     queryKey: ['lotes-na-area', empresaSelecionadaId, lotes[0]?.area_atual_id],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
     },
-    enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id
+    enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id,
+    staleTime: 60 * 1000
   });
 
   const movimentacaoMutation = useMutation({
