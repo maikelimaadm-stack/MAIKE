@@ -722,7 +722,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     Lote: {lote.nome}
                   </Badge>
                   {iconeUrl &&
-                    <img src={iconeUrl} alt={categoria} className="w-4 h-4 object-contain flex-shrink-0" />
+                    <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                     }
                 </div>
                 <div className="grid grid-cols-3 gap-1 text-[10px]">
