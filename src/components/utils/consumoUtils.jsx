@@ -12,6 +12,17 @@ import { base44 } from "@/api/base44Client";
 import { safeDivide } from "./pecuariaUtils";
 import { buildTimeWeightedLoteAllocations } from "../suplementacao/timeWeightedAllocation";
 
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [ano, mes, dia] = value.split("-").map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 /**
  * Calcula os dias entre duas datas (mínimo 1 dia).
  */
