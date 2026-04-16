@@ -81,36 +81,6 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     observacoes: abastecimento?.observacoes || ""
   });
 
-  const custoFifoPreview = useMemo(() => {
-    const quantidade = Number(formData.quantidade_litros || 0);
-    if (!formData.produto_id || !formData.local_estoque_id || quantidade <= 0) {
-      return { valorUnitario: 0, valorTotal: 0, saldoInsuficiente: false };
-    }
-
-    const lotesLocal = lotesEstoque
-      .filter((l) => l.produto_id === formData.produto_id && l.local_estoque_id === formData.local_estoque_id)
-      .sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
-
-    let restante = quantidade;
-    let total = 0;
-
-    for (const lote of lotesLocal) {
-      if (restante <= 0) break;
-      const consumir = Math.min(lote.quantidade_disponivel || 0, restante);
-      total += consumir * (lote.custo_unitario || 0);
-      restante -= consumir;
-    }
-
-    const quantidadeConsumida = quantidade - restante;
-    const unitario = quantidadeConsumida > 0 ? total / quantidadeConsumida : 0;
-
-    return {
-      valorUnitario: Number(unitario.toFixed(4)),
-      valorTotal: Number(total.toFixed(2)),
-      saldoInsuficiente: restante > 0,
-    };
-  }, [formData.produto_id, formData.local_estoque_id, formData.quantidade_litros, lotesEstoque]);
-
   const handleChange = (field, value) => {
     setInvalidFields((prev) => prev.filter((f) => f !== field));
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -219,6 +189,36 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     });
     return todosProdutos.filter((p) => produtosComSaldo.has(p.id));
   }, [todosProdutos, lotesEstoque, formData.local_estoque_id, produtosCombustivelIds]);
+
+  const custoFifoPreview = useMemo(() => {
+    const quantidade = Number(formData.quantidade_litros || 0);
+    if (!formData.produto_id || !formData.local_estoque_id || quantidade <= 0) {
+      return { valorUnitario: 0, valorTotal: 0, saldoInsuficiente: false };
+    }
+
+    const lotesLocal = lotesEstoque
+      .filter((l) => l.produto_id === formData.produto_id && l.local_estoque_id === formData.local_estoque_id)
+      .sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
+
+    let restante = quantidade;
+    let total = 0;
+
+    for (const lote of lotesLocal) {
+      if (restante <= 0) break;
+      const consumir = Math.min(lote.quantidade_disponivel || 0, restante);
+      total += consumir * (lote.custo_unitario || 0);
+      restante -= consumir;
+    }
+
+    const quantidadeConsumida = quantidade - restante;
+    const unitario = quantidadeConsumida > 0 ? total / quantidadeConsumida : 0;
+
+    return {
+      valorUnitario: Number(unitario.toFixed(4)),
+      valorTotal: Number(total.toFixed(2)),
+      saldoInsuficiente: restante > 0,
+    };
+  }, [formData.produto_id, formData.local_estoque_id, formData.quantidade_litros, lotesEstoque]);
 
   const tiposFiltrados = useMemo(() => {
     if (!formData.grupo_atividade_id) return [];
