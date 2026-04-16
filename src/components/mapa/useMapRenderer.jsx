@@ -451,13 +451,24 @@ export default function useMapRenderer(mapInstanceRef) {
       }
 
       // --- Identificador visual do lote (acoplado ao marcador) ---
-      const identificadores = loteReferencia && (loteReferencia.identificador_cor || loteReferencia.identificador_sigla || loteReferencia.identificador_nome)
-        ? [{
-            cor: loteReferencia.identificador_cor || '#64748b',
-            nome: loteReferencia.identificador_nome,
-            sigla: loteReferencia.identificador_sigla || loteReferencia.identificador_nome
-          }]
-        : [];
+      const identificadoresUnicos = [...new Map(
+        lotesNaArea
+          .filter((lote) => lote.identificador_cor || lote.identificador_sigla || lote.identificador_nome)
+          .map((lote) => {
+            const cor = lote.identificador_cor || '#64748b';
+            const sigla = lote.identificador_sigla || lote.identificador_nome || '';
+            const nome = lote.identificador_nome || sigla;
+            return [`${cor}_${sigla}_${nome}`, { cor, sigla, nome }];
+          })
+      ).values()];
+
+      const identificadores = identificadoresUnicos.length <= 1
+        ? identificadoresUnicos
+        : [{
+            cor: 'linear-gradient(90deg, #000000 50%, #ffffff 50%)',
+            nome: 'MISTO',
+            sigla: ''
+          }];
       let indicatorOverlay = lotesIndicatorsRef.current.get(key);
       const stateStr = JSON.stringify({
         identificadores,
@@ -500,7 +511,7 @@ export default function useMapRenderer(mapInstanceRef) {
         indicatorOverlay._markerRef = markersRef.current.get(key);
         indicatorOverlay._pos = offsetCenter;
         if (indicatorOverlay._state !== stateStr) {
-          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:15px;height:15px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;line-height:1;overflow:hidden;">${i.sigla ? String(i.sigla).substring(0,2) : ''}</div>`).join('');
+          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:15px;height:15px;border-radius:9999px;background:${i.cor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;line-height:1;overflow:hidden;">${i.sigla ? String(i.sigla).substring(0,2) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
         try { indicatorOverlay.draw(); } catch(e) {}
