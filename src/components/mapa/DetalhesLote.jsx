@@ -343,10 +343,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       toast.success('Gado movido com sucesso!');
       setAreaDestinoPreSelecionada(null);
       setShowMovimentacao(false);
-      
-      // Atualizar o cache imediatamente antes de disparar o evento
-      await refreshMapaCacheEntry('lotes', empresaSelecionadaId);
-      
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });

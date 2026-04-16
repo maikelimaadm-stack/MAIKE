@@ -791,16 +791,25 @@ export default function MapaGeral() {
 
   useEffect(() => {
     const h = async () => {
-      // Invalidar staleTime para forçar refetch imediato sem esperar o cache expirar
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'areas'] });
+      await Promise.all([
+        refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
+        ...(modoColoracao === 'situacao_pasto' ? [refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true })] : []),
+        ...(podeUsarTarefasMapa ? [refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true })] : [])
+      ]);
       refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
       if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
       if (podeUsarTarefasMapa) refetchTarefas();
     };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
-  }, [modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   useEffect(() => {
     if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
