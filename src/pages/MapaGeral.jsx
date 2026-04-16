@@ -235,7 +235,16 @@ export default function MapaGeral() {
   const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
   const { data: lotes = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
   const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
-...
+
+  useEffect(() => {
+    iconesConfig.forEach((icone) => {
+      [icone.icone_url, icone.sub_icone_url].filter(Boolean).forEach((url) => {
+        const image = new Image();
+        image.src = url;
+      });
+    });
+  }, [iconesConfig]);
+
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
   const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery(createMapaQuery('estoqueLotes'));
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery(createMapaQuery('tarefas', { enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, enabledKey: podeUsarTarefasMapa ? 'on' : 'off' }));
