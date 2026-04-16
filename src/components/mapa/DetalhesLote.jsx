@@ -732,10 +732,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                       {lote.identificador_cor && <span className="inline-block w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />}
                       <span>{lote.identificador_nome || '-'}</span>
                     </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Sigla: <span className="font-semibold text-slate-700">{lote.identificador_sigla || '-'}</span></div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-                    <div className="text-slate-500">Sigla</div>
-                    <div className="font-semibold text-slate-900">{lote.identificador_sigla || '-'}</div>
+                    <div className="text-slate-500">Categoria de Manejo</div>
+                    <div className="font-semibold text-slate-900">{lote.categoria_manejo_nome || '-'}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
@@ -762,7 +763,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     <div className="font-semibold text-slate-900">{lote.data_entrada ? new Date(lote.data_entrada).toLocaleDateString('pt-BR') : '-'}</div>
                   </div>
                 </div>
-                <div className="text-[10px] text-slate-500">Categoria: <span className="font-semibold text-slate-700">{categoria}</span></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-[10px]">
+                  <div className="text-slate-500">Categoria de Manejo: <span className="font-semibold text-slate-700">{lote.categoria_manejo_nome || '-'}</span></div>
+                  <div className="text-slate-500">Categoria Oficial: <span className="font-semibold text-slate-700">{lote.categoria || '-'}</span></div>
+                </div>
               </div>);
 
             });
