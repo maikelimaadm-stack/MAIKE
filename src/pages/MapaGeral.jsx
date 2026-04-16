@@ -219,9 +219,24 @@ export default function MapaGeral() {
     queryFn: async () => {
       const cacheEmpresa = cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaSelecionadaId;
       const cached = await getMapaCachedData(cacheKey, cacheEmpresa);
-      if (!navigator.onLine && cached?.length) return cached;
-      const fresh = await refreshMapaCacheEntry(cacheKey, cacheEmpresa);
-      return fresh?.length ? fresh : cached || [];
+      
+      if (navigator.onLine) {
+        if (cached?.length) {
+          // Se tem cache e está online, retorna o cache IMEDIATAMENTE (instant-load)
+          // e dispara a atualização dos dados em background sem travar a UI
+          refreshMapaCacheEntry(cacheKey, cacheEmpresa).then(fresh => {
+            if (fresh?.length) {
+              queryClient.setQueryData(['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'], fresh);
+            }
+          });
+          return cached;
+        } else {
+          // Se não tem cache, aguarda a busca
+          return await refreshMapaCacheEntry(cacheKey, cacheEmpresa);
+        }
+      }
+      
+      return cached || [];
     },
     enabled: Boolean(options.enabled ?? !!empresaSelecionadaId),
     staleTime: options.staleTime ?? ST,

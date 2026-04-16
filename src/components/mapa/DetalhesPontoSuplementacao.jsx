@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
@@ -49,28 +50,50 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
 
   const { data: eventos = [], isLoading: loadingEventos } = useQuery({
-    queryKey: ["eventos-ponto", ponto.id],
+    queryKey: ["mapa-eventosSuplementacao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoEvento.list();
-      return all.filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === ponto.id).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
+      const cached = await getMapaCachedData('eventosSuplementacao', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["mapa-eventosSuplementacao", empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId);
+      }
+      return cached || [];
     },
-    enabled: !!empresaSelecionadaId && !!ponto?.id,
-    staleTime: 60 * 1000
+    enabled: !!empresaSelecionadaId,
+    staleTime: 60 * 1000,
+    select: (data) => data.filter(e => e.ponto_suplementacao_id === ponto.id).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))
   });
 
   const { data: iconesConfig = [] } = useQuery({
-    queryKey: ["configuracao-icones-ponto-detalhe", empresaSelecionadaId],
+    queryKey: ["mapa-icones"],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+      const cached = await getMapaCachedData('icones', '__GLOBAL__');
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('icones', '__GLOBAL__').then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["mapa-icones"], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('icones', '__GLOBAL__');
+      }
+      return cached || [];
     },
-    enabled: !!empresaSelecionadaId,
     staleTime: 10 * 60 * 1000
   });
 
   const { data: produtos = [], isLoading: loadingProdutos } = useQuery({
     queryKey: ["produtos-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        // Se estiver offline, retorna o que tiver na Query Cache do TanStack ou vazio
+        return [];
+      }
       const all = await base44.entities.Produto.list();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },
@@ -79,20 +102,38 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   });
 
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
-    queryKey: ["lotes-ponto-detalhe", empresaSelecionadaId],
+    queryKey: ["mapa-lotes", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Ativo");
+      const cached = await getMapaCachedData('lotes', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('lotes', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["mapa-lotes", empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('lotes', empresaSelecionadaId);
+      }
+      return cached || [];
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 60 * 1000
   });
 
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
-    queryKey: ["areas-ponto-detalhe", empresaSelecionadaId],
+    queryKey: ["mapa-areas", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
+      const cached = await getMapaCachedData('areas', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('areas', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["mapa-areas", empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('areas', empresaSelecionadaId);
+      }
+      return cached || [];
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 5 * 60 * 1000
@@ -183,7 +224,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;
   }
 
-  const loadingInicial = loadingEventos || loadingProdutos || loadingLotes || loadingAreas;
+  // Aguarda a leitura rápida do cache local
+  const loadingInicial = (loadingEventos && eventos.length === 0) || (loadingLotes && lotes.length === 0) || (loadingAreas && areas.length === 0);
 
   if (loadingInicial) {
     return (

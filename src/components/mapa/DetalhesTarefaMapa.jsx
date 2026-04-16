@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -68,6 +69,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const { data: historico = [], isLoading: loadingHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
+      if (!navigator.onLine) return [];
       const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
       return all.
       filter((item) => item.tarefa_id === currentTarefa.id).
@@ -78,10 +80,19 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   });
 
   const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ["icones-prioridade-detalhe-tarefa"],
+    queryKey: ["mapa-icones"],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === "Prioridade Tarefa");
+      const cached = await getMapaCachedData('icones', '__GLOBAL__');
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('icones', '__GLOBAL__').then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["mapa-icones"], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('icones', '__GLOBAL__');
+      }
+      return cached || [];
     },
     initialData: [],
     staleTime: 10 * 60 * 1000

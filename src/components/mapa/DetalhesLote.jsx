@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { toNoonUtcISOString } from "../utils/pecuariaUtils";
 import { toast } from "sonner";
 import {
@@ -101,23 +102,26 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   // Título com nomes dos lotes
   const tituloLotes = lotes.map((l) => l.nome).join(' - ');
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas', empresaSelecionadaId],
+  const { data: areas = [], isLoading: loadingAreas } = useQuery({
+    queryKey: ['mapa-areas', empresaSelecionadaId],
     queryFn: async () => {
+      const cached = await getMapaCachedData('areas', empresaSelecionadaId);
       if (navigator.onLine) {
-        const all = await base44.entities.AreaPastagem.list();
-        const filtradas = all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-        localStorage.setItem(`offline_areas_${empresaSelecionadaId}`, JSON.stringify(filtradas));
-        return filtradas;
+        if (cached?.length) {
+          refreshMapaCacheEntry('areas', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(['mapa-areas', empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('areas', empresaSelecionadaId);
       }
-      const cached = localStorage.getItem(`offline_areas_${empresaSelecionadaId}`);
-      return cached ? JSON.parse(cached) : [];
+      return cached || [];
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 5 * 60 * 1000
   });
 
-  const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id);
+  const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id) || { nome: lotes[0]?.area_atual_nome || 'Desconhecida' };
 
   const atualizarLoteDestinoLocal = (lista, loteAtualizado) => {
     if (!loteAtualizado?.id) return;
@@ -131,24 +135,27 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   // Buscar todos os lotes ativos na mesma área (para métricas da área)
   const { data: todosLotesNaArea = [], isLoading: loadingLotesArea } = useQuery({
-    queryKey: ['lotes-na-area', empresaSelecionadaId, lotes[0]?.area_atual_id],
+    queryKey: ['mapa-lotes', empresaSelecionadaId],
     queryFn: async () => {
-      const cacheKey = `offline_lotes_area_${empresaSelecionadaId}_${lotes[0]?.area_atual_id}`;
+      const cached = await getMapaCachedData('lotes', empresaSelecionadaId);
       if (navigator.onLine) {
-        const all = await base44.entities.Lote.list();
-        const filtrados = all.filter((l) => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
-        localStorage.setItem(cacheKey, JSON.stringify(filtrados));
-        return filtrados;
+        if (cached?.length) {
+          refreshMapaCacheEntry('lotes', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(['mapa-lotes', empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('lotes', empresaSelecionadaId);
       }
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) return JSON.parse(cached);
-      return lotes.filter((l) => l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
+      return cached || [];
     },
-    enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id,
-    staleTime: 60 * 1000
+    enabled: !!empresaSelecionadaId,
+    staleTime: 60 * 1000,
+    select: (data) => data.filter(l => l.area_atual_id === lotes[0]?.area_atual_id)
   });
 
-  const loadingInicial = loadingLotesArea || !areaAtual;
+  // Aguarda a leitura do cache local (IndexedDB) que é super rápida, para não exibir os dados zerados
+  const loadingInicial = (loadingAreas && areas.length === 0) || (loadingLotesArea && todosLotesNaArea.length === 0);
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
