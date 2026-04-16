@@ -598,7 +598,7 @@ export default function MapaGeral() {
   const handleClickTarefa = useCallback((t) => {setSelectedTarefa(t);setShowDetalhesTarefa(true);}, []);
 
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
-    if (!mapaGeralPermissions.mover_lotes || !dragLotesEnabled) return;
+    if (!mapaGeralPermissions.mover_lotes) return;
     const orig = allAreas.find((a) => a.id === areaId);
     if (orig) {const ps = orig.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));if (ptInPoly(newPos, ps)) {toast.error('Arraste para outra área');return;}}
     let dest = null;
