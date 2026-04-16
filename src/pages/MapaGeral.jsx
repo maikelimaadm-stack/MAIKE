@@ -150,6 +150,7 @@ export default function MapaGeral() {
   const mapInstanceRef = useRef(null);
   const projectionOverlayRef = useRef(null);
   const firstFitDoneRef = useRef(false);
+  const mapViewRestoredRef = useRef(false);
   const longPressTimerRef = useRef(null);
   const longPressStartRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
@@ -158,7 +159,7 @@ export default function MapaGeral() {
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const { setores } = useSetorAreas(empresaSelecionadaId);
-  useEffect(() => {firstFitDoneRef.current = false;}, [empresaSelecionadaId]);
+  useEffect(() => {firstFitDoneRef.current = false; mapViewRestoredRef.current = false;}, [empresaSelecionadaId]);
 
   const { data: currentUser = null } = useQuery({
     queryKey: ['mapa-geral-user'],
@@ -482,9 +483,39 @@ export default function MapaGeral() {
 
   useEffect(() => {if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType);}, [mapType]);
 
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const persistView = () => {
+      const center = map.getCenter();
+      if (!center) return;
+      localStorage.setItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`, JSON.stringify({
+        center: { lat: center.lat(), lng: center.lng() },
+        zoom: map.getZoom()
+      }));
+    };
+    const idleListener = map.addListener('idle', persistView);
+    return () => idleListener?.remove();
+  }, [mapReady, empresaSelecionadaId]);
+
   // Fit bounds 1x
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady || !areas.length || firstFitDoneRef.current) return;
+
+    const savedView = localStorage.getItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`);
+    if (savedView && !mapViewRestoredRef.current) {
+      try {
+        const parsed = JSON.parse(savedView);
+        if (parsed?.center && typeof parsed?.zoom === 'number') {
+          mapInstanceRef.current.setCenter(parsed.center);
+          mapInstanceRef.current.setZoom(parsed.zoom);
+          firstFitDoneRef.current = true;
+          mapViewRestoredRef.current = true;
+          return;
+        }
+      } catch {}
+    }
+
     const b = new google.maps.LatLngBounds();
     let ok = false;
     areas.forEach((a) => (a.coordenadas?.coords || []).forEach((c) => {
@@ -492,7 +523,7 @@ export default function MapaGeral() {
       if (typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)) {b.extend({ lat, lng });ok = true;}
     }));
     if (ok) {mapInstanceRef.current.fitBounds(b, { padding: 50 });firstFitDoneRef.current = true;}
-  }, [areas, mapReady]);
+  }, [areas, mapReady, empresaSelecionadaId]);
 
   // ─── Handlers ───
   const detectarAreaPorCoordenada = useCallback((coords) => {
@@ -731,20 +762,14 @@ export default function MapaGeral() {
     return null;
   }, [modoColoracao, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
-  // Quando o modo muda, forçar recriar labels para atualizar texto extra
   useEffect(() => {
-    if (mapReady && (modoColoracao === 'ua_ha' || modoColoracao === 'situacao_pasto')) {
-      // Limpar labels existentes para forçar recriação com texto extra
-      renderer.syncLabels([], false);
-      setTimeout(() => {
-        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, getLabelExtraText, showHectaresAreas);
-      }, 50);
-    } else if (mapReady) {
-      renderer.syncLabels([], false);
-      setTimeout(() => {
-        renderer.syncLabels(areasFiltradas, mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas, null, showHectaresAreas);
-      }, 50);
-    }
+    if (!mapReady) return;
+    renderer.syncLabels(
+      areasFiltradas,
+      mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas,
+      modoColoracao === 'ua_ha' || modoColoracao === 'situacao_pasto' ? getLabelExtraText : null,
+      showHectaresAreas
+    );
   }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {

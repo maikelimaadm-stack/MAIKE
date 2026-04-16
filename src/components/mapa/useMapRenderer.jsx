@@ -2,6 +2,8 @@
 import { useRef, useCallback } from "react";
 
 const iconSizeCache = new Map();
+const markerStateCache = new Map();
+const areaPathSignature = (coords = []) => coords.map((c) => `${c[0] || c.lat},${c[1] || c.lng}`).join('|');
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
@@ -92,29 +94,20 @@ export default function useMapRenderer(mapInstanceRef) {
       if (polygonsRef.current.has(area.id)) {
         const poly = polygonsRef.current.get(area.id);
         const prevCor = polyColorRef.current.get(area.id);
+        const nextSignature = areaPathSignature(coords);
+
+        if (poly._pathSignature !== nextSignature) {
+          poly.setPaths(paths);
+          poly._pathSignature = nextSignature;
+        }
 
         if (prevCor !== cor) {
           poly.setOptions({ fillColor: cor, strokeColor: cor });
           polyColorRef.current.set(area.id, cor);
         }
 
-        google.maps.event.clearListeners(poly, 'mouseover');
-        google.maps.event.clearListeners(poly, 'mouseout');
-        google.maps.event.clearListeners(poly, 'click');
-        google.maps.event.clearListeners(poly, 'rightclick');
-
-        poly.addListener('mouseover', () => poly.setOptions({ strokeColor: '#ffffff', strokeOpacity: 1, strokeWeight: 3 }));
-        poly.addListener('mouseout', () => poly.setOptions({ strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2 }));
-        poly.addListener('click', (e) => {
-          if (e.vertex === undefined) {
-            const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
-            onClickArea(area, coords);
-          }
-        });
-        poly.addListener('rightclick', (e) => {
-          const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
-          onRightClickArea(area, coords);
-        });
+        poly._areaData = area;
+        poly._color = cor;
         return;
       }
 
@@ -126,18 +119,21 @@ export default function useMapRenderer(mapInstanceRef) {
         fillColor: cor,
         fillOpacity: 0.45,
       });
+      polygon._areaData = area;
+      polygon._color = cor;
+      polygon._pathSignature = areaPathSignature(coords);
 
       polygon.addListener('mouseover', () => polygon.setOptions({ strokeColor: '#ffffff', strokeOpacity: 1, strokeWeight: 3 }));
-      polygon.addListener('mouseout', () => polygon.setOptions({ strokeColor: cor, strokeOpacity: 0.8, strokeWeight: 2 }));
-      polygon.addListener('click', (e) => {
+      polygon.addListener('mouseout', function () { this.setOptions({ strokeColor: this._color, strokeOpacity: 0.8, strokeWeight: 2 }); });
+      polygon.addListener('click', function (e) {
         if (e.vertex === undefined) {
           const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
-          onClickArea(area, coords);
+          onClickArea(this._areaData, coords);
         }
       });
-      polygon.addListener('rightclick', (e) => {
+      polygon.addListener('rightclick', function (e) {
         const coords = e?.latLng ? { lat: e.latLng.lat(), lng: e.latLng.lng() } : null;
-        onRightClickArea(area, coords);
+        onRightClickArea(this._areaData, coords);
       });
 
       polygon.setMap(map);
@@ -175,12 +171,17 @@ export default function useMapRenderer(mapInstanceRef) {
       if (labelsRef.current.has(area.id)) {
         const existing = labelsRef.current.get(area.id);
         if (existing._labelDiv) {
+          const titleLine = existing._labelDiv.querySelector('.label-title');
+          const hectareLine = existing._labelDiv.querySelector('.label-hectares');
           const subLine = existing._labelDiv.querySelector('.label-extra');
-          if (subLine && extraText) {
-            subLine.textContent = extraText;
-            subLine.style.display = 'block';
-          } else if (subLine && !extraText) {
-            subLine.style.display = 'none';
+          if (titleLine) titleLine.textContent = area.nome || '';
+          if (hectareLine) {
+            hectareLine.textContent = hectaresText || '';
+            hectareLine.style.display = hectaresText ? 'block' : 'none';
+          }
+          if (subLine) {
+            subLine.textContent = extraText || '';
+            subLine.style.display = extraText ? 'block' : 'none';
           }
         }
         return;
@@ -195,8 +196,8 @@ export default function useMapRenderer(mapInstanceRef) {
       const labelDiv = document.createElement('div');
       labelDiv.innerHTML = `
         <div style="color:white;text-align:center;white-space:nowrap;text-shadow:1px 1px 3px rgba(0,0,0,0.8);pointer-events:none;font-family:Arial,sans-serif;">
-          <div style="font-size:11px;font-weight:700;">${area.nome || ''}</div>
-          <div style="font-size:10px;font-weight:400;opacity:0.95;${hectaresText ? '' : 'display:none;'}">${hectaresText || ''}</div>
+          <div class="label-title" style="font-size:11px;font-weight:700;">${area.nome || ''}</div>
+          <div class="label-hectares" style="font-size:10px;font-weight:400;opacity:0.95;${hectaresText ? '' : 'display:none;'}">${hectaresText || ''}</div>
           <div class="label-extra" style="font-size:10px;font-weight:600;color:#fef08a;${extraText ? '' : 'display:none;'}">${extraText || ''}</div>
         </div>`;
 
@@ -240,16 +241,20 @@ export default function useMapRenderer(mapInstanceRef) {
 
       if (markersRef.current.has(key)) {
         const marker = markersRef.current.get(key);
+        const nextState = JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome, iconUrl: cfg?.icone_url || '', color: cfg?.cor_padrao || ponto.cor || '#0066ff' });
+        if (markerStateCache.get(key) === nextState) return;
         marker.setPosition({ lat: coords.lat, lng: coords.lng });
         marker.setTitle(ponto.nome);
         marker.setIcon(icon);
         if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
+        markerStateCache.set(key, nextState);
         return;
       }
 
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome });
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
       marker.addListener('click', () => { new google.maps.InfoWindow({ content: `<div style="padding:10px;"><strong>${ponto.nome}</strong><br/><span style="color:#666;">${ponto.tipo}</span></div>` }).open(map, marker); });
+      markerStateCache.set(key, JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome, iconUrl: cfg?.icone_url || '', color: cfg?.cor_padrao || ponto.cor || '#0066ff' }));
       markersRef.current.set(key, marker);
     });
   }, [mapInstanceRef]);
