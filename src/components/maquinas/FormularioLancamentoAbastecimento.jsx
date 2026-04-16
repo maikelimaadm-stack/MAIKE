@@ -329,7 +329,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
           throw new Error(`Nova medição (${novaMedicao}) deve ser maior que a última medição (${medicaoAnterior})`);
         }
         const medicaoAtualAtivo = Number(maquinaSelecionada.medicao_atual || 0);
-        if (novaMedicao <= medicaoAtualAtivo) {
+        if (medicaoAnterior != null && novaMedicao <= medicaoAtualAtivo) {
           throw new Error(`Nova medição (${novaMedicao}) deve ser maior que a medição atual do ativo (${medicaoAtualAtivo})`);
         }
       }
