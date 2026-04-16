@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { Button } from "@/components/ui/button";
@@ -180,8 +181,14 @@ export default function MapaGeral() {
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ['mapa-geral-permissoes'],
-    queryFn: () => base44.entities.Permissao.list(),
-    staleTime: 5 * 60 * 1000
+    queryFn: async () => {
+      const cached = await getMapaCachedData('permissoes', '__GLOBAL__');
+      if (!navigator.onLine && cached?.length) return cached;
+      const fresh = await refreshMapaCacheEntry('permissoes', '__GLOBAL__');
+      return fresh?.length ? fresh : cached || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false
   });
 
   const permissaoAtual = useMemo(() => {
@@ -207,77 +214,34 @@ export default function MapaGeral() {
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;
-
-  const { data: areas = [], refetch: refetchAreas } = useQuery({
-    queryKey: ['mapa-areas', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.AreaPastagem.list();return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);},
-    enabled: !!empresaSelecionadaId, staleTime: ST
+  const createMapaQuery = (cacheKey, options = {}) => ({
+    queryKey: ['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'],
+    queryFn: async () => {
+      const cacheEmpresa = cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaSelecionadaId;
+      const cached = await getMapaCachedData(cacheKey, cacheEmpresa);
+      if (!navigator.onLine && cached?.length) return cached;
+      const fresh = await refreshMapaCacheEntry(cacheKey, cacheEmpresa);
+      return fresh?.length ? fresh : cached || [];
+    },
+    enabled: Boolean(options.enabled ?? !!empresaSelecionadaId),
+    staleTime: options.staleTime ?? ST,
+    refetchOnWindowFocus: false,
+    placeholderData: [],
   });
 
-  const { data: pontos = [], refetch: refetchPontosRef } = useQuery({
-    queryKey: ['mapa-pontos', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.PontoReferencia.list();return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);},
-    enabled: !!empresaSelecionadaId, staleTime: ST
-  });
-
-  const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery({
-    queryKey: ['mapa-pontos-supl', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.PontoSuplementacao.list();return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');},
-    enabled: !!empresaSelecionadaId, staleTime: ST
-  });
-
-  const { data: linhas = [] } = useQuery({
-    queryKey: ['mapa-linhas', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.LinhaGeografica.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);},
-    enabled: !!empresaSelecionadaId, staleTime: ST
-  });
-
-  const { data: lotes = [], refetch: refetchLotes } = useQuery({
-    queryKey: ['mapa-lotes', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.Lote.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');},
-    enabled: !!empresaSelecionadaId, staleTime: 60 * 1000, refetchOnWindowFocus: false
-  });
-
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['mapa-icones'],
-    queryFn: async () => {const all = await base44.entities.ConfiguracaoIcone.list();return all.filter((i) => i.ativo !== false);},
-    staleTime: 10 * 60 * 1000
-  });
-
-  useEffect(() => {
-    iconesConfig.forEach((icone) => {
-      [icone.icone_url, icone.sub_icone_url].filter(Boolean).forEach((url) => {
-        const image = new Image();
-        image.src = url;
-      });
-    });
-  }, [iconesConfig]);
-
-  const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery({
-    queryKey: ['mapa-eventos-supl', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.SuplementacaoEvento.list();return all.filter((e) => e.empresa_id === empresaSelecionadaId);},
-    enabled: !!empresaSelecionadaId, staleTime: ST
-  });
-
-  const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery({
-    queryKey: ['mapa-estoque-lotes', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.EstoqueLoteNota.list();return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.status === 'Disponivel');},
-    enabled: !!empresaSelecionadaId, staleTime: ST
-  });
-
-  const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery({
-    queryKey: ['mapa-tarefas', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.LancamentoTarefa.list();return all.filter((t) => t.empresa_id === empresaSelecionadaId && t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento'));},
-    enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, staleTime: ST
-  });
+  const { data: areas = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
+  const { data: pontos = [], refetch: refetchPontosRef } = useQuery(createMapaQuery('pontos'));
+  const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
+  const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
+  const { data: lotes = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
+  const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
+...
+  const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
+  const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery(createMapaQuery('estoqueLotes'));
+  const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery(createMapaQuery('tarefas', { enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, enabledKey: podeUsarTarefasMapa ? 'on' : 'off' }));
 
   // Movimentações para calcular situação do pasto
-  const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery({
-    queryKey: ['mapa-movimentacoes', empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao', 500);return all.filter((m) => m.empresa_id === empresaSelecionadaId);},
-    enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto',
-    staleTime: ST
-  });
+  const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto', enabledKey: modoColoracao }));
 
   // ─── Dados derivados ───
   const lotesComAlerta = useMemo(() => lotes.map((lote) => {
@@ -899,7 +863,7 @@ export default function MapaGeral() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full" />
-              <span className="font-semibold text-slate-700 text-sm">Carregando mapa...</span>
+              <span className="font-semibold text-slate-700 text-sm">Carregando mapa salvo...</span>
             </div>
           </div>
         }
