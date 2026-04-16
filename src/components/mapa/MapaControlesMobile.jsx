@@ -1,11 +1,12 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { X, Filter, Target, RefreshCw, ClipboardList, BarChart3 } from "lucide-react";
+import { X, Filter, Target, RefreshCw, ClipboardList, Move } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function MapaControlesMobile({
   mapType, setMapType,
-  onRefresh, onLocate,
+  onRefresh, onLocate, onToggleDrag,
+  dragEnabled = false,
   onOpenTarefas, onOpenInsights, onOpenFiltros,
   showTarefasButton = true,
   showInsightsButton = true,
@@ -67,6 +68,14 @@ export default function MapaControlesMobile({
         </Button>
         <Button variant="secondary" size="icon" onClick={onLocate} className="h-8 w-8 rounded-full bg-white/95 shadow-md self-end">
           <Target className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant={dragEnabled ? "default" : "secondary"}
+          size="icon"
+          onClick={onToggleDrag}
+          className={`h-8 w-8 rounded-full shadow-md self-end ${dragEnabled ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white/95 text-slate-700'}`}
+          title="Ativar arrasto">
+          <Move className="w-3.5 h-3.5" />
         </Button>
       </div>
     </>);

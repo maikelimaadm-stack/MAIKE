@@ -88,6 +88,7 @@ export default function MapaGeral() {
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
   const [showTaskIcons, setShowTaskIcons] = useState(true);
+  const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('mapa_geral_filtros');
@@ -99,6 +100,7 @@ export default function MapaGeral() {
     if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
     if (typeof state.showLotes === 'boolean') setShowLotes(state.showLotes);
     if (typeof state.showTaskIcons === 'boolean') setShowTaskIcons(state.showTaskIcons);
+    if (typeof state.dragLotesEnabled === 'boolean') setDragLotesEnabled(state.dragLotesEnabled);
     if (typeof state.showCochos === 'boolean') setShowCochos(state.showCochos);
     if (typeof state.showDepositos === 'boolean') setShowDepositos(state.showDepositos);
     if (typeof state.showPontosSuplementacao === 'boolean') {
@@ -128,6 +130,7 @@ export default function MapaGeral() {
       showLinhas,
       showLotes,
       showTaskIcons,
+      dragLotesEnabled,
       showCochos,
       showDepositos,
       showAlertas,
@@ -144,7 +147,7 @@ export default function MapaGeral() {
       filtroPesoMax,
       modoColoracao
     }));
-  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -595,14 +598,14 @@ export default function MapaGeral() {
   const handleClickTarefa = useCallback((t) => {setSelectedTarefa(t);setShowDetalhesTarefa(true);}, []);
 
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
-    if (!mapaGeralPermissions.mover_lotes) return;
+    if (!mapaGeralPermissions.mover_lotes || !dragLotesEnabled) return;
     const orig = allAreas.find((a) => a.id === areaId);
     if (orig) {const ps = orig.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));if (ptInPoly(newPos, ps)) {toast.error('Arraste para outra área');return;}}
     let dest = null;
     for (const a of allAreas) {if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue;if (ptInPoly(newPos, a.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })))) {dest = a;break;}}
     if (dest) {setSelectedLote(lotesNaArea);setShowDetalhesLote(true);setTimeout(() => window.dispatchEvent(new CustomEvent('open-movimentacao', { detail: { areaDestinoId: dest.id } })), 100);} else
     toast.error('Solte sobre outra área');
-  }, [mapaGeralPermissions.mover_lotes]);
+  }, [mapaGeralPermissions.mover_lotes, dragLotesEnabled]);
 
   const handleRefresh = useCallback(() => {
     refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
@@ -789,7 +792,7 @@ export default function MapaGeral() {
     ];
     renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
   }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, handleClickLotes, handleDragLotes]);
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
@@ -817,6 +820,7 @@ export default function MapaGeral() {
     if (!mapaGeralPermissions.visualizar_localizacao) setShowUserLocation(false);
     if (!mapaGeralPermissions.visualizar_filtros_camadas) setShowFiltros(false);
     if (!mapaGeralPermissions.visualizar_insights) setShowInsights(false);
+    if (!mapaGeralPermissions.mover_lotes) setDragLotesEnabled(false);
   }, [mapaGeralPermissions]);
 
   useEffect(() => {
@@ -842,6 +846,8 @@ export default function MapaGeral() {
         <MapaControlesMobile
           mapType={mapType} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
+          dragEnabled={dragLotesEnabled}
+          onToggleDrag={() => setDragLotesEnabled((prev) => !prev)}
           showTarefasButton={podeUsarTarefasMapa}
           showInsightsButton={mapaGeralPermissions.visualizar_insights}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}

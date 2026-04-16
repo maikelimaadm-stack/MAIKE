@@ -104,8 +104,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      if (navigator.onLine) {
+        const all = await base44.entities.AreaPastagem.list();
+        const filtradas = all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+        localStorage.setItem(`offline_areas_${empresaSelecionadaId}`, JSON.stringify(filtradas));
+        return filtradas;
+      }
+      const cached = localStorage.getItem(`offline_areas_${empresaSelecionadaId}`);
+      return cached ? JSON.parse(cached) : [];
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 5 * 60 * 1000
@@ -127,8 +133,16 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const { data: todosLotesNaArea = [], isLoading: loadingLotesArea } = useQuery({
     queryKey: ['lotes-na-area', empresaSelecionadaId, lotes[0]?.area_atual_id],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
+      const cacheKey = `offline_lotes_area_${empresaSelecionadaId}_${lotes[0]?.area_atual_id}`;
+      if (navigator.onLine) {
+        const all = await base44.entities.Lote.list();
+        const filtrados = all.filter((l) => l.empresa_id === empresaSelecionadaId && l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
+        localStorage.setItem(cacheKey, JSON.stringify(filtrados));
+        return filtrados;
+      }
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) return JSON.parse(cached);
+      return lotes.filter((l) => l.area_atual_id === lotes[0]?.area_atual_id && l.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId && !!lotes[0]?.area_atual_id,
     staleTime: 60 * 1000
