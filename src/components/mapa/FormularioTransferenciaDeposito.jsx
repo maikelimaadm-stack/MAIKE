@@ -70,8 +70,8 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const produtosDisponiveis = useMemo(() => {
     if (!localFonteId) return [];
     return produtos.filter((p) => {
-      const categoriaSuplementacao = normalizeText(p.categoria).includes("SUPLEMENTAC");
-      if (!categoriaSuplementacao) return false;
+      const tipoUsoNutricaoAnimal = normalizeText(p.tipo_uso || "") === normalizeText("Nutrição Animal");
+      if (!tipoUsoNutricaoAnimal) return false;
       return obterSaldoTransferivelProduto({ produto: p, lotesNota, localEstoqueId: localFonteId, localEstoqueNome: localFonteNome }) > 0;
     });
   }, [direction, localRelacionadoId, deposito.local_estoque_id, produtos, lotesNota, localFonteId, localFonteNome]);
