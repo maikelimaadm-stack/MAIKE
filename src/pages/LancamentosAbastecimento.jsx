@@ -100,9 +100,20 @@ export default function LancamentosAbastecimento() {
 
   const deleteMutation = useMutation({
     mutationFn: async (item) => {
-      const movimentacoes = item.referencia_movimentacao
-        ? await base44.entities.MovimentacaoEstoque.filter({ referencia: item.referencia_movimentacao })
+      const movimentacoesPorReferencia = item.referencia_movimentacao
+        ? await base44.entities.MovimentacaoEstoque.filter({ referencia_movimentacao: item.referencia_movimentacao })
         : [];
+
+      const movimentacoesPorObservacao = await base44.entities.MovimentacaoEstoque.list();
+      const movimentacoes = [...movimentacoesPorReferencia];
+
+      movimentacoesPorObservacao
+        .filter((mov) => mov.observacoes === `Saída automática por abastecimento ${item.id}`)
+        .forEach((mov) => {
+          if (!movimentacoes.find((existente) => existente.id === mov.id)) {
+            movimentacoes.push(mov);
+          }
+        });
 
       for (const mov of movimentacoes) {
         for (const lote of mov.lotes_consumidos || []) {

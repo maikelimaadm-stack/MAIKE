@@ -425,7 +425,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         vinculado: true,
         tipo_vinculo: "maquina",
         lotes_consumidos: lotesConsumidos,
-        referencia: referenciaMovimentacao,
+        referencia_movimentacao: referenciaMovimentacao,
         observacoes: `Saída automática por abastecimento ${abastecimentoCriado.id}`,
         status: "Ativa",
         origem_sistema: "manual",
