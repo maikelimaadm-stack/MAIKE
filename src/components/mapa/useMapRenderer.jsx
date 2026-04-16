@@ -500,7 +500,7 @@ export default function useMapRenderer(mapInstanceRef) {
         indicatorOverlay._markerRef = markersRef.current.get(key);
         indicatorOverlay._pos = offsetCenter;
         if (indicatorOverlay._state !== stateStr) {
-          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:15px;height:15px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:bold;color:#fff;line-height:1;overflow:hidden;">${i.sigla ? String(i.sigla).substring(0,3) : ''}</div>`).join('');
+          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:15px;height:15px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;line-height:1;overflow:hidden;">${i.sigla ? String(i.sigla).substring(0,2) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
         try { indicatorOverlay.draw(); } catch(e) {}
