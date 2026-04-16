@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { excluirTransferenciaDeposito } from "./historicoSuplementacaoUtils";
 import { formatKg } from "./formatters";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 
 function formatObsKgPtBR(obs) {
   if (!obs) return "";
@@ -33,10 +34,9 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
   const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ["historico-deposito", deposito.id],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoEstoque.list("-data_movimentacao");
       const depositoLocalId = deposito.local_estoque_id;
-
-      return all
+      
+      const applyFilter = (all) => all
         .filter((item) => {
           if (item.empresa_id !== empresaSelecionadaId) return false;
           if (item.origem_sistema === "reversao") return false;
@@ -54,6 +54,21 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
           return true;
         })
         .sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
+
+      const cached = await getMapaCachedData('movimentacaoEstoque', empresaSelecionadaId);
+      
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('movimentacaoEstoque', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["historico-deposito", deposito.id], applyFilter(fresh));
+          });
+          return applyFilter(cached);
+        } else {
+          const fresh = await refreshMapaCacheEntry('movimentacaoEstoque', empresaSelecionadaId);
+          return applyFilter(fresh);
+        }
+      }
+      return applyFilter(cached || []);
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
   });

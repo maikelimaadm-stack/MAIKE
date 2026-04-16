@@ -69,11 +69,23 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const { data: historico = [], isLoading: loadingHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
-      if (!navigator.onLine) return [];
-      const all = await base44.entities.HistoricoLancamentoTarefa.list("-created_date");
-      return all.
-      filter((item) => item.tarefa_id === currentTarefa.id).
-      sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+      const cached = await getMapaCachedData('historicoTarefa', currentTarefa.empresa_id);
+      
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('historicoTarefa', currentTarefa.empresa_id).then(fresh => {
+            if (fresh?.length) {
+              queryClient.setQueryData(["historico-tarefa-detalhe", currentTarefa.id], fresh.filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0)));
+            }
+          });
+          return cached.filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+        } else {
+          const fresh = await refreshMapaCacheEntry('historicoTarefa', currentTarefa.empresa_id);
+          return fresh.filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+        }
+      }
+      
+      return (cached || []).filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
     },
     initialData: [],
     staleTime: 60 * 1000

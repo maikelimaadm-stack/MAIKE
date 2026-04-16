@@ -13,6 +13,12 @@ const MAPA_ENTITIES = {
   tarefas: 'LancamentoTarefa',
   movimentacoes: 'MovimentacaoMapa',
   permissoes: 'Permissao',
+  historicoTarefa: 'HistoricoLancamentoTarefa',
+  suplementacaoLote: 'SuplementacaoLote',
+  aplicacaoMedicamento: 'AplicacaoMedicamento',
+  eventoSanitario: 'EventoSanitario',
+  manejoTecnico: 'ManejoTecnicoRebanho',
+  movimentacaoEstoque: 'MovimentacaoEstoque',
 };
 
 const CACHE_KEYS = Object.keys(MAPA_ENTITIES);
@@ -31,6 +37,12 @@ const mapFetchers = {
   tarefas: async (empresaId) => getEmpresaFilter(await base44.entities.LancamentoTarefa.list(), empresaId).filter((t) => t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')),
   movimentacoes: async (empresaId) => getEmpresaFilter(await base44.entities.MovimentacaoMapa.list('-data_movimentacao', 500), empresaId),
   permissoes: async () => base44.entities.Permissao.list(),
+  historicoTarefa: async (empresaId) => getEmpresaFilter(await base44.entities.HistoricoLancamentoTarefa.list('-created_date', 500), empresaId),
+  suplementacaoLote: async (empresaId) => getEmpresaFilter(await base44.entities.SuplementacaoLote.list('-data_lancamento', 500), empresaId),
+  aplicacaoMedicamento: async (empresaId) => getEmpresaFilter(await base44.entities.AplicacaoMedicamento.list('-data_aplicacao', 500), empresaId),
+  eventoSanitario: async (empresaId) => getEmpresaFilter(await base44.entities.EventoSanitario.list('-data_evento', 500), empresaId),
+  manejoTecnico: async (empresaId) => getEmpresaFilter(await base44.entities.ManejoTecnicoRebanho.list('-data_evento', 500), empresaId),
+  movimentacaoEstoque: async (empresaId) => getEmpresaFilter(await base44.entities.MovimentacaoEstoque.list('-data_movimentacao', 500), empresaId),
 };
 
 export async function getMapaCachedData(cacheKey, empresaId) {

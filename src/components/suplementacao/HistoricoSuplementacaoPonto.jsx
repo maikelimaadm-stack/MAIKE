@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { safeDivide } from "../utils/pecuariaUtils";
 import CardMetricaEvento from "./CardMetricaEvento";
 import DesvioConsumoTag from "./DesvioConsumoTag";
@@ -20,10 +21,24 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
   const { data: eventos = [], isLoading } = useQuery({
     queryKey: ["suplementacao-ponto", pontoId],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoEvento.list();
-      return all
+      const cached = await getMapaCachedData('eventosSuplementacao', empresaSelecionadaId);
+      
+      const applyFilter = (data) => data
         .filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === pontoId)
         .sort((a, b) => new Date(b.created_date || b.data_lancamento || 0) - new Date(a.created_date || a.data_lancamento || 0));
+
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["suplementacao-ponto", pontoId], applyFilter(fresh));
+          });
+          return applyFilter(cached);
+        } else {
+          const fresh = await refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId);
+          return applyFilter(fresh);
+        }
+      }
+      return applyFilter(cached || []);
     },
     enabled: !!empresaSelecionadaId && !!pontoId
   });
@@ -31,8 +46,18 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ["movimentacoes-bloqueio-suplementacao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-      return all.filter((mov) => mov.empresa_id === empresaSelecionadaId);
+      const cached = await getMapaCachedData('movimentacoes', empresaSelecionadaId);
+      
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(["movimentacoes-bloqueio-suplementacao", empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId);
+      }
+      return cached || [];
     },
     enabled: !!empresaSelecionadaId,
   });

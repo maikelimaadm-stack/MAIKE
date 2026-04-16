@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { formatDateBR } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
 import { calcularResumoHistorico, filtrarHistoricoPorMeses, montarSerieConsumoDiario, montarSerieMensal } from "./suplementacaoResumoUtils";
@@ -22,13 +23,24 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [periodoMeses, setPeriodoMeses] = useState("3");
 
+  const queryClient = useQueryClient();
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ['suplementacao-lote', empresaSelecionadaId, loteId],
     queryFn: async () => {
-      return await base44.entities.SuplementacaoLote.filter({
-        empresa_id: empresaSelecionadaId,
-        lote_id: loteId,
-      }, '-data_lancamento', 300);
+      const cached = await getMapaCachedData('suplementacaoLote', empresaSelecionadaId);
+      
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('suplementacaoLote', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(['suplementacao-lote', empresaSelecionadaId, loteId], fresh.filter(h => h.lote_id === loteId));
+          });
+          return cached.filter(h => h.lote_id === loteId);
+        } else {
+          const fresh = await refreshMapaCacheEntry('suplementacaoLote', empresaSelecionadaId);
+          return fresh.filter(h => h.lote_id === loteId);
+        }
+      }
+      return (cached || []).filter(h => h.lote_id === loteId);
     },
     enabled: !!empresaSelecionadaId && !!loteId,
   });

@@ -15,6 +15,7 @@ import {
   getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
@@ -110,13 +111,27 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId],
     queryFn: async () => {
+      const fetchWithCache = async (cacheKey) => {
+        const cached = await getMapaCachedData(cacheKey, empresaSelecionadaId);
+        if (navigator.onLine) {
+          if (cached?.length) {
+            refreshMapaCacheEntry(cacheKey, empresaSelecionadaId).then(fresh => {
+              if (fresh?.length) queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId] });
+            });
+            return cached;
+          }
+          return await refreshMapaCacheEntry(cacheKey, empresaSelecionadaId) || [];
+        }
+        return cached || [];
+      };
+
       const [movimentacoesRaw, suplementacoesRaw, eventosSuplementacaoRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw] = await Promise.all([
-        base44.entities.MovimentacaoMapa.list('-data_movimentacao'),
-        base44.entities.SuplementacaoLote.list('-data_lancamento'),
-        base44.entities.SuplementacaoEvento.list('-data_lancamento'),
-        base44.entities.AplicacaoMedicamento.list('-data_aplicacao'),
-        base44.entities.EventoSanitario.list('-data_evento'),
-        base44.entities.ManejoTecnicoRebanho.list('-data_evento')
+        fetchWithCache('movimentacoes'),
+        fetchWithCache('suplementacaoLote'),
+        fetchWithCache('eventosSuplementacao'),
+        fetchWithCache('aplicacaoMedicamento'),
+        fetchWithCache('eventoSanitario'),
+        fetchWithCache('manejoTecnico')
       ]);
 
       const matchLote = (nome, id) => {
@@ -313,8 +328,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const { data: todasMovimentacoesGlobal = [] } = useQuery({
     queryKey: ['todas-movimentacoes-global', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+      const cached = await getMapaCachedData('movimentacoes', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(['todas-movimentacoes-global', empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId);
+      }
+      return cached || [];
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -323,8 +347,17 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const { data: todosLotesGlobal = [] } = useQuery({
     queryKey: ['todos-lotes-global', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+      const cached = await getMapaCachedData('lotes', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('lotes', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(['todos-lotes-global', empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return await refreshMapaCacheEntry('lotes', empresaSelecionadaId);
+      }
+      return cached || [];
     },
     enabled: !!empresaSelecionadaId,
   });
