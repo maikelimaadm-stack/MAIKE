@@ -1,6 +1,10 @@
 import { base44 } from '@/api/base44Client';
 import { getEntityCacheItems, setEntityCacheItems } from '@/components/offline/IndexedDBManager';
 
+const refreshPromises = new Map();
+const lastRefreshAt = new Map();
+const MIN_REFRESH_INTERVAL_MS = 15000;
+
 const MAPA_ENTITIES = {
   areas: 'AreaPastagem',
   pontos: 'PontoReferencia',
@@ -49,12 +53,38 @@ export async function getMapaCachedData(cacheKey, empresaId) {
   return getEntityCacheItems(`mapa_${cacheKey}`, empresaId || '__GLOBAL__');
 }
 
-export async function refreshMapaCacheEntry(cacheKey, empresaId) {
+export async function refreshMapaCacheEntry(cacheKey, empresaId, options = {}) {
   const fetcher = mapFetchers[cacheKey];
   if (!fetcher) return [];
-  const items = await fetcher(empresaId);
-  await setEntityCacheItems(`mapa_${cacheKey}`, empresaId || '__GLOBAL__', items);
-  return items;
+
+  const normalizedEmpresaId = empresaId || '__GLOBAL__';
+  const requestKey = `${cacheKey}:${normalizedEmpresaId}`;
+  const now = Date.now();
+  const force = options.force === true;
+  const lastRun = lastRefreshAt.get(requestKey) || 0;
+
+  if (!force && refreshPromises.has(requestKey)) {
+    return refreshPromises.get(requestKey);
+  }
+
+  if (!force && now - lastRun < MIN_REFRESH_INTERVAL_MS) {
+    return getEntityCacheItems(`mapa_${cacheKey}`, normalizedEmpresaId);
+  }
+
+  const promise = (async () => {
+    const items = await fetcher(empresaId);
+    await setEntityCacheItems(`mapa_${cacheKey}`, normalizedEmpresaId, items);
+    lastRefreshAt.set(requestKey, Date.now());
+    return items;
+  })();
+
+  refreshPromises.set(requestKey, promise);
+
+  try {
+    return await promise;
+  } finally {
+    refreshPromises.delete(requestKey);
+  }
 }
 
 export async function warmMapaCache(empresaId) {

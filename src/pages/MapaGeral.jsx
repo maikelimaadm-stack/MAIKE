@@ -220,23 +220,14 @@ export default function MapaGeral() {
     queryFn: async () => {
       const cacheEmpresa = cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaSelecionadaId;
       const cached = await getMapaCachedData(cacheKey, cacheEmpresa);
-      
+
       if (navigator.onLine) {
         if (cached?.length) {
-          // Se tem cache e está online, retorna o cache IMEDIATAMENTE (instant-load)
-          // e dispara a atualização dos dados em background sem travar a UI
-          refreshMapaCacheEntry(cacheKey, cacheEmpresa).then(fresh => {
-            if (fresh?.length) {
-              queryClient.setQueryData(['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'], fresh);
-            }
-          });
           return cached;
-        } else {
-          // Se não tem cache, aguarda a busca
-          return await refreshMapaCacheEntry(cacheKey, cacheEmpresa);
         }
+        return await refreshMapaCacheEntry(cacheKey, cacheEmpresa);
       }
-      
+
       return cached || [];
     },
     enabled: Boolean(options.enabled ?? !!empresaSelecionadaId),
@@ -596,12 +587,25 @@ export default function MapaGeral() {
     toast.error('Solte sobre outra área');
   }, [mapaGeralPermissions.mover_lotes, dragLotesEnabled]);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
+    const refreshTasks = [
+      refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
+    ];
+
+    if (modoColoracao === 'situacao_pasto') refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }));
+    if (podeUsarTarefasMapa) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true }));
+
+    await Promise.all(refreshTasks);
     refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
     if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
     if (podeUsarTarefasMapa) refetchTarefas();
     toast.success('Mapa atualizado');
-  }, [modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) return;
