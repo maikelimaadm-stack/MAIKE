@@ -735,7 +735,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Sigla</div>
-                    <div className="font-semibold text-slate-900">{lote.identificador_sigla || '-'}</div>
+                    <div className="font-semibold text-slate-900">{lote.identificador_sigla || lote.identificador_nome || '-'}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
