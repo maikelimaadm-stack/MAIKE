@@ -489,7 +489,7 @@ export default function useMapRenderer(mapInstanceRef) {
             if (!pos) return;
             // Posição personalizada do identificador em relação ao ícone
             div.style.left = `${pos.x + 20}px`;
-            div.style.top = `${pos.y - 20}px`;
+            div.style.top = `${pos.y - 25}px`;
             div.style.transform = 'translate(-50%, -50%)';
           };
           indicatorOverlay.onRemove = function() { div.parentNode?.removeChild(div); };
