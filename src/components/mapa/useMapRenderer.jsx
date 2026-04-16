@@ -488,7 +488,7 @@ export default function useMapRenderer(mapInstanceRef) {
             const pos = proj.fromLatLngToDivPixel(currentPos);
             if (!pos) return;
             // Posição personalizada do identificador em relação ao ícone
-            div.style.left = `${pos.x + 20}px`;
+            div.style.left = `${pos.x + 30}px`;
             div.style.top = `${pos.y - 30}px`;
             div.style.transform = 'translate(-50%, -50%)';
           };
