@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuplementacao } from "./estoqueSuplementacaoUtils";
 import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
+import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { evaluateConsumoFaixa, getSupplementRule } from "./suplementacaoRules";
 import { quantidadeParaKg, produtoSuportaSacos, formatQuantidadeComUnidade, kgParaSacos } from "./unidadeConversaoUtils";
@@ -150,6 +151,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
+  const { data: movimentacoesPecuaria = [] } = useQuery({
+    queryKey: ["movimentacoes-pecuaria-suplementacao", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoPecuaria.list();
+      return all.filter((mov) => mov.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+    staleTime: 2 * 60 * 1000,
+  });
+
   // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
   const pesoMedioGeral = pesoMedioPonderadoLotes(lotes);
@@ -238,6 +249,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const ultimoConsumoCabDia = ultimoEvento?.consumo_diario_grupo_kg
     ? safeDivide(ultimoEvento.consumo_diario_grupo_kg, ultimoEvento.total_cabecas_afetadas || 0)
     : 0;
+
+  const alocacaoTemporalPreview = useMemo(() => {
+    if (!ultimoEvento || !diasPeriodo) return [];
+    const consumoTotalPreview = Math.max(0, (ultimoEvento.quantidade_total_kg || 0) - sobraInformada + (ultimoEvento.sobra_kg || 0));
+    return buildTimeWeightedLoteAllocations({
+      lotes,
+      movimentacoes: movimentacoesPecuaria,
+      areaIds: areaIdsVinculados,
+      dataInicio: ultimoEvento.data_lancamento,
+      dataFim: closingDateForPreviousPeriod,
+      consumoTotalPeriodo: consumoTotalPreview,
+    });
+  }, [ultimoEvento, diasPeriodo, lotes, movimentacoesPecuaria, areaIdsVinculados, closingDateForPreviousPeriod, sobraInformada]);
 
   // Produtos disponíveis - filtrar apenas os que têm saldo no depósito vinculado
   const produtosDisponiveis = useMemo(() => {
@@ -410,6 +434,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           peso_consumo_lote: lote.quantidade_cabecas || 0,
           percentual_consumo_lote: percentualLote,
           dias_periodo: null,
+          dias_ativos_periodo: null,
+          animal_dias_periodo: null,
           consumo_unitario_dia: null,
           consumo_por_cabeca_dia_kg: null,
           consumo_total_lote_periodo_kg: null,

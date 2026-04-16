@@ -10,6 +10,7 @@
 
 import { base44 } from "@/api/base44Client";
 import { safeDivide } from "./pecuariaUtils";
+import { buildTimeWeightedLoteAllocations } from "../suplementacao/timeWeightedAllocation";
 
 /**
  * Calcula os dias entre duas datas (mínimo 1 dia).
@@ -81,6 +82,34 @@ export function calcularConsumoLote({ consumoDiarioGrupo, totalCabecas, cabecas,
   return { percentualLote, consumoDiarioLote, consumoPorCabecaDia, consumoTotalLotePeriodo };
 }
 
+export async function calcularConsumoLotesPonderadoPorTempo({
+  evento,
+  diasPeriodo,
+  consumoTotal,
+}) {
+  const [todosLotesSupl, lotesAtivos, movimentacoes] = await Promise.all([
+    base44.entities.SuplementacaoLote.list(),
+    base44.entities.Lote.list(),
+    base44.entities.MovimentacaoPecuaria.list(),
+  ]);
+
+  const lotesDoEvento = todosLotesSupl.filter((l) => l.suplementacao_evento_id === evento.id);
+  const lotesRelacionados = lotesAtivos.filter((lote) => lotesDoEvento.some((item) => item.lote_id === lote.id));
+  const movimentosRelacionados = movimentacoes.filter((mov) => mov.empresa_id === evento.empresa_id && lotesDoEvento.some((item) => item.lote_id === mov.lote_id));
+
+  const dataInicio = evento.data_lancamento;
+  const dataFim = new Date(parseDateLocal(evento.data_lancamento).getTime() + Math.max(1, Number(diasPeriodo || 1)) * 86400000);
+
+  return buildTimeWeightedLoteAllocations({
+    lotes: lotesRelacionados,
+    movimentacoes: movimentosRelacionados,
+    areaIds: Array.isArray(evento.area_ids) ? evento.area_ids : (evento.area_id ? [evento.area_id] : []),
+    dataInicio,
+    dataFim,
+    consumoTotalPeriodo: consumoTotal,
+  });
+}
+
 /**
  * Fecha um período de suplementação (evento + lotes vinculados).
  * Atualiza o SuplementacaoEvento e todos os SuplementacaoLote do período.
@@ -109,20 +138,28 @@ export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFi
 
   const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
   const lotesDoEvento = todosLotesSupl.filter((l) => l.suplementacao_evento_id === evento.id);
+  const alocacoes = await calcularConsumoLotesPonderadoPorTempo({
+    evento,
+    diasPeriodo,
+    consumoTotal,
+  });
+  const alocacaoMap = new Map(alocacoes.map((item) => [item.loteId, item]));
 
   await Promise.all(lotesDoEvento.map((loteSupl) => {
-    const { consumoPorCabecaDia: consumoCabecaLote, consumoTotalLotePeriodo } = calcularConsumoLote({
-      consumoDiarioGrupo,
-      totalCabecas: evento.total_cabecas_afetadas,
-      cabecas: loteSupl.cabecas_na_area,
-      diasPeriodo,
-    });
+    const alocacao = alocacaoMap.get(loteSupl.lote_id);
+    const percentualLote = alocacao?.percentualParticipacao ?? safeDivide(loteSupl.cabecas_na_area, evento.total_cabecas_afetadas);
+    const consumoDiarioLote = consumoDiarioGrupo * percentualLote;
+    const consumoCabecaLote = alocacao?.consumoPorCabecaDiaKg ?? safeDivide(consumoDiarioLote, loteSupl.cabecas_na_area);
+    const consumoTotalLotePeriodo = alocacao?.consumoTotalLotePeriodoKg ?? consumoDiarioLote * diasPeriodo;
 
     return base44.entities.SuplementacaoLote.update(loteSupl.id, {
       dias_periodo: diasPeriodo,
       consumo_unitario_dia: consumoPorCabecaDia,
       consumo_por_cabeca_dia_kg: consumoCabecaLote,
       consumo_total_lote_periodo_kg: consumoTotalLotePeriodo,
+      percentual_consumo_lote: percentualLote,
+      animal_dias_periodo: alocacao?.animalDias ?? null,
+      dias_ativos_periodo: alocacao?.diasAtivos ?? null,
     });
   }));
 

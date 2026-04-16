@@ -25,9 +25,13 @@ export function buildProgressIconUrl(baseIconUrl) {
 }
 
 export function getCochoIndicator(ponto, eventos = []) {
-  const ultimoEvento = eventos
-    .filter((evento) => evento.ponto_suplementacao_id === ponto.id)
-    .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
+  let ultimoEvento = null;
+  for (const evento of eventos) {
+    if (evento.ponto_suplementacao_id !== ponto.id) continue;
+    if (!ultimoEvento || new Date(evento.data_lancamento) > new Date(ultimoEvento.data_lancamento)) {
+      ultimoEvento = evento;
+    }
+  }
 
   if (!ultimoEvento) {
     return {

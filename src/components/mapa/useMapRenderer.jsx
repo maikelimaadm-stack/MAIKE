@@ -1,8 +1,27 @@
 /* global google */
 import { useRef, useCallback } from "react";
 
+const iconSizeCache = new Map();
+
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
+
+  const applyIcon = ({ width, height }) => {
+    marker.setIcon({
+      url: iconUrl,
+      scaledSize: new google.maps.Size(width, height),
+      anchor: new google.maps.Point(width / 2, height / 2),
+      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(9, height * 0.34)) } : {})
+    });
+  };
+
+  const cacheKey = `${iconUrl}_${baseSize}_${withLabel ? 1 : 0}`;
+  const cached = iconSizeCache.get(cacheKey);
+  if (cached) {
+    applyIcon(cached);
+    return;
+  }
+
   const image = new Image();
   image.onload = () => {
     const widthRatio = image.naturalWidth || baseSize;
@@ -10,12 +29,9 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, wi
     const ratio = widthRatio / heightRatio;
     const width = ratio >= 1 ? baseSize : Math.max(20, Math.round(baseSize * ratio));
     const height = ratio >= 1 ? Math.max(20, Math.round(baseSize / ratio)) : baseSize;
-    marker.setIcon({
-      url: iconUrl,
-      scaledSize: new google.maps.Size(width, height),
-      anchor: new google.maps.Point(width / 2, height / 2),
-      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(9, height * 0.34)) } : {})
-    });
+    const size = { width, height };
+    iconSizeCache.set(cacheKey, size);
+    applyIcon(size);
   };
   image.src = iconUrl;
 };

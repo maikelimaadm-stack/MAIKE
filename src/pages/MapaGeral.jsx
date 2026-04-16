@@ -202,7 +202,7 @@ export default function MapaGeral() {
   }, [currentUser?.role, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
 
   // ─── Queries ───
-  const ST = 2 * 60 * 1000;
+  const ST = 5 * 60 * 1000;
 
   const { data: areas = [], refetch: refetchAreas } = useQuery({
     queryKey: ['mapa-areas', empresaSelecionadaId],
@@ -231,7 +231,7 @@ export default function MapaGeral() {
   const { data: lotes = [], refetch: refetchLotes } = useQuery({
     queryKey: ['mapa-lotes', empresaSelecionadaId],
     queryFn: async () => {const all = await base44.entities.Lote.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');},
-    enabled: !!empresaSelecionadaId, staleTime: 10 * 1000, refetchOnWindowFocus: true
+    enabled: !!empresaSelecionadaId, staleTime: 60 * 1000, refetchOnWindowFocus: false
   });
 
   const { data: iconesConfig = [] } = useQuery({
