@@ -310,6 +310,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
 
   const mutation = useMutation({
     mutationFn: async (data) => {
+      if (abastecimento?.id) {
+        throw new Error("Este lançamento ainda não permite salvamento na edição");
+      }
       if (!maquinaSelecionada) throw new Error("Selecione um ativo");
       const produtoSelecionado = todosProdutos.find((p) => p.id === data.produto_id);
       if (!produtoSelecionado) throw new Error("Produto não encontrado");
