@@ -169,6 +169,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       l.area_atual_id === formData.area_entrada_id &&
       l.status === 'Ativo'
       );
+      const lotesOrigemLocais = lotes.map((lote) => ({ ...lote }));
+      const atualizarLoteOrigemLocal = (loteId, changes) => {
+        const index = lotesOrigemLocais.findIndex((item) => item.id === loteId);
+        if (index >= 0) {
+          lotesOrigemLocais[index] = { ...lotesOrigemLocais[index], ...changes };
+        }
+      };
       const encontrarLoteDestinoCompativel = (loteOrigem, categoriaMovimento) => {
         return lotesDestinoAtivos.find((l) =>
         l.area_atual_id === formData.area_entrada_id &&
@@ -213,7 +220,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         for (const mov of formData.movimentacoes) {
           if (mov.quantidade <= 0) continue;
 
-          const lotesCategoria = lotes.filter((l) => l.categoria?.toUpperCase() === mov.categoria);
+          const lotesCategoria = lotesOrigemLocais.filter((l) => l.categoria?.toUpperCase() === mov.categoria && (l.quantidade_cabecas || 0) > 0 && l.status === 'Ativo');
           let quantidadeRestante = Number(mov.quantidade || 0);
 
           for (const lote of lotesCategoria) {
@@ -244,8 +251,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
                 await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                atualizarLoteOrigemLocal(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
               } else {
                 await base44.entities.Lote.update(lote.id, {
+                  area_atual_id: formData.area_entrada_id,
+                  area_atual_nome: areaEntrada?.nome || ''
+                });
+                atualizarLoteOrigemLocal(lote.id, {
                   area_atual_id: formData.area_entrada_id,
                   area_atual_nome: areaEntrada?.nome || ''
                 });
@@ -287,9 +299,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
 
               const saldoRemanescente = Math.max(0, (lote.quantidade_cabecas || 0) - quantidadeMover);
+              const novoStatusOrigem = saldoRemanescente > 0 ? lote.status : 'Inativo';
               await base44.entities.Lote.update(lote.id, {
                 quantidade_cabecas: saldoRemanescente,
-                status: saldoRemanescente > 0 ? lote.status : 'Inativo'
+                status: novoStatusOrigem
+              });
+              atualizarLoteOrigemLocal(lote.id, {
+                quantidade_cabecas: saldoRemanescente,
+                status: novoStatusOrigem
               });
             }
 
