@@ -790,14 +790,17 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
-    const h = () => {
+    const h = async () => {
+      // Invalidar staleTime para forçar refetch imediato sem esperar o cache expirar
+      queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'areas'] });
       refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
       if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
       if (podeUsarTarefasMapa) refetchTarefas();
     };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
-  }, [modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   useEffect(() => {
     if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);

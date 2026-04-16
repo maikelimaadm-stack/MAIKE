@@ -377,6 +377,15 @@ export default function useMapRenderer(mapInstanceRef) {
         : { path: google.maps.SymbolPath.CIRCLE, scale: 22, fillColor: '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3, labelOrigin: new google.maps.Point(0, 0) };
       const totalAlertas = lotesNaArea.reduce((sum, l) => sum + (l.alertas?.length || 0), 0);
 
+      // Helper para atualizar posição do indicador junto com o marcador
+      const updateIndicatorPos = (marker, overlay) => {
+        if (!overlay) return;
+        const proj = overlay.getProjection?.();
+        if (!proj) { try { overlay.draw(); } catch(e) {} return; }
+        const pos = marker.getPosition();
+        if (pos) { overlay._pos = pos; try { overlay.draw(); } catch(e) {} }
+      };
+
       if (markersRef.current.has(key)) {
         const existing = markersRef.current.get(key);
         const nextState = JSON.stringify({
@@ -399,6 +408,9 @@ export default function useMapRenderer(mapInstanceRef) {
           existing.setIcon(icon);
           if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
           markerStateCache.set(key, nextState);
+          // Atualizar posição do indicador quando o marcador muda de posição
+          const ind = lotesIndicatorsRef.current.get(key);
+          if (ind) { ind._pos = offsetCenter; try { ind.draw(); } catch(e) {} }
         }
         existing._lotesNaArea = lotesNaArea;
         existing._center = offsetCenter;
@@ -414,7 +426,16 @@ export default function useMapRenderer(mapInstanceRef) {
         marker._center = offsetCenter;
         marker._areaId = areaId;
         marker.addListener('click', () => onClickLotes(marker._lotesNaArea));
-        marker.addListener('dragend', (e) => { onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas); });
+        // Durante o drag: mover indicador junto em tempo real
+        marker.addListener('drag', () => {
+          const ind = lotesIndicatorsRef.current.get(key);
+          updateIndicatorPos(marker, ind);
+        });
+        marker.addListener('dragend', (e) => {
+          const ind = lotesIndicatorsRef.current.get(key);
+          updateIndicatorPos(marker, ind);
+          onDragLotes(e.latLng, marker._lotesNaArea, areaId, areas);
+        });
         markerStateCache.set(key, JSON.stringify({
           lat: offsetCenter.lat(),
           lng: offsetCenter.lng(),
@@ -429,7 +450,7 @@ export default function useMapRenderer(mapInstanceRef) {
         markersRef.current.set(key, marker);
       }
 
-      // --- Identificador visual do lote ---
+      // --- Identificador visual do lote (acoplado ao marcador) ---
       const identificadores = loteReferencia && (loteReferencia.identificador_cor || loteReferencia.identificador_sigla || loteReferencia.identificador_nome)
         ? [{
             cor: loteReferencia.identificador_cor || '#64748b',
@@ -455,23 +476,31 @@ export default function useMapRenderer(mapInstanceRef) {
           div.style.pointerEvents = 'none';
           div.style.zIndex = '2500';
           indicatorOverlay._div = div;
+          indicatorOverlay._markerRef = markersRef.current.get(key);
           indicatorOverlay.onAdd = function() { this.getPanes().overlayMouseTarget.appendChild(div); };
           indicatorOverlay.draw = function() {
             const proj = this.getProjection();
-            if (!proj || !this._pos) return;
-            const pos = proj.fromLatLngToDivPixel(this._pos);
+            if (!proj) return;
+            // Usar posição atual do marcador (se disponível) para seguir durante drag
+            const m = this._markerRef || markersRef.current.get(key);
+            const currentPos = m ? m.getPosition() : this._pos;
+            if (!currentPos) return;
+            const pos = proj.fromLatLngToDivPixel(currentPos);
             if (!pos) return;
+            // Posição: acima e centralizado ao ícone (offset -34px vertical = acima do ícone de ~50px)
             div.style.left = `${pos.x}px`;
-            div.style.top = `${pos.y - 32}px`;
+            div.style.top = `${pos.y - 34}px`;
             div.style.transform = 'translate(-50%, -50%)';
           };
           indicatorOverlay.onRemove = function() { div.parentNode?.removeChild(div); };
           indicatorOverlay.setMap(map);
           lotesIndicatorsRef.current.set(key, indicatorOverlay);
         }
+        // Atualizar referência ao marcador (pode ter sido recriado)
+        indicatorOverlay._markerRef = markersRef.current.get(key);
         indicatorOverlay._pos = offsetCenter;
         if (indicatorOverlay._state !== stateStr) {
-          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:20px;height:20px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;line-height:1;">${i.sigla ? String(i.sigla).substring(0,3) : ''}</div>`).join('');
+          indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:22px;height:22px;border-radius:9999px;background-color:${i.cor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#fff;line-height:1;">${i.sigla ? String(i.sigla).substring(0,3) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
         try { indicatorOverlay.draw(); } catch(e) {}
