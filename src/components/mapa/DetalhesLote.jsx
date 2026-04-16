@@ -61,6 +61,15 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [areaDestinoPreSelecionada, setAreaDestinoPreSelecionada] = useState(null);
   const queryClient = useQueryClient();
   const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me(), staleTime: 10 * 60 * 1000 });
+  const { data: lotesCadastro = [] } = useQuery({
+    queryKey: ['detalhes-lote-cadastro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter((l) => l.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+    staleTime: 60 * 1000
+  });
 
   // Listener para abrir movimentação via drag-and-drop
   React.useEffect(() => {
@@ -708,6 +717,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
             return lotesCategoria.map((lote) => {
+              const loteCadastro = lotesCadastro.find((item) => item.id === lote.id) || lote;
               const cab = lote.quantidade_cabecas || 0;
               const peso = lote.peso_medio_kg || 0;
               const hoje = new Date();hoje.setHours(0, 0, 0, 0);
@@ -735,7 +745,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Sigla</div>
-                    <div className="font-semibold text-slate-900">{lote.identificador_sigla || lote.identificador_nome || '-'}</div>
+                    <div className="font-semibold text-slate-900">{loteCadastro.identificador_sigla || '-'}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
