@@ -81,6 +81,36 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
     observacoes: abastecimento?.observacoes || ""
   });
 
+  const custoFifoPreview = useMemo(() => {
+    const quantidade = Number(formData.quantidade_litros || 0);
+    if (!formData.produto_id || !formData.local_estoque_id || quantidade <= 0) {
+      return { valorUnitario: 0, valorTotal: 0, saldoInsuficiente: false };
+    }
+
+    const lotesLocal = lotesEstoque
+      .filter((l) => l.produto_id === formData.produto_id && l.local_estoque_id === formData.local_estoque_id)
+      .sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
+
+    let restante = quantidade;
+    let total = 0;
+
+    for (const lote of lotesLocal) {
+      if (restante <= 0) break;
+      const consumir = Math.min(lote.quantidade_disponivel || 0, restante);
+      total += consumir * (lote.custo_unitario || 0);
+      restante -= consumir;
+    }
+
+    const quantidadeConsumida = quantidade - restante;
+    const unitario = quantidadeConsumida > 0 ? total / quantidadeConsumida : 0;
+
+    return {
+      valorUnitario: Number(unitario.toFixed(4)),
+      valorTotal: Number(total.toFixed(2)),
+      saldoInsuficiente: restante > 0,
+    };
+  }, [formData.produto_id, formData.local_estoque_id, formData.quantidade_litros, lotesEstoque]);
+
   const handleChange = (field, value) => {
     setInvalidFields((prev) => prev.filter((f) => f !== field));
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -321,7 +351,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       // FIFO
       const lotesLocal = lotesEstoque.
       filter((l) => l.produto_id === data.produto_id && l.local_estoque_id === data.local_estoque_id).
-      sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+      sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
 
       let restante = quantidade;
       const lotesConsumidos = [];
@@ -341,6 +371,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       }
       if (restante > 0) throw new Error("Não foi possível aplicar FIFO para toda a quantidade");
 
+      const valorTotalSaida = lotesConsumidos.reduce((acc, item) => acc + ((item.quantidade_consumida || 0) * (item.custo_unitario || 0)), 0);
+      const valorUnitarioSaida = quantidade > 0 ? valorTotalSaida / quantidade : 0;
+
       const grupoSel = gruposAtividade.find((g) => g.id === data.grupo_atividade_id);
       const localEstoqueSel = locais.find((l) => l.id === data.local_estoque_id);
 
@@ -352,6 +385,8 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         produto_nome: produtoSelecionado.nome_produto,
         data_abastecimento: data.data_abastecimento,
         quantidade_litros: quantidade,
+        valor_litro: Number(valorUnitarioSaida.toFixed(4)),
+        valor_total: Number(valorTotalSaida.toFixed(2)),
         medicao: maquinaSelecionada.tipo_medicao !== "Nenhum" ? novaMedicao : null,
         medicao_anterior: consumoData.medicao_anterior,
         uso_realizado: consumoData.uso_realizado,
@@ -377,6 +412,8 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
         produto_id: produtoSelecionado.id,
         produto_nome: produtoSelecionado.nome_produto,
         quantidade,
+        valor_unitario: Number(valorUnitarioSaida.toFixed(4)),
+        valor_total: Number(valorTotalSaida.toFixed(2)),
         unidade_medida: produtoSelecionado.unidade_medida || "LT",
         local_estoque_origem: data.local_estoque_id,
         local_origem: localEstoqueSel?.nome || "",
@@ -438,6 +475,10 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
       toast.error("Preencha os campos obrigatórios");
       return;
     }
+    if (custoFifoPreview.saldoInsuficiente) {
+      toast.error("Não foi possível calcular o FIFO para toda a quantidade informada");
+      return;
+    }
     mutation.mutate(formData);
   };
 
@@ -490,9 +531,9 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
               </div>
             </div>
 
-            {/* Linha 3: Local Estoque | Produto | Saldo | Quantidade */}
+            {/* Linha 3: Local Estoque | Produto | Saldo | Quantidade | Valores FIFO */}
             <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">
-              <div className="lg:col-span-4">
+              <div className="lg:col-span-3">
                 <FL label="Local de Estoque (Origem)" required error={invalidFields.includes("local_estoque_id")}>
                   <AutocompleteGenerico items={locaisFiltrados} value={formData.local_estoque_id} onChange={(v) => handleChange("local_estoque_id", v)} placeholder={!maquinaSelecionada ? "SELECIONE O ATIVO" : "BUSCAR LOCAL..."} displayField="nome" searchFields={["nome", "descricao"]} className="w-full" inputClassName={AC_INPUT_CLS} />
                 </FL>
@@ -507,9 +548,19 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
                   <Input readOnly value={saldoDisponivel == null ? "" : saldoDisponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} className={READONLY_CLS} />
                 </FL>
               </div>
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-2">
                 <FL label="Quantidade Abastecimento" required error={invalidFields.includes("quantidade_litros")}>
                   <Input type="number" step="0.01" min="0.01" value={formData.quantidade_litros} onChange={(e) => handleChange("quantidade_litros", e.target.value)} className={INPUT_CLS} placeholder="0,00" />
+                </FL>
+              </div>
+              <div className="lg:col-span-1">
+                <FL label="Vlr. Unitário">
+                  <Input readOnly value={custoFifoPreview.valorUnitario.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} className={READONLY_CLS} />
+                </FL>
+              </div>
+              <div className="lg:col-span-1">
+                <FL label="Vlr. Total">
+                  <Input readOnly value={custoFifoPreview.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} className={READONLY_CLS} />
                 </FL>
               </div>
             </div>

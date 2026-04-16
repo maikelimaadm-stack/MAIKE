@@ -40,7 +40,9 @@ const COLUNAS_DISPONIVEIS = [
 { id: "local_estoque_nome", label: "Local Estoque", default: false, width: 140 },
 { id: "produto_nome", label: "Produto", default: true, width: 160 },
 { id: "quantidade_litros", label: "Litros", default: true, width: 80, align: "right" },
-{ id: "medicao", label: "Medição", default: true, width: 90, align: "right" },
+{ id: "valor_litro", label: "Vlr. Unit.", default: true, width: 95, align: "right" },
+{ id: "valor_total", label: "Vlr. Total", default: true, width: 105, align: "right" },
+{ id: "medicao", label: "Medição", default: true, width: 90, align: "right" }
 { id: "medicao_anterior", label: "Med. Anterior", default: true, width: 100, align: "right" },
 { id: "uso_realizado", label: "Uso (H/KM)", default: true, width: 90, align: "right" },
 { id: "consumo_calculado", label: "Consumo", default: true, width: 90, align: "right" },
@@ -62,7 +64,7 @@ const loadLS = (key, fallback) => {
 const SORTABLE = [
 "data_abastecimento", "maquina_nome", "maquina_categoria", "maquina_tipo_medicao",
 "maquina_identificador", "responsavel", "produto_nome", "quantidade_litros",
-"medicao", "medicao_anterior", "uso_realizado", "consumo_calculado",
+"valor_litro", "valor_total", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado",
 "grupo_atividade_nome", "tipo_servico", "local_estoque_nome"];
 
 
@@ -175,6 +177,8 @@ export default function TabelaLancamentosAbastecimento({
     switch (colunaId) {
       case "data_abastecimento":return formatDate(item.data_abastecimento);
       case "quantidade_litros":return item.quantidade_litros != null ? fmt2(item.quantidade_litros) : "-";
+      case "valor_litro":return item.valor_litro != null ? fmt2(item.valor_litro) : "-";
+      case "valor_total":return item.valor_total != null ? fmt2(item.valor_total) : "-";
       case "medicao":return item.medicao != null ? fmt2(item.medicao) : "-";
       case "medicao_anterior":return item.medicao_anterior != null ? fmt2(item.medicao_anterior) : "-";
       case "uso_realizado":return item.uso_realizado != null ? fmt2(item.uso_realizado) : "-";
@@ -218,7 +222,7 @@ export default function TabelaLancamentosAbastecimento({
       let va = a[sortCol] ?? "";
       let vb = b[sortCol] ?? "";
       if (sortCol === "data_abastecimento") {va = va || "";vb = vb || "";} else
-      if (["quantidade_litros", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"].includes(sortCol)) {
+      if (["quantidade_litros", "valor_litro", "valor_total", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"].includes(sortCol)) {
         va = Number(va) || 0;vb = Number(vb) || 0;
         return sortDir === "asc" ? va - vb : vb - va;
       }
@@ -329,6 +333,8 @@ export default function TabelaLancamentosAbastecimento({
     switch (colunaId) {
       case "data_abastecimento":return formatDate(item.data_abastecimento);
       case "quantidade_litros":return fmt2(item.quantidade_litros);
+      case "valor_litro":return fmt2(item.valor_litro);
+      case "valor_total":return fmt2(item.valor_total);
       case "medicao":return fmt2(item.medicao);
       case "medicao_anterior":return item.medicao_anterior != null ? fmt2(item.medicao_anterior) : "-";
       case "uso_realizado":return item.uso_realizado != null ? fmt2(item.uso_realizado) : "-";
@@ -483,13 +489,11 @@ export default function TabelaLancamentosAbastecimento({
                           </TableCell>);
 
 
-                      const numericCols = ["quantidade_litros", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"];
+                      const numericCols = ["quantidade_litros", "valor_litro", "valor_total", "medicao", "medicao_anterior", "uso_realizado", "consumo_calculado"];
                       return (
                         <TableCell
                           key={`${item.id}-${coluna.id}`}
-                          style={{ width, minWidth: width, maxWidth: width }} className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden text-left">
-
-                          
+                          style={{ width, minWidth: width, maxWidth: width }} className={`p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-200 whitespace-normal break-words overflow-hidden ${numericCols.includes(coluna.id) ? "text-right font-mono" : "text-left"}`}>
                             {renderCell(item, coluna.id)}
                           </TableCell>);
 

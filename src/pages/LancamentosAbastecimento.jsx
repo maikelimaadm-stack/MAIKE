@@ -43,7 +43,7 @@ export default function LancamentosAbastecimento() {
       : abastecimentos;
 
     const csvRows = [
-      ['Data', 'Ativo', 'Categoria', 'Tipo Medição', 'Grupo Atividade', 'Tipo Serviço', 'Responsável', 'Local Estoque', 'Produto', 'Litros', 'Medição', 'Med. Anterior', 'Uso', 'Consumo', 'Observações'].join(';')
+      ['Data', 'Ativo', 'Categoria', 'Tipo Medição', 'Grupo Atividade', 'Tipo Serviço', 'Responsável', 'Local Estoque', 'Produto', 'Litros', 'Valor Unitário', 'Valor Total', 'Medição', 'Med. Anterior', 'Uso', 'Consumo', 'Observações'].join(';')
     ];
 
     paraExportar.forEach(m => {
@@ -58,6 +58,8 @@ export default function LancamentosAbastecimento() {
         m.local_estoque_nome || '',
         m.produto_nome || '',
         m.quantidade_litros || '',
+        m.valor_litro || '',
+        m.valor_total || '',
         m.medicao || '',
         m.medicao_anterior || '',
         m.uso_realizado || '',
