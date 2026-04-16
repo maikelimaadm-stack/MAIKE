@@ -22,17 +22,22 @@ const COLUNAS_DISPONIVEIS = [
 { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
 { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 200 },
 { id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
+{ id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 90 },
+{ id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 100 },
 { id: "cabecas", label: "Cabeças", default: true, sortable: true, align: "right", width: 100 },
 { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 160 },
+{ id: "categoria_manejo", label: "Categoria Manejo", default: true, sortable: true, align: "left", width: 180 },
 { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left", width: 100 },
 { id: "peso", label: "Peso Médio", default: true, sortable: true, align: "right", width: 120 },
+{ id: "setor", label: "Setor", default: true, sortable: true, align: "left", width: 160 },
 { id: "area", label: "Área Entrada", default: true, sortable: true, align: "left", width: 160 },
+{ id: "sistema_produtivo", label: "Sistema Reprodutivo", default: true, sortable: true, align: "left", width: 180 },
 { id: "motivo", label: "Motivo", default: true, sortable: true, align: "left", width: 140 },
 { id: "data", label: "Data Entrada", default: true, sortable: true, align: "left", width: 120 },
 { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 100 },
-{ id: "valor", label: "Valor Total", default: false, sortable: true, align: "right", width: 140 },
-{ id: "fornecedor", label: "Fornecedor", default: false, sortable: true, align: "left", width: 160 },
-{ id: "observacoes", label: "Observações", default: false, sortable: false, align: "left", width: 220 }];
+{ id: "valor", label: "Valor Total", default: true, sortable: true, align: "right", width: 140 },
+{ id: "fornecedor", label: "Fornecedor", default: true, sortable: true, align: "left", width: 160 },
+{ id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 }];
 
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
@@ -147,12 +152,17 @@ export default function TabelaLotes({
   const getFieldValue = (lote, colunaId) => {
     if (colunaId === "codigo") return String(lote.numero_lote || "");
     if (colunaId === "nome") return lote.nome || "";
-    if (colunaId === "identificador") return [lote.identificador_nome, lote.identificador_sigla].filter(Boolean).join(' - ');
+    if (colunaId === "identificador") return [lote.identificador_nome].filter(Boolean).join(' - ');
+    if (colunaId === "sigla") return lote.identificador_sigla || "";
+    if (colunaId === "cor") return lote.identificador_cor || "";
     if (colunaId === "cabecas") return String(lote.quantidade_entrada || lote.quantidade_cabecas || "");
     if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "";
+    if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "";
     if (colunaId === "sexo") return lote.sexo || "";
     if (colunaId === "peso") return lote.peso_entrada_kg || lote.peso_medio_kg ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : "";
+    if (colunaId === "setor") return lote.setor_nome || "";
     if (colunaId === "area") return lote.area_entrada_nome || "";
+    if (colunaId === "sistema_produtivo") return lote.sistema_produtivo || "";
     if (colunaId === "motivo") return lote.motivo_entrada || lote.origem || "";
     if (colunaId === "data") return formatarData(lote.data_entrada);
     if (colunaId === "status") return lote.status || "";
@@ -231,12 +241,22 @@ export default function TabelaLotes({
   const renderCell = (lote, colunaId) => {
     if (colunaId === "codigo") return lote.numero_lote || "-";
     if (colunaId === "nome") return lote.nome || "-";
-    if (colunaId === "identificador") return [lote.identificador_nome, lote.identificador_sigla].filter(Boolean).join(' - ') || "-";
+    if (colunaId === "identificador") return lote.identificador_nome || "-";
+    if (colunaId === "sigla") return lote.identificador_sigla || "-";
+    if (colunaId === "cor") return lote.identificador_cor ? (
+      <div className="flex items-center gap-2">
+        <span className="inline-block h-3 w-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />
+        <span>{lote.identificador_cor.toUpperCase()}</span>
+      </div>
+    ) : "-";
     if (colunaId === "cabecas") return lote.quantidade_entrada || lote.quantidade_cabecas || "-";
     if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "-";
+    if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "-";
     if (colunaId === "sexo") return lote.sexo || "-";
     if (colunaId === "peso") return lote.peso_entrada_kg || lote.peso_medio_kg ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : "-";
+    if (colunaId === "setor") return lote.setor_nome || "-";
     if (colunaId === "area") return lote.area_entrada_nome || "-";
+    if (colunaId === "sistema_produtivo") return lote.sistema_produtivo || "-";
     if (colunaId === "motivo") return lote.motivo_entrada || lote.origem || "-";
     if (colunaId === "data") return formatarData(lote.data_entrada);
     if (colunaId === "status") return lote.status || "-";

@@ -730,12 +730,12 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     <div className="text-slate-500">Identificador</div>
                     <div className="font-semibold text-slate-900 flex items-center gap-1.5">
                       {lote.identificador_cor && <span className="inline-block w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />}
-                      <span>{lote.identificador_nome || '-'}</span>
+                      <span>{(lote.identificador_nome || '-').toUpperCase()}</span>
                     </div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Sigla</div>
-                    <div className="font-semibold text-slate-900">{lote.identificador_sigla || '-'}</div>
+                    <div className="font-semibold text-slate-900">{(lote.identificador_sigla || '-').toUpperCase()}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Qtd. Cabeças</div>
@@ -751,20 +751,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Sist. Rep.</div>
-                    <div className="font-semibold text-slate-900">{lote.sistema_produtivo || '-'}</div>
+                    <div className="font-semibold text-slate-900">{(lote.sistema_produtivo || '-').toUpperCase()}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Raça Predominante</div>
-                    <div className="font-semibold text-slate-900">{lote.raca_predominante || '-'}</div>
+                    <div className="font-semibold text-slate-900">{(lote.raca_predominante || '-').toUpperCase()}</div>
                   </div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Sexo</div>
-                    <div className="font-semibold text-slate-900">{lote.sexo || '-'}</div>
+                    <div className="font-semibold text-slate-900">{(lote.sexo || '-').toUpperCase()}</div>
                   </div>
                 </div>
                 <div className="space-y-0.5 text-[10px]">
-                  <div className="text-slate-500">Categoria de Manejo: <span className="font-semibold text-slate-700">{lote.categoria_manejo_nome || '-'}</span></div>
-                  <div className="text-slate-500">Categoria Oficial: <span className="font-semibold text-slate-700">{lote.categoria || '-'}</span></div>
+                  <div className="text-slate-500">Categoria de Manejo: <span className="font-semibold text-slate-700">{(lote.categoria_manejo_nome || '-').toUpperCase()}</span></div>
+                  <div className="text-slate-500">Categoria Oficial: <span className="font-semibold text-slate-700">{(lote.categoria || '-').toUpperCase()}</span></div>
                 </div>
               </div>);
 
