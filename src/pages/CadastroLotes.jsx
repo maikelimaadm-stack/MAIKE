@@ -21,7 +21,7 @@ export default function CadastroLotes() {
 
   const ORIGENS_SISTEMA = ['MOVIMENTAÇÃO', 'REVERSÃO MOVIMENTAÇÃO', 'Nascimento', 'Mudança de Categoria', 'NASCIMENTO', 'MUDANÇA DE CATEGORIA'];
 
-  const { data: lotes = [], refetch } = useQuery({
+  const { data: lotes = [] } = useQuery({
     queryKey: ['lotes-cadastro', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
@@ -70,7 +70,8 @@ export default function CadastroLotes() {
         status: 'Ativo'
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (created) => {
+      queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) => [created, ...current]);
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
@@ -91,7 +92,10 @@ export default function CadastroLotes() {
       });
       return updated;
     },
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) =>
+        current.map((item) => item.id === updated.id ? updated : item)
+      );
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
