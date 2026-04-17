@@ -809,11 +809,6 @@ export default function MapaGeral() {
   }, [queryClient, refreshMapaData]);
 
   useEffect(() => {
-    if (!empresaSelecionadaId) return;
-    refreshMapaData();
-  }, [empresaSelecionadaId]);
-
-  useEffect(() => {
     if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
     if (!mapaGeralPermissions.visualizar_nomes_areas) setShowNomesAreas(false);
     if (!mapaGeralPermissions.visualizar_pontos_referencia) setShowPontos(false);
