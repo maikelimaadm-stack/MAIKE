@@ -14,7 +14,7 @@ import {
 "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Download } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
 { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
@@ -159,7 +159,7 @@ export default function TabelaLotes({
     if (colunaId === "nome") return lote.nome || "";
     if (colunaId === "identificador") return [lote.identificador_nome].filter(Boolean).join(' - ');
     if (colunaId === "sigla") return lote.identificador_sigla || "";
-    if (colunaId === "cor") return lote.identificador_cor || "";
+    if (colunaId === "cor") return lote.identificador_cor ? lote.identificador_cor.toUpperCase() : "";
     if (colunaId === "cabecas") return String(lote.quantidade_entrada || lote.quantidade_cabecas || "");
     if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "";
     if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "";
@@ -279,13 +279,14 @@ export default function TabelaLotes({
       return colunasExportaveis.map((coluna) => escaparCsv(getFieldValue(lote, coluna.id))).join(';');
     });
 
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = [header, ...rows].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    link.href = url;
     link.download = `lotes_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    URL.revokeObjectURL(link.href);
+    URL.revokeObjectURL(url);
   };
 
   const renderFilterControl = (colunaId) => {
@@ -378,10 +379,6 @@ export default function TabelaLotes({
           {lotesFiltrados.length} de {lotes.length} registros
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={exportarTabela}>
-            <Download className="w-3.5 h-3.5" />
-            Exportar
-          </Button>
           {selectedItems.length > 0 &&
           <DropdownMenu>
               <DropdownMenuTrigger asChild>
