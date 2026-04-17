@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import useSetorAreas from "@/hooks/useSetorAreas";
+import ComboboxComNovo from "@/components/pecuaria/ComboboxComNovo";
 import { toast } from "sonner";
 
 const FL = ({ label, required, error, children, dataField }) => (
@@ -66,6 +67,7 @@ const CORES_DISPONIVEIS = [
 
 
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
+  const isDuplicating = !!initialData?._isDuplicate;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [errors, setErrors] = useState({});
 // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
@@ -140,7 +142,10 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     }
   }, [areas, formData.area_entrada_id, formData.setor_id]);
 
-  const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
+  const areasDoSetor = React.useMemo(() => {
+    const lista = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
+    return [...lista].sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR", { sensitivity: "base" }));
+  }, [formData.setor_id, getAreasBySetor]);
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -280,7 +285,7 @@ const dataToSave = {
       <Card className="shadow-sm border-slate-300">
         <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
           <CardTitle className="text-sm font-semibold text-slate-700">
-            {isEditing ? "Editar Lote" : "Cadastrar Novo Lote"}
+            {isDuplicating ? "Duplicar Lote" : isEditing ? "Editar Lote" : "Cadastrar Novo Lote"}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-1">
@@ -387,13 +392,17 @@ const dataToSave = {
                 </Select>
               </FL>
               <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
-                <Select value={formData.area_entrada_id || SELECT_EMPTY} onValueChange={(value) => handleChange("area_entrada_id", value === SELECT_EMPTY ? "" : value)} disabled={!formData.setor_id}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder={formData.setor_id ? "SELECIONE" : "SELECIONE O SETOR"} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {areasDoSetor.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <ComboboxComNovo
+                  value={areasDoSetor.find((item) => item.id === formData.area_entrada_id)?.nome || ""}
+                  onChange={(value) => {
+                    const areaSelecionada = areasDoSetor.find((item) => (item.nome || "").toUpperCase() === String(value || "").toUpperCase());
+                    handleChange("area_entrada_id", areaSelecionada?.id || "");
+                  }}
+                  options={areasDoSetor.map((item) => (item.nome || "").toUpperCase())}
+                  placeholder={formData.setor_id ? "PESQUISE A ÁREA" : "SELECIONE O SETOR PRIMEIRO"}
+                  inputClassName="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent pr-8"
+                  hideIcons={false}
+                />
               </FL>
               <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo">
                 <Select value={formData.sistema_produtivo || SELECT_EMPTY} onValueChange={(value) => handleChange("sistema_produtivo", value === SELECT_EMPTY ? "" : value)}>
@@ -478,7 +487,7 @@ const dataToSave = {
                 Cancelar
               </Button>
               <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-                {isEditing ? "Atualizar" : "Salvar"}
+                {isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}
               </Button>
             </div>
           </form>

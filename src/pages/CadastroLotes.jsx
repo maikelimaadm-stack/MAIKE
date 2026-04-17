@@ -100,7 +100,7 @@ export default function CadastroLotes() {
   });
 
   const handleSubmit = (data) => {
-    if (editingLote) {
+    if (editingLote && !editingLote._isDuplicate) {
       updateLoteMutation.mutate({ id: editingLote.id, data, oldData: editingLote });
     } else {
       createLoteMutation.mutate(data);
@@ -114,7 +114,7 @@ export default function CadastroLotes() {
 
   const handleDuplicate = (lote) => {
     const { id, created_date, updated_date, created_by, numero_lote, status, ...duplicatedData } = lote;
-    setEditingLote(duplicatedData);
+    setEditingLote({ ...duplicatedData, _isDuplicate: true });
     setShowForm(true);
   };
 
