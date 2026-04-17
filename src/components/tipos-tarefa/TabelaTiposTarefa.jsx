@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
+const escaparCsv = (valor) => `"${String(valor ?? "").replaceAll('"', '""')}"`;
+
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
   { id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
@@ -229,6 +231,23 @@ export default function TabelaTiposTarefa({ tipos = [], grupos = [], onEdit, onD
     lastTapRef.current = { id: item.id, time: now };
   };
 
+  const exportarTabela = () => {
+    const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    const tiposSelecionados = tiposOrdenados.filter((item) => selectedItems.includes(item.id));
+    const header = colunasExportaveis.map((coluna) => escaparCsv(coluna.label)).join(';');
+    const rows = tiposSelecionados.map((item) => (
+      colunasExportaveis.map((coluna) => escaparCsv(getFieldValue(item, coluna.id))).join(';')
+    ));
+    const csv = [header, ...rows].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `tipos_tarefa_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderCell = (item, colunaId) => {
     if (colunaId === "nome_tipo") return item.nome_tipo || "-";
     if (colunaId === "grupo_atividade_nome") return item.grupo_atividade_nome || grupos.find((g) => g.id === item.grupo_atividade_id)?.nome_grupo || "-";
@@ -338,6 +357,8 @@ export default function TabelaTiposTarefa({ tipos = [], grupos = [], onEdit, onD
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={exportarTabela} className="text-xs">Exportar Selecionados</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleExcluirSelecionados} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
               </DropdownMenuContent>

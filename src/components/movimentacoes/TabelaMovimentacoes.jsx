@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -543,9 +544,16 @@ export default function TabelaMovimentacoes({
           </div>
           <div className="flex gap-2 flex-wrap">
             {selectedItems.length > 0 && (
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onExportSelected?.(selectedItems)}>
-                Exportar ({selectedItems.length})
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onExportSelected?.(selectedItems)} className="text-xs">Exportar Selecionados</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>

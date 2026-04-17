@@ -13,6 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
+const escaparCsv = (valor) => `"${String(valor ?? "").replaceAll('"', '""')}"`;
+
 const TIPO_LABELS = { Banco: "BANCO", Caixa: "CAIXA", CarteiraDigital: "CARTEIRA DIGITAL" };
 
 const COLUNAS_DISPONIVEIS = [
@@ -186,6 +188,23 @@ export default function TabelaContasFinanceiras({ contas = [], onEdit, onDelete,
     return opts;
   }, [contas]);
 
+  const exportarTabela = () => {
+    const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    const contasSelecionadas = sortedContas.filter((item) => selectedItems.includes(item.id));
+    const header = colunasExportaveis.map((coluna) => escaparCsv(coluna.label)).join(';');
+    const rows = contasSelecionadas.map((item) => (
+      colunasExportaveis.map((coluna) => escaparCsv(getFieldValue(item, coluna.id))).join(';')
+    ));
+    const csv = [header, ...rows].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `contas_financeiras_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderCell = (item, colId) => {
     if (colId === "nome") return <span className={`uppercase ${item.ativo === false ? 'text-slate-400 line-through' : ''}`}>{item.nome || "-"}</span>;
     if (colId === "tipo") {
@@ -279,6 +298,8 @@ export default function TabelaContasFinanceiras({ contas = [], onEdit, onDelete,
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={exportarTabela} className="text-xs">Exportar Selecionados</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => { selectedItems.forEach(id => onDelete(id)); setSelectedItems([]); }} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
                 <DropdownMenuSeparator />

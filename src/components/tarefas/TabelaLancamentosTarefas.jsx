@@ -17,6 +17,8 @@ import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Settings } from "lucide-react";
 
+const escaparCsv = (valor) => `"${String(valor ?? "").replaceAll('"', '""')}"`;
+
 const PRIORIDADE_CORES = {
   Baixa: "bg-blue-300 text-black hover:bg-blue-300",
   Média: "bg-yellow-300 text-black hover:bg-yellow-300",
@@ -308,6 +310,23 @@ export default function TabelaLancamentosTarefas({
     setFiltroSolicitante([]);
   };
 
+  const exportarTabela = () => {
+    const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    const tarefasSelecionadas = tarefasOrdenadas.filter((item) => selectedItems.includes(item.id));
+    const header = colunasExportaveis.map((coluna) => escaparCsv(coluna.label)).join(';');
+    const rows = tarefasSelecionadas.map((item) => (
+      colunasExportaveis.map((coluna) => escaparCsv(String(coluna.id.startsWith('data_') ? formatarData(item[coluna.id]) : (item[coluna.id] ?? (coluna.id === 'prioridade' ? normalizeTaskPriority(item.prioridade) : ''))))).join(';')
+    ));
+    const csv = [header, ...rows].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `tarefas_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderCell = (tarefa, colunaId) => {
     const prioridade = normalizeTaskPriority(tarefa.prioridade);
     const prioridadeClassName = tarefa.status === "Concluída" ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
@@ -553,6 +572,8 @@ export default function TabelaLancamentosTarefas({
                 <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={exportarTabela} className="text-xs">Exportar Selecionados</DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {onDelete(selectedItems);setSelectedItems([]);}} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
