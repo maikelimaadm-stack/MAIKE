@@ -239,11 +239,11 @@ export default function MapaGeral() {
     placeholderData: []
   });
 
-  const { data: areas = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
+  const { data: areasBase = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
   const { data: pontos = [], refetch: refetchPontosRef } = useQuery(createMapaQuery('pontos'));
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
   const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
-  const { data: lotes = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
+  const { data: lotesBase = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
   const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
 
   useEffect(() => {
@@ -258,6 +258,21 @@ export default function MapaGeral() {
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
   const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery(createMapaQuery('estoqueLotes'));
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery(createMapaQuery('tarefas', { enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, enabledKey: podeUsarTarefasMapa ? 'on' : 'off' }));
+
+  const areas = useMemo(() => {
+    return areasBase.filter((area) => area?.empresa_id === empresaSelecionadaId && area?.ativo !== false);
+  }, [areasBase, empresaSelecionadaId]);
+
+  const areaIdsValidos = useMemo(() => new Set(areas.map((area) => area.id)), [areas]);
+
+  const lotes = useMemo(() => {
+    return lotesBase.filter((lote) => (
+      lote?.empresa_id === empresaSelecionadaId &&
+      lote?.status === 'Ativo' &&
+      lote?.area_atual_id &&
+      areaIdsValidos.has(lote.area_atual_id)
+    ));
+  }, [lotesBase, empresaSelecionadaId, areaIdsValidos]);
 
   // Movimentações para calcular situação do pasto
   const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto', enabledKey: modoColoracao }));
@@ -594,6 +609,8 @@ export default function MapaGeral() {
   }, [mapaGeralPermissions.mover_lotes, dragLotesEnabled]);
 
   const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
+
     const refreshTasks = [
     refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
     refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
@@ -602,16 +619,15 @@ export default function MapaGeral() {
     refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
     refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true })];
 
-
     if (modoColoracao === 'situacao_pasto') refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }));
     if (podeUsarTarefasMapa) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true }));
 
     await Promise.all(refreshTasks);
-    refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
-    if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
-    if (podeUsarTarefasMapa) refetchTarefas();
+    await Promise.all([refetchLotes(), refetchAreas(), refetchEventosSupl(), refetchPontosSupl(), refetchPontosRef(), refetchEstoqueLotes()]);
+    if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
+    if (podeUsarTarefasMapa) await refetchTarefas();
     toast.success('Mapa atualizado');
-  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -797,8 +813,7 @@ export default function MapaGeral() {
 
   useEffect(() => {
     const h = async () => {
-      queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'areas'] });
+      await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
       await Promise.all([
       refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
       refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
@@ -809,9 +824,9 @@ export default function MapaGeral() {
       ...(modoColoracao === 'situacao_pasto' ? [refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true })] : []),
       ...(podeUsarTarefasMapa ? [refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true })] : [])]
       );
-      refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
-      if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
-      if (podeUsarTarefasMapa) refetchTarefas();
+      await Promise.all([refetchLotes(), refetchAreas(), refetchEventosSupl(), refetchPontosSupl(), refetchPontosRef(), refetchEstoqueLotes()]);
+      if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
+      if (podeUsarTarefasMapa) await refetchTarefas();
     };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
