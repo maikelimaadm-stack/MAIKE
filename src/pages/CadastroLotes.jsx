@@ -9,6 +9,7 @@ import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
+import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -69,8 +70,10 @@ export default function CadastroLotes() {
         status: 'Ativo'
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote cadastrado!');
@@ -87,8 +90,10 @@ export default function CadastroLotes() {
       });
       return updated;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote atualizado!');
