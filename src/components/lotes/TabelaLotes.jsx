@@ -161,11 +161,11 @@ export default function TabelaLotes({
     if (colunaId === "identificador") return [lote.identificador_nome].filter(Boolean).join(' - ');
     if (colunaId === "sigla") return lote.identificador_sigla || "";
     if (colunaId === "cor") return lote.identificador_cor ? lote.identificador_cor.toUpperCase() : "";
-    if (colunaId === "cabecas") return String(lote.quantidade_cabecas || lote.quantidade_entrada || "");
-    if (colunaId === "categoria") return lote.categoria || lote.categoria_entrada || "";
-    if (colunaId === "categoria_manejo") return lote.categoria_manejo_nome || lote.categoria_manejo_entrada_nome || "";
+    if (colunaId === "cabecas") return String(lote.quantidade_entrada || lote.quantidade_cabecas || "");
+    if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "";
+    if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "";
     if (colunaId === "sexo") return lote.sexo || "";
-    if (colunaId === "peso") return lote.peso_medio_kg || lote.peso_entrada_kg ? `${lote.peso_medio_kg || lote.peso_entrada_kg} kg` : "";
+    if (colunaId === "peso") return lote.peso_entrada_kg || lote.peso_medio_kg ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : "";
     if (colunaId === "setor") return lote.setor_nome || "";
     if (colunaId === "area") return lote.area_entrada_nome || "";
     if (colunaId === "sistema_produtivo") return lote.sistema_produtivo || "";
@@ -255,11 +255,11 @@ export default function TabelaLotes({
         <span>{lote.identificador_cor.toUpperCase()}</span>
       </div>
     ) : "-";
-    if (colunaId === "cabecas") return lote.quantidade_cabecas || lote.quantidade_entrada || "-";
-    if (colunaId === "categoria") return lote.categoria || lote.categoria_entrada || "-";
-    if (colunaId === "categoria_manejo") return lote.categoria_manejo_nome || lote.categoria_manejo_entrada_nome || "-";
+    if (colunaId === "cabecas") return lote.quantidade_entrada || lote.quantidade_cabecas || "-";
+    if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "-";
+    if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "-";
     if (colunaId === "sexo") return lote.sexo || "-";
-    if (colunaId === "peso") return lote.peso_medio_kg || lote.peso_entrada_kg ? `${lote.peso_medio_kg || lote.peso_entrada_kg} kg` : "-";
+    if (colunaId === "peso") return lote.peso_entrada_kg || lote.peso_medio_kg ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : "-";
     if (colunaId === "setor") return lote.setor_nome || "-";
     if (colunaId === "area") return lote.area_entrada_nome || "-";
     if (colunaId === "sistema_produtivo") return lote.sistema_produtivo || "-";
