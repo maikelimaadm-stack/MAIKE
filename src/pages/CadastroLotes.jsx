@@ -9,10 +9,15 @@ import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
-import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { refreshMapaCacheEntry, warmMapaCache } from "@/components/offline/mapaOfflineCache";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
+
+  const syncMapa = async () => {
+    await warmMapaCache(empresaSelecionadaId);
+    window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { force: true, source: 'cadastro-lotes' } }));
+  };
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
@@ -75,7 +80,7 @@ export default function CadastroLotes() {
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
-      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      await syncMapa();
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote cadastrado!');
@@ -99,7 +104,7 @@ export default function CadastroLotes() {
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
-      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      await syncMapa();
       setShowForm(false);
       setEditingLote(null);
       toast.success('Lote atualizado!');
@@ -170,7 +175,7 @@ export default function CadastroLotes() {
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
-      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      await syncMapa();
       toast.success(deletedCount === 1 ? 'Lote excluído!' : `${deletedCount} lotes excluídos!`);
     }
   };
