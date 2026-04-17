@@ -241,6 +241,7 @@ export default function MapaGeral() {
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
   const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
   const { data: lotes = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
+  const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
 
   const refreshMapaData = useCallback(async () => {
     await Promise.all([
@@ -265,7 +266,6 @@ export default function MapaGeral() {
       ...(podeUsarTarefasMapa ? [refetchTarefas()] : [])
     ]);
   }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
-  const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
 
   useEffect(() => {
     iconesConfig.forEach((icone) => {
