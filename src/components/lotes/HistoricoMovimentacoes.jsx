@@ -405,18 +405,22 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const hasEventoNaOrigem = todasMovimentacoesGlobal.some((mov) => {
         if (mov.id === entry.id) return false;
-        // Não considerar outras transferências saindo da origem — essas são independentes
         if (mov.tipo === 'Transferência de Área') return false;
-        
-        // Só eventos que ocorreram na área de origem
+
         const movNaAreaOrigem = mov.area_origem_id === areaOrigemId || mov.area_destino_id === areaOrigemId;
         if (!movNaAreaOrigem) return false;
 
         const mesmoNome = normalize(mov.lote) === loteNomeNorm;
         const loteIdRelacionado = !!mov.lote_id && idsLotesOrigemEstaTransf.has(mov.lote_id);
-        
         if (!mesmoNome && !loteIdRelacionado) return false;
-        
+
+        if (categoriaMovimento) {
+          const categoriaMovPosterior = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || null;
+          if (categoriaMovPosterior && normalize(categoriaMovPosterior) !== normalize(categoriaMovimento)) {
+            return false;
+          }
+        }
+
         const dataItem = getTime(mov.data_movimentacao);
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
         return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
