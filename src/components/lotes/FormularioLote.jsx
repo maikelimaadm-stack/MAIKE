@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import useSetorAreas from "@/hooks/useSetorAreas";
@@ -65,6 +66,15 @@ const CORES_DISPONIVEIS = [
   { nome: "Roxo", cor: "#966fe1" },
 ];
 
+const parseSistemasProdutivos = (valor) => {
+  if (Array.isArray(valor)) return valor;
+  if (!valor) return [];
+  return String(valor)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
   const isDuplicating = !!initialData?._isDuplicate;
@@ -82,6 +92,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
   const [formData, setFormData] = useState(initialData ? {
     ...initialData,
+    sistema_produtivo: parseSistemasProdutivos(initialData.sistema_produtivo),
     data_entrada: carregarDataEntrada(initialData.data_entrada)
   } : {
     nome: "",
@@ -94,7 +105,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     setor_id: "",
     area_entrada_id: "",
     raca_predominante: "",
-    sistema_produtivo: "",
+    sistema_produtivo: [],
     data_entrada: new Date().toLocaleDateString("sv-SE"),
     motivo_entrada: "",
     fornecedor_id: "",
@@ -152,6 +163,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   };
 
   const isEmptyValue = (value) => {
+    if (Array.isArray(value)) return value.length === 0;
     if (typeof value === "string") return value.trim() === "";
     return value === undefined || value === null || value === "";
   };
@@ -236,6 +248,14 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     element?.focus?.();
     return false;
   };
+  const toggleSistemaProdutivo = (sistema) => {
+    const atuais = parseSistemasProdutivos(formData.sistema_produtivo);
+    const proximos = atuais.includes(sistema)
+      ? atuais.filter((item) => item !== sistema)
+      : [...atuais, sistema];
+    handleChange("sistema_produtivo", proximos);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -247,6 +267,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
 const dataToSave = {
   ...formData,
+  sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
   // Alteração aqui: adicionamos o T12:00:00
   data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null, 
   
@@ -400,13 +421,28 @@ const dataToSave = {
                 <Input type="number" value={formData.idade_media_meses || ""} onChange={(e) => handleChange("idade_media_meses", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
               <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo">
-                <Select value={formData.sistema_produtivo || SELECT_EMPTY} onValueChange={(value) => handleChange("sistema_produtivo", value === SELECT_EMPTY ? "" : value)}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {SISTEMAS.map((item) => <SelectItem key={item} value={item} className="text-xs">{item.toUpperCase()}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="px-2 py-2 space-y-2 bg-transparent">
+                  <div className="text-xs text-slate-600 min-h-[20px]">
+                    {parseSistemasProdutivos(formData.sistema_produtivo).length > 0
+                      ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ")
+                      : "SELECIONE UM OU MAIS TIPOS"}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {SISTEMAS.map((item) => {
+                      const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
+                      return (
+                        <label key={item} className="flex items-center gap-2 text-xs text-slate-700 uppercase cursor-pointer">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleSistemaProdutivo(item)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <span>{item}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </FL>
             </div>
 
