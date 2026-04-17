@@ -102,6 +102,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = React.useState(null);
   const [hiddenMovementIds, setHiddenMovementIds] = React.useState([]);
+  const deleteLockRef = React.useRef(false);
   const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
   const loteNomes = React.useMemo(() => {
     const nomesDosLotes = lotes.map((item) => item?.nome).filter(Boolean);
@@ -473,8 +474,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   );
 
   const handleDelete = async (entry) => {
-    if (deletingId) return;
+    if (deletingId || deleteLockRef.current) return;
 
+    deleteLockRef.current = true;
     setDeletingId(entry.id);
 
     const motivoBloqueio = getDeleteBlockReason(entry);
@@ -744,6 +746,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         toast.error(error.message || 'Não foi possível excluir o lançamento');
       }
     } finally {
+      deleteLockRef.current = false;
       setDeletingId(null);
     }
   };
@@ -827,11 +830,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                       <div className="flex gap-1 shrink-0">
                         {item.canDelete && (
                           <Button
+                            type="button"
                             variant="destructive"
                             size="sm"
                             className="h-8 text-xs"
                             disabled={!!deletingId || hiddenMovementIds.includes(item.id) || isBloqueado}
-                            onClick={() => handleDelete(item)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDelete(item);
+                            }}
                           >
                             {deletingId === item.id ? 'Excluindo...' : 'Excluir'}
                           </Button>
