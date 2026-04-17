@@ -463,7 +463,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
-      return 'Existem registros posteriores para este lote (pesagem, mudança de categoria, morte, etc). Exclua sempre os lançamentos mais recentes primeiro e refaça o fluxo se necessário.';
+      return 'Exclusão bloqueada porque existem registros posteriores vinculados a este lote. Exclua primeiro os lançamentos mais recentes na origem, no destino ou os manejos posteriores do saldo remanescente.';
     }
     return '';
   }, [hasLaterRelatedRecord]);
@@ -826,24 +826,22 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                       </div>
                     </div>
 
-                    {item.source === 'movimentacao' && (
+                    {item.source === 'movimentacao' && item.canDelete && !isBloqueado && (
                       <div className="flex gap-1 shrink-0">
-                        {item.canDelete && (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="h-8 text-xs"
-                            disabled={!!deletingId || hiddenMovementIds.includes(item.id) || isBloqueado}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDelete(item);
-                            }}
-                          >
-                            {deletingId === item.id ? 'Excluindo...' : 'Excluir'}
-                          </Button>
-                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={!!deletingId || hiddenMovementIds.includes(item.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDelete(item);
+                          }}
+                        >
+                          {deletingId === item.id ? 'Excluindo...' : 'Excluir'}
+                        </Button>
                       </div>
                     )}
                   </div>
