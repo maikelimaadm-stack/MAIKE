@@ -167,7 +167,7 @@ export default function MapaGeral() {
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const { setores } = useSetorAreas(empresaSelecionadaId);
-  useEffect(() => {firstFitDoneRef.current = false; mapViewRestoredRef.current = false;}, [empresaSelecionadaId]);
+  useEffect(() => {firstFitDoneRef.current = false;mapViewRestoredRef.current = false;}, [empresaSelecionadaId]);
 
   const { data: currentUser = null } = useQuery({
     queryKey: ['mapa-geral-user'],
@@ -236,7 +236,7 @@ export default function MapaGeral() {
     enabled: Boolean(options.enabled ?? !!empresaSelecionadaId),
     staleTime: options.staleTime ?? ST,
     refetchOnWindowFocus: false,
-    placeholderData: [],
+    placeholderData: []
   });
 
   const { data: areas = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
@@ -595,13 +595,13 @@ export default function MapaGeral() {
 
   const handleRefresh = useCallback(async () => {
     const refreshTasks = [
-      refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
-      refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
-      refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
-      refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
-      refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
-      refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
-    ];
+    refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
+    refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
+    refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+    refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
+    refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
+    refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true })];
+
 
     if (modoColoracao === 'situacao_pasto') refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }));
     if (podeUsarTarefasMapa) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true }));
@@ -786,9 +786,9 @@ export default function MapaGeral() {
   useEffect(() => {
     if (!mapReady) return;
     const pontosVisiveis = [
-      ...(showCochos ? cochosFiltrados : []),
-      ...(showDepositos ? depositosFiltrados : [])
-    ];
+    ...(showCochos ? cochosFiltrados : []),
+    ...(showDepositos ? depositosFiltrados : [])];
+
     renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
   }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, handleClickLotes, handleDragLotes]);
@@ -800,15 +800,15 @@ export default function MapaGeral() {
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'areas'] });
       await Promise.all([
-        refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
-        ...(modoColoracao === 'situacao_pasto' ? [refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true })] : []),
-        ...(podeUsarTarefasMapa ? [refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true })] : [])
-      ]);
+      refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
+      refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
+      ...(modoColoracao === 'situacao_pasto' ? [refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true })] : []),
+      ...(podeUsarTarefasMapa ? [refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true })] : [])]
+      );
       refetchLotes();refetchAreas();refetchEventosSupl();refetchPontosSupl();refetchPontosRef();refetchEstoqueLotes();
       if (modoColoracao === 'situacao_pasto') refetchMovimentacoes();
       if (podeUsarTarefasMapa) refetchTarefas();
@@ -920,7 +920,7 @@ export default function MapaGeral() {
       <Sheet open={showFiltros} onOpenChange={setShowFiltros}>
         <SheetContent side="left" className="bg-background pt-1 pr-1 pb-1 pl-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed z-50 gap-1 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 inset-y-0 left-0 h-full border-r sm:max-w-sm w-[300px] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-sm">Filtros e Camadas</SheetTitle>
+            <SheetTitle className="font-semibold text-foreground text-sm space-y-0 px-1">Filtros e Camadas</SheetTitle>
           </SheetHeader>
           <div className="mt-4">
             <MapaFiltrosAvancados
