@@ -71,7 +71,8 @@ export default function CadastroLotes() {
       });
     },
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       setShowForm(false);
@@ -91,7 +92,8 @@ export default function CadastroLotes() {
       return updated;
     },
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
       await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       setShowForm(false);
