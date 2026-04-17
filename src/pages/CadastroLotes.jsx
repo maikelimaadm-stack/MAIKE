@@ -149,7 +149,10 @@ export default function CadastroLotes() {
     }
 
     if (deletedCount > 0) {
-      queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+      await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
+      await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success(deletedCount === 1 ? 'Lote excluído!' : `${deletedCount} lotes excluídos!`);
     }
   };
