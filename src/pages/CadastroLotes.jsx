@@ -16,7 +16,7 @@ export default function CadastroLotes() {
 
   const syncMapa = async () => {
     await warmMapaCache(empresaSelecionadaId);
-    window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { force: true, source: 'cadastro-lotes' } }));
+    window.dispatchEvent(new CustomEvent('atualizar-mapa-registros', { detail: { force: true, source: 'cadastro-lotes' } }));
   };
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });

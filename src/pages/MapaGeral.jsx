@@ -804,14 +804,14 @@ export default function MapaGeral() {
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'areas'] });
       await refreshMapaData();
     };
-    window.addEventListener('atualizar-mapa', h);
-    return () => window.removeEventListener('atualizar-mapa', h);
+    window.addEventListener('atualizar-mapa-registros', h);
+    return () => window.removeEventListener('atualizar-mapa-registros', h);
   }, [queryClient, refreshMapaData]);
 
   useEffect(() => {
     if (!empresaSelecionadaId) return;
     refreshMapaData();
-  }, [empresaSelecionadaId, refreshMapaData]);
+  }, [empresaSelecionadaId]);
 
   useEffect(() => {
     if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
