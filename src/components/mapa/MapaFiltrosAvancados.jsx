@@ -236,12 +236,12 @@ export default function MapaFiltrosAvancados({
       {permissions?.visualizar_lotes !== false && <Separator />}
 
       {/* ─── Filtros de Lotes ─── */}
-      {permissions?.visualizar_lotes !== false && (
-        <div>
+      {permissions?.visualizar_lotes !== false &&
+      <div>
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
-          <div className="space-y-2.5 px-1">
+          <div className="space-y-0 px-1">
             <div>
               <Label className="text-[10px] text-slate-600">Categoria</Label>
               <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
@@ -286,28 +286,28 @@ export default function MapaFiltrosAvancados({
             <div>
               <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
               <Input
-                type="number"
-                placeholder="Ex: 200"
-                className="h-8 text-xs"
-                value={filtroPesoMin || ''}
-                onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)}
-              />
+              type="number"
+              placeholder="Ex: 200"
+              className="h-8 text-xs"
+              value={filtroPesoMin || ''}
+              onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
+            
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Máximo (kg)</Label>
               <Input
-                type="number"
-                placeholder="Ex: 500"
-                className="h-8 text-xs"
-                value={filtroPesoMax || ''}
-                onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)}
-              />
+              type="number"
+              placeholder="Ex: 500"
+              className="h-8 text-xs"
+              value={filtroPesoMax || ''}
+              onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)} />
+            
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 
 }
 
