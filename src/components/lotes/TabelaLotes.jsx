@@ -271,10 +271,11 @@ export default function TabelaLotes({
     return "-";
   };
 
-  const exportarTabela = () => {
+  const exportarTabela = (apenasSelecionados = false) => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    const lotesParaExportar = apenasSelecionados ? lotesOrdenados.filter((lote) => selectedItems.includes(lote.id)) : lotesOrdenados;
     const header = colunasExportaveis.map((coluna) => escaparCsv(coluna.label)).join(';');
-    const rows = lotesOrdenados.map((lote) => {
+    const rows = lotesParaExportar.map((lote) => {
       return colunasExportaveis.map((coluna) => escaparCsv(getFieldValue(lote, coluna.id))).join(';');
     });
 
@@ -388,6 +389,8 @@ export default function TabelaLotes({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => exportarTabela(true)} className="text-xs">Exportar Selecionados</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {onDelete(selectedItems);setSelectedItems([]);}} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
                 <DropdownMenuSeparator />
