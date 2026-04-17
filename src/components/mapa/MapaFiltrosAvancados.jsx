@@ -194,7 +194,7 @@ export default function MapaFiltrosAvancados({
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
           </div>
-          <div className="space-y-2.5 px-1">
+          <div className="space-y-0 px-1">
             <div>
               <Label className="text-[10px] text-slate-600">Setor</Label>
               <Select value={filtroSetor} onValueChange={setFiltroSetor}>
