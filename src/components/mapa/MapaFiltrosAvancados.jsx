@@ -191,7 +191,7 @@ export default function MapaFiltrosAvancados({
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&
       <div>
-          <div className="mb-3">
+          <div className="space-y-0 px-1">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
           </div>
           <div className="space-y-0 px-1">
@@ -238,7 +238,7 @@ export default function MapaFiltrosAvancados({
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
       <div>
-          <div className="mb-3">
+          <div className="space-y-0 px-1">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
           <div className="space-y-0 px-1">
@@ -272,7 +272,7 @@ export default function MapaFiltrosAvancados({
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="space-y-0 px-1">
               <Label className="text-[10px] text-slate-600">Alertas</Label>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
