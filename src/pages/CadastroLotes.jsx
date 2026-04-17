@@ -125,7 +125,17 @@ export default function CadastroLotes() {
 
   const handleDuplicate = (lote) => {
     const { id, created_date, updated_date, created_by, numero_lote, status, ...duplicatedData } = lote;
-    setEditingLote({ ...duplicatedData, _isDuplicate: true });
+    setEditingLote({
+      ...duplicatedData,
+      quantidade_cabecas: lote.quantidade_entrada ?? lote.quantidade_cabecas ?? '',
+      categoria: lote.categoria_entrada ?? lote.categoria ?? '',
+      categoria_manejo_id: lote.categoria_manejo_entrada_id ?? lote.categoria_manejo_id ?? '',
+      categoria_manejo_nome: lote.categoria_manejo_entrada_nome ?? lote.categoria_manejo_nome ?? '',
+      peso_medio_kg: lote.peso_entrada_kg ?? lote.peso_medio_kg ?? '',
+      area_atual_id: lote.area_entrada_id ?? lote.area_atual_id ?? '',
+      area_atual_nome: lote.area_entrada_nome ?? lote.area_atual_nome ?? '',
+      _isDuplicate: true
+    });
     setShowForm(true);
   };
 
