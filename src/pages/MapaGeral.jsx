@@ -67,6 +67,7 @@ export default function MapaGeral() {
 
   // Filtros avançados
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [filtroIdentificador, setFiltroIdentificador] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [filtroSistema, setFiltroSistema] = useState('todos');
   const [filtroTipoCultura, setFiltroTipoCultura] = useState('todas');
@@ -114,6 +115,7 @@ export default function MapaGeral() {
     if (typeof state.showNomesAreas === 'boolean') setShowNomesAreas(state.showNomesAreas);
     if (typeof state.showHectaresAreas === 'boolean') setShowHectaresAreas(state.showHectaresAreas);
     if (typeof state.filtroCategoria === 'string') setFiltroCategoria(state.filtroCategoria);
+    if (typeof state.filtroIdentificador === 'string') setFiltroIdentificador(state.filtroIdentificador);
     if (typeof state.filtroStatus === 'string') setFiltroStatus(state.filtroStatus);
     if (typeof state.filtroSistema === 'string') setFiltroSistema(state.filtroSistema);
     if (typeof state.filtroTipoCultura === 'string') setFiltroTipoCultura(state.filtroTipoCultura);
@@ -140,6 +142,7 @@ export default function MapaGeral() {
       showNomesAreas,
       showHectaresAreas,
       filtroCategoria,
+      filtroIdentificador,
       filtroStatus,
       filtroSistema,
       filtroTipoCultura,
@@ -149,7 +152,7 @@ export default function MapaGeral() {
       filtroPesoMax,
       modoColoracao
     }));
-  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -274,6 +277,7 @@ export default function MapaGeral() {
   }), [lotes, eventosSupl]);
 
   const categorias = useMemo(() => [...new Set(lotes.map((l) => l.categoria).filter(Boolean))].sort(), [lotes]);
+  const identificadores = useMemo(() => [...new Set(lotes.map((l) => l.identificador_nome || l.identificador_sigla).filter(Boolean))].sort(), [lotes]);
   const tiposPastagem = useMemo(() => [...new Set(areas.map((a) => a.tipo_pastagem).filter(Boolean))].sort(), [areas]);
   const sistemasProdutivos = useMemo(() => [...new Set(lotes.map((l) => l.sistema_produtivo).filter(Boolean))].sort(), [lotes]);
 
@@ -306,13 +310,15 @@ export default function MapaGeral() {
   const lotesFiltrados = useMemo(() => lotesComAlerta.filter((lote) => {
     if (filtroSetor !== 'todos' && !areaIdsFiltrados.has(lote.area_atual_id)) return false;
     if (filtroCategoria !== 'todas' && lote.categoria !== filtroCategoria) return false;
+    const identificadorLote = lote.identificador_nome || lote.identificador_sigla || '';
+    if (filtroIdentificador !== 'todos' && identificadorLote !== filtroIdentificador) return false;
     if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
     if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
     if (filtroSistema !== 'todos' && lote.sistema_produtivo !== filtroSistema) return false;
     if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
+  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
 
   const pontosSuplementacaoFiltrados = useMemo(() => {
     if (filtroSetor === 'todos') return pontosSuplementacaoDecorados;
@@ -838,9 +844,9 @@ export default function MapaGeral() {
   }, [podeUsarTarefasMapa]);
 
   // ─── Render ───
-  const totalCabecas = lotes.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-  const areasOcupadas = new Set(lotes.map((l) => l.area_atual_id).filter(Boolean)).size;
-  const totalAlertas = lotesComAlerta.filter((l) => l.alertas.length > 0).length;
+  const totalCabecas = lotesFiltrados.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+  const areasOcupadas = new Set(lotesFiltrados.map((l) => l.area_atual_id).filter(Boolean)).size;
+  const totalAlertas = lotesFiltrados.filter((l) => l.alertas.length > 0).length;
 
   return (
     <div className="fixed inset-0 z-50 bg-white" translate="no">
@@ -930,6 +936,7 @@ export default function MapaGeral() {
               showUserLocation={showUserLocation} setShowUserLocation={setShowUserLocation}
               showNomesAreas={showNomesAreas} setShowNomesAreas={setShowNomesAreas}
               filtroCategoria={filtroCategoria} setFiltroCategoria={setFiltroCategoria}
+              filtroIdentificador={filtroIdentificador} setFiltroIdentificador={setFiltroIdentificador}
               filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus}
               filtroSistema={filtroSistema} setFiltroSistema={setFiltroSistema}
               filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor}
@@ -939,6 +946,7 @@ export default function MapaGeral() {
               filtroPesoMax={filtroPesoMax} setFiltroPesoMax={setFiltroPesoMax}
               modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
               categorias={categorias}
+              identificadores={identificadores}
               tiposPastagem={tiposPastagem}
               setores={setores}
               sistemasProdutivos={sistemasProdutivos}
@@ -979,7 +987,7 @@ export default function MapaGeral() {
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-emerald-600" /> Insights do Mapa</DialogTitle></DialogHeader>
-          <MapaInsights lotes={lotesComAlerta} areas={areas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
+          <MapaInsights lotes={lotesFiltrados} areas={areasFiltradas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
         </DialogContent>
       </Dialog>
     </div>);

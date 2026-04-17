@@ -82,6 +82,7 @@ export default function MapaFiltrosAvancados({
   showHectaresAreas, setShowHectaresAreas,
   // Filtros de lotes
   filtroCategoria, setFiltroCategoria,
+  filtroIdentificador, setFiltroIdentificador,
   filtroStatus, setFiltroStatus,
   filtroSistema, setFiltroSistema,
   filtroPesoMin, setFiltroPesoMin,
@@ -94,6 +95,7 @@ export default function MapaFiltrosAvancados({
   modoColoracao, setModoColoracao,
   // Dados para opções
   categorias = [],
+  identificadores = [],
   tiposPastagem = [],
   setores = [],
   sistemasProdutivos = [],
@@ -257,6 +259,16 @@ export default function MapaFiltrosAvancados({
                 <SelectContent>
                   <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                   {sistemasProdutivos.map((sp) => <SelectItem key={sp} value={sp} className="text-xs">{sp}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] text-slate-600">Identificador</Label>
+              <Select value={filtroIdentificador} onValueChange={setFiltroIdentificador}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                  {identificadores.map((identificador) => <SelectItem key={identificador} value={identificador} className="text-xs">{identificador}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
