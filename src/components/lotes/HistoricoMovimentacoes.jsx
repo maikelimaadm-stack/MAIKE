@@ -403,6 +403,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           .map(l => l.id)
       );
 
+      const categoriaTransferenciaAtual = entry?.raw?.categoria_animal || parseCategoriaTransferenciaFromObs(entry?.observacoes) || null;
       const hasEventoNaOrigem = todasMovimentacoesGlobal.some((mov) => {
         if (mov.id === entry.id) return false;
         if (mov.tipo === 'Transferência de Área') return false;
@@ -414,9 +415,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const loteIdRelacionado = !!mov.lote_id && idsLotesOrigemEstaTransf.has(mov.lote_id);
         if (!mesmoNome && !loteIdRelacionado) return false;
 
-        if (categoriaMovimento) {
+        if (categoriaTransferenciaAtual) {
           const categoriaMovPosterior = mov.categoria_animal || parseCategoriaTransferenciaFromObs(mov.observacoes) || null;
-          if (categoriaMovPosterior && normalize(categoriaMovPosterior) !== normalize(categoriaMovimento)) {
+          if (categoriaMovPosterior && normalize(categoriaMovPosterior) !== normalize(categoriaTransferenciaAtual)) {
             return false;
           }
         }
