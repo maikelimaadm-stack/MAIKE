@@ -112,6 +112,12 @@ export default function CadastroLotes() {
     setShowForm(true);
   };
 
+  const handleDuplicate = (lote) => {
+    const { id, created_date, updated_date, created_by, numero_lote, status, ...duplicatedData } = lote;
+    setEditingLote(duplicatedData);
+    setShowForm(true);
+  };
+
   const handleRequestDelete = (ids) => {
     setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
   };
@@ -169,6 +175,7 @@ export default function CadastroLotes() {
           lotes={lotes}
           areas={areas}
           onEdit={handleEdit}
+          onDuplicate={handleDuplicate}
           onDelete={handleRequestDelete}
           lotesComMovimentacoes={lotesComMovimentacoes}
           showConfigColunas={showConfigColunas}

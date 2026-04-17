@@ -65,6 +65,7 @@ export default function TabelaLotes({
   lotes = [],
   areas = [],
   onEdit,
+  onDuplicate,
   onDelete,
   showConfigColunas,
   setShowConfigColunas
@@ -522,6 +523,7 @@ export default function TabelaLotes({
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start">
                                       <DropdownMenuItem onClick={() => onEdit(lote)} className="text-xs">Editar</DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => onDuplicate?.(lote)} className="text-xs">Duplicar cadastro</DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem onClick={() => onDelete(lote.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
                                     </DropdownMenuContent>
