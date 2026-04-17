@@ -14,7 +14,7 @@ import {
 "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Download } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
 { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
@@ -54,6 +54,11 @@ const formatarData = (data) => {
 const formatarValor = (valor) => {
   if (!valor) return "-";
   return `R$ ${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+};
+
+const escaparCsv = (valor) => {
+  const texto = String(valor ?? "");
+  return `"${texto.replaceAll('"', '""')}"`;
 };
 
 export default function TabelaLotes({
@@ -266,6 +271,22 @@ export default function TabelaLotes({
     return "-";
   };
 
+  const exportarTabela = () => {
+    const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    const header = colunasExportaveis.map((coluna) => escaparCsv(coluna.label)).join(';');
+    const rows = lotesOrdenados.map((lote) => {
+      return colunasExportaveis.map((coluna) => escaparCsv(getFieldValue(lote, coluna.id))).join(';');
+    });
+
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `lotes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
     const columnLabel = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId)?.label || colunaId;
@@ -356,6 +377,10 @@ export default function TabelaLotes({
           {lotesFiltrados.length} de {lotes.length} registros
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={exportarTabela}>
+            <Download className="w-3.5 h-3.5" />
+            Exportar
+          </Button>
           {selectedItems.length > 0 &&
           <DropdownMenu>
               <DropdownMenuTrigger asChild>
