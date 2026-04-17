@@ -114,7 +114,8 @@ export default function CadastroLotes() {
     if (editingLote && !editingLote._isDuplicate) {
       updateLoteMutation.mutate({ id: editingLote.id, data, oldData: editingLote });
     } else {
-      createLoteMutation.mutate(data);
+      const { _isDuplicate, ...cleanData } = data;
+      createLoteMutation.mutate(cleanData);
     }
   };
 

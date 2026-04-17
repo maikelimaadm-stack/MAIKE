@@ -78,6 +78,7 @@ const parseSistemasProdutivos = (valor) => {
 
 export default function FormularioLote({ onSubmit, onCancel, initialData, isEditing }) {
   const isDuplicating = !!initialData?._isDuplicate;
+  const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [errors, setErrors] = useState({});
 // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
@@ -268,9 +269,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 const dataToSave = {
   ...formData,
   sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
-  // Alteração aqui: adicionamos o T12:00:00
-  data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null, 
-  
+  data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null,
   nome: formData.nome.toUpperCase(),
   setor_nome: area?.setor_nome || "",
   area_entrada_nome: area?.nome || "",
@@ -280,23 +279,29 @@ const dataToSave = {
   origem: formData.motivo_entrada?.toUpperCase() || "",
   observacoes: formData.observacoes?.toUpperCase() || "",
   quantidade_cabecas: quantidade,
+  quantidade_entrada: quantidade,
   identificador_nome: formData.identificador_nome?.toUpperCase() || "",
   identificador_sigla: formData.identificador_sigla?.toUpperCase() || "",
   identificador_cor: formData.identificador_cor || "",
   peso_medio_kg: peso,
+  peso_entrada_kg: peso,
   idade_media_meses: parseInt(formData.idade_media_meses) || 0,
   valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
   valor_por_cabeca: parseFloat(formData.valor_por_cabeca) || 0,
   valor_frete: parseFloat(formData.valor_frete) || 0,
-
-  ...(!isEditing ? {
-    quantidade_entrada: quantidade,
-    peso_entrada_kg: peso,
-    categoria_entrada: formData.categoria || "",
-    categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
-    categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
-  } : {})
+  categoria_entrada: formData.categoria || "",
+  categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
+  categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
 };
+
+if (!shouldPersistEntrySnapshot) {
+  dataToSave.quantidade_entrada = initialData?.quantidade_entrada ?? dataToSave.quantidade_entrada;
+  dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
+  dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
+  dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
+  dataToSave.categoria_manejo_entrada_nome = initialData?.categoria_manejo_entrada_nome ?? dataToSave.categoria_manejo_entrada_nome;
+}
+
 
     onSubmit(dataToSave);
   };
