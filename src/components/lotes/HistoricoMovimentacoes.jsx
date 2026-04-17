@@ -821,7 +821,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         )}
 
                         {isBloqueado && item.canDelete && (
-                          <div className="text-[10px] text-slate-400">{motivoBloqueio}</div>
+                          <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] text-amber-800">
+                            <strong>Aviso:</strong> {motivoBloqueio}
+                          </div>
                         )}
                       </div>
                     </div>
