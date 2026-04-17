@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import useSetorAreas from "@/hooks/useSetorAreas";
-import ComboboxComNovo from "@/components/pecuaria/ComboboxComNovo";
+import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
 
 const FL = ({ label, required, error, children, dataField }) => (
@@ -290,17 +290,43 @@ const dataToSave = {
         </CardHeader>
         <CardContent className="p-1">
           <form onSubmit={handleSubmit} className="space-y-0.5">
-            <FL label="Motivo da Entrada" dataField="motivo_entrada">
-              <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                  {MOTIVOS_ENTRADA.map((m) => <SelectItem key={m} value={m} className="text-xs">{m.toUpperCase()}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </FL>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1 pt-0.5 border-t">
+              <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada">
+                <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
+                <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                    {setores.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </FL>
+              <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
+                <AutocompleteGenerico
+                  items={areasDoSetor}
+                  value={formData.area_entrada_id}
+                  onChange={(value) => handleChange("area_entrada_id", value)}
+                  placeholder={formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO"}
+                  displayField="nome"
+                  searchFields={["nome", "numero_area"]}
+                  className="w-full"
+                  inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs"
+                />
+              </FL>
+              <FL label="Motivo da Entrada" dataField="motivo_entrada">
+                <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                    {MOTIVOS_ENTRADA.map((m) => <SelectItem key={m} value={m} className="text-xs">{m.toUpperCase()}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </FL>
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 pt-0.5 border-t">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
               <FL label="Nome do Lote" required error={errors.nome} dataField="nome">
                 <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
               </FL>
@@ -337,16 +363,10 @@ const dataToSave = {
               </FL>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
               <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas">
                 <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
-              <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada">
-                <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-              </FL>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Categoria de Manejo" required error={errors.categoria_manejo_id} dataField="categoria_manejo_id">
                 <Select value={formData.categoria_manejo_id || SELECT_EMPTY} onValueChange={(value) => handleChange("categoria_manejo_id", value === SELECT_EMPTY ? "" : value)}>
                   <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
@@ -367,42 +387,17 @@ const dataToSave = {
                   </SelectContent>
                 </Select>
               </FL>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <FL label="Raça Predominante" required error={errors.raca_predominante} dataField="raca_predominante">
                 <Input value={formData.raca_predominante || ""} onChange={(e) => handleChange("raca_predominante", e.target.value)} placeholder="RAÇA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
               </FL>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <FL label="Peso Médio (kg)" required error={errors.peso_medio_kg} dataField="peso_medio_kg">
                 <Input type="number" step="0.1" value={formData.peso_medio_kg || ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} placeholder="0.0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
               <FL label="Idade Média (meses)" required error={errors.idade_media_meses} dataField="idade_media_meses">
                 <Input type="number" value={formData.idade_media_meses || ""} onChange={(e) => handleChange("idade_media_meses", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-              </FL>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {setores.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FL>
-              <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
-                <ComboboxComNovo
-                  value={areasDoSetor.find((item) => item.id === formData.area_entrada_id)?.nome || ""}
-                  onChange={(value) => {
-                    const areaSelecionada = areasDoSetor.find((item) => (item.nome || "").toUpperCase() === String(value || "").toUpperCase());
-                    handleChange("area_entrada_id", areaSelecionada?.id || "");
-                  }}
-                  options={areasDoSetor.map((item) => (item.nome || "").toUpperCase())}
-                  placeholder={formData.setor_id ? "PESQUISE A ÁREA" : "SELECIONE O SETOR PRIMEIRO"}
-                  inputClassName="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent pr-8"
-                  hideIcons={false}
-                />
               </FL>
               <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo">
                 <Select value={formData.sistema_produtivo || SELECT_EMPTY} onValueChange={(value) => handleChange("sistema_produtivo", value === SELECT_EMPTY ? "" : value)}>
