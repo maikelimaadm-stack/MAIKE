@@ -519,7 +519,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         throw new Error('Existe lançamento mais recente para este lote. Exclua sempre o registro atual primeiro.');
       }
 
-      if (movimentoAtual.lote_id && mov.motivo !== 'Renomear Lote' && mov.motivo !== 'Junção de Lotes') {
+      if (
+        movimentoAtual.lote_id &&
+        mov.motivo !== 'Renomear Lote' &&
+        mov.motivo !== 'Junção de Lotes' &&
+        mov.tipo !== 'Transferência de Área'
+      ) {
         await validarSemRegistrosPosteriores({
           empresaId: empresaSelecionadaId,
           loteId: movimentoAtual.lote_id,
