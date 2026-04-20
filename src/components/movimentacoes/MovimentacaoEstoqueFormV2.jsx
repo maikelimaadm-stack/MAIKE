@@ -220,7 +220,7 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
     onSubmit({
       tipo_movimentacao: tipo,
       tipo_detalhado: operacao,
-      data_movimentacao: dataMovimentacao,
+      data_movimentacao: dataMovimentacao ? `${dataMovimentacao}T12:00:00.000Z` : undefined,
       local_estoque_origem: localOrigemId || undefined,
       local_origem: localOrigem?.nome || undefined,
       local_estoque_destino: localDestinoId || (tipo === 'Entrada' ? localOrigemId : undefined),

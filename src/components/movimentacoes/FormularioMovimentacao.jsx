@@ -595,7 +595,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       centro_custo_nome: centro?.nome,
       motivo_movimentacao: formData.motivo_movimentacao,
       observacoes: formData.observacoes || undefined,
-      data_movimentacao: formData.data_movimentacao ? new Date(formData.data_movimentacao).toISOString() : new Date().toISOString(),
+      data_movimentacao: formData.data_movimentacao ? `${formData.data_movimentacao}T12:00:00.000Z` : new Date().toISOString(),
       status: 'Ativa',
       // Dados de vínculo
       vinculado: formData.vinculado,

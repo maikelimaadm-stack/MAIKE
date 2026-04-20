@@ -357,6 +357,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           lotesNota,
           depositoId: depositoVinculado.id,
           pontoSuplementacaoId: ponto.id,
+          dataMovimentacao: formData.data_lancamento,
         });
         movimentoEstoque = saidaRegistrada.movimentacao;
       }

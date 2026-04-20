@@ -203,6 +203,7 @@ export async function registrarSaidaSuplementacao({
   lotesNota,
   depositoId,
   pontoSuplementacaoId,
+  dataMovimentacao,
 }) {
   const resultado = calcularRateioFIFO({
     lotesNota,
@@ -238,7 +239,7 @@ export async function registrarSaidaSuplementacao({
     numero_movimentacao: String(numeroMovimentacao),
     tipo_movimentacao: "Saída",
     tipo_detalhado: "suplementacao",
-    data_movimentacao: new Date().toISOString(),
+    data_movimentacao: dataMovimentacao ? `${dataMovimentacao}T12:00:00.000Z` : new Date().toISOString(),
     produto_id: produto.id,
     produto_nome: produto.nome_produto,
     produto_codigo: produto.codigo_interno || produto.codigo_barras || "",
