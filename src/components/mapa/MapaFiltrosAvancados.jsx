@@ -68,7 +68,6 @@ export const MODOS_COLORACAO = [
 
 
 export default function MapaFiltrosAvancados({
-  // Visibilidade
   showAreas, setShowAreas,
   showPontos, setShowPontos,
   showLinhas, setShowLinhas,
@@ -80,7 +79,6 @@ export default function MapaFiltrosAvancados({
   showUserLocation, setShowUserLocation,
   showNomesAreas, setShowNomesAreas,
   showHectaresAreas, setShowHectaresAreas,
-  // Filtros de lotes
   filtroCategoria, setFiltroCategoria,
   filtroIdentificador, setFiltroIdentificador,
   filtroStatus, setFiltroStatus,
@@ -88,19 +86,17 @@ export default function MapaFiltrosAvancados({
   filtroAlertaTipo, setFiltroAlertaTipo,
   filtroPesoMin, setFiltroPesoMin,
   filtroPesoMax, setFiltroPesoMax,
-  // Filtros de área
   filtroSetor, setFiltroSetor,
   filtroTipoCultura, setFiltroTipoCultura,
   filtroTipoPastagem, setFiltroTipoPastagem,
-  // Coloração
   modoColoracao, setModoColoracao,
-  // Dados para opções
   categorias = [],
   identificadores = [],
   tiposPastagem = [],
   setores = [],
   sistemasProdutivos = [],
-  permissions = null
+  permissions = null,
+  onOpenLancamentoLote = null
 }) {
 
   // Definição das camadas disponíveis com base nas permissões e estados
@@ -237,6 +233,20 @@ export default function MapaFiltrosAvancados({
       {permissions?.visualizar_lotes !== false && <Separator />}
 
       {/* ─── Filtros de Lotes ─── */}
+      {onOpenLancamentoLote && (
+        <>
+          <div className="space-y-0 px-1">
+            <span className="text-xs font-bold text-slate-800 uppercase">Suplementação</span>
+          </div>
+          <div className="px-1">
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs w-full" onClick={onOpenLancamentoLote}>
+              Lançamento em lote
+            </Button>
+          </div>
+          <Separator />
+        </>
+      )}
+
       {permissions?.visualizar_lotes !== false &&
       <div>
           <div className="space-y-0 px-1">
