@@ -18,13 +18,7 @@ const isPosterior = (itemDate, referenceDate) => {
   return itemKey > referenceKey;
 };
 
-const isPosteriorOuMesmoDiaMaisNovo = ({ itemDate, itemCreatedDate, referenceDate, referenceCreatedDate }) => {
-  const itemTime = getTimestamp(itemDate);
-  const referenceTime = getTimestamp(referenceDate);
-
-  if (itemTime > referenceTime) return true;
-  if (itemTime < referenceTime) return false;
-
+const isPosteriorOuMesmoDiaMaisNovo = ({ itemCreatedDate, referenceCreatedDate, referenceDate }) => {
   return getTimestamp(itemCreatedDate) > getTimestamp(referenceCreatedDate || referenceDate);
 };
 
@@ -40,14 +34,12 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
     .filter((item) => item.id !== ignorarMovimentacaoId)
     .filter((item) => !item.motivo || !['Junção de Lotes', 'Renomear Lote'].includes(item.motivo))
     .some((item) => isPosteriorOuMesmoDiaMaisNovo({
-      itemDate: item.data_movimentacao || item.created_date,
       itemCreatedDate: item.created_date,
       referenceDate: dataReferencia,
       referenceCreatedDate: dataReferencia,
     }));
 
   const existePosteriorSuplementacao = suplementacoes.some((item) => isPosteriorOuMesmoDiaMaisNovo({
-    itemDate: item.data_lancamento || item.created_date,
     itemCreatedDate: item.created_date,
     referenceDate: dataReferencia,
     referenceCreatedDate: dataReferencia,

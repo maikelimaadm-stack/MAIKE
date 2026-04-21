@@ -389,9 +389,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         
         if (!mesmoNome && !loteIdRelacionado) return false;
         
-        const dataItem = getTime(mov.data_movimentacao);
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
-        return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
+        return createdItem > createdAtual;
       });
       if (hasEventoNoDestino) return true;
 
@@ -422,9 +421,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           }
         }
 
-        const dataItem = getTime(mov.data_movimentacao);
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
-        return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
+        return createdItem > createdAtual;
       });
       if (hasEventoNaOrigem) return true;
 
@@ -436,9 +434,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
         if (!sameLote) return false;
 
-        const dataItem = getTime(item.data_evento);
         const createdItem = getTime(item.created_at);
-        return dataItem > dataAtual || createdItem > createdAtual;
+        return createdItem > createdAtual;
       });
       if (hasRegistroPosteriorNoHistorico) return true;
 
@@ -457,9 +454,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
       if (!isRegistroBloqueador) return false;
 
-      const dataItem = getTime(item.data_evento);
       const createdItem = getTime(item.created_at);
-      return childLinked || dataItem > dataAtual || createdItem > createdAtual;
+      return childLinked || createdItem > createdAtual;
     });
   }, [historico, todasMovimentacoesGlobal, todosLotesGlobal]);
 
