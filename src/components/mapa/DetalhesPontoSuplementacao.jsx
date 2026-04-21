@@ -6,6 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
+import FormularioLancamentoSuplementacaoLote from "../suplementacao/FormularioLancamentoSuplementacaoLote";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
 import PontoPercentIcon from "./PontoPercentIcon";
@@ -46,6 +47,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [showLancamento, setShowLancamento] = useState(false);
+  const [showLancamentoLote, setShowLancamentoLote] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
 
@@ -118,6 +120,16 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 60 * 1000
+  });
+
+  const { data: pontos = [] } = useQuery({
+    queryKey: ["pontos-suplementacao-detalhe", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
@@ -220,6 +232,12 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
+  const pontosMesmoTipo = useMemo(() => {
+    return pontos
+      .filter((item) => normalizeText(item.categoria_ponto) !== "DEPOSITO" && item.status === "Ativo")
+      .sort((a, b) => (a.nome_ponto || "").localeCompare(b.nome_ponto || ""));
+  }, [pontos]);
+
   if (isDeposito) {
     return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;
   }
@@ -246,8 +264,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
         {permissions.lancar_suplementacao !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>}
+        {permissions.lancar_suplementacao !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamentoLote(true)}>Lançar em lote</Button>}
         {permissions.visualizar_historico_cocho !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
@@ -433,6 +452,16 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
         <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
+      </Dialog>
+
+      <Dialog open={showLancamentoLote} onOpenChange={setShowLancamentoLote}>
+        <DialogContent className="max-w-[980px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+          <FormularioLancamentoSuplementacaoLote
+            pontos={pontosMesmoTipo}
+            onCancel={() => setShowLancamentoLote(false)}
+            onSaved={() => { setShowLancamentoLote(false); handleSaved(); }}
+          />
+        </DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
