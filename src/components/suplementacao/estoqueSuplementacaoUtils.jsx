@@ -144,12 +144,12 @@ async function baixarLotesFIFO(rateio) {
 
 async function garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota }) {
   const saldoLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localOrigemId);
-  if (saldoLocal > 0) return;
-  if (normalizeText(produto?.local_estoque) !== normalizeText(localOrigemNome)) return;
+  if (saldoLocal > 0) return lotesNota;
+  if (normalizeText(produto?.local_estoque) !== normalizeText(localOrigemNome)) return lotesNota;
   const estoqueAtual = Number(produto?.estoque_atual || 0);
-  if (estoqueAtual <= 0) return;
+  if (estoqueAtual <= 0) return lotesNota;
 
-  await base44.entities.EstoqueLoteNota.create({
+  const novoLote = await base44.entities.EstoqueLoteNota.create({
     empresa_id: empresaId,
     produto_id: produto.id,
     produto_nome: produto.nome_produto,
@@ -166,6 +166,8 @@ async function garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, l
     movimentacao_entrada_id: null,
     status: "Disponivel",
   });
+
+  return [...lotesNota, novoLote];
 }
 
 async function criarLotesDestinoTransferencia({ empresaId, produto, localDestinoId, localDestinoNome, rateio, movimentacaoEntradaId }) {
@@ -294,9 +296,8 @@ export async function registrarTransferenciaEntreLocais({
   dataMovimentacao,
 }) {
   const quantidadeFinal = parseNumber(quantidade);
-  await garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota });
-  const lotesAtualizados = await base44.entities.EstoqueLoteNota.list();
-  const lotesDisponiveis = lotesAtualizados.filter((lote) => lote.empresa_id === empresaId && lote.status === "Disponivel");
+  const lotesAtualizados = await garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota });
+  const lotesDisponiveis = (lotesAtualizados || lotesNota).filter((lote) => lote.empresa_id === empresaId && lote.status === "Disponivel");
   const resultado = calcularRateioFIFO({
     lotesNota: lotesDisponiveis,
     produtoId: produto.id,
