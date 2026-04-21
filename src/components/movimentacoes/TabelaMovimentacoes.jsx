@@ -225,15 +225,26 @@ export default function TabelaMovimentacoes({
     return [item];
   };
 
-  const getNumeroExibicao = (item) => getMovementDisplayNumber(item, modoVisualizacao);
+  const getRegistroPrincipal = (item) => {
+    const grupo = getGrupoItens(item);
+    return grupo.find((mov) => mov.is_registro_principal) || grupo.find((mov) => Number(mov.numero_movimentacao_seq) === 1) || grupo[0] || item;
+  };
+
+  const getNumeroExibicao = (item) => {
+    const principal = getRegistroPrincipal(item);
+    if (modoVisualizacao === "movimentacoes") {
+      const numeroPai = getMovementGroupNumber(principal);
+      const seq = item?.numero_movimentacao_seq;
+      return seq ? `${numeroPai}-${seq}` : numeroPai;
+    }
+    return getMovementGroupNumber(principal);
+  };
 
   const getFieldValue = (item, colunaId) => {
     const itensGrupo = modoVisualizacao === "principais" ? getGrupoItens(item) : [item];
     switch (colunaId) {
       case "numero":
-        return modoVisualizacao === "movimentacoes"
-          ? getMovementDisplayNumber(item, modoVisualizacao)
-          : getMovementGroupNumber(item);
+        return getNumeroExibicao(item);
       case "data":
         return formatDatePtBr(item.data_movimentacao);
       case "tipo":
@@ -289,11 +300,17 @@ export default function TabelaMovimentacoes({
 
   const sortedMovimentacoesForFilters = useMemo(() => {
     return [...movimentacoes].sort((a, b) => {
-      const result = compareDisplayNumbers(a, b, modoVisualizacao);
-      if (result !== 0) return result;
+      const aNumero = getNumeroExibicao(a);
+      const bNumero = getNumeroExibicao(b);
+      const [aGroup, aSeq = "0"] = String(aNumero).split("-");
+      const [bGroup, bSeq = "0"] = String(bNumero).split("-");
+      const groupDiff = (Number(aGroup) || 0) - (Number(bGroup) || 0);
+      if (groupDiff !== 0) return groupDiff;
+      const seqDiff = (Number(aSeq) || 0) - (Number(bSeq) || 0);
+      if (seqDiff !== 0) return seqDiff;
       return compareByCreation(a, b) * -1;
     });
-  }, [movimentacoes, modoVisualizacao]);
+  }, [movimentacoes, modoVisualizacao, allMovimentacoes]);
 
   const columnOptions = useMemo(() => {
     const opts = {};
@@ -337,8 +354,14 @@ export default function TabelaMovimentacoes({
       }
 
       if (sortConfig.key === "numero") {
-        const result = compareDisplayNumbers(a, b, modoVisualizacao);
-        if (result !== 0) return sortConfig.direction === "asc" ? result : result * -1;
+        const aNumero = getNumeroExibicao(a);
+        const bNumero = getNumeroExibicao(b);
+        const [aGroup, aSeq = "0"] = String(aNumero).split("-");
+        const [bGroup, bSeq = "0"] = String(bNumero).split("-");
+        const groupDiff = (Number(aGroup) || 0) - (Number(bGroup) || 0);
+        if (groupDiff !== 0) return sortConfig.direction === "asc" ? groupDiff : groupDiff * -1;
+        const seqDiff = (Number(aSeq) || 0) - (Number(bSeq) || 0);
+        if (seqDiff !== 0) return sortConfig.direction === "asc" ? seqDiff : seqDiff * -1;
         return compareByCreation(a, b);
       }
 
@@ -366,7 +389,7 @@ export default function TabelaMovimentacoes({
       return compareByCreation(a, b);
     });
     return sorted;
-  }, [movimentacoesFiltradas, sortConfig]);
+  }, [movimentacoesFiltradas, sortConfig, allMovimentacoes, modoVisualizacao]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
