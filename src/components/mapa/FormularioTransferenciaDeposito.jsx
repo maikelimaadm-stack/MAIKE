@@ -26,6 +26,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const [localRelacionadoId, setLocalRelacionadoId] = useState("");
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
+  const [dataMovimentacao, setDataMovimentacao] = useState(() => new Date().toISOString().split("T")[0]);
   const [observacoes, setObservacoes] = useState("");
   const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
@@ -111,6 +112,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         empresaId: empresaSelecionadaId, userEmail: user?.email, produto: produtoSelecionado,
         quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
         observacoes: observacoes || `${direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
+        dataMovimentacao,
       });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "movimentacoes", "produtos", "historico-deposito"].includes(q.queryKey[0]) });
       toast.success("Transferência registrada.");
@@ -130,6 +132,10 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       <CardContent className="p-2">
         <form onSubmit={handleSubmit} className="space-y-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Data da movimentação <span className="text-red-500">*</span></label>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={dataMovimentacao} onChange={(e) => setDataMovimentacao(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
+            </div>
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">

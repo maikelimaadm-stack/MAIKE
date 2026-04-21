@@ -291,6 +291,7 @@ export async function registrarTransferenciaEntreLocais({
   localDestinoNome,
   observacoes,
   lotesNota,
+  dataMovimentacao,
 }) {
   const quantidadeFinal = parseNumber(quantidade);
   await garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota });
@@ -324,13 +325,14 @@ export async function registrarTransferenciaEntreLocais({
     throw new Error("Não é permitido saldo negativo no local de origem.");
   }
   const numeroBase = await getNextSystemNumber();
+  const dataMovimentacaoIso = dataMovimentacao ? `${dataMovimentacao}T12:00:00.000Z` : new Date().toISOString();
 
   const movimentacaoSaida = await base44.entities.MovimentacaoEstoque.create({
     empresa_id: empresaId,
     numero_movimentacao: String(numeroBase),
     tipo_movimentacao: "Saída",
     tipo_detalhado: "transferencia_enviada",
-    data_movimentacao: new Date().toISOString(),
+    data_movimentacao: dataMovimentacaoIso,
     produto_id: produto.id,
     produto_nome: produto.nome_produto,
     produto_codigo: produto.codigo_interno || produto.codigo_barras || "",
@@ -366,7 +368,7 @@ export async function registrarTransferenciaEntreLocais({
     numero_movimentacao: String(numeroBase + 1),
     tipo_movimentacao: "Entrada",
     tipo_detalhado: "transferencia_recebida",
-    data_movimentacao: new Date().toISOString(),
+    data_movimentacao: dataMovimentacaoIso,
     produto_id: produto.id,
     produto_nome: produto.nome_produto,
     produto_codigo: produto.codigo_interno || produto.codigo_barras || "",
