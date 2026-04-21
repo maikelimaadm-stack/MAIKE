@@ -22,7 +22,7 @@ const isPosteriorOuMesmoDiaMaisNovo = ({ itemCreatedDate, referenceCreatedDate, 
   return getTimestamp(itemCreatedDate) > getTimestamp(referenceCreatedDate || referenceDate);
 };
 
-export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferencia, ignorarMovimentacaoId }) {
+export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferencia, createdDateReferencia, ignorarMovimentacaoId }) {
   if (!empresaId || !loteId || !dataReferencia) return;
 
   const [movimentacoes, suplementacoes] = await Promise.all([
@@ -34,15 +34,17 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
     .filter((item) => item.id !== ignorarMovimentacaoId)
     .filter((item) => !item.motivo || !['Junção de Lotes', 'Renomear Lote'].includes(item.motivo))
     .some((item) => isPosteriorOuMesmoDiaMaisNovo({
+      itemDate: item.data_movimentacao || item.created_date,
       itemCreatedDate: item.created_date,
       referenceDate: dataReferencia,
-      referenceCreatedDate: dataReferencia,
+      referenceCreatedDate: createdDateReferencia,
     }));
 
   const existePosteriorSuplementacao = suplementacoes.some((item) => isPosteriorOuMesmoDiaMaisNovo({
+    itemDate: item.data_lancamento || item.created_date,
     itemCreatedDate: item.created_date,
     referenceDate: dataReferencia,
-    referenceCreatedDate: dataReferencia,
+    referenceCreatedDate: createdDateReferencia,
   }));
 
   if (existePosteriorMovimentacao || existePosteriorSuplementacao) {
@@ -50,11 +52,11 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
   }
 }
 
-export async function validarOrdemTemporalLotes({ empresaId, lotes, dataReferencia }) {
+export async function validarOrdemTemporalLotes({ empresaId, lotes, dataReferencia, createdDateReferencia, ignorarMovimentacaoId }) {
   const loteIds = [...new Set((lotes || []).map((lote) => lote?.id).filter(Boolean))];
 
   for (const loteId of loteIds) {
-    await validarOrdemTemporalLote({ empresaId, loteId, dataReferencia });
+    await validarOrdemTemporalLote({ empresaId, loteId, dataReferencia, createdDateReferencia, ignorarMovimentacaoId });
   }
 }
 

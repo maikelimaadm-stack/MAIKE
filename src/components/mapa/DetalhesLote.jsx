@@ -190,7 +190,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLotes({
           empresaId: empresaSelecionadaId,
           lotes,
-          dataReferencia: formData.data_movimentacao
+          dataReferencia: formData.data_movimentacao,
+          createdDateReferencia: null
         });
 
         for (const lote of lotes) {
@@ -229,7 +230,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             await validarOrdemTemporalLote({
               empresaId: empresaSelecionadaId,
               loteId: lote.id,
-              dataReferencia: formData.data_movimentacao
+              dataReferencia: formData.data_movimentacao,
+              createdDateReferencia: lote.updated_date || lote.created_date
             });
 
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -401,7 +403,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: formData.data_ocorrencia
+        dataReferencia: formData.data_ocorrencia,
+        createdDateReferencia: lote.updated_date || lote.created_date
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -516,7 +519,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: toNoonUtcISOString(formData.data_abate)
+        dataReferencia: toNoonUtcISOString(formData.data_abate),
+        createdDateReferencia: lote.updated_date || lote.created_date
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -564,7 +568,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: toNoonUtcISOString(formData.data_mudanca)
+          dataReferencia: toNoonUtcISOString(formData.data_mudanca),
+          createdDateReferencia: lote.updated_date || lote.created_date
         });
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
@@ -661,7 +666,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: toNoonUtcISOString(formData.data_pesagem)
+          dataReferencia: toNoonUtcISOString(formData.data_pesagem),
+          createdDateReferencia: lote.updated_date || lote.created_date
         });
 
         // Verificar se tem peso individual para este lote específico
@@ -925,7 +931,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                         await validarOrdemTemporalLotes({
                           empresaId: empresaSelecionadaId,
                           lotes: lotesParaJuntar,
-                          dataReferencia: new Date().toISOString()
+                          dataReferencia: new Date().toISOString(),
+                          createdDateReferencia: null
                         });
 
                         const principal = lotePrincipalJuncao;
