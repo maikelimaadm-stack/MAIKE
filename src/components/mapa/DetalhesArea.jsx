@@ -104,6 +104,8 @@ export default function DetalhesArea({ area, onClose }) {
     'Concluída': 'bg-slate-100 text-slate-700',
   };
 
+  if (!isCurral) return null;
+
   return (
     <div className="space-y-4" translate="no">
       {/* Cabeçalho */}
@@ -143,19 +145,17 @@ export default function DetalhesArea({ area, onClose }) {
       </div>
 
       {/* Resumo Geral */}
-      {isCurral ? (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-            <div className="text-sm font-bold text-slate-700">{area.tipo_infraestrutura || area.tipo_pastagem || '-'}</div>
-            <div className="text-[10px] text-slate-600">Tipo de Infraestrutura</div>
-          </div>
-          <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-            <div className="text-sm font-bold text-slate-700">{area.tipo_cultura || '-'}</div>
-            <div className="text-[10px] text-slate-600">Tipo de Área</div>
-          </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="text-sm font-bold text-slate-700">{area.tipo_infraestrutura || area.tipo_pastagem || '-'}</div>
+          <div className="text-[10px] text-slate-600">Tipo de Infraestrutura</div>
         </div>
-      ) : (
-        <>
+        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="text-sm font-bold text-slate-700">{area.tipo_cultura || '-'}</div>
+          <div className="text-[10px] text-slate-600">Tipo de Área</div>
+        </div>
+      </div>
+
           <div className="grid grid-cols-4 gap-2">
             <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
               <div className="text-lg font-bold text-slate-700">{area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0)}</div>
@@ -232,244 +232,21 @@ export default function DetalhesArea({ area, onClose }) {
         </CardContent>
       </Card>
 
-          {/* Controle Atual */}
-          {controleAtual && (
-        <Card className="border-slate-200 bg-slate-50">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Leaf className="w-4 h-4 text-slate-600" />
-                <span className="text-xs font-semibold text-slate-900">Cultura Atual</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-[10px]"
-                onClick={() => { setEditingControle(controleAtual); setShowControle(true); }}
-              >
-                Editar
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-slate-500">Cultura:</span>
-                <span className="ml-1 font-medium">{controleAtual.cultura || '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">Variedade:</span>
-                <span className="ml-1 font-medium">{controleAtual.variedade || '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">Plantio:</span>
-                <span className="ml-1 font-medium">
-                  {controleAtual.data_plantio ? format(new Date(controleAtual.data_plantio), 'dd/MM/yy') : '-'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500">Prod. Est:</span>
-                <span className="ml-1 font-medium">
-                  {controleAtual.producao_estimada_kg ? `${(controleAtual.producao_estimada_kg/1000).toFixed(1)}t` : '-'}
-                </span>
-              </div>
-            </div>
-            {controleAtual.produtividade_sc_ha && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-slate-700">
-                <TrendingUp className="w-3 h-3" />
-                {controleAtual.produtividade_sc_ha} sc/ha
-              </div>
-            )}
-          </CardContent>
-        </Card>
-          )}
-        </>
-      )}
-
       {/* Tabs */}
-      <Tabs defaultValue={isCurral ? 'historico' : 'operacoes'} className="w-full">
-        <TabsList className={`grid w-full ${isCurral ? 'grid-cols-1' : 'grid-cols-5'}`}>
-          {!isCurral && (
-            <TabsTrigger value="operacoes" className="text-xs">
-              <Tractor className="w-3 h-3 mr-1" />
-              Operações
-            </TabsTrigger>
-          )}
-          {!isCurral && (
-            <TabsTrigger value="custos" className="text-xs">
-              <Calculator className="w-3 h-3 mr-1" />
-              Custos
-            </TabsTrigger>
-          )}
-          {!isCurral && (
-            <TabsTrigger value="lotes" className="text-xs">
-              <Package className="w-3 h-3 mr-1" />
-              Lotes
-            </TabsTrigger>
-          )}
+      <Tabs defaultValue="historico" className="w-full">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="historico" className="text-xs">
             <ClipboardList className="w-3 h-3 mr-1" />
             Histórico
           </TabsTrigger>
-          {!isCurral && (
-            <TabsTrigger value="tarefas" className="text-xs">
-              <ClipboardList className="w-3 h-3 mr-1" />
-              Tarefas
-            </TabsTrigger>
-          )}
         </TabsList>
-
-        <TabsContent value="operacoes" className="mt-3">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-semibold text-slate-700">Últimas Operações</span>
-            <Button size="sm" onClick={() => setShowOperacao(true)} className="h-7 gap-1 text-xs">
-              <Plus className="w-3 h-3" />
-              Nova
-            </Button>
-          </div>
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {operacoes.length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Nenhuma operação</p>
-            ) : operacoes.slice(0, 5).map(op => (
-              <div key={op.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                <div>
-                  <div className="text-xs font-medium">{op.tipo_operacao}</div>
-                  <div className="text-[10px] text-slate-500">
-                    {op.data_inicio ? format(new Date(op.data_inicio), 'dd/MM/yy') : '-'}
-                    {op.maquina_nome && ` • ${op.maquina_nome}`}
-                  </div>
-                </div>
-                <div className="text-right">
-                  {op.custo_total ? (
-                      <div className="text-xs font-semibold text-slate-700">R$ {op.custo_total.toFixed(2)}</div>
-                    ) : (
-                    <Badge className={`text-[10px] ${statusColors[op.status]}`}>{op.status}</Badge>
-                  )}
-                  {op.hectares_trabalhados && (
-                    <div className="text-[10px] text-slate-600">{op.hectares_trabalhados} ha</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="custos" className="mt-3">
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-slate-700">Custos por Tipo de Operação</h4>
-            {Object.entries(custos.porTipo).length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Sem custos registrados</p>
-            ) : (
-              <div className="space-y-1.5">
-                {Object.entries(custos.porTipo)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([tipo, valor]) => (
-                  <div key={tipo} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                    <span className="text-xs font-medium text-slate-700">{tipo}</span>
-                    <div className="text-right">
-                        <div className="text-xs font-semibold text-slate-700">
-                          R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </div>
-                      <div className="text-[10px] text-slate-500">
-                        R$ {(valor / (area.tamanho_hectares || 1)).toFixed(2)}/ha
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="lotes" className="mt-3">
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {lotes.length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Nenhum lote nesta área</p>
-            ) : lotes.map(lote => (
-              <div key={lote.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                <div>
-                  <div className="text-xs font-medium">{lote.nome}</div>
-                  <div className="text-[10px] text-slate-500">{lote.categoria}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold text-slate-900">{lote.quantidade_cabecas} cab</div>
-                  {lote.peso_medio_kg && (
-                    <div className="text-[10px] text-slate-600">{lote.peso_medio_kg} kg</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
 
         <TabsContent value="historico" className="mt-3">
           <HistoricoMovimentacoes areaId={area.id} />
         </TabsContent>
 
-        {!isCurral && (
-          <TabsContent value="tarefas" className="mt-3">
-            <TarefasMapaPanel
-              areaId={area.id}
-              areaNome={area.nome}
-              onClose={() => {}}
-            />
-          </TabsContent>
-        )}
       </Tabs>
 
-      {/* Ações */}
-      {!isCurral && <div className="grid grid-cols-2 gap-2 pt-2">
-        <Button
-          onClick={() => setShowOperacao(true)}
-          variant="outline"
-          className="h-10 text-xs font-semibold gap-1"
-        >
-          <Tractor className="w-4 h-4" />
-          Nova Operação
-        </Button>
-        <Button
-          onClick={() => { setEditingControle(null); setShowControle(true); }}
-          variant="outline"
-          className="h-10 text-xs font-semibold gap-1"
-        >
-          <Leaf className="w-4 h-4" />
-          {controleAtual ? 'Atualizar Cultura' : 'Registrar Cultura'}
-        </Button>
-      </div>}
-
-      {/* Dialog Operação */}
-      <Dialog open={showOperacao} onOpenChange={setShowOperacao}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Nova Operação - {area.nome}</DialogTitle>
-          </DialogHeader>
-          <FormularioOperacao
-            operacao={{ area_id: area.id, area_nome: area.nome }}
-            onSave={() => {
-              setShowOperacao(false);
-              queryClient.invalidateQueries({ queryKey: ['operacoes-area'] });
-              toast.success('Operação registrada!');
-            }}
-            onCancel={() => setShowOperacao(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Controle */}
-      <Dialog open={showControle} onOpenChange={setShowControle}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingControle ? 'Atualizar Cultura' : 'Registrar Cultura'} - {area.nome}</DialogTitle>
-          </DialogHeader>
-          <FormularioControleArea
-            controle={editingControle || { area_id: area.id, area_nome: area.nome }}
-            onSave={() => {
-              setShowControle(false);
-              queryClient.invalidateQueries({ queryKey: ['controle-area'] });
-              toast.success('Cultura registrada!');
-            }}
-            onCancel={() => setShowControle(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

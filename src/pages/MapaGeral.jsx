@@ -580,6 +580,10 @@ export default function MapaGeral() {
       handleSelectTaskLocation(coords, area);
       return;
     }
+
+    const isCurral = area?.tipo_cultura === 'Infraestrutura' && (area?.tipo_infraestrutura || area?.tipo_pastagem || '').toLowerCase() === 'curral';
+    if (!isCurral) return;
+
     setSelectedArea(area);
     setShowDetalhesArea(true);
   }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
