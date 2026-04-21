@@ -85,6 +85,7 @@ export default function MapaFiltrosAvancados({
   filtroIdentificador, setFiltroIdentificador,
   filtroStatus, setFiltroStatus,
   filtroSistema, setFiltroSistema,
+  filtroAlertaTipo, setFiltroAlertaTipo,
   filtroPesoMin, setFiltroPesoMin,
   filtroPesoMax, setFiltroPesoMax,
   // Filtros de área
@@ -280,6 +281,18 @@ export default function MapaFiltrosAvancados({
                   <SelectItem value="todos" className="text-xs">Todos</SelectItem>
                   <SelectItem value="com_alerta" className="text-xs">Com Alerta</SelectItem>
                   <SelectItem value="sem_alerta" className="text-xs">Sem Alerta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] text-slate-600">Tipo de Alerta</Label>
+              <Select value={filtroAlertaTipo} onValueChange={setFiltroAlertaTipo}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                  <SelectItem value="suplementacao_pendente" className="text-xs">Suplementação</SelectItem>
+                  <SelectItem value="cocho_sem_produto" className="text-xs">Cocho sem produto</SelectItem>
+                  <SelectItem value="deposito_estoque_minimo" className="text-xs">Estoque mínimo</SelectItem>
                 </SelectContent>
               </Select>
             </div>

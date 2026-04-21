@@ -72,6 +72,7 @@ export default function MapaGeral() {
   const [filtroIdentificador, setFiltroIdentificador] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [filtroSistema, setFiltroSistema] = useState('todos');
+  const [filtroAlertaTipo, setFiltroAlertaTipo] = useState('todos');
   const [filtroTipoCultura, setFiltroTipoCultura] = useState('todas');
   const [filtroTipoPastagem, setFiltroTipoPastagem] = useState('todas');
   const [filtroSetor, setFiltroSetor] = useState('todos');
@@ -122,6 +123,7 @@ export default function MapaGeral() {
     if (typeof state.filtroIdentificador === 'string') setFiltroIdentificador(state.filtroIdentificador);
     if (typeof state.filtroStatus === 'string') setFiltroStatus(state.filtroStatus);
     if (typeof state.filtroSistema === 'string') setFiltroSistema(state.filtroSistema);
+    if (typeof state.filtroAlertaTipo === 'string') setFiltroAlertaTipo(state.filtroAlertaTipo);
     if (typeof state.filtroTipoCultura === 'string') setFiltroTipoCultura(state.filtroTipoCultura);
     if (typeof state.filtroTipoPastagem === 'string') setFiltroTipoPastagem(state.filtroTipoPastagem);
     if (typeof state.filtroSetor === 'string') setFiltroSetor(state.filtroSetor);
@@ -149,6 +151,7 @@ export default function MapaGeral() {
       filtroIdentificador,
       filtroStatus,
       filtroSistema,
+      filtroAlertaTipo,
       filtroTipoCultura,
       filtroTipoPastagem,
       filtroSetor,
@@ -156,7 +159,7 @@ export default function MapaGeral() {
       filtroPesoMax,
       modoColoracao
     }));
-  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -339,11 +342,12 @@ export default function MapaGeral() {
     if (filtroIdentificador !== 'todos' && identificadorLote !== filtroIdentificador) return false;
     if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
     if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
+    if (filtroAlertaTipo !== 'todos' && !lote.alertas.some((alerta) => alerta.tipo === filtroAlertaTipo)) return false;
     if (filtroSistema !== 'todos' && lote.sistema_produtivo !== filtroSistema) return false;
     if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroPesoMin, filtroPesoMax]);
+  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax]);
 
   const pontosSuplementacaoFiltrados = useMemo(() => {
     if (filtroSetor === 'todos') return pontosSuplementacaoDecorados;
@@ -828,7 +832,7 @@ export default function MapaGeral() {
 
     renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
   }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, handleClickLotes, handleDragLotes]);
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && filtroStatus === 'com_alerta');}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
@@ -967,6 +971,7 @@ export default function MapaGeral() {
               filtroIdentificador={filtroIdentificador} setFiltroIdentificador={setFiltroIdentificador}
               filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus}
               filtroSistema={filtroSistema} setFiltroSistema={setFiltroSistema}
+              filtroAlertaTipo={filtroAlertaTipo} setFiltroAlertaTipo={setFiltroAlertaTipo}
               filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor}
               filtroTipoCultura={filtroTipoCultura} setFiltroTipoCultura={setFiltroTipoCultura}
               filtroTipoPastagem={filtroTipoPastagem} setFiltroTipoPastagem={setFiltroTipoPastagem}

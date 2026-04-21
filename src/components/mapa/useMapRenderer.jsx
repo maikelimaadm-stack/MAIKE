@@ -3,7 +3,33 @@ import { useRef, useCallback } from "react";
 
 const iconSizeCache = new Map();
 const markerStateCache = new Map();
+const blinkIntervals = new Map();
 const areaPathSignature = (coords = []) => coords.map((c) => `${c[0] || c.lat},${c[1] || c.lng}`).join('|');
+
+const setMarkerBlink = (marker, shouldBlink) => {
+  if (!marker) return;
+  const markerId = marker.__blinkId || `${Date.now()}_${Math.random()}`;
+  marker.__blinkId = markerId;
+
+  if (!shouldBlink) {
+    const existing = blinkIntervals.get(markerId);
+    if (existing) {
+      clearInterval(existing);
+      blinkIntervals.delete(markerId);
+    }
+    marker.setOpacity(1);
+    return;
+  }
+
+  if (blinkIntervals.has(markerId)) return;
+
+  let visible = true;
+  const interval = setInterval(() => {
+    visible = !visible;
+    marker.setOpacity(visible ? 1 : 0.35);
+  }, 550);
+  blinkIntervals.set(markerId, interval);
+};
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
@@ -58,7 +84,10 @@ export default function useMapRenderer(mapInstanceRef) {
     polygonsRef.current.clear();
     labelsRef.current.forEach(l => l.setMap(null));
     labelsRef.current.clear();
-    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current.forEach(m => {
+      setMarkerBlink(m, false);
+      m.setMap(null);
+    });
     markersRef.current.clear();
     polylinesRef.current.forEach(l => l.setMap(null));
     polylinesRef.current.clear();
@@ -330,7 +359,7 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Lotes (agrupados por área) ───
-  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes, canDragLotes = true) => {
+  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes, canDragLotes = true, blinkAlerts = false) => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const prefix = 'lote_area_';
@@ -407,6 +436,7 @@ export default function useMapRenderer(mapInstanceRef) {
           existing.setDraggable(!!canDragLotes);
           existing.setIcon(icon);
           if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
+          setMarkerBlink(existing, blinkAlerts && totalAlertas > 0);
           markerStateCache.set(key, nextState);
           // Atualizar posição do indicador quando o marcador muda de posição
           const ind = lotesIndicatorsRef.current.get(key);
@@ -422,6 +452,7 @@ export default function useMapRenderer(mapInstanceRef) {
           title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: !!canDragLotes
         });
         if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
+        setMarkerBlink(marker, blinkAlerts && totalAlertas > 0);
         marker._lotesNaArea = lotesNaArea;
         marker._center = offsetCenter;
         marker._areaId = areaId;

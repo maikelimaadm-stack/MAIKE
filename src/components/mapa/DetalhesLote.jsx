@@ -34,6 +34,7 @@ import RenomearLoteForm from "../lotes/RenomearLoteForm";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
+import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
 
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
@@ -739,6 +740,21 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                     }
                 </div>
+                {(lote.alertas || []).length > 0 && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 space-y-1">
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-red-700 uppercase">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Alertas do lote
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(lote.alertas || []).map((alerta, index) => (
+                        <Badge key={`${lote.id}_alerta_${index}`} variant="outline" className="border-red-300 bg-white text-red-700 text-[10px]">
+                          {alerta.titulo || alerta.tipo}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
                     <div className="text-slate-500">Identificador</div>
