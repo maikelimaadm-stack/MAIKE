@@ -87,6 +87,15 @@ export async function refreshMapaCacheEntry(cacheKey, empresaId, options = {}) {
   }
 }
 
+export async function updateMapaCachedData(cacheKey, empresaId, updater) {
+  const normalizedEmpresaId = empresaId || '__GLOBAL__';
+  const cacheStorageKey = `mapa_${cacheKey}`;
+  const currentItems = await getEntityCacheItems(cacheStorageKey, normalizedEmpresaId) || [];
+  const nextItems = typeof updater === 'function' ? updater(currentItems) : updater;
+  await setEntityCacheItems(cacheStorageKey, normalizedEmpresaId, nextItems || []);
+  return nextItems || [];
+}
+
 export async function warmMapaCache(empresaId) {
   for (const cacheKey of CACHE_KEYS) {
     try {

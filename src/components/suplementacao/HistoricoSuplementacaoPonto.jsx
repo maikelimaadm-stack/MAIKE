@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/components/offline/mapaOfflineCache";
 import { safeDivide } from "../utils/pecuariaUtils";
 import CardMetricaEvento from "./CardMetricaEvento";
 import DesvioConsumoTag from "./DesvioConsumoTag";
@@ -87,7 +87,18 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     setDeletingId(evento.id);
     try {
       await excluirEventoSuplementacaoComReversao({ evento, ponto, userEmail: user?.email });
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "lotes-nota-suplementacao", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
+
+      const empresaId = evento.empresa_id;
+      await Promise.all([
+        updateMapaCachedData('eventosSuplementacao', empresaId, (items) => items.filter((item) => item.id !== evento.id)),
+        refreshMapaCacheEntry('eventosSuplementacao', empresaId, { force: true }),
+        refreshMapaCacheEntry('movimentacaoEstoque', empresaId, { force: true }),
+        refreshMapaCacheEntry('estoqueLotes', empresaId, { force: true }),
+      ]);
+
+      queryClient.setQueryData(["suplementacao-ponto", pontoId], (current = []) => current.filter((item) => item.id !== evento.id));
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "lotes-nota-suplementacao", "movimentacoes", "produtos", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao"].includes(query.queryKey[0]) });
+      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Lançamento excluído.");
     } catch (error) {
       toast.error(error.message || "Não foi possível excluir o lançamento.");
