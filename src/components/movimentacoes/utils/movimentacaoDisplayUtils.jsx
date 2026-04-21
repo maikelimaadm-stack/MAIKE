@@ -28,11 +28,23 @@ export function getMovementGroupNumber(item) {
 
 export function getMovementDisplayNumber(item, modoVisualizacao = "principais") {
   const groupNumber = getMovementGroupNumber(item);
+  const seq = item?.numero_movimentacao_seq;
   if (modoVisualizacao === "movimentacoes") {
-    const seq = item?.numero_movimentacao_seq;
     return seq ? `${groupNumber}-${seq}` : groupNumber;
   }
-  return groupNumber;
+  return seq ? `${groupNumber}-${seq}` : groupNumber;
+}
+
+export function compareDisplayNumbers(a, b, modoVisualizacao = "principais") {
+  const aGroup = Number(getMovementGroupNumber(a)) || 0;
+  const bGroup = Number(getMovementGroupNumber(b)) || 0;
+  if (aGroup !== bGroup) return aGroup - bGroup;
+
+  const aSeq = modoVisualizacao === "movimentacoes" ? (Number(a?.numero_movimentacao_seq) || 0) : 0;
+  const bSeq = modoVisualizacao === "movimentacoes" ? (Number(b?.numero_movimentacao_seq) || 0) : 0;
+  if (aSeq !== bSeq) return aSeq - bSeq;
+
+  return 0;
 }
 
 export function getMovementSortValue(item, key) {

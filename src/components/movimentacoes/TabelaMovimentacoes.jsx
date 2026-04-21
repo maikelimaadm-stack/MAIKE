@@ -17,7 +17,7 @@ import {
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, MoreVertical } from "lucide-react";
 import { getLocalEstoque, getLabelOperacao } from "./utils/movimentacaoUtils";
-import { compareByCreation, formatDatePtBr, getMovementDisplayNumber, getMovementGroupNumber, getMovementSortValue } from "./utils/movimentacaoDisplayUtils";
+import { compareByCreation, compareDisplayNumbers, formatDatePtBr, getMovementDisplayNumber, getMovementGroupNumber, getMovementSortValue } from "./utils/movimentacaoDisplayUtils";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
@@ -82,7 +82,7 @@ export default function TabelaMovimentacoes({
   allMovimentacoes = [],
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
-  const [sortConfig, setSortConfig] = useState({ key: "created", direction: "desc" });
+  const [sortConfig, setSortConfig] = useState({ key: "numero", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
@@ -231,7 +231,7 @@ export default function TabelaMovimentacoes({
     const itensGrupo = modoVisualizacao === "principais" ? getGrupoItens(item) : [item];
     switch (colunaId) {
       case "numero":
-        return getMovementGroupNumber(item);
+        return getMovementDisplayNumber(item, modoVisualizacao);
       case "data":
         return formatDatePtBr(item.data_movimentacao);
       case "tipo":
@@ -285,13 +285,30 @@ export default function TabelaMovimentacoes({
     }
   };
 
+  const sortedMovimentacoesForFilters = useMemo(() => {
+    return [...movimentacoes].sort((a, b) => {
+      const result = compareDisplayNumbers(a, b, modoVisualizacao);
+      if (result !== 0) return result;
+      return compareByCreation(a, b) * -1;
+    });
+  }, [movimentacoes, modoVisualizacao]);
+
   const columnOptions = useMemo(() => {
     const opts = {};
     COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).forEach((col) => {
-      opts[col.id] = [...new Set(movimentacoes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
+      opts[col.id] = [...new Set(sortedMovimentacoesForFilters.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => {
+        if (col.id === "numero") {
+          const [aGroup, aSeq = "0"] = String(a).split("-");
+          const [bGroup, bSeq = "0"] = String(b).split("-");
+          const groupDiff = (Number(aGroup) || 0) - (Number(bGroup) || 0);
+          if (groupDiff !== 0) return groupDiff;
+          return (Number(aSeq) || 0) - (Number(bSeq) || 0);
+        }
+        return String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" });
+      });
     });
     return opts;
-  }, [movimentacoes]);
+  }, [sortedMovimentacoesForFilters, modoVisualizacao]);
 
   const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
@@ -317,10 +334,16 @@ export default function TabelaMovimentacoes({
         return sortConfig.direction === "asc" ? result * -1 : result;
       }
 
-      const numericColumns = ["numero", "quantidade", "valor_unitario", "valor_total"];
+      if (sortConfig.key === "numero") {
+        const result = compareDisplayNumbers(a, b, modoVisualizacao);
+        if (result !== 0) return sortConfig.direction === "asc" ? result : result * -1;
+        return compareByCreation(a, b);
+      }
+
+      const numericColumns = ["quantidade", "valor_unitario", "valor_total"];
       if (numericColumns.includes(sortConfig.key)) {
-        const aNum = sortConfig.key === "numero" ? getMovementSortValue(a, "numero") : Number(a[sortConfig.key] || 0);
-        const bNum = sortConfig.key === "numero" ? getMovementSortValue(b, "numero") : Number(b[sortConfig.key] || 0);
+        const aNum = Number(a[sortConfig.key] || 0);
+        const bNum = Number(b[sortConfig.key] || 0);
         if (aNum < bNum) return sortConfig.direction === "asc" ? -1 : 1;
         if (aNum > bNum) return sortConfig.direction === "asc" ? 1 : -1;
         return compareByCreation(a, b);
