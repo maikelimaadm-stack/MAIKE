@@ -29,6 +29,7 @@ import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
+import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
@@ -260,6 +261,7 @@ export default function MapaGeral() {
 
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
   const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery(createMapaQuery('estoqueLotes'));
+  const { data: produtos = [] } = useQuery(createMapaQuery('produtos'));
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery(createMapaQuery('tarefas', { enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, enabledKey: podeUsarTarefasMapa ? 'on' : 'off' }));
 
   const areas = useMemo(() => {
@@ -281,18 +283,20 @@ export default function MapaGeral() {
   const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto', enabledKey: modoColoracao }));
 
   // ─── Dados derivados ───
+  const alertasMapa = useMemo(() => buildMapaAlertasSuplementacao({
+    lotes,
+    pontosSuplementacao,
+    eventosSupl,
+    estoqueLotes,
+    produtos,
+  }), [lotes, pontosSuplementacao, eventosSupl, estoqueLotes, produtos]);
+
   const lotesComAlerta = useMemo(() => lotes.map((lote) => {
-    const alertas = [];
-    const ev = eventosSupl.filter((e) => e.area_id === lote.area_atual_id);
-    if (ev.length > 0) {
-      const ultimo = ev.sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
-      const d = Math.floor((new Date() - new Date(ultimo.data_lancamento)) / 86400000);
-      if (d > 10) alertas.push({ tipo: 'suplementacao', dias: d });
-    }
+    const alertas = [...(alertasMapa.alertasLote.get(lote.id) || [])];
     if (lote.peso_medio_kg && lote.peso_medio_kg < 50 && (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12')))
     alertas.push({ tipo: 'peso_baixo', peso: lote.peso_medio_kg });
     return { ...lote, alertas };
-  }), [lotes, eventosSupl]);
+  }), [lotes, alertasMapa]);
 
   const categorias = useMemo(() => [...new Set(lotes.map((l) => l.categoria).filter(Boolean))].sort(), [lotes]);
   const identificadores = useMemo(() => [...new Set(lotes.map((l) => l.identificador_nome || l.identificador_sigla).filter(Boolean))].sort(), [lotes]);
@@ -301,18 +305,21 @@ export default function MapaGeral() {
 
   const pontosSuplementacaoDecorados = useMemo(() => {
     return pontosSuplementacao.map((ponto) => {
-      const indicador = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
+      const indicadorBase = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
       getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, []) :
       getCochoIndicator(ponto, eventosSupl);
+      const alertaInfo = alertasMapa.alertasPonto.get(ponto.id);
+      const alertaPrincipal = alertaInfo?.alertas?.[0] || null;
 
       return {
         ...ponto,
-        indicador_percentual: indicador.percent,
-        indicador_helper: indicador.helperLabel,
-        ultimo_registro: indicador.latestRecord
+        indicador_percentual: indicadorBase.percent,
+        indicador_helper: alertaPrincipal?.descricao || indicadorBase.helperLabel,
+        ultimo_registro: indicadorBase.latestRecord,
+        alertas_inteligentes: alertaInfo?.alertas || []
       };
     });
-  }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl]);
+  }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl, alertasMapa]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {

@@ -61,31 +61,42 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       });
     }
 
-    // Alertas de suplementação
+    // Alertas inteligentes de suplementação
     const pontosAtivos = pontosSuplementacao.filter(p => p.status === 'Ativo');
     const pontosComAlerta = [];
+    const lotesComAlertaSuplementacao = [];
 
-    pontosAtivos.forEach(ponto => {
-      const eventosPonto = eventosSupl.filter(e => e.ponto_suplementacao_id === ponto.id);
-      if (eventosPonto.length === 0) {
-        pontosComAlerta.push({ nome: ponto.nome_ponto, dias: 'Nunca lançado', tipo: 'critico' });
-        return;
-      }
-      const ultimo = eventosPonto.sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
-      const dias = Math.floor((new Date() - new Date(ultimo.data_lancamento)) / (1000 * 60 * 60 * 24));
-      const limite = ponto.alerta_sem_lancamento_dias || 10;
-      if (dias > limite) {
-        pontosComAlerta.push({ nome: ponto.nome_ponto, dias: `${dias} dias sem lançamento`, tipo: dias > limite * 2 ? 'critico' : 'alerta' });
+    lotes.forEach((lote) => {
+      const alertaSuplementacao = (lote.alertas || []).find((alerta) => alerta.tipo === 'suplementacao_pendente');
+      if (alertaSuplementacao) {
+        lotesComAlertaSuplementacao.push(`${lote.nome}: ${alertaSuplementacao.titulo}`);
       }
     });
+
+    pontosAtivos.forEach((ponto) => {
+      const alertas = ponto.alertas_inteligentes || [];
+      alertas.forEach((alerta) => {
+        pontosComAlerta.push({ nome: ponto.nome_ponto || ponto.nome, descricao: alerta.descricao || alerta.titulo, tipo: alerta.tipo });
+      });
+    });
+
+    if (lotesComAlertaSuplementacao.length > 0) {
+      result.push({
+        tipo: 'alerta_lote_supl',
+        icone: AlertTriangle,
+        cor: 'text-red-700 bg-red-50 border-red-200',
+        titulo: `Lotes Precisando de Suplementação (${lotesComAlertaSuplementacao.length})`,
+        lista: lotesComAlertaSuplementacao.slice(0, 12)
+      });
+    }
 
     if (pontosComAlerta.length > 0) {
       result.push({
         tipo: 'alerta_supl',
         icone: Droplets,
         cor: 'text-amber-700 bg-amber-50 border-amber-200',
-        titulo: `Alertas Suplementação (${pontosComAlerta.length})`,
-        lista: pontosComAlerta.map(p => `${p.nome}: ${p.dias}`)
+        titulo: `Alertas de Cochos e Depósitos (${pontosComAlerta.length})`,
+        lista: pontosComAlerta.slice(0, 12).map(p => `${p.nome}: ${p.descricao}`)
       });
     }
 
