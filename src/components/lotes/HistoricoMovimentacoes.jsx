@@ -385,7 +385,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const loteAtual = entry?.lote_key || normalize(entry?.lote);
     const loteNomeNorm = normalize(entry?.lote);
     const relatedKeys = getHistoricoRelatedKeys(entry);
+    const snapshotJuncao = getJuncaoLotesSnapshot(entry?.observacoes || entry?.raw?.observacoes || '') || [];
+    snapshotJuncao.forEach((lote) => {
+      if (lote?.nome) relatedKeys.add(normalize(lote.nome));
+      if (lote?.id) relatedKeys.add(normalize(lote.id));
+    });
+    const linkedIds = new Set([entry?.id, ...(entry?.linked_movement_ids || [])].filter(Boolean).map((value) => String(value)));
     const matchesRelatedKey = (value) => relatedKeys.has(normalize(value));
+    const matchesLinkedId = (value) => linkedIds.has(String(value));
     const createdAtual = getTime(entry?.created_at);
     const isTransferencia = entry?.tipo === 'Transferência de Área';
 
@@ -461,7 +468,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (item.uniqueId === entry.uniqueId) return false;
         const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
         if (!isRegistroBloqueador) return false;
-        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key);
+        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key) || matchesLinkedId(item.id) || (item.linked_movement_ids || []).some(matchesLinkedId);
         if (!sameLote) return false;
 
         const createdItem = getTime(item.created_at);
@@ -474,11 +481,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
     // Verificação padrão para outros tipos (não-transferência)
     // Nutrição posterior bloqueia automaticamente qualquer registro anterior do mesmo lote.
-    return historico.some((item) => {
+    const hasRegistroPosteriorNoHistorico = historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
 
-      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key);
-      const childLinked = (item.linked_movement_ids || []).includes(entry.id);
+      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key) || matchesLinkedId(item.id) || (item.linked_movement_ids || []).some(matchesLinkedId);
+      const childLinked = (item.linked_movement_ids || []).includes(entry.id) || matchesLinkedId(item.id);
       if (!sameLote && !childLinked) return false;
 
       const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
@@ -486,6 +493,22 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
       const createdItem = getTime(item.created_at);
       return childLinked || createdItem > createdAtual;
+    });
+
+    if (hasRegistroPosteriorNoHistorico) return true;
+
+    return todasMovimentacoesGlobal.some((mov) => {
+      if (mov.id === entry.id) return false;
+
+      const sameLoteGlobal = normalize(mov.lote) === loteNomeNorm || matchesRelatedKey(mov.lote) || matchesRelatedKey(mov.lote_id) || matchesLinkedId(mov.id);
+      const linkedGlobal = matchesLinkedId(mov.id);
+      if (!sameLoteGlobal && !linkedGlobal) return false;
+
+      const isRegistroBloqueador = mov.tipo === 'Transferência de Área' || !mov.motivo || ['Junção de Lotes', 'Renomear Lote'].includes(mov.motivo);
+      if (!isRegistroBloqueador) return false;
+
+      const createdItem = getTime(mov.created_date || mov.data_movimentacao);
+      return createdItem > createdAtual;
     });
   }, [historico, todasMovimentacoesGlobal, todosLotesGlobal]);
 
