@@ -231,7 +231,9 @@ export default function TabelaMovimentacoes({
     const itensGrupo = modoVisualizacao === "principais" ? getGrupoItens(item) : [item];
     switch (colunaId) {
       case "numero":
-        return getMovementDisplayNumber(item, modoVisualizacao);
+        return modoVisualizacao === "movimentacoes"
+          ? getMovementDisplayNumber(item, modoVisualizacao)
+          : getMovementGroupNumber(item);
       case "data":
         return formatDatePtBr(item.data_movimentacao);
       case "tipo":

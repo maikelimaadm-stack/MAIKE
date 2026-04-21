@@ -32,7 +32,7 @@ export function getMovementDisplayNumber(item, modoVisualizacao = "principais") 
   if (modoVisualizacao === "movimentacoes") {
     return seq ? `${groupNumber}-${seq}` : groupNumber;
   }
-  return seq ? `${groupNumber}-${seq}` : groupNumber;
+  return groupNumber;
 }
 
 export function compareDisplayNumbers(a, b, modoVisualizacao = "principais") {
