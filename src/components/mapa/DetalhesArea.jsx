@@ -15,9 +15,9 @@ export default function DetalhesArea({ area }) {
     queryKey: ['lotes-area', area.id],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter(l => l.area_atual_id === area.id && l.status === 'Ativo');
+      return all.filter((l) => l.area_atual_id === area.id && l.status === 'Ativo');
     },
-    enabled: !!area?.id && !!empresaSelecionadaId,
+    enabled: !!area?.id && !!empresaSelecionadaId
   });
 
   const totalCabecas = lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
@@ -25,8 +25,8 @@ export default function DetalhesArea({ area }) {
   if (!isCurral) return null;
 
   return (
-    <div className="space-y-4" translate="no">
-      <div className="flex items-start justify-between pb-2 border-b">
+    <div className="space-y-1" translate="no">
+      <div className="flex items-start justify-between pb-2 border-b hidden">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <MapPin className="w-4 h-4 text-emerald-600" />
@@ -44,7 +44,7 @@ export default function DetalhesArea({ area }) {
       </div>
 
       <Card className="border-slate-200 bg-slate-50">
-        <CardContent className="p-3">
+        <CardContent className="p-3 hidden">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
             <div className="rounded-lg border border-slate-200 bg-white p-2">
               <div className="text-slate-500">Nome</div>
@@ -68,7 +68,7 @@ export default function DetalhesArea({ area }) {
 
       {/* Tabs */}
       <Tabs defaultValue="historico" className="w-full">
-        <TabsList className="grid w-full grid-cols-1">
+        <TabsList className="h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground grid w-full grid-cols-1 hidden">
           <TabsTrigger value="historico" className="text-xs">
             <ClipboardList className="w-3 h-3 mr-1" />
             Histórico
@@ -81,6 +81,6 @@ export default function DetalhesArea({ area }) {
 
       </Tabs>
 
-    </div>
-  );
+    </div>);
+
 }
