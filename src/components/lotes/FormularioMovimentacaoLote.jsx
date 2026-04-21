@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
@@ -29,8 +30,9 @@ const FL = ({ label, required, children }) => (
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
-  const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'fechamento_consumo', 'movimentacao'
+  const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'confirmar_consumo', 'fechamento_consumo', 'movimentacao'
   const [eventosAbertos, setEventosAbertos] = useState([]);
+  const [mostrarPerguntaConsumo, setMostrarPerguntaConsumo] = useState(false);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
@@ -126,7 +128,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         setEventosAbertos(abertos);
 
         if (abertos.length > 0) {
-          setEtapa('fechamento_consumo');
+          setMostrarPerguntaConsumo(true);
+          setEtapa('confirmar_consumo');
           const sobrasIniciais = {};
           abertos.forEach((ev) => {
             sobrasIniciais[ev.id] = '0';
@@ -437,6 +440,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   }
 
   return (
+    <>
     <Card className="shadow-sm">
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Movimentação de Lotes</CardTitle>
@@ -642,6 +646,38 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
         </DialogContent>
       </Dialog>
-    </Card>);
+    </Card>
+
+    <AlertDialog open={mostrarPerguntaConsumo} onOpenChange={setMostrarPerguntaConsumo}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-sm">Existe consumo em aberto</AlertDialogTitle>
+          <AlertDialogDescription className="text-xs">
+            Este lote está com {eventosAbertos.length} consumo(s) em aberto. Deseja fechar o consumo antes de mover?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            className="h-8 text-xs"
+            onClick={() => {
+              setMostrarPerguntaConsumo(false);
+              setEtapa('movimentacao');
+            }}
+          >
+            Não fechar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => {
+              setMostrarPerguntaConsumo(false);
+              setEtapa('fechamento_consumo');
+            }}
+          >
+            Fechar consumo
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>);
 
 }
