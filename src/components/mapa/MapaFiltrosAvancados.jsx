@@ -239,7 +239,7 @@ export default function MapaFiltrosAvancados({
             <span className="text-xs font-bold text-slate-800 uppercase">Suplementação</span>
           </div>
           <div className="px-1">
-            <Button type="button" variant="outline" size="sm" className="h-8 text-xs w-full" onClick={onOpenLancamentoLote}>
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs w-full gap-2" onClick={onOpenLancamentoLote}>
               Lançamento em lote
             </Button>
           </div>
