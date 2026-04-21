@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Leaf, Tractor, Plus, MapPin, DollarSign,
-  TrendingUp, Package, Calculator, ClipboardList, Trash2
+  TrendingUp, Package, Calculator, ClipboardList
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -15,12 +15,12 @@ import { toast } from "sonner";
 import FormularioOperacao from "../operacoes/FormularioOperacao";
 import FormularioControleArea from "../areas/FormularioControleArea";
 import TarefasMapaPanel from "./TarefasMapaPanel";
+import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 
 export default function DetalhesArea({ area, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showOperacao, setShowOperacao] = useState(false);
   const [showControle, setShowControle] = useState(false);
-  const [showTarefas, setShowTarefas] = useState(false);
   const [editingControle, setEditingControle] = useState(null);
   const queryClient = useQueryClient();
   const isInfraestrutura = area?.tipo_cultura === 'Infraestrutura';
@@ -52,14 +52,6 @@ export default function DetalhesArea({ area, onClose }) {
     },
   });
 
-  const { data: historicoMovimentacoes = [] } = useQuery({
-    queryKey: ['movimentacoes-area-historico', area.id],
-    queryFn: async () => {
-      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
-      return all.filter((mov) => mov.area_origem_id === area.id || mov.area_destino_id === area.id);
-    },
-    enabled: !!area?.id,
-  });
 
   // Calcular custos
   const custos = useMemo(() => {
@@ -99,18 +91,6 @@ export default function DetalhesArea({ area, onClose }) {
   const totalOperacoes = operacoes.length;
   const totalHectaresTrabalhados = operacoes.filter(o => o.status === 'Concluída')
     .reduce((sum, o) => sum + (o.hectares_trabalhados || 0), 0);
-
-  const deleteMovimentacaoMutation = useMutation({
-    mutationFn: async (movimentacaoId) => {
-      await base44.entities.MovimentacaoMapa.delete(movimentacaoId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-area-historico', area.id] });
-      queryClient.invalidateQueries({ queryKey: ['lotes-area', area.id] });
-      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-      toast.success('Histórico excluído!');
-    },
-  });
 
   const statusColors = {
     'Pousio': 'bg-slate-100 text-slate-700',
@@ -306,7 +286,7 @@ export default function DetalhesArea({ area, onClose }) {
 
       {/* Tabs */}
       <Tabs defaultValue={isInfraestrutura ? 'historico' : 'operacoes'} className="w-full">
-        <TabsList className={`grid w-full ${isInfraestrutura ? 'grid-cols-2' : 'grid-cols-5'}`}>
+        <TabsList className={`grid w-full ${isInfraestrutura ? 'grid-cols-1' : 'grid-cols-5'}`}>
           {!isInfraestrutura && (
             <TabsTrigger value="operacoes" className="text-xs">
               <Tractor className="w-3 h-3 mr-1" />
@@ -329,10 +309,12 @@ export default function DetalhesArea({ area, onClose }) {
             <ClipboardList className="w-3 h-3 mr-1" />
             Histórico
           </TabsTrigger>
-          <TabsTrigger value="tarefas" className="text-xs">
-            <ClipboardList className="w-3 h-3 mr-1" />
-            Tarefas
-          </TabsTrigger>
+          {!isInfraestrutura && (
+            <TabsTrigger value="tarefas" className="text-xs">
+              <ClipboardList className="w-3 h-3 mr-1" />
+              Tarefas
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="operacoes" className="mt-3">
@@ -419,45 +401,18 @@ export default function DetalhesArea({ area, onClose }) {
         </TabsContent>
 
         <TabsContent value="historico" className="mt-3">
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {historicoMovimentacoes.length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Nenhum histórico de movimentação</p>
-            ) : historicoMovimentacoes.map((mov) => (
-              <div key={mov.id} className="flex items-start justify-between gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-slate-900">{mov.tipo || '-'} • {mov.lote || '-'}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">
-                    {mov.data_movimentacao ? format(new Date(mov.data_movimentacao), 'dd/MM/yyyy') : '-'}
-                  </div>
-                  <div className="text-[10px] text-slate-600 mt-1">
-                    Origem: {mov.area_origem_nome || '-'} • Destino: {mov.area_destino_nome || '-'}
-                  </div>
-                  {mov.observacoes && (
-                    <div className="text-[10px] text-slate-600 mt-1 whitespace-pre-wrap">{mov.observacoes}</div>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
-                  onClick={() => deleteMovimentacaoMutation.mutate(mov.id)}
-                  disabled={deleteMovimentacaoMutation.isPending}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            ))}
-          </div>
+          <HistoricoMovimentacoes areaId={area.id} />
         </TabsContent>
 
-        <TabsContent value="tarefas" className="mt-3">
-          <TarefasMapaPanel
-            areaId={area.id}
-            areaNome={area.nome}
-            onClose={() => {}}
-          />
-        </TabsContent>
+        {!isInfraestrutura && (
+          <TabsContent value="tarefas" className="mt-3">
+            <TarefasMapaPanel
+              areaId={area.id}
+              areaNome={area.nome}
+              onClose={() => {}}
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Ações */}
