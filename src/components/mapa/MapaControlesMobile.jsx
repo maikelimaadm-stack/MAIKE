@@ -7,10 +7,11 @@ export default function MapaControlesMobile({
   mapType, setMapType,
   onRefresh, onLocate, onToggleDrag,
   dragEnabled = false,
-  onOpenTarefas, onOpenInsights, onOpenFiltros,
+  onOpenTarefas, onOpenInsights, onOpenFiltros, onOpenSuplementacaoLote,
   showTarefasButton = true,
   showInsightsButton = true,
-  showFiltrosButton = true
+  showFiltrosButton = true,
+  showSuplementacaoLoteButton = true
 }) {
   const navigate = useNavigate();
 
@@ -26,8 +27,8 @@ export default function MapaControlesMobile({
           
           <X className="w-5 h-5 text-slate-700" />
         </Button>
-        {showFiltrosButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Suplementação em lote">
+        {showSuplementacaoLoteButton &&
+        <Button variant="secondary" size="icon" onClick={onOpenSuplementacaoLote} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Suplementação em lote">
             <Container className="w-5 h-5 text-slate-700" />
           </Button>
         }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +21,12 @@ export default function FormularioLancamentoSuplementacaoLote({ pontos = [], onC
   const queryClient = useQueryClient();
   const [itens, setItens] = useState([createItem()]);
   const [itemEditandoId, setItemEditandoId] = useState(null);
+
+  React.useEffect(() => {
+    if (!itemEditandoId && itens.length) {
+      setItemEditandoId(itens[0].id);
+    }
+  }, [itemEditandoId, itens]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
 
   const pontosOrdenados = useMemo(() => {
@@ -31,7 +37,9 @@ export default function FormularioLancamentoSuplementacaoLote({ pontos = [], onC
   const pontoEditando = pontosOrdenados.find((ponto) => ponto.id === itemEditando?.pontoId) || null;
 
   const handleAddItem = () => {
-    setItens((current) => [...current, createItem()]);
+    const novoItem = createItem();
+    setItens((current) => [...current, novoItem]);
+    setItemEditandoId(novoItem.id);
   };
 
   const handleRemoveItem = (id) => {
