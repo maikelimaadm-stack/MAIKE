@@ -28,6 +28,7 @@ const TIPOS_CULTURAS = [
   "Milho", "Soja", "Sorgo", "Arroz", "Trigo", "Cevada", "Cana-de-açúcar", "Algodão",
   "Feijão", "Girassol", "Aveia", "Café", "Eucalipto", "Floresta", "Outros",
 ];
+const TIPOS_INFRAESTRUTURA = ["Curral", "Oficina", "Casa", "Barracão", "Galpão", "Depósito", "Embarcador", "Brete", "Outro"];
 const CORES_DISPONIVEIS = [
   { nome: "Branco", cor: "#f8f9fa" },
   { nome: "Cinza claro", cor: "#d8dee2" },
@@ -56,6 +57,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     aproveitamento: item?.aproveitamento_classificacao || "Média",
     tipo_cultura: item?.tipo_cultura || "Pastagem",
     tipo_pastagem: item?.tipo_pastagem || "",
+    tipo_infraestrutura: item?.tipo_infraestrutura || "",
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || "",
   });
@@ -131,9 +133,10 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     const missing = [];
     if (!formData.nome?.trim()) missing.push("nome");
     if (!formData.setor_id) missing.push("setor_id");
-    if (!formData.area_total) missing.push("area_total");
-    if (!formData.area_pastejada) missing.push("area_pastejada");
-    if (!formData.tipo_pastagem) missing.push("tipo_pastagem");
+    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.area_total) missing.push("area_total");
+    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.area_pastejada) missing.push("area_pastejada");
+    if (formData.tipo_cultura === 'Infraestrutura' && !formData.tipo_infraestrutura) missing.push("tipo_infraestrutura");
+    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.tipo_pastagem) missing.push("tipo_pastagem");
     if (missing.length) { setInvalidFields(missing); toast.error("Preencha os campos obrigatórios."); return; }
 
     const coords = coordenadasGPS || coordenadas;
@@ -152,9 +155,10 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       setor_nome: formData.setor_nome,
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
-      tipo_pastagem: formData.tipo_pastagem,
-      tamanho_hectares: parseFloat(parseHa(String(formData.area_total))) || tamanhoHectares,
-      area_pastejada: parseFloat(parseHa(String(formData.area_pastejada))) || 0,
+      tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? 'Infraestrutura' : formData.tipo_pastagem,
+      tipo_infraestrutura: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : undefined,
+      tamanho_hectares: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(parseHa(String(formData.area_total))) || tamanhoHectares,
+      area_pastejada: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(parseHa(String(formData.area_pastejada))) || 0,
       observacoes: formData.observacoes?.toUpperCase(),
       cor: formData.cor,
     });
@@ -167,22 +171,26 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   return (
     <div className="mt-1">
       <form onSubmit={handleSubmit} className="space-y-0.5">
-        <FloatingField label="Área total (ha)" required error={invalidFields.includes('area_total')}>
-          <Input
-            value={formData.area_total}
-            onChange={(e) => handleChange('area_total', e.target.value)}
-            className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
-            readOnly
-          />
-        </FloatingField>
+        {formData.tipo_cultura !== 'Infraestrutura' && (
+          <>
+            <FloatingField label="Área total (ha)" required error={invalidFields.includes('area_total')}>
+              <Input
+                value={formData.area_total}
+                onChange={(e) => handleChange('area_total', e.target.value)}
+                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                readOnly
+              />
+            </FloatingField>
 
-        <FloatingField label="Área pastejada ou arável (ha)" required error={invalidFields.includes('area_pastejada')}>
-          <Input
-            value={formData.area_pastejada}
-            onChange={(e) => handleChange('area_pastejada', e.target.value)}
-            className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
-          />
-        </FloatingField>
+            <FloatingField label="Área pastejada ou arável (ha)" required error={invalidFields.includes('area_pastejada')}>
+              <Input
+                value={formData.area_pastejada}
+                onChange={(e) => handleChange('area_pastejada', e.target.value)}
+                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+              />
+            </FloatingField>
+          </>
+        )}
 
         <FloatingField label="Nome" required error={invalidFields.includes('nome')}>
           <Input
@@ -216,7 +224,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         </FloatingField>
 
         <FloatingField label="Tipo de uso" required>
-          <Select value={formData.tipo_cultura} onValueChange={(v) => handleChange('tipo_cultura', v)}>
+          <Select value={formData.tipo_cultura} onValueChange={(v) => setFormData((prev) => ({ ...prev, tipo_cultura: v, tipo_pastagem: v === 'Infraestrutura' ? 'Infraestrutura' : prev.tipo_pastagem, tipo_infraestrutura: v === 'Infraestrutura' ? prev.tipo_infraestrutura : '' }))}>
             <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
@@ -226,28 +234,44 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           </Select>
         </FloatingField>
 
-        <FloatingField label="Tipo de cultura" required error={invalidFields.includes('tipo_pastagem')}>
-          <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
-              {TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </FloatingField>
+        {formData.tipo_cultura === 'Infraestrutura' ? (
+          <FloatingField label="Tipo de infraestrutura" required error={invalidFields.includes('tipo_infraestrutura')}>
+            <Select value={formData.tipo_infraestrutura || '__none__'} onValueChange={(v) => handleChange('tipo_infraestrutura', v === '__none__' ? '' : v)}>
+              <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                {TIPOS_INFRAESTRUTURA.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </FloatingField>
+        ) : (
+          <>
+            <FloatingField label="Tipo de cultura" required error={invalidFields.includes('tipo_pastagem')}>
+              <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                  {TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FloatingField>
 
-        <FloatingField label="Aproveitamento">
-          <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </FloatingField>
+            <FloatingField label="Aproveitamento">
+              <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
+                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FloatingField>
+          </>
+        )}
 
         <FloatingField label="Cor no mapa">
           <Select value={formData.cor} onValueChange={(v) => handleChange('cor', v)}>
