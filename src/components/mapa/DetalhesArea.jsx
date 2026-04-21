@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, ClipboardList } from "lucide-react";
-import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
+import HistoricoAbateCurral from "./HistoricoAbateCurral";
 
 export default function DetalhesArea({ area }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -76,7 +76,7 @@ export default function DetalhesArea({ area }) {
         </TabsList>
 
         <TabsContent value="historico" className="mt-3">
-          <HistoricoMovimentacoes lotes={lotes} areaId={area.id} />
+          <HistoricoAbateCurral areaId={area.id} />
         </TabsContent>
 
       </Tabs>
