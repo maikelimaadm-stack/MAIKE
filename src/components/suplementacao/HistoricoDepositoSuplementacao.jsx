@@ -53,7 +53,11 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
 
           return true;
         })
-        .sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
+        .sort((a, b) => {
+          const createdDiff = new Date(b.created_date || 0) - new Date(a.created_date || 0);
+          if (createdDiff !== 0) return createdDiff;
+          return new Date(b.data_movimentacao || 0) - new Date(a.data_movimentacao || 0);
+        });
 
       const cached = await getMapaCachedData('movimentacaoEstoque', empresaSelecionadaId);
       
