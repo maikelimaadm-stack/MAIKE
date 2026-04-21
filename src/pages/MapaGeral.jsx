@@ -991,7 +991,7 @@ export default function MapaGeral() {
 
       <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
         <DialogContent className="bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader><DialogTitle translate="no" className="text-lg font-semibold leading-none tracking-tight hidden">Detalhes da Área</DialogTitle></DialogHeader>
+          <DialogHeader></DialogHeader>
           {selectedArea && <DetalhesArea area={selectedArea} onClose={() => setShowDetalhesArea(false)} />}
         </DialogContent>
       </Dialog>
