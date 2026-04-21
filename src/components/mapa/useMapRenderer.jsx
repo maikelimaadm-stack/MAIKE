@@ -372,7 +372,13 @@ export default function useMapRenderer(mapInstanceRef) {
       });
     }
     const currentIds = new Set(Object.keys(lotesPorArea).map(id => prefix + id));
-    markersRef.current.forEach((m, id) => { if (id.startsWith(prefix) && !currentIds.has(id)) { m.setMap(null); markersRef.current.delete(id); } });
+    markersRef.current.forEach((m, id) => {
+      if (id.startsWith(prefix) && !currentIds.has(id)) {
+        setMarkerBlink(m, false);
+        m.setMap(null);
+        markersRef.current.delete(id);
+      }
+    });
     lotesIndicatorsRef.current.forEach((ind, id) => { if (id.startsWith(prefix) && !currentIds.has(id)) { ind.setMap(null); lotesIndicatorsRef.current.delete(id); } });
     if (!show) return;
 
@@ -436,12 +442,11 @@ export default function useMapRenderer(mapInstanceRef) {
           existing.setDraggable(!!canDragLotes);
           existing.setIcon(icon);
           if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
-          setMarkerBlink(existing, blinkAlerts && totalAlertas > 0);
           markerStateCache.set(key, nextState);
-          // Atualizar posição do indicador quando o marcador muda de posição
           const ind = lotesIndicatorsRef.current.get(key);
           if (ind) { ind._pos = offsetCenter; try { ind.draw(); } catch(e) {} }
         }
+        setMarkerBlink(existing, blinkAlerts && totalAlertas > 0);
         existing._lotesNaArea = lotesNaArea;
         existing._center = offsetCenter;
         existing._areaId = areaId;

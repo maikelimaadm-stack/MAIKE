@@ -295,11 +295,11 @@ export default function MapaGeral() {
   }), [lotes, pontosSuplementacao, eventosSupl, estoqueLotes, produtos]);
 
   const lotesComAlerta = useMemo(() => lotes.map((lote) => {
-    const alertas = [...(alertasMapa.alertasLote.get(lote.id) || [])];
-    if (lote.peso_medio_kg && lote.peso_medio_kg < 50 && (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12')))
+    const alertas = showAlertas ? [...(alertasMapa.alertasLote.get(lote.id) || [])] : [];
+    if (showAlertas && lote.peso_medio_kg && lote.peso_medio_kg < 50 && (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12')))
     alertas.push({ tipo: 'peso_baixo', peso: lote.peso_medio_kg });
     return { ...lote, alertas };
-  }), [lotes, alertasMapa]);
+  }), [lotes, alertasMapa, showAlertas]);
 
   const categorias = useMemo(() => [...new Set(lotes.map((l) => l.categoria).filter(Boolean))].sort(), [lotes]);
   const identificadores = useMemo(() => [...new Set(lotes.map((l) => l.identificador_nome || l.identificador_sigla).filter(Boolean))].sort(), [lotes]);
@@ -317,12 +317,12 @@ export default function MapaGeral() {
       return {
         ...ponto,
         indicador_percentual: indicadorBase.percent,
-        indicador_helper: alertaPrincipal?.descricao || indicadorBase.helperLabel,
+        indicador_helper: showAlertas ? (alertaPrincipal?.descricao || indicadorBase.helperLabel) : indicadorBase.helperLabel,
         ultimo_registro: indicadorBase.latestRecord,
-        alertas_inteligentes: alertaInfo?.alertas || []
+        alertas_inteligentes: showAlertas ? (alertaInfo?.alertas || []) : []
       };
     });
-  }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl, alertasMapa]);
+  }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl, alertasMapa, showAlertas]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {
