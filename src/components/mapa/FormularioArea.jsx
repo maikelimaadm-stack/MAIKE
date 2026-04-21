@@ -155,7 +155,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       setor_nome: formData.setor_nome,
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
-      tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? 'Infraestrutura' : formData.tipo_pastagem,
+      tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : formData.tipo_pastagem,
       tipo_infraestrutura: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : undefined,
       tamanho_hectares: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(parseHa(String(formData.area_total))) || tamanhoHectares,
       area_pastejada: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(parseHa(String(formData.area_pastejada))) || 0,

@@ -8,7 +8,7 @@ function fmt(value, digits = 2) {
 export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes }) {
   const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
   const hectares = area?.area_pastejada || area?.tamanho_hectares || 0;
-  const isCurral = area?.tipo_cultura === 'Infraestrutura' && (area?.tipo_infraestrutura || area?.tipo_pastagem || '').toLowerCase() === 'curral';
+  const isCurral = area?.tipo_cultura === 'Infraestrutura' && String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
   const tipoInfraestrutura = area?.tipo_infraestrutura || area?.tipo_pastagem || '-';
 
   const totalUA = useMemo(() => {

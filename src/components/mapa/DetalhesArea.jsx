@@ -23,7 +23,7 @@ export default function DetalhesArea({ area, onClose }) {
   const [showControle, setShowControle] = useState(false);
   const [editingControle, setEditingControle] = useState(null);
   const queryClient = useQueryClient();
-  const isCurral = area?.tipo_cultura === 'Infraestrutura' && (area?.tipo_infraestrutura || area?.tipo_pastagem || '').toLowerCase() === 'curral';
+  const isCurral = area?.tipo_cultura === 'Infraestrutura' && String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
 
   // Buscar operações da área
   const { data: operacoes = [] } = useQuery({

@@ -581,7 +581,7 @@ export default function MapaGeral() {
       return;
     }
 
-    const isCurral = area?.tipo_cultura === 'Infraestrutura' && (area?.tipo_infraestrutura || area?.tipo_pastagem || '').toLowerCase() === 'curral';
+    const isCurral = area?.tipo_cultura === 'Infraestrutura' && String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
     if (!isCurral) return;
 
     setSelectedArea(area);
