@@ -55,35 +55,6 @@ const parseCategoriaTransferenciaFromObs = (observacoes) => {
   const match = String(observacoes || '').match(/Movimentação parcial\s*-\s*\d+\s*cabeças\s+de\s+(.+)$/i);
   return match ? match[1].trim() : null;
 };
-
-const getHistoricoRelatedKeys = (entry) => {
-  const keys = new Set();
-  const addKey = (value) => {
-    const normalized = normalize(value);
-    if (normalized) keys.add(normalized);
-  };
-
-  addKey(entry?.lote_key);
-  addKey(entry?.lote);
-  addKey(entry?.raw?.lote);
-
-  const observacoes = String(entry?.observacoes || entry?.raw?.observacoes || '');
-
-  if (entry?.raw?.motivo === 'Junção de Lotes') {
-    const snapshot = getJuncaoLotesSnapshot(observacoes) || [];
-    snapshot.forEach((lote) => addKey(lote?.nome));
-  }
-
-  if (entry?.raw?.motivo === 'Renomear Lote') {
-    const renameMatch = observacoes.match(/Renomear Lote:\s*"(.+?)"\s*→\s*"(.+?)"/i);
-    if (renameMatch) {
-      addKey(renameMatch[1]);
-      addKey(renameMatch[2]);
-    }
-  }
-
-  return keys;
-};
 const formatDateOnly = (value) => {
   const raw = String(value || '');
   if (!raw) return '-';
@@ -242,19 +213,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           area_destino_nome: mov.area_destino_nome,
           area_destino_id: mov.area_destino_id,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
-          canDelete: (() => {
-            const isCurralHistory = !!areaId;
-            if (isCurralHistory) {
-              return mov.tipo === 'Abate' && !mov.motivo && mov.area_origem_id === areaId;
-            }
-
-            return (
-              (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
-              (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
-              mov.motivo === 'Junção de Lotes' ||
-              mov.motivo === 'Renomear Lote'
-            );
-          })(),
+          canDelete: (
+            // Transferência: exclusão apenas no histórico da área de destino
+            (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
+            // Outros tipos do histórico
+            (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
+            // Junção de lotes pode ser desfeita
+            mov.motivo === 'Junção de Lotes' ||
+            // Renomear lote pode ser desfeito
+            mov.motivo === 'Renomear Lote'
+          ),
           // Flag para indicar que tem pesagens filhas (usada no hasLaterRelatedRecord)
           hasPesagensFilhas: mov.tipo === 'Transferência de Área',
           raw: mov,
@@ -387,15 +355,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const hasLaterRelatedRecord = React.useCallback((entry) => {
     const loteAtual = entry?.lote_key || normalize(entry?.lote);
     const loteNomeNorm = normalize(entry?.lote);
-    const relatedKeys = getHistoricoRelatedKeys(entry);
-    const snapshotJuncao = getJuncaoLotesSnapshot(entry?.observacoes || entry?.raw?.observacoes || '') || [];
-    snapshotJuncao.forEach((lote) => {
-      if (lote?.nome) relatedKeys.add(normalize(lote.nome));
-      if (lote?.id) relatedKeys.add(normalize(lote.id));
-    });
-    const linkedIds = new Set([entry?.id, ...(entry?.linked_movement_ids || [])].filter(Boolean).map((value) => String(value)));
-    const matchesRelatedKey = (value) => relatedKeys.has(normalize(value));
-    const matchesLinkedId = (value) => linkedIds.has(String(value));
+    const dataAtual = getTime(entry?.data_evento);
     const createdAtual = getTime(entry?.created_at);
     const isTransferencia = entry?.tipo === 'Transferência de Área';
 
@@ -424,13 +384,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (!movNaAreaDestino) return false;
 
         // Match por nome OU por lote_id de lotes na área destino
-        const mesmoNome = normalize(mov.lote) === loteNomeNorm || matchesRelatedKey(mov.lote);
+        const mesmoNome = normalize(mov.lote) === loteNomeNorm;
         const loteIdRelacionado = !!mov.lote_id && idsLotesDestinoEstaTransf.has(mov.lote_id);
         
         if (!mesmoNome && !loteIdRelacionado) return false;
         
+        const dataItem = getTime(mov.data_movimentacao);
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
-        return createdItem > createdAtual;
+        return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
       });
       if (hasEventoNoDestino) return true;
 
@@ -450,7 +411,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const movNaAreaOrigem = mov.area_origem_id === areaOrigemId || mov.area_destino_id === areaOrigemId;
         if (!movNaAreaOrigem) return false;
 
-        const mesmoNome = normalize(mov.lote) === loteNomeNorm || matchesRelatedKey(mov.lote);
+        const mesmoNome = normalize(mov.lote) === loteNomeNorm;
         const loteIdRelacionado = !!mov.lote_id && idsLotesOrigemEstaTransf.has(mov.lote_id);
         if (!mesmoNome && !loteIdRelacionado) return false;
 
@@ -461,8 +422,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           }
         }
 
+        const dataItem = getTime(mov.data_movimentacao);
         const createdItem = getTime(mov.created_date || mov.data_movimentacao);
-        return createdItem > createdAtual;
+        return dataItem > dataAtual || (dataItem === dataAtual && createdItem > createdAtual);
       });
       if (hasEventoNaOrigem) return true;
 
@@ -471,11 +433,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (item.uniqueId === entry.uniqueId) return false;
         const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
         if (!isRegistroBloqueador) return false;
-        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key) || matchesLinkedId(item.id) || (item.linked_movement_ids || []).some(matchesLinkedId);
+        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
         if (!sameLote) return false;
 
+        const dataItem = getTime(item.data_evento);
         const createdItem = getTime(item.created_at);
-        return createdItem > createdAtual;
+        return dataItem > dataAtual || createdItem > createdAtual;
       });
       if (hasRegistroPosteriorNoHistorico) return true;
 
@@ -484,49 +447,31 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
     // Verificação padrão para outros tipos (não-transferência)
     // Nutrição posterior bloqueia automaticamente qualquer registro anterior do mesmo lote.
-    const hasRegistroPosteriorNoHistorico = historico.some((item) => {
+    return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
 
-      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key) || matchesLinkedId(item.id) || (item.linked_movement_ids || []).some(matchesLinkedId);
-      const childLinked = (item.linked_movement_ids || []).includes(entry.id) || matchesLinkedId(item.id);
+      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
+      const childLinked = (item.linked_movement_ids || []).includes(entry.id);
       if (!sameLote && !childLinked) return false;
 
       const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
       if (!isRegistroBloqueador) return false;
 
+      const dataItem = getTime(item.data_evento);
       const createdItem = getTime(item.created_at);
-      return childLinked || createdItem > createdAtual;
-    });
-
-    if (hasRegistroPosteriorNoHistorico) return true;
-
-    return todasMovimentacoesGlobal.some((mov) => {
-      if (mov.id === entry.id) return false;
-
-      const sameLoteGlobal = normalize(mov.lote) === loteNomeNorm || matchesRelatedKey(mov.lote) || matchesRelatedKey(mov.lote_id) || matchesLinkedId(mov.id);
-      const linkedGlobal = matchesLinkedId(mov.id);
-      if (!sameLoteGlobal && !linkedGlobal) return false;
-
-      const isRegistroBloqueador = mov.tipo === 'Transferência de Área' || !mov.motivo || ['Junção de Lotes', 'Renomear Lote'].includes(mov.motivo);
-      if (!isRegistroBloqueador) return false;
-
-      const createdItem = getTime(mov.created_date || mov.data_movimentacao);
-      return createdItem > createdAtual;
+      return childLinked || dataItem > dataAtual || createdItem > createdAtual;
     });
   }, [historico, todasMovimentacoesGlobal, todosLotesGlobal]);
 
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
-      if (areaId) {
-        return 'No histórico do curral, apenas saídas de abate podem ser excluídas.';
-      }
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
       return 'Exclusão bloqueada porque existem registros posteriores vinculados a este lote. Exclua primeiro os lançamentos mais recentes na origem, no destino ou os manejos posteriores do saldo remanescente.';
     }
     return '';
-  }, [hasLaterRelatedRecord, areaId]);
+  }, [hasLaterRelatedRecord]);
 
   const historicoVisivel = React.useMemo(
     () => historico.filter((item) => !(item.source === 'movimentacao' && hiddenMovementIds.includes(item.id))),

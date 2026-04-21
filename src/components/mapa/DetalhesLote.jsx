@@ -190,8 +190,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLotes({
           empresaId: empresaSelecionadaId,
           lotes,
-          dataReferencia: formData.data_movimentacao,
-          createdDateReferencia: null
+          dataReferencia: formData.data_movimentacao
         });
 
         for (const lote of lotes) {
@@ -230,8 +229,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             await validarOrdemTemporalLote({
               empresaId: empresaSelecionadaId,
               loteId: lote.id,
-              dataReferencia: formData.data_movimentacao,
-              createdDateReferencia: lote.updated_date || lote.created_date
+              dataReferencia: formData.data_movimentacao
             });
 
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -403,8 +401,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: formData.data_ocorrencia,
-        createdDateReferencia: lote.updated_date || lote.created_date
+        dataReferencia: formData.data_ocorrencia
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -508,9 +505,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   };
 
   const handleAbate = async (formData) => {
-    const lotesCategoria = lotes
-      .filter((l) => l.categoria === formData.categoria)
-      .sort((a, b) => new Date(b.updated_date || b.created_date || 0).getTime() - new Date(a.updated_date || a.created_date || 0).getTime());
+    const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaAbate = areas.find((a) => a.id === areaAtualId);
     let quantidadeRestante = Number(formData.quantidade || 0);
@@ -519,8 +514,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: toNoonUtcISOString(formData.data_abate),
-        createdDateReferencia: lote.updated_date || lote.created_date
+        dataReferencia: formData.data_abate
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -568,8 +562,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: toNoonUtcISOString(formData.data_mudanca),
-          createdDateReferencia: lote.updated_date || lote.created_date
+          dataReferencia: formData.data_mudanca
         });
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
@@ -666,8 +659,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: toNoonUtcISOString(formData.data_pesagem),
-          createdDateReferencia: lote.updated_date || lote.created_date
+          dataReferencia: formData.data_pesagem
         });
 
         // Verificar se tem peso individual para este lote específico
@@ -931,8 +923,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                         await validarOrdemTemporalLotes({
                           empresaId: empresaSelecionadaId,
                           lotes: lotesParaJuntar,
-                          dataReferencia: new Date().toISOString(),
-                          createdDateReferencia: null
+                          dataReferencia: new Date().toISOString()
                         });
 
                         const principal = lotePrincipalJuncao;
