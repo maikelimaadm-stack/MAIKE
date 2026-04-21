@@ -54,7 +54,7 @@ export default function MapaGeral() {
   const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
-  const [mapType, setMapType] = useState('satellite');
+  const [mapType, setMapType] = useState('roadmap');
   const [showAreas, setShowAreas] = useState(true);
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
@@ -481,8 +481,17 @@ export default function MapaGeral() {
     loadGoogleMapsScript().then(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
       const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const savedFiltros = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
+      let initialMapType = 'roadmap';
+      if (savedFiltros) {
+        try {
+          const parsed = JSON.parse(savedFiltros);
+          if (typeof parsed?.mapType === 'string') initialMapType = parsed.mapType;
+        } catch {}
+      }
+
       const map = new google.maps.Map(mapRef.current, {
-        center: { lat: -15.0067, lng: -59.9533 }, zoom: 15, mapTypeId: mapType,
+        center: { lat: -15.0067, lng: -59.9533 }, zoom: 15, mapTypeId: initialMapType,
         mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
         gestureHandling: 'greedy',
         zoomControl: !mobile, disableDefaultUI: mobile, clickableIcons: false,
@@ -495,7 +504,8 @@ export default function MapaGeral() {
       overlay.setMap(map);
       projectionOverlayRef.current = overlay;
       mapInstanceRef.current = map;
-      google.maps.event.addListenerOnce(map, 'tilesloaded', () => setMapReady(true));
+      setMapType(initialMapType);
+      google.maps.event.addListenerOnce(map, 'idle', () => setMapReady(true));
     }).catch(() => toast.error('Erro ao carregar mapa.'));
     return () => renderer.clearAll();
   }, []);
