@@ -28,7 +28,7 @@ const isPosteriorOuMesmoDiaMaisNovo = ({ itemDate, itemCreatedDate, referenceDat
   return getTimestamp(itemCreatedDate) > getTimestamp(referenceCreatedDate || referenceDate);
 };
 
-export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferencia }) {
+export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferencia, ignorarMovimentacaoId }) {
   if (!empresaId || !loteId || !dataReferencia) return;
 
   const [movimentacoes, suplementacoes] = await Promise.all([
@@ -36,12 +36,23 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
     base44.entities.SuplementacaoLote.filter({ empresa_id: empresaId, lote_id: loteId }, "-data_lancamento", 200),
   ]);
 
-  const existePosterior = [...movimentacoes, ...suplementacoes].some((item) => {
-    const dataItem = item.data_movimentacao || item.data_lancamento || item.created_date;
-    return isPosterior(dataItem, dataReferencia);
-  });
+  const existePosteriorMovimentacao = movimentacoes
+    .filter((item) => item.id !== ignorarMovimentacaoId)
+    .some((item) => isPosteriorOuMesmoDiaMaisNovo({
+      itemDate: item.data_movimentacao || item.created_date,
+      itemCreatedDate: item.created_date,
+      referenceDate: dataReferencia,
+      referenceCreatedDate: dataReferencia,
+    }));
 
-  if (existePosterior) {
+  const existePosteriorSuplementacao = suplementacoes.some((item) => isPosteriorOuMesmoDiaMaisNovo({
+    itemDate: item.data_lancamento || item.created_date,
+    itemCreatedDate: item.created_date,
+    referenceDate: dataReferencia,
+    referenceCreatedDate: dataReferencia,
+  }));
+
+  if (existePosteriorMovimentacao || existePosteriorSuplementacao) {
     throw new Error("Não é possível seguir com este registro, pois existem eventos posteriores para o lote.");
   }
 }

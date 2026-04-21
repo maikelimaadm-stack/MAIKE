@@ -514,7 +514,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       await validarOrdemTemporalLote({
         empresaId: empresaSelecionadaId,
         loteId: lote.id,
-        dataReferencia: formData.data_abate
+        dataReferencia: toNoonUtcISOString(formData.data_abate)
       });
 
       const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
@@ -562,7 +562,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: formData.data_mudanca
+          dataReferencia: toNoonUtcISOString(formData.data_mudanca)
         });
 
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
@@ -659,7 +659,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         await validarOrdemTemporalLote({
           empresaId: empresaSelecionadaId,
           loteId: lote.id,
-          dataReferencia: formData.data_pesagem
+          dataReferencia: toNoonUtcISOString(formData.data_pesagem)
         });
 
         // Verificar se tem peso individual para este lote específico
