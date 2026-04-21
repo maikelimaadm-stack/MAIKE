@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Leaf, Tractor, Plus, MapPin, DollarSign,
-  TrendingUp, Package, Calculator, ClipboardList
+  TrendingUp, Package, Calculator, ClipboardList, Trash2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -23,6 +23,7 @@ export default function DetalhesArea({ area, onClose }) {
   const [showTarefas, setShowTarefas] = useState(false);
   const [editingControle, setEditingControle] = useState(null);
   const queryClient = useQueryClient();
+  const isInfraestrutura = area?.tipo_cultura === 'Infraestrutura';
 
   // Buscar operações da área
   const { data: operacoes = [] } = useQuery({
@@ -49,6 +50,15 @@ export default function DetalhesArea({ area, onClose }) {
       const all = await base44.entities.Lote.list();
       return all.filter(l => l.area_atual_id === area.id && l.status === 'Ativo');
     },
+  });
+
+  const { data: historicoMovimentacoes = [] } = useQuery({
+    queryKey: ['movimentacoes-area-historico', area.id],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+      return all.filter((mov) => mov.area_origem_id === area.id || mov.area_destino_id === area.id);
+    },
+    enabled: !!area?.id,
   });
 
   // Calcular custos
@@ -90,6 +100,18 @@ export default function DetalhesArea({ area, onClose }) {
   const totalHectaresTrabalhados = operacoes.filter(o => o.status === 'Concluída')
     .reduce((sum, o) => sum + (o.hectares_trabalhados || 0), 0);
 
+  const deleteMovimentacaoMutation = useMutation({
+    mutationFn: async (movimentacaoId) => {
+      await base44.entities.MovimentacaoMapa.delete(movimentacaoId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-area-historico', area.id] });
+      queryClient.invalidateQueries({ queryKey: ['lotes-area', area.id] });
+      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      toast.success('Histórico excluído!');
+    },
+  });
+
   const statusColors = {
     'Pousio': 'bg-slate-100 text-slate-700',
     'Preparação': 'bg-slate-100 text-slate-700',
@@ -112,15 +134,25 @@ export default function DetalhesArea({ area, onClose }) {
             <span className="text-sm font-bold text-slate-900">{area.nome}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
-            <span>HA {Number(area.tamanho_hectares || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            {area.area_pastejada > 0 && (
+            {isInfraestrutura ? (
               <>
+                <span>{area.tipo_infraestrutura || area.tipo_pastagem || 'Sem tipo'}</span>
                 <span>•</span>
-                <span className="font-medium text-emerald-700">{area.area_pastejada} ha efetivos</span>
+                <span>{area.tipo_cultura || 'Sem tipo'}</span>
+              </>
+            ) : (
+              <>
+                <span>HA {Number(area.tamanho_hectares || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                {area.area_pastejada > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="font-medium text-emerald-700">{area.area_pastejada} ha efetivos</span>
+                  </>
+                )}
+                <span>•</span>
+                <span>{area.tipo_pastagem || 'Sem tipo'}</span>
               </>
             )}
-            <span>•</span>
-            <span>{area.tipo_pastagem || 'Sem tipo'}</span>
           </div>
         </div>
         {controleAtual && (
@@ -131,34 +163,47 @@ export default function DetalhesArea({ area, onClose }) {
       </div>
 
       {/* Resumo Geral */}
-      <div className="grid grid-cols-4 gap-2">
-        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">{area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0)}</div>
-          <div className="text-[10px] text-slate-600">{area.area_pastejada > 0 ? 'ha Efetivos' : 'Hectares'}</div>
-        </div>
-        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">{totalCabecas}</div>
-          <div className="text-[10px] text-slate-600">Cabeças</div>
-        </div>
-        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">
-            {(() => {
-              let ua = 0;
-              lotes.forEach(l => { ua += ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)) / 450; });
-              const ha = area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0);
-              return ha > 0 ? (ua / ha).toFixed(2) : '0';
-            })()}
+      {isInfraestrutura ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="text-sm font-bold text-slate-700">{area.tipo_infraestrutura || area.tipo_pastagem || '-'}</div>
+            <div className="text-[10px] text-slate-600">Tipo de Infraestrutura</div>
           </div>
-          <div className="text-[10px] text-slate-600">UA/ha</div>
+          <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="text-sm font-bold text-slate-700">{area.tipo_cultura || '-'}</div>
+            <div className="text-[10px] text-slate-600">Tipo de Área</div>
+          </div>
         </div>
-        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-lg font-bold text-slate-700">{totalOperacoes}</div>
-          <div className="text-[10px] text-slate-600">Operações</div>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="text-lg font-bold text-slate-700">{area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0)}</div>
+              <div className="text-[10px] text-slate-600">{area.area_pastejada > 0 ? 'ha Efetivos' : 'Hectares'}</div>
+            </div>
+            <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="text-lg font-bold text-slate-700">{totalCabecas}</div>
+              <div className="text-[10px] text-slate-600">Cabeças</div>
+            </div>
+            <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="text-lg font-bold text-slate-700">
+                {(() => {
+                  let ua = 0;
+                  lotes.forEach(l => { ua += ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)) / 450; });
+                  const ha = area.area_pastejada > 0 ? area.area_pastejada : (area.tamanho_hectares || 0);
+                  return ha > 0 ? (ua / ha).toFixed(2) : '0';
+                })()}
+              </div>
+              <div className="text-[10px] text-slate-600">UA/ha</div>
+            </div>
+            <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="text-lg font-bold text-slate-700">{totalOperacoes}</div>
+              <div className="text-[10px] text-slate-600">Operações</div>
+            </div>
+          </div>
 
-      {/* Resumo de Custos */}
-      <Card className="border-slate-200 bg-slate-50">
+          {/* Resumo de Custos */}
+          <Card className="border-slate-200 bg-slate-50">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 mb-3">
             <DollarSign className="w-4 h-4 text-slate-600" />
@@ -207,8 +252,8 @@ export default function DetalhesArea({ area, onClose }) {
         </CardContent>
       </Card>
 
-      {/* Controle Atual */}
-      {controleAtual && (
+          {/* Controle Atual */}
+          {controleAtual && (
         <Card className="border-slate-200 bg-slate-50">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
@@ -255,22 +300,34 @@ export default function DetalhesArea({ area, onClose }) {
             )}
           </CardContent>
         </Card>
+          )}
+        </>
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="operacoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="operacoes" className="text-xs">
-            <Tractor className="w-3 h-3 mr-1" />
-            Operações
-          </TabsTrigger>
-          <TabsTrigger value="custos" className="text-xs">
-            <Calculator className="w-3 h-3 mr-1" />
-            Custos
-          </TabsTrigger>
-          <TabsTrigger value="lotes" className="text-xs">
-            <Package className="w-3 h-3 mr-1" />
-            Lotes
+      <Tabs defaultValue={isInfraestrutura ? 'historico' : 'operacoes'} className="w-full">
+        <TabsList className={`grid w-full ${isInfraestrutura ? 'grid-cols-2' : 'grid-cols-5'}`}>
+          {!isInfraestrutura && (
+            <TabsTrigger value="operacoes" className="text-xs">
+              <Tractor className="w-3 h-3 mr-1" />
+              Operações
+            </TabsTrigger>
+          )}
+          {!isInfraestrutura && (
+            <TabsTrigger value="custos" className="text-xs">
+              <Calculator className="w-3 h-3 mr-1" />
+              Custos
+            </TabsTrigger>
+          )}
+          {!isInfraestrutura && (
+            <TabsTrigger value="lotes" className="text-xs">
+              <Package className="w-3 h-3 mr-1" />
+              Lotes
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="historico" className="text-xs">
+            <ClipboardList className="w-3 h-3 mr-1" />
+            Histórico
           </TabsTrigger>
           <TabsTrigger value="tarefas" className="text-xs">
             <ClipboardList className="w-3 h-3 mr-1" />
@@ -361,6 +418,39 @@ export default function DetalhesArea({ area, onClose }) {
           </div>
         </TabsContent>
 
+        <TabsContent value="historico" className="mt-3">
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {historicoMovimentacoes.length === 0 ? (
+              <p className="text-center text-slate-500 text-xs py-6">Nenhum histórico de movimentação</p>
+            ) : historicoMovimentacoes.map((mov) => (
+              <div key={mov.id} className="flex items-start justify-between gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium text-slate-900">{mov.tipo || '-'} • {mov.lote || '-'}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">
+                    {mov.data_movimentacao ? format(new Date(mov.data_movimentacao), 'dd/MM/yyyy') : '-'}
+                  </div>
+                  <div className="text-[10px] text-slate-600 mt-1">
+                    Origem: {mov.area_origem_nome || '-'} • Destino: {mov.area_destino_nome || '-'}
+                  </div>
+                  {mov.observacoes && (
+                    <div className="text-[10px] text-slate-600 mt-1 whitespace-pre-wrap">{mov.observacoes}</div>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => deleteMovimentacaoMutation.mutate(mov.id)}
+                  disabled={deleteMovimentacaoMutation.isPending}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
         <TabsContent value="tarefas" className="mt-3">
           <TarefasMapaPanel
             areaId={area.id}
@@ -371,7 +461,7 @@ export default function DetalhesArea({ area, onClose }) {
       </Tabs>
 
       {/* Ações */}
-      <div className="grid grid-cols-2 gap-2 pt-2">
+      {!isInfraestrutura && <div className="grid grid-cols-2 gap-2 pt-2">
         <Button
           onClick={() => setShowOperacao(true)}
           variant="outline"
@@ -388,7 +478,7 @@ export default function DetalhesArea({ area, onClose }) {
           <Leaf className="w-4 h-4" />
           {controleAtual ? 'Atualizar Cultura' : 'Registrar Cultura'}
         </Button>
-      </div>
+      </div>}
 
       {/* Dialog Operação */}
       <Dialog open={showOperacao} onOpenChange={setShowOperacao}>

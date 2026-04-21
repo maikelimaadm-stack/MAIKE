@@ -8,6 +8,8 @@ function fmt(value, digits = 2) {
 export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes }) {
   const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
   const hectares = area?.area_pastejada || area?.tamanho_hectares || 0;
+  const isInfraestrutura = area?.tipo_cultura === 'Infraestrutura';
+  const tipoInfraestrutura = area?.tipo_infraestrutura || area?.tipo_pastagem || '-';
 
   const totalUA = useMemo(() => {
     const pesoTotal = lotesNaArea.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0);
@@ -49,42 +51,55 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
         Informações da Área: {area.nome}
       </Badge>
 
-      <div className="grid grid-cols-4 sm:grid-cols-4 gap-1 text-[10px]">
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Hectares</div>
-          <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
+      {isInfraestrutura ? (
+        <div className="grid grid-cols-2 gap-1 text-[10px]">
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Tipo de infraestrutura</div>
+            <div className="font-semibold text-slate-900">{tipoInfraestrutura}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Tipo de área</div>
+            <div className="font-semibold text-slate-900">{area.tipo_cultura || '-'}</div>
+          </div>
         </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">UA/ha</div>
-          <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
+      ) : (
+        <div className="grid grid-cols-4 sm:grid-cols-4 gap-1 text-[10px]">
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Hectares</div>
+            <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">UA/ha</div>
+            <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">UA total</div>
+            <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Pastagem</div>
+            <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Qtd. Lotes</div>
+            <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Qtd. Cabeças</div>
+            <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Média geral</div>
+            <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
+          </div>
+          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+            <div className="text-slate-500">Dias pastejo</div>
+            <div className="font-semibold text-slate-900">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
+          </div>
         </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">UA total</div>
-          <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Pastagem</div>
-          <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Qtd. Lotes</div>
-          <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Qtd. Cabeças</div>
-          <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Média geral</div>
-          <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
-        </div>
-        <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-          <div className="text-slate-500">Dias pastejo</div>
-          <div className="font-semibold text-slate-900">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
-        </div>
-      </div>
+      )}
 
-      {sistemasUnicos.length > 0 &&
+      {!isInfraestrutura && sistemasUnicos.length > 0 &&
       <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[10px] text-slate-500">Sistemas Reprodutivos:</span>
           {sistemasUnicos.map((s) =>
