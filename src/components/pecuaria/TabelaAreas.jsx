@@ -63,12 +63,13 @@ export default function TabelaAreas({ areas = [], gado = [], onEdit, onDelete, i
               <TableRow className="bg-slate-50 border-b">
                 <TableHead className="text-xs border-r border-slate-200">Nº</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Nome</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Tipo</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Tamanho (ha)</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Capacidade</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Atual</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Ocupação</TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Status</TableHead>
-                <TableHead className="text-xs border-r border-slate-200">Tipo Pastagem</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Detalhe</TableHead>
                 <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
               </TableRow>
             </TableHeader>
@@ -76,11 +77,11 @@ export default function TabelaAreas({ areas = [], gado = [], onEdit, onDelete, i
               <AnimatePresence>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                    <TableCell colSpan={10} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
                   </TableRow>
                 ) : filteredAreas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-slate-400 text-xs">Nenhuma área</TableCell>
+                    <TableCell colSpan={10} className="text-center py-12 text-slate-400 text-xs">Nenhuma área</TableCell>
                   </TableRow>
                 ) : (
                   filteredAreas.map((area) => {
@@ -97,16 +98,21 @@ export default function TabelaAreas({ areas = [], gado = [], onEdit, onDelete, i
                       >
                         <TableCell className="text-xs border-r border-slate-200">{area.numero_area || '-'}</TableCell>
                         <TableCell className="text-xs font-semibold border-r border-slate-200">{area.nome}</TableCell>
-                        <TableCell className="text-xs border-r border-slate-200">{area.tamanho_hectares} ha</TableCell>
-                        <TableCell className="text-xs border-r border-slate-200">{area.capacidade_maxima || 0} UA</TableCell>
-                        <TableCell className="text-xs font-semibold border-r border-slate-200">{animaisAtual}</TableCell>
-                        <TableCell className="text-xs border-r border-slate-200">{percentual.toFixed(0)}%</TableCell>
+                        <TableCell className="text-xs border-r border-slate-200">{area.tipo_cultura === 'Infraestrutura' ? 'INFRAESTRUTURA' : 'ÁREA'}</TableCell>
+                        <TableCell className="text-xs border-r border-slate-200">{area.tipo_cultura === 'Infraestrutura' ? '-' : `${area.tamanho_hectares} ha`}</TableCell>
+                        <TableCell className="text-xs border-r border-slate-200">{area.tipo_cultura === 'Infraestrutura' ? '-' : `${area.capacidade_maxima || 0} UA`}</TableCell>
+                        <TableCell className="text-xs font-semibold border-r border-slate-200">{area.tipo_cultura === 'Infraestrutura' ? animaisAtual : animaisAtual}</TableCell>
+                        <TableCell className="text-xs border-r border-slate-200">{area.tipo_cultura === 'Infraestrutura' ? '-' : `${percentual.toFixed(0)}%`}</TableCell>
                         <TableCell className="border-r border-slate-200">
-                          <Badge variant="outline" className={`${getStatusColor(area.status_ocupacao)} text-xs`}>
-                            {area.status_ocupacao}
-                          </Badge>
+                          {area.tipo_cultura === 'Infraestrutura' ? (
+                            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-xs">Infraestrutura</Badge>
+                          ) : (
+                            <Badge variant="outline" className={`${getStatusColor(area.status_ocupacao)} text-xs`}>
+                              {area.status_ocupacao}
+                            </Badge>
+                          )}
                         </TableCell>
-                        <TableCell className="text-xs border-r border-slate-200">{area.tipo_pastagem || '-'}</TableCell>
+                        <TableCell className="text-xs border-r border-slate-200">{area.tipo_cultura === 'Infraestrutura' ? area.tipo_infraestrutura || '-' : area.tipo_pastagem || '-'}</TableCell>
                         <TableCell className="text-center border-r border-slate-200">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

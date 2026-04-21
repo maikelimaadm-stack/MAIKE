@@ -68,6 +68,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
         peso_vivo_total: abate.peso_vivo_total ? parseFloat(abate.peso_vivo_total) : null,
         peso_carcaca_total: abate.peso_carcaca_total ? parseFloat(abate.peso_carcaca_total) : null,
         destino: abate.destino,
+        destino_nome: abate.destino_nome,
         observacoes: formData.observacoes
       });
     });
@@ -210,6 +211,19 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                         </SelectContent>
                       </Select>
                     </FL>
+
+                    {(abate.destino === "Frigorífico" || abate.destino === "Açougue" || abate.destino === "Venda Direta" || abate.destino === "Outro") && (
+                      <FL label={abate.destino === "Frigorífico" ? "Nome do Frigorífico" : "Nome do Cliente"} required>
+                        <Input
+                          value={abate.destino_nome || ""}
+                          onChange={(e) => handleAbateChange(index, 'destino_nome', e.target.value.toUpperCase())}
+                          className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                          style={{ textTransform: 'uppercase' }}
+                          placeholder={abate.destino === "Frigorífico" ? "NOME DO FRIGORÍFICO" : "NOME DO CLIENTE"}
+                          required
+                        />
+                      </FL>
+                    )}
                   </div>
                 </div>
               );

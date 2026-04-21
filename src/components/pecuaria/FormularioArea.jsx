@@ -16,6 +16,8 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
     nome: "",
     setor_id: "",
     setor_nome: "",
+    tipo_cultura: "Pastagem",
+    tipo_infraestrutura: "",
     tamanho_hectares: "",
     capacidade_maxima: "",
     tipo_pastagem: "",
@@ -44,13 +46,18 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
       return;
     }
 
-    if (!formData.tamanho_hectares) {
+    if (!formData.setor_id) {
+      toast.error('Setor é obrigatório!');
+      return;
+    }
+
+    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.tamanho_hectares) {
       toast.error('Tamanho é obrigatório!');
       return;
     }
 
-    if (!formData.setor_id) {
-      toast.error('Setor é obrigatório!');
+    if (formData.tipo_cultura === 'Infraestrutura' && !formData.tipo_infraestrutura) {
+      toast.error('Tipo de infraestrutura é obrigatório!');
       return;
     }
 
@@ -58,9 +65,11 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
       nome: formData.nome?.toUpperCase(),
       setor_id: formData.setor_id,
       setor_nome: formData.setor_nome,
-      tamanho_hectares: parseFloat(formData.tamanho_hectares) || 0,
-      capacidade_maxima: parseFloat(formData.capacidade_maxima) || 0,
-      tipo_pastagem: formData.tipo_pastagem?.toUpperCase() || undefined,
+      tipo_cultura: formData.tipo_cultura,
+      tipo_infraestrutura: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : undefined,
+      tamanho_hectares: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(formData.tamanho_hectares) || 0,
+      capacidade_maxima: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(formData.capacidade_maxima) || 0,
+      tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? undefined : formData.tipo_pastagem?.toUpperCase() || undefined,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
       ativo: true
     };
@@ -96,6 +105,22 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
               </div>
 
               <div className="space-y-1">
+                <Label className="text-xs">Tipo de Uso *</Label>
+                <Select value={formData.tipo_cultura || 'Pastagem'} onValueChange={(value) => setFormData({ ...formData, tipo_cultura: value, tipo_infraestrutura: '', tamanho_hectares: value === 'Infraestrutura' ? '' : formData.tamanho_hectares, capacidade_maxima: value === 'Infraestrutura' ? '' : formData.capacidade_maxima, tipo_pastagem: value === 'Infraestrutura' ? '' : formData.tipo_pastagem })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pastagem">Pastagem</SelectItem>
+                    <SelectItem value="Agricultura">Agricultura</SelectItem>
+                    <SelectItem value="Reserva">Reserva</SelectItem>
+                    <SelectItem value="APP">APP</SelectItem>
+                    <SelectItem value="Infraestrutura">Infraestrutura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.tipo_cultura !== 'Infraestrutura' && <div className="space-y-1">
                 <Label className="text-xs">Tamanho (hectares) *</Label>
                 <Input
                   type="number"
@@ -106,9 +131,9 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
                   required
                   className="h-8 text-xs"
                 />
-              </div>
+              </div>}
 
-              <div className="space-y-1">
+              {formData.tipo_cultura !== 'Infraestrutura' && <div className="space-y-1">
                 <Label className="text-xs">Capacidade Máxima (UA)</Label>
                 <Input
                   type="number"
@@ -117,7 +142,7 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
                   placeholder="0"
                   className="h-8 text-xs"
                 />
-              </div>
+              </div>}
               </div>
 
               <div className="space-y-1">
@@ -139,16 +164,39 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
               </Select>
               </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo de Pastagem</Label>
-              <Input
-                value={formData.tipo_pastagem}
-                onChange={(e) => handleChange('tipo_pastagem', e.target.value)}
-                placeholder="BRACHIARIA, TIFTON, ETC"
-                className="h-8 text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-              />
-            </div>
+            {formData.tipo_cultura === 'Infraestrutura' ? (
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo de Infraestrutura *</Label>
+                <Select value={formData.tipo_infraestrutura || '__none__'} onValueChange={(value) => handleChange('tipo_infraestrutura', value === '__none__' ? '' : value)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Selecione</SelectItem>
+                    <SelectItem value="Curral">Curral</SelectItem>
+                    <SelectItem value="Oficina">Oficina</SelectItem>
+                    <SelectItem value="Casa">Casa</SelectItem>
+                    <SelectItem value="Barracão">Barracão</SelectItem>
+                    <SelectItem value="Galpão">Galpão</SelectItem>
+                    <SelectItem value="Depósito">Depósito</SelectItem>
+                    <SelectItem value="Embarcador">Embarcador</SelectItem>
+                    <SelectItem value="Brete">Brete</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo de Pastagem</Label>
+                <Input
+                  value={formData.tipo_pastagem}
+                  onChange={(e) => handleChange('tipo_pastagem', e.target.value)}
+                  placeholder="BRACHIARIA, TIFTON, ETC"
+                  className="h-8 text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label className="text-xs">Observações</Label>
