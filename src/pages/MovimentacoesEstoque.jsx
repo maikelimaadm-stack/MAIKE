@@ -9,6 +9,7 @@ import { Settings, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatDatePtBr } from "../components/movimentacoes/utils/movimentacaoDisplayUtils";
 
 const getNextNumeroLancamento = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
@@ -671,7 +672,7 @@ export default function MovimentacoesEstoque() {
     selecionados.forEach(m => {
       csvRows.push([
         m.numero_movimentacao,
-        format(new Date(m.data_movimentacao), 'dd/MM/yyyy'),
+        formatDatePtBr(m.data_movimentacao),
         (m.tipo_movimentacao || '').toUpperCase(),
         (getLabelOperacao(m.tipo_detalhado) || '').toUpperCase(),
         (m.numero_documento || '').toUpperCase(),

@@ -21,6 +21,7 @@ import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 import { formatarMoedaInput, formatarMoeda } from "@/components/financeiro/moedaUtils";
 import ProdutosMovimentacaoSection from "./ProdutosMovimentacaoSection";
 import IntegrarFinanceiroDialog from "./IntegrarFinanceiroDialog";
+import { formatDatePtBr } from "./utils/movimentacaoDisplayUtils";
 
 const OPERACOES_ENTRADA = [
   { value: 'compra', label: 'Compra' },
@@ -66,7 +67,13 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
   // ===== Estado do cabeçalho =====
   const [tipo, setTipo] = useState(initialData?.tipo_movimentacao === 'Saída' ? 'Saída' : 'Entrada');
   const [operacao, setOperacao] = useState(initialData?.tipo_detalhado || '');
-  const [dataMovimentacao, setDataMovimentacao] = useState(initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10));
+  const getTodayDateString = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+  };
+
+  const [dataMovimentacao, setDataMovimentacao] = useState(initialData?.data_movimentacao?.split('T')[0] || getTodayDateString());
   const [localOrigemId, setLocalOrigemId] = useState(initialData?.local_estoque_origem || '');
   const [localDestinoId, setLocalDestinoId] = useState(initialData?.local_estoque_destino || '');
   const [observacoes, setObservacoes] = useState(initialData?.observacoes || '');
@@ -437,7 +444,7 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
                   </div>
                   <div>
                     <span className="text-[10px] text-blue-600 block">Data Emissão</span>
-                    <span className="text-xs font-semibold text-slate-900">{dataEmissaoFinanceiro ? new Date(dataEmissaoFinanceiro + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                    <span className="text-xs font-semibold text-slate-900">{dataEmissaoFinanceiro ? formatDatePtBr(dataEmissaoFinanceiro) : '-'}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-blue-600 block">Valor Total</span>

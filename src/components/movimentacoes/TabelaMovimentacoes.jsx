@@ -17,6 +17,7 @@ import {
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, MoreVertical } from "lucide-react";
 import { getLocalEstoque, getLabelOperacao } from "./utils/movimentacaoUtils";
+import { compareByCreation, formatDatePtBr, getMovementDisplayNumber, getMovementGroupNumber, getMovementSortValue } from "./utils/movimentacaoDisplayUtils";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
@@ -65,12 +66,6 @@ const formatarMoeda = (valor) => {
   return numericValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 };
 
-const formatarData = (dataString) => {
-  if (!dataString) return "-";
-  const date = new Date(dataString);
-  if (isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("pt-BR");
-};
 
 // Na visualização "principais", ocultar colunas de detalhe individual de produto
 const COLUNAS_OCULTAS_PRINCIPAIS = ["produto", "quantidade", "unidade", "valor_unitario", "parcela_seq"];
@@ -87,7 +82,7 @@ export default function TabelaMovimentacoes({
   allMovimentacoes = [],
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
-  const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
+  const [sortConfig, setSortConfig] = useState({ key: "created", direction: "desc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
@@ -230,25 +225,15 @@ export default function TabelaMovimentacoes({
     return [item];
   };
 
-  const getNumeroExibicao = (item, index) => {
-    if (modoVisualizacao === "principais") {
-      return String(index + 1);
-    }
-
-    if (item.numero_movimentacao_seq) {
-      return String(item.numero_movimentacao_seq);
-    }
-
-    return String(index + 1);
-  };
+  const getNumeroExibicao = (item) => getMovementDisplayNumber(item, modoVisualizacao);
 
   const getFieldValue = (item, colunaId) => {
     const itensGrupo = modoVisualizacao === "principais" ? getGrupoItens(item) : [item];
     switch (colunaId) {
       case "numero":
-        return "";
+        return getMovementGroupNumber(item);
       case "data":
-        return formatarData(item.data_movimentacao);
+        return formatDatePtBr(item.data_movimentacao);
       case "tipo":
         return item.tipo_movimentacao || "";
       case "tipo_detalhado":
@@ -327,28 +312,33 @@ export default function TabelaMovimentacoes({
   const movimentacoesOrdenadas = useMemo(() => {
     const sorted = [...movimentacoesFiltradas];
     sorted.sort((a, b) => {
+      if (sortConfig.key === "created") {
+        const result = compareByCreation(a, b);
+        return sortConfig.direction === "asc" ? result * -1 : result;
+      }
+
       const numericColumns = ["numero", "quantidade", "valor_unitario", "valor_total"];
       if (numericColumns.includes(sortConfig.key)) {
-        const aNum = sortConfig.key === "numero" ? Number(a.numero_movimentacao || 0) : Number(a[sortConfig.key] || 0);
-        const bNum = sortConfig.key === "numero" ? Number(b.numero_movimentacao || 0) : Number(b[sortConfig.key] || 0);
+        const aNum = sortConfig.key === "numero" ? getMovementSortValue(a, "numero") : Number(a[sortConfig.key] || 0);
+        const bNum = sortConfig.key === "numero" ? getMovementSortValue(b, "numero") : Number(b[sortConfig.key] || 0);
         if (aNum < bNum) return sortConfig.direction === "asc" ? -1 : 1;
         if (aNum > bNum) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
+        return compareByCreation(a, b);
       }
 
       if (sortConfig.key === "data") {
-        const aDate = new Date(a.data_movimentacao).getTime();
-        const bDate = new Date(b.data_movimentacao).getTime();
+        const aDate = getMovementSortValue(a, "data");
+        const bDate = getMovementSortValue(b, "data");
         if (aDate < bDate) return sortConfig.direction === "asc" ? -1 : 1;
         if (aDate > bDate) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
+        return compareByCreation(a, b);
       }
 
       const aVal = getFieldValue(a, sortConfig.key).toLowerCase();
       const bVal = getFieldValue(b, sortConfig.key).toLowerCase();
       if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
+      return compareByCreation(a, b);
     });
     return sorted;
   }, [movimentacoesFiltradas, sortConfig]);
@@ -382,9 +372,9 @@ export default function TabelaMovimentacoes({
   const renderCell = (item, colunaId) => {
     switch (colunaId) {
       case "numero":
-        return item.numero_movimentacao || "-";
+        return getNumeroExibicao(item);
       case "data":
-        return formatarData(item.data_movimentacao);
+        return formatDatePtBr(item.data_movimentacao);
       case "tipo":
         return item.tipo_movimentacao || "-";
       case "tipo_detalhado":
@@ -673,7 +663,7 @@ export default function TabelaMovimentacoes({
                               const numericCols = ["quantidade", "valor_unitario", "valor_total"];
                               return (
                                 <TableCell key={`${item.id}-${coluna.id}`} style={{ width, minWidth: width, maxWidth: width }} className={`px-2 py-1 text-gray-700 text-xs align-middle text-left border-r border-b border-gray-300 whitespace-normal break-words uppercase ${numericCols.includes(coluna.id) ? "font-mono" : ""}`}>
-                                  {coluna.id === "numero" ? getNumeroExibicao(item, movimentacoesOrdenadas.findIndex((mov) => mov.id === item.id)) : renderCell(item, coluna.id)}
+                                  {coluna.id === "numero" ? getNumeroExibicao(item) : renderCell(item, coluna.id)}
                                 </TableCell>
                               );
                             })}
