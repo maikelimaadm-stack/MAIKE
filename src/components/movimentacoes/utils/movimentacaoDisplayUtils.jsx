@@ -23,7 +23,7 @@ export function formatDatePtBr(value) {
 
 export function getMovementGroupNumber(item) {
   if (!item) return "-";
-  return item.numero_registro || item.numero_movimentacao || "-";
+  return item.numero_movimentacao || item.numero_registro || "-";
 }
 
 export function getMovementDisplayNumber(item, modoVisualizacao = "principais") {
@@ -36,8 +36,8 @@ export function getMovementDisplayNumber(item, modoVisualizacao = "principais") 
 }
 
 export function compareDisplayNumbers(a, b, modoVisualizacao = "principais") {
-  const aGroup = Number(getMovementGroupNumber(a)) || 0;
-  const bGroup = Number(getMovementGroupNumber(b)) || 0;
+  const aGroup = Number(String(getMovementGroupNumber(a)).split("-")[0]) || 0;
+  const bGroup = Number(String(getMovementGroupNumber(b)).split("-")[0]) || 0;
   if (aGroup !== bGroup) return aGroup - bGroup;
 
   const aSeq = modoVisualizacao === "movimentacoes" ? (Number(a?.numero_movimentacao_seq) || 0) : 0;
@@ -52,7 +52,7 @@ export function getMovementSortValue(item, key) {
     return parseDateOnly(item?.data_movimentacao)?.getTime() || 0;
   }
   if (key === "numero") {
-    const numero = getMovementGroupNumber(item);
+    const numero = String(getMovementGroupNumber(item)).split("-")[0];
     return Number(numero) || 0;
   }
   if (key === "created") {
