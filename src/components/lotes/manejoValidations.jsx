@@ -38,6 +38,7 @@ export async function validarOrdemTemporalLote({ empresaId, loteId, dataReferenc
 
   const existePosteriorMovimentacao = movimentacoes
     .filter((item) => item.id !== ignorarMovimentacaoId)
+    .filter((item) => !item.motivo || !['Junção de Lotes', 'Renomear Lote'].includes(item.motivo))
     .some((item) => isPosteriorOuMesmoDiaMaisNovo({
       itemDate: item.data_movimentacao || item.created_date,
       itemCreatedDate: item.created_date,

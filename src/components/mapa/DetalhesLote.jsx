@@ -505,7 +505,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   };
 
   const handleAbate = async (formData) => {
-    const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
+    const lotesCategoria = lotes
+      .filter((l) => l.categoria === formData.categoria)
+      .sort((a, b) => new Date(b.updated_date || b.created_date || 0).getTime() - new Date(a.updated_date || a.created_date || 0).getTime());
     const areaAtualId = lotes[0]?.area_atual_id;
     const areaAbate = areas.find((a) => a.id === areaAtualId);
     let quantidadeRestante = Number(formData.quantidade || 0);
