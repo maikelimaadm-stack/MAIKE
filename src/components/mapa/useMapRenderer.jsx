@@ -6,29 +6,41 @@ const markerStateCache = new Map();
 const blinkIntervals = new Map();
 const areaPathSignature = (coords = []) => coords.map((c) => `${c[0] || c.lat},${c[1] || c.lng}`).join('|');
 
-const setMarkerBlink = (marker, shouldBlink) => {
-  if (!marker) return;
-  const markerId = marker.__blinkId || `${Date.now()}_${Math.random()}`;
-  marker.__blinkId = markerId;
+const setBlinkElement = (target, shouldBlink, applyVisibility) => {
+  if (!target || typeof applyVisibility !== 'function') return;
+  const targetId = target.__blinkId || `${Date.now()}_${Math.random()}`;
+  target.__blinkId = targetId;
 
   if (!shouldBlink) {
-    const existing = blinkIntervals.get(markerId);
+    const existing = blinkIntervals.get(targetId);
     if (existing) {
       clearInterval(existing);
-      blinkIntervals.delete(markerId);
+      blinkIntervals.delete(targetId);
     }
-    marker.setOpacity(1);
+    applyVisibility(true);
     return;
   }
 
-  if (blinkIntervals.has(markerId)) return;
+  if (blinkIntervals.has(targetId)) return;
 
   let visible = true;
   const interval = setInterval(() => {
     visible = !visible;
-    marker.setOpacity(visible ? 1 : 0.35);
+    applyVisibility(visible);
   }, 550);
-  blinkIntervals.set(markerId, interval);
+  blinkIntervals.set(targetId, interval);
+};
+
+const setMarkerBlink = (marker, shouldBlink) => {
+  setBlinkElement(marker, shouldBlink, (visible) => marker.setOpacity(visible ? 1 : 0.35));
+};
+
+const setOverlayBlink = (overlay, shouldBlink) => {
+  setBlinkElement(overlay, shouldBlink, (visible) => {
+    if (overlay?._div) {
+      overlay._div.style.opacity = visible ? '1' : '0.2';
+    }
+  });
 };
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
@@ -379,7 +391,13 @@ export default function useMapRenderer(mapInstanceRef) {
         markersRef.current.delete(id);
       }
     });
-    lotesIndicatorsRef.current.forEach((ind, id) => { if (id.startsWith(prefix) && !currentIds.has(id)) { ind.setMap(null); lotesIndicatorsRef.current.delete(id); } });
+    lotesIndicatorsRef.current.forEach((ind, id) => {
+      if (id.startsWith(prefix) && !currentIds.has(id)) {
+        setOverlayBlink(ind, false);
+        ind.setMap(null);
+        lotesIndicatorsRef.current.delete(id);
+      }
+    });
     if (!show) return;
 
     Object.entries(lotesPorArea).forEach(([areaId, lotesNaArea]) => {
@@ -446,7 +464,7 @@ export default function useMapRenderer(mapInstanceRef) {
           const ind = lotesIndicatorsRef.current.get(key);
           if (ind) { ind._pos = offsetCenter; try { ind.draw(); } catch(e) {} }
         }
-        setMarkerBlink(existing, blinkAlerts && totalAlertas > 0);
+        setMarkerBlink(existing, false);
         existing._lotesNaArea = lotesNaArea;
         existing._center = offsetCenter;
         existing._areaId = areaId;
@@ -457,7 +475,7 @@ export default function useMapRenderer(mapInstanceRef) {
           title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: !!canDragLotes
         });
         if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
-        setMarkerBlink(marker, blinkAlerts && totalAlertas > 0);
+        setMarkerBlink(marker, false);
         marker._lotesNaArea = lotesNaArea;
         marker._center = offsetCenter;
         marker._areaId = areaId;
@@ -550,8 +568,10 @@ export default function useMapRenderer(mapInstanceRef) {
           indicatorOverlay._div.innerHTML = identificadores.map((i) => `<div title="${i.nome || i.sigla || ''}" style="width:15px;height:15px;border-radius:9999px;background:${i.cor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;line-height:1;overflow:hidden;">${i.sigla ? String(i.sigla).substring(0,2) : ''}</div>`).join('');
           indicatorOverlay._state = stateStr;
         }
+        setOverlayBlink(indicatorOverlay, blinkAlerts && totalAlertas > 0);
         try { indicatorOverlay.draw(); } catch(e) {}
       } else if (indicatorOverlay) {
+        setOverlayBlink(indicatorOverlay, false);
         indicatorOverlay.setMap(null);
         lotesIndicatorsRef.current.delete(key);
       }
