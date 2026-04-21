@@ -132,7 +132,11 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   {/* Header com data e botão */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1">
-                      <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{evento.data_lancamento?.includes("T") ? evento.data_lancamento.split("T")[0].split("-").reverse().join("/") : new Date(evento.data_lancamento).toLocaleDateString("pt-BR")}</span>
+                      <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{(() => {
+                        if (!evento.data_lancamento) return "-";
+                        const [ano, mes, dia] = evento.data_lancamento.split("T")[0].split("-");
+                        return `${dia}/${mes}/${ano}`;
+                      })()}</span>
                       <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                         {periodoFechado ? 'Fechado' : 'Em aberto'}
                       </Badge>
