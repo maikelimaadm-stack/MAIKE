@@ -98,6 +98,8 @@ export default function MapaGeral() {
   const [showTaskIcons, setShowTaskIcons] = useState(true);
   const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
 
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
   useEffect(() => {
     const saved = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
     if (!saved) return;
@@ -172,7 +174,6 @@ export default function MapaGeral() {
   const ignoreNextMapClickRef = useRef(false);
   const renderer = useMapRenderer(mapInstanceRef);
 
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const { setores } = useSetorAreas(empresaSelecionadaId);
   useEffect(() => {firstFitDoneRef.current = false;mapViewRestoredRef.current = false;}, [empresaSelecionadaId]);
 
