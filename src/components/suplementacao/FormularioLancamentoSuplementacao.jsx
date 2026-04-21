@@ -10,6 +10,7 @@ import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { updateMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import { Progress } from "@/components/ui/progress";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuplementacao } from "./estoqueSuplementacaoUtils";
 import { formatDecimal } from "./formatters";
@@ -450,7 +451,17 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         toast.warn("Falha ao fechar período anterior, mas o lançamento foi salvo.");
       }
 
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "lotes-nota-suplementacao", "mapa-eventos-supl", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
+      await updateMapaCachedData('eventosSuplementacao', empresaSelecionadaId, (items) => [novoEvento, ...(items || [])]);
+      await Promise.all([
+        refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('movimentacaoEstoque', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
+      ]);
+
+      queryClient.setQueryData(["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id], novoEvento);
+      queryClient.setQueryData(["eventos-recentes-ponto", empresaSelecionadaId, ponto?.id], (current = []) => [novoEvento, ...current].slice(0, 12));
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "lotes-nota-suplementacao", "mapa-eventos-supl", "movimentacoes", "produtos", "suplementacao-ponto", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao"].includes(query.queryKey[0]) });
+      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       setProgresso({ show: true, atual: totalPassos, total: totalPassos, mensagem: "Concluído!" });
       toast.success("Suplementação registrada com sucesso.");
       setTimeout(() => {
