@@ -8,7 +8,7 @@ function fmt(value, digits = 2) {
 export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes }) {
   const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
   const hectares = area?.area_pastejada || area?.tamanho_hectares || 0;
-  const isInfraestrutura = area?.tipo_cultura === 'Infraestrutura';
+  const isCurral = area?.tipo_cultura === 'Infraestrutura' && (area?.tipo_infraestrutura || area?.tipo_pastagem || '').toLowerCase() === 'curral';
   const tipoInfraestrutura = area?.tipo_infraestrutura || area?.tipo_pastagem || '-';
 
   const totalUA = useMemo(() => {
@@ -51,7 +51,7 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
         Informações da Área: {area.nome}
       </Badge>
 
-      {isInfraestrutura ? (
+      {isCurral ? (
         <div className="grid grid-cols-2 gap-1 text-[10px]">
           <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
             <div className="text-slate-500">Tipo de infraestrutura</div>
@@ -99,7 +99,7 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
         </div>
       )}
 
-      {!isInfraestrutura && sistemasUnicos.length > 0 &&
+      {!isCurral && sistemasUnicos.length > 0 &&
       <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[10px] text-slate-500">Sistemas Reprodutivos:</span>
           {sistemasUnicos.map((s) =>

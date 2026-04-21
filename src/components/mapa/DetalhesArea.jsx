@@ -23,7 +23,7 @@ export default function DetalhesArea({ area, onClose }) {
   const [showControle, setShowControle] = useState(false);
   const [editingControle, setEditingControle] = useState(null);
   const queryClient = useQueryClient();
-  const isInfraestrutura = area?.tipo_cultura === 'Infraestrutura';
+  const isCurral = area?.tipo_cultura === 'Infraestrutura' && (area?.tipo_infraestrutura || area?.tipo_pastagem || '').toLowerCase() === 'curral';
 
   // Buscar operações da área
   const { data: operacoes = [] } = useQuery({
@@ -114,7 +114,7 @@ export default function DetalhesArea({ area, onClose }) {
             <span className="text-sm font-bold text-slate-900">{area.nome}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
-            {isInfraestrutura ? (
+            {isCurral ? (
               <>
                 <span>{area.tipo_infraestrutura || area.tipo_pastagem || 'Sem tipo'}</span>
                 <span>•</span>
@@ -143,7 +143,7 @@ export default function DetalhesArea({ area, onClose }) {
       </div>
 
       {/* Resumo Geral */}
-      {isInfraestrutura ? (
+      {isCurral ? (
         <div className="grid grid-cols-2 gap-2">
           <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
             <div className="text-sm font-bold text-slate-700">{area.tipo_infraestrutura || area.tipo_pastagem || '-'}</div>
@@ -285,21 +285,21 @@ export default function DetalhesArea({ area, onClose }) {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue={isInfraestrutura ? 'historico' : 'operacoes'} className="w-full">
-        <TabsList className={`grid w-full ${isInfraestrutura ? 'grid-cols-1' : 'grid-cols-5'}`}>
-          {!isInfraestrutura && (
+      <Tabs defaultValue={isCurral ? 'historico' : 'operacoes'} className="w-full">
+        <TabsList className={`grid w-full ${isCurral ? 'grid-cols-1' : 'grid-cols-5'}`}>
+          {!isCurral && (
             <TabsTrigger value="operacoes" className="text-xs">
               <Tractor className="w-3 h-3 mr-1" />
               Operações
             </TabsTrigger>
           )}
-          {!isInfraestrutura && (
+          {!isCurral && (
             <TabsTrigger value="custos" className="text-xs">
               <Calculator className="w-3 h-3 mr-1" />
               Custos
             </TabsTrigger>
           )}
-          {!isInfraestrutura && (
+          {!isCurral && (
             <TabsTrigger value="lotes" className="text-xs">
               <Package className="w-3 h-3 mr-1" />
               Lotes
@@ -309,7 +309,7 @@ export default function DetalhesArea({ area, onClose }) {
             <ClipboardList className="w-3 h-3 mr-1" />
             Histórico
           </TabsTrigger>
-          {!isInfraestrutura && (
+          {!isCurral && (
             <TabsTrigger value="tarefas" className="text-xs">
               <ClipboardList className="w-3 h-3 mr-1" />
               Tarefas
@@ -404,7 +404,7 @@ export default function DetalhesArea({ area, onClose }) {
           <HistoricoMovimentacoes areaId={area.id} />
         </TabsContent>
 
-        {!isInfraestrutura && (
+        {!isCurral && (
           <TabsContent value="tarefas" className="mt-3">
             <TarefasMapaPanel
               areaId={area.id}
@@ -416,7 +416,7 @@ export default function DetalhesArea({ area, onClose }) {
       </Tabs>
 
       {/* Ações */}
-      {!isInfraestrutura && <div className="grid grid-cols-2 gap-2 pt-2">
+      {!isCurral && <div className="grid grid-cols-2 gap-2 pt-2">
         <Button
           onClick={() => setShowOperacao(true)}
           variant="outline"
