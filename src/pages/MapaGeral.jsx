@@ -295,11 +295,11 @@ export default function MapaGeral() {
   }), [lotes, pontosSuplementacao, eventosSupl, estoqueLotes, produtos]);
 
   const lotesComAlerta = useMemo(() => lotes.map((lote) => {
-    const alertas = showAlertas ? [...(alertasMapa.alertasLote.get(lote.id) || [])] : [];
-    if (showAlertas && lote.peso_medio_kg && lote.peso_medio_kg < 50 && (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12')))
+    const alertas = [...(alertasMapa.alertasLote.get(lote.id) || [])];
+    if (lote.peso_medio_kg && lote.peso_medio_kg < 50 && (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12')))
     alertas.push({ tipo: 'peso_baixo', peso: lote.peso_medio_kg });
     return { ...lote, alertas };
-  }), [lotes, alertasMapa, showAlertas]);
+  }), [lotes, alertasMapa]);
 
   const categorias = useMemo(() => [...new Set(lotes.map((l) => l.categoria).filter(Boolean))].sort(), [lotes]);
   const identificadores = useMemo(() => [...new Set(lotes.map((l) => l.identificador_nome || l.identificador_sigla).filter(Boolean))].sort(), [lotes]);
@@ -340,14 +340,14 @@ export default function MapaGeral() {
     if (filtroCategoria !== 'todas' && lote.categoria !== filtroCategoria) return false;
     const identificadorLote = lote.identificador_nome || lote.identificador_sigla || '';
     if (filtroIdentificador !== 'todos' && identificadorLote !== filtroIdentificador) return false;
-    if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
-    if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
-    if (filtroAlertaTipo !== 'todos' && !lote.alertas.some((alerta) => alerta.tipo === filtroAlertaTipo)) return false;
+    if (showAlertas && filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
+    if (showAlertas && filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
+    if (showAlertas && filtroAlertaTipo !== 'todos' && !lote.alertas.some((alerta) => alerta.tipo === filtroAlertaTipo)) return false;
     if (filtroSistema !== 'todos' && lote.sistema_produtivo !== filtroSistema) return false;
     if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax]);
+  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax, showAlertas]);
 
   const pontosSuplementacaoFiltrados = useMemo(() => {
     if (filtroSetor === 'todos') return pontosSuplementacaoDecorados;
