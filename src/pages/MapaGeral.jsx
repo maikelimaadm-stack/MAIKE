@@ -99,7 +99,7 @@ export default function MapaGeral() {
   const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('mapa_geral_filtros');
+    const saved = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
     if (!saved) return;
     const state = JSON.parse(saved);
     if (typeof state.mapType === 'string') setMapType(state.mapType);
@@ -130,10 +130,10 @@ export default function MapaGeral() {
     setFiltroPesoMin(state.filtroPesoMin ?? null);
     setFiltroPesoMax(state.filtroPesoMax ?? null);
     if (typeof state.modoColoracao === 'string') setModoColoracao(state.modoColoracao);
-  }, []);
+  }, [empresaSelecionadaId]);
 
   useEffect(() => {
-    localStorage.setItem('mapa_geral_filtros', JSON.stringify({
+    localStorage.setItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`, JSON.stringify({
       mapType,
       showAreas,
       showPontos,
@@ -159,7 +159,7 @@ export default function MapaGeral() {
       filtroPesoMax,
       modoColoracao
     }));
-  }, [mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [empresaSelecionadaId, mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
