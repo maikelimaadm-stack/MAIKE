@@ -242,16 +242,19 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           area_destino_nome: mov.area_destino_nome,
           area_destino_id: mov.area_destino_id,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
-          canDelete: (
-            // Transferência: exclusão apenas no histórico da área de destino
-            (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
-            // Outros tipos do histórico
-            (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
-            // Junção de lotes pode ser desfeita
-            mov.motivo === 'Junção de Lotes' ||
-            // Renomear lote pode ser desfeito
-            mov.motivo === 'Renomear Lote'
-          ),
+          canDelete: (() => {
+            const isCurralHistory = !!areaId;
+            if (isCurralHistory) {
+              return mov.tipo === 'Abate' && !mov.motivo && mov.area_origem_id === areaId;
+            }
+
+            return (
+              (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
+              (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
+              mov.motivo === 'Junção de Lotes' ||
+              mov.motivo === 'Renomear Lote'
+            );
+          })(),
           // Flag para indicar que tem pesagens filhas (usada no hasLaterRelatedRecord)
           hasPesagensFilhas: mov.tipo === 'Transferência de Área',
           raw: mov,
@@ -514,13 +517,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
   const getDeleteBlockReason = React.useCallback((entry) => {
     if (!entry?.canDelete) {
+      if (areaId) {
+        return 'No histórico do curral, apenas saídas de abate podem ser excluídas.';
+      }
       return 'Este registro só pode ser consultado no histórico.';
     }
     if (hasLaterRelatedRecord(entry)) {
       return 'Exclusão bloqueada porque existem registros posteriores vinculados a este lote. Exclua primeiro os lançamentos mais recentes na origem, no destino ou os manejos posteriores do saldo remanescente.';
     }
     return '';
-  }, [hasLaterRelatedRecord]);
+  }, [hasLaterRelatedRecord, areaId]);
 
   const historicoVisivel = React.useMemo(
     () => historico.filter((item) => !(item.source === 'movimentacao' && hiddenMovementIds.includes(item.id))),
