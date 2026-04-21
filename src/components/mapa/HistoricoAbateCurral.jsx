@@ -1,8 +1,10 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 
 function formatDateOnly(value) {
   const raw = String(value || "");
@@ -15,6 +17,35 @@ function formatDateOnly(value) {
 
 export default function HistoricoAbateCurral({ areaId }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (item) => {
+      const mov = await base44.entities.MovimentacaoMapa.list("-data_movimentacao");
+      const registro = mov.find((m) => m.id === item.id);
+      if (!registro) return;
+
+      if (registro.lote_id) {
+        const lotes = await base44.entities.Lote.list();
+        const lote = lotes.find((l) => l.id === registro.lote_id);
+        if (lote) {
+          await base44.entities.Lote.update(lote.id, {
+            quantidade_cabecas: (lote.quantidade_cabecas || 0) + (registro.quantidade_animais || 0),
+            status: "Ativo"
+          });
+        }
+      }
+
+      await base44.entities.MovimentacaoMapa.delete(item.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["historico-abate-curral"] });
+      queryClient.invalidateQueries({ queryKey: ["mapa-lotes"] });
+      queryClient.invalidateQueries({ queryKey: ["lotes"] });
+      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
+      toast.success("Abate excluído");
+    },
+  });
 
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["historico-abate-curral", areaId, empresaSelecionadaId],
@@ -89,6 +120,21 @@ export default function HistoricoAbateCurral({ areaId }) {
                     {!!item.destino && <div><strong>Destino:</strong> {item.destino}</div>}
                     {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
                   </div>
+                </div>
+                <div className="shrink-0">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 text-xs"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => {
+                      if (!confirm('Excluir este abate?')) return;
+                      deleteMutation.mutate(item);
+                    }}
+                  >
+                    Excluir
+                  </Button>
                 </div>
               </div>
             </div>
