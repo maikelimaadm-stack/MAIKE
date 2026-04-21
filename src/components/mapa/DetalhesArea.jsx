@@ -26,54 +26,54 @@ export default function DetalhesArea({ area }) {
 
   return (
     <div className="space-y-1" translate="no">
-      <div className="flex items-start justify-between pb-2 border-b hidden">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <MapPin className="w-4 h-4 text-emerald-600" />
-            <span className="text-sm font-bold text-slate-900">{area.nome}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
-            <span>{area.tipo_infraestrutura || area.tipo_pastagem || 'Sem tipo'}</span>
-            <span>•</span>
-            <span>{area.tipo_cultura || 'Sem tipo'}</span>
-          </div>
-        </div>
-        <Badge variant="outline" className="text-[10px] border-slate-300 bg-white text-slate-700">
-          {totalCabecas.toLocaleString('pt-BR')} cabeças
-        </Badge>
-      </div>
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
 
       <Card className="border-slate-200 bg-slate-50">
-        <CardContent className="p-3 hidden">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
-            <div className="rounded-lg border border-slate-200 bg-white p-2">
-              <div className="text-slate-500">Nome</div>
-              <div className="font-semibold text-slate-900">{area.nome || '-'}</div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-2">
-              <div className="text-slate-500">Tipo de infraestrutura</div>
-              <div className="font-semibold text-slate-900">{area.tipo_infraestrutura || area.tipo_pastagem || '-'}</div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-2">
-              <div className="text-slate-500">Setor</div>
-              <div className="font-semibold text-slate-900">{area.setor_nome || '-'}</div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-2 sm:col-span-3">
-              <div className="text-slate-500">Observações</div>
-              <div className="font-semibold text-slate-900">{area.observacoes || '-'}</div>
-            </div>
-          </div>
-        </CardContent>
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
       </Card>
 
       {/* Tabs */}
       <Tabs defaultValue="historico" className="w-full">
-        <TabsList className="h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground grid w-full grid-cols-1 hidden">
-          <TabsTrigger value="historico" className="text-xs">
-            <ClipboardList className="w-3 h-3 mr-1" />
-            Histórico
-          </TabsTrigger>
-        </TabsList>
+        
+
+
+
+
+        
 
         <TabsContent value="historico" className="mt-3">
           <HistoricoMovimentacoes lotes={lotes} areaId={area.id} />
