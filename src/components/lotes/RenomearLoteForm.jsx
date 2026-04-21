@@ -21,6 +21,7 @@ const FL = ({ label, required, children }) => (
 
 export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, empresaSelecionadaId, areas, onClose, onCancel }) {
   const [loading, setLoading] = useState(false);
+  const [dataRenomeacao, setDataRenomeacao] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Buscar movimentações de renomear deste lote para permitir reverter
   const { data: renomeacoes = [] } = useQuery({
@@ -45,7 +46,7 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
   })();
 
   const handleSalvar = async () => {
-    if (!novoNome.trim()) return;
+    if (!novoNome.trim() || !dataRenomeacao) return;
     setLoading(true);
     const nomeAnterior = lote.nome;
     await base44.entities.Lote.update(lote.id, { nome: novoNome.trim() });
@@ -54,7 +55,7 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
     const areaRen = areas.find(a => a.id === areaAtualId);
     await base44.entities.MovimentacaoMapa.create({
       empresa_id: empresaSelecionadaId,
-      data_movimentacao: new Date().toISOString(),
+      data_movimentacao: `${dataRenomeacao}T12:00:00.000Z`,
       tipo: 'Entrada',
       motivo: 'Renomear Lote',
       lote: novoNome.trim(),
@@ -112,6 +113,9 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
 
       <FL label="Novo nome">
         <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+      </FL>
+      <FL label="Data" required>
+        <Input type="date" value={dataRenomeacao} onChange={e => setDataRenomeacao(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
       </FL>
       <div className="flex justify-end gap-1">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={loading}>Cancelar</Button>

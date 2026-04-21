@@ -58,6 +58,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [showJuntarLotes, setShowJuntarLotes] = useState(false);
   const [lotePrincipalJuncao, setLotePrincipalJuncao] = useState(null);
   const [categoriaSelecionadaJuncao, setCategoriaSelecionadaJuncao] = useState(null);
+  const [dataJuncao, setDataJuncao] = useState(() => new Date().toISOString().split('T')[0]);
   const [areaDestinoPreSelecionada, setAreaDestinoPreSelecionada] = useState(null);
   const queryClient = useQueryClient();
   const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me(), staleTime: 10 * 60 * 1000 });
@@ -917,13 +918,17 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                       </div>
                       )}
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase">Data</Label>
+                    <Input type="date" value={dataJuncao} onChange={(e) => setDataJuncao(e.target.value)} className="h-8 text-xs" />
+                  </div>
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLotePrincipalJuncao(null)}>Voltar</Button>
                     <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
                         await validarOrdemTemporalLotes({
                           empresaId: empresaSelecionadaId,
                           lotes: lotesParaJuntar,
-                          dataReferencia: new Date().toISOString()
+                          dataReferencia: dataJuncao
                         });
 
                         const principal = lotePrincipalJuncao;
@@ -948,7 +953,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                         const areaJuncao = areas.find((a) => a.id === areaAtualId);
                         await base44.entities.MovimentacaoMapa.create({
                           empresa_id: empresaSelecionadaId,
-                          data_movimentacao: new Date().toISOString(),
+                          data_movimentacao: toNoonUtcISOString(dataJuncao),
                           tipo: 'Entrada', motivo: 'Junção de Lotes',
                           lote: principal.nome, lote_id: principal.id,
                           quantidade_animais: totalCab,
