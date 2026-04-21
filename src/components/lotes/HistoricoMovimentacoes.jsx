@@ -55,6 +55,35 @@ const parseCategoriaTransferenciaFromObs = (observacoes) => {
   const match = String(observacoes || '').match(/Movimentação parcial\s*-\s*\d+\s*cabeças\s+de\s+(.+)$/i);
   return match ? match[1].trim() : null;
 };
+
+const getHistoricoRelatedKeys = (entry) => {
+  const keys = new Set();
+  const addKey = (value) => {
+    const normalized = normalize(value);
+    if (normalized) keys.add(normalized);
+  };
+
+  addKey(entry?.lote_key);
+  addKey(entry?.lote);
+  addKey(entry?.raw?.lote);
+
+  const observacoes = String(entry?.observacoes || entry?.raw?.observacoes || '');
+
+  if (entry?.raw?.motivo === 'Junção de Lotes') {
+    const snapshot = getJuncaoLotesSnapshot(observacoes) || [];
+    snapshot.forEach((lote) => addKey(lote?.nome));
+  }
+
+  if (entry?.raw?.motivo === 'Renomear Lote') {
+    const renameMatch = observacoes.match(/Renomear Lote:\s*"(.+?)"\s*→\s*"(.+?)"/i);
+    if (renameMatch) {
+      addKey(renameMatch[1]);
+      addKey(renameMatch[2]);
+    }
+  }
+
+  return keys;
+};
 const formatDateOnly = (value) => {
   const raw = String(value || '');
   if (!raw) return '-';
@@ -355,7 +384,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const hasLaterRelatedRecord = React.useCallback((entry) => {
     const loteAtual = entry?.lote_key || normalize(entry?.lote);
     const loteNomeNorm = normalize(entry?.lote);
-    const dataAtual = getTime(entry?.data_evento);
+    const relatedKeys = getHistoricoRelatedKeys(entry);
+    const matchesRelatedKey = (value) => relatedKeys.has(normalize(value));
     const createdAtual = getTime(entry?.created_at);
     const isTransferencia = entry?.tipo === 'Transferência de Área';
 
@@ -384,7 +414,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (!movNaAreaDestino) return false;
 
         // Match por nome OU por lote_id de lotes na área destino
-        const mesmoNome = normalize(mov.lote) === loteNomeNorm;
+        const mesmoNome = normalize(mov.lote) === loteNomeNorm || matchesRelatedKey(mov.lote);
         const loteIdRelacionado = !!mov.lote_id && idsLotesDestinoEstaTransf.has(mov.lote_id);
         
         if (!mesmoNome && !loteIdRelacionado) return false;
@@ -410,7 +440,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const movNaAreaOrigem = mov.area_origem_id === areaOrigemId || mov.area_destino_id === areaOrigemId;
         if (!movNaAreaOrigem) return false;
 
-        const mesmoNome = normalize(mov.lote) === loteNomeNorm;
+        const mesmoNome = normalize(mov.lote) === loteNomeNorm || matchesRelatedKey(mov.lote);
         const loteIdRelacionado = !!mov.lote_id && idsLotesOrigemEstaTransf.has(mov.lote_id);
         if (!mesmoNome && !loteIdRelacionado) return false;
 
@@ -431,7 +461,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (item.uniqueId === entry.uniqueId) return false;
         const isRegistroBloqueador = item.source === 'movimentacao' || item.source === 'suplementacao';
         if (!isRegistroBloqueador) return false;
-        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
+        const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key);
         if (!sameLote) return false;
 
         const createdItem = getTime(item.created_at);
@@ -447,7 +477,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     return historico.some((item) => {
       if (item.uniqueId === entry.uniqueId) return false;
 
-      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm;
+      const sameLote = (item.lote_key || normalize(item.lote)) === loteAtual || normalize(item.lote) === loteNomeNorm || matchesRelatedKey(item.lote) || matchesRelatedKey(item.lote_key);
       const childLinked = (item.linked_movement_ids || []).includes(entry.id);
       if (!sameLote && !childLinked) return false;
 
