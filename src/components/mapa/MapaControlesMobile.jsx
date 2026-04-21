@@ -1,17 +1,16 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { X, Filter, Target, RefreshCw, ClipboardList, Move, Container } from "lucide-react";
+import { X, Filter, Target, RefreshCw, ClipboardList, Move } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function MapaControlesMobile({
   mapType, setMapType,
   onRefresh, onLocate, onToggleDrag,
   dragEnabled = false,
-  onOpenTarefas, onOpenInsights, onOpenFiltros, onOpenSuplementacaoLote,
+  onOpenTarefas, onOpenInsights, onOpenFiltros,
   showTarefasButton = true,
   showInsightsButton = true,
-  showFiltrosButton = true,
-  showSuplementacaoLoteButton = true
+  showFiltrosButton = true
 }) {
   const navigate = useNavigate();
 
@@ -27,16 +26,15 @@ export default function MapaControlesMobile({
           
           <X className="w-5 h-5 text-slate-700" />
         </Button>
-        {showSuplementacaoLoteButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenSuplementacaoLote} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Suplementação em lote">
-            <Container className="w-5 h-5 text-slate-700" />
-          </Button>
-        }
         {showTarefasButton &&
         <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Tarefas">
             <ClipboardList className="w-5 h-5 text-slate-700" />
           </Button>
         }
+        
+
+
+
         
         {showFiltrosButton &&
         <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="h-10 w-10 rounded-full bg-white/95 shadow-md" title="Filtros">

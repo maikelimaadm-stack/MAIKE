@@ -120,16 +120,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     staleTime: 60 * 1000
   });
 
-  const { data: pontos = [] } = useQuery({
-    queryKey: ["pontos-suplementacao-detalhe", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-    staleTime: 5 * 60 * 1000
-  });
-
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
     queryKey: ["mapa-areas", empresaSelecionadaId],
     queryFn: async () => {
@@ -229,12 +219,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
-
-  const pontosMesmoTipo = useMemo(() => {
-    return pontos
-      .filter((item) => normalizeText(item.categoria_ponto) !== "DEPOSITO" && item.status === "Ativo")
-      .sort((a, b) => (a.nome_ponto || "").localeCompare(b.nome_ponto || ""));
-  }, [pontos]);
 
   if (isDeposito) {
     return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;

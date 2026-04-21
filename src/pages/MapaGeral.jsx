@@ -31,7 +31,6 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
-import FormularioLancamentoSuplementacaoLote from "../components/suplementacao/FormularioLancamentoSuplementacaoLote";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 let _gmapsPromise = null;
@@ -96,7 +95,6 @@ export default function MapaGeral() {
   const [rascunhoTarefa, setRascunhoTarefa] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
-  const [showLancamentoSuplementacaoLote, setShowLancamentoSuplementacaoLote] = useState(false);
   const [showTaskIcons, setShowTaskIcons] = useState(true);
   const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
 
@@ -896,11 +894,9 @@ export default function MapaGeral() {
           showTarefasButton={podeUsarTarefasMapa}
           showInsightsButton={mapaGeralPermissions.visualizar_insights}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
-          showSuplementacaoLoteButton={mapaGeralPermissions.visualizar_detalhes_cochos}
           onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
           onOpenInsights={() => {if (!mapaGeralPermissions.visualizar_insights) return;setShowInsights(true);}}
-          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
-          onOpenSuplementacaoLote={() => {if (!mapaGeralPermissions.visualizar_detalhes_cochos) return;setShowLancamentoSuplementacaoLote(true);}} />
+          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}} />
 
 
         {/* Legenda */}
@@ -1034,19 +1030,6 @@ export default function MapaGeral() {
           <MapaInsights lotes={lotesFiltrados} areas={areasFiltradas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
         </DialogContent>
       </Dialog>
-
-      {showLancamentoSuplementacaoLote && (
-        <FormularioLancamentoSuplementacaoLote
-          pontos={cochosFiltrados}
-          onCancel={() => setShowLancamentoSuplementacaoLote(false)}
-          onSaved={() => {
-            setShowLancamentoSuplementacaoLote(false);
-            refetchEventosSupl();
-            refetchLotes();
-            refetchPontosSupl();
-          }}
-        />
-      )}
     </div>);
 
 }
