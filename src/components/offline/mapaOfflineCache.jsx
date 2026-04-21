@@ -97,11 +97,13 @@ export async function updateMapaCachedData(cacheKey, empresaId, updater) {
 }
 
 export async function warmMapaCache(empresaId) {
-  for (const cacheKey of CACHE_KEYS) {
-    try {
-      await refreshMapaCacheEntry(cacheKey, cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaId);
-    } catch (e) {
-      console.error(`Erro ao carregar cache para ${cacheKey}:`, e);
-    }
-  }
+  await Promise.all(
+    CACHE_KEYS.map(async (cacheKey) => {
+      try {
+        await refreshMapaCacheEntry(cacheKey, cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaId);
+      } catch (e) {
+        console.error(`Erro ao carregar cache para ${cacheKey}:`, e);
+      }
+    })
+  );
 }

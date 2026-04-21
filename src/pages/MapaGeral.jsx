@@ -234,6 +234,9 @@ export default function MapaGeral() {
 
       if (navigator.onLine) {
         if (cached?.length) {
+          refreshMapaCacheEntry(cacheKey, cacheEmpresa).then((fresh) => {
+            queryClient.setQueryData(['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'], fresh || []);
+          }).catch(() => {});
           return cached;
         }
         return await refreshMapaCacheEntry(cacheKey, cacheEmpresa);
@@ -857,8 +860,12 @@ export default function MapaGeral() {
 
   useEffect(() => {
     if (!empresaSelecionadaId) return;
-    executarRefreshMapa(false);
-  }, [empresaSelecionadaId, executarRefreshMapa]);
+    const hasAreasCache = !!queryClient.getQueryData(['mapa-cache', 'areas', empresaSelecionadaId, 'default']);
+    const hasLotesCache = !!queryClient.getQueryData(['mapa-cache', 'lotes', empresaSelecionadaId, 'default']);
+    if (!hasAreasCache && !hasLotesCache) {
+      executarRefreshMapa(false);
+    }
+  }, [empresaSelecionadaId, executarRefreshMapa, queryClient]);
 
   useEffect(() => {
     if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
