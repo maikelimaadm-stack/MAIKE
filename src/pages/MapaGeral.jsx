@@ -54,7 +54,7 @@ export default function MapaGeral() {
   const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
-  const [mapType, setMapType] = useState('roadmap');
+  const [mapType, setMapType] = useState('satellite');
   const [showAreas, setShowAreas] = useState(true);
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
@@ -482,7 +482,7 @@ export default function MapaGeral() {
       if (!mapRef.current || mapInstanceRef.current) return;
       const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const savedFiltros = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
-      let initialMapType = 'roadmap';
+      let initialMapType = 'satellite';
       if (savedFiltros) {
         try {
           const parsed = JSON.parse(savedFiltros);
