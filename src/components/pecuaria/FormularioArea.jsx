@@ -91,13 +91,13 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
         </CardHeader>
         <CardContent className="p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Nome da Área/Piquete *</Label>
+                <Label className="text-xs uppercase">Nome da Área / Infraestrutura *</Label>
                 <Input
                   value={formData.nome}
                   onChange={(e) => handleChange('nome', e.target.value)}
-                  placeholder="PIQUETE 01"
+                  placeholder={formData.tipo_cultura === 'Infraestrutura' ? 'CURRAL CENTRAL' : 'PIQUETE 01'}
                   required
                   className="h-8 text-xs uppercase"
                   style={{ textTransform: 'uppercase' }}
@@ -105,9 +105,19 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Tipo de Uso *</Label>
-                <Select value={formData.tipo_cultura || 'Pastagem'} onValueChange={(value) => setFormData({ ...formData, tipo_cultura: value, tipo_infraestrutura: '', tamanho_hectares: value === 'Infraestrutura' ? '' : formData.tamanho_hectares, capacidade_maxima: value === 'Infraestrutura' ? '' : formData.capacidade_maxima, tipo_pastagem: value === 'Infraestrutura' ? '' : formData.tipo_pastagem })}>
-                  <SelectTrigger className="h-8 text-xs">
+                <Label className="text-xs uppercase">Tipo de Uso *</Label>
+                <Select
+                  value={formData.tipo_cultura || 'Pastagem'}
+                  onValueChange={(value) => setFormData({
+                    ...formData,
+                    tipo_cultura: value,
+                    tipo_infraestrutura: value === 'Infraestrutura' ? formData.tipo_infraestrutura : '',
+                    tamanho_hectares: value === 'Infraestrutura' ? '' : formData.tamanho_hectares,
+                    capacidade_maxima: value === 'Infraestrutura' ? '' : formData.capacidade_maxima,
+                    tipo_pastagem: value === 'Infraestrutura' ? '' : formData.tipo_pastagem
+                  })}
+                >
+                  <SelectTrigger className="h-8 text-xs uppercase">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -120,83 +130,85 @@ export default function FormularioArea({ onSubmit, onCancel, initialData, isEdit
                 </Select>
               </div>
 
-              {formData.tipo_cultura !== 'Infraestrutura' && <div className="space-y-1">
-                <Label className="text-xs">Tamanho (hectares) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.tamanho_hectares}
-                  onChange={(e) => handleChange('tamanho_hectares', e.target.value)}
-                  placeholder="0.00"
-                  required
-                  className="h-8 text-xs"
-                />
-              </div>}
-
-              {formData.tipo_cultura !== 'Infraestrutura' && <div className="space-y-1">
-                <Label className="text-xs">Capacidade Máxima (UA)</Label>
-                <Input
-                  type="number"
-                  value={formData.capacidade_maxima}
-                  onChange={(e) => handleChange('capacidade_maxima', e.target.value)}
-                  placeholder="0"
-                  className="h-8 text-xs"
-                />
-              </div>}
-              </div>
-
               <div className="space-y-1">
-              <Label className="text-xs">Setor *</Label>
-              <Select
-                value={formData.setor_id || "__none__"}
-                onValueChange={(value) => {
-                  const setor = setores.find((item) => item.id === value);
-                  setFormData({ ...formData, setor_id: value === "__none__" ? "" : value, setor_nome: setor?.nome || "" });
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione o setor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Selecione</SelectItem>
-                  {setores.map((setor) => <SelectItem key={setor.id} value={setor.id}>{setor.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              </div>
-
-            {formData.tipo_cultura === 'Infraestrutura' ? (
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo de Infraestrutura *</Label>
-                <Select value={formData.tipo_infraestrutura || '__none__'} onValueChange={(value) => handleChange('tipo_infraestrutura', value === '__none__' ? '' : value)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione o tipo" />
+                <Label className="text-xs uppercase">Setor *</Label>
+                <Select
+                  value={formData.setor_id || '__none__'}
+                  onValueChange={(value) => {
+                    const setor = setores.find((item) => item.id === value);
+                    setFormData({ ...formData, setor_id: value === '__none__' ? '' : value, setor_nome: setor?.nome || '' });
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs uppercase">
+                    <SelectValue placeholder="Selecione o setor" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Selecione</SelectItem>
-                    <SelectItem value="Curral">Curral</SelectItem>
-                    <SelectItem value="Oficina">Oficina</SelectItem>
-                    <SelectItem value="Casa">Casa</SelectItem>
-                    <SelectItem value="Barracão">Barracão</SelectItem>
-                    <SelectItem value="Galpão">Galpão</SelectItem>
-                    <SelectItem value="Depósito">Depósito</SelectItem>
-                    <SelectItem value="Embarcador">Embarcador</SelectItem>
-                    <SelectItem value="Brete">Brete</SelectItem>
-                    <SelectItem value="Outro">Outro</SelectItem>
+                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id}>{setor.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo de Pastagem</Label>
-                <Input
-                  value={formData.tipo_pastagem}
-                  onChange={(e) => handleChange('tipo_pastagem', e.target.value)}
-                  placeholder="BRACHIARIA, TIFTON, ETC"
-                  className="h-8 text-xs uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-            )}
+
+              {formData.tipo_cultura === 'Infraestrutura' ? (
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs uppercase">Tipo de Infraestrutura *</Label>
+                  <Select value={formData.tipo_infraestrutura || '__none__'} onValueChange={(value) => handleChange('tipo_infraestrutura', value === '__none__' ? '' : value)}>
+                    <SelectTrigger className="h-8 text-xs uppercase">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Selecione</SelectItem>
+                      <SelectItem value="Curral">Curral</SelectItem>
+                      <SelectItem value="Oficina">Oficina</SelectItem>
+                      <SelectItem value="Casa">Casa</SelectItem>
+                      <SelectItem value="Barracão">Barracão</SelectItem>
+                      <SelectItem value="Galpão">Galpão</SelectItem>
+                      <SelectItem value="Depósito">Depósito</SelectItem>
+                      <SelectItem value="Embarcador">Embarcador</SelectItem>
+                      <SelectItem value="Brete">Brete</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase">Tamanho (hectares) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.tamanho_hectares}
+                      onChange={(e) => handleChange('tamanho_hectares', e.target.value)}
+                      placeholder="0.00"
+                      required
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase">Capacidade Máxima (UA)</Label>
+                    <Input
+                      type="number"
+                      value={formData.capacidade_maxima}
+                      onChange={(e) => handleChange('capacidade_maxima', e.target.value)}
+                      placeholder="0"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase">Tipo de Pastagem</Label>
+                    <Input
+                      value={formData.tipo_pastagem}
+                      onChange={(e) => handleChange('tipo_pastagem', e.target.value)}
+                      placeholder="BRACHIARIA, TIFTON, ETC"
+                      className="h-8 text-xs uppercase"
+                      style={{ textTransform: 'uppercase' }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="space-y-1">
               <Label className="text-xs">Observações</Label>

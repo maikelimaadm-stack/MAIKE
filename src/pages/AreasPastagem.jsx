@@ -158,18 +158,19 @@ export default function AreasPastagem() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Nº', 'Nome', 'Tamanho (ha)', 'Capacidade', 'Atual', 'Status', 'Tipo Pastagem'];
+    const headers = ['Nº', 'Nome', 'Tipo', 'Tamanho (ha)', 'Capacidade', 'Atual', 'Status', 'Detalhe'];
     csvRows.push(headers.join(';'));
 
     areas.forEach(a => {
       const row = [
         a.numero_area,
         a.nome,
-        a.tamanho_hectares,
-        a.capacidade_maxima,
+        a.tipo_cultura || 'Pastagem',
+        a.tipo_cultura === 'Infraestrutura' ? '' : a.tamanho_hectares,
+        a.tipo_cultura === 'Infraestrutura' ? '' : a.capacidade_maxima,
         a.quantidade_atual || 0,
-        a.status_ocupacao,
-        a.tipo_pastagem || ''
+        a.tipo_cultura === 'Infraestrutura' ? 'Infraestrutura' : a.status_ocupacao,
+        a.tipo_cultura === 'Infraestrutura' ? (a.tipo_infraestrutura || '') : (a.tipo_pastagem || '')
       ];
       csvRows.push(row.join(';'));
     });
@@ -189,8 +190,8 @@ export default function AreasPastagem() {
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Áreas e Pastagens</h1>
-              <p className="text-xs text-slate-600">Gerenciar piquetes e áreas de pastejo</p>
+              <h1 className="text-xl font-bold text-slate-900">Áreas e Infraestruturas</h1>
+              <p className="text-xs text-slate-600">Gerenciar piquetes, pastagens e estruturas da fazenda</p>
             </div>
             <div className="flex gap-2">
               <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">

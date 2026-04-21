@@ -22,6 +22,7 @@ export default function TabelaAreas({ areas = [], gado = [], onEdit, onDelete, i
     return (
       area.nome?.toLowerCase().includes(searchLower) ||
       area.tipo_pastagem?.toLowerCase().includes(searchLower) ||
+        area.tipo_infraestrutura?.toLowerCase().includes(searchLower) ||
       area.numero_area?.includes(searchLower)
     );
   });
