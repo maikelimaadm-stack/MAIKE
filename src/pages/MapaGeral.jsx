@@ -104,7 +104,7 @@ export default function MapaGeral() {
     const saved = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
     if (!saved) return;
     const state = JSON.parse(saved);
-    if (typeof state.mapType === 'string') setMapType(state.mapType);
+    setMapType('satellite');
     if (typeof state.showAreas === 'boolean') setShowAreas(state.showAreas);
     if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
     if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
@@ -484,14 +484,7 @@ export default function MapaGeral() {
     loadGoogleMapsScript().then(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
       const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const savedFiltros = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
-      let initialMapType = 'satellite';
-      if (savedFiltros) {
-        try {
-          const parsed = JSON.parse(savedFiltros);
-          if (typeof parsed?.mapType === 'string') initialMapType = parsed.mapType;
-        } catch {}
-      }
+      const initialMapType = 'satellite';
 
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 }, zoom: 15, mapTypeId: initialMapType,
