@@ -1030,7 +1030,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   toast.success('Desenho reiniciado', { duration: 1000 });
                 }}>
                 
-                    <RefreshCw className="lucide lucide-refresh-cw w-3.5 h-3.5 mr-1.5 hidden" /> Reiniciar
+                     Reiniciar
                   </Button>
               }
 
@@ -1048,7 +1048,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 }}
                 disabled={undoStackRef.current.length === 0}>
                 
-                  <RotateCcw className="lucide lucide-rotate-ccw w-3.5 h-3.5 mr-1.5 hidden" /> Desfazer
+                   Desfazer
                 </Button>
 
                 <Button
