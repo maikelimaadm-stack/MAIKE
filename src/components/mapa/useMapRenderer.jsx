@@ -43,38 +43,19 @@ const setOverlayBlink = (overlay, shouldBlink) => {
   });
 };
 
-const getZoomAdjustedBaseSize = (map, baseSize) => {
-  const zoom = map?.getZoom?.() ?? 15;
-  if (zoom >= 21) return Math.round(baseSize * 0.22);
-  if (zoom >= 20) return Math.round(baseSize * 0.28);
-  if (zoom >= 19) return Math.round(baseSize * 0.36);
-  if (zoom >= 18) return Math.round(baseSize * 0.48);
-  if (zoom >= 17) return Math.round(baseSize * 0.62);
-  if (zoom >= 16) return Math.round(baseSize * 0.78);
-  if (zoom >= 15) return baseSize;
-  if (zoom >= 14) return Math.round(baseSize * 1.12);
-  return Math.round(baseSize * 1.24);
-};
-
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
-
-  const map = marker.getMap?.();
-  marker._iconUrl = iconUrl;
-  marker._iconBaseSize = baseSize;
-  marker._iconWithLabel = withLabel;
-  const adjustedBaseSize = Math.max(12, getZoomAdjustedBaseSize(map, baseSize));
 
   const applyIcon = ({ width, height }) => {
     marker.setIcon({
       url: iconUrl,
       scaledSize: new google.maps.Size(width, height),
       anchor: new google.maps.Point(width / 2, height / 2),
-      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(8, height * 0.34)) } : {})
+      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(9, height * 0.34)) } : {})
     });
   };
 
-  const cacheKey = `${iconUrl}_${adjustedBaseSize}_${withLabel ? 1 : 0}`;
+  const cacheKey = `${iconUrl}_${baseSize}_${withLabel ? 1 : 0}`;
   const cached = iconSizeCache.get(cacheKey);
   if (cached) {
     applyIcon(cached);
@@ -83,12 +64,11 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, wi
 
   const image = new Image();
   image.onload = () => {
-    const widthRatio = image.naturalWidth || adjustedBaseSize;
-    const heightRatio = image.naturalHeight || adjustedBaseSize;
+    const widthRatio = image.naturalWidth || baseSize;
+    const heightRatio = image.naturalHeight || baseSize;
     const ratio = widthRatio / heightRatio;
-    const minSize = Math.max(14, Math.round(adjustedBaseSize * 0.45));
-    const width = ratio >= 1 ? adjustedBaseSize : Math.max(minSize, Math.round(adjustedBaseSize * ratio));
-    const height = ratio >= 1 ? Math.max(minSize, Math.round(adjustedBaseSize / ratio)) : adjustedBaseSize;
+    const width = ratio >= 1 ? baseSize : Math.max(20, Math.round(baseSize * ratio));
+    const height = ratio >= 1 ? Math.max(20, Math.round(baseSize / ratio)) : baseSize;
     const size = { width, height };
     iconSizeCache.set(cacheKey, size);
     applyIcon(size);
@@ -128,15 +108,6 @@ export default function useMapRenderer(mapInstanceRef) {
     lotesIndicatorsRef.current.clear();
     if (userMarkerRef.current) { userMarkerRef.current.setMap(null); userMarkerRef.current = null; }
     if (userCircleRef.current) { userCircleRef.current.setMap(null); userCircleRef.current = null; }
-  }, []);
-
-  const refreshMarkerIconSizes = useCallback(() => {
-    markersRef.current.forEach((marker) => {
-      const iconUrl = marker?._iconUrl;
-      const baseSize = marker?._iconBaseSize;
-      if (!iconUrl || !baseSize) return;
-      applyMarkerIconPreservingAspectRatio(marker, iconUrl, baseSize, Boolean(marker?._iconWithLabel));
-    });
   }, []);
 
   // ─── Áreas (Polígonos) com coloração dinâmica ───
@@ -685,7 +656,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, refreshMarkerIconSizes, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation };
+  return { clearAll, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation };
 }
 
 function calcCentroid(paths) {

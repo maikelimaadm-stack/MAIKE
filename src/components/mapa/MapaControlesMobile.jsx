@@ -44,40 +44,37 @@ export default function MapaControlesMobile({
       </div>
 
       {/* Top-right: mapa/satélite + ações */}
-      <div className="absolute top-0.5 right-1 z-20 flex flex-col items-end gap-1">
-        <div className="bg-slate-700 p-1 rounded-lg flex gap-1 shadow-md pointer-events-auto">
+      <div className="absolute top-0.5 right-1 z-20 flex items-start gap-1">
+        <div className="bg-slate-700 p-1 rounded-lg flex gap-1 shadow-md">
           <Button
-            type="button"
             variant="ghost"
             size="sm"
             onClick={() => setMapType('roadmap')}
-            className={`h-7 px-3 text-xs rounded-md border shadow-sm pointer-events-auto ${mapType === 'roadmap' ? 'bg-black text-white border-black hover:bg-black' : 'bg-white text-black border-slate-300 hover:bg-slate-100'}`}>
+            className={`h-7 px-3 text-xs rounded-md border shadow-sm ${mapType === 'roadmap' ? 'bg-black text-white border-black hover:bg-black' : 'bg-white text-black border-slate-300 hover:bg-slate-100'}`}>
             Mapa
           </Button>
           <Button
-            type="button"
             variant="ghost"
             size="sm"
             onClick={() => setMapType('satellite')}
-            className={`h-7 px-3 text-xs rounded-md border shadow-sm pointer-events-auto ${mapType === 'satellite' ? 'bg-black text-white border-black hover:bg-black' : 'bg-white text-black border-slate-300 hover:bg-slate-100'}`}>
+            className={`h-7 px-3 text-xs rounded-md border shadow-sm ${mapType === 'satellite' ? 'bg-black text-white border-black hover:bg-black' : 'bg-white text-black border-slate-300 hover:bg-slate-100'}`}>
             Satélite
           </Button>
         </div>
-        <div className="bg-slate-700 p-1 rounded-lg flex flex-col gap-1 shadow-md pointer-events-auto">
-          <Button type="button" variant="secondary" size="icon" onClick={onRefresh} className="bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-9 w-9 rounded-full shadow-md pointer-events-auto">
-            <RefreshCw className="w-4 h-4" />
+        <div className="bg-slate-700 p-1 rounded-lg flex flex-col gap-1 shadow-md">
+          <Button variant="secondary" size="icon" onClick={onRefresh} className="bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 shadow-md">
+            <RefreshCw className="w-3.5 h-3.5" />
           </Button>
-          <Button type="button" variant="secondary" size="icon" onClick={onLocate} className="bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-9 w-9 rounded-full shadow-md pointer-events-auto">
-            <Target className="w-4 h-4" />
+          <Button variant="secondary" size="icon" onClick={onLocate} className="bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 shadow-md">
+            <Target className="w-3.5 h-3.5" />
           </Button>
           <Button
-            type="button"
             variant="secondary"
             size="icon"
             onClick={onToggleDrag}
-            className={`h-9 w-9 rounded-full shadow-md pointer-events-auto ${dragEnabled ? 'bg-black text-white hover:bg-black' : 'bg-neutral-50 hover:bg-neutral-100 text-slate-700'}`}
+            className={`h-7 w-7 shadow-md ${dragEnabled ? 'bg-black text-white hover:bg-black' : 'bg-neutral-50 hover:bg-neutral-100 text-slate-700'}`}
             title="Ativar arrasto">
-            <Move className="w-4 h-4" />
+            <Move className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
