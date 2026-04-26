@@ -97,6 +97,7 @@ export default function MapaGeral() {
   const [showFiltros, setShowFiltros] = useState(false);
   const [showTaskIcons, setShowTaskIcons] = useState(true);
   const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -509,6 +510,24 @@ export default function MapaGeral() {
   useEffect(() => {if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType);}, [mapType]);
 
   useEffect(() => {
+    const updateViewportHeight = () => setViewportHeight(window.innerHeight);
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+    window.addEventListener('orientationchange', updateViewportHeight);
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      window.removeEventListener('orientationchange', updateViewportHeight);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady || !window.google?.maps) return;
+    window.setTimeout(() => {
+      google.maps.event.trigger(mapInstanceRef.current, 'resize');
+    }, 50);
+  }, [viewportHeight, mapReady]);
+
+  useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
     const persistView = () => {
@@ -892,9 +911,9 @@ export default function MapaGeral() {
   const totalAlertas = lotesFiltrados.filter((l) => l.alertas.length > 0).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white" translate="no">
-      <div className="w-full h-full relative">
-        <div ref={mapRef} style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'pan-x pan-y', WebkitOverflowScrolling: 'touch' }} />
+    <div className="fixed inset-0 z-50 bg-white overflow-hidden" translate="no" style={{ height: `${viewportHeight}px` }}>
+      <div className="w-full relative overflow-hidden" style={{ height: `${viewportHeight}px` }}>
+        <div ref={mapRef} style={{ height: `${viewportHeight}px`, width: '100%', backgroundColor: '#e5e7eb', touchAction: 'pan-x pan-y', WebkitOverflowScrolling: 'touch' }} />
 
         {/* Controles Mobile */}
         <MapaControlesMobile
