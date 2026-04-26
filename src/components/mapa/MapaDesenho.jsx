@@ -1089,7 +1089,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   }
                 }}>
                 
-                  <Check className="w-3.5 h-3.5 mr-1.5" /> {itemEditando ? 'Salvar' : drawingClosed ? 'Salvar' : 'Terminar'}
+                  <Check className="lucide lucide-check w-3.5 h-3.5 mr-1.5 hidden" /> {itemEditando ? 'Salvar' : drawingClosed ? 'Salvar' : 'Terminar'}
                 </Button>
               </div>
             </div>
