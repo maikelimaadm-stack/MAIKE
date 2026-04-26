@@ -721,21 +721,21 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
                 📍 Toque no mapa para marcar vários pontos
               </div>
           }
-            <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
+            <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
               {pontos.length > 0 &&
-            <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50" onClick={() => {
+            <Button variant="outline" size="sm" className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7" onClick={() => {
               newMarkersRef.current.forEach((m) => m.setMap(null));
               newMarkersRef.current = [];
               setPontos([]);
               setActivePointId(null);
               setSheetOpen(false);
             }}>
-                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reiniciar
+                  <RotateCcw className="lucide lucide-rotate-ccw w-3.5 h-3.5 mr-1.5 hidden" /> Reiniciar
                 </Button>
             }
               <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={pontos.length === 0 || saveMutation.isPending}
             onClick={() => saveMutation.mutate()}>
-                <Check className="w-3.5 h-3.5 mr-1.5" /> {saveMutation.isPending ? "Salvando..." : `Salvar todos (${pontos.length})`}
+                <Check className="lucide lucide-check w-3.5 h-3.5 mr-1.5 hidden" /> {saveMutation.isPending ? "Salvando..." : `Salvar todos (${pontos.length})`}
               </Button>
             </div>
           </div>
