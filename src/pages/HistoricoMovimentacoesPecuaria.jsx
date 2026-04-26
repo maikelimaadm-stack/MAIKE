@@ -233,12 +233,12 @@ export default function HistoricoMovimentacoesPecuaria() {
               <Settings className="w-4 h-4" />
             </Button>
             <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs gap-1">
-              <Download className="lucide lucide-download w-3.5 h-3.5 hidden" /> Exportar
+               Exportar
             </Button>
             <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-7 text-xs">Modelo</Button>
             <label>
               <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer gap-1" asChild>
-                <span><Upload className="lucide lucide-upload w-3.5 h-3.5 hidden" /> Importar</span>
+                <span> Importar</span>
               </Button>
               <input type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
             </label>
