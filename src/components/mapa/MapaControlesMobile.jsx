@@ -17,17 +17,17 @@ export default function MapaControlesMobile({
   return (
     <>
       {/* Top-left: voltar + ações */}
-      <div className="absolute top-3 left-3 z-20 flex gap-1.5">
+      <div className="absolute top-1 left-1 z-20 flex gap-1.5">
         <Button
           variant="secondary"
-          size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground absolute top-1 left-1 z-20 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+          size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground hover:bg-secondary/80 h-7 w-7 rounded-full bg-white/95 shadow-md"
 
           onClick={() => navigate(-1)}>
           
           <X className="w-5 h-5 text-slate-700" />
         </Button>
         {showTarefasButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground absolute top-10 left-15 z-20 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white" title="Tarefas">
+        <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground hover:bg-secondary/80 h-10 w-10 rounded-full bg-white/95 shadow-md" title="Tarefas">
             <ClipboardList className="w-5 h-5 text-slate-700" />
           </Button>
         }
