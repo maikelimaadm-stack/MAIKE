@@ -28,7 +28,7 @@ export default function LancamentosAbastecimento() {
       const all = await base44.entities.Maquina.list();
       return all.filter((m) => m.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const handleExport = () => {
@@ -36,36 +36,36 @@ export default function LancamentosAbastecimento() {
       toast.error("Não há dados para exportar");
       return;
     }
-    
+
     // Filtramos apenas os visíveis se houver selecionados, mas aqui exportaremos tudo ou selecionados
-    const paraExportar = selecionados.length > 0 
-      ? abastecimentos.filter(a => selecionados.includes(a.id))
-      : abastecimentos;
+    const paraExportar = selecionados.length > 0 ?
+    abastecimentos.filter((a) => selecionados.includes(a.id)) :
+    abastecimentos;
 
     const csvRows = [
-      ['Data', 'Ativo', 'Categoria', 'Tipo Medição', 'Grupo Atividade', 'Tipo Serviço', 'Responsável', 'Local Estoque', 'Produto', 'Litros', 'Valor Unitário', 'Valor Total', 'Medição', 'Med. Anterior', 'Uso', 'Consumo', 'Observações'].join(';')
-    ];
+    ['Data', 'Ativo', 'Categoria', 'Tipo Medição', 'Grupo Atividade', 'Tipo Serviço', 'Responsável', 'Local Estoque', 'Produto', 'Litros', 'Valor Unitário', 'Valor Total', 'Medição', 'Med. Anterior', 'Uso', 'Consumo', 'Observações'].join(';')];
 
-    paraExportar.forEach(m => {
+
+    paraExportar.forEach((m) => {
       csvRows.push([
-        m.data_abastecimento,
-        m.maquina_nome || '',
-        m.maquina_categoria || '',
-        m.maquina_tipo_medicao || '',
-        m.grupo_atividade_nome || '',
-        m.tipo_servico || '',
-        m.responsavel || '',
-        m.local_estoque_nome || '',
-        m.produto_nome || '',
-        m.quantidade_litros || '',
-        m.valor_litro || '',
-        m.valor_total || '',
-        m.medicao || '',
-        m.medicao_anterior || '',
-        m.uso_realizado || '',
-        m.consumo_calculado || '',
-        (m.observacoes || '').replace(/;/g, ',')
-      ].join(';'));
+      m.data_abastecimento,
+      m.maquina_nome || '',
+      m.maquina_categoria || '',
+      m.maquina_tipo_medicao || '',
+      m.grupo_atividade_nome || '',
+      m.tipo_servico || '',
+      m.responsavel || '',
+      m.local_estoque_nome || '',
+      m.produto_nome || '',
+      m.quantidade_litros || '',
+      m.valor_litro || '',
+      m.valor_total || '',
+      m.medicao || '',
+      m.medicao_anterior || '',
+      m.uso_realizado || '',
+      m.consumo_calculado || '',
+      (m.observacoes || '').replace(/;/g, ',')].
+      join(';'));
     });
 
     const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -81,10 +81,10 @@ export default function LancamentosAbastecimento() {
     queryFn: async () => {
       const all = await base44.entities.AbastecimentoMaquina.list();
       const filtrados = all.filter((item) => item.empresa_id === empresaSelecionadaId);
-      
+
       // Enriquecer dados com informações da máquina
       const enriquecidos = filtrados.map((abast) => {
-        const maquina = maquinas.find(m => m.id === abast.maquina_id);
+        const maquina = maquinas.find((m) => m.id === abast.maquina_id);
         return {
           ...abast,
           maquina_categoria: maquina?.categoria || "-",
@@ -95,32 +95,32 @@ export default function LancamentosAbastecimento() {
 
       return enriquecidos.sort((a, b) => new Date(b.data_abastecimento) - new Date(a.data_abastecimento));
     },
-    enabled: !!empresaSelecionadaId && maquinas.length >= 0,
+    enabled: !!empresaSelecionadaId && maquinas.length >= 0
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (item) => {
-      const movimentacoesPorReferencia = item.referencia_movimentacao
-        ? await base44.entities.MovimentacaoEstoque.filter({ referencia_movimentacao: item.referencia_movimentacao })
-        : [];
+      const movimentacoesPorReferencia = item.referencia_movimentacao ?
+      await base44.entities.MovimentacaoEstoque.filter({ referencia_movimentacao: item.referencia_movimentacao }) :
+      [];
 
       const movimentacoesPorObservacao = await base44.entities.MovimentacaoEstoque.list();
       const movimentacoes = [...movimentacoesPorReferencia];
 
-      movimentacoesPorObservacao
-        .filter((mov) => mov.observacoes === `Saída automática por abastecimento ${item.id}`)
-        .forEach((mov) => {
-          if (!movimentacoes.find((existente) => existente.id === mov.id)) {
-            movimentacoes.push(mov);
-          }
-        });
+      movimentacoesPorObservacao.
+      filter((mov) => mov.observacoes === `Saída automática por abastecimento ${item.id}`).
+      forEach((mov) => {
+        if (!movimentacoes.find((existente) => existente.id === mov.id)) {
+          movimentacoes.push(mov);
+        }
+      });
 
       for (const mov of movimentacoes) {
         for (const lote of mov.lotes_consumidos || []) {
           const loteAtual = await base44.entities.EstoqueLoteNota.get(lote.lote_id);
           await base44.entities.EstoqueLoteNota.update(lote.lote_id, {
             quantidade_disponivel: (loteAtual.quantidade_disponivel || 0) + (lote.quantidade_consumida || 0),
-            status: "Disponivel",
+            status: "Disponivel"
           });
         }
         await base44.entities.MovimentacaoEstoque.delete(mov.id);
@@ -139,7 +139,7 @@ export default function LancamentosAbastecimento() {
       queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
       queryClient.invalidateQueries({ queryKey: ["maquinas-abastecimento"] });
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => toast.error(error.message)
   });
 
   return (
@@ -148,55 +148,55 @@ export default function LancamentosAbastecimento() {
         <div>
           <h1 className="font-bold text-slate-800">Lançamento de Abastecimento</h1>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1 flex-wrap">
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
             <Settings className="w-4 h-4" />
           </Button>
-          <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs">
+          <Button onClick={handleExport} variant="outline" size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-3 h-7 text-xs hidden">
             Exportar
           </Button>
-          <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
+          <Button onClick={() => {setEditingItem(null);setShowForm(true);}} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
             Adicionar
           </Button>
         </div>
       </div>}
 
       <AnimatePresence mode="wait">
-        {showForm ? (
-          <FormularioLancamentoAbastecimento
-            abastecimento={editingItem}
-            onSave={() => {
-              setShowForm(false);
-              setEditingItem(null);
-              queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
-              queryClient.invalidateQueries({ queryKey: ["maquinas-abastecimento"] });
-            }}
-            onCancel={() => { setShowForm(false); setEditingItem(null); }}
-          />
-        ) : (
-          <motion.div key="table" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-1">
-            {isDeletingBulk && (
-              <Card className="rounded-xl border bg-card text-card-foreground shadow">
+        {showForm ?
+        <FormularioLancamentoAbastecimento
+          abastecimento={editingItem}
+          onSave={() => {
+            setShowForm(false);
+            setEditingItem(null);
+            queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
+            queryClient.invalidateQueries({ queryKey: ["maquinas-abastecimento"] });
+          }}
+          onCancel={() => {setShowForm(false);setEditingItem(null);}} /> :
+
+
+        <motion.div key="table" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-1">
+            {isDeletingBulk &&
+          <Card className="rounded-xl border bg-card text-card-foreground shadow">
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-center gap-2 text-xs text-slate-700"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Excluindo abastecimentos selecionados...</div>
                   <Progress value={deleteProgress.total ? deleteProgress.current / deleteProgress.total * 100 : 0} />
                 </CardContent>
               </Card>
-            )}
+          }
             <TabelaLancamentosAbastecimento
-              abastecimentos={abastecimentos}
-              selecionados={selecionados}
-              onSelecionadosChange={setSelecionados}
-              onEdit={(item) => { setEditingItem(item); setShowForm(true); }}
-              onDelete={(item) => setDeleteConfirmItem(item)}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-            />
+            abastecimentos={abastecimentos}
+            selecionados={selecionados}
+            onSelecionadosChange={setSelecionados}
+            onEdit={(item) => {setEditingItem(item);setShowForm(true);}}
+            onDelete={(item) => setDeleteConfirmItem(item)}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas} />
+          
           </motion.div>
-        )}
+        }
       </AnimatePresence>
 
-      <ConfirmDialog open={!!deleteConfirmItem} onOpenChange={() => setDeleteConfirmItem(null)} title="Confirmar exclusão" description="Ao excluir, o estoque será revertido e a medição do ativo será ajustada para o valor anterior disponível." onConfirm={() => { deleteMutation.mutate(deleteConfirmItem); setDeleteConfirmItem(null); }} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
-    </div>
-  );
+      <ConfirmDialog open={!!deleteConfirmItem} onOpenChange={() => setDeleteConfirmItem(null)} title="Confirmar exclusão" description="Ao excluir, o estoque será revertido e a medição do ativo será ajustada para o valor anterior disponível." onConfirm={() => {deleteMutation.mutate(deleteConfirmItem);setDeleteConfirmItem(null);}} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
+    </div>);
+
 }
