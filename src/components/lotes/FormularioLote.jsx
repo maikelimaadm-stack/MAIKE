@@ -432,11 +432,11 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                     parseSistemasProdutivos(formData.sistema_produtivo).join(", ") :
                     "SELECIONE UM OU MAIS TIPOS"}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-1">
                     {SISTEMAS.map((item) => {
                       const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
                       return (
-                        <label key={item} className="flex items-center gap-2 text-xs text-slate-700 uppercase cursor-pointer">
+                        <label key={item} className="flex items-center gap-1 text-xs text-slate-700 uppercase cursor-pointer">
                           <Checkbox
                             checked={checked}
                             onCheckedChange={() => toggleSistemaProdutivo(item)}
