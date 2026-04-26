@@ -919,8 +919,8 @@ export default function MapaGeral() {
 
         {/* Barra resumo inferior */}
         <div className="absolute bottom-2 left-2 right-2 z-10">
-          <div className="bg-white/90 pr-1 pl-1 rounded-xl backdrop-blur-sm shadow-lg flex items-center justify-between ">
-            <div className="flex items-center gap-3 text-[10px]">
+          <div className="bg-white/90 pr-1 pl-1 rounded-xl backdrop-blur-sm shadow-lg flex items-center justify-between w-2">
+            <div className="bg-gray-50 text-[10px] flex items-center gap-3">
               <div className="text-center">
                 <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
                 <div className="text-slate-500">Animais</div>
