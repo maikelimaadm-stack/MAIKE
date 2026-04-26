@@ -44,7 +44,7 @@ export default function MapaControlesMobile({
       </div>
 
       {/* Top-right: mapa/satélite + ações */}
-      <div className="absolute top-0.5 right-1 z-20 flex flex-col items-end gap-1">
+      <div className="absolute top-0.5 right-1 z-20 flex flex-col items-end gap-1 spacy-1">
         <div className="bg-slate-700 p-1 rounded-lg flex gap-1 shadow-md pointer-events-auto">
           <Button
             type="button"
@@ -63,7 +63,7 @@ export default function MapaControlesMobile({
             Satélite
           </Button>
         </div>
-        <div className="bg-slate-700 p-1 rounded-lg flex flex-col gap-1 shadow-md pointer-events-auto">
+        <div className="bg-slate-700 p-1 rounded-lg flex flex-col gap-1 shadow-md pointer-events-auto spacy-1">
           <Button type="button" variant="secondary" size="icon" onClick={onRefresh} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 rounded-full shadow-md pointer-events-auto">
             <RefreshCw className="w-4 h-4" />
           </Button>
