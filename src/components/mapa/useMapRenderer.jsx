@@ -43,19 +43,34 @@ const setOverlayBlink = (overlay, shouldBlink) => {
   });
 };
 
+const getZoomAdjustedBaseSize = (map, baseSize) => {
+  const zoom = map?.getZoom?.() ?? 15;
+  if (zoom >= 20) return Math.round(baseSize * 0.4);
+  if (zoom >= 19) return Math.round(baseSize * 0.5);
+  if (zoom >= 18) return Math.round(baseSize * 0.6);
+  if (zoom >= 17) return Math.round(baseSize * 0.72);
+  if (zoom >= 16) return Math.round(baseSize * 0.84);
+  if (zoom >= 15) return baseSize;
+  if (zoom >= 14) return Math.round(baseSize * 1.08);
+  return Math.round(baseSize * 1.16);
+};
+
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
+
+  const map = marker.getMap?.();
+  const adjustedBaseSize = Math.max(16, getZoomAdjustedBaseSize(map, baseSize));
 
   const applyIcon = ({ width, height }) => {
     marker.setIcon({
       url: iconUrl,
       scaledSize: new google.maps.Size(width, height),
       anchor: new google.maps.Point(width / 2, height / 2),
-      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(9, height * 0.34)) } : {})
+      ...(withLabel ? { labelOrigin: new google.maps.Point(width / 2, Math.max(8, height * 0.34)) } : {})
     });
   };
 
-  const cacheKey = `${iconUrl}_${baseSize}_${withLabel ? 1 : 0}`;
+  const cacheKey = `${iconUrl}_${adjustedBaseSize}_${withLabel ? 1 : 0}`;
   const cached = iconSizeCache.get(cacheKey);
   if (cached) {
     applyIcon(cached);
@@ -64,11 +79,12 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, wi
 
   const image = new Image();
   image.onload = () => {
-    const widthRatio = image.naturalWidth || baseSize;
-    const heightRatio = image.naturalHeight || baseSize;
+    const widthRatio = image.naturalWidth || adjustedBaseSize;
+    const heightRatio = image.naturalHeight || adjustedBaseSize;
     const ratio = widthRatio / heightRatio;
-    const width = ratio >= 1 ? baseSize : Math.max(20, Math.round(baseSize * ratio));
-    const height = ratio >= 1 ? Math.max(20, Math.round(baseSize / ratio)) : baseSize;
+    const minSize = Math.max(14, Math.round(adjustedBaseSize * 0.45));
+    const width = ratio >= 1 ? adjustedBaseSize : Math.max(minSize, Math.round(adjustedBaseSize * ratio));
+    const height = ratio >= 1 ? Math.max(minSize, Math.round(adjustedBaseSize / ratio)) : adjustedBaseSize;
     const size = { width, height };
     iconSizeCache.set(cacheKey, size);
     applyIcon(size);
