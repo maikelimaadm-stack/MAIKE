@@ -17,7 +17,7 @@ export default function MapaControlesMobile({
   return (
     <>
       {/* Top-left: voltar + ações */}
-      <div className="bg-green-700 absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 flex gap-1 bg-white/95 rounded-lg shadow-md p-0.5">
+      <div className="bg-green-900 absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 flex gap-1 bg-white/95 rounded-lg shadow-md p-0.5">
         <Button
           variant="secondary"
           size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground hover:bg-secondary/80 h-7 w-7 rounded-full bg-white/95 shadow-md"
