@@ -432,7 +432,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
                     parseSistemasProdutivos(formData.sistema_produtivo).join(", ") :
                     "SELECIONE UM OU MAIS TIPOS"}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols- gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     {SISTEMAS.map((item) => {
                       const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
                       return (
