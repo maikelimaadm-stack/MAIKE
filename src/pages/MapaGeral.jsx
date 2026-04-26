@@ -918,40 +918,35 @@ export default function MapaGeral() {
 
 
         {/* Barra resumo inferior */}
-        <div className="absolute bottom-2 left-2 right-2 z-10 space-y-2 pointer-events-none">
-          <div className="inline-flex max-w-full items-center gap-3 rounded-lg bg-white/95 px-3 py-2 shadow-md border border-slate-200 text-[10px] pointer-events-auto">
-            <div className="text-center">
-              <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
-              <div className="text-slate-500">Animais</div>
+        <div className="bg-gray-50 top-1 bottom-2 left-2 right-2 z-10 w-">
+          <div className="bg-white/95 text-[10px] pr-1 pl-1 rounded-lg inline-flex max-w-full items-center gap-3 shadow-md border border-slate-200 pointer-events-auto">
+            <div className="bg-gray-50 text-[10px] flex items-center gap-3">
+              <div className="text-center">
+                <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
+                <div className="text-slate-500">Animais</div>
+              </div>
+              <div className="w-px h-5 bg-slate-200" />
+              <div className="text-center">
+                <div className="font-bold text-blue-700 text-sm leading-tight">{areasFiltradas.length}</div>
+                <div className="text-slate-500">Áreas</div>
+              </div>
+              <div className="w-px h-5 bg-slate-200" />
+              <div className="text-center">
+                <div className="font-bold text-slate-700 text-sm leading-tight">{areasOcupadas}</div>
+                <div className="text-slate-500">Ocupadas</div>
+              </div>
+              <div className="w-px h-5 bg-slate-200" />
+              <div className="text-center">
+                <div className="font-bold text-amber-700 text-sm leading-tight">{totalAlertas}</div>
+                <div className="text-slate-500">Alertas</div>
+              </div>
             </div>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="text-center">
-              <div className="font-bold text-blue-700 text-sm leading-tight">{areasFiltradas.length}</div>
-              <div className="text-slate-500">Áreas</div>
-            </div>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="text-center">
-              <div className="font-bold text-slate-700 text-sm leading-tight">{areasOcupadas}</div>
-              <div className="text-slate-500">Ocupadas</div>
-            </div>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="text-center">
-              <div className="font-bold text-amber-700 text-sm leading-tight">{totalAlertas}</div>
-              <div className="text-slate-500">Alertas</div>
-            </div>
-          </div>
+            
 
-          {mapaGeralPermissions.visualizar_insights && (
-            <div className="pointer-events-auto max-h-[32vh] overflow-y-auto rounded-lg bg-white/95 border border-slate-200 shadow-md p-2">
-              <MapaInsights
-                lotes={lotesFiltrados}
-                areas={areasFiltradas}
-                eventosSupl={eventosSupl}
-                pontosSuplementacao={pontosSuplementacaoDecorados}
-                pontosReferencia={pontos}
-              />
-            </div>
-          )}
+
+
+            
+          </div>
         </div>
 
         {!mapReady &&
@@ -1040,7 +1035,12 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-
+      <Dialog open={showInsights} onOpenChange={setShowInsights}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-emerald-600" /> Insights do Mapa</DialogTitle></DialogHeader>
+          <MapaInsights lotes={lotesFiltrados} areas={areasFiltradas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
+        </DialogContent>
+      </Dialog>
     </div>);
 
 }
