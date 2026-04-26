@@ -884,20 +884,20 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         </Button>
 
         {/* Controles do mapa no topo */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
-            onClick={() => setMapType('roadmap')}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg">
+            onClick={() => setMapType('roadmap')} className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7">
+            
             
             Mapa
           </Button>
           <Button
             variant={mapType === 'satellite' ? 'default' : 'secondary'}
             size="sm"
-            onClick={() => setMapType('satellite')}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg">
+            onClick={() => setMapType('satellite')} className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7">
+            
             
             Satélite
           </Button>
@@ -921,8 +921,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   () => toast.error('Erro ao obter localização')
                 );
               }
-            }}
-            className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg"
+            }} className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7"
+
             title="Minha localização">
             
             <Target className="w-4 h-4" />
@@ -930,8 +930,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSnappingEnabled(!snappingEnabled)}
-            className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white flex justify-center" : "h-8 w-8 flex justify-center"}
+            onClick={() => setSnappingEnabled(!snappingEnabled)} className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7"
+
             title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}
             aria-label="Alternar ímã">
             
