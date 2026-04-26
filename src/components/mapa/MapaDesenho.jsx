@@ -877,8 +877,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         <Button
           onClick={onCancelar}
           variant="secondary"
-          size="icon"
-          className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white">
+          size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white">
+          
           
           <X className="w-6 h-6 text-slate-700" />
         </Button>
@@ -1002,7 +1002,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 </div>
             }
 
-              <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
+              <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
                 {/* Botão Reiniciar — volta ao modo de desenho do zero */}
                 {(drawingClosed || currentPoints.length > 0) && !itemEditando &&
               <Button
@@ -1030,7 +1030,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   toast.success('Desenho reiniciado', { duration: 1000 });
                 }}>
                 
-                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Reiniciar
+                    <RefreshCw className="lucide lucide-refresh-cw w-3.5 h-3.5 mr-1.5 hidden" /> Reiniciar
                   </Button>
               }
 
@@ -1048,7 +1048,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 }}
                 disabled={undoStackRef.current.length === 0}>
                 
-                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Desfazer
+                  <RotateCcw className="lucide lucide-rotate-ccw w-3.5 h-3.5 mr-1.5 hidden" /> Desfazer
                 </Button>
 
                 <Button
