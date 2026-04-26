@@ -477,8 +477,7 @@ export default function MovimentacaoEstoqueFormV2({ onSubmit, onCancel, initialD
           <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-              {isEditing ? 'Atualizar' : 'Salvar Movimentação'}
-            </Button>
+              {isEditing ? 'Atualizar' : 'Salvar'}            </Button>
           </div>
         </form>
       </motion.div>
