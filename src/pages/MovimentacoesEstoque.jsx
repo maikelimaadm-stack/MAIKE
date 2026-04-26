@@ -714,7 +714,7 @@ export default function MovimentacoesEstoque() {
             <div>
               <h1 className="font-bold text-slate-800">Movimentações de Estoque</h1>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1 flex-wrap">
               <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
                 <Settings className="w-4 h-4" />
               </Button>
@@ -724,7 +724,7 @@ export default function MovimentacoesEstoque() {
               <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs">
                 Exportar
               </Button>
-              <Button onClick={() => {setShowTransferenciaLote(true);setShowForm(false);setEditingMovimentacao(null);}} size="sm" variant="outline" className="h-7 text-xs bg-slate-100">
+              <Button onClick={() => {setShowTransferenciaLote(true);setShowForm(false);setEditingMovimentacao(null);}} size="sm" variant="outline" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
                 Transferência Lote
               </Button>
               <Button onClick={() => {setEditingMovimentacao(null);setShowForm(true);setShowTransferenciaLote(false);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
