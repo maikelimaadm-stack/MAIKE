@@ -730,12 +730,12 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
               setActivePointId(null);
               setSheetOpen(false);
             }}>
-                  <RotateCcw className="lucide lucide-rotate-ccw w-3.5 h-3.5 mr-1.5 hidden" /> Reiniciar
+                   Reiniciar
                 </Button>
             }
               <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={pontos.length === 0 || saveMutation.isPending}
             onClick={() => saveMutation.mutate()}>
-                <Check className="lucide lucide-check w-3.5 h-3.5 mr-1.5 hidden" /> {saveMutation.isPending ? "Salvando..." : `Salvar todos (${pontos.length})`}
+                 {saveMutation.isPending ? "Salvando..." : `Salvar todos (${pontos.length})`}
               </Button>
             </div>
           </div>
