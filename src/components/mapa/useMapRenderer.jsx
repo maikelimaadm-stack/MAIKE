@@ -45,21 +45,25 @@ const setOverlayBlink = (overlay, shouldBlink) => {
 
 const getZoomAdjustedBaseSize = (map, baseSize) => {
   const zoom = map?.getZoom?.() ?? 15;
-  if (zoom >= 20) return Math.round(baseSize * 0.4);
-  if (zoom >= 19) return Math.round(baseSize * 0.5);
-  if (zoom >= 18) return Math.round(baseSize * 0.6);
-  if (zoom >= 17) return Math.round(baseSize * 0.72);
-  if (zoom >= 16) return Math.round(baseSize * 0.84);
+  if (zoom >= 21) return Math.round(baseSize * 0.22);
+  if (zoom >= 20) return Math.round(baseSize * 0.28);
+  if (zoom >= 19) return Math.round(baseSize * 0.36);
+  if (zoom >= 18) return Math.round(baseSize * 0.48);
+  if (zoom >= 17) return Math.round(baseSize * 0.62);
+  if (zoom >= 16) return Math.round(baseSize * 0.78);
   if (zoom >= 15) return baseSize;
-  if (zoom >= 14) return Math.round(baseSize * 1.08);
-  return Math.round(baseSize * 1.16);
+  if (zoom >= 14) return Math.round(baseSize * 1.12);
+  return Math.round(baseSize * 1.24);
 };
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44, withLabel = false) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
 
   const map = marker.getMap?.();
-  const adjustedBaseSize = Math.max(16, getZoomAdjustedBaseSize(map, baseSize));
+  marker._iconUrl = iconUrl;
+  marker._iconBaseSize = baseSize;
+  marker._iconWithLabel = withLabel;
+  const adjustedBaseSize = Math.max(12, getZoomAdjustedBaseSize(map, baseSize));
 
   const applyIcon = ({ width, height }) => {
     marker.setIcon({
@@ -124,6 +128,15 @@ export default function useMapRenderer(mapInstanceRef) {
     lotesIndicatorsRef.current.clear();
     if (userMarkerRef.current) { userMarkerRef.current.setMap(null); userMarkerRef.current = null; }
     if (userCircleRef.current) { userCircleRef.current.setMap(null); userCircleRef.current = null; }
+  }, []);
+
+  const refreshMarkerIconSizes = useCallback(() => {
+    markersRef.current.forEach((marker) => {
+      const iconUrl = marker?._iconUrl;
+      const baseSize = marker?._iconBaseSize;
+      if (!iconUrl || !baseSize) return;
+      applyMarkerIconPreservingAspectRatio(marker, iconUrl, baseSize, Boolean(marker?._iconWithLabel));
+    });
   }, []);
 
   // ─── Áreas (Polígonos) com coloração dinâmica ───

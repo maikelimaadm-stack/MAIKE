@@ -506,7 +506,11 @@ export default function MapaGeral() {
     return () => renderer.clearAll();
   }, []);
 
-  useEffect(() => {if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType);}, [mapType]);
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    mapInstanceRef.current.setMapTypeId(mapType);
+    renderer.refreshMarkerIconSizes();
+  }, [mapType, renderer]);
 
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
@@ -522,6 +526,15 @@ export default function MapaGeral() {
     const idleListener = map.addListener('idle', persistView);
     return () => idleListener?.remove();
   }, [mapReady, empresaSelecionadaId]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady) return;
+    const map = mapInstanceRef.current;
+    const listener = map.addListener('zoom_changed', () => {
+      renderer.refreshMarkerIconSizes();
+    });
+    return () => listener?.remove();
+  }, [mapReady, renderer]);
 
   // Fit bounds 1x
   useEffect(() => {
