@@ -640,16 +640,15 @@ export default function MapaGeral() {
     await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
 
     const refreshTasks = [
-    refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
-    refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true }),
-    refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
-    refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, { force: true }),
-    refreshMapaCacheEntry('pontos', empresaSelecionadaId, { force: true }),
-    refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true })];
+    refreshMapaCacheEntry('lotes', empresaSelecionadaId),
+    refreshMapaCacheEntry('areas', empresaSelecionadaId),
+    refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId),
+    refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId),
+    refreshMapaCacheEntry('pontos', empresaSelecionadaId),
+    refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId)];
 
-    if (modoColoracao === 'situacao_pasto') refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }));
-    if (podeUsarTarefasMapa) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, { force: true }));
-
+    if (modoColoracao === 'situacao_pasto') refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId));
+    if (podeUsarTarefasMapa) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId));
     await Promise.all(refreshTasks);
     await Promise.all([refetchLotes(), refetchAreas(), refetchEventosSupl(), refetchPontosSupl(), refetchPontosRef(), refetchEstoqueLotes()]);
     if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();

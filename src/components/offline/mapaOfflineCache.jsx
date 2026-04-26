@@ -3,7 +3,9 @@ import { getEntityCacheItems, setEntityCacheItems } from '@/components/offline/I
 
 const refreshPromises = new Map();
 const lastRefreshAt = new Map();
-const MIN_REFRESH_INTERVAL_MS = 15000;
+const MIN_REFRESH_INTERVAL_MS = 60000;
+const RATE_LIMIT_COOLDOWN_MS = 120000;
+const rateLimitedUntil = new Map();
 
 const MAPA_ENTITIES = {
   areas: 'AreaPastagem',
@@ -59,23 +61,39 @@ export async function refreshMapaCacheEntry(cacheKey, empresaId, options = {}) {
 
   const normalizedEmpresaId = empresaId || '__GLOBAL__';
   const requestKey = `${cacheKey}:${normalizedEmpresaId}`;
+  const cacheStorageKey = `mapa_${cacheKey}`;
   const now = Date.now();
   const force = options.force === true;
   const lastRun = lastRefreshAt.get(requestKey) || 0;
+  const rateLimitUntil = rateLimitedUntil.get(requestKey) || 0;
 
-  if (!force && refreshPromises.has(requestKey)) {
+  if (refreshPromises.has(requestKey)) {
     return refreshPromises.get(requestKey);
   }
 
+  if (now < rateLimitUntil) {
+    return getEntityCacheItems(cacheStorageKey, normalizedEmpresaId);
+  }
+
   if (!force && now - lastRun < MIN_REFRESH_INTERVAL_MS) {
-    return getEntityCacheItems(`mapa_${cacheKey}`, normalizedEmpresaId);
+    return getEntityCacheItems(cacheStorageKey, normalizedEmpresaId);
   }
 
   const promise = (async () => {
-    const items = await fetcher(empresaId);
-    await setEntityCacheItems(`mapa_${cacheKey}`, normalizedEmpresaId, items);
-    lastRefreshAt.set(requestKey, Date.now());
-    return items;
+    try {
+      const items = await fetcher(empresaId);
+      await setEntityCacheItems(cacheStorageKey, normalizedEmpresaId, items);
+      lastRefreshAt.set(requestKey, Date.now());
+      rateLimitedUntil.delete(requestKey);
+      return items;
+    } catch (error) {
+      const isRateLimit = String(error?.message || '').toLowerCase().includes('rate limit exceeded');
+      if (isRateLimit) {
+        rateLimitedUntil.set(requestKey, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+        return (await getEntityCacheItems(cacheStorageKey, normalizedEmpresaId)) || [];
+      }
+      throw error;
+    }
   })();
 
   refreshPromises.set(requestKey, promise);
