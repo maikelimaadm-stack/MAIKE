@@ -45,7 +45,7 @@ export default function MapaControlesMobile({
 
       {/* Top-right: mapa/satélite + refresh + localizar */}
       <div className="absolute top-1 right-1 z-20 flex flex-col gap-1.5">
-        <div className="bg-slate-700 pt-0.5 pr- rounded-lg flex gap-1 shadow-md">
+        <div className="bg-slate-700 pt-0.5 pr-0.5 rounded-lg flex gap-1 shadow-md">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'ghost'}
             size="sm"
