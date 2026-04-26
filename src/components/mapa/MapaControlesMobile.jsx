@@ -17,7 +17,7 @@ export default function MapaControlesMobile({
   return (
     <>
       {/* Top-left: voltar + ações */}
-      <div className="bg-slate-700 p-0.5 rounded-lg absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 gap-1 shadow-md">
+      <div className="bg-slate-700 p-1 rounded-lg absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 gap-1 shadow-md">
         <Button
           variant="secondary"
           size="icon" className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md"
@@ -45,7 +45,7 @@ export default function MapaControlesMobile({
 
       {/* Top-right: mapa/satélite + refresh + localizar */}
       <div className="absolute top-1 right-1 z-20 flex flex-col gap-1.5">
-        <div className="bg-slate-700 p-0.5 rounded-lg flex gap-1 shadow-md">
+        <div className="bg-slate-700 p-1 rounded-lg flex gap-1 shadow-md">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'ghost'}
             size="sm"
