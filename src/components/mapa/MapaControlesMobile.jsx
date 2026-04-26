@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { X, Filter, Target, RefreshCw, ClipboardList, Move, BarChart3 } from "lucide-react";
+import { X, Filter, Target, RefreshCw, ClipboardList, Move } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function MapaControlesMobile({
@@ -36,11 +36,6 @@ export default function MapaControlesMobile({
 
 
         
-        {showInsightsButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenInsights} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Insights">
-            <BarChart3 className="w-5 h-5 text-slate-700" />
-          </Button>
-        }
         {showFiltrosButton &&
         <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Filtros">
             <Filter className="w-5 h-5 text-slate-700" />

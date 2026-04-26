@@ -1,18 +1,32 @@
 import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3, Scale, Target, ArrowDown, ArrowUp, Leaf, Clock, Sprout, Flame } from "lucide-react";
+import { AlertTriangle, TrendingUp, Beef, MapPin, Droplets, BarChart3, Scale, Target } from "lucide-react";
 import { fmtNum, fmtHa, fmtKg } from "../common/formatNumber";
 
 export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplementacao, pontosReferencia = [] }) {
   const insights = useMemo(() => {
     const result = [];
 
-    // Total geral
     const totalCabecas = lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
     const totalAreas = areas.length;
-    const areasComLotes = new Set(lotes.map(l => l.area_atual_id).filter(Boolean)).size;
+    const areasComLotes = new Set(lotes.map((l) => l.area_atual_id).filter(Boolean)).size;
     const areasVazias = totalAreas - areasComLotes;
+
+    const porIdentificador = {};
+    const porSexo = {};
+    const porSetor = {};
+
+    lotes.forEach((lote) => {
+      const qtd = lote.quantidade_cabecas || 0;
+      const identificador = lote.identificador_nome || lote.identificador_sigla || 'Sem identificador';
+      const sexo = lote.sexo || 'Sem sexo';
+      const setor = lote.setor_nome || 'Sem setor';
+
+      porIdentificador[identificador] = (porIdentificador[identificador] || 0) + qtd;
+      porSexo[sexo] = (porSexo[sexo] || 0) + qtd;
+      porSetor[setor] = (porSetor[setor] || 0) + qtd;
+    });
 
     result.push({
       tipo: 'resumo',
@@ -20,11 +34,35 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       cor: 'text-emerald-700 bg-emerald-50 border-emerald-200',
       titulo: 'Resumo Geral',
       valores: [
-        { label: 'Total Cabeças', valor: totalCabecas },
+        { label: 'Qtd. Animais', valor: totalCabecas },
         { label: 'Áreas', valor: totalAreas },
         { label: 'Áreas Ocupadas', valor: areasComLotes },
         { label: 'Áreas Vazias', valor: areasVazias },
       ]
+    });
+
+    result.push({
+      tipo: 'identificador',
+      icone: TrendingUp,
+      cor: 'text-indigo-700 bg-indigo-50 border-indigo-200',
+      titulo: 'Resumo por Identificador',
+      lista: Object.entries(porIdentificador).sort((a, b) => b[1] - a[1]).map(([nome, qtd]) => `${nome}: ${qtd} cab`)
+    });
+
+    result.push({
+      tipo: 'sexo',
+      icone: Beef,
+      cor: 'text-sky-700 bg-sky-50 border-sky-200',
+      titulo: 'Resumo por Sexo',
+      lista: Object.entries(porSexo).sort((a, b) => b[1] - a[1]).map(([nome, qtd]) => `${nome}: ${qtd} cab`)
+    });
+
+    result.push({
+      tipo: 'setor',
+      icone: MapPin,
+      cor: 'text-violet-700 bg-violet-50 border-violet-200',
+      titulo: 'Resumo por Setor',
+      lista: Object.entries(porSetor).sort((a, b) => a[0].localeCompare(b[0])).map(([nome, qtd]) => `${nome}: ${qtd} cab`)
     });
 
     // Lotação por área (UA/ha)
@@ -100,48 +138,47 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       });
     }
 
-    // Áreas vazias
-    if (areasVazias > 0) {
-      const areasVaziasList = areas.filter(a => !lotesPorArea[a.id]);
+    const pontosSemSuplementacao = areas.filter((area) => {
+      const possuiPonto = pontosAtivos.some((ponto) => {
+        const ids = [
+          ponto.area_vinculada_id,
+          ...(ponto.area_vinculada_ids || []),
+          ponto.area_id
+        ].filter(Boolean);
+        return ids.includes(area.id);
+      });
+      return !possuiPonto;
+    });
+
+    result.push({
+      tipo: 'pontos_sem_suplementacao',
+      icone: MapPin,
+      cor: 'text-slate-600 bg-slate-50 border-slate-200',
+      titulo: `Pontos sem Suplementação (${pontosSemSuplementacao.length})`,
+      lista: pontosSemSuplementacao.map((area) => area.nome)
+    });
+
+    if (pontosComAlerta.length > 0) {
       result.push({
-        tipo: 'areas_vazias',
-        icone: MapPin,
-        cor: 'text-slate-600 bg-slate-50 border-slate-200',
-        titulo: `Áreas Vazias (${areasVazias})`,
-        lista: areasVaziasList.slice(0, 5).map(a => a.nome)
+        tipo: 'pontos_alerta',
+        icone: AlertTriangle,
+        cor: 'text-red-700 bg-red-50 border-red-200',
+        titulo: `Pontos de Alerta (${pontosComAlerta.length})`,
+        lista: pontosComAlerta.map((p) => `${p.nome}: ${p.descricao}`)
       });
     }
 
-    // Pontos de referência
-    if (pontosReferencia.length > 0) {
-      const tiposPontos = {};
-      pontosReferencia.forEach(p => {
-        const tipo = p.tipo || 'Sem tipo';
-        tiposPontos[tipo] = (tiposPontos[tipo] || 0) + 1;
-      });
-      result.push({
-        tipo: 'pontos_ref',
-        icone: MapPin,
-        cor: 'text-indigo-700 bg-indigo-50 border-indigo-200',
-        titulo: `Pontos de Referência (${pontosReferencia.length})`,
-        lista: Object.entries(tiposPontos).sort((a, b) => b[1] - a[1]).map(([t, q]) => `${t}: ${q}`)
-      });
-    }
+    const depositosSaldo = pontosAtivos
+      .filter((ponto) => ponto.categoria_ponto === 'DEPOSITO')
+      .filter((ponto) => Array.isArray(ponto.alertas_inteligentes) && ponto.alertas_inteligentes.some((alerta) => ['deposito_sem_saldo', 'deposito_baixo', 'reposicao_deposito'].includes(alerta.tipo)));
 
-    // Cochos / Pontos de suplementação - resumo
-    if (pontosAtivos.length > 0) {
-      const cochosPorArea = {};
-      pontosAtivos.forEach(p => {
-        const nome = p.area_nome || 'Sem área';
-        cochosPorArea[nome] = (cochosPorArea[nome] || 0) + 1;
-      });
+    if (depositosSaldo.length > 0) {
       result.push({
-        tipo: 'cochos',
+        tipo: 'depositos_saldo',
         icone: Droplets,
-        cor: 'text-teal-700 bg-teal-50 border-teal-200',
-        titulo: `Cochos Ativos (${pontosAtivos.length})`,
-        texto: `${pontosComAlerta.length} com alertas`,
-        lista: Object.entries(cochosPorArea).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([a, q]) => `${a}: ${q} cochos`)
+        cor: 'text-amber-700 bg-amber-50 border-amber-200',
+        titulo: `Atualização Saldo Depósitos (${depositosSaldo.length})`,
+        lista: depositosSaldo.map((deposito) => deposito.nome_ponto || deposito.nome)
       });
     }
 
@@ -253,279 +290,44 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
         ]
       });
 
-      // Card de análise de manejo
-      const comCapacidade = analiseAreas.filter(a => a.capacidadeMaxUA > 0);
+      const comCapacidade = analiseAreas.filter((a) => a.capacidadeMaxUA > 0);
       if (comCapacidade.length > 0) {
         result.push({
-          tipo: 'analise_manejo',
+          tipo: 'lotacao',
           icone: Target,
           cor: 'text-blue-700 bg-blue-50 border-blue-200',
-          titulo: `Análise de Manejo (${comCapacidade.length} áreas)`,
+          titulo: 'Lotação',
           valores: [
-            { label: '🟢 Lotação Ideal', valor: areasIdeais },
-            { label: '🔵 Baixa Lotação', valor: areasBaixaLotacao },
-            { label: '🔴 Superlotação', valor: areasSuperlotadas },
-            { label: 'Utiliz. Geral', valor: percentGeral !== null ? fmtNum(percentGeral, 0) + '%' : '-' },
+            { label: 'Lotação Ideal', valor: areasIdeais },
+            { label: 'Baixa Lotação', valor: areasBaixaLotacao },
+            { label: 'Superlotação', valor: areasSuperlotadas },
+            { label: 'Utilização', valor: percentGeral !== null ? fmtNum(percentGeral, 0) + '%' : '-' }
           ]
         });
       }
 
-      // Áreas superlotadas (prioridade)
-      const superlotadas = analiseAreas.filter(a => a.classificacao === 'superlotacao').sort((a, b) => b.percentUtil - a.percentUtil);
-      if (superlotadas.length > 0) {
-        result.push({
-          tipo: 'superlotacao',
-          icone: ArrowUp,
-          cor: 'text-red-700 bg-red-50 border-red-200',
-          titulo: `⚠ Superlotação (${superlotadas.length} áreas)`,
-          texto: 'Risco de degradação! Reduzir animais ou aumentar área.',
-          lista: superlotadas.map(a => 
-            `${a.nome}: ${fmtNum(a.ua, 1)} / ${fmtNum(a.capacidadeMaxUA, 1)} UA (${fmtNum(a.percentUtil, 0)}%) — Excede ${fmtNum(Math.abs(a.uaDisponivel), 1)} UA`
-          )
+      const uaPorPastoSetor = [...comGado]
+        .sort((a, b) => {
+          const setorA = areas.find((area) => area.nome === a.nome)?.setor_nome || '';
+          const setorB = areas.find((area) => area.nome === b.nome)?.setor_nome || '';
+          if (setorA !== setorB) return setorA.localeCompare(setorB);
+          return a.nome.localeCompare(b.nome);
+        })
+        .map((a) => {
+          const areaRef = areas.find((area) => area.nome === a.nome);
+          const setorNome = areaRef?.setor_nome || 'Sem setor';
+          return `${setorNome} • ${a.nome}: ${fmtNum(a.ua, 1)} UA`;
         });
-      }
 
-      // Áreas com baixa lotação
-      const baixaLot = analiseAreas.filter(a => a.classificacao === 'baixa').sort((a, b) => a.percentUtil - b.percentUtil);
-      if (baixaLot.length > 0) {
-        result.push({
-          tipo: 'baixa_lotacao',
-          icone: ArrowDown,
-          cor: 'text-sky-700 bg-sky-50 border-sky-200',
-          titulo: `Baixa Lotação (${baixaLot.length} áreas)`,
-          texto: 'Pastagem subutilizada. Pode receber mais animais.',
-          lista: baixaLot.map(a => 
-            `${a.nome}: ${fmtNum(a.ua, 1)} / ${fmtNum(a.capacidadeMaxUA, 1)} UA (${fmtNum(a.percentUtil, 0)}%) — Cabe mais ${fmtNum(a.uaDisponivel, 1)} UA`
-          )
-        });
-      }
-
-      // Áreas com lotação ideal
-      const ideais = analiseAreas.filter(a => a.classificacao === 'ideal').sort((a, b) => b.percentUtil - a.percentUtil);
-      if (ideais.length > 0) {
-        result.push({
-          tipo: 'lotacao_ideal',
-          icone: Target,
-          cor: 'text-green-700 bg-green-50 border-green-200',
-          titulo: `✓ Lotação Ideal (${ideais.length} áreas)`,
-          texto: 'Manejo equilibrado, pastagem bem aproveitada.',
-          lista: ideais.map(a => 
-            `${a.nome}: ${fmtNum(a.ua, 1)} / ${fmtNum(a.capacidadeMaxUA, 1)} UA (${fmtNum(a.percentUtil, 0)}%) — ${fmtNum(a.taxaLotacao, 2)} UA/ha`
-          )
-        });
-      }
-
-      // Lista completa de UA por pasto (todas com gado)
-      const todosOrdenados = [...comGado].sort((a, b) => b.ua - a.ua);
       result.push({
         tipo: 'ua_por_pasto',
         icone: Scale,
         cor: 'text-violet-700 bg-violet-50 border-violet-200',
-        titulo: `UA por Pasto (${todosOrdenados.length} áreas)`,
-        lista: todosOrdenados.map(a => {
-          const capStr = a.capacidadeMaxUA > 0 ? ` cap. ${fmtNum(a.capacidadeMaxUA, 0)} UA` : '';
-          const percStr = a.percentUtil !== null ? ` ${fmtNum(a.percentUtil, 0)}%` : '';
-          return `${a.nome}: ${fmtNum(a.ua, 1)} UA (${fmtNum(a.taxaLotacao, 2)} UA/ha)${capStr}${percStr} — ${fmtNum(a.cabecas)} cab`;
-        })
+        titulo: 'UA por Pasto',
+        lista: uaPorPastoSetor
       });
-
-      // Áreas sem capacidade de suporte definida (aviso)
-      const semCapacidade = analiseAreas.filter(a => a.ua > 0 && a.capacidadeMaxUA === 0);
-      if (semCapacidade.length > 0) {
-        result.push({
-          tipo: 'sem_capacidade',
-          icone: AlertTriangle,
-          cor: 'text-amber-700 bg-amber-50 border-amber-200',
-          titulo: `Sem Capacidade Definida (${semCapacidade.length})`,
-          texto: 'Defina a capacidade máxima (UA) no cadastro da área para análise de manejo.',
-          lista: semCapacidade.slice(0, 8).map(a => `${a.nome}: ${fmtNum(a.ua, 1)} UA, ${fmtNum(a.taxaLotacao, 2)} UA/ha`)
-        });
-      }
     }
 
-    // ─── Análise de Forragem e Dias de Pastejo ───
-    // Consumo diário por UA = 2,5% de 450 kg = 11,25 kg MS/dia
-    const CONSUMO_DIARIO_UA = 11.25; // kg MS/dia
-
-    // Estimativas padrão de forragem por classificação de aproveitamento
-    const FORRAGEM_ESTIMADA = { 'Baixa': 1500, 'Média': 2500, 'Alta': 3500 };
-    // Taxa de crescimento por período (kg MS/ha/dia)
-    const CRESC_ESTIMADO = { 'Seco': 12, 'Intermediário': 30, 'Chuvoso': 55 };
-
-    const analiseForragem = [];
-    let totalConsumo = 0;
-    let totalProducao = 0;
-
-    areas.forEach(area => {
-      if (area.tipo_cultura !== 'Pastagem') return;
-      const lotesArea = lotesPorArea[area.id] || [];
-      const haEfetiva = (area.area_pastejada > 0 ? area.area_pastejada : area.tamanho_hectares) || 0;
-      if (haEfetiva <= 0) return;
-
-      // UA do pasto
-      let uaArea = 0;
-      lotesArea.forEach(l => {
-        uaArea += ((l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0)) / 450;
-      });
-      if (uaArea === 0) return; // Sem gado, não calcula
-
-      // Consumo diário do rebanho
-      const consumoDiario = uaArea * CONSUMO_DIARIO_UA;
-      totalConsumo += consumoDiario;
-
-      // Forragem disponível (kg MS/ha) — campo do usuário ou estimativa
-      const forragemKgHa = area.forragem_kg_ha || FORRAGEM_ESTIMADA[area.aproveitamento_classificacao] || 2500;
-      const forragemTotal = haEfetiva * forragemKgHa;
-
-      // Taxa de aproveitamento (padrão 50%)
-      const taxaAprov = (area.taxa_aproveitamento > 0 ? area.taxa_aproveitamento : 50) / 100;
-      const forragemUtil = forragemTotal * taxaAprov;
-
-      // Dias de pastejo = forragem utilizável / consumo diário
-      const diasPastejo = consumoDiario > 0 ? forragemUtil / consumoDiario : 0;
-
-      // Taxa de crescimento (kg MS/ha/dia)
-      const crescKgHaDia = area.taxa_crescimento_kg_ha_dia || CRESC_ESTIMADO[area.periodo_estacao] || CRESC_ESTIMADO['Intermediário'];
-      const producaoDiaria = haEfetiva * crescKgHaDia;
-      totalProducao += producaoDiaria;
-
-      // Balanço de forragem = produção - consumo
-      const balanco = producaoDiaria - consumoDiario;
-      const balancoPercent = consumoDiario > 0 ? (producaoDiaria / consumoDiario) * 100 : 0;
-
-      // Classificação
-      let situacao = 'equilibrado';
-      if (balancoPercent >= 130) situacao = 'abundante';
-      else if (balancoPercent >= 90) situacao = 'equilibrado';
-      else if (balancoPercent >= 60) situacao = 'risco';
-      else situacao = 'degradacao';
-
-      // Data estimada de esgotamento (quando balanço negativo)
-      let dataEsgotamento = null;
-      if (balanco < 0 && forragemUtil > 0) {
-        const diasRestantes = forragemUtil / Math.abs(balanco);
-        const dt = new Date();
-        dt.setDate(dt.getDate() + Math.floor(diasRestantes));
-        dataEsgotamento = dt.toLocaleDateString('pt-BR');
-      }
-
-      const usaEstimativa = !area.forragem_kg_ha;
-
-      analiseForragem.push({
-        nome: area.nome,
-        uaArea,
-        ha: haEfetiva,
-        consumoDiario,
-        forragemKgHa,
-        forragemTotal,
-        forragemUtil,
-        diasPastejo,
-        producaoDiaria,
-        crescKgHaDia,
-        balanco,
-        balancoPercent,
-        situacao,
-        dataEsgotamento,
-        usaEstimativa,
-        taxaAprov: taxaAprov * 100,
-      });
-    });
-
-    if (analiseForragem.length > 0) {
-      const balancoGeral = totalProducao - totalConsumo;
-
-      // Card resumo geral de forragem
-      result.push({
-        tipo: 'forragem_resumo',
-        icone: Leaf,
-        cor: 'text-lime-700 bg-lime-50 border-lime-200',
-        titulo: 'Forragem — Resumo Geral',
-        texto: `Consumo: ${fmtNum(totalConsumo, 0)} kg MS/dia  •  Produção: ${fmtNum(totalProducao, 0)} kg MS/dia`,
-        valores: [
-          { label: 'Consumo/dia', valor: fmtNum(totalConsumo, 0) + ' kg' },
-          { label: 'Produção/dia', valor: fmtNum(totalProducao, 0) + ' kg' },
-          { label: 'Balanço/dia', valor: (balancoGeral >= 0 ? '+' : '') + fmtNum(balancoGeral, 0) + ' kg' },
-          { label: 'Pastos Analisados', valor: analiseForragem.length },
-        ]
-      });
-
-      // Dias de pastejo por pasto
-      const ordenadosDias = [...analiseForragem].sort((a, b) => a.diasPastejo - b.diasPastejo);
-      result.push({
-        tipo: 'dias_pastejo',
-        icone: Clock,
-        cor: 'text-cyan-700 bg-cyan-50 border-cyan-200',
-        titulo: `Dias de Pastejo Estimados`,
-        texto: 'Quantos dias o pasto sustenta o rebanho atual (forragem utilizável ÷ consumo diário).',
-        lista: ordenadosDias.map(a => {
-          const badge = a.diasPastejo < 20 ? '🔴' : a.diasPastejo < 45 ? '🟡' : '🟢';
-          const est = a.usaEstimativa ? ' *' : '';
-          return `${badge} ${a.nome}: ${fmtNum(a.diasPastejo, 0)} dias (${fmtNum(a.consumoDiario, 0)} kg/dia, ${fmtNum(a.forragemKgHa, 0)} kg/ha${est})`;
-        })
-      });
-
-      // Balanço de forragem por pasto (produção vs consumo)
-      const abundantes = analiseForragem.filter(a => a.situacao === 'abundante');
-      const equilibrados = analiseForragem.filter(a => a.situacao === 'equilibrado');
-      const emRisco = analiseForragem.filter(a => a.situacao === 'risco');
-      const emDegradacao = analiseForragem.filter(a => a.situacao === 'degradacao');
-
-      result.push({
-        tipo: 'balanco_forragem',
-        icone: Sprout,
-        cor: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-        titulo: `Balanço Forragem (${analiseForragem.length} pastos)`,
-        valores: [
-          { label: '🟢 Abundante', valor: abundantes.length },
-          { label: '🟡 Equilibrado', valor: equilibrados.length },
-          { label: '🟠 Risco', valor: emRisco.length },
-          { label: '🔴 Degradação', valor: emDegradacao.length },
-        ]
-      });
-
-      // Alertas: pastos em risco ou degradação
-      const pastosAlerta = [...emDegradacao, ...emRisco].sort((a, b) => a.balancoPercent - b.balancoPercent);
-      if (pastosAlerta.length > 0) {
-        result.push({
-          tipo: 'alerta_forragem',
-          icone: Flame,
-          cor: 'text-red-700 bg-red-50 border-red-200',
-          titulo: `⚠ Atenção — Forragem Insuficiente (${pastosAlerta.length})`,
-          texto: 'Consumo acima da produção de capim. Considerar rotação ou redução de lotação.',
-          lista: pastosAlerta.map(a => {
-            const defStr = fmtNum(Math.abs(a.balanco), 0);
-            const dtStr = a.dataEsgotamento ? ` — Esgota em ${a.dataEsgotamento}` : '';
-            return `${a.situacao === 'degradacao' ? '🔴' : '🟠'} ${a.nome}: déficit ${defStr} kg/dia (${fmtNum(a.balancoPercent, 0)}% da necessidade)${dtStr}`;
-          })
-        });
-      }
-
-      // Pastos com abundância (podem receber mais animais)
-      if (abundantes.length > 0) {
-        result.push({
-          tipo: 'forragem_abundante',
-          icone: Sprout,
-          cor: 'text-green-700 bg-green-50 border-green-200',
-          titulo: `✓ Forragem Abundante (${abundantes.length} pastos)`,
-          texto: 'Produção de capim acima do consumo. Podem receber mais animais.',
-          lista: abundantes.sort((a, b) => b.balancoPercent - a.balancoPercent).map(a =>
-            `${a.nome}: +${fmtNum(a.balanco, 0)} kg/dia (produção ${fmtNum(a.balancoPercent, 0)}% do consumo)`
-          )
-        });
-      }
-
-      // Nota sobre estimativas
-      const comEstimativa = analiseForragem.filter(a => a.usaEstimativa);
-      if (comEstimativa.length > 0) {
-        result.push({
-          tipo: 'nota_forragem',
-          icone: AlertTriangle,
-          cor: 'text-slate-600 bg-slate-50 border-slate-200',
-          titulo: `ℹ Estimativas de Forragem`,
-          texto: `${comEstimativa.length} pasto(s) usam estimativas padrão. Para maior precisão, informe forragem (kg MS/ha), taxa de crescimento e período no cadastro da área.`,
-        });
-      }
-    }
 
     // Categorias em campo
     const categoriasCounts = {};
