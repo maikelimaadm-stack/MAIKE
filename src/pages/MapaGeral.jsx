@@ -918,7 +918,7 @@ export default function MapaGeral() {
 
 
         {/* Barra resumo inferior */}
-        <div className="bg-gray-50 top-1 abottom-2 left-2 right-2 z-10 w-10">
+        <div className="bg-gray-50 top-1 bottom-2 left-2 right-2 z-10 w-">
           <div className="w-0">
             <div className="bg-gray-50 text-[10px] flex items-center gap-3">
               <div className="text-center">
