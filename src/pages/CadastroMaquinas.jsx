@@ -33,7 +33,7 @@ export default function CadastroMaquinas() {
       const all = await base44.entities.Maquina.list();
       return all.filter((m) => m.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const deleteMutation = useMutation({
@@ -41,7 +41,7 @@ export default function CadastroMaquinas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maquinas"] });
       toast.success("Máquina excluída");
-    },
+    }
   });
 
 
@@ -56,10 +56,10 @@ export default function CadastroMaquinas() {
         deleted++;
         setDeleteProgress({ current: deleted, total: selecionados.length });
       } catch {
+
+
         // noop
-      }
-    }
-    setTimeout(() => {
+      }}setTimeout(() => {
       setIsDeletingBulk(false);
       setSelecionados([]);
     }, 500);
@@ -71,7 +71,7 @@ export default function CadastroMaquinas() {
         <div>
           <h1 className="font-bold text-slate-800">Cadastro de Ativos Fixos</h1>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1 flex-wrap">
           {!showForm &&
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
               <Settings className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function CadastroMaquinas() {
           }
 
           {!showForm &&
-          <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
+          <Button onClick={() => {setEditingMaquina(null);setShowForm(true);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
               Adicionar
             </Button>
           }
@@ -87,42 +87,42 @@ export default function CadastroMaquinas() {
       </div>}
 
       <AnimatePresence mode="wait">
-        {showForm ? (
-          <FormularioMaquina
-            maquina={editingMaquina}
-            onSave={() => {
-              setShowForm(false);
-              setEditingMaquina(null);
-              queryClient.invalidateQueries({ queryKey: ["maquinas"] });
-            }}
-            onCancel={() => { setShowForm(false); setEditingMaquina(null); }}
-          />
-        ) : (
-          <motion.div key="table" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-1">
-            {isDeletingBulk && (
-              <Card className="rounded-xl border bg-card text-card-foreground shadow">
+        {showForm ?
+        <FormularioMaquina
+          maquina={editingMaquina}
+          onSave={() => {
+            setShowForm(false);
+            setEditingMaquina(null);
+            queryClient.invalidateQueries({ queryKey: ["maquinas"] });
+          }}
+          onCancel={() => {setShowForm(false);setEditingMaquina(null);}} /> :
+
+
+        <motion.div key="table" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-1">
+            {isDeletingBulk &&
+          <Card className="rounded-xl border bg-card text-card-foreground shadow">
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-center gap-2 text-xs text-slate-700"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Excluindo ativos selecionados...</div>
                   <Progress value={deleteProgress.total ? deleteProgress.current / deleteProgress.total * 100 : 0} />
                 </CardContent>
               </Card>
-            )}
+          }
 
             <TabelaMaquinas
-              maquinas={maquinas}
-              selecionados={selecionados}
-              onSelecionadosChange={setSelecionados}
-              onView={(maquina) => { setSelectedMaquina(maquina); setShowFicha(true); }}
-              onEdit={(maquina) => { setEditingMaquina(maquina); setShowForm(true); }}
-              onDelete={(maquina) => setDeleteConfirmId(maquina.id)}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-            />
+            maquinas={maquinas}
+            selecionados={selecionados}
+            onSelecionadosChange={setSelecionados}
+            onView={(maquina) => {setSelectedMaquina(maquina);setShowFicha(true);}}
+            onEdit={(maquina) => {setEditingMaquina(maquina);setShowForm(true);}}
+            onDelete={(maquina) => setDeleteConfirmId(maquina.id)}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas} />
+          
           </motion.div>
-        )}
+        }
       </AnimatePresence>
 
-      <ConfirmDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)} title="Confirmar exclusão" description="Tem certeza que deseja excluir este ativo? Esta ação não pode ser desfeita." onConfirm={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
+      <ConfirmDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)} title="Confirmar exclusão" description="Tem certeza que deseja excluir este ativo? Esta ação não pode ser desfeita." onConfirm={() => {deleteMutation.mutate(deleteConfirmId);setDeleteConfirmId(null);}} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
       <ConfirmDialog open={bulkDeleteConfirm} onOpenChange={() => setBulkDeleteConfirm(false)} title="Confirmar exclusão" description={`Tem certeza que deseja excluir ${selecionados.length} ativo(s)? Esta ação não pode ser desfeita.`} onConfirm={executeBulkDelete} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
 
       <Dialog open={showFicha} onOpenChange={setShowFicha}>
@@ -131,6 +131,6 @@ export default function CadastroMaquinas() {
           {selectedMaquina && <FichaMaquina maquina={selectedMaquina} onClose={() => setShowFicha(false)} />}
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
