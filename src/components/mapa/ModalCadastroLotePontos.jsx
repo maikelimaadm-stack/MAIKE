@@ -692,11 +692,11 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
                 () => toast.error("Erro ao obter localização")
               );
             }
-          }} className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg" title="Minha localização">
+          }} className="w-9 bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7" title="Minha localização">
             <Target className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setSnappingEnabled(!snappingEnabled)}
-          className={snappingEnabled ? "h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white flex justify-center" : "h-8 w-8 flex justify-center"}
+          <Button variant="outline" size="sm" onClick={() => setSnappingEnabled(!snappingEnabled)} className="w-9 bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7"
+
           title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}>
             
             <span className="text-base leading-none">🧲</span>
