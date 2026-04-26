@@ -1065,7 +1065,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 }}
                 disabled={redoStackRef.current.length === 0}>
                 
-                  <RotateCw className="lucide lucide-rotate-cw w-3.5 h-3.5 mr-1.5 hidden" /> Refazer
+                   Refazer
                 </Button>
 
                 <Button
@@ -1089,7 +1089,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   }
                 }}>
                 
-                  <Check className="lucide lucide-check w-3.5 h-3.5 mr-1.5 hidden" /> {itemEditando ? 'Salvar' : drawingClosed ? 'Salvar' : 'Terminar'}
+                   {itemEditando ? 'Salvar' : drawingClosed ? 'Salvar' : 'Terminar'}
                 </Button>
               </div>
             </div>
