@@ -45,7 +45,7 @@ export default function HistoricoMovimentacoesPecuaria() {
       const all = await base44.entities.MovimentacaoPecuaria.list("-created_date");
       return all.filter((m) => m.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: setores = [] } = useQuery({
@@ -54,13 +54,13 @@ export default function HistoricoMovimentacoesPecuaria() {
       const all = await base44.entities.Setor.list();
       return all.filter((s) => s.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ["areas-pastagem"],
     queryFn: () => base44.entities.AreaPastagem.list(),
-    initialData: [],
+    initialData: []
   });
 
   const expandirIdsExclusao = (ids) => {
@@ -95,7 +95,7 @@ export default function HistoricoMovimentacoesPecuaria() {
       setShowEditRapido(false);
       setEditando(null);
     },
-    onError: () => toast.error("Erro ao atualizar movimentação"),
+    onError: () => toast.error("Erro ao atualizar movimentação")
   });
 
   const handleDelete = (id) => {
@@ -133,7 +133,7 @@ export default function HistoricoMovimentacoesPecuaria() {
     if (!editando) return;
     updateMutation.mutate({
       id: editando.id,
-      data: { data_movimentacao: editando.data_movimentacao, quantidade_animais: editando.quantidade_animais, peso_medio: editando.peso_medio, observacoes: editando.observacoes },
+      data: { data_movimentacao: editando.data_movimentacao, quantidade_animais: editando.quantidade_animais, peso_medio: editando.peso_medio, observacoes: editando.observacoes }
     });
   };
 
@@ -171,7 +171,7 @@ export default function HistoricoMovimentacoesPecuaria() {
     reader.onload = async (event) => {
       const text = event.target?.result;
       const lines = text.split("\n").filter((l) => l.trim());
-      if (lines.length < 2) { toast.error("Arquivo vazio"); return; }
+      if (lines.length < 2) {toast.error("Arquivo vazio");return;}
       const headers = lines[0].split(";").map((h) => h.trim().toLowerCase());
       const dataLines = lines.slice(1);
       const validRecords = [];
@@ -184,9 +184,9 @@ export default function HistoricoMovimentacoesPecuaria() {
         let dataMovStr;
         if (dataStr) {
           const parts = dataStr.split("/");
-          if (parts.length === 3) { dataMovStr = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}T12:00:00`; }
-          else { const p = new Date(dataStr); dataMovStr = !isNaN(p.getTime()) ? p.toISOString() : new Date().toISOString(); }
-        } else { dataMovStr = new Date().toISOString(); }
+          if (parts.length === 3) {dataMovStr = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}T12:00:00`;} else
+          {const p = new Date(dataStr);dataMovStr = !isNaN(p.getTime()) ? p.toISOString() : new Date().toISOString();}
+        } else {dataMovStr = new Date().toISOString();}
         const record = {
           tipo, motivo: values[headers.indexOf("motivo")] || "", data_movimentacao: dataMovStr, quantidade_animais: quantidade,
           categoria_animal: values[headers.indexOf("categoria")] || null, marca: values[headers.indexOf("marca")] || null, sexo: values[headers.indexOf("sexo")] || null,
@@ -195,12 +195,12 @@ export default function HistoricoMovimentacoesPecuaria() {
           destino_venda: tipo === "Saída" ? values[headers.indexOf("fornecedor/comprador")] || null : null,
           valor_unitario: parseFloat(values[headers.indexOf("valor unitário")]) || null, valor_total: parseFloat(values[headers.indexOf("valor total")]) || null,
           nota_fiscal: values[headers.indexOf("nf")] || null, gta: values[headers.indexOf("gta")] || null,
-          causa_morte: values[headers.indexOf("causa morte")] || null, observacoes: values[headers.indexOf("observações")] || null,
+          causa_morte: values[headers.indexOf("causa morte")] || null, observacoes: values[headers.indexOf("observações")] || null
         };
         const setorNome = values[headers.indexOf("setor")] || "";
-        if (setorNome) { const s = setores.find((s) => s.nome?.toLowerCase() === setorNome.toLowerCase()); if (s) { record.setor_id = s.id; record.setor_nome = s.nome; } }
+        if (setorNome) {const s = setores.find((s) => s.nome?.toLowerCase() === setorNome.toLowerCase());if (s) {record.setor_id = s.id;record.setor_nome = s.nome;}}
         const areaNome = values[headers.indexOf("área")] || "";
-        if (areaNome) { const a = areas.find((a) => a.nome?.toLowerCase() === areaNome.toLowerCase()); if (a) { if (tipo === "Entrada") { record.area_destino_id = a.id; record.area_destino_nome = a.nome; } else { record.area_origem_id = a.id; record.area_origem_nome = a.nome; } } }
+        if (areaNome) {const a = areas.find((a) => a.nome?.toLowerCase() === areaNome.toLowerCase());if (a) {if (tipo === "Entrada") {record.area_destino_id = a.id;record.area_destino_nome = a.nome;} else {record.area_origem_id = a.id;record.area_origem_nome = a.nome;}}}
         validRecords.push(record);
       }
       if (validRecords.length > 0) {
@@ -215,7 +215,7 @@ export default function HistoricoMovimentacoesPecuaria() {
         setImportProgress({ current: 0, total: 0, isImporting: false });
         queryClient.invalidateQueries({ queryKey: ["movimentacoes-pecuaria"] });
         toast.success(`${validRecords.length} registro(s) importado(s)!`);
-      } else { toast.error("Nenhum registro válido encontrado"); }
+      } else {toast.error("Nenhum registro válido encontrado");}
       e.target.value = "";
     };
     reader.readAsText(file, "UTF-8");
@@ -223,60 +223,61 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   return (
     <div className="p-1 md:p-1 space-y-1">
-      {!showForm && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
+      {!showForm &&
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
           <div>
             <h1 className="font-bold text-slate-800">Histórico de Movimentações</h1>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1 flex-wrap">
             <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
               <Settings className="w-4 h-4" />
             </Button>
             <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs gap-1">
-              <Download className="w-3.5 h-3.5" /> Exportar
+               Exportar
             </Button>
             <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-7 text-xs">Modelo</Button>
             <label>
               <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer gap-1" asChild>
-                <span><Upload className="w-3.5 h-3.5" /> Importar</span>
+                <span> Importar</span>
               </Button>
               <input type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
             </label>
             <Button
-              onClick={() => { setItemEditandoManual(null); setShowForm(true); }}
-              size="sm"
-              className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600"
-            >
-              Adicionar
+            onClick={() => {setItemEditandoManual(null);setShowForm(true);}}
+            size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
+
+            
+              Novo Lançamento
             </Button>
           </div>
         </div>
-      )}
+      }
+
       <AnimatePresence mode="wait">
-        {showForm ? (
-          <FormularioLancamentoManual
-            item={itemEditandoManual}
-            onSave={() => {
-              setShowForm(false);
-              setItemEditandoManual(null);
-              queryClient.invalidateQueries({ queryKey: ["movimentacoes-pecuaria"] });
-            }}
-            onCancel={() => { setShowForm(false); setItemEditandoManual(null); }}
-          />
-        ) : (
-          <>
+        {showForm ?
+        <FormularioLancamentoManual
+          item={itemEditandoManual}
+          onSave={() => {
+            setShowForm(false);
+            setItemEditandoManual(null);
+            queryClient.invalidateQueries({ queryKey: ["movimentacoes-pecuaria"] });
+          }}
+          onCancel={() => {setShowForm(false);setItemEditandoManual(null);}} /> :
+
+
+        <>
             <SaldoCategorias movimentacoes={movimentacoes} categoriasManejo={[]} />
             <TabelaMovimentacoesPecuaria
-              movimentacoes={movimentacoes}
-              onEditCompleto={handleEditCompleto}
-              onEditRapido={handleEditRapido}
-              onDuplicar={handleDuplicar}
-              onDelete={handleDelete}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-            />
+            movimentacoes={movimentacoes}
+            onEditCompleto={handleEditCompleto}
+            onEditRapido={handleEditRapido}
+            onDuplicar={handleDuplicar}
+            onDelete={handleDelete}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas} />
+          
           </>
-        )}
+        }
       </AnimatePresence>
 
       <ConfirmDialog
@@ -287,15 +288,15 @@ export default function HistoricoMovimentacoesPecuaria() {
         onConfirm={confirmDelete}
         confirmText="Excluir"
         cancelText="Cancelar"
-        variant="destructive"
-      />
+        variant="destructive" />
+      
 
       {/* Edição rápida */}
       <Dialog open={showEditRapido} onOpenChange={setShowEditRapido}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Editar Movimentação</DialogTitle></DialogHeader>
-          {editando && (
-            <div className="space-y-3">
+          {editando &&
+          <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
                   <label className="text-[12px] text-slate-500 pl-1 leading-none">Data<span className="text-red-500 ml-0.5">*</span></label>
@@ -306,12 +307,12 @@ export default function HistoricoMovimentacoesPecuaria() {
                   <Input type="number" value={editando.quantidade_animais || ""} onChange={(e) => setEditando({ ...editando, quantidade_animais: parseInt(e.target.value) || 0 })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
               </div>
-              {editando.peso_medio !== undefined && (
-                <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
+              {editando.peso_medio !== undefined &&
+            <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
                   <label className="text-[12px] text-slate-500 pl-1 leading-none">Peso Médio (kg)</label>
                   <Input type="number" step="0.1" value={editando.peso_medio || ""} onChange={(e) => setEditando({ ...editando, peso_medio: parseFloat(e.target.value) || null })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </div>
-              )}
+            }
               <div className="rounded-md border border-gray-300 px-2 pt-1 pb-1">
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
                 <Textarea value={editando.observacoes || ""} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={3} />
@@ -321,7 +322,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                 <Button onClick={handleSaveEditRapido} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Salvar Alterações</Button>
               </div>
             </div>
-          )}
+          }
         </DialogContent>
       </Dialog>
 
@@ -335,12 +336,12 @@ export default function HistoricoMovimentacoesPecuaria() {
                 <span className="text-slate-600">Progresso</span>
                 <span className="font-semibold text-slate-900">{importProgress.current} de {importProgress.total}</span>
               </div>
-              <Progress value={importProgress.total ? (importProgress.current / importProgress.total) * 100 : 0} className="h-3" />
-              <p className="text-center text-sm font-medium text-emerald-600">{importProgress.total ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%</p>
+              <Progress value={importProgress.total ? importProgress.current / importProgress.total * 100 : 0} className="h-3" />
+              <p className="text-center text-sm font-medium text-emerald-600">{importProgress.total ? Math.round(importProgress.current / importProgress.total * 100) : 0}%</p>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
