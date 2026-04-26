@@ -295,7 +295,7 @@ export default function MapaGeral() {
     pontosSuplementacao,
     eventosSupl,
     estoqueLotes,
-    produtos,
+    produtos
   }), [lotes, pontosSuplementacao, eventosSupl, estoqueLotes, produtos]);
 
   const lotesComAlerta = useMemo(() => lotes.map((lote) => {
@@ -321,9 +321,9 @@ export default function MapaGeral() {
       return {
         ...ponto,
         indicador_percentual: indicadorBase.percent,
-        indicador_helper: showAlertas ? (alertaPrincipal?.descricao || indicadorBase.helperLabel) : indicadorBase.helperLabel,
+        indicador_helper: showAlertas ? alertaPrincipal?.descricao || indicadorBase.helperLabel : indicadorBase.helperLabel,
         ultimo_registro: indicadorBase.latestRecord,
-        alertas_inteligentes: showAlertas ? (alertaInfo?.alertas || []) : []
+        alertas_inteligentes: showAlertas ? alertaInfo?.alertas || [] : []
       };
     });
   }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl, alertasMapa, showAlertas]);
@@ -919,7 +919,7 @@ export default function MapaGeral() {
 
         {/* Barra resumo inferior */}
         <div className="absolute bottom-2 left-2 right-2 z-10">
-          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-3 py-1.5 flex items-center justify-between">
+          <div className="bg-white/95 px-1 rounded-xl backdrop-blur-sm shadow-lg flex items-center justify-between">
             <div className="flex items-center gap-3 text-[10px]">
               <div className="text-center">
                 <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
