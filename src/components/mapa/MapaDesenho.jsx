@@ -984,7 +984,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           }
 
             {/* Toolbar central: Desfazer / Refazer / Terminar */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1">
               {/* Dicas contextuais */}
               {tipoDesenho === 'ponto' && !currentMarker && !itemEditando &&
             <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
