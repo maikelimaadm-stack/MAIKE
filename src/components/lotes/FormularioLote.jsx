@@ -12,16 +12,16 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
 
-const FL = ({ label, required, error, children, dataField }) => (
-  <div data-field={dataField}>
+const FL = ({ label, required, error, children, dataField }) =>
+<div data-field={dataField}>
     <label className="text-[12px] text-slate-500 pl-1 leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
       {children}
     </div>
-  </div>
-);
+  </div>;
+
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
@@ -55,24 +55,24 @@ const REQUIRED_FIELDS = [
 "sistema_produtivo"];
 
 const CORES_DISPONIVEIS = [
-  { nome: "Branco", cor: "#f8f9fa" },
-  { nome: "Cinza claro", cor: "#d8dee2" },
-  { nome: "Preto", cor: "#2c303e" },
-  { nome: "Azul escuro", cor: "#0d67ad" },
-  { nome: "Azul celeste", cor: "#61aad9" },
-  { nome: "Amarelo", cor: "#efcb19" },
-  { nome: "Verde claro", cor: "#92ca25" },
-  { nome: "Laranja", cor: "#f5a01b" },
-  { nome: "Roxo", cor: "#966fe1" },
-];
+{ nome: "Branco", cor: "#f8f9fa" },
+{ nome: "Cinza claro", cor: "#d8dee2" },
+{ nome: "Preto", cor: "#2c303e" },
+{ nome: "Azul escuro", cor: "#0d67ad" },
+{ nome: "Azul celeste", cor: "#61aad9" },
+{ nome: "Amarelo", cor: "#efcb19" },
+{ nome: "Verde claro", cor: "#92ca25" },
+{ nome: "Laranja", cor: "#f5a01b" },
+{ nome: "Roxo", cor: "#966fe1" }];
+
 
 const parseSistemasProdutivos = (valor) => {
   if (Array.isArray(valor)) return valor;
   if (!valor) return [];
-  return String(valor)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return String(valor).
+  split(",").
+  map((item) => item.trim()).
+  filter(Boolean);
 };
 
 
@@ -81,7 +81,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [errors, setErrors] = useState({});
-// Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
+  // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
   const carregarDataEntrada = (data) => {
     if (!data) return new Date().toLocaleDateString("sv-SE");
     if (data.includes("/")) {
@@ -251,9 +251,9 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
   };
   const toggleSistemaProdutivo = (sistema) => {
     const atuais = parseSistemasProdutivos(formData.sistema_produtivo);
-    const proximos = atuais.includes(sistema)
-      ? atuais.filter((item) => item !== sistema)
-      : [...atuais, sistema];
+    const proximos = atuais.includes(sistema) ?
+    atuais.filter((item) => item !== sistema) :
+    [...atuais, sistema];
     handleChange("sistema_produtivo", proximos);
   };
 
@@ -266,41 +266,41 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
     const quantidade = parseInt(formData.quantidade_cabecas) || 0;
     const peso = parseFloat(formData.peso_medio_kg) || 0;
 
-const dataToSave = {
-  ...formData,
-  sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
-  data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null,
-  nome: formData.nome.toUpperCase(),
-  setor_nome: area?.setor_nome || "",
-  area_entrada_nome: area?.nome || "",
-  area_atual_id: formData.area_entrada_id,
-  area_atual_nome: area?.nome || "",
-  categoria_manejo_nome: categoriaManejo?.nome || "",
-  origem: formData.motivo_entrada?.toUpperCase() || "",
-  observacoes: formData.observacoes?.toUpperCase() || "",
-  quantidade_cabecas: quantidade,
-  quantidade_entrada: quantidade,
-  identificador_nome: formData.identificador_nome?.toUpperCase() || "",
-  identificador_sigla: formData.identificador_sigla?.toUpperCase() || "",
-  identificador_cor: formData.identificador_cor || "",
-  peso_medio_kg: peso,
-  peso_entrada_kg: peso,
-  idade_media_meses: parseInt(formData.idade_media_meses) || 0,
-  valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
-  valor_por_cabeca: parseFloat(formData.valor_por_cabeca) || 0,
-  valor_frete: parseFloat(formData.valor_frete) || 0,
-  categoria_entrada: formData.categoria || "",
-  categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
-  categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
-};
+    const dataToSave = {
+      ...formData,
+      sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
+      data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null,
+      nome: formData.nome.toUpperCase(),
+      setor_nome: area?.setor_nome || "",
+      area_entrada_nome: area?.nome || "",
+      area_atual_id: formData.area_entrada_id,
+      area_atual_nome: area?.nome || "",
+      categoria_manejo_nome: categoriaManejo?.nome || "",
+      origem: formData.motivo_entrada?.toUpperCase() || "",
+      observacoes: formData.observacoes?.toUpperCase() || "",
+      quantidade_cabecas: quantidade,
+      quantidade_entrada: quantidade,
+      identificador_nome: formData.identificador_nome?.toUpperCase() || "",
+      identificador_sigla: formData.identificador_sigla?.toUpperCase() || "",
+      identificador_cor: formData.identificador_cor || "",
+      peso_medio_kg: peso,
+      peso_entrada_kg: peso,
+      idade_media_meses: parseInt(formData.idade_media_meses) || 0,
+      valor_total_compra: parseFloat(formData.valor_total_compra) || 0,
+      valor_por_cabeca: parseFloat(formData.valor_por_cabeca) || 0,
+      valor_frete: parseFloat(formData.valor_frete) || 0,
+      categoria_entrada: formData.categoria || "",
+      categoria_manejo_entrada_id: formData.categoria_manejo_id || "",
+      categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
+    };
 
-if (!shouldPersistEntrySnapshot) {
-  dataToSave.quantidade_entrada = initialData?.quantidade_entrada ?? dataToSave.quantidade_entrada;
-  dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
-  dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
-  dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
-  dataToSave.categoria_manejo_entrada_nome = initialData?.categoria_manejo_entrada_nome ?? dataToSave.categoria_manejo_entrada_nome;
-}
+    if (!shouldPersistEntrySnapshot) {
+      dataToSave.quantidade_entrada = initialData?.quantidade_entrada ?? dataToSave.quantidade_entrada;
+      dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
+      dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
+      dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
+      dataToSave.categoria_manejo_entrada_nome = initialData?.categoria_manejo_entrada_nome ?? dataToSave.categoria_manejo_entrada_nome;
+    }
 
 
     onSubmit(dataToSave);
@@ -338,8 +338,8 @@ if (!shouldPersistEntrySnapshot) {
                   displayField="nome"
                   searchFields={["nome", "numero_area"]}
                   className="w-full"
-                  inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs"
-                />
+                  inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs" />
+                
               </FL>
               <FL label="Motivo da Entrada" dataField="motivo_entrada">
                 <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
@@ -366,24 +366,24 @@ if (!shouldPersistEntrySnapshot) {
                 <Select value={formData.identificador_cor || SELECT_EMPTY} onValueChange={(value) => handleChange("identificador_cor", value === SELECT_EMPTY ? "" : value)}>
                   <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                     <SelectValue placeholder="SELECIONE">
-                      {formData.identificador_cor ? (
-                        <span className="flex items-center gap-2">
+                      {formData.identificador_cor ?
+                      <span className="flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: formData.identificador_cor }} />
                           {CORES_DISPONIVEIS.find((c) => c.cor === formData.identificador_cor)?.nome?.toUpperCase() || 'SELECIONE'}
-                        </span>
-                      ) : "SELECIONE"}
+                        </span> :
+                      "SELECIONE"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {CORES_DISPONIVEIS.map((c) => (
-                      <SelectItem key={c.cor} value={c.cor} className="text-xs">
+                    {CORES_DISPONIVEIS.map((c) =>
+                    <SelectItem key={c.cor} value={c.cor} className="text-xs">
                         <div className="flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: c.cor }} />
                           {c.nome.toUpperCase()}
                         </div>
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </FL>
@@ -428,11 +428,11 @@ if (!shouldPersistEntrySnapshot) {
               <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo">
                 <div className="px-2 py-2 space-y-2 bg-transparent">
                   <div className="text-xs text-slate-600 min-h-[20px]">
-                    {parseSistemasProdutivos(formData.sistema_produtivo).length > 0
-                      ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ")
-                      : "SELECIONE UM OU MAIS TIPOS"}
+                    {parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ?
+                    parseSistemasProdutivos(formData.sistema_produtivo).join(", ") :
+                    "SELECIONE UM OU MAIS TIPOS"}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols- gap-2">
                     {SISTEMAS.map((item) => {
                       const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
                       return (
@@ -440,11 +440,11 @@ if (!shouldPersistEntrySnapshot) {
                           <Checkbox
                             checked={checked}
                             onCheckedChange={() => toggleSistemaProdutivo(item)}
-                            className="h-3.5 w-3.5"
-                          />
+                            className="h-3.5 w-3.5" />
+                          
                           <span>{item}</span>
-                        </label>
-                      );
+                        </label>);
+
                     })}
                   </div>
                 </div>
