@@ -13,7 +13,7 @@ import { formatDatePtBr } from "../components/movimentacoes/utils/movimentacaoDi
 
 const getNextNumeroLancamento = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
-  const filtered = all.filter(l => l && l.empresa_id === empresaId);
+  const filtered = all.filter((l) => l && l.empresa_id === empresaId);
   return String(filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento, 10) || 0), 0) + 1);
 };
 
@@ -61,7 +61,7 @@ const gerarLancamentoFinanceiroPayload = async (dadosFinanceiro, empresaId) => {
       rateio_centros_custo: dadosFinanceiro.rateio_centros_custo,
       observacao: dadosFinanceiro.observacao,
       observacao_parcela: obsParcela || undefined,
-      anexos_urls: dadosFinanceiro.anexos_urls || [],
+      anexos_urls: dadosFinanceiro.anexos_urls || []
     };
   });
 };
@@ -93,54 +93,54 @@ export default function MovimentacoesEstoque() {
     queryKey: ['movimentacoes', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list('-created_date');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status !== 'Cancelada');
+      return all.filter((m) => m.empresa_id === empresaSelecionadaId && m.status !== 'Cancelada');
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: produtos = [] } = useQuery({
     queryKey: ['produtos', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: fornecedores = [] } = useQuery({
     queryKey: ['fornecedores', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Fornecedor.list();
-      return all.filter(f => f.empresa_id === empresaSelecionadaId);
+      return all.filter((f) => f.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: lancamentosFinanceiros = [] } = useQuery({
     queryKey: ['lancamentos_financeiros_movimentacao', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.LancamentoFinanceiro.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+      return all.filter((l) => l.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: baixasFinanceiras = [] } = useQuery({
     queryKey: ['baixas_financeiras_movimentacao', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.BaixaFinanceira.list();
-      return all.filter(b => b.empresa_id === empresaSelecionadaId);
+      return all.filter((b) => b.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: estoqueLoteNota = [] } = useQuery({
     queryKey: ['estoque_lote_nota_movimentacao', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.EstoqueLoteNota.list('-created_date');
-      return all.filter(item => item.empresa_id === empresaSelecionadaId);
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   // Classificação: principais = sempre registro principal | movimentações = todos os itens/produtos
@@ -153,29 +153,29 @@ export default function MovimentacoesEstoque() {
     const { tipo_movimentacao, tipo_detalhado, data_movimentacao, local_estoque_origem, local_origem, local_estoque_destino, local_destino, observacoes: obs, dados_financeiro, produtos_selecionados } = formData;
     let lancamentosFinanceirosCriados = [];
 
-    const movimentacoesEditadas = editingMovimentacao?.movimentacao_grupo_id
-      ? movimentacoes.filter(m => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id)
-      : editingMovimentacao ? [editingMovimentacao] : [];
+    const movimentacoesEditadas = editingMovimentacao?.movimentacao_grupo_id ?
+    movimentacoes.filter((m) => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id) :
+    editingMovimentacao ? [editingMovimentacao] : [];
 
-    const lotesNotaRelacionadosEdicao = editingMovimentacao
-      ? estoqueLoteNota.filter(lote => {
-          if (movimentacoesEditadas.some(m => lote.movimentacao_entrada_id && lote.movimentacao_entrada_id === m.id)) return true;
-          if (movimentacoesEditadas.some(m => m.numero_documento && lote.numero_documento === m.numero_documento && lote.produto_id === m.produto_id && lote.local_estoque_id === (m.local_estoque_destino || m.local_estoque_origem))) return true;
-          return false;
-        })
-      : [];
+    const lotesNotaRelacionadosEdicao = editingMovimentacao ?
+    estoqueLoteNota.filter((lote) => {
+      if (movimentacoesEditadas.some((m) => lote.movimentacao_entrada_id && lote.movimentacao_entrada_id === m.id)) return true;
+      if (movimentacoesEditadas.some((m) => m.numero_documento && lote.numero_documento === m.numero_documento && lote.produto_id === m.produto_id && lote.local_estoque_id === (m.local_estoque_destino || m.local_estoque_origem))) return true;
+      return false;
+    }) :
+    [];
 
-    const lancamentoFinanceiroOrigem = movimentacoesEditadas.length > 0
-      ? lancamentosFinanceiros.find(l => l.id === movimentacoesEditadas[0]?.lancamento_origem_id)
-      : null;
+    const lancamentoFinanceiroOrigem = movimentacoesEditadas.length > 0 ?
+    lancamentosFinanceiros.find((l) => l.id === movimentacoesEditadas[0]?.lancamento_origem_id) :
+    null;
 
     const grupoFinanceiroOrigemId = lancamentoFinanceiroOrigem?.parcelamento_grupo_id || null;
-    const lancamentosFinanceirosRelacionados = lancamentoFinanceiroOrigem
-      ? lancamentosFinanceiros.filter(l => (grupoFinanceiroOrigemId ? l.parcelamento_grupo_id === grupoFinanceiroOrigemId : l.id === lancamentoFinanceiroOrigem.id))
-      : [];
+    const lancamentosFinanceirosRelacionados = lancamentoFinanceiroOrigem ?
+    lancamentosFinanceiros.filter((l) => grupoFinanceiroOrigemId ? l.parcelamento_grupo_id === grupoFinanceiroOrigemId : l.id === lancamentoFinanceiroOrigem.id) :
+    [];
 
-    const possuiBaixaFinanceira = lancamentosFinanceirosRelacionados.some(l =>
-      baixasFinanceiras.some(b => b.lancamento_id === l.id)
+    const possuiBaixaFinanceira = lancamentosFinanceirosRelacionados.some((l) =>
+    baixasFinanceiras.some((b) => b.lancamento_id === l.id)
     );
 
     if (editingMovimentacao?.lancamento_origem_id && possuiBaixaFinanceira) {
@@ -188,9 +188,9 @@ export default function MovimentacoesEstoque() {
 
     // Se editando: excluir registros antigos do grupo e recriar
     if (editingMovimentacao) {
-      const registrosAntigos = editingMovimentacao.movimentacao_grupo_id
-        ? movimentacoes.filter(m => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id)
-        : [editingMovimentacao];
+      const registrosAntigos = editingMovimentacao.movimentacao_grupo_id ?
+      movimentacoes.filter((m) => m.movimentacao_grupo_id === editingMovimentacao.movimentacao_grupo_id) :
+      [editingMovimentacao];
 
       setProgressoSalvamento({ etapa: 'Revertendo registros antigos...', current: 10, total: 100 });
 
@@ -199,18 +199,18 @@ export default function MovimentacoesEstoque() {
         if (prodDbArr.length > 0) {
           const produto = prodDbArr[0];
           let novoEstoque = produto.estoque_atual || 0;
-          if (mov.tipo_movimentacao === 'Entrada') novoEstoque -= mov.quantidade;
-          else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
+          if (mov.tipo_movimentacao === 'Entrada') novoEstoque -= mov.quantidade;else
+          if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
           await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
         }
 
         if (mov.tipo_movimentacao === 'Entrada') {
-          const loteEntrada = estoqueLoteNota.find(lote => lote.movimentacao_entrada_id === mov.id);
+          const loteEntrada = estoqueLoteNota.find((lote) => lote.movimentacao_entrada_id === mov.id);
           if (loteEntrada?.id) {
             await base44.entities.EstoqueLoteNota.update(loteEntrada.id, {
               quantidade_entrada: 0,
               quantidade_disponivel: 0,
-              status: 'Esgotado',
+              status: 'Esgotado'
             });
           }
         }
@@ -218,12 +218,12 @@ export default function MovimentacoesEstoque() {
         if (mov.tipo_movimentacao === 'Saída' && Array.isArray(mov.lotes_consumidos)) {
           for (const consumo of mov.lotes_consumidos) {
             if (!consumo?.lote_id || !consumo?.quantidade_consumida) continue;
-            const loteConsumido = estoqueLoteNota.find(lote => lote.id === consumo.lote_id);
+            const loteConsumido = estoqueLoteNota.find((lote) => lote.id === consumo.lote_id);
             if (!loteConsumido) continue;
             const quantidadeRestaurada = (loteConsumido.quantidade_disponivel || 0) + (consumo.quantidade_consumida || 0);
             await base44.entities.EstoqueLoteNota.update(loteConsumido.id, {
               quantidade_disponivel: quantidadeRestaurada,
-              status: quantidadeRestaurada > 0 ? 'Disponivel' : 'Esgotado',
+              status: quantidadeRestaurada > 0 ? 'Disponivel' : 'Esgotado'
             });
           }
         }
@@ -270,12 +270,12 @@ export default function MovimentacoesEstoque() {
     for (let idx = 0; idx < totalProdutos; idx++) {
       const item = produtos_selecionados[idx];
       seqNum++;
-      const prod = produtos.find(p => p.id === item.produto_id);
-      if (!prod) { toast.error(`Produto ${item.produto_nome} não encontrado`); setShowSaveProgress(false); return; }
+      const prod = produtos.find((p) => p.id === item.produto_id);
+      if (!prod) {toast.error(`Produto ${item.produto_nome} não encontrado`);setShowSaveProgress(false);return;}
 
       // Fetch fresh product data from DB to get the true stock (especially if we just reverted it)
       const prodDbArr = await base44.entities.Produto.filter({ id: item.produto_id });
-      const estoqueAntes = prodDbArr.length > 0 ? (prodDbArr[0].estoque_atual || 0) : (prod.estoque_atual || 0);
+      const estoqueAntes = prodDbArr.length > 0 ? prodDbArr[0].estoque_atual || 0 : prod.estoque_atual || 0;
       let estoqueDepois = estoqueAntes;
 
       const baseMov = {
@@ -293,7 +293,7 @@ export default function MovimentacoesEstoque() {
         quantidade: item.quantidade,
         unidade_medida: item.unidade || prod.unidade_medida || '',
         valor_unitario: item.valor_unitario || item.valor_liquido_unitario || 0,
-        valor_total: item.valor_total || item.valor_liquido || ((item.quantidade || 0) * (item.valor_unitario || item.valor_liquido_unitario || 0)),
+        valor_total: item.valor_total || item.valor_liquido || (item.quantidade || 0) * (item.valor_unitario || item.valor_liquido_unitario || 0),
         fornecedor_id: fornId || undefined,
         fornecedor_nome: fornNome || undefined,
         cliente_nome: clienteNome || undefined,
@@ -310,7 +310,7 @@ export default function MovimentacoesEstoque() {
         total_movimentacoes_grupo: totalProdutos,
         is_registro_principal: idx === 0,
         modo_saida_fifo: item.modo_saida_fifo || null,
-        lotes_consumidos: item.lotes_consumidos || null,
+        lotes_consumidos: item.lotes_consumidos || null
       };
 
       // ===== ENTRADA =====
@@ -322,16 +322,16 @@ export default function MovimentacoesEstoque() {
           local_estoque_destino: local_estoque_destino || '',
           local_destino: local_destino || '',
           saldo_antes: estoqueAntes,
-          saldo_depois: estoqueDepois,
+          saldo_depois: estoqueDepois
         });
 
-        const loteExistenteEdicao = editingMovimentacao
-          ? lotesNotaRelacionadosEdicao.find(lote => lote.produto_id === item.produto_id)
-          : null;
+        const loteExistenteEdicao = editingMovimentacao ?
+        lotesNotaRelacionadosEdicao.find((lote) => lote.produto_id === item.produto_id) :
+        null;
 
-        const quantidadeJaConsumida = loteExistenteEdicao
-          ? Math.max(0, (loteExistenteEdicao.quantidade_entrada || 0) - (loteExistenteEdicao.quantidade_disponivel || 0))
-          : 0;
+        const quantidadeJaConsumida = loteExistenteEdicao ?
+        Math.max(0, (loteExistenteEdicao.quantidade_entrada || 0) - (loteExistenteEdicao.quantidade_disponivel || 0)) :
+        0;
 
         const payloadLoteNota = {
           empresa_id: empresaSelecionadaId,
@@ -347,7 +347,7 @@ export default function MovimentacoesEstoque() {
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: Math.max(0, item.quantidade - quantidadeJaConsumida),
           movimentacao_entrada_id: movimentacaoCriada.id,
-          status: Math.max(0, item.quantidade - quantidadeJaConsumida) > 0 ? 'Disponivel' : 'Esgotado',
+          status: Math.max(0, item.quantidade - quantidadeJaConsumida) > 0 ? 'Disponivel' : 'Esgotado'
         };
 
         if (loteExistenteEdicao?.id) {
@@ -373,14 +373,14 @@ export default function MovimentacoesEstoque() {
               const novoDisp = Math.max(0, (lote[0].quantidade_disponivel || 0) - lc.quantidade_consumida);
               await base44.entities.EstoqueLoteNota.update(lc.lote_id, {
                 quantidade_disponivel: novoDisp,
-                status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel',
+                status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel'
               });
               lotesConsumidosSaida.push({
                 lote_id: lc.lote_id,
                 numero_documento: lote[0].numero_documento || '',
                 fornecedor_nome: lote[0].fornecedor_nome || '',
                 quantidade_consumida: lc.quantidade_consumida,
-                custo_unitario: lote[0].custo_unitario || 0,
+                custo_unitario: lote[0].custo_unitario || 0
               });
             }
           }
@@ -390,7 +390,7 @@ export default function MovimentacoesEstoque() {
           let lotesDisponiveis = await base44.entities.EstoqueLoteNota.filter({
             produto_id: item.produto_id,
             status: 'Disponivel',
-            ...(localId ? { local_estoque_id: localId } : {}),
+            ...(localId ? { local_estoque_id: localId } : {})
           });
           lotesDisponiveis.sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
           let qtdRestante = item.quantidade;
@@ -400,7 +400,7 @@ export default function MovimentacoesEstoque() {
             const novoDisp = lote.quantidade_disponivel - consumir;
             await base44.entities.EstoqueLoteNota.update(lote.id, {
               quantidade_disponivel: novoDisp,
-              status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel',
+              status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel'
             });
             if (consumir > 0) {
               lotesConsumidosSaida.push({
@@ -408,7 +408,7 @@ export default function MovimentacoesEstoque() {
                 numero_documento: lote.numero_documento || '',
                 fornecedor_nome: lote.fornecedor_nome || '',
                 quantidade_consumida: consumir,
-                custo_unitario: lote.custo_unitario || 0,
+                custo_unitario: lote.custo_unitario || 0
               });
             }
             qtdRestante -= consumir;
@@ -422,7 +422,7 @@ export default function MovimentacoesEstoque() {
           local_estoque_origem: local_estoque_origem || '',
           local_origem: local_origem || '',
           saldo_antes: estoqueAntes,
-          saldo_depois: estoqueDepois,
+          saldo_depois: estoqueDepois
         });
         await base44.entities.Produto.update(prod.id, { estoque_atual: estoqueDepois });
       }
@@ -433,7 +433,7 @@ export default function MovimentacoesEstoque() {
         let lotesOrigem = await base44.entities.EstoqueLoteNota.filter({
           produto_id: item.produto_id,
           status: 'Disponivel',
-          ...(local_estoque_origem ? { local_estoque_id: local_estoque_origem } : {}),
+          ...(local_estoque_origem ? { local_estoque_id: local_estoque_origem } : {})
         });
         lotesOrigem.sort((a, b) => new Date(a.data_documento || a.created_date) - new Date(b.data_documento || b.created_date));
         let qtdRest = item.quantidade;
@@ -448,7 +448,7 @@ export default function MovimentacoesEstoque() {
           const novoDisp = lote.quantidade_disponivel - consumir;
           await base44.entities.EstoqueLoteNota.update(lote.id, {
             quantidade_disponivel: novoDisp,
-            status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel',
+            status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel'
           });
           qtdRest -= consumir;
         }
@@ -465,11 +465,11 @@ export default function MovimentacoesEstoque() {
           local_estoque_destino: local_estoque_destino || '',
           local_destino: local_destino || '',
           saldo_antes: estoqueAntes,
-          saldo_depois: estoqueDepois,
+          saldo_depois: estoqueDepois
         });
-        const loteTransferenciaExistente = editingMovimentacao
-          ? lotesNotaRelacionadosEdicao.find(lote => lote.produto_id === item.produto_id)
-          : null;
+        const loteTransferenciaExistente = editingMovimentacao ?
+        lotesNotaRelacionadosEdicao.find((lote) => lote.produto_id === item.produto_id) :
+        null;
 
         const payloadTransferencia = {
           empresa_id: empresaSelecionadaId,
@@ -485,8 +485,8 @@ export default function MovimentacoesEstoque() {
           quantidade_entrada: item.quantidade,
           quantidade_disponivel: item.quantidade,
           movimentacao_entrada_id: movimentacaoTransferenciaCriada.id,
-          status: 'Disponivel',
-          };
+          status: 'Disponivel'
+        };
 
         if (loteTransferenciaExistente?.id) {
           await base44.entities.EstoqueLoteNota.update(loteTransferenciaExistente.id, payloadTransferencia);
@@ -497,13 +497,13 @@ export default function MovimentacoesEstoque() {
 
       setProgressoSalvamento({
         etapa: `Produto ${idx + 1} de ${totalProdutos}...`,
-        current: 10 + Math.round(((idx + 1) / totalProdutos) * 85),
+        current: 10 + Math.round((idx + 1) / totalProdutos * 85),
         total: 100
       });
     }
 
     setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
     queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
     queryClient.invalidateQueries({ queryKey: ['produtos'] });
@@ -519,7 +519,7 @@ export default function MovimentacoesEstoque() {
     let registroPrincipal = movimentacao;
     if (movimentacao.movimentacao_grupo_id && !movimentacao.is_registro_principal) {
       const principal = movimentacoes.find(
-        m => m.movimentacao_grupo_id === movimentacao.movimentacao_grupo_id && m.is_registro_principal
+        (m) => m.movimentacao_grupo_id === movimentacao.movimentacao_grupo_id && m.is_registro_principal
       );
       if (principal) {
         toast.info('Redirecionando para o registro principal para edição...');
@@ -527,63 +527,63 @@ export default function MovimentacoesEstoque() {
       }
     }
 
-    const movimentacoesDoGrupo = registroPrincipal.movimentacao_grupo_id
-      ? movimentacoes.filter(m => m.movimentacao_grupo_id === registroPrincipal.movimentacao_grupo_id)
-      : [registroPrincipal];
+    const movimentacoesDoGrupo = registroPrincipal.movimentacao_grupo_id ?
+    movimentacoes.filter((m) => m.movimentacao_grupo_id === registroPrincipal.movimentacao_grupo_id) :
+    [registroPrincipal];
 
-    const lancamentoOrigemId = registroPrincipal.lancamento_origem_id
-      || movimentacoesDoGrupo.find(m => m.lancamento_origem_id)?.lancamento_origem_id
-      || null;
+    const lancamentoOrigemId = registroPrincipal.lancamento_origem_id ||
+    movimentacoesDoGrupo.find((m) => m.lancamento_origem_id)?.lancamento_origem_id ||
+    null;
 
-    const lancamentoFinanceiroOrigem = lancamentoOrigemId
-      ? lancamentosFinanceiros.find(l => l.id === lancamentoOrigemId)
-      : null;
+    const lancamentoFinanceiroOrigem = lancamentoOrigemId ?
+    lancamentosFinanceiros.find((l) => l.id === lancamentoOrigemId) :
+    null;
 
     const grupoFinanceiroOrigemId = lancamentoFinanceiroOrigem?.parcelamento_grupo_id || null;
-    const lancamentosFinanceirosRelacionados = lancamentoFinanceiroOrigem
-      ? lancamentosFinanceiros.filter(l => (grupoFinanceiroOrigemId ? l.parcelamento_grupo_id === grupoFinanceiroOrigemId : l.id === lancamentoFinanceiroOrigem.id))
-      : [];
+    const lancamentosFinanceirosRelacionados = lancamentoFinanceiroOrigem ?
+    lancamentosFinanceiros.filter((l) => grupoFinanceiroOrigemId ? l.parcelamento_grupo_id === grupoFinanceiroOrigemId : l.id === lancamentoFinanceiroOrigem.id) :
+    [];
 
-    const possuiBaixaFinanceira = lancamentosFinanceirosRelacionados.some(l =>
-      baixasFinanceiras.some(b => b.lancamento_id === l.id)
+    const possuiBaixaFinanceira = lancamentosFinanceirosRelacionados.some((l) =>
+    baixasFinanceiras.some((b) => b.lancamento_id === l.id)
     );
 
     if (registroPrincipal.lancamento_origem_id && possuiBaixaFinanceira) {
-      const lancamentosComBaixa = lancamentosFinanceirosRelacionados.filter(l =>
-        baixasFinanceiras.some(b => b.lancamento_id === l.id)
+      const lancamentosComBaixa = lancamentosFinanceirosRelacionados.filter((l) =>
+      baixasFinanceiras.some((b) => b.lancamento_id === l.id)
       );
-      const detalheParcelas = lancamentosComBaixa
-        .map(l => l.total_parcelas_grupo > 1 ? `parcela ${l.numero_parcela_seq}/${l.total_parcelas_grupo}` : 'registro financeiro')
-        .join(', ');
+      const detalheParcelas = lancamentosComBaixa.
+      map((l) => l.total_parcelas_grupo > 1 ? `parcela ${l.numero_parcela_seq}/${l.total_parcelas_grupo}` : 'registro financeiro').
+      join(', ');
       toast.error(`Não é possível editar esta movimentação porque o financeiro já teve baixa (${detalheParcelas}).`);
       return;
     }
 
-    const dadosFinanceiroReconstruidos = lancamentoFinanceiroOrigem
-      ? {
-          ...lancamentoFinanceiroOrigem,
-          valor_total: lancamentoFinanceiroOrigem.valor_total_lancamento || lancamentosFinanceirosRelacionados.reduce((sum, l) => sum + (l.valor_total || 0), 0),
-          parcelas: lancamentosFinanceirosRelacionados.length > 0
-            ? lancamentosFinanceirosRelacionados
-                .sort((a, b) => (a.numero_parcela_seq || 0) - (b.numero_parcela_seq || 0))
-                .map(l => ({
-                  numero: l.numero_parcela_seq || 1,
-                  data_vencimento: l.data_vencimento,
-                  valor: l.valor_total || 0,
-                  status: l.status || 'Aberto',
-                  observacao_parcela: l.observacao_parcela || '',
-                }))
-            : [],
-        }
-      : null;
+    const dadosFinanceiroReconstruidos = lancamentoFinanceiroOrigem ?
+    {
+      ...lancamentoFinanceiroOrigem,
+      valor_total: lancamentoFinanceiroOrigem.valor_total_lancamento || lancamentosFinanceirosRelacionados.reduce((sum, l) => sum + (l.valor_total || 0), 0),
+      parcelas: lancamentosFinanceirosRelacionados.length > 0 ?
+      lancamentosFinanceirosRelacionados.
+      sort((a, b) => (a.numero_parcela_seq || 0) - (b.numero_parcela_seq || 0)).
+      map((l) => ({
+        numero: l.numero_parcela_seq || 1,
+        data_vencimento: l.data_vencimento,
+        valor: l.valor_total || 0,
+        status: l.status || 'Aberto',
+        observacao_parcela: l.observacao_parcela || ''
+      })) :
+      []
+    } :
+    null;
 
     // Se faz parte de um grupo, reconstruir os produtos a partir dos registros
     if (registroPrincipal.movimentacao_grupo_id && registroPrincipal.total_movimentacoes_grupo > 1) {
-      const todasMovs = movimentacoes
-        .filter(m => m.movimentacao_grupo_id === registroPrincipal.movimentacao_grupo_id)
-        .sort((a, b) => (a.numero_movimentacao_seq || 0) - (b.numero_movimentacao_seq || 0));
+      const todasMovs = movimentacoes.
+      filter((m) => m.movimentacao_grupo_id === registroPrincipal.movimentacao_grupo_id).
+      sort((a, b) => (a.numero_movimentacao_seq || 0) - (b.numero_movimentacao_seq || 0));
 
-      const produtosReconstruidos = todasMovs.map(m => ({
+      const produtosReconstruidos = todasMovs.map((m) => ({
         produto_id: m.produto_id,
         produto_nome: m.produto_nome,
         unidade_medida: m.unidade_medida,
@@ -593,13 +593,13 @@ export default function MovimentacoesEstoque() {
         valor_desconto: 0,
         valor_liquido: m.valor_total,
         valor_liquido_unitario: m.valor_unitario,
-        lotes_consumidos: m.lotes_consumidos || null,
+        lotes_consumidos: m.lotes_consumidos || null
       }));
 
       setEditingMovimentacao({
         ...registroPrincipal,
         dados_financeiro_integrado: dadosFinanceiroReconstruidos,
-        produtos_para_editar: produtosReconstruidos,
+        produtos_para_editar: produtosReconstruidos
       });
     } else {
       // Avulso: apenas 1 produto
@@ -616,8 +616,8 @@ export default function MovimentacoesEstoque() {
           valor_desconto: 0,
           valor_liquido: registroPrincipal.valor_total,
           valor_liquido_unitario: registroPrincipal.valor_unitario,
-          lotes_consumidos: registroPrincipal.lotes_consumidos || null,
-        }],
+          lotes_consumidos: registroPrincipal.lotes_consumidos || null
+        }]
       });
     }
     setShowForm(true);
@@ -626,27 +626,27 @@ export default function MovimentacoesEstoque() {
   const handleDelete = (id) => setDeleteConfirmId(id);
 
   const handleConfirmDelete = async () => {
-    const mov = movimentacoes.find(m => m.id === deleteConfirmId);
+    const mov = movimentacoes.find((m) => m.id === deleteConfirmId);
     if (!mov) return;
     if (!mov.is_registro_principal) {
       toast.error('Somente registros principais podem ser excluídos.');
       return;
     }
 
-    const bloqueado = mov.bloqueado_exclusao_estoque
-      || (mov.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque')
-      || ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(mov.tipo_detalhado);
+    const bloqueado = mov.bloqueado_exclusao_estoque ||
+    mov.exclusao_somente_em && mov.exclusao_somente_em !== 'estoque' ||
+    ['suplementacao', 'transferencia_enviada', 'transferencia_recebida'].includes(mov.tipo_detalhado);
     if (bloqueado) {
       toast.error('Esse lançamento não pode ser excluído pela tela de estoque.');
       return;
     }
 
-    const registrosParaExcluir = mov.movimentacao_grupo_id
-      ? movimentacoes.filter(m => m.movimentacao_grupo_id === mov.movimentacao_grupo_id)
-      : [mov];
+    const registrosParaExcluir = mov.movimentacao_grupo_id ?
+    movimentacoes.filter((m) => m.movimentacao_grupo_id === mov.movimentacao_grupo_id) :
+    [mov];
 
     for (const reg of registrosParaExcluir) {
-      const produto = produtos.find(p => p.id === reg.produto_id);
+      const produto = produtos.find((p) => p.id === reg.produto_id);
       if (produto) {
         let novoEstoque = produto.estoque_atual || 0;
         if (reg.tipo_movimentacao === 'Entrada') {
@@ -666,20 +666,20 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleExportSelected = (ids) => {
-    const selecionados = movPrincipais.filter(m => ids.includes(m.id));
+    const selecionados = movPrincipais.filter((m) => ids.includes(m.id));
     if (!selecionados.length) return;
     const csvRows = [['Nº', 'Data', 'Tipo', 'Tipo Detalhado', 'Documento', 'Local Origem', 'Local Destino', 'Motivo'].join(';')];
-    selecionados.forEach(m => {
+    selecionados.forEach((m) => {
       csvRows.push([
-        m.numero_movimentacao,
-        formatDatePtBr(m.data_movimentacao),
-        (m.tipo_movimentacao || '').toUpperCase(),
-        (getLabelOperacao(m.tipo_detalhado) || '').toUpperCase(),
-        (m.numero_documento || '').toUpperCase(),
-        (m.local_origem || '').toUpperCase(),
-        (m.local_destino || '').toUpperCase(),
-        (m.motivo_movimentacao || '').toUpperCase(),
-      ].join(';'));
+      m.numero_movimentacao,
+      formatDatePtBr(m.data_movimentacao),
+      (m.tipo_movimentacao || '').toUpperCase(),
+      (getLabelOperacao(m.tipo_detalhado) || '').toUpperCase(),
+      (m.numero_documento || '').toUpperCase(),
+      (m.local_origem || '').toUpperCase(),
+      (m.local_destino || '').toUpperCase(),
+      (m.motivo_movimentacao || '').toUpperCase()].
+      join(';'));
     });
     const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -691,12 +691,12 @@ export default function MovimentacoesEstoque() {
 
   const handleExport = () => {
     const csvRows = [['Nº', 'Data', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Local Estoque', 'Documento', 'Motivo'].join(';')];
-    movimentacoes.forEach(m => {
+    movimentacoes.forEach((m) => {
       csvRows.push([
-        m.numero_movimentacao, format(new Date(m.data_movimentacao), 'dd/MM/yyyy'),
-        m.tipo_movimentacao, getLabelOperacao(m.tipo_detalhado), m.produto_nome,
-        m.quantidade, getLocalEstoque(m), m.numero_documento || '', m.motivo_movimentacao || ''
-      ].join(';'));
+      m.numero_movimentacao, format(new Date(m.data_movimentacao), 'dd/MM/yyyy'),
+      m.tipo_movimentacao, getLabelOperacao(m.tipo_detalhado), m.produto_nome,
+      m.quantidade, getLocalEstoque(m), m.numero_documento || '', m.motivo_movimentacao || ''].
+      join(';'));
     });
     const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -708,8 +708,8 @@ export default function MovimentacoesEstoque() {
 
   return (
     <div className="p-1 md:p-1 space-y-1">
-      {!showForm && !showTransferenciaLote && (
-        <>
+      {!showForm && !showTransferenciaLote &&
+      <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
             <div>
               <h1 className="font-bold text-slate-800">Movimentações de Estoque</h1>
@@ -724,10 +724,10 @@ export default function MovimentacoesEstoque() {
               <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs">
                 Exportar
               </Button>
-              <Button onClick={() => { setShowTransferenciaLote(true); setShowForm(false); setEditingMovimentacao(null); }} size="sm" variant="outline" className="h-7 text-xs bg-slate-100">
+              <Button onClick={() => {setShowTransferenciaLote(true);setShowForm(false);setEditingMovimentacao(null);}} size="sm" variant="outline" className="h-7 text-xs bg-slate-100">
                 Transferência Lote
               </Button>
-              <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); setShowTransferenciaLote(false); }} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
+              <Button onClick={() => {setEditingMovimentacao(null);setShowForm(true);setShowTransferenciaLote(false);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
                 Adicionar
               </Button>
             </div>
@@ -740,59 +740,59 @@ export default function MovimentacoesEstoque() {
             </TabsList>
             <TabsContent value="principais" className="mt-1">
               <TabelaMovimentacoes
-                movimentacoes={movPrincipais}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onExportSelected={handleExportSelected}
-                isLoading={isLoading}
-                showConfigColunas={abaAtiva === 'principais' ? showConfigColunas : false}
-                setShowConfigColunas={setShowConfigColunas}
-                modoVisualizacao="principais"
-                allMovimentacoes={movimentacoes}
-              />
+              movimentacoes={movPrincipais}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onExportSelected={handleExportSelected}
+              isLoading={isLoading}
+              showConfigColunas={abaAtiva === 'principais' ? showConfigColunas : false}
+              setShowConfigColunas={setShowConfigColunas}
+              modoVisualizacao="principais"
+              allMovimentacoes={movimentacoes} />
+            
             </TabsContent>
             <TabsContent value="movimentacoes" className="mt-1">
               <TabelaMovimentacoes
-                movimentacoes={movTodas}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onExportSelected={handleExportSelected}
-                isLoading={isLoading}
-                showConfigColunas={abaAtiva === 'movimentacoes' ? showConfigColunas : false}
-                setShowConfigColunas={setShowConfigColunas}
-                modoVisualizacao="movimentacoes"
-                allMovimentacoes={movimentacoes}
-              />
+              movimentacoes={movTodas}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onExportSelected={handleExportSelected}
+              isLoading={isLoading}
+              showConfigColunas={abaAtiva === 'movimentacoes' ? showConfigColunas : false}
+              setShowConfigColunas={setShowConfigColunas}
+              modoVisualizacao="movimentacoes"
+              allMovimentacoes={movimentacoes} />
+            
             </TabsContent>
           </Tabs>
         </>
-      )}
+      }
 
       <AnimatePresence>
-        {showForm && (
-          <MovimentacaoEstoqueFormV2
-            onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingMovimentacao(null); }}
-            initialData={editingMovimentacao}
-            produtos={produtos}
-            fornecedores={fornecedores}
-          />
-        )}
-        {showTransferenciaLote && (
-          <TransferenciaEmLoteForm
-            onCancel={() => setShowTransferenciaLote(false)}
-            produtos={produtos}
-          />
-        )}
+        {showForm &&
+        <MovimentacaoEstoqueFormV2
+          onSubmit={handleSubmit}
+          onCancel={() => {setShowForm(false);setEditingMovimentacao(null);}}
+          initialData={editingMovimentacao}
+          produtos={produtos}
+          fornecedores={fornecedores} />
+
+        }
+        {showTransferenciaLote &&
+        <TransferenciaEmLoteForm
+          onCancel={() => setShowTransferenciaLote(false)}
+          produtos={produtos} />
+
+        }
       </AnimatePresence>
 
       <ImportarNFeMovimentacao
         open={showImportXML}
         onClose={() => setShowImportXML(false)}
-        onSuccess={() => { setShowImportXML(false); toast.info('Importação XML em construção.'); }}
+        onSuccess={() => {setShowImportXML(false);toast.info('Importação XML em construção.');}}
         produtos={produtos}
-        fornecedores={fornecedores}
-      />
+        fornecedores={fornecedores} />
+      
 
       <ConfirmDialog
         open={!!deleteConfirmId}
@@ -802,8 +802,8 @@ export default function MovimentacoesEstoque() {
         onConfirm={handleConfirmDelete}
         confirmText="Excluir Registro"
         cancelText="Voltar"
-        variant="destructive"
-      />
+        variant="destructive" />
+      
 
       <Dialog open={showSaveProgress} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
@@ -816,6 +816,6 @@ export default function MovimentacoesEstoque() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
