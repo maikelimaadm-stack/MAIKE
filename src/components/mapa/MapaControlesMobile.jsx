@@ -74,7 +74,7 @@ export default function MapaControlesMobile({
             type="button"
             variant="secondary"
             size="icon"
-            onClick={onToggleDrag} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h- w-9 rounded-full shadow-md pointer-events-auto bg-neutral-50 hover:bg-neutral-100 text-slate-700"
+            onClick={onToggleDrag} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-7 w-7 rounded-full shadow-md pointer-events-auto bg-neutral-50 hover:bg-neutral-100 text-slate-700"
 
             title="Ativar arrasto">
             <Move className="w-4 h-4" />
