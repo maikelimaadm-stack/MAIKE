@@ -17,7 +17,7 @@ export default function MapaControlesMobile({
   return (
     <>
       {/* Top-left: voltar + ações */}
-      <div className="bg-green-900 absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 flex gap-1 bg-white/95 rounded-lg shadow-md p-0.5">
+      <div className="bg-slate-700 p-0.5 rounded-lg absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 gap-1 shadow-md">
         <Button
           variant="secondary"
           size="icon" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground hover:bg-secondary/80 h-7 w-7 rounded-full bg-white/95 shadow-md"
@@ -27,7 +27,7 @@ export default function MapaControlesMobile({
           <X className="w-5 h-5 text-slate-700" />
         </Button>
         {showTarefasButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground hover:bg-secondary/80 h-7 w-7 rounded-full bg-white/95 shadow-md" title="Tarefas">
+        <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Tarefas">
             <ClipboardList className="w-5 h-5 text-slate-700" />
           </Button>
         }
@@ -37,7 +37,7 @@ export default function MapaControlesMobile({
 
         
         {showFiltrosButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="bg-zinc-100 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Filtros">
+        <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Filtros">
             <Filter className="w-5 h-5 text-slate-700" />
           </Button>
         }
