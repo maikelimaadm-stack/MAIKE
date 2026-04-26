@@ -918,34 +918,17 @@ export default function MapaGeral() {
 
 
         {/* Barra resumo inferior */}
-        <div className="bg-gray-50 top-1 bottom-2 left-2 right-2 z-10 w-">
+        <div className="absolute bottom-2 left-2 right-2 z-10">
           <div className="inline-flex max-w-full items-center gap-3 rounded-lg bg-white/95 px-3 py-2 shadow-md border border-slate-200 text-[10px] pointer-events-auto">
-            <div className="bg-gray-50 text-[10px] flex items-center gap-3">
-              <div className="text-center">
-                <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
-                <div className="text-slate-500">Animais</div>
-              </div>
-              <div className="w-px h-5 bg-slate-200" />
-              <div className="text-center">
-                <div className="font-bold text-blue-700 text-sm leading-tight">{areasFiltradas.length}</div>
-                <div className="text-slate-500">Áreas</div>
-              </div>
-              <div className="w-px h-5 bg-slate-200" />
-              <div className="text-center">
-                <div className="font-bold text-slate-700 text-sm leading-tight">{areasOcupadas}</div>
-                <div className="text-slate-500">Ocupadas</div>
-              </div>
-              <div className="w-px h-5 bg-slate-200" />
-              <div className="text-center">
-                <div className="font-bold text-amber-700 text-sm leading-tight">{totalAlertas}</div>
-                <div className="text-slate-500">Alertas</div>
-              </div>
+            <div className="text-center">
+              <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
+              <div className="text-slate-500">Animais</div>
             </div>
-            
-
-
-
-            
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="text-center">
+              <div className="font-bold text-blue-700 text-sm leading-tight">{areasFiltradas.length}</div>
+              <div className="text-slate-500">Áreas</div>
+            </div>
           </div>
         </div>
 
