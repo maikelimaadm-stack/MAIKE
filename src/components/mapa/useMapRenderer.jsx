@@ -685,7 +685,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation };
+  return { clearAll, refreshMarkerIconSizes, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation };
 }
 
 function calcCentroid(paths) {
