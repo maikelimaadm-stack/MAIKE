@@ -63,17 +63,17 @@ export default function MapaControlesMobile({
             Sat
           </Button>
         </div>
-        <Button variant="secondary" size="icon" onClick={onRefresh} className="h-8 w-8 rounded-full bg-white/95 shadow-md self-end">
+        <Button variant="secondary" size="icon" onClick={onRefresh} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md">
           <RefreshCw className="w-3.5 h-3.5" />
         </Button>
-        <Button variant="secondary" size="icon" onClick={onLocate} className="h-8 w-8 rounded-full bg-white/95 shadow-md self-end">
+        <Button variant="secondary" size="icon" onClick={onLocate} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md">
           <Target className="w-3.5 h-3.5" />
         </Button>
         <Button
           variant={dragEnabled ? "default" : "secondary"}
           size="icon"
-          onClick={onToggleDrag}
-          className={`h-8 w-8 rounded-full shadow-md self-end ${dragEnabled ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white/95 text-slate-700'}`}
+          onClick={onToggleDrag} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md"
+
           title="Ativar arrasto">
           <Move className="w-3.5 h-3.5" />
         </Button>
