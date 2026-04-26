@@ -64,18 +64,18 @@ export default function MapaControlesMobile({
           </Button>
         </div>
         <div className="bg-slate-700 p-1 rounded-lg flex flex-col gap-1 shadow-md pointer-events-auto">
-          <Button type="button" variant="secondary" size="icon" onClick={onRefresh} className="bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-9 w-9 rounded-full shadow-md pointer-events-auto">
+          <Button type="button" variant="secondary" size="icon" onClick={onRefresh} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 rounded-full shadow-md pointer-events-auto">
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Button type="button" variant="secondary" size="icon" onClick={onLocate} className="bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-9 w-9 rounded-full shadow-md pointer-events-auto">
+          <Button type="button" variant="secondary" size="icon" onClick={onLocate} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 rounded-full shadow-md pointer-events-auto">
             <Target className="w-4 h-4" />
           </Button>
           <Button
             type="button"
             variant="secondary"
             size="icon"
-            onClick={onToggleDrag}
-            className={`h-9 w-9 rounded-full shadow-md pointer-events-auto ${dragEnabled ? 'bg-black text-white hover:bg-black' : 'bg-neutral-50 hover:bg-neutral-100 text-slate-700'}`}
+            onClick={onToggleDrag} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h- w-9 rounded-full shadow-md pointer-events-auto bg-neutral-50 hover:bg-neutral-100 text-slate-700"
+
             title="Ativar arrasto">
             <Move className="w-4 h-4" />
           </Button>
