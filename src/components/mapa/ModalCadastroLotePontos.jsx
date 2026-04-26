@@ -682,9 +682,9 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         </Button>
 
         {/* Controles */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-          <Button variant={mapType === "roadmap" ? "default" : "secondary"} size="sm" onClick={() => setMapType("roadmap")} className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg">Mapa</Button>
-          <Button variant={mapType === "satellite" ? "default" : "secondary"} size="sm" onClick={() => setMapType("satellite")} className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg">Satélite</Button>
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
+          <Button variant={mapType === "roadmap" ? "default" : "secondary"} size="sm" onClick={() => setMapType("roadmap")} className="w-9 bg-background text-[hsl(var(--foreground))] px-7 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7">Mapa</Button>
+          <Button variant={mapType === "satellite" ? "default" : "secondary"} size="sm" onClick={() => setMapType("satellite")} className="w-9 bg-background text-[hsl(var(--foreground))] px-7 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7">Satélite</Button>
           <Button variant="secondary" size="icon" onClick={() => {
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
