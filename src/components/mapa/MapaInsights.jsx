@@ -553,7 +553,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
       {insights.map((insight, idx) => {
         const Icon = insight.icone;
         return (
-          <Card key={idx} className={`border ${insight.cor.split(' ').slice(1).join(' ')} shadow-sm`}>
+          <Card key={idx} className={`border ${insight.cor.split(' ').slice(1).join(' ')} shadow-sm block`}>
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Icon className={`w-4 h-4 ${insight.cor.split(' ')[0]}`} />
