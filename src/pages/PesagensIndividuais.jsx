@@ -814,22 +814,22 @@ export default function PesagensIndividuais() {
         <Card>
           <CardContent className="p-3 space-y-0.5">
             <p className="text-[10px] uppercase text-slate-500">Peso Médio</p>
-            <p className="text-lg font-bold text-slate-900">{stats.pesoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg</p>
-            <p className="text-[11px] text-slate-500">@ média {stats.arrobaMedia.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
+            <p className="text-lg font-bold text-slate-900">{stats.pesoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg • {stats.arrobaMedia.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} @</p>
+            <p className="text-[11px] text-slate-500">média por animal</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 space-y-0.5">
             <p className="text-[10px] uppercase text-slate-500">Peso Total</p>
-            <p className="text-lg font-bold text-slate-900">{stats.pesoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg</p>
-            <p className="text-[11px] text-slate-500">@ total {stats.arrobaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
+            <p className="text-lg font-bold text-slate-900">{stats.pesoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg • {stats.arrobaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} @</p>
+            <p className="text-[11px] text-slate-500">somatório filtrado</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 space-y-0.5">
             <p className="text-[10px] uppercase text-slate-500">Ganho Médio</p>
-            <p className="text-lg font-bold text-emerald-700">{stats.ganhoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg</p>
-            <p className="text-[11px] text-emerald-600">@ ganha {stats.arrobaGanhaMedia.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
+            <p className="text-lg font-bold text-emerald-700">{stats.ganhoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg • {stats.arrobaGanhaMedia.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} @</p>
+            <p className="text-[11px] text-emerald-600">ganho médio por animal</p>
           </CardContent>
         </Card>
         <Card>
