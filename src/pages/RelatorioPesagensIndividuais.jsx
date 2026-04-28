@@ -1228,11 +1228,11 @@ export default function RelatorioPesagensIndividuais() {
                                     {colunasPainelOrdenadas.map((col) => {
                                     switch (col.id) {
                                       case 'lote':
-                                        return <TableCell key="lote" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{lote}</TableCell>;
+                                        return <TableCell key="lote" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{lote}</TableCell>;
                                       case 'qtd':
                                         return <TableCell key="qtd" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(qtd)}</TableCell>;
                                       case 'faixa':
-                                        return <TableCell key="faixa" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
+                                        return <TableCell key="faixa" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
                                       case 'menor':
                                         return <TableCell key="menor" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(menorPeso)} kg</TableCell>;
                                       case 'maior':
@@ -1299,7 +1299,7 @@ export default function RelatorioPesagensIndividuais() {
                           })}
                           </TableBody>
                         </Table>
-                        <div className="py-3 border-t-2 border-slate-200 mt-2">
+                        <div className="py-1 border-t-2 border-slate-200 mt-2">
                           <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs text-slate-700">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
                             <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioApt)} kg</div>
