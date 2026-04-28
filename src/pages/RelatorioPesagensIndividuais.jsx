@@ -1313,7 +1313,7 @@ export default function RelatorioPesagensIndividuais() {
 
                 })}
                   <div className="border-t border-slate-300">
-                    <h4 className="text-slate-800 text-sm font-bold uppercase">RESUMO GERAL</h4>
+                    <h4 className="text-slate-800 text-sm font-bold uppercase">Resumo Geral</h4>
                     <Table>
                       <TableHeader>
                         <TableRow>
