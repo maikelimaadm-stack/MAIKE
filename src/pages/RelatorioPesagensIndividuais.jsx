@@ -1142,7 +1142,7 @@ export default function RelatorioPesagensIndividuais() {
               }
             };
             return (
-              <div className="space-y-4">
+              <div className="space-y-">
                   <div className="flex gap-2 print:hidden">
                     <Button
                     variant={mostrarDetalhes ? "default" : "outline"}
