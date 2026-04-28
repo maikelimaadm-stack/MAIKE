@@ -1317,11 +1317,11 @@ export default function RelatorioPesagensIndividuais() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle bordera gray-300 whitespace-normal break-words">Apartação</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Lotes</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Animais</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Menor Peso</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Maior Peso</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Apartação</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Lotes</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Animais</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Menor Peso</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Maior Peso</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Média (@)</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
