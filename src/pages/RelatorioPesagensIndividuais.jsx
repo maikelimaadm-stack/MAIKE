@@ -1232,11 +1232,11 @@ export default function RelatorioPesagensIndividuais() {
                                       case 'qtd':
                                         return <TableCell key="qtd" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(qtd)}</TableCell>;
                                       case 'faixa':
-                                        return <TableCell key="faixa" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} ` : '-'}</TableCell>;
+                                        return <TableCell key="faixa" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
                                       case 'menor':
-                                        return <TableCell key="menor" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(menorPeso)} </TableCell>;
+                                        return <TableCell key="menor" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(menorPeso)} kg</TableCell>;
                                       case 'maior':
-                                        return <TableCell key="maior" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(maiorPeso)} </TableCell>;
+                                        return <TableCell key="maior" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(maiorPeso)} kg</TableCell>;
                                       case 'peso_medio':
                                         return <TableCell key="peso_medio" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioLote)}</TableCell>;
                                       case 'arroba_media':
@@ -1312,7 +1312,7 @@ export default function RelatorioPesagensIndividuais() {
                       </div>);
 
                 })}
-                  <div className="border-t border-slate-300">
+                  <div className="border-t border-slate-300 hidden">
                     <h4 className="text-slate-800 my-1 text-sm font-bold uppercase">Resumo Geral</h4>
                     <Table>
                       <TableHeader>
@@ -1363,13 +1363,13 @@ export default function RelatorioPesagensIndividuais() {
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioApt / 30, 2)}</TableCell>
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoTotalApt)}</TableCell>
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{diasMedioApt ? fmtDecimal(diasMedioApt, 1) : '-'}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">
-                                {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt, 1) : '-'}</TableCell>
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt / 30, 2) : '-'}</TableCell>
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt, 1) : '-'}</TableCell>
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt / 30, 2) : '-'}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{diasMedioApt ? fmtDecimal(diasMedioApt, 1) : '-'}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">
+                                {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               </TableCell>
                             </TableRow>);
 
