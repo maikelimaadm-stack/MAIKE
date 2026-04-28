@@ -1246,17 +1246,17 @@ export default function RelatorioPesagensIndividuais() {
                                       case 'arroba_total':
                                         return <TableCell key="arroba_total" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtDecimal(pesoTotalLote / 30, 2)}</TableCell>;
                                       case 'ganho_medio':
-                                        return <TableCell key="ganho_medio" className="text-xs text-center py-2 font-mono">{ganhoMedioLote ? fmtDecimal(ganhoMedioLote, 1) : '-'}</TableCell>;
+                                        return <TableCell key="ganho_medio" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{ganhoMedioLote ? fmtDecimal(ganhoMedioLote, 1) : '-'}</TableCell>;
                                       case 'ganho_medio_arroba':
-                                        return <TableCell key="ganho_medio_arroba" className="text-xs text-center py-2 font-mono">{ganhoMedioLote ? fmtDecimal(ganhoMedioLote / 30, 2) : '-'}</TableCell>;
+                                        return <TableCell key="ganho_medio_arroba" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{ganhoMedioLote ? fmtDecimal(ganhoMedioLote / 30, 2) : '-'}</TableCell>;
                                       case 'ganho_total':
-                                        return <TableCell key="ganho_total" className="text-xs text-center py-2 font-mono">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote, 1) : '-'}</TableCell>;
+                                        return <TableCell key="ganho_total" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote, 1) : '-'}</TableCell>;
                                       case 'ganho_total_arroba':
                                         return <TableCell key="ganho_total_arroba" className="text-xs text-center py-2 font-mono">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote / 30, 2) : '-'}</TableCell>;
                                       case 'dias_medio':
-                                        return <TableCell key="dias_medio" className="text-xs text-center py-2 font-mono">{diasMedioLote ? fmtDecimal(diasMedioLote, 1) : '-'}</TableCell>;
+                                        return <TableCell key="dias_medio" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{diasMedioLote ? fmtDecimal(diasMedioLote, 1) : '-'}</TableCell>;
                                       case 'gmd_medio':
-                                        return <TableCell key="gmd_medio" className="text-xs text-center py-2 font-mono font-semibold">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
+                                        return <TableCell key="gmd_medio" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
                                       case 'machos':
                                         return <TableCell key="machos" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>;
                                       case 'femeas':
