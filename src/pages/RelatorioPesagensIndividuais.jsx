@@ -1190,8 +1190,8 @@ export default function RelatorioPesagensIndividuais() {
                   animaisAptComHistorico.reduce((s, p) => s + (p.gmd || 0), 0) / animaisAptComHistorico.length :
                   0;
                   return (
-                    <div key={apartacao} className="mb-6">
-                        <div className="border-b-2 border-slate-200 pb-2 mb-3">
+                    <div key={apartacao}>
+                        <div className="mb-2 pb-2 border-b-2 border-slate-200">
                           <h3 className="text-slate-800 text-sm font-bold normal-case">APARTAÇÃO: {apartacao}</h3>
                         </div>
                         <Table>
@@ -1312,7 +1312,7 @@ export default function RelatorioPesagensIndividuais() {
                       </div>);
 
                 })}
-                  <div className="mt-6 border-t border-slate-300 pt-4">
+                  <div className="mt-6 border-t border-slate-300">
                     <h4 className="font-bold text-sm text-slate-800 uppercase mb-2">RESUMO GERAL</h4>
                     <Table>
                       <TableHeader>
