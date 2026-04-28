@@ -317,10 +317,19 @@ export default function PesagensIndividuais() {
   const stats = useMemo(() => {
     const total = pesagensFiltradas.length;
     const pesoMedio = total > 0 ? pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0) / total : 0;
-    const gmdMedio = pesagensFiltradas.filter(p => p.gmd).length > 0 
-      ? pesagensFiltradas.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / pesagensFiltradas.filter(p => p.gmd).length 
+    const registrosComGmd = pesagensFiltradas.filter((p) => p.gmd !== null && p.gmd !== undefined && p.gmd !== '');
+    const registrosComGanho = pesagensFiltradas.filter((p) => p.ganho !== null && p.ganho !== undefined && p.ganho !== '');
+    const registrosComDias = pesagensFiltradas.filter((p) => p.dias !== null && p.dias !== undefined && p.dias !== '');
+    const gmdMedio = registrosComGmd.length > 0
+      ? registrosComGmd.reduce((s, p) => s + (Number(p.gmd) || 0), 0) / registrosComGmd.length
       : 0;
-    return { total, pesoMedio, gmdMedio };
+    const ganhoMedio = registrosComGanho.length > 0
+      ? registrosComGanho.reduce((s, p) => s + (Number(p.ganho) || 0), 0) / registrosComGanho.length
+      : 0;
+    const diasMedio = registrosComDias.length > 0
+      ? registrosComDias.reduce((s, p) => s + (Number(p.dias) || 0), 0) / registrosComDias.length
+      : 0;
+    return { total, pesoMedio, gmdMedio, ganhoMedio, diasMedio };
   }, [pesagensFiltradas]);
 
 
@@ -791,9 +800,38 @@ export default function PesagensIndividuais() {
         </div>
       </div>
 
-
-
-
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-slate-500">Registros</p>
+            <p className="text-lg font-bold text-slate-900">{stats.total}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-slate-500">Peso Médio</p>
+            <p className="text-lg font-bold text-slate-900">{stats.pesoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-slate-500">Ganho Médio</p>
+            <p className="text-lg font-bold text-emerald-700">{stats.ganhoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-slate-500">Dias Médios</p>
+            <p className="text-lg font-bold text-slate-900">{stats.diasMedio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-slate-500">GMD Médio</p>
+            <p className="text-lg font-bold text-emerald-700">{stats.gmdMedio.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filtros */}
       <Card>
