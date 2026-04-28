@@ -217,13 +217,13 @@ export default function RelatorioPesagensIndividuais() {
     { id: 'menor', label: 'Menor' },
     { id: 'maior', label: 'Maior' },
     { id: 'peso_medio', label: 'Peso Médio' },
-    { id: 'arroba_media', label: 'Média' },
+    { id: 'arroba_media', label: 'Média (@)' },
     { id: 'peso_total', label: 'Peso Total' },
-    { id: 'arroba_total', label: 'Total' },
+    { id: 'arroba_total', label: 'Total (@)' },
     { id: 'ganho_medio', label: 'Ganho Médio' },
-    { id: 'ganho_medio_arroba', label: 'Ganho Médio' },
+    { id: 'ganho_medio_arroba', label: 'Ganho Médio (@)' },
     { id: 'ganho_total', label: 'Ganho Total' },
-    { id: 'ganho_total_arroba', label: 'Ganho Total' },
+    { id: 'ganho_total_arroba', label: 'Ganho Total (@)' },
     { id: 'dias_medio', label: 'Dias Médios' },
     { id: 'gmd_medio', label: 'GMD Médio' },
     { id: 'machos', label: 'Machos' },
@@ -1372,6 +1372,11 @@ export default function RelatorioPesagensIndividuais() {
                           <TableHead className="text-xs font-bold text-center py-2">Média (@)</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Total (@)</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Ganho Médio</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Ganho Médio (@)</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Ganho Total</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Ganho Total (@)</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Dias Médios</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
                         </TableRow>
                       </TableHeader>
