@@ -1299,7 +1299,7 @@ export default function RelatorioPesagensIndividuais() {
                           })}
                           </TableBody>
                         </Table>
-                        <div className="py-1 border-t-2 border-slate-200 mt-2">
+                        <div className="py-1 border-t-1 border-slate-200">
                           <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs text-slate-700">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
                             <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioApt)} kg</div>
@@ -1313,7 +1313,7 @@ export default function RelatorioPesagensIndividuais() {
 
                 })}
                   <div className="border-t border-slate-300">
-                    <h4 className="text-slate-800 text-sm font-bold uppercase">Resumo Geral</h4>
+                    <h4 className="text-slate-800 my-1 text-sm font-bold uppercase">Resumo Geral</h4>
                     <Table>
                       <TableHeader>
                         <TableRow>
