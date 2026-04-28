@@ -1192,7 +1192,7 @@ export default function RelatorioPesagensIndividuais() {
                   return (
                     <div key={apartacao} className="mb-6">
                         <div className="border-b-2 border-slate-200 pb-2 mb-3">
-                          <h3 className="font-bold text-sm text-slate-800 uppercase">APARTAÇÃO: {apartacao}</h3>
+                          <h3 className="text-slate-800 text-sm font-bold normal-case">APARTAÇÃO: {apartacao}</h3>
                         </div>
                         <Table>
                           <TableHeader className="[&_tr]:border">
