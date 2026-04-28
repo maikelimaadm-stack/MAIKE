@@ -217,9 +217,14 @@ export default function RelatorioPesagensIndividuais() {
     { id: 'menor', label: 'Menor' },
     { id: 'maior', label: 'Maior' },
     { id: 'peso_medio', label: 'Peso Médio' },
-    { id: 'arroba_media', label: 'Média (@)' },
+    { id: 'arroba_media', label: 'Média' },
     { id: 'peso_total', label: 'Peso Total' },
-    { id: 'arroba_total', label: 'Total (@)' },
+    { id: 'arroba_total', label: 'Total' },
+    { id: 'ganho_medio', label: 'Ganho Médio' },
+    { id: 'ganho_medio_arroba', label: 'Ganho Médio' },
+    { id: 'ganho_total', label: 'Ganho Total' },
+    { id: 'ganho_total_arroba', label: 'Ganho Total' },
+    { id: 'dias_medio', label: 'Dias Médios' },
     { id: 'gmd_medio', label: 'GMD Médio' },
     { id: 'machos', label: 'Machos' },
     { id: 'femeas', label: 'Fêmeas' },
@@ -517,9 +522,15 @@ export default function RelatorioPesagensIndividuais() {
     ? pesagensFiltradas.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / pesagensFiltradas.filter(p => p.gmd).length 
     : 0;
   const ganhoTotal = pesagensFiltradas.reduce((s, p) => s + (p.ganho || 0), 0);
+  const ganhoMedioGeral = totalAnimais > 0 ? ganhoTotal / totalAnimais : 0;
+  const diasMedioGeral = pesagensFiltradas.filter(p => p.dias).length > 0
+    ? pesagensFiltradas.filter(p => p.dias).reduce((s, p) => s + (p.dias || 0), 0) / pesagensFiltradas.filter(p => p.dias).length
+    : 0;
   const pesoTotalGeral = pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0);
-  const arrobaMediaGeral = pesoMedio / 15;
-  const arrobaTotalGeral = pesoTotalGeral / 15;
+  const arrobaMediaGeral = pesoMedio / 30;
+  const arrobaTotalGeral = pesoTotalGeral / 30;
+  const ganhoArrobaMedioGeral = ganhoMedioGeral / 30;
+  const ganhoArrobaTotalGeral = ganhoTotal / 30;
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -1220,10 +1231,15 @@ export default function RelatorioPesagensIndividuais() {
                     const todosAnimaisApt = Object.values(lotes).flat();
                     const totalApt = todosAnimaisApt.length;
                     const pesoMedioApt = totalApt > 0 ? todosAnimaisApt.reduce((s, p) => s + (p.peso || 0), 0) / totalApt : 0;
+                    const pesoTotalApt = todosAnimaisApt.reduce((s, p) => s + (p.peso || 0), 0);
+                    const ganhoTotalApt = todosAnimaisApt.reduce((s, p) => s + (p.ganho || 0), 0);
+                    const ganhoMedioApt = totalApt > 0 ? ganhoTotalApt / totalApt : 0;
+                    const diasMedioApt = todosAnimaisApt.filter(p => p.dias).length > 0
+                      ? todosAnimaisApt.filter(p => p.dias).reduce((s, p) => s + (p.dias || 0), 0) / todosAnimaisApt.filter(p => p.dias).length
+                      : 0;
                     const gmdMedioApt = todosAnimaisApt.filter(p => p.gmd).length > 0 
                       ? todosAnimaisApt.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / todosAnimaisApt.filter(p => p.gmd).length 
                       : 0;
-                    const pesoTotalApt = todosAnimaisApt.reduce((s, p) => s + (p.peso || 0), 0);
 
                     return (
                       <div key={apartacao} className="border-2 border-slate-300 rounded-lg overflow-hidden">
@@ -1274,13 +1290,13 @@ export default function RelatorioPesagensIndividuais() {
                                         case 'maior':
                                           return <TableCell key="maior" className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>;
                                         case 'peso_medio':
-                                          return <TableCell key="peso_medio" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>;
+                                          return <TableCell key="peso_medio" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)}</TableCell>;
                                         case 'arroba_media':
-                                          return <TableCell key="arroba_media" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote / 15, 2)} @</TableCell>;
+                                          return <TableCell key="arroba_media" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote / 30, 2)}</TableCell>;
                                         case 'peso_total':
-                                          return <TableCell key="peso_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>;
+                                          return <TableCell key="peso_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)}</TableCell>;
                                         case 'arroba_total':
-                                          return <TableCell key="arroba_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote / 15, 2)} @</TableCell>;
+                                          return <TableCell key="arroba_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote / 30, 2)}</TableCell>;
                                         case 'gmd_medio':
                                           return <TableCell key="gmd_medio" className="text-xs text-center py-2 font-mono font-semibold">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
                                         case 'machos':
@@ -1368,6 +1384,11 @@ export default function RelatorioPesagensIndividuais() {
                           const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
                           const pesoMedioApt = qtd > 0 ? todosAnimais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
                           const pesoTotalApt = todosAnimais.reduce((s, a) => s + (a.peso || 0), 0);
+                          const ganhoTotalApt = todosAnimais.reduce((s, a) => s + (a.ganho || 0), 0);
+                          const ganhoMedioApt = qtd > 0 ? ganhoTotalApt / qtd : 0;
+                          const diasMedioApt = todosAnimais.filter(a => a.dias).length > 0
+                            ? todosAnimais.filter(a => a.dias).reduce((s, a) => s + (a.dias || 0), 0) / todosAnimais.filter(a => a.dias).length
+                            : 0;
                           const gmdMedioApt = todosAnimais.filter(a => a.gmd).length > 0 
                             ? todosAnimais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / todosAnimais.filter(a => a.gmd).length 
                             : 0;
@@ -1377,12 +1398,12 @@ export default function RelatorioPesagensIndividuais() {
                               <TableCell className="text-xs font-semibold py-2">{apartacao}</TableCell>
                               <TableCell className="text-xs text-center py-2">{fmtInteiro(Object.keys(lotes).length)}</TableCell>
                               <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt / 15, 2)} @</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt / 15, 2)} @</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt / 30, 2)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">
                                 {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               </TableCell>
