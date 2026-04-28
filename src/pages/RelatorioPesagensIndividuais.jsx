@@ -1048,7 +1048,6 @@ export default function RelatorioPesagensIndividuais() {
                           </Table>
                         </div>
 
-                        {/* Subtotal da Apartação */}
                         <div className="py-3 border-t-2 border-slate-200 mt-2">
                           <div className="grid grid-cols-5 gap-4 text-xs text-slate-700">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
@@ -1062,7 +1061,6 @@ export default function RelatorioPesagensIndividuais() {
                     );
                   })}
 
-                  {/* Resumo Geral */}
                   <div className="mt-6 border-t border-slate-300 pt-4">
                     <h4 className="font-bold text-sm text-slate-800 uppercase mb-2">RESUMO GERAL</h4>
                     <Table>
@@ -1109,7 +1107,6 @@ export default function RelatorioPesagensIndividuais() {
                             </TableRow>
                           );
                         })}
-                        {/* Linha Total */}
                         <TableRow className="font-bold bg-slate-50 border-t-2 border-slate-200">
                           <TableCell className="text-xs font-bold py-2 text-slate-800">TOTAL GERAL</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2 text-slate-800">{[...new Set(pesagensFiltradas.map(p => p.data_pesagem))].length}</TableCell>
@@ -1204,7 +1201,6 @@ export default function RelatorioPesagensIndividuais() {
 
               return (
                 <div className="space-y-4">
-                  {/* Botões de controle - apenas na tela, não imprime */}
                   <div className="flex gap-2 print:hidden">
                     <Button 
                       variant={mostrarDetalhes ? "default" : "outline"} 
@@ -1258,7 +1254,6 @@ export default function RelatorioPesagensIndividuais() {
                           <h3 className="font-bold text-sm text-slate-800 uppercase">APARTAÇÃO: {apartacao}</h3>
                         </div>
 
-                        {/* Tabela de Lotes */}
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -1277,6 +1272,9 @@ export default function RelatorioPesagensIndividuais() {
                               const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
                               const pesoMedioLote = qtd > 0 ? animais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
                               const pesoTotalLote = animais.reduce((s, a) => s + (a.peso || 0), 0);
+                              const ganhoTotalLote = animais.reduce((s, a) => s + (a.ganho || 0), 0);
+                              const ganhoMedioLote = qtd > 0 ? ganhoTotalLote / qtd : 0;
+                              const diasMedioLote = animais.filter(a => a.dias).length > 0 ? animais.filter(a => a.dias).reduce((s, a) => s + (a.dias || 0), 0) / animais.filter(a => a.dias).length : 0;
                               const gmdMedioLote = animais.filter(a => a.gmd).length > 0 
                                 ? animais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animais.filter(a => a.gmd).length 
                                 : 0;
@@ -1307,6 +1305,16 @@ export default function RelatorioPesagensIndividuais() {
                                           return <TableCell key="peso_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)}</TableCell>;
                                         case 'arroba_total':
                                           return <TableCell key="arroba_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote / 30, 2)}</TableCell>;
+                                        case 'ganho_medio':
+                                          return <TableCell key="ganho_medio" className="text-xs text-center py-2 font-mono">{ganhoMedioLote ? fmtDecimal(ganhoMedioLote, 1) : '-'}</TableCell>;
+                                        case 'ganho_medio_arroba':
+                                          return <TableCell key="ganho_medio_arroba" className="text-xs text-center py-2 font-mono">{ganhoMedioLote ? fmtDecimal(ganhoMedioLote / 30, 2) : '-'}</TableCell>;
+                                        case 'ganho_total':
+                                          return <TableCell key="ganho_total" className="text-xs text-center py-2 font-mono">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote, 1) : '-'}</TableCell>;
+                                        case 'ganho_total_arroba':
+                                          return <TableCell key="ganho_total_arroba" className="text-xs text-center py-2 font-mono">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote / 30, 2) : '-'}</TableCell>;
+                                        case 'dias_medio':
+                                          return <TableCell key="dias_medio" className="text-xs text-center py-2 font-mono">{diasMedioLote ? fmtDecimal(diasMedioLote, 1) : '-'}</TableCell>;
                                         case 'gmd_medio':
                                           return <TableCell key="gmd_medio" className="text-xs text-center py-2 font-mono font-semibold">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
                                         case 'machos':
@@ -1352,14 +1360,13 @@ export default function RelatorioPesagensIndividuais() {
                           </TableBody>
                         </Table>
 
-                        {/* Subtotal da Apartação */}
                         <div className="py-3 border-t-2 border-slate-200 mt-2">
                           <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs text-slate-700">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
                             <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioApt)} kg</div>
-                            <div><strong>Média (@):</strong> {fmtDecimal(pesoMedioApt / 15, 2)} @</div>
+                            <div><strong>Média (@):</strong> {fmtDecimal(pesoMedioApt / 30, 2)} @</div>
                             <div><strong>Peso Total:</strong> {fmtDecimal(pesoTotalApt)} kg</div>
-                            <div><strong>Total (@):</strong> {fmtDecimal(pesoTotalApt / 15, 2)} @</div>
+                            <div><strong>Total (@):</strong> {fmtDecimal(pesoTotalApt / 30, 2)} @</div>
                             <div><strong>Lotes:</strong> {fmtInteiro(Object.keys(lotes).length)}</div>
                           </div>
                         </div>
@@ -1367,7 +1374,6 @@ export default function RelatorioPesagensIndividuais() {
                     );
                   })}
 
-                  {/* Resumo Geral */}
                   <div className="mt-6 border-t border-slate-300 pt-4">
                     <h4 className="font-bold text-sm text-slate-800 uppercase mb-2">RESUMO GERAL</h4>
                     <Table>
@@ -1419,13 +1425,17 @@ export default function RelatorioPesagensIndividuais() {
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt / 30, 2)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt, 1) : '-'}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt / 30, 2) : '-'}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt, 1) : '-'}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt / 30, 2) : '-'}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{diasMedioApt ? fmtDecimal(diasMedioApt, 1) : '-'}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">
                                 {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               </TableCell>
                             </TableRow>
                           );
                         })}
-                        {/* Linha Total */}
                         <TableRow className="font-bold bg-slate-50 border-t-2 border-slate-200">
                           <TableCell className="text-xs font-bold py-2 text-slate-800">TOTAL GERAL</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2 text-slate-800">{Object.values(porApartacao).reduce((s, lotes) => s + Object.keys(lotes).length, 0).toLocaleString('pt-BR')}</TableCell>
@@ -1501,7 +1511,6 @@ export default function RelatorioPesagensIndividuais() {
 
               return (
                 <div className="space-y-4">
-                  {/* Botões de controle - apenas na tela, não imprime */}
                   <div className="flex gap-2 print:hidden">
                     <Button 
                       variant={mostrarDetalhesVendas ? "default" : "outline"} 
@@ -1524,7 +1533,6 @@ export default function RelatorioPesagensIndividuais() {
                       </Button>
                     )}
                   </div>
-                  {/* Resumo Geral de Vendas */}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1560,7 +1568,6 @@ export default function RelatorioPesagensIndividuais() {
                     </TableBody>
                   </Table>
 
-                  {/* Totais por Marca */}
                   <div className="mt-8 mb-4">
                     <div className="border-b border-slate-200 pb-2 mb-2"><span className="font-bold text-sm text-slate-800 uppercase">TOTAIS POR MARCA</span></div>
                     <Table>
@@ -1605,7 +1612,6 @@ export default function RelatorioPesagensIndividuais() {
                     </Table>
                   </div>
 
-                  {/* Totais por Comprador */}
                   <div className="mt-8 mb-4">
                     <div className="border-b border-slate-200 pb-2 mb-2"><span className="font-bold text-sm text-slate-800 uppercase">TOTAIS POR COMPRADOR</span></div>
                     <Table>
@@ -1640,7 +1646,6 @@ export default function RelatorioPesagensIndividuais() {
                     </Table>
                   </div>
 
-                  {/* Vendas agrupadas por Comprador, com cabeçalho e detalhes opcionais */}
                   <div className="mt-8">
                     <div className="border-b border-slate-200 pb-2 mb-4"><span className="font-bold text-sm text-slate-800 uppercase">VENDAS POR COMPRADOR (DETALHADO)</span></div>
                     {Object.entries(porComprador).sort((a,b)=>a[0].localeCompare(b[0])).map(([comprador, items]) => {
@@ -1941,7 +1946,6 @@ export default function RelatorioPesagensIndividuais() {
                 );
               })}
 
-              {/* Total Geral */}
               <div className="mt-4 pt-3 border-t-2 border-slate-300">
                 <div className="text-xs font-bold text-slate-800 bg-slate-50 p-3 rounded-md border border-slate-200">
                   TOTAL GERAL: {totalAnimais} pesagens | Peso Médio: {pesoMedio.toFixed(1)} kg | GMD Médio: {gmdMedio.toFixed(3)} kg/dia | Ganho Total: {formatarNumero(ganhoTotal.toFixed(1))} kg
