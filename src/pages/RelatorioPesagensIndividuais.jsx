@@ -1204,7 +1204,7 @@ export default function RelatorioPesagensIndividuais() {
                             )}
                             </TableRow>
                           </TableHeader>
-                          <TableBody>
+                          <TableBody className="[&_tr:last-child]:border">
                             {Object.entries(lotes).sort((a, b) => a[0].localeCompare(b[0])).map(([lote, animais]) => {
                             const qtd = animais.length;
                             const pesos = animais.map((a) => a.peso || 0).filter((p) => p > 0);
