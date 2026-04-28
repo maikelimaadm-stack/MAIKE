@@ -1191,7 +1191,7 @@ export default function RelatorioPesagensIndividuais() {
                   0;
                   return (
                     <div key={apartacao}>
-                        <div className="my-1 border-b-2 border-slate-200">
+                        <div className="my-1 border-b-1 border-slate-200">
                           <h3 className="text-slate-800 text-sm font-bold normal-case">APARTAÇÃO: {apartacao}</h3>
                         </div>
                         <Table>
