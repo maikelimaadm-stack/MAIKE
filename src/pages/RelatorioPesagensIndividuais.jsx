@@ -1374,7 +1374,7 @@ export default function RelatorioPesagensIndividuais() {
                             </TableRow>);
 
                       })}
-                        <TableRow className="font-bold bg-slate-50 border-t-2 border-slate-200">
+                        <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted font-bold bg-slate-50 border-t-2 border-slate-200">
                           <TableCell className="text-xs font-bold py-2 text-slate-800">TOTAL GERAL</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2 text-slate-800">{Object.values(porApartacao).reduce((s, lotes) => s + Object.keys(lotes).length, 0).toLocaleString('pt-BR')}</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2 text-slate-800">{totalAnimais.toLocaleString('pt-BR')}</TableCell>
