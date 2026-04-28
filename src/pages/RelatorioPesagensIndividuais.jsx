@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RelatorioConfigDialogs from "../components/relatorios/RelatorioConfigDialogs";
-
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "";
   return Number(numero).toLocaleString('pt-BR');
@@ -46,7 +45,6 @@ const formatarMoeda = (numero) => {
   if (numero === null || numero === undefined || numero === "" || isNaN(numero)) return "-";
   return Number(numero).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
-
 const COLUNAS_DISPONIVEIS = [
   { id: 'data_pesagem', label: 'Data', default: true },
   { id: 'numero_animal', label: 'Animal', default: true },
@@ -62,7 +60,6 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'gmd', label: 'GMD', default: true },
   { id: 'observacao', label: 'Observação', default: false },
 ];
-
 // Colunas de detalhes para o relatório de apartação com detalhes
 const COLUNAS_DETALHES_APARTACAO = [
   { id: 'numero_animal', label: 'Animal', default: true },
@@ -95,7 +92,6 @@ const COLUNAS_DETALHES_APARTACAO = [
   { id: 'valor_pago_cabeca', label: 'Vlr Cabeça (R$)', default: false },
   { id: 'observacao', label: 'Obs', default: false },
 ];
-
 // Colunas de detalhes para relatório de Vendas (detalhes por boi)
 const COLUNAS_DETALHES_VENDAS = [
   { id: 'comprador', label: 'Comprador', default: true },
@@ -114,7 +110,6 @@ const COLUNAS_DETALHES_VENDAS = [
   { id: 'marca', label: 'Marca', default: false },
   { id: 'observacao', label: 'Obs', default: false },
 ];
-
 const EIXO_X_OPCOES = [
   { value: 'nome_lote', label: 'Lote' },
   { value: 'nome_apartacao', label: 'Apartação' },
@@ -122,7 +117,6 @@ const EIXO_X_OPCOES = [
   { value: 'raca', label: 'Raça' },
   { value: 'mes', label: 'Mês' },
 ];
-
 const EIXO_Y_OPCOES = [
   { value: 'nome_lote', label: 'Lote' },
   { value: 'nome_apartacao', label: 'Apartação' },
@@ -130,7 +124,6 @@ const EIXO_Y_OPCOES = [
   { value: 'raca', label: 'Raça' },
   { value: 'mes', label: 'Mês' },
 ];
-
 const ORDENACAO_OPCOES = [
   { value: 'data_desc', label: 'Data (Mais Recente)' },
   { value: 'data_asc', label: 'Data (Mais Antiga)' },
@@ -141,7 +134,6 @@ const ORDENACAO_OPCOES = [
   { value: 'animal_asc', label: 'Animal (A-Z)' },
   { value: 'lote_asc', label: 'Lote (A-Z)' },
 ];
-
 export default function RelatorioPesagensIndividuais() {
   const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
   const [dataInicio, setDataInicio] = useState("");
@@ -151,7 +143,6 @@ export default function RelatorioPesagensIndividuais() {
   const [ordenacao, setOrdenacao] = useState('data_desc');
   const [eixoXSintetico, setEixoXSintetico] = useState('nome_lote');
   const [eixoYSintetico, setEixoYSintetico] = useState('sexo');
-
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_pesagens_ind');
     if (saved) {
@@ -159,7 +150,6 @@ export default function RelatorioPesagensIndividuais() {
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
-
   // Estado para mostrar detalhes no relatório de apartação
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
   const [showConfigColunasDetalhes, setShowConfigColunasDetalhes] = useState(false);
@@ -208,7 +198,6 @@ export default function RelatorioPesagensIndividuais() {
     }
     return base;
   });
-
   // Colunas do painel principal (Resumo por Lote) no relatório Apartação
   const COLUNAS_PAINEL_APARTACAO = [
     { id: 'lote', label: 'Lote' },
@@ -229,7 +218,6 @@ export default function RelatorioPesagensIndividuais() {
     { id: 'machos', label: 'Machos' },
     { id: 'femeas', label: 'Fêmeas' },
   ];
-
   // Colunas do painel (Vendas)
   const COLUNAS_PAINEL_VENDAS = [
     { id: 'qtd', label: 'Animais' },
@@ -238,7 +226,6 @@ export default function RelatorioPesagensIndividuais() {
     { id: 'media_arrobas', label: 'Média (@)' },
     { id: 'valor_total', label: 'Valor Total' },
   ];
-
    const [showConfigColunasPainel, setShowConfigColunasPainel] = useState(false);
   const [colunasPainelVisiveis, setColunasPainelVisiveis] = useState(() => {
     const base = tipoRelatorio === 'vendas' ? COLUNAS_PAINEL_VENDAS : COLUNAS_PAINEL_APARTACAO;
@@ -291,7 +278,6 @@ export default function RelatorioPesagensIndividuais() {
     setColunasPainelOrdem(items);
     localStorage.setItem(tipoRelatorio === 'vendas' ? 'colunas_painel_ordem_vendas' : 'colunas_painel_ordem_apartacao', JSON.stringify(items));
   };
-
   // Garante que novas colunas do painel entrem na ordem salva
   React.useEffect(() => {
     const base = COLUNAS_PAINEL_APARTACAO.map(c => c.id);
@@ -301,7 +287,6 @@ export default function RelatorioPesagensIndividuais() {
       localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(nova));
     }
   }, []);
-
   const [lotesSelecionados, setLotesSelecionados] = useState([]);
   const [apartacoesSelecionadas, setApartacoesSelecionadas] = useState([]);
   const [sexosSelecionados, setSexosSelecionados] = useState([]);
@@ -309,9 +294,8 @@ export default function RelatorioPesagensIndividuais() {
   const [erasSelecionadas, setErasSelecionadas] = useState([]);
   const [marcasSelecionadas, setMarcasSelecionadas] = useState([]);
   const [statusSelecionados, setStatusSelecionados] = useState([]);
-
+  const [historicoPesoFiltro, setHistoricoPesoFiltro] = useState('todos');
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-
   const { data: pesagens = [], isLoading } = useQuery({
     queryKey: ['pesagens-individuais-relatorio', empresaSelecionadaId],
     queryFn: async () => {
@@ -320,7 +304,6 @@ export default function RelatorioPesagensIndividuais() {
     },
     enabled: !!empresaSelecionadaId,
   });
-
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-atual-relatorio', empresaSelecionadaId],
     queryFn: async () => {
@@ -330,7 +313,6 @@ export default function RelatorioPesagensIndividuais() {
     },
     enabled: !!empresaSelecionadaId,
   });
-
   const { data: lotesApartacaoCadastrados = [] } = useQuery({
     queryKey: ['lotes-apartacao-relatorio', empresaSelecionadaId],
     queryFn: async () => {
@@ -339,7 +321,6 @@ export default function RelatorioPesagensIndividuais() {
     },
     enabled: !!empresaSelecionadaId,
   });
-
   const lotesUnicos = [...new Set(pesagens.map(p => p.nome_lote))].filter(Boolean).sort();
   const apartacoesUnicas = [...new Set(pesagens.map(p => p.nome_apartacao))].filter(Boolean).sort();
   const sexosUnicos = [...new Set(pesagens.map(p => p.sexo))].filter(Boolean).sort();
@@ -347,18 +328,16 @@ export default function RelatorioPesagensIndividuais() {
   const erasUnicas = [...new Set(pesagens.map(p => p.era))].filter(Boolean).sort();
   const marcasUnicas = [...new Set(pesagens.map(p => p.marca))].filter(Boolean).sort();
   const statusUnicos = [...new Set(pesagens.map(p => (p.status_animal || (p.tipo_manejo === 'Saída' ? 'Inativo' : 'Ativo'))))].filter(Boolean).sort();
-
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
     try {
-      // Evitar problema de fuso horário: usar apenas a parte da data
       const dataStr = dataString.split('T')[0];
       const [ano, mes, dia] = dataStr.split('-');
       if (!ano || !mes || !dia) return '--/--/----';
       return `${dia}/${mes}/${ano}`;
     } catch { return '--/--/----'; }
   };
-
+  const temHistoricoPeso = (p) => p.peso_anterior != null && p.ganho != null && p.dias != null && Number(p.dias) > 0;
   const pesagensFiltradas = useMemo(() => {
     let filtered = pesagens.filter(p => {
       if (dataInicio && p.data_pesagem) {
@@ -379,9 +358,10 @@ export default function RelatorioPesagensIndividuais() {
       if (racasSelecionadas.length > 0 && !racasSelecionadas.includes(p.raca)) return false;
       if (erasSelecionadas.length > 0 && !erasSelecionadas.includes(p.era)) return false;
       if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(p.marca)) return false;
+      if (historicoPesoFiltro === 'com' && !temHistoricoPeso(p)) return false;
+      if (historicoPesoFiltro === 'sem' && temHistoricoPeso(p)) return false;
       return true;
     });
-
     filtered.sort((a, b) => {
       switch (ordenacao) {
         case 'data_desc': return new Date(b.data_pesagem || 0) - new Date(a.data_pesagem || 0);
@@ -395,15 +375,12 @@ export default function RelatorioPesagensIndividuais() {
         default: return 0;
       }
     });
-
     return filtered;
-  }, [pesagens, dataInicio, dataFim, lotesSelecionados, apartacoesSelecionadas, sexosSelecionados, racasSelecionadas, ordenacao]);
-
+  }, [pesagens, dataInicio, dataFim, lotesSelecionados, apartacoesSelecionadas, sexosSelecionados, racasSelecionadas, erasSelecionadas, marcasSelecionadas, historicoPesoFiltro, ordenacao]);
   const pesagensAgrupadas = useMemo(() => {
     if (agrupamentosAtivos.length === 0) {
       return { "Todos os Registros": pesagensFiltradas };
     }
-
     const grupos = {};
     pesagensFiltradas.forEach(p => {
       let chaveArray = [];
@@ -422,10 +399,8 @@ export default function RelatorioPesagensIndividuais() {
       if (!grupos[chave]) grupos[chave] = [];
       grupos[chave].push(p);
     });
-
     return grupos;
   }, [pesagensFiltradas, agrupamentosAtivos]);
-
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
       const novas = prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId];
@@ -433,7 +408,6 @@ export default function RelatorioPesagensIndividuais() {
       return novas;
     });
   };
-
   // Toggle para colunas de detalhes da apartação
   const toggleColunaDetalhe = (colunaId) => {
     const habilitando = !colunasDetalhesVisiveis.includes(colunaId);
@@ -448,7 +422,6 @@ export default function RelatorioPesagensIndividuais() {
       localStorage.setItem('colunas_detalhes_ordem_apartacao', JSON.stringify(novaOrdem));
     }
   };
-
   const toggleColunaDetalheVendas = (colunaId) => {
     const habilitando = !colunasVendasVisiveis.includes(colunaId);
     const novas = habilitando 
@@ -462,7 +435,6 @@ export default function RelatorioPesagensIndividuais() {
       localStorage.setItem('colunas_detalhes_ordem_vendas', JSON.stringify(novaOrdem));
     }
   };
-
   // Drag and drop para reordenar colunas de detalhes
   const handleDragEndDetalhes = (result) => {
     if (!result.destination) return;
@@ -472,7 +444,6 @@ export default function RelatorioPesagensIndividuais() {
     setColunasDetalhesOrdem(items);
     localStorage.setItem('colunas_detalhes_ordem_apartacao', JSON.stringify(items));
   };
-
   const handleDragEndDetalhesVendas = (result) => {
     if (!result.destination) return;
     const items = Array.from(colunasVendasOrdem);
@@ -481,7 +452,6 @@ export default function RelatorioPesagensIndividuais() {
     setColunasVendasOrdem(items);
     localStorage.setItem('colunas_detalhes_ordem_vendas', JSON.stringify(items));
   };
-
   // Colunas de detalhes ordenadas
   const colunasDetalhesOrdenadas = useMemo(() => {
     const ordemCompletada = [...colunasDetalhesOrdem, ...colunasDetalhesVisiveis.filter(id => !colunasDetalhesOrdem.includes(id))];
@@ -489,22 +459,18 @@ export default function RelatorioPesagensIndividuais() {
       .map(id => COLUNAS_DETALHES_APARTACAO.find(c => c.id === id))
       .filter(c => c && colunasDetalhesVisiveis.includes(c.id));
   }, [colunasDetalhesOrdem, colunasDetalhesVisiveis]);
-
   const colunasVendasOrdenadas = useMemo(() => {
     const ordemCompletada = [...colunasVendasOrdem, ...colunasVendasVisiveis.filter(id => !colunasVendasOrdem.includes(id))];
     return ordemCompletada
       .map(id => COLUNAS_DETALHES_VENDAS.find(c => c.id === id))
       .filter(c => c && colunasVendasVisiveis.includes(c.id));
   }, [colunasVendasOrdem, colunasVendasVisiveis]);
-
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
   };
-
   const toggleAgrupamento = (tipo) => {
     setAgrupamentosAtivos(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]);
   };
-
   const limparFiltros = () => {
     setDataInicio("");
     setDataFim("");
@@ -517,26 +483,27 @@ export default function RelatorioPesagensIndividuais() {
     setAgrupamentosAtivos([]);
     setOrdenacao('data_desc');
     setStatusSelecionados([]);
+    setHistoricoPesoFiltro('todos');
     // Mantém o tipo de relatório atual
     };
-
   // Estatísticas gerais
   const totalAnimais = pesagensFiltradas.length;
+  const pesagensComHistorico = pesagensFiltradas.filter(temHistoricoPeso);
+  const totalAnimaisComHistorico = pesagensComHistorico.length;
   const pesoMedio = totalAnimais > 0 ? pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0) / totalAnimais : 0;
-  const gmdMedio = pesagensFiltradas.filter(p => p.gmd).length > 0 
-    ? pesagensFiltradas.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / pesagensFiltradas.filter(p => p.gmd).length 
+  const gmdMedio = totalAnimaisComHistorico > 0 
+    ? pesagensComHistorico.reduce((s, p) => s + (p.gmd || 0), 0) / totalAnimaisComHistorico
     : 0;
-  const ganhoTotal = pesagensFiltradas.reduce((s, p) => s + (p.ganho || 0), 0);
-  const ganhoMedioGeral = totalAnimais > 0 ? ganhoTotal / totalAnimais : 0;
-  const diasMedioGeral = pesagensFiltradas.filter(p => p.dias).length > 0
-    ? pesagensFiltradas.filter(p => p.dias).reduce((s, p) => s + (p.dias || 0), 0) / pesagensFiltradas.filter(p => p.dias).length
+  const ganhoTotal = pesagensComHistorico.reduce((s, p) => s + (p.ganho || 0), 0);
+  const ganhoMedioGeral = totalAnimaisComHistorico > 0 ? ganhoTotal / totalAnimaisComHistorico : 0;
+  const diasMedioGeral = totalAnimaisComHistorico > 0
+    ? pesagensComHistorico.reduce((s, p) => s + (p.dias || 0), 0) / totalAnimaisComHistorico
     : 0;
   const pesoTotalGeral = pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0);
   const arrobaMediaGeral = pesoMedio / 30;
   const arrobaTotalGeral = pesoTotalGeral / 30;
   const ganhoArrobaMedioGeral = ganhoMedioGeral / 30;
   const ganhoArrobaTotalGeral = ganhoTotal / 30;
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 print:hidden">
@@ -548,7 +515,6 @@ export default function RelatorioPesagensIndividuais() {
           Imprimir
         </Button>
       </div>
-
       {/* Filtros */}
       <Card className="print:hidden">
         <CardContent className="p-4 space-y-3">
@@ -621,8 +587,18 @@ export default function RelatorioPesagensIndividuais() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Pesagem Anterior</Label>
+              <Select value={historicoPesoFiltro} onValueChange={setHistoricoPesoFiltro}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="com">Com pesagem anterior</SelectItem>
+                  <SelectItem value="sem">Sem pesagem anterior</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-
           {tipoRelatorio === 'analitico' && (
             <div className="space-y-1">
               <Label className="text-xs">Agrupar Por</Label>
@@ -641,7 +617,6 @@ export default function RelatorioPesagensIndividuais() {
               </div>
             </div>
           )}
-
           <div className="flex gap-2 flex-wrap">
             <Popover>
               <PopoverTrigger asChild>
@@ -659,7 +634,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Apartações {apartacoesSelecionadas.length > 0 && `(${apartacoesSelecionadas.length})`}</Button>
@@ -676,7 +650,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Sexo {sexosSelecionados.length > 0 && `(${sexosSelecionados.length})`}</Button>
@@ -693,7 +666,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Raças {racasSelecionadas.length > 0 && `(${racasSelecionadas.length})`}</Button>
@@ -710,7 +682,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Era {erasSelecionadas.length > 0 && `(${erasSelecionadas.length})`}</Button>
@@ -727,7 +698,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Marcas {marcasSelecionadas.length > 0 && `(${marcasSelecionadas.length})`}</Button>
@@ -744,7 +714,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Status {statusSelecionados.length > 0 && `(${statusSelecionados.length})`}</Button>
@@ -761,7 +730,6 @@ export default function RelatorioPesagensIndividuais() {
                 </div>
               </PopoverContent>
             </Popover>
-
             {tipoRelatorio === 'analitico' && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -785,12 +753,10 @@ export default function RelatorioPesagensIndividuais() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar Filtros</Button>
           </div>
         </CardContent>
       </Card>
-
       {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
@@ -802,7 +768,6 @@ export default function RelatorioPesagensIndividuais() {
             header, nav, .no-print, .print\\:hidden { display: none !important; }
           }
         `}} />
-
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-1 mb-2">
@@ -830,10 +795,8 @@ export default function RelatorioPesagensIndividuais() {
                   Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
                 </p>
               )}
-
             </div>
           </div>
-
           {pesagensFiltradas.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <p>Nenhuma pesagem encontrada com os filtros aplicados.</p>
@@ -844,7 +807,6 @@ export default function RelatorioPesagensIndividuais() {
               // Formatação de números
               const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
               const fmtDecimal = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
-
               // Função para buscar faixa de peso cadastrada do lote
               const getFaixaPesoCadastrada = (nomeLote, nomeApartacao) => {
                 if (!lotesApartacaoCadastrados || lotesApartacaoCadastrados.length === 0) return null;
@@ -853,7 +815,6 @@ export default function RelatorioPesagensIndividuais() {
                 );
                 return lote ? { min: lote.peso_minimo, max: lote.peso_maximo } : null;
               };
-
               // Agrupar por apartação
               const porApartacao = {};
               pesagensFiltradas.forEach(p => {
@@ -861,7 +822,6 @@ export default function RelatorioPesagensIndividuais() {
                 if (!porApartacao[apt]) porApartacao[apt] = [];
                 porApartacao[apt].push(p);
               });
-
               return (
                 <div className="space-y-4">
                   {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, animaisApartacao]) => {
@@ -874,7 +834,6 @@ export default function RelatorioPesagensIndividuais() {
                       if (!porData[data][lote]) porData[data][lote] = [];
                       porData[data][lote].push(p);
                     });
-
                     // Calcular totais da apartação
                     const totalApt = animaisApartacao.length;
                     const pesoMedioApt = totalApt > 0 ? animaisApartacao.reduce((s, p) => s + (p.peso || 0), 0) / totalApt : 0;
@@ -882,7 +841,6 @@ export default function RelatorioPesagensIndividuais() {
                     const gmdMedioApt = animaisApartacao.filter(p => p.gmd).length > 0 
                       ? animaisApartacao.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / animaisApartacao.filter(p => p.gmd).length 
                       : 0;
-
                     // Agrupar por lote para totais
                     const porLote = {};
                     animaisApartacao.forEach(p => {
@@ -890,13 +848,11 @@ export default function RelatorioPesagensIndividuais() {
                       if (!porLote[lote]) porLote[lote] = [];
                       porLote[lote].push(p);
                     });
-
                     return (
                       <div key={apartacao} className="mb-6">
                         <div className="border-b-2 border-slate-200 pb-2 mb-3">
                           <h3 className="font-bold text-sm text-slate-800 uppercase">APARTAÇÃO: {apartacao}</h3>
                         </div>
-
                         {/* Para cada data, mostrar lotes */}
                         {Object.entries(porData)
                           .sort((a, b) => a[0].localeCompare(b[0]))
@@ -908,14 +864,12 @@ export default function RelatorioPesagensIndividuais() {
                             const gmdMedioData = animaisData.filter(p => p.gmd).length > 0 
                               ? animaisData.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / animaisData.filter(p => p.gmd).length 
                               : 0;
-
                             return (
                               <div key={data} className="border-t border-slate-200">
                                 {/* Subtítulo da Data */}
                                 <div className="py-2 mb-1">
                                   <span className="font-semibold text-xs text-slate-700 uppercase">Data: {formatarData(data)}</span>
                                 </div>
-
                                 {/* Tabela de Lotes desta Data */}
                                 <Table>
                                   <TableHeader>
@@ -941,7 +895,6 @@ export default function RelatorioPesagensIndividuais() {
                                       const machos = animais.filter(a => a.sexo === 'M').length;
                                       const femeas = animais.filter(a => a.sexo === 'F').length;
                                       const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
-
                                       return (
                                         <TableRow key={lote} className="hover:bg-gray-50">
                                           <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
@@ -963,7 +916,6 @@ export default function RelatorioPesagensIndividuais() {
                                     })}
                                   </TableBody>
                                 </Table>
-
                                 {/* Subtotal da Data */}
                                 <div className="py-2 border-t border-slate-200">
                                   <div className="grid grid-cols-5 gap-4 text-xs text-slate-700">
@@ -977,7 +929,6 @@ export default function RelatorioPesagensIndividuais() {
                               </div>
                             );
                           })}
-
                         {/* TOTAL DE LOTES DA APARTAÇÃO */}
                         <div className="mt-4">
                           <div className="border-b border-slate-200 pb-2 mb-2">
@@ -1012,7 +963,6 @@ export default function RelatorioPesagensIndividuais() {
                                 const machos = animais.filter(a => a.sexo === 'M').length;
                                 const femeas = animais.filter(a => a.sexo === 'F').length;
                                 const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
-
                                 return (
                                   <TableRow key={lote} className="hover:bg-gray-50">
                                     {colunasPainelOrdenadas.map(col => {
@@ -1047,7 +997,6 @@ export default function RelatorioPesagensIndividuais() {
                             </TableBody>
                           </Table>
                         </div>
-
                         <div className="py-3 border-t-2 border-slate-200 mt-2">
                           <div className="grid grid-cols-5 gap-4 text-xs text-slate-700">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
@@ -1060,7 +1009,6 @@ export default function RelatorioPesagensIndividuais() {
                       </div>
                     );
                   })}
-
                   <div className="mt-6 border-t border-slate-300 pt-4">
                     <h4 className="font-bold text-sm text-slate-800 uppercase mb-2">RESUMO GERAL</h4>
                     <Table>
@@ -1090,7 +1038,6 @@ export default function RelatorioPesagensIndividuais() {
                           const gmdMedioApt = animais.filter(a => a.gmd).length > 0 
                             ? animais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animais.filter(a => a.gmd).length 
                             : 0;
-
                           return (
                             <TableRow key={apartacao}>
                               <TableCell className="text-xs font-semibold py-2">{apartacao}</TableCell>
@@ -1128,7 +1075,6 @@ export default function RelatorioPesagensIndividuais() {
                       </TableBody>
                     </Table>
                   </div>
-
                   <div className="mt-6 pt-2 border-t border-gray-300 text-center text-xs text-gray-500">
                     <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
                   </div>
@@ -1147,7 +1093,6 @@ export default function RelatorioPesagensIndividuais() {
                 if (!porApartacao[apt][lote]) porApartacao[apt][lote] = [];
                 porApartacao[apt][lote].push(p);
               });
-
               // Função para buscar faixa de peso cadastrada do lote
               const getFaixaPesoCadastrada = (nomeLote, nomeApartacao) => {
                 if (!lotesApartacaoCadastrados || lotesApartacaoCadastrados.length === 0) return null;
@@ -1156,11 +1101,9 @@ export default function RelatorioPesagensIndividuais() {
                 );
                 return lote ? { min: lote.peso_minimo, max: lote.peso_maximo } : null;
               };
-
               // Formatação de números
               const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
               const fmtDecimal = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
-
               // Renderizar célula de detalhe
                 const renderCelulaDetalhe = (animal, colunaId) => {
                   const fmtNum = (n, casas = 0) => (typeof n === 'number' ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) : '-');
@@ -1198,7 +1141,6 @@ export default function RelatorioPesagensIndividuais() {
                     default: return <TableCell className="text-xs py-1 border border-gray-200">-</TableCell>;
                   }
                 };
-
               return (
                 <div className="space-y-4">
                   <div className="flex gap-2 print:hidden">
@@ -1232,28 +1174,26 @@ export default function RelatorioPesagensIndividuais() {
                       Colunas Painel
                     </Button>
                   </div>
-
                   {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, lotes]) => {
                     // Calcular totais da apartação
                     const todosAnimaisApt = Object.values(lotes).flat();
                     const totalApt = todosAnimaisApt.length;
                     const pesoMedioApt = totalApt > 0 ? todosAnimaisApt.reduce((s, p) => s + (p.peso || 0), 0) / totalApt : 0;
                     const pesoTotalApt = todosAnimaisApt.reduce((s, p) => s + (p.peso || 0), 0);
-                    const ganhoTotalApt = todosAnimaisApt.reduce((s, p) => s + (p.ganho || 0), 0);
-                    const ganhoMedioApt = totalApt > 0 ? ganhoTotalApt / totalApt : 0;
-                    const diasMedioApt = todosAnimaisApt.filter(p => p.dias).length > 0
-                      ? todosAnimaisApt.filter(p => p.dias).reduce((s, p) => s + (p.dias || 0), 0) / todosAnimaisApt.filter(p => p.dias).length
+                    const animaisAptComHistorico = todosAnimaisApt.filter(temHistoricoPeso);
+                    const ganhoTotalApt = animaisAptComHistorico.reduce((s, p) => s + (p.ganho || 0), 0);
+                    const ganhoMedioApt = animaisAptComHistorico.length > 0 ? ganhoTotalApt / animaisAptComHistorico.length : 0;
+                    const diasMedioApt = animaisAptComHistorico.length > 0
+                      ? animaisAptComHistorico.reduce((s, p) => s + (p.dias || 0), 0) / animaisAptComHistorico.length
                       : 0;
-                    const gmdMedioApt = todosAnimaisApt.filter(p => p.gmd).length > 0 
-                      ? todosAnimaisApt.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / todosAnimaisApt.filter(p => p.gmd).length 
+                    const gmdMedioApt = animaisAptComHistorico.length > 0 
+                      ? animaisAptComHistorico.reduce((s, p) => s + (p.gmd || 0), 0) / animaisAptComHistorico.length
                       : 0;
-
                     return (
                       <div key={apartacao} className="mb-6">
                         <div className="border-b-2 border-slate-200 pb-2 mb-3">
                           <h3 className="font-bold text-sm text-slate-800 uppercase">APARTAÇÃO: {apartacao}</h3>
                         </div>
-
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -1272,16 +1212,16 @@ export default function RelatorioPesagensIndividuais() {
                               const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
                               const pesoMedioLote = qtd > 0 ? animais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
                               const pesoTotalLote = animais.reduce((s, a) => s + (a.peso || 0), 0);
-                              const ganhoTotalLote = animais.reduce((s, a) => s + (a.ganho || 0), 0);
-                              const ganhoMedioLote = qtd > 0 ? ganhoTotalLote / qtd : 0;
-                              const diasMedioLote = animais.filter(a => a.dias).length > 0 ? animais.filter(a => a.dias).reduce((s, a) => s + (a.dias || 0), 0) / animais.filter(a => a.dias).length : 0;
-                              const gmdMedioLote = animais.filter(a => a.gmd).length > 0 
-                                ? animais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animais.filter(a => a.gmd).length 
+                              const animaisComHistorico = animais.filter(temHistoricoPeso);
+                              const ganhoTotalLote = animaisComHistorico.reduce((s, a) => s + (a.ganho || 0), 0);
+                              const ganhoMedioLote = animaisComHistorico.length > 0 ? ganhoTotalLote / animaisComHistorico.length : 0;
+                              const diasMedioLote = animaisComHistorico.length > 0 ? animaisComHistorico.reduce((s, a) => s + (a.dias || 0), 0) / animaisComHistorico.length : 0;
+                              const gmdMedioLote = animaisComHistorico.length > 0 
+                                ? animaisComHistorico.reduce((s, a) => s + (a.gmd || 0), 0) / animaisComHistorico.length
                                 : 0;
                               const machos = animais.filter(a => a.sexo === 'M').length;
                               const femeas = animais.filter(a => a.sexo === 'F').length;
                               const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
-
                               return (
                                 <React.Fragment key={lote}>
                                   <TableRow className="hover:bg-gray-50">
@@ -1359,7 +1299,6 @@ export default function RelatorioPesagensIndividuais() {
                             })}
                           </TableBody>
                         </Table>
-
                         <div className="py-3 border-t-2 border-slate-200 mt-2">
                           <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs text-slate-700">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
@@ -1373,7 +1312,6 @@ export default function RelatorioPesagensIndividuais() {
                       </div>
                     );
                   })}
-
                   <div className="mt-6 border-t border-slate-300 pt-4">
                     <h4 className="font-bold text-sm text-slate-800 uppercase mb-2">RESUMO GERAL</h4>
                     <Table>
@@ -1405,15 +1343,15 @@ export default function RelatorioPesagensIndividuais() {
                           const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
                           const pesoMedioApt = qtd > 0 ? todosAnimais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
                           const pesoTotalApt = todosAnimais.reduce((s, a) => s + (a.peso || 0), 0);
-                          const ganhoTotalApt = todosAnimais.reduce((s, a) => s + (a.ganho || 0), 0);
-                          const ganhoMedioApt = qtd > 0 ? ganhoTotalApt / qtd : 0;
-                          const diasMedioApt = todosAnimais.filter(a => a.dias).length > 0
-                            ? todosAnimais.filter(a => a.dias).reduce((s, a) => s + (a.dias || 0), 0) / todosAnimais.filter(a => a.dias).length
+                          const animaisComHistorico = todosAnimais.filter(temHistoricoPeso);
+                          const ganhoTotalApt = animaisComHistorico.reduce((s, a) => s + (a.ganho || 0), 0);
+                          const ganhoMedioApt = animaisComHistorico.length > 0 ? ganhoTotalApt / animaisComHistorico.length : 0;
+                          const diasMedioApt = animaisComHistorico.length > 0
+                            ? animaisComHistorico.reduce((s, a) => s + (a.dias || 0), 0) / animaisComHistorico.length
                             : 0;
-                          const gmdMedioApt = todosAnimais.filter(a => a.gmd).length > 0 
-                            ? todosAnimais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / todosAnimais.filter(a => a.gmd).length 
+                          const gmdMedioApt = animaisComHistorico.length > 0 
+                            ? animaisComHistorico.reduce((s, a) => s + (a.gmd || 0), 0) / animaisComHistorico.length
                             : 0;
-
                           return (
                             <TableRow key={apartacao}>
                               <TableCell className="text-xs font-semibold py-2">{apartacao}</TableCell>
@@ -1469,30 +1407,25 @@ export default function RelatorioPesagensIndividuais() {
                   </div>
                 );
               }
-
               const fmtNum = (n, d = 2) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
               const fmtInt = (n) => Number(n || 0).toLocaleString('pt-BR');
               const fmtBRL = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
               const total = vendas.length;
               const pesoTotal = vendas.reduce((s, v) => s + (Number(v.peso) || 0), 0);
               const pesoMedio = total ? pesoTotal / total : 0;
               const mediaArrobasPeso = pesoMedio / 30;
-
               const arrobasInformadas = vendas
                 .map((v) => Number(v.valor_arroba))
                 .filter((n) => !isNaN(n) && n > 0);
               const mediaValorArroba = arrobasInformadas.length
                 ? arrobasInformadas.reduce((s, n) => s + n, 0) / arrobasInformadas.length
                 : 0;
-
               const valorTotal = vendas.reduce((s, v) => {
                 const direto = Number(v.valor_venda_total);
                 if (!isNaN(direto) && direto > 0) return s + direto;
                 const calc = (Number(v.peso) || 0) / 30 * (Number(v.valor_arroba) || 0);
                 return s + (isNaN(calc) ? 0 : calc);
               }, 0);
-
               // Agrupar por Marca
               const porMarca = vendas.reduce((acc, v) => {
                 const k = v.marca || 'Sem Marca';
@@ -1500,7 +1433,6 @@ export default function RelatorioPesagensIndividuais() {
                 acc[k].push(v);
                 return acc;
               }, {});
-
               // Agrupar por Comprador
               const porComprador = vendas.reduce((acc, v) => {
                 const k = v.comprador || 'Sem Comprador';
@@ -1508,7 +1440,6 @@ export default function RelatorioPesagensIndividuais() {
                 acc[k].push(v);
                 return acc;
               }, {});
-
               return (
                 <div className="space-y-4">
                   <div className="flex gap-2 print:hidden">
@@ -1567,7 +1498,6 @@ export default function RelatorioPesagensIndividuais() {
                       </TableRow>
                     </TableBody>
                   </Table>
-
                   <div className="mt-8 mb-4">
                     <div className="border-b border-slate-200 pb-2 mb-2"><span className="font-bold text-sm text-slate-800 uppercase">TOTAIS POR MARCA</span></div>
                     <Table>
@@ -1611,7 +1541,6 @@ export default function RelatorioPesagensIndividuais() {
                       </TableBody>
                     </Table>
                   </div>
-
                   <div className="mt-8 mb-4">
                     <div className="border-b border-slate-200 pb-2 mb-2"><span className="font-bold text-sm text-slate-800 uppercase">TOTAIS POR COMPRADOR</span></div>
                     <Table>
@@ -1645,7 +1574,6 @@ export default function RelatorioPesagensIndividuais() {
                       </TableBody>
                     </Table>
                   </div>
-
                   <div className="mt-8">
                     <div className="border-b border-slate-200 pb-2 mb-4"><span className="font-bold text-sm text-slate-800 uppercase">VENDAS POR COMPRADOR (DETALHADO)</span></div>
                     {Object.entries(porComprador).sort((a,b)=>a[0].localeCompare(b[0])).map(([comprador, items]) => {
@@ -1721,7 +1649,6 @@ export default function RelatorioPesagensIndividuais() {
                       );
                     })}
                   </div>
-
                   <div className="mt-2 text-xs text-right font-semibold">
                     TOTAL GERAL: {fmtInt(total)} animais | Peso Total: {fmtNum(pesoTotal)} kg | Peso Médio: {fmtNum(pesoMedio)} kg | Média (@): {fmtNum(mediaArrobasPeso)} | Valor Total: {fmtBRL(valorTotal)}
                   </div>
@@ -1743,14 +1670,11 @@ export default function RelatorioPesagensIndividuais() {
                   default: return 'N/A';
                 }
               };
-
               const linhasY = [...new Set(pesagensFiltradas.map(p => getValorEixo(p, eixoYSintetico)))].sort();
               const colunasX = [...new Set(pesagensFiltradas.map(p => getValorEixo(p, eixoXSintetico)))].sort();
-
               const matriz = {};
               const totaisLinha = {};
               const totaisColuna = {};
-
               linhasY.forEach(linha => {
                 matriz[linha] = {};
                 totaisLinha[linha] = { qtd: 0, pesoTotal: 0, gmdTotal: 0, gmdCount: 0 };
@@ -1761,25 +1685,21 @@ export default function RelatorioPesagensIndividuais() {
               colunasX.forEach(col => {
                 totaisColuna[col] = { qtd: 0, pesoTotal: 0, gmdTotal: 0, gmdCount: 0 };
               });
-
               pesagensFiltradas.forEach(p => {
                 const linha = getValorEixo(p, eixoYSintetico);
                 const col = getValorEixo(p, eixoXSintetico);
-
                 matriz[linha][col].qtd++;
                 matriz[linha][col].pesoTotal += (p.peso || 0);
                 if (p.gmd) {
                   matriz[linha][col].gmdTotal += p.gmd;
                   matriz[linha][col].gmdCount++;
                 }
-
                 totaisLinha[linha].qtd++;
                 totaisLinha[linha].pesoTotal += (p.peso || 0);
                 if (p.gmd) {
                   totaisLinha[linha].gmdTotal += p.gmd;
                   totaisLinha[linha].gmdCount++;
                 }
-
                 totaisColuna[col].qtd++;
                 totaisColuna[col].pesoTotal += (p.peso || 0);
                 if (p.gmd) {
@@ -1787,16 +1707,13 @@ export default function RelatorioPesagensIndividuais() {
                   totaisColuna[col].gmdCount++;
                 }
               });
-
               const totalGeral = {
                 qtd: pesagensFiltradas.length,
                 pesoMedio: pesoMedio,
                 gmdMedio: gmdMedio,
               };
-
               const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
               const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
-
               return (
                 <div className="overflow-x-auto">
                   <div className="text-xs mb-1">
@@ -1891,7 +1808,6 @@ export default function RelatorioPesagensIndividuais() {
                 const gmdMedioGrupo = registros.filter(r => r.gmd).length > 0 
                   ? registros.filter(r => r.gmd).reduce((s, r) => s + r.gmd, 0) / registros.filter(r => r.gmd).length 
                   : 0;
-
                 return (
                   <div key={idx} className="mb-4">
                     {agrupamentosAtivos.length > 0 && (
@@ -1899,7 +1815,6 @@ export default function RelatorioPesagensIndividuais() {
                         <h3 className="font-bold text-sm text-slate-700 uppercase">{grupo}</h3>
                       </div>
                     )}
-
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1938,20 +1853,17 @@ export default function RelatorioPesagensIndividuais() {
                         ))}
                       </TableBody>
                     </Table>
-
                     <div className="mt-2 text-xs font-bold text-slate-700 bg-slate-50 py-2 px-3 border border-slate-200 rounded-md">
                       Subtotal: {totalGrupo} animais | Peso Médio: {pesoMedioGrupo.toFixed(1)} kg | GMD Médio: {gmdMedioGrupo.toFixed(3)} kg/dia
                     </div>
                   </div>
                 );
               })}
-
               <div className="mt-4 pt-3 border-t-2 border-slate-300">
                 <div className="text-xs font-bold text-slate-800 bg-slate-50 p-3 rounded-md border border-slate-200">
                   TOTAL GERAL: {totalAnimais} pesagens | Peso Médio: {pesoMedio.toFixed(1)} kg | GMD Médio: {gmdMedio.toFixed(3)} kg/dia | Ganho Total: {formatarNumero(ganhoTotal.toFixed(1))} kg
                 </div>
               </div>
-
               <div className="mt-6 pt-2 border-t border-gray-300 text-center text-xs text-gray-500">
                 <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
               </div>
@@ -1960,8 +1872,6 @@ export default function RelatorioPesagensIndividuais() {
         </div>
       </div>
       
-
-
       <RelatorioConfigDialogs
         showConfigColunasDetalhes={showConfigColunasDetalhes}
         setShowConfigColunasDetalhes={setShowConfigColunasDetalhes}
