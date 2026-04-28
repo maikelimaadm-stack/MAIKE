@@ -1228,15 +1228,15 @@ export default function RelatorioPesagensIndividuais() {
                                     {colunasPainelOrdenadas.map((col) => {
                                     switch (col.id) {
                                       case 'lote':
-                                        return <TableCell key="lote" className="text-xs font-semibold py-2">{lote}</TableCell>;
+                                        return <TableCell key="lote" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{lote}</TableCell>;
                                       case 'qtd':
-                                        return <TableCell key="qtd" className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>;
+                                        return <TableCell key="qtd" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(qtd)}</TableCell>;
                                       case 'faixa':
-                                        return <TableCell key="faixa" className="text-xs text-center py-2 font-mono">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
+                                        return <TableCell key="faixa" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
                                       case 'menor':
-                                        return <TableCell key="menor" className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>;
+                                        return <TableCell key="menor" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(menorPeso)} kg</TableCell>;
                                       case 'maior':
-                                        return <TableCell key="maior" className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>;
+                                        return <TableCell key="maior" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtInteiro(maiorPeso)} kg</TableCell>;
                                       case 'peso_medio':
                                         return <TableCell key="peso_medio" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioLote)}</TableCell>;
                                       case 'arroba_media':
