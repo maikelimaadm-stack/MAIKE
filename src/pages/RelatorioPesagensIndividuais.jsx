@@ -217,7 +217,9 @@ export default function RelatorioPesagensIndividuais() {
     { id: 'menor', label: 'Menor' },
     { id: 'maior', label: 'Maior' },
     { id: 'peso_medio', label: 'Peso Médio' },
+    { id: 'arroba_media', label: 'Média (@)' },
     { id: 'peso_total', label: 'Peso Total' },
+    { id: 'arroba_total', label: 'Total (@)' },
     { id: 'gmd_medio', label: 'GMD Médio' },
     { id: 'machos', label: 'Machos' },
     { id: 'femeas', label: 'Fêmeas' },
@@ -515,6 +517,9 @@ export default function RelatorioPesagensIndividuais() {
     ? pesagensFiltradas.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / pesagensFiltradas.filter(p => p.gmd).length 
     : 0;
   const ganhoTotal = pesagensFiltradas.reduce((s, p) => s + (p.ganho || 0), 0);
+  const pesoTotalGeral = pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0);
+  const arrobaMediaGeral = pesoMedio / 15;
+  const arrobaTotalGeral = pesoTotalGeral / 15;
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -901,7 +906,7 @@ export default function RelatorioPesagensIndividuais() {
                                   <TableHeader>
                                     <TableRow className="bg-gray-50">
                                       {colunasPainelOrdenadas.map(col => (
-                                        <TableHead key={col.id} className={`text-xs font-bold py-2 ${['qtd','faixa','menor','maior','peso_medio','peso_total','gmd_medio','machos','femeas'].includes(col.id) ? 'text-center' : ''}`}>
+                                        <TableHead key={col.id} className={`text-xs font-bold py-2 ${['qtd','faixa','menor','maior','peso_medio','arroba_media','peso_total','arroba_total','gmd_medio','machos','femeas'].includes(col.id) ? 'text-center' : ''}`}>
                                           {col.label}
                                         </TableHead>
                                       ))}
@@ -1232,7 +1237,7 @@ export default function RelatorioPesagensIndividuais() {
                           <TableHeader>
                             <TableRow className="bg-gray-100">
                               {colunasPainelOrdenadas.map(col => (
-                                <TableHead key={col.id} className={`text-xs font-bold py-2 ${['qtd','faixa','menor','maior','peso_medio','peso_total','gmd_medio','machos','femeas'].includes(col.id) ? 'text-center' : ''}`}>
+                                <TableHead key={col.id} className={`text-xs font-bold py-2 ${['qtd','faixa','menor','maior','peso_medio','arroba_media','peso_total','arroba_total','gmd_medio','machos','femeas'].includes(col.id) ? 'text-center' : ''}`}>
                                   {col.label}
                                 </TableHead>
                               ))}
@@ -1270,8 +1275,12 @@ export default function RelatorioPesagensIndividuais() {
                                           return <TableCell key="maior" className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>;
                                         case 'peso_medio':
                                           return <TableCell key="peso_medio" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>;
+                                        case 'arroba_media':
+                                          return <TableCell key="arroba_media" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote / 15, 2)} @</TableCell>;
                                         case 'peso_total':
                                           return <TableCell key="peso_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>;
+                                        case 'arroba_total':
+                                          return <TableCell key="arroba_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote / 15, 2)} @</TableCell>;
                                         case 'gmd_medio':
                                           return <TableCell key="gmd_medio" className="text-xs text-center py-2 font-mono font-semibold">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
                                         case 'machos':
@@ -1319,11 +1328,12 @@ export default function RelatorioPesagensIndividuais() {
 
                         {/* Subtotal da Apartação */}
                         <div className="bg-gray-200 px-3 py-2 border-t">
-                          <div className="grid grid-cols-5 gap-4 text-xs">
+                          <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs">
                             <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
                             <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioApt)} kg</div>
+                            <div><strong>Média (@):</strong> {fmtDecimal(pesoMedioApt / 15, 2)} @</div>
                             <div><strong>Peso Total:</strong> {fmtDecimal(pesoTotalApt)} kg</div>
-                            <div><strong>GMD Médio:</strong> {fmtDecimal(gmdMedioApt, 3)} kg/dia</div>
+                            <div><strong>Total (@):</strong> {fmtDecimal(pesoTotalApt / 15, 2)} @</div>
                             <div><strong>Lotes:</strong> {fmtInteiro(Object.keys(lotes).length)}</div>
                           </div>
                         </div>
@@ -1343,7 +1353,9 @@ export default function RelatorioPesagensIndividuais() {
                           <TableHead className="text-xs font-bold text-center py-2">Menor Peso</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Maior Peso</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Média (@)</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Total (@)</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1368,7 +1380,9 @@ export default function RelatorioPesagensIndividuais() {
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt / 15, 2)} @</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt / 15, 2)} @</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">
                                 {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               </TableCell>
@@ -1383,7 +1397,9 @@ export default function RelatorioPesagensIndividuais() {
                           <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.length > 0 ? Math.min(...pesagensFiltradas.map(p => p.peso || 999999).filter(p => p > 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.length > 0 ? Math.max(...pesagensFiltradas.map(p => p.peso || 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono font-bold">{pesoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono font-bold">{arrobaMediaGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{pesoTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{arrobaTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono font-bold">{gmdMedio.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
                         </TableRow>
                       </TableBody>
