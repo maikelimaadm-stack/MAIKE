@@ -1362,11 +1362,11 @@ export default function RelatorioPesagensIndividuais() {
                               <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioApt)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt / 30, 2)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt, 1) : '-'}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt / 30, 2) : '-'}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt, 1) : '-'}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt / 30, 2) : '-'}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt, 1) : '-'}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt / 30, 2) : '-'}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt, 1) : '-'}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt / 30, 2) : '-'}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{diasMedioApt ? fmtDecimal(diasMedioApt, 1) : '-'}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">
                                 {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
