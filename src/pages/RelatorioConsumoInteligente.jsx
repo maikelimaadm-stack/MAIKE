@@ -2,10 +2,14 @@ import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import RelatorioBase from "@/components/relatorios/RelatorioBase";
-import { FiltroData, FiltroMultiplo, FiltroSelect, BotaoLimparFiltros } from "@/components/relatorios/FiltrosRelatorio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import ConfigAnaliseLotesDialog from "@/components/relatorios/consumoInteligente/ConfigAnaliseLotesDialog";
+import TabelaAnaliseLotes from "@/components/relatorios/consumoInteligente/TabelaAnaliseLotes";
+import { COLUNAS_ANALISE_LOTES, STORAGE_KEY_COLUNAS_ANALISE_LOTES } from "@/components/relatorios/consumoInteligente/colunasAnaliseLotes";
 
 const formatarNumero = (num, casas = 2) => Number(num || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 const formatarData = (valor) => {
@@ -58,6 +62,22 @@ export default function RelatorioConsumoInteligente() {
   const [lotesSelecionados, setLotesSelecionados] = useState([]);
   const [statusSelecionados, setStatusSelecionados] = useState([]);
   const [visaoResumo, setVisaoResumo] = useState('geral');
+  const [configOpen, setConfigOpen] = useState(false);
+  const [modoVisualizacao, setModoVisualizacao] = useState('ambos');
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(true);
+  const [ordenacaoAnalise, setOrdenacaoAnalise] = useState('data_asc');
+  const [retirosSelecionados, setRetirosSelecionados] = useState([]);
+  const [colunasVisiveisAnalise, setColunasVisiveisAnalise] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_COLUNAS_ANALISE_LOTES);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_ANALISE_LOTES.filter((coluna) => coluna.default).map((coluna) => coluna.id);
+      }
+    }
+    return COLUNAS_ANALISE_LOTES.filter((coluna) => coluna.default).map((coluna) => coluna.id);
+  });
 
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-relatorio-consumo-inteligente', empresaId],
@@ -148,22 +168,36 @@ export default function RelatorioConsumoInteligente() {
       const diferenca = consumoRealizado - consumoEsperado;
       const consumoPorCabeca = Number(lote?.quantidade_cabecas || evento.total_cabecas_afetadas || 0) > 0 ? consumoRealizado / Number(lote?.quantidade_cabecas || evento.total_cabecas_afetadas || 0) : 0;
       const dataReposicao = diasRestantes > 0 ? new Date(Date.now() + diasRestantes * 24 * 60 * 60 * 1000).toISOString() : null;
+      const metaPercentual = produto?.percentual_consumo_pv ? Number(produto.percentual_consumo_pv) : 0;
+      const consumoPercentual = lote?.peso_medio_kg > 0 && consumoPorCabeca > 0 ? (consumoPorCabeca / Number(lote.peso_medio_kg)) * 100 : 0;
+      const desvioPercentual = consumoPercentual - metaPercentual;
+      const metaCabeca = lote?.peso_medio_kg > 0 && metaPercentual > 0 ? Number(lote.peso_medio_kg) * (metaPercentual / 100) : 0;
+      const desvioCabeca = consumoPorCabeca - metaCabeca;
       return {
         id: evento.id,
         data_evento: evento.data_lancamento || evento.created_date,
         lote_nome: lote?.nome || lote?.identificador_nome || 'GERAL',
         categoria_lote: lote?.categoria_nome || lote?.categoria || '-',
         setor_lote: lote?.setor_nome || '-',
+        retiro_nome: lote?.retiro_nome || lote?.fazenda_nome || lote?.propriedade_nome || '-',
+        modulo_nome: lote?.modulo_nome || lote?.setor_nome || '-',
+        area_nome: ponto?.area_vinculada_nome || lote?.area_pasto_nome || '-',
         cabecas: Number(lote?.quantidade_cabecas || evento.total_cabecas_afetadas || 0),
         peso_medio: Number(lote?.peso_medio_kg || 0),
         produto_nome: produto?.nome_produto || evento.produto || '-',
+        classificacao_produto: produto?.descricao || produto?.categoria || produto?.tipo_consumo || '-',
         tipo_consumo: produto?.tipo_consumo || '-',
         cocho_nome: ponto?.nome_ponto || evento.ponto_nome || '-',
         deposito_nome: ponto?.deposito_origem_nome || '-',
         esperado: consumoEsperado,
         realizado: consumoRealizado,
         diferenca,
+        meta_percentual: metaPercentual,
+        consumo_percentual: consumoPercentual,
+        desvio_percentual: desvioPercentual,
+        meta_cabeca: metaCabeca,
         consumo_por_cabeca: consumoPorCabeca,
+        desvio_cabeca: desvioCabeca,
         eficiencia,
         saldo: saldoPonto,
         dias_restantes: diasRestantes,
@@ -171,6 +205,7 @@ export default function RelatorioConsumoInteligente() {
         estoque_minimo: estoqueMinimo,
         status: classificacao.status,
         alerta: classificacao.alerta,
+        detalhes_texto: `${produto?.nome_produto || evento.produto || '-'} | COCHO ${ponto?.nome_ponto || evento.ponto_nome || '-'} | DEPÓSITO ${ponto?.deposito_origem_nome || '-'} | ALERTA ${classificacao.alerta}`,
       };
     }).filter((linha) => {
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(linha.produto_nome)) return false;
@@ -182,6 +217,7 @@ export default function RelatorioConsumoInteligente() {
 
   const produtosOpcoes = useMemo(() => [...new Set(linhas.map((item) => item.produto_nome))].filter(Boolean).sort(), [linhas]);
   const lotesOpcoes = useMemo(() => [...new Set(linhas.map((item) => item.lote_nome))].filter(Boolean).sort(), [linhas]);
+  const retirosOpcoes = useMemo(() => [...new Set(linhas.map((item) => item.retiro_nome))].filter(Boolean).sort(), [linhas]);
   const statusOpcoes = ['normal', 'atencao', 'critico'];
 
   const totais = useMemo(() => ({
@@ -309,8 +345,65 @@ export default function RelatorioConsumoInteligente() {
     setProdutosSelecionados([]);
     setLotesSelecionados([]);
     setStatusSelecionados([]);
+    setRetirosSelecionados([]);
     setVisaoResumo('geral');
+    setModoVisualizacao('ambos');
+    setMostrarDetalhes(true);
+    setOrdenacaoAnalise('data_asc');
   };
+
+  const toggleColunaAnalise = (colunaId) => {
+    setColunasVisiveisAnalise((prev) => {
+      const next = prev.includes(colunaId) ? prev.filter((id) => id !== colunaId) : [...prev, colunaId];
+      localStorage.setItem(STORAGE_KEY_COLUNAS_ANALISE_LOTES, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const linhasAnalise = useMemo(() => {
+    let base = linhas.filter((linha) => {
+      if (retirosSelecionados.length > 0 && !retirosSelecionados.includes(linha.retiro_nome)) return false;
+      return true;
+    });
+
+    base = [...base].sort((a, b) => {
+      if (ordenacaoAnalise === 'data_desc') return new Date(b.data_evento || 0) - new Date(a.data_evento || 0);
+      if (ordenacaoAnalise === 'lote_asc') return String(a.lote_nome || '').localeCompare(String(b.lote_nome || ''));
+      if (ordenacaoAnalise === 'consumo_desc') return Number(b.realizado || 0) - Number(a.realizado || 0);
+      return new Date(a.data_evento || 0) - new Date(b.data_evento || 0);
+    });
+
+    return base;
+  }, [linhas, retirosSelecionados, ordenacaoAnalise]);
+
+  const resumoPorLote = useMemo(() => {
+    const mapa = new Map();
+    linhasAnalise.forEach((linha) => {
+      const chave = linha.lote_nome;
+      if (!mapa.has(chave)) {
+        mapa.set(chave, {
+          ...linha,
+          id: `resumo-${chave}`,
+          realizado: 0,
+          esperado: 0,
+          cabecas: linha.cabecas,
+          peso_medio: linha.peso_medio,
+          consumo_por_cabeca: 0,
+          detalhes_texto: '',
+        });
+      }
+      const atual = mapa.get(chave);
+      atual.realizado += Number(linha.realizado || 0);
+      atual.esperado += Number(linha.esperado || 0);
+      atual.consumo_por_cabeca = atual.cabecas > 0 ? atual.realizado / atual.cabecas : 0;
+      atual.meta_cabeca = atual.peso_medio > 0 && atual.meta_percentual > 0 ? atual.peso_medio * (atual.meta_percentual / 100) : atual.meta_cabeca;
+      atual.desvio_cabeca = atual.consumo_por_cabeca - (atual.meta_cabeca || 0);
+      atual.consumo_percentual = atual.peso_medio > 0 ? (atual.consumo_por_cabeca / atual.peso_medio) * 100 : 0;
+      atual.desvio_percentual = atual.consumo_percentual - (atual.meta_percentual || 0);
+      atual.detalhes_texto = `PERÍODO ${atual.data_evento ? new Date(atual.data_evento).toLocaleDateString('pt-BR') : '-'} ATÉ ${linha.data_evento ? new Date(linha.data_evento).toLocaleDateString('pt-BR') : '-'} | ${atual.alerta}`;
+    });
+    return Array.from(mapa.values());
+  }, [linhasAnalise]);
 
   const toggleFiltro = (lista, setLista, valor) => {
     setLista((prev) => prev.includes(valor) ? prev.filter((item) => item !== valor) : [...prev, valor]);
@@ -323,31 +416,49 @@ export default function RelatorioConsumoInteligente() {
       empresaAtual={empresaAtual}
       resumoTotais={`${totais.registros} registros | Esperado: ${formatarNumero(totais.esperado)} kg | Realizado: ${formatarNumero(totais.realizado)} kg | Críticos: ${totais.criticos} | Atenção: ${totais.atencao}`}
       filtros={
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <FiltroData label="Data Início" value={dataInicio} onChange={setDataInicio} />
-            <FiltroData label="Data Fim" value={dataFim} onChange={setDataFim} />
-            <FiltroSelect
-              label="Visão"
-              value={visaoResumo}
-              onChange={setVisaoResumo}
-              opcoes={[
-                { value: 'geral', label: 'GERAL' },
-                { value: 'lotes', label: 'LOTES' },
-                { value: 'produtos', label: 'PRODUTOS' },
-                { value: 'estoque', label: 'ESTOQUE' },
-              ]}
-            />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <div>
+            <p className="text-xs text-slate-600">Análise por lotes com resumo, detalhes, datas, colunas e layout no padrão histórico.</p>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <FiltroMultiplo label="Produtos" selecionados={produtosSelecionados} opcoes={produtosOpcoes} onToggle={(v) => toggleFiltro(produtosSelecionados, setProdutosSelecionados, v)} />
-            <FiltroMultiplo label="Lotes" selecionados={lotesSelecionados} opcoes={lotesOpcoes} onToggle={(v) => toggleFiltro(lotesSelecionados, setLotesSelecionados, v)} />
-            <FiltroMultiplo label="Status" selecionados={statusSelecionados} opcoes={statusOpcoes} onToggle={(v) => toggleFiltro(statusSelecionados, setStatusSelecionados, v)} renderLabel={(v) => v.toUpperCase()} />
-            <BotaoLimparFiltros onClick={limparFiltros} />
-          </div>
+          <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => setConfigOpen(true)}>
+            <Settings className="w-3.5 h-3.5 mr-1" />
+            Configurar Relatório
+          </Button>
         </div>
       }
     >
+      <ConfigAnaliseLotesDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        dataInicio={dataInicio}
+        setDataInicio={setDataInicio}
+        dataFim={dataFim}
+        setDataFim={setDataFim}
+        modoVisualizacao={modoVisualizacao}
+        setModoVisualizacao={setModoVisualizacao}
+        mostrarDetalhes={mostrarDetalhes}
+        setMostrarDetalhes={setMostrarDetalhes}
+        ordenacao={ordenacaoAnalise}
+        setOrdenacao={setOrdenacaoAnalise}
+        retiros={retirosOpcoes}
+        retirosSelecionados={retirosSelecionados}
+        toggleRetiro={(v) => toggleFiltro(retirosSelecionados, setRetirosSelecionados, v)}
+        selecionarTodosRetiros={() => setRetirosSelecionados(retirosOpcoes)}
+        limparRetiros={() => setRetirosSelecionados([])}
+        produtos={produtosOpcoes}
+        produtosSelecionados={produtosSelecionados}
+        toggleProduto={(v) => toggleFiltro(produtosSelecionados, setProdutosSelecionados, v)}
+        selecionarTodosProdutos={() => setProdutosSelecionados(produtosOpcoes)}
+        limparProdutos={() => setProdutosSelecionados([])}
+        lotes={lotesOpcoes}
+        lotesSelecionados={lotesSelecionados}
+        toggleLote={(v) => toggleFiltro(lotesSelecionados, setLotesSelecionados, v)}
+        selecionarTodosLotes={() => setLotesSelecionados(lotesOpcoes)}
+        limparLotes={() => setLotesSelecionados([])}
+        colunasVisiveis={colunasVisiveisAnalise}
+        toggleColuna={toggleColunaAnalise}
+        limparFiltros={limparFiltros}
+      >
       <div className="space-y-3">
         <Card>
           <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">1. RESUMO EXECUTIVO</CardTitle></CardHeader>
@@ -373,47 +484,24 @@ export default function RelatorioConsumoInteligente() {
         </Card>
 
         {(visaoResumo === 'geral' || visaoResumo === 'lotes') && (
-          <Card>
-            <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">2. ANÁLISE DOS LOTES</CardTitle></CardHeader>
-            <CardContent className="p-4">
-              <div className={tabelaWrapClass}>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className={thClass}>LOTE</TableHead>
-                      <TableHead className={thClass}>CATEGORIA</TableHead>
-                      <TableHead className={thClass}>SETOR</TableHead>
-                      <TableHead className={`${thClass} text-right`}>CABEÇAS</TableHead>
-                      <TableHead className={`${thClass} text-right`}>PESO MÉDIO</TableHead>
-                      <TableHead className={`${thClass} text-right`}>ESTIMADO</TableHead>
-                      <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
-                      <TableHead className={`${thClass} text-right`}>DIFERENÇA</TableHead>
-                      <TableHead className={`${thClass} text-right`}>MÉDIA/CAB</TableHead>
-                      <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
-                      <TableHead className={thClass}>OBSERVAÇÃO</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analiseLotes.map((item) => (
-                      <TableRow key={item.lote_nome}>
-                        <TableCell className={tdClass}>{item.lote_nome}</TableCell>
-                        <TableCell className={tdClass}>{item.categoria_lote}</TableCell>
-                        <TableCell className={tdClass}>{item.setor_lote}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.cabecas, 0)}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.peso_medio)}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.diferenca)}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.media_cabeca)}</TableCell>
-                        <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
-                        <TableCell className={tdClass}>{item.observacao}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            {(modoVisualizacao === 'resumo' || modoVisualizacao === 'ambos') && (
+              <TabelaAnaliseLotes
+                titulo="2. RESUMO POR LOTE"
+                linhas={resumoPorLote}
+                colunasVisiveis={colunasVisiveisAnalise}
+                mostrarDetalhes={mostrarDetalhes}
+              />
+            )}
+            {(modoVisualizacao === 'detalhado' || modoVisualizacao === 'ambos') && (
+              <TabelaAnaliseLotes
+                titulo="3. LISTA DETALHADA POR DATA"
+                linhas={linhasAnalise}
+                colunasVisiveis={colunasVisiveisAnalise}
+                mostrarDetalhes={mostrarDetalhes}
+              />
+            )}
+          </div>
         )}
 
         {(visaoResumo === 'geral' || visaoResumo === 'produtos') && (
