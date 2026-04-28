@@ -1312,88 +1312,88 @@ export default function RelatorioPesagensIndividuais() {
                       </div>);
 
                 })}
-                  <div className="border-t border-slate-300 hidden">
-                    <h4 className="text-slate-800 my-1 text-sm font-bold uppercase">Resumo Geral</h4>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Apartação</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Lotes</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Animais</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Menor Peso</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Maior Peso</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Peso Médio</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Média (@)</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Peso Total</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Total (@)</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Médio</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Médio (@)</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Total</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Total (@)</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Dias Médios</TableHead>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">GMD Médio</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, lotes]) => {
-                        const todosAnimais = Object.values(lotes).flat();
-                        const qtd = todosAnimais.length;
-                        const pesos = todosAnimais.map((a) => a.peso || 0).filter((p) => p > 0);
-                        const menorPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
-                        const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
-                        const pesoMedioApt = qtd > 0 ? todosAnimais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
-                        const pesoTotalApt = todosAnimais.reduce((s, a) => s + (a.peso || 0), 0);
-                        const animaisComHistorico = todosAnimais.filter(temHistoricoPeso);
-                        const ganhoTotalApt = animaisComHistorico.reduce((s, a) => s + (a.ganho || 0), 0);
-                        const ganhoMedioApt = animaisComHistorico.length > 0 ? ganhoTotalApt / animaisComHistorico.length : 0;
-                        const diasMedioApt = animaisComHistorico.length > 0 ?
-                        animaisComHistorico.reduce((s, a) => s + (a.dias || 0), 0) / animaisComHistorico.length :
-                        0;
-                        const gmdMedioApt = animaisComHistorico.length > 0 ?
-                        animaisComHistorico.reduce((s, a) => s + (a.gmd || 0), 0) / animaisComHistorico.length :
-                        0;
-                        return (
-                          <TableRow key={apartacao}>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{apartacao}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(Object.keys(lotes).length)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(qtd)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(menorPeso)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(maiorPeso)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioApt)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioApt / 30, 2)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoTotalApt)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt, 1) : '-'}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoMedioApt ? fmtDecimal(ganhoMedioApt / 30, 2) : '-'}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt, 1) : '-'}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{ganhoTotalApt ? fmtDecimal(ganhoTotalApt / 30, 2) : '-'}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{diasMedioApt ? fmtDecimal(diasMedioApt, 1) : '-'}</TableCell>
-                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">
-                                {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
-                              </TableCell>
-                            </TableRow>);
+                  
 
-                      })}
-                        <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted font-bold bg-slate-50 border-t-2 border-slate-200">
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">TOTAL GERAL</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{Object.values(porApartacao).reduce((s, lotes) => s + Object.keys(lotes).length, 0).toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle gray-300 whitespace-normal break-words">{totalAnimais.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono text-slate-800">{pesagensFiltradas.length > 0 ? Math.min(...pesagensFiltradas.map((p) => p.peso || 999999).filter((p) => p > 0)).toLocaleString('pt-BR') : 0}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{pesagensFiltradas.length > 0 ? Math.max(...pesagensFiltradas.map((p) => p.peso || 0)).toLocaleString('pt-BR') : 0}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{pesoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{arrobaMediaGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{pesoTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{arrobaTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle gray-300 whitespace-normal break-words">{ganhoMedioGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle gray-300 whitespace-normal break-words">{ganhoArrobaMedioGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{ganhoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{ganhoArrobaTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{diasMedioGeral.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</TableCell>
-                          <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle  gray-300 whitespace-normal break-words">{gmdMedio.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
                 </div>);
 
           })()) :
