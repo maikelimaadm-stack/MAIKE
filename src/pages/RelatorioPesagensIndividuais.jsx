@@ -1252,7 +1252,7 @@ export default function RelatorioPesagensIndividuais() {
                                       case 'ganho_total':
                                         return <TableCell key="ganho_total" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote, 1) : '-'}</TableCell>;
                                       case 'ganho_total_arroba':
-                                        return <TableCell key="ganho_total_arroba" className="text-xs text-center py-2 font-mono">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote / 30, 2) : '-'}</TableCell>;
+                                        return <TableCell key="ganho_total_arroba" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{ganhoTotalLote ? fmtDecimal(ganhoTotalLote / 30, 2) : '-'}</TableCell>;
                                       case 'dias_medio':
                                         return <TableCell key="dias_medio" className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">{diasMedioLote ? fmtDecimal(diasMedioLote, 1) : '-'}</TableCell>;
                                       case 'gmd_medio':
