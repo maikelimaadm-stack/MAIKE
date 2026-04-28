@@ -316,7 +316,10 @@ export default function PesagensIndividuais() {
   // Estatísticas
   const stats = useMemo(() => {
     const total = pesagensFiltradas.length;
-    const pesoMedio = total > 0 ? pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0) / total : 0;
+    const pesoTotal = pesagensFiltradas.reduce((s, p) => s + (Number(p.peso) || 0), 0);
+    const pesoMedio = total > 0 ? pesoTotal / total : 0;
+    const arrobaTotal = pesoTotal / 15;
+    const arrobaMedia = pesoMedio / 15;
     const registrosComGmd = pesagensFiltradas.filter((p) => p.gmd !== null && p.gmd !== undefined && p.gmd !== '');
     const registrosComGanho = pesagensFiltradas.filter((p) => p.ganho !== null && p.ganho !== undefined && p.ganho !== '');
     const registrosComDias = pesagensFiltradas.filter((p) => p.dias !== null && p.dias !== undefined && p.dias !== '');
@@ -329,7 +332,8 @@ export default function PesagensIndividuais() {
     const diasMedio = registrosComDias.length > 0
       ? registrosComDias.reduce((s, p) => s + (Number(p.dias) || 0), 0) / registrosComDias.length
       : 0;
-    return { total, pesoMedio, gmdMedio, ganhoMedio, diasMedio };
+    const arrobaGanhaMedia = ganhoMedio / 15;
+    return { total, pesoMedio, pesoTotal, arrobaMedia, arrobaTotal, gmdMedio, ganhoMedio, diasMedio, arrobaGanhaMedia };
   }, [pesagensFiltradas]);
 
 
@@ -800,7 +804,7 @@ export default function PesagensIndividuais() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         <Card>
           <CardContent className="p-3">
             <p className="text-[10px] uppercase text-slate-500">Registros</p>
@@ -808,15 +812,24 @@ export default function PesagensIndividuais() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-3">
+          <CardContent className="p-3 space-y-0.5">
             <p className="text-[10px] uppercase text-slate-500">Peso Médio</p>
             <p className="text-lg font-bold text-slate-900">{stats.pesoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg</p>
+            <p className="text-[11px] text-slate-500">@ média {stats.arrobaMedia.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-3">
+          <CardContent className="p-3 space-y-0.5">
+            <p className="text-[10px] uppercase text-slate-500">Peso Total</p>
+            <p className="text-lg font-bold text-slate-900">{stats.pesoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg</p>
+            <p className="text-[11px] text-slate-500">@ total {stats.arrobaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 space-y-0.5">
             <p className="text-[10px] uppercase text-slate-500">Ganho Médio</p>
             <p className="text-lg font-bold text-emerald-700">{stats.ganhoMedio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg</p>
+            <p className="text-[11px] text-emerald-600">@ ganha {stats.arrobaGanhaMedia.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
           </CardContent>
         </Card>
         <Card>
