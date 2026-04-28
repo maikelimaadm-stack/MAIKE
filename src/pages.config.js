@@ -104,6 +104,7 @@ import PlanoContas from './pages/PlanoContas';
 import PopularCidades from './pages/PopularCidades';
 import Produtos from './pages/Produtos';
 import RelatorioConsumoPeriodo from './pages/RelatorioConsumoPeriodo';
+import RelatorioConsumoInteligente from './pages/RelatorioConsumoInteligente';
 import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
 import RelatorioEntradasFornecedor from './pages/RelatorioEntradasFornecedor';
 import RelatorioEstoque from './pages/RelatorioEstoque';
@@ -192,6 +193,7 @@ export const PAGES = {
     "PopularCidades": PopularCidades,
     "Produtos": Produtos,
     "RelatorioConsumoPeriodo": RelatorioConsumoPeriodo,
+    "RelatorioConsumoInteligente": RelatorioConsumoInteligente,
     "RelatorioCustosSafra": RelatorioCustosSafra,
     "RelatorioEntradasFornecedor": RelatorioEntradasFornecedor,
     "RelatorioEstoque": RelatorioEstoque,
