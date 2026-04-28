@@ -458,7 +458,7 @@ export default function RelatorioConsumoInteligente() {
         colunasVisiveis={colunasVisiveisAnalise}
         toggleColuna={toggleColunaAnalise}
         limparFiltros={limparFiltros}
-      >
+      />
       <div className="space-y-3">
         <Card>
           <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">1. RESUMO EXECUTIVO</CardTitle></CardHeader>
