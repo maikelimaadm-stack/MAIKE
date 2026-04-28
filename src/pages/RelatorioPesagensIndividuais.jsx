@@ -1204,7 +1204,7 @@ export default function RelatorioPesagensIndividuais() {
                             )}
                             </TableRow>
                           </TableHeader>
-                          <TableBody className="[&_tr:last-child]:border">
+                          <TableBody className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">
                             {Object.entries(lotes).sort((a, b) => a[0].localeCompare(b[0])).map(([lote, animais]) => {
                             const qtd = animais.length;
                             const pesos = animais.map((a) => a.peso || 0).filter((p) => p > 0);
