@@ -1198,7 +1198,7 @@ export default function RelatorioPesagensIndividuais() {
                           <TableHeader className="[&_tr]:border">
                             <TableRow>
                               {colunasPainelOrdenadas.map((col) =>
-                            <TableHead key={col.id} className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">
+                            <TableHead key={col.id} className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-a gray-300 whitespace-normal break-words">
                                   {col.label}
                                 </TableHead>
                             )}
@@ -1317,7 +1317,7 @@ export default function RelatorioPesagensIndividuais() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middlegray-300 whitespace-normal break-words">Apartação</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle bordera gray-300 whitespace-normal break-words">Apartação</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Lotes</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Animais</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Menor Peso</TableHead>
