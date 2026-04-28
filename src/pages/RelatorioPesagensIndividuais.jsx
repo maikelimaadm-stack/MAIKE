@@ -1327,11 +1327,11 @@ export default function RelatorioPesagensIndividuais() {
                           <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Peso Total</TableHead>
                           <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Total (@)</TableHead>
                           <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Médio</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Ganho Médio (@)</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Ganho Total</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Ganho Total (@)</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Dias Médios</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Médio (@)</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Total</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Ganho Total (@)</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">Dias Médios</TableHead>
+                          <TableHead className="h-10 text-left font-medium p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border a gray-300 whitespace-normal break-words">GMD Médio</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
