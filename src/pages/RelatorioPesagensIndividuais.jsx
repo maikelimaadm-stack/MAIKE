@@ -1195,7 +1195,7 @@ export default function RelatorioPesagensIndividuais() {
                           <h3 className="font-bold text-sm text-slate-800 uppercase">APARTAÇÃO: {apartacao}</h3>
                         </div>
                         <Table>
-                          <TableHeader className="[&_tr]:border-a ">
+                          <TableHeader className="[&_tr]:border">
                             <TableRow>
                               {colunasPainelOrdenadas.map((col) =>
                             <TableHead key={col.id} className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words">
