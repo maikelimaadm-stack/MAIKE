@@ -8,6 +8,19 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formatarNumero = (num, casas = 2) => Number(num || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const formatarData = (valor) => {
+  if (!valor) return '-';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '-';
+  return data.toLocaleDateString('pt-BR');
+};
+const somarSaldoProduto = (movimentacoes, nomeLocal, produtoNome) => movimentacoes
+  .filter((mov) => (mov.local_destino === nomeLocal || mov.local_origem === nomeLocal) && mov.produto_nome === produtoNome)
+  .reduce((acc, mov) => {
+    if (mov.tipo_movimentacao === 'Entrada') return acc + Number(mov.quantidade || 0);
+    if (mov.tipo_movimentacao === 'Saída') return acc - Number(mov.quantidade || 0);
+    return acc;
+  }, 0);
 
 function calcularConsumoEsperadoKg(lote, produto) {
   const cabecas = Number(lote?.quantidade_cabecas || 0);
@@ -132,8 +145,12 @@ export default function RelatorioConsumoInteligente() {
       const diasRestantes = consumoRealizado > 0 ? saldoPonto / consumoRealizado : 0;
       const estoqueMinimo = Number(ponto?.estoque_minimo_kg || 0);
       const classificacao = classificarStatus({ eficiencia, saldo: saldoPonto, estoqueMinimo, diasRestantes });
+      const diferenca = consumoRealizado - consumoEsperado;
+      const consumoPorCabeca = Number(lote?.quantidade_cabecas || evento.total_cabecas_afetadas || 0) > 0 ? consumoRealizado / Number(lote?.quantidade_cabecas || evento.total_cabecas_afetadas || 0) : 0;
+      const dataReposicao = diasRestantes > 0 ? new Date(Date.now() + diasRestantes * 24 * 60 * 60 * 1000).toISOString() : null;
       return {
         id: evento.id,
+        data_evento: evento.data_lancamento || evento.created_date,
         lote_nome: lote?.nome || lote?.identificador_nome || 'GERAL',
         categoria_lote: lote?.categoria_nome || lote?.categoria || '-',
         setor_lote: lote?.setor_nome || '-',
@@ -145,9 +162,12 @@ export default function RelatorioConsumoInteligente() {
         deposito_nome: ponto?.deposito_origem_nome || '-',
         esperado: consumoEsperado,
         realizado: consumoRealizado,
+        diferenca,
+        consumo_por_cabeca: consumoPorCabeca,
         eficiencia,
         saldo: saldoPonto,
         dias_restantes: diasRestantes,
+        data_reposicao: dataReposicao,
         estoque_minimo: estoqueMinimo,
         status: classificacao.status,
         alerta: classificacao.alerta,
@@ -185,11 +205,18 @@ export default function RelatorioConsumoInteligente() {
       item.dias_restantes = linha.dias_restantes;
       if (linha.status !== 'normal') item.alertas.push(linha.alerta);
     });
-    return Array.from(mapa.values()).map((item) => ({
-      ...item,
-      eficiencia: item.esperado > 0 ? (item.realizado / item.esperado) * 100 : 0,
-      observacao: item.alertas[0] || 'SEM OCORRÊNCIAS RELEVANTES'
-    })).sort((a, b) => b.realizado - a.realizado);
+    return Array.from(mapa.values()).map((item) => {
+      const eficiencia = item.esperado > 0 ? (item.realizado / item.esperado) * 100 : 0;
+      const diferenca = item.realizado - item.esperado;
+      const mediaCabeca = item.cabecas > 0 ? item.realizado / item.cabecas : 0;
+      return {
+        ...item,
+        eficiencia,
+        diferenca,
+        media_cabeca: mediaCabeca,
+        observacao: item.alertas[0] || 'SEM OCORRÊNCIAS RELEVANTES'
+      };
+    }).sort((a, b) => b.realizado - a.realizado);
   }, [linhas]);
 
   const consumoProdutos = useMemo(() => {
@@ -203,10 +230,12 @@ export default function RelatorioConsumoInteligente() {
     });
     return Array.from(mapa.values()).map((item) => {
       const eficiencia = item.esperado > 0 ? (item.realizado / item.esperado) * 100 : 0;
+      const diferenca = item.realizado - item.esperado;
       return {
         ...item,
         lotes_count: item.lotes.size,
         eficiencia,
+        diferenca,
         situacao: eficiencia > 120 ? 'ACIMA DO IDEAL' : eficiencia > 0 && eficiencia < 80 ? 'ABAIXO DO IDEAL' : 'DENTRO DO IDEAL'
       };
     }).sort((a, b) => b.realizado - a.realizado);
@@ -215,37 +244,38 @@ export default function RelatorioConsumoInteligente() {
   const situacaoCochos = useMemo(() => {
     return cochos.map((cocho) => {
       const linhasCocho = linhas.filter((linha) => linha.cocho_nome === cocho.nome_ponto);
+      const consumoEsperado = linhasCocho.reduce((acc, item) => acc + item.esperado, 0);
+      const consumoRealizado = linhasCocho.reduce((acc, item) => acc + item.realizado, 0);
       const consumoMedio = linhasCocho.reduce((acc, item) => acc + item.realizado, 0) / (linhasCocho.length || 1);
-      const saldo = linhasCocho.length ? linhasCocho[0].saldo : 0;
+      const saldo = somarSaldoProduto(movimentacoes, cocho.nome_ponto, cocho.produto_padrao || '-');
       const diasRestantes = consumoMedio > 0 ? saldo / consumoMedio : 0;
-      const classificacao = classificarStatus({ eficiencia: 100, saldo, estoqueMinimo: Number(cocho.estoque_minimo_kg || 0), diasRestantes });
+      const dataReposicao = diasRestantes > 0 ? new Date(Date.now() + diasRestantes * 24 * 60 * 60 * 1000).toISOString() : null;
+      const classificacao = classificarStatus({ eficiencia: consumoEsperado > 0 ? (consumoRealizado / consumoEsperado) * 100 : 100, saldo, estoqueMinimo: Number(cocho.estoque_minimo_kg || 0), diasRestantes });
       return {
         nome: cocho.nome_ponto,
         deposito_origem: cocho.deposito_origem_nome || '-',
         produto_padrao: cocho.produto_padrao || '-',
         capacidade: Number(cocho.capacidade_cocho_kg || 0),
         saldo,
+        consumoEsperado,
+        consumoRealizado,
         consumoMedio,
         diasRestantes,
+        dataReposicao,
         alerta: classificacao.alerta,
         status: classificacao.status
       };
     }).sort((a, b) => a.saldo - b.saldo);
-  }, [cochos, linhas]);
+  }, [cochos, linhas, movimentacoes]);
 
   const situacaoDepositos = useMemo(() => {
     return depositos.map((deposito) => {
-      const saldo = movimentacoes
-        .filter((mov) => mov.deposito_id === deposito.id || mov.local_destino === deposito.nome_ponto || mov.local_origem === deposito.nome_ponto)
-        .reduce((acc, mov) => {
-          if (mov.tipo_movimentacao === 'Entrada') return acc + Number(mov.quantidade || 0);
-          if (mov.tipo_movimentacao === 'Saída') return acc - Number(mov.quantidade || 0);
-          return acc;
-        }, 0);
+      const produtoBase = deposito.produto_padrao || '-';
+      const saldo = somarSaldoProduto(movimentacoes, deposito.nome_ponto, produtoBase);
       const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
       return {
         nome: deposito.nome_ponto,
-        produto_padrao: deposito.produto_padrao || '-',
+        produto_padrao: produtoBase,
         capacidade: Number(deposito.capacidade_cocho_kg || 0),
         saldo,
         estoqueMinimo,
@@ -357,6 +387,8 @@ export default function RelatorioConsumoInteligente() {
                       <TableHead className={`${thClass} text-right`}>PESO MÉDIO</TableHead>
                       <TableHead className={`${thClass} text-right`}>ESTIMADO</TableHead>
                       <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>DIFERENÇA</TableHead>
+                      <TableHead className={`${thClass} text-right`}>MÉDIA/CAB</TableHead>
                       <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
                       <TableHead className={thClass}>OBSERVAÇÃO</TableHead>
                     </TableRow>
@@ -371,6 +403,8 @@ export default function RelatorioConsumoInteligente() {
                         <TableCell className={tdNumClass}>{formatarNumero(item.peso_medio)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.diferenca)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.media_cabeca)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
                         <TableCell className={tdClass}>{item.observacao}</TableCell>
                       </TableRow>
@@ -395,6 +429,7 @@ export default function RelatorioConsumoInteligente() {
                       <TableHead className={`${thClass} text-right`}>LOTES</TableHead>
                       <TableHead className={`${thClass} text-right`}>ESPERADO</TableHead>
                       <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>DIFERENÇA</TableHead>
                       <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
                       <TableHead className={thClass}>SITUAÇÃO</TableHead>
                     </TableRow>
@@ -407,6 +442,7 @@ export default function RelatorioConsumoInteligente() {
                         <TableCell className={tdNumClass}>{formatarNumero(item.lotes_count, 0)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.diferenca)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
                         <TableCell className={tdClass}>{item.situacao}</TableCell>
                       </TableRow>
@@ -430,9 +466,12 @@ export default function RelatorioConsumoInteligente() {
                       <TableHead className={thClass}>DEPÓSITO ORIGEM</TableHead>
                       <TableHead className={thClass}>PRODUTO</TableHead>
                       <TableHead className={`${thClass} text-right`}>CAPACIDADE</TableHead>
-                      <TableHead className={`${thClass} text-right`}>SALDO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>SALDO PROD.</TableHead>
+                      <TableHead className={`${thClass} text-right`}>ESPERADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
                       <TableHead className={`${thClass} text-right`}>CONS. MÉDIO</TableHead>
                       <TableHead className={`${thClass} text-right`}>DIAS REST.</TableHead>
+                      <TableHead className={thClass}>DATA REPOSIÇÃO</TableHead>
                       <TableHead className={thClass}>ALERTA</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -444,8 +483,11 @@ export default function RelatorioConsumoInteligente() {
                         <TableCell className={tdClass}>{item.produto_padrao}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.capacidade)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.saldo)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.consumoEsperado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.consumoRealizado)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.consumoMedio)}</TableCell>
                         <TableCell className={tdNumClass}>{formatarNumero(item.diasRestantes)}</TableCell>
+                        <TableCell className={tdClass}>{formatarData(item.dataReposicao)}</TableCell>
                         <TableCell className={tdClass}><Badge className={statusBadgeClass[item.status]}>{item.alerta}</Badge></TableCell>
                       </TableRow>
                     ))}
@@ -555,8 +597,11 @@ export default function RelatorioConsumoInteligente() {
                     <TableHead className={thClass}>DEPÓSITO</TableHead>
                     <TableHead className={`${thClass} text-right`}>CABEÇAS</TableHead>
                     <TableHead className={`${thClass} text-right`}>PESO MÉDIO</TableHead>
+                    <TableHead className={thClass}>DATA</TableHead>
                     <TableHead className={`${thClass} text-right`}>ESPERADO</TableHead>
                     <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
+                    <TableHead className={`${thClass} text-right`}>DIFERENÇA</TableHead>
+                    <TableHead className={`${thClass} text-right`}>CONS/CAB</TableHead>
                     <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
                     <TableHead className={thClass}>STATUS</TableHead>
                   </TableRow>
@@ -570,8 +615,11 @@ export default function RelatorioConsumoInteligente() {
                       <TableCell className={tdClass}>{item.deposito_nome}</TableCell>
                       <TableCell className={tdNumClass}>{formatarNumero(item.cabecas, 0)}</TableCell>
                       <TableCell className={tdNumClass}>{formatarNumero(item.peso_medio)}</TableCell>
+                      <TableCell className={tdClass}>{formatarData(item.data_evento)}</TableCell>
                       <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
                       <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.diferenca)}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.consumo_por_cabeca)}</TableCell>
                       <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
                       <TableCell className={tdClass}><Badge className={statusBadgeClass[item.status]}>{item.status.toUpperCase()}</Badge></TableCell>
                     </TableRow>
