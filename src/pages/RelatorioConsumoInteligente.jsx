@@ -5,6 +5,7 @@ import RelatorioBase from "@/components/relatorios/RelatorioBase";
 import { FiltroData, FiltroMultiplo, FiltroSelect, BotaoLimparFiltros } from "@/components/relatorios/FiltrosRelatorio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formatarNumero = (num, casas = 2) => Number(num || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
@@ -31,6 +32,11 @@ const statusBadgeClass = {
   normal: "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
 
+const tabelaWrapClass = "overflow-x-auto rounded-lg border";
+const thClass = "text-xs font-bold py-2 px-3 border-b bg-slate-50";
+const tdClass = "text-xs py-2 px-3 border-b";
+const tdNumClass = "text-xs py-2 px-3 border-b text-right font-mono";
+
 export default function RelatorioConsumoInteligente() {
   const empresaId = localStorage.getItem('empresa_selecionada_id');
   const [dataInicio, setDataInicio] = useState('');
@@ -38,7 +44,7 @@ export default function RelatorioConsumoInteligente() {
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
   const [lotesSelecionados, setLotesSelecionados] = useState([]);
   const [statusSelecionados, setStatusSelecionados] = useState([]);
-  const [ordenacao, setOrdenacao] = useState('data_desc');
+  const [visaoResumo, setVisaoResumo] = useState('geral');
 
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-relatorio-consumo-inteligente', empresaId],
@@ -100,7 +106,7 @@ export default function RelatorioConsumoInteligente() {
   const cochos = useMemo(() => pontos.filter((item) => item.categoria_ponto !== 'DEPOSITO'), [pontos]);
 
   const linhas = useMemo(() => {
-    const eventosFiltrados = eventos.filter((evento) => {
+    return eventos.filter((evento) => {
       const dataBase = evento.data_lancamento || evento.created_date;
       if (dataInicio && new Date(dataBase) < new Date(dataInicio)) return false;
       if (dataFim) {
@@ -109,9 +115,7 @@ export default function RelatorioConsumoInteligente() {
         if (new Date(dataBase) > limite) return false;
       }
       return true;
-    });
-
-    return eventosFiltrados.map((evento) => {
+    }).map((evento) => {
       const produto = produtosMap.get(evento.produto_id) || produtos.find((item) => item.nome_produto === evento.produto);
       const ponto = pontosMap.get(evento.ponto_suplementacao_id);
       const lote = lotes.find((item) => evento.lote_id && item.id === evento.lote_id);
@@ -128,13 +132,15 @@ export default function RelatorioConsumoInteligente() {
       const diasRestantes = consumoRealizado > 0 ? saldoPonto / consumoRealizado : 0;
       const estoqueMinimo = Number(ponto?.estoque_minimo_kg || 0);
       const classificacao = classificarStatus({ eficiencia, saldo: saldoPonto, estoqueMinimo, diasRestantes });
-
       return {
         id: evento.id,
         lote_nome: lote?.nome || lote?.identificador_nome || 'GERAL',
+        categoria_lote: lote?.categoria_nome || lote?.categoria || '-',
+        setor_lote: lote?.setor_nome || '-',
         cabecas: Number(lote?.quantidade_cabecas || evento.total_cabecas_afetadas || 0),
         peso_medio: Number(lote?.peso_medio_kg || 0),
         produto_nome: produto?.nome_produto || evento.produto || '-',
+        tipo_consumo: produto?.tipo_consumo || '-',
         cocho_nome: ponto?.nome_ponto || evento.ponto_nome || '-',
         deposito_nome: ponto?.deposito_origem_nome || '-',
         esperado: consumoEsperado,
@@ -151,15 +157,8 @@ export default function RelatorioConsumoInteligente() {
       if (lotesSelecionados.length > 0 && !lotesSelecionados.includes(linha.lote_nome)) return false;
       if (statusSelecionados.length > 0 && !statusSelecionados.includes(linha.status)) return false;
       return true;
-    }).sort((a, b) => {
-      switch (ordenacao) {
-        case 'eficiencia_desc': return b.eficiencia - a.eficiencia;
-        case 'eficiencia_asc': return a.eficiencia - b.eficiencia;
-        case 'realizado_desc': return b.realizado - a.realizado;
-        default: return b.realizado - a.realizado;
-      }
     });
-  }, [eventos, dataInicio, dataFim, produtosMap, produtos, pontosMap, lotes, movimentacoes, produtosSelecionados, lotesSelecionados, statusSelecionados, ordenacao]);
+  }, [eventos, dataInicio, dataFim, produtosMap, produtos, pontosMap, lotes, movimentacoes, produtosSelecionados, lotesSelecionados, statusSelecionados]);
 
   const produtosOpcoes = useMemo(() => [...new Set(linhas.map((item) => item.produto_nome))].filter(Boolean).sort(), [linhas]);
   const lotesOpcoes = useMemo(() => [...new Set(linhas.map((item) => item.lote_nome))].filter(Boolean).sort(), [linhas]);
@@ -170,42 +169,47 @@ export default function RelatorioConsumoInteligente() {
     esperado: linhas.reduce((acc, item) => acc + item.esperado, 0),
     realizado: linhas.reduce((acc, item) => acc + item.realizado, 0),
     criticos: linhas.filter((item) => item.status === 'critico').length,
+    atencao: linhas.filter((item) => item.status === 'atencao').length,
   }), [linhas]);
 
   const analiseLotes = useMemo(() => {
     const mapa = new Map();
     linhas.forEach((linha) => {
       if (!mapa.has(linha.lote_nome)) {
-        mapa.set(linha.lote_nome, { lote_nome: linha.lote_nome, cabecas: linha.cabecas, peso_medio: linha.peso_medio, esperado: 0, realizado: 0, alertas: [] });
+        mapa.set(linha.lote_nome, { ...linha, esperado: 0, realizado: 0, alertas: [] });
       }
       const item = mapa.get(linha.lote_nome);
       item.esperado += linha.esperado;
       item.realizado += linha.realizado;
+      item.saldo = linha.saldo;
+      item.dias_restantes = linha.dias_restantes;
       if (linha.status !== 'normal') item.alertas.push(linha.alerta);
     });
     return Array.from(mapa.values()).map((item) => ({
       ...item,
       eficiencia: item.esperado > 0 ? (item.realizado / item.esperado) * 100 : 0,
-      observacao: item.alertas[0] || 'Sem ocorrências relevantes no período'
-    }));
+      observacao: item.alertas[0] || 'SEM OCORRÊNCIAS RELEVANTES'
+    })).sort((a, b) => b.realizado - a.realizado);
   }, [linhas]);
 
   const consumoProdutos = useMemo(() => {
     const mapa = new Map();
     linhas.forEach((linha) => {
-      if (!mapa.has(linha.produto_nome)) mapa.set(linha.produto_nome, { produto_nome: linha.produto_nome, esperado: 0, realizado: 0 });
+      if (!mapa.has(linha.produto_nome)) mapa.set(linha.produto_nome, { produto_nome: linha.produto_nome, tipo_consumo: linha.tipo_consumo, esperado: 0, realizado: 0, lotes: new Set() });
       const item = mapa.get(linha.produto_nome);
       item.esperado += linha.esperado;
       item.realizado += linha.realizado;
+      item.lotes.add(linha.lote_nome);
     });
     return Array.from(mapa.values()).map((item) => {
       const eficiencia = item.esperado > 0 ? (item.realizado / item.esperado) * 100 : 0;
       return {
         ...item,
+        lotes_count: item.lotes.size,
         eficiencia,
-        situacao: eficiencia > 120 ? 'Acima do ideal' : eficiencia > 0 && eficiencia < 80 ? 'Abaixo do ideal' : 'Dentro do ideal'
+        situacao: eficiencia > 120 ? 'ACIMA DO IDEAL' : eficiencia > 0 && eficiencia < 80 ? 'ABAIXO DO IDEAL' : 'DENTRO DO IDEAL'
       };
-    });
+    }).sort((a, b) => b.realizado - a.realizado);
   }, [linhas]);
 
   const situacaoCochos = useMemo(() => {
@@ -215,8 +219,18 @@ export default function RelatorioConsumoInteligente() {
       const saldo = linhasCocho.length ? linhasCocho[0].saldo : 0;
       const diasRestantes = consumoMedio > 0 ? saldo / consumoMedio : 0;
       const classificacao = classificarStatus({ eficiencia: 100, saldo, estoqueMinimo: Number(cocho.estoque_minimo_kg || 0), diasRestantes });
-      return { nome: cocho.nome_ponto, saldo, consumoMedio, diasRestantes, alerta: classificacao.alerta, status: classificacao.status };
-    });
+      return {
+        nome: cocho.nome_ponto,
+        deposito_origem: cocho.deposito_origem_nome || '-',
+        produto_padrao: cocho.produto_padrao || '-',
+        capacidade: Number(cocho.capacidade_cocho_kg || 0),
+        saldo,
+        consumoMedio,
+        diasRestantes,
+        alerta: classificacao.alerta,
+        status: classificacao.status
+      };
+    }).sort((a, b) => a.saldo - b.saldo);
   }, [cochos, linhas]);
 
   const situacaoDepositos = useMemo(() => {
@@ -231,50 +245,33 @@ export default function RelatorioConsumoInteligente() {
       const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
       return {
         nome: deposito.nome_ponto,
+        produto_padrao: deposito.produto_padrao || '-',
+        capacidade: Number(deposito.capacidade_cocho_kg || 0),
         saldo,
         estoqueMinimo,
         necessidadeReposicao: saldo < estoqueMinimo ? estoqueMinimo - saldo : 0,
-        risco: saldo <= estoqueMinimo ? 'Risco de ruptura' : 'Normal'
+        risco: saldo <= estoqueMinimo ? 'RISCO DE RUPTURA' : 'NORMAL'
       };
-    });
+    }).sort((a, b) => a.saldo - b.saldo);
   }, [depositos, movimentacoes]);
 
   const fluxoEstoque = useMemo(() => {
     const entradas = movimentacoes.filter((mov) => mov.tipo_movimentacao === 'Entrada').reduce((acc, mov) => acc + Number(mov.quantidade || 0), 0);
+    const saidas = movimentacoes.filter((mov) => mov.tipo_movimentacao === 'Saída').reduce((acc, mov) => acc + Number(mov.quantidade || 0), 0);
     const transferencias = movimentacoes.filter((mov) => mov.tipo_movimentacao === 'Transferência').reduce((acc, mov) => acc + Number(mov.quantidade || 0), 0);
     const consumo = linhas.reduce((acc, item) => acc + item.realizado, 0);
-    const inconsistencias = [];
-    if (consumo > entradas + transferencias) inconsistencias.push('Consumo maior que entradas e transferências do período.');
-    if (situacaoDepositos.some((item) => item.risco === 'Risco de ruptura')) inconsistencias.push('Há depósitos operando em risco de ruptura.');
-    return { entradas, transferencias, consumo, inconsistencias };
-  }, [movimentacoes, linhas, situacaoDepositos]);
+    const saldoTeorico = entradas - saidas;
+    const diferenca = saldoTeorico - consumo;
+    return { entradas, saidas, transferencias, consumo, saldoTeorico, diferenca };
+  }, [movimentacoes, linhas]);
 
   const alertasInteligentes = useMemo(() => {
     const lista = [];
-    situacaoDepositos.filter((item) => item.saldo <= item.estoqueMinimo).forEach((item) => {
-      lista.push(`Depósito ${item.nome} abaixo do mínimo, com necessidade de reposição de ${formatarNumero(item.necessidadeReposicao)} kg.`);
-    });
-    situacaoCochos.filter((item) => item.status !== 'normal').forEach((item) => {
-      lista.push(`Cocho ${item.nome} com alerta de ${item.alerta.toLowerCase()}.`);
-    });
-    analiseLotes.filter((item) => item.eficiencia > 120 || (item.eficiencia > 0 && item.eficiencia < 80)).forEach((item) => {
-      lista.push(`Lote ${item.lote_nome} com consumo fora do esperado, operando em ${formatarNumero(item.eficiencia)}% da meta.`);
-    });
+    situacaoDepositos.filter((item) => item.saldo <= item.estoqueMinimo).forEach((item) => lista.push({ tipo: 'DEPÓSITO', descricao: `${item.nome} ABAIXO DO MÍNIMO`, impacto: `REPOR ${formatarNumero(item.necessidadeReposicao)} KG` }));
+    situacaoCochos.filter((item) => item.status !== 'normal').forEach((item) => lista.push({ tipo: 'COCHO', descricao: `${item.nome} COM ${item.alerta}`, impacto: `SALDO ${formatarNumero(item.saldo)} KG` }));
+    analiseLotes.filter((item) => item.eficiencia > 120 || (item.eficiencia > 0 && item.eficiencia < 80)).forEach((item) => lista.push({ tipo: 'LOTE', descricao: `${item.lote_nome} FORA DO ESPERADO`, impacto: `EFICIÊNCIA ${formatarNumero(item.eficiencia)}%` }));
     return lista;
   }, [situacaoDepositos, situacaoCochos, analiseLotes]);
-
-  const recomendacoes = useMemo(() => {
-    const lista = [];
-    if (situacaoDepositos.some((item) => item.saldo <= item.estoqueMinimo)) lista.push('Priorizar a reposição imediata dos depósitos abaixo do estoque mínimo.');
-    if (situacaoCochos.some((item) => item.status !== 'normal')) lista.push('Revisar a frequência de abastecimento dos cochos com baixa cobertura.');
-    if (analiseLotes.some((item) => item.eficiencia > 120 || (item.eficiencia > 0 && item.eficiencia < 80))) lista.push('Reavaliar o ajuste de fornecimento e os parâmetros nutricionais dos lotes com desvio de consumo.');
-    if (!lista.length) lista.push('A operação está estável no período avaliado, manter o monitoramento atual.');
-    return lista;
-  }, [situacaoDepositos, situacaoCochos, analiseLotes]);
-
-  const toggleFiltro = (lista, setLista, valor) => {
-    setLista((prev) => prev.includes(valor) ? prev.filter((item) => item !== valor) : [...prev, valor]);
-  };
 
   const limparFiltros = () => {
     setDataInicio('');
@@ -282,29 +279,33 @@ export default function RelatorioConsumoInteligente() {
     setProdutosSelecionados([]);
     setLotesSelecionados([]);
     setStatusSelecionados([]);
-    setOrdenacao('data_desc');
+    setVisaoResumo('geral');
+  };
+
+  const toggleFiltro = (lista, setLista, valor) => {
+    setLista((prev) => prev.includes(valor) ? prev.filter((item) => item !== valor) : [...prev, valor]);
   };
 
   return (
     <RelatorioBase
       titulo="Relatório Inteligente de Consumo"
-      subtitulo="Análise gerencial completa de consumo, cochos e depósitos"
+      subtitulo="Dados completos de lotes, produtos, cochos, depósitos e fluxo de estoque"
       empresaAtual={empresaAtual}
-      resumoTotais={`${totais.registros} registros | Esperado: ${formatarNumero(totais.esperado)} kg | Realizado: ${formatarNumero(totais.realizado)} kg | Críticos: ${totais.criticos}`}
+      resumoTotais={`${totais.registros} registros | Esperado: ${formatarNumero(totais.esperado)} kg | Realizado: ${formatarNumero(totais.realizado)} kg | Críticos: ${totais.criticos} | Atenção: ${totais.atencao}`}
       filtros={
         <div className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <FiltroData label="Data Início" value={dataInicio} onChange={setDataInicio} />
             <FiltroData label="Data Fim" value={dataFim} onChange={setDataFim} />
             <FiltroSelect
-              label="Ordenar Por"
-              value={ordenacao}
-              onChange={setOrdenacao}
+              label="Visão"
+              value={visaoResumo}
+              onChange={setVisaoResumo}
               opcoes={[
-                { value: 'data_desc', label: 'Maior consumo' },
-                { value: 'eficiencia_desc', label: 'Eficiência maior' },
-                { value: 'eficiencia_asc', label: 'Eficiência menor' },
-                { value: 'realizado_desc', label: 'Consumo realizado' },
+                { value: 'geral', label: 'GERAL' },
+                { value: 'lotes', label: 'LOTES' },
+                { value: 'produtos', label: 'PRODUTOS' },
+                { value: 'estoque', label: 'ESTOQUE' },
               ]}
             />
           </div>
@@ -320,96 +321,264 @@ export default function RelatorioConsumoInteligente() {
       <div className="space-y-3">
         <Card>
           <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">1. RESUMO EXECUTIVO</CardTitle></CardHeader>
-          <CardContent className="p-4 text-xs text-slate-700 space-y-2">
-            <p>A operação analisada registrou {totais.registros} eventos de consumo, com expectativa de {formatarNumero(totais.esperado)} kg e consumo realizado de {formatarNumero(totais.realizado)} kg no período.</p>
-            <p>Os principais pontos críticos estão ligados a estoques abaixo do mínimo em depósitos, cobertura curta em cochos e desvios de consumo em alguns lotes.</p>
-            <div className="space-y-1">
-              {alertasInteligentes.slice(0, 5).map((alerta, index) => <p key={index}>• {alerta}</p>)}
+          <CardContent className="p-4">
+            <div className={tabelaWrapClass}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className={thClass}>INDICADOR</TableHead>
+                    <TableHead className={`${thClass} text-right`}>VALOR</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell className={tdClass}>REGISTROS ANALISADOS</TableCell><TableCell className={tdNumClass}>{formatarNumero(totais.registros, 0)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>CONSUMO ESPERADO (KG)</TableCell><TableCell className={tdNumClass}>{formatarNumero(totais.esperado)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>CONSUMO REALIZADO (KG)</TableCell><TableCell className={tdNumClass}>{formatarNumero(totais.realizado)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>PONTOS CRÍTICOS</TableCell><TableCell className={tdNumClass}>{formatarNumero(totais.criticos, 0)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>PONTOS DE ATENÇÃO</TableCell><TableCell className={tdNumClass}>{formatarNumero(totais.atencao, 0)}</TableCell></TableRow>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">2. ANÁLISE DOS LOTES</CardTitle></CardHeader>
-          <CardContent className="p-4 space-y-2 text-xs">
-            {analiseLotes.map((item) => (
-              <div key={item.lote_nome} className="border rounded-lg p-3 space-y-1">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                  <div className="font-semibold text-slate-900">{item.lote_nome}</div>
-                  <Badge className={item.eficiencia > 120 || (item.eficiencia > 0 && item.eficiencia < 80) ? statusBadgeClass.atencao : statusBadgeClass.normal}>{formatarNumero(item.eficiencia)}%</Badge>
-                </div>
-                <p>Quantidade de cabeças: {formatarNumero(item.cabecas, 0)} | Peso médio: {formatarNumero(item.peso_medio)} kg</p>
-                <p>Consumo estimado: {formatarNumero(item.esperado)} kg | Consumo realizado: {formatarNumero(item.realizado)} kg</p>
-                <p>Observação relevante: {item.observacao}</p>
+        {(visaoResumo === 'geral' || visaoResumo === 'lotes') && (
+          <Card>
+            <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">2. ANÁLISE DOS LOTES</CardTitle></CardHeader>
+            <CardContent className="p-4">
+              <div className={tabelaWrapClass}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={thClass}>LOTE</TableHead>
+                      <TableHead className={thClass}>CATEGORIA</TableHead>
+                      <TableHead className={thClass}>SETOR</TableHead>
+                      <TableHead className={`${thClass} text-right`}>CABEÇAS</TableHead>
+                      <TableHead className={`${thClass} text-right`}>PESO MÉDIO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>ESTIMADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
+                      <TableHead className={thClass}>OBSERVAÇÃO</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {analiseLotes.map((item) => (
+                      <TableRow key={item.lote_nome}>
+                        <TableCell className={tdClass}>{item.lote_nome}</TableCell>
+                        <TableCell className={tdClass}>{item.categoria_lote}</TableCell>
+                        <TableCell className={tdClass}>{item.setor_lote}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.cabecas, 0)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.peso_medio)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
+                        <TableCell className={tdClass}>{item.observacao}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">3. CONSUMO DE PRODUTOS</CardTitle></CardHeader>
-          <CardContent className="p-4 space-y-2 text-xs">
-            {consumoProdutos.map((item) => (
-              <div key={item.produto_nome} className="border rounded-lg p-3 space-y-1">
-                <div className="font-semibold text-slate-900">{item.produto_nome}</div>
-                <p>Consumo total no período: {formatarNumero(item.realizado)} kg</p>
-                <p>Parâmetro esperado: {formatarNumero(item.esperado)} kg | Eficiência: {formatarNumero(item.eficiencia)}%</p>
-                <p>Situação do produto: {item.situacao}</p>
+        {(visaoResumo === 'geral' || visaoResumo === 'produtos') && (
+          <Card>
+            <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">3. CONSUMO DE PRODUTOS</CardTitle></CardHeader>
+            <CardContent className="p-4">
+              <div className={tabelaWrapClass}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={thClass}>PRODUTO</TableHead>
+                      <TableHead className={thClass}>TIPO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>LOTES</TableHead>
+                      <TableHead className={`${thClass} text-right`}>ESPERADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
+                      <TableHead className={thClass}>SITUAÇÃO</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {consumoProdutos.map((item) => (
+                      <TableRow key={item.produto_nome}>
+                        <TableCell className={tdClass}>{item.produto_nome}</TableCell>
+                        <TableCell className={tdClass}>{item.tipo_consumo}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.lotes_count, 0)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
+                        <TableCell className={tdClass}>{item.situacao}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">4. SITUAÇÃO DOS COCHOS</CardTitle></CardHeader>
-          <CardContent className="p-4 space-y-2 text-xs">
-            {situacaoCochos.map((item) => (
-              <div key={item.nome} className="border rounded-lg p-3 space-y-1">
-                <div className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-900">{item.nome}</span><Badge className={statusBadgeClass[item.status]}>{item.status.toUpperCase()}</Badge></div>
-                <p>Nível atual de estoque: {formatarNumero(item.saldo)} kg</p>
-                <p>Consumo médio: {formatarNumero(item.consumoMedio)} kg | Dias restantes estimados: {formatarNumero(item.diasRestantes)}</p>
-                <p>Alerta operacional: {item.alerta}</p>
+        {(visaoResumo === 'geral' || visaoResumo === 'estoque') && (
+          <Card>
+            <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">4. SITUAÇÃO DOS COCHOS</CardTitle></CardHeader>
+            <CardContent className="p-4">
+              <div className={tabelaWrapClass}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={thClass}>COCHO</TableHead>
+                      <TableHead className={thClass}>DEPÓSITO ORIGEM</TableHead>
+                      <TableHead className={thClass}>PRODUTO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>CAPACIDADE</TableHead>
+                      <TableHead className={`${thClass} text-right`}>SALDO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>CONS. MÉDIO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>DIAS REST.</TableHead>
+                      <TableHead className={thClass}>ALERTA</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {situacaoCochos.map((item) => (
+                      <TableRow key={item.nome}>
+                        <TableCell className={tdClass}>{item.nome}</TableCell>
+                        <TableCell className={tdClass}>{item.deposito_origem}</TableCell>
+                        <TableCell className={tdClass}>{item.produto_padrao}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.capacidade)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.saldo)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.consumoMedio)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.diasRestantes)}</TableCell>
+                        <TableCell className={tdClass}><Badge className={statusBadgeClass[item.status]}>{item.alerta}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">5. SITUAÇÃO DOS DEPÓSITOS</CardTitle></CardHeader>
-          <CardContent className="p-4 space-y-2 text-xs">
-            {situacaoDepositos.map((item) => (
-              <div key={item.nome} className="border rounded-lg p-3 space-y-1">
-                <div className="font-semibold text-slate-900">{item.nome}</div>
-                <p>Saldo atual: {formatarNumero(item.saldo)} kg | Estoque mínimo: {formatarNumero(item.estoqueMinimo)} kg</p>
-                <p>Necessidade de reposição: {formatarNumero(item.necessidadeReposicao)} kg | Risco: {item.risco}</p>
+        {(visaoResumo === 'geral' || visaoResumo === 'estoque') && (
+          <Card>
+            <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">5. SITUAÇÃO DOS DEPÓSITOS</CardTitle></CardHeader>
+            <CardContent className="p-4">
+              <div className={tabelaWrapClass}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={thClass}>DEPÓSITO</TableHead>
+                      <TableHead className={thClass}>PRODUTO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>CAPACIDADE</TableHead>
+                      <TableHead className={`${thClass} text-right`}>SALDO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>ESTOQUE MÍNIMO</TableHead>
+                      <TableHead className={`${thClass} text-right`}>REPOSIÇÃO</TableHead>
+                      <TableHead className={thClass}>RISCO</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {situacaoDepositos.map((item) => (
+                      <TableRow key={item.nome}>
+                        <TableCell className={tdClass}>{item.nome}</TableCell>
+                        <TableCell className={tdClass}>{item.produto_padrao}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.capacidade)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.saldo)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.estoqueMinimo)}</TableCell>
+                        <TableCell className={tdNumClass}>{formatarNumero(item.necessidadeReposicao)}</TableCell>
+                        <TableCell className={tdClass}>{item.risco}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">6. FLUXO DE ESTOQUE</CardTitle></CardHeader>
-          <CardContent className="p-4 text-xs space-y-2">
-            <p>Entradas (compras): {formatarNumero(fluxoEstoque.entradas)} kg</p>
-            <p>Transferências (depósito → cocho): {formatarNumero(fluxoEstoque.transferencias)} kg</p>
-            <p>Consumo total apurado: {formatarNumero(fluxoEstoque.consumo)} kg</p>
-            <div className="space-y-1">
-              {fluxoEstoque.inconsistencias.length ? fluxoEstoque.inconsistencias.map((item, index) => <p key={index}>• {item}</p>) : <p>• Não foram identificadas inconsistências relevantes no período.</p>}
+          <CardContent className="p-4">
+            <div className={tabelaWrapClass}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className={thClass}>MOVIMENTO</TableHead>
+                    <TableHead className={`${thClass} text-right`}>KG</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell className={tdClass}>ENTRADAS (COMPRAS)</TableCell><TableCell className={tdNumClass}>{formatarNumero(fluxoEstoque.entradas)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>SAÍDAS DE ESTOQUE</TableCell><TableCell className={tdNumClass}>{formatarNumero(fluxoEstoque.saidas)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>TRANSFERÊNCIAS DEPÓSITO → COCHO</TableCell><TableCell className={tdNumClass}>{formatarNumero(fluxoEstoque.transferencias)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>CONSUMO TOTAL APURADO</TableCell><TableCell className={tdNumClass}>{formatarNumero(fluxoEstoque.consumo)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>SALDO TEÓRICO</TableCell><TableCell className={tdNumClass}>{formatarNumero(fluxoEstoque.saldoTeorico)}</TableCell></TableRow>
+                  <TableRow><TableCell className={tdClass}>DIFERENÇA / POSSÍVEL PERDA</TableCell><TableCell className={tdNumClass}>{formatarNumero(fluxoEstoque.diferenca)}</TableCell></TableRow>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">7. ALERTAS INTELIGENTES</CardTitle></CardHeader>
-          <CardContent className="p-4 text-xs space-y-1">
-            {alertasInteligentes.length ? alertasInteligentes.map((item, index) => <p key={index}>• {item}</p>) : <p>• Não há alertas críticos no período selecionado.</p>}
+          <CardContent className="p-4">
+            <div className={tabelaWrapClass}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className={thClass}>TIPO</TableHead>
+                    <TableHead className={thClass}>DESCRIÇÃO</TableHead>
+                    <TableHead className={thClass}>IMPACTO</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {alertasInteligentes.length ? alertasInteligentes.map((item, index) => (
+                    <TableRow key={`${item.tipo}-${index}`}>
+                      <TableCell className={tdClass}>{item.tipo}</TableCell>
+                      <TableCell className={tdClass}>{item.descricao}</TableCell>
+                      <TableCell className={tdClass}>{item.impacto}</TableCell>
+                    </TableRow>
+                  )) : <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400">NENHUM ALERTA ENCONTRADO</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">8. RECOMENDAÇÕES</CardTitle></CardHeader>
-          <CardContent className="p-4 text-xs space-y-1">
-            {recomendacoes.map((item, index) => <p key={index}>• {item}</p>)}
+          <CardHeader className="py-3 border-b"><CardTitle className="text-sm font-semibold">8. DADOS COMPLETOS DOS EVENTOS</CardTitle></CardHeader>
+          <CardContent className="p-4">
+            <div className={tabelaWrapClass}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className={thClass}>LOTE</TableHead>
+                    <TableHead className={thClass}>PRODUTO</TableHead>
+                    <TableHead className={thClass}>COCHO</TableHead>
+                    <TableHead className={thClass}>DEPÓSITO</TableHead>
+                    <TableHead className={`${thClass} text-right`}>CABEÇAS</TableHead>
+                    <TableHead className={`${thClass} text-right`}>PESO MÉDIO</TableHead>
+                    <TableHead className={`${thClass} text-right`}>ESPERADO</TableHead>
+                    <TableHead className={`${thClass} text-right`}>REALIZADO</TableHead>
+                    <TableHead className={`${thClass} text-right`}>EFIC. %</TableHead>
+                    <TableHead className={thClass}>STATUS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linhas.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className={tdClass}>{item.lote_nome}</TableCell>
+                      <TableCell className={tdClass}>{item.produto_nome}</TableCell>
+                      <TableCell className={tdClass}>{item.cocho_nome}</TableCell>
+                      <TableCell className={tdClass}>{item.deposito_nome}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.cabecas, 0)}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.peso_medio)}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.esperado)}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.realizado)}</TableCell>
+                      <TableCell className={tdNumClass}>{formatarNumero(item.eficiencia)}</TableCell>
+                      <TableCell className={tdClass}><Badge className={statusBadgeClass[item.status]}>{item.status.toUpperCase()}</Badge></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
