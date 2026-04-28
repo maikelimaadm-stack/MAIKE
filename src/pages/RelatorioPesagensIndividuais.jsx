@@ -1355,11 +1355,11 @@ export default function RelatorioPesagensIndividuais() {
                         return (
                           <TableRow key={apartacao}>
                               <TableCell className="text-xs font-semibold py-2">{apartacao}</TableCell>
-                              <TableCell className="text-xs text-center py-2">{fmtInteiro(Object.keys(lotes).length)}</TableCell>
-                              <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt)}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(Object.keys(lotes).length)}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(qtd)}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(menorPeso)}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtInteiro(maiorPeso)}</TableCell>
+                              <TableCell className="p-2 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-1 text-gray-700 text-xs align-middle border gray-300 whitespace-normal break-words">{fmtDecimal(pesoMedioApt)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt / 30, 2)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)}</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt / 30, 2)}</TableCell>
