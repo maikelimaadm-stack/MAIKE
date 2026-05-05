@@ -1,0 +1,54 @@
+{
+  "name": "CampoPersonalizado",
+  "type": "object",
+  "properties": {
+    "entity_name": {
+      "type": "string",
+      "description": "Entidade onde o campo ser\u00e1 aplicado"
+    },
+    "field_id": {
+      "type": "string",
+      "description": "Identificador \u00fanico do campo"
+    },
+    "field_name": {
+      "type": "string",
+      "description": "Chave usada no JSON de campos personalizados"
+    },
+    "label": {
+      "type": "string",
+      "description": "Nome exibido ao usu\u00e1rio"
+    },
+    "tipo": {
+      "type": "string",
+      "description": "Tipo do campo"
+    },
+    "empresa_id": {
+      "type": "string",
+      "description": "Empresa vinculada, quando aplic\u00e1vel"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Usu\u00e1rio vinculado, quando aplic\u00e1vel"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o campo est\u00e1 ativo"
+    },
+    "regras": {
+      "type": "object",
+      "description": "Regras de valida\u00e7\u00e3o, visibilidade e c\u00e1lculo"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Configura\u00e7\u00f5es adicionais"
+    }
+  },
+  "required": [
+    "entity_name",
+    "field_id",
+    "field_name",
+    "label",
+    "tipo"
+  ]
+}

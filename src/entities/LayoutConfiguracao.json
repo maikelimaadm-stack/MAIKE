@@ -1,0 +1,16 @@
+{
+  "name": "LayoutConfiguracao",
+  "type": "object",
+  "properties": {
+    "tela": { "type": "string", "description": "Identificador da tela/módulo" },
+    "nome": { "type": "string", "description": "Nome amigável do layout" },
+    "descricao": { "type": "string", "description": "Descrição do layout" },
+    "escopo": { "type": "string", "enum": ["usuario", "empresa", "sistema"], "default": "sistema", "description": "Nível de aplicação do layout" },
+    "empresa_id": { "type": "string", "description": "Empresa vinculada quando escopo for empresa" },
+    "user_email": { "type": "string", "description": "Usuário vinculado quando escopo for usuário" },
+    "versao_ativa": { "type": "number", "default": 1, "description": "Versão ativa do layout" },
+    "ativo": { "type": "boolean", "default": true, "description": "Se o layout está ativo" },
+    "metadata": { "type": "object", "description": "Configurações adicionais do layout" }
+  },
+  "required": ["tela", "nome", "escopo"]
+}

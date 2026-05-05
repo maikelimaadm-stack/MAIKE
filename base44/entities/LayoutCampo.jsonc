@@ -1,0 +1,113 @@
+{
+  "name": "LayoutCampo",
+  "type": "object",
+  "properties": {
+    "layout_id": {
+      "type": "string",
+      "description": "ID do layout pai"
+    },
+    "section_id": {
+      "type": "string",
+      "description": "ID l\u00f3gico da se\u00e7\u00e3o"
+    },
+    "field_id": {
+      "type": "string",
+      "description": "Identificador \u00fanico do campo"
+    },
+    "entity_name": {
+      "type": "string",
+      "description": "Entidade vinculada"
+    },
+    "field_name": {
+      "type": "string",
+      "description": "Nome do campo fixo ou chave din\u00e2mica"
+    },
+    "origem": {
+      "type": "string",
+      "enum": [
+        "fixo",
+        "customizado"
+      ],
+      "default": "fixo",
+      "description": "Origem do campo"
+    },
+    "label": {
+      "type": "string",
+      "description": "R\u00f3tulo do campo"
+    },
+    "tipo": {
+      "type": "string",
+      "description": "Tipo de entrada: text, number, date, select, textarea, readonlyNumber etc."
+    },
+    "col_span": {
+      "type": "number",
+      "default": 12,
+      "description": "Tamanho no grid de 12 colunas"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem dentro da se\u00e7\u00e3o"
+    },
+    "obrigatorio": {
+      "type": "boolean",
+      "default": false,
+      "description": "Obrigatoriedade padr\u00e3o"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o campo aparece no layout"
+    },
+    "placeholder": {
+      "type": "string",
+      "description": "Texto de placeholder"
+    },
+    "uppercase": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se deve converter para caixa alta"
+    },
+    "read_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o campo \u00e9 somente leitura"
+    },
+    "step": {
+      "type": "string",
+      "description": "Incremento para campos num\u00e9ricos"
+    },
+    "rows": {
+      "type": "number",
+      "description": "Linhas para textarea"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Op\u00e7\u00f5es est\u00e1ticas do campo"
+    },
+    "options_source": {
+      "type": "string",
+      "description": "Fonte din\u00e2mica de op\u00e7\u00f5es"
+    },
+    "regras": {
+      "type": "object",
+      "description": "Regras din\u00e2micas: visibilidade, obrigatoriedade, c\u00e1lculo, depend\u00eancias"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Configura\u00e7\u00f5es adicionais do campo"
+    }
+  },
+  "required": [
+    "layout_id",
+    "section_id",
+    "field_id",
+    "entity_name",
+    "field_name",
+    "label",
+    "tipo",
+    "ordem"
+  ]
+}

@@ -26,6 +26,8 @@ import {
 import FormularioPesagem from "../components/pesagens/FormularioPesagem";
 import TabelaPesagens from "../components/pesagens/TabelaPesagens";
 import TicketPesagem from "../components/pesagens/TicketPesagem";
+import { loadLayoutFromDatabase } from "@/services/layoutService";
+import { PESAGEM_FORM_CONFIG, PESAGEM_TABLE_COLUMNS } from "@/config/pesagensConfig";
 
 const getNextSystemNumber = async () => {
   try {
@@ -82,6 +84,27 @@ export default function Pesagens() {
     initialData: [],
     enabled: !!empresaSelecionadaId,
   });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['current-user-layout'],
+    queryFn: () => base44.auth.me(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: persistedLayout } = useQuery({
+    queryKey: ['layout-pesagens', empresaSelecionadaId, currentUser?.email],
+    queryFn: () => loadLayoutFromDatabase({
+      tela: 'Pesagens',
+      entityName: 'Pesagem',
+      empresaId: empresaSelecionadaId,
+      userEmail: currentUser?.email,
+    }),
+    enabled: !!empresaSelecionadaId && !!currentUser?.email,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const formConfig = persistedLayout?.formConfig || PESAGEM_FORM_CONFIG;
+  const tableColumns = persistedLayout?.tableColumns?.length ? persistedLayout.tableColumns : PESAGEM_TABLE_COLUMNS;
 
   useEffect(() => {
     const numerarRegistrosExistentes = async () => {
@@ -513,6 +536,7 @@ export default function Pesagens() {
             onCancel={() => { setShowForm(false); setEditingPesagem(null); }}
             initialData={editingPesagem}
             isEditing={!!editingPesagem}
+            formConfig={formConfig}
           />
         )}
       </AnimatePresence>
@@ -524,6 +548,7 @@ export default function Pesagens() {
           onDelete={handleDelete}
           onPrint={handlePrint}
           isLoading={isLoading}
+          columnsConfig={tableColumns}
         />
       )}
 

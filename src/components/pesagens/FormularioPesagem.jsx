@@ -5,10 +5,10 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import ConfigurableForm from "@/components/dynamic/ConfigurableForm";
-import { PESAGEM_FORM_CONFIG } from "@/config/pesagensConfig";
+
 import { applyPesagemFieldChange, getInitialPesagemFormData } from "@/services/pesagemService";
 
-export default function FormularioPesagem({ onSubmit, onCancel, initialData = null, isEditing = false }) {
+export default function FormularioPesagem({ onSubmit, onCancel, initialData = null, isEditing = false, formConfig }) {
   const [formData, setFormData] = useState(() => getInitialPesagemFormData(initialData));
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -50,7 +50,7 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
         <CardContent className="p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <ConfigurableForm
-              config={PESAGEM_FORM_CONFIG}
+              config={formConfig}
               formData={formData}
               onChange={handleChange}
               context={{ fornecedores, produtos }}

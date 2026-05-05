@@ -3,12 +3,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfigurableField from "./ConfigurableField";
+import { applyFormRules } from "@/services/dynamicRulesEngine";
 
 const fieldClassName = "h-8 text-xs";
 const uppercaseClassName = "h-8 text-xs uppercase";
 
 function getOptions(field, context) {
   if (typeof field.options === "function") return field.options(context) || [];
+  if (field.optionsSource === "produtos") return (context.produtos || []).map((produto) => ({ value: produto.nome_produto, label: produto.nome_produto }));
+  if (field.optionsSource === "fornecedores") return (context.fornecedores || []).map((fornecedor) => ({ value: fornecedor.nome, label: fornecedor.nome }));
   return field.options || [];
 }
 
@@ -23,7 +26,7 @@ function renderFieldControl(field, formData, onChange, context) {
   if (field.type === "select") {
     return (
       <Select value={String(value || "")} onValueChange={(selectedValue) => onChange(field.name, selectedValue)} required={field.required}>
-        <SelectTrigger className={field.uppercase ? uppercaseClassName : fieldClassName}>
+        <SelectTrigger className={field.uppercase ? uppercaseClassName : fieldClassName} aria-invalid={field.required && !value ? "true" : undefined}>
           <SelectValue placeholder={field.placeholder || "SELECIONE"} />
         </SelectTrigger>
         <SelectContent>
@@ -64,6 +67,7 @@ function renderFieldControl(field, formData, onChange, context) {
   return (
     <Input
       {...commonProps}
+      aria-invalid={field.required && !value ? "true" : undefined}
       type={field.type || "text"}
       step={field.step}
       placeholder={field.placeholder}
@@ -76,9 +80,11 @@ function renderFieldControl(field, formData, onChange, context) {
 }
 
 export default function ConfigurableForm({ config, formData, onChange, context = {} }) {
+  const runtimeConfig = applyFormRules(config, formData);
+
   return (
     <div className="space-y-3">
-      {config.sections.map((section) => (
+      {runtimeConfig.sections.map((section) => (
         <section key={section.id} data-section-id={section.id} className={section.className || "space-y-2"}>
           {section.title && <h3 className="text-xs font-semibold uppercase text-slate-700">{section.title}</h3>}
           <div className="grid grid-cols-12 gap-3">

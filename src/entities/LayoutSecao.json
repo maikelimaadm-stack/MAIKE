@@ -1,0 +1,14 @@
+{
+  "name": "LayoutSecao",
+  "type": "object",
+  "properties": {
+    "layout_id": { "type": "string", "description": "ID do layout pai" },
+    "section_id": { "type": "string", "description": "Identificador único da seção" },
+    "titulo": { "type": "string", "description": "Título da seção" },
+    "ordem": { "type": "number", "description": "Ordem de exibição" },
+    "ativo": { "type": "boolean", "default": true, "description": "Se a seção está ativa" },
+    "regras": { "type": "object", "description": "Regras condicionais da seção" },
+    "metadata": { "type": "object", "description": "Configurações adicionais da seção" }
+  },
+  "required": ["layout_id", "section_id", "ordem"]
+}

@@ -62,7 +62,7 @@ function renderConfiguredCell(column, row) {
   );
 }
 
-export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrint, isLoading }) {
+export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrint, isLoading, columnsConfig = PESAGEM_TABLE_COLUMNS }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -78,15 +78,15 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
       try {
         return JSON.parse(saved);
       } catch {
-        return PESAGEM_TABLE_COLUMNS.filter((column) => column.default).map((column) => column.id);
+        return columnsConfig.filter((column) => column.default).map((column) => column.id);
       }
     }
-    return PESAGEM_TABLE_COLUMNS.filter((column) => column.default).map((column) => column.id);
+    return columnsConfig.filter((column) => column.default).map((column) => column.id);
   });
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_pesagens");
-    const base = PESAGEM_TABLE_COLUMNS.map((column) => column.id);
+    const base = columnsConfig.map((column) => column.id);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) || [];
@@ -99,7 +99,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
   });
 
   const colunasOrdenadas = colunasOrdem
-    .map((id) => PESAGEM_TABLE_COLUMNS.find((column) => column.id === id))
+    .map((id) => columnsConfig.find((column) => column.id === id))
     .filter((column) => column && colunasVisiveis.includes(column.id));
 
   const toggleColuna = (colunaId) => {
@@ -135,12 +135,12 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
 
   const filteredPesagens = pesagens.filter((pesagem) => {
     const searchLower = searchTerm.toLowerCase();
-    return PESAGEM_TABLE_COLUMNS.some((column) => String(getColumnValue(pesagem, column)).toLowerCase().includes(searchLower));
+    return columnsConfig.some((column) => String(getColumnValue(pesagem, column)).toLowerCase().includes(searchLower));
   });
 
   const sortedPesagens = [...filteredPesagens].sort((a, b) => {
     if (!sortField) return 0;
-    const column = PESAGEM_TABLE_COLUMNS.find((item) => item.id === sortField);
+    const column = columnsConfig.find((item) => item.id === sortField);
     if (!column) return 0;
 
     let aValue = getColumnValue(a, column);
@@ -303,7 +303,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
             <div className="space-y-1">
               <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
               <div className="grid grid-cols-2 gap-2">
-                {PESAGEM_TABLE_COLUMNS.map((coluna) => (
+                {columnsConfig.map((coluna) => (
                   <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
                     <Checkbox checked={colunasVisiveis.includes(coluna.id)} onCheckedChange={() => toggleColuna(coluna.id)} />
                     <span>{coluna.label}</span>
@@ -319,7 +319,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                   {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                       {colunasOrdem.map((colunaId, index) => {
-                        const coluna = PESAGEM_TABLE_COLUMNS.find((item) => item.id === colunaId);
+                        const coluna = columnsConfig.find((item) => item.id === colunaId);
                         if (!coluna) return null;
                         return (
                           <Draggable key={colunaId} draggableId={colunaId} index={index}>

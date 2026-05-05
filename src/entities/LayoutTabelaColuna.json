@@ -1,0 +1,24 @@
+{
+  "name": "LayoutTabelaColuna",
+  "type": "object",
+  "properties": {
+    "layout_id": { "type": "string", "description": "ID do layout pai" },
+    "column_id": { "type": "string", "description": "Identificador único da coluna" },
+    "entity_name": { "type": "string", "description": "Entidade vinculada" },
+    "field_name": { "type": "string", "description": "Campo fixo ou chave dinâmica" },
+    "origem": { "type": "string", "enum": ["fixo", "customizado"], "default": "fixo", "description": "Origem da coluna" },
+    "label": { "type": "string", "description": "Nome da coluna" },
+    "ordem": { "type": "number", "description": "Ordem de exibição" },
+    "visivel": { "type": "boolean", "default": true, "description": "Se a coluna está visível" },
+    "ordenavel": { "type": "boolean", "default": true, "description": "Se permite ordenação" },
+    "filtravel": { "type": "boolean", "default": true, "description": "Se permite filtro dinâmico" },
+    "alinhamento": { "type": "string", "enum": ["left", "center", "right"], "default": "left", "description": "Alinhamento da coluna" },
+    "formato": { "type": "string", "description": "Formato de exibição: date, number, currency etc." },
+    "destaque": { "type": "boolean", "default": false, "description": "Se deve usar destaque visual" },
+    "truncate": { "type": "boolean", "default": false, "description": "Se deve truncar texto longo" },
+    "agrupavel": { "type": "boolean", "default": false, "description": "Preparação para agrupamento futuro" },
+    "regras": { "type": "object", "description": "Regras dinâmicas da coluna" },
+    "metadata": { "type": "object", "description": "Configurações adicionais da coluna" }
+  },
+  "required": ["layout_id", "column_id", "entity_name", "field_name", "label", "ordem"]
+}
