@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings, Layers } from "lucide-react";
+import { Settings } from "lucide-react";
 import loteRepository from "@/core/repositories/loteRepository";
 import cadastroRepository from "@/core/repositories/cadastroRepository";
 import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
-import FormularioLote from "@/components/lotes/FormularioLote";
 import FormularioLoteDinamico from "@/components/lotes/FormularioLoteDinamico";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -17,7 +16,6 @@ export default function CadastroLotes() {
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [usarFormularioDinamico, setUsarFormularioDinamico] = useState(() => localStorage.getItem("cadastro_lotes_form_dinamico") === "true");
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -155,18 +153,7 @@ export default function CadastroLotes() {
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
             <Settings className="w-4 h-4" />
           </Button>
-          <Button
-            variant={usarFormularioDinamico ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              const next = !usarFormularioDinamico;
-              setUsarFormularioDinamico(next);
-              localStorage.setItem("cadastro_lotes_form_dinamico", String(next));
-            }}
-            className={`h-7 text-xs px-2 ${usarFormularioDinamico ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}>
-            <Layers className="w-3.5 h-3.5" />
-            {usarFormularioDinamico ? "Dinâmico" : "Antigo"}
-          </Button>
+
           <Button onClick={() => {setShowForm(true);setEditingLote(null);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
             Adicionar
           </Button>
@@ -175,19 +162,12 @@ export default function CadastroLotes() {
 
       <AnimatePresence mode="wait">
         {showForm ?
-        (usarFormularioDinamico ?
-          <FormularioLoteDinamico
-            key="form-dinamico"
-            initialData={editingLote}
-            isEditing={!!editingLote}
-            onSubmit={handleSubmit}
-            onCancel={() => {setShowForm(false);setEditingLote(null);}} /> :
-          <FormularioLote
-            key="form"
-            initialData={editingLote}
-            isEditing={!!editingLote}
-            onSubmit={handleSubmit}
-            onCancel={() => {setShowForm(false);setEditingLote(null);}} />) :
+        <FormularioLoteDinamico
+          key="form-dinamico"
+          initialData={editingLote}
+          isEditing={!!editingLote}
+          onSubmit={handleSubmit}
+          onCancel={() => {setShowForm(false);setEditingLote(null);}} /> :
 
 
         <TabelaLotes
