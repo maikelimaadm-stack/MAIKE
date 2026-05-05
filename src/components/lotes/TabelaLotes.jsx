@@ -316,7 +316,7 @@ export default function TabelaLotes({
   };
 
   const handleRowSelect = (lote, event) => {
-    if (Date.now() - lastTouchHandledRef.current < 450) return;
+    if (event?.type === "click" && Date.now() - lastTouchHandledRef.current < 450) return;
     if (event?.target?.closest?.("button, input, [role='checkbox'], [data-radix-popper-content-wrapper]")) return;
 
     if (event?.shiftKey && lastSelectedIdRef.current) {
