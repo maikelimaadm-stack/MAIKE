@@ -25,14 +25,14 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
         <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onRefresh} className={iconButtonClass}><RefreshCw className="w-3.5 h-3.5" /></Button>
-        {showSaveActions && (
-          <>
+        {showSaveActions &&
+        <>
             <Button type="submit" variant="outline" size="icon" className="h-7 w-12 rounded-none border-slate-300 bg-slate-50 hover:bg-emerald-50 text-slate-800" title="Salvar alterações"><Check className="w-4 h-4" /></Button>
             <button type="button" onClick={onCancel} className="h-7 px-3 inline-flex items-center gap-1 border-y border-r border-slate-300 bg-slate-50 hover:bg-amber-50 text-xs text-slate-700">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Descartar
             </button>
           </>
-        )}
+        }
 
         
 
@@ -56,11 +56,11 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
       <div className="h-7 px-2 flex items-center gap-2 bg-white border-b border-slate-200">
         <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">LOTE</span>
         <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
-        {operationLabel && (
-          <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
+        {operationLabel &&
+        <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
             {operationLabel}
           </span>
-        )}
+        }
       </div>
     </div>);
 

@@ -15,7 +15,7 @@ import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 
 const FL = ({ label, required, error, children, dataField, wide = false }) =>
-  <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
+<div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
     <label className="text-[12px] text-slate-600 text-right leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
@@ -163,12 +163,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_form !== false);
   }, [camposPersonalizados]);
 
-  const relatedSources = useMemo(() => camposPersonalizadosForm
-    .map((campo) => {
-      const entity = campoEngine.getOptionsSourceKey(campo);
-      return entity ? { entity, labelField: campo.options_label_field || campo.relation_display_field || "nome", valueField: campo.options_value_field || "id" } : null;
-    })
-    .filter(Boolean), [camposPersonalizadosForm]);
+  const relatedSources = useMemo(() => camposPersonalizadosForm.
+  map((campo) => {
+    const entity = campoEngine.getOptionsSourceKey(campo);
+    return entity ? { entity, labelField: campo.options_label_field || campo.relation_display_field || "nome", valueField: campo.options_value_field || "id" } : null;
+  }).
+  filter(Boolean), [camposPersonalizadosForm]);
 
   const { data: relatedOptions = {} } = useQuery({
     queryKey: ["lote-form-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
@@ -338,12 +338,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
               return (
                 <SelectItem key={optionValue} value={optionValue} className="text-xs">
                   {String(option.label || option.value).toUpperCase()}
-                </SelectItem>
-              );
+                </SelectItem>);
+
             })}
           </SelectContent>
-        </Select>
-      );
+        </Select>);
+
     }
 
     return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""}`} />;
@@ -400,14 +400,14 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const tabs = [
-    { id: "geral", label: "Geral" },
-    { id: "compra", label: "Compra" },
-    { id: "identificacao", label: "Identificação" },
-    { id: "observacoes", label: "Observações" },
-    ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])
-  ];
+  { id: "geral", label: "Geral" },
+  { id: "compra", label: "Compra" },
+  { id: "identificacao", label: "Identificação" },
+  { id: "observacoes", label: "Observações" },
+  ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? (isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO") : "NOVO REGISTRO";
+
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <div>
@@ -428,8 +428,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onLast={onLast}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
-          onRefresh={onRefresh}
-        />
+          onRefresh={onRefresh} />
+        
 
         <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
@@ -454,13 +454,13 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
         <div className="border-b border-slate-300 min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
-            {activeTab === "geral" && (
-              <div className="space-y-1">
+            {activeTab === "geral" &&
+            <div className="space-y-1">
                 <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada">
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => { const novoSetor = value === SELECT_EMPTY ? "" : value; setIsDirty(true); setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" })); setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false })); }}>
+                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
                     <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
@@ -517,17 +517,17 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                     <div className="text-xs text-slate-600">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
                       {SISTEMAS.map((item) => {
-                        const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
-                        return <label key={item} className="flex items-center gap-1 text-xs text-slate-700 uppercase cursor-pointer"><Checkbox checked={checked} onCheckedChange={() => toggleSistemaProdutivo(item)} className="h-3.5 w-3.5" /><span>{item}</span></label>;
-                      })}
+                      const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
+                      return <label key={item} className="flex items-center gap-1 text-xs text-slate-700 uppercase cursor-pointer"><Checkbox checked={checked} onCheckedChange={() => toggleSistemaProdutivo(item)} className="h-3.5 w-3.5" /><span>{item}</span></label>;
+                    })}
                     </div>
                   </div>
                 </FL>
               </div>
-            )}
+            }
 
-            {activeTab === "compra" && (
-              <div className="space-y-1">
+            {activeTab === "compra" &&
+            <div className="space-y-1">
                 {formData.motivo_entrada !== "Compra" && <div className="ml-[191px] text-[11px] text-slate-500 pb-1">Selecione o motivo de entrada como COMPRA para exigir estes dados.</div>}
                 <FL label="Fornecedor" required={formData.motivo_entrada === "Compra"} error={errors.fornecedor_id} dataField="fornecedor_id">
                   <Select value={formData.fornecedor_id || SELECT_EMPTY} onValueChange={(value) => handleChange("fornecedor_id", value === SELECT_EMPTY ? "" : value)}>
@@ -547,10 +547,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 <FL label="Valor p/ Cabeça (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_por_cabeca} dataField="valor_por_cabeca"><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
                 <FL label="Valor Frete (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_frete} dataField="valor_frete"><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
               </div>
-            )}
+            }
 
-            {activeTab === "identificacao" && (
-              <div className="space-y-1">
+            {activeTab === "identificacao" &&
+            <div className="space-y-1">
                 <FL label="Identificador (Nome)"><Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
                 <FL label="Identificador (Sigla)"><Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
                 <FL label="Identificador (Cor)">
@@ -563,38 +563,38 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   </Select>
                 </FL>
               </div>
-            )}
+            }
 
-            {activeTab === "observacoes" && (
-              <div className="space-y-1">
+            {activeTab === "observacoes" &&
+            <div className="space-y-1">
                 {formData.motivo_entrada === "Ajuste" && <FL label="Motivo do Ajuste" required error={errors.motivo_ajuste} dataField="motivo_ajuste" wide><Textarea value={formData.motivo_ajuste || ""} onChange={(e) => handleChange("motivo_ajuste", e.target.value)} placeholder="DESCREVA O MOTIVO DO AJUSTE" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
                 {formData.motivo_entrada === "Outros" && <FL label="Motivo" required error={errors.motivo_outros} dataField="motivo_outros" wide><Textarea value={formData.motivo_outros || ""} onChange={(e) => handleChange("motivo_outros", e.target.value)} placeholder="DESCREVA O MOTIVO" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
                 {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
                 <FL label="Observações" wide><Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>
               </div>
-            )}
+            }
 
-            {activeTab === "campos_personalizados" && (
-              <div className="space-y-1">
-                {camposPersonalizadosForm.length === 0 ? (
-                  <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div>
-                ) : camposPersonalizadosForm.map((campo) => (
-                  <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"}>
+            {activeTab === "campos_personalizados" &&
+            <div className="space-y-1">
+                {camposPersonalizadosForm.length === 0 ?
+              <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
+              camposPersonalizadosForm.map((campo) =>
+              <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"}>
                     {renderCampoPersonalizado(campo)}
                   </FL>
-                ))}
+              )}
               </div>
-            )}
+            }
           </div>
         </div>
 
-        {isDirty && (
-          <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
+        {isDirty &&
+        <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
           </div>
-        )}
+        }
       </form>
-    </div>
-  );
+    </div>);
+
 }
