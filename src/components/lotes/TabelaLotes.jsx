@@ -182,9 +182,24 @@ export default function TabelaLotes({
     document.body.style.cursor = "col-resize";document.body.style.userSelect = "none";
   };
 
-  useEffect(() => {setSelectedItems((prev) => prev.filter((id) => lotes.some((l) => l.id === id)));}, [lotes]);
-  useEffect(() => {setSelectedItems(selectedIds);}, [selectedIds]);
-  useEffect(() => {onSelectionChange?.(selectedItems);}, [selectedItems, onSelectionChange]);
+  const sameSelection = (a = [], b = []) => a.length === b.length && a.every((id, index) => id === b[index]);
+
+  useEffect(() => {
+    setSelectedItems((prev) => {
+      const validIds = prev.filter((id) => lotes.some((l) => l.id === id));
+      return sameSelection(prev, validIds) ? prev : validIds;
+    });
+  }, [lotes]);
+
+  useEffect(() => {
+    setSelectedItems((prev) => sameSelection(prev, selectedIds) ? prev : selectedIds);
+  }, [selectedIds]);
+
+  useEffect(() => {
+    if (!sameSelection(selectedItems, selectedIds)) {
+      onSelectionChange?.(selectedItems);
+    }
+  }, [selectedItems, selectedIds, onSelectionChange]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
