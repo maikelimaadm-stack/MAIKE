@@ -4,7 +4,7 @@ import { Home, Filter, Table, Check, AlertTriangle, Search, Star, Clock, FileTex
 
 const iconButtonClass = "h-7 w-8 rounded-none border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700";
 
-export default function LegacyRecordToolbar({ title, showSaveActions = false, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, operationLabel, showSaveActions = false, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
@@ -53,7 +53,12 @@ export default function LegacyRecordToolbar({ title, showSaveActions = false, on
       </div>
       <div className="h-8 px-2 flex items-center gap-2 bg-white border-b border-slate-200">
         <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">LOTE</span>
-        <span className="text-xs font-semibold text-slate-700">{title}</span>
+        <span className="text-xs font-semibold text-slate-700 truncate">{title}</span>
+        {operationLabel && (
+          <span className="ml-auto px-2 py-0.5 rounded-sm bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
+            {operationLabel}
+          </span>
+        )}
       </div>
     </div>);
 
