@@ -68,10 +68,10 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-sm hidden">
-            <Paperclip className="w-4 h-4" />
-            Anexos {title ? `- ${title}` : ""}
-          </DialogTitle>
+          
+
+
+          
         </DialogHeader>
 
         <div className="space-y-3">
