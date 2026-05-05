@@ -14,14 +14,10 @@ import {
   Copy,
   RefreshCw,
   Search,
-  Star,
-  Clock,
   FileText,
   Paperclip,
-  Zap,
   MoreHorizontal,
-  Settings,
-  ChevronDown } from
+  Settings } from
 "lucide-react";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
@@ -53,8 +49,8 @@ export default function SankhyaListToolbar({
   const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1;
 
   return (
-    <div>
-      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-transparent bg-white border-r border-t border-b border-gray-200 [0.5px]">
+    <div className="bg-white">
+      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
         
@@ -80,11 +76,8 @@ export default function SankhyaListToolbar({
             
             <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
           </div>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Star className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Clock className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Paperclip className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Zap className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
           <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-200/60">
@@ -93,7 +86,7 @@ export default function SankhyaListToolbar({
         </div>
       </div>
       {viewMode === "record" &&
-      <div className="mt-1 h-8 flex items-center gap-2 bg-white border-t border-b-[0.5px] border-slate-200 px-2">
+      <div className="mt-1 h-8 flex items-center gap-2 bg-white border-t border-b-[0.5px] border-slate-200/60 px-2">
           {recordLabel && <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">{recordLabel}</span>}
           <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
           <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">

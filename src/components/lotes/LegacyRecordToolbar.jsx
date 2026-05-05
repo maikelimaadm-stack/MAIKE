@@ -1,21 +1,20 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Filter, Table, Check, AlertTriangle, Search, Star, Clock, FileText, Paperclip, Zap, MoreHorizontal, Settings, ChevronDown, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, RefreshCw } from "lucide-react";
+import { Home, Filter, List, Check, X, Search, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, RefreshCw } from "lucide-react";
 
-const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
+const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 
 export default function LegacyRecordToolbar({ title, operationLabel, showSaveActions = false, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
   return (
-    <div className="bg-white shadow-none overflow-hidden bg-transparent border-r border-t border-b border-gray-200 [0.5px]">
-      <div className="flex items-center gap-0 border-b-[0.5px] overflow-x-auto whitespace-nowrap bg-transparent border-slate-">
+    <div className="bg-white shadow-none overflow-hidden">
+      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><ChevronDown className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} className={iconButtonClass} title="Visualizar tabela">
-          <Table className="w-3.5 h-3.5" />
+          <List className="w-3.5 h-3.5" />
         </Button>
         <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus className="w-4 h-4" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onFirst} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Primeiro registro"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
@@ -28,8 +27,8 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
         {showSaveActions &&
         <>
             <Button type="submit" variant="outline" size="icon" className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>
-            <Button type="button" variant="outline" size="sm" onClick={onCancel} className="h-7 px-3 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60/60 bg-slate-50 hover:bg-amber-50 text-xs text-slate-700 shadow-none">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Descartar
+            <Button type="button" variant="outline" size="icon" onClick={onCancel} className={iconButtonClass} title="Descartar">
+              <X className="w-3.5 h-3.5" />
             </Button>
           </>
         }
@@ -41,14 +40,11 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
 
         <div className="ml-auto flex items-center gap-0">
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Search className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Star className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Clock className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Paperclip className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Zap className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>
-          <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] border-slate-200/60/60 bg-white flex items-center justify-center text-xs text-slate-600">
+          <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600">
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
         </div>
