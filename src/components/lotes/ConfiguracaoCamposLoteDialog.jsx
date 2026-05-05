@@ -103,7 +103,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
     return {
       ...form,
-      field_name: toSnakeCase(form.label),
+      field_name: editingId ? form.field_name : toSnakeCase(form.label),
       col_span: 12,
       largura_coluna: 160,
       ordem_tabela: 999,
@@ -131,7 +131,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const fieldName = toSnakeCase(form.label);
+    const fieldName = editingId ? form.field_name : toSnakeCase(form.label);
     if (!form.label.trim() || !fieldName) return toast.error("Informe o nome do campo.");
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
@@ -141,11 +141,25 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const updateForm = (field, value) => {
     setForm((prev) => {
-      const next = { ...prev, [field]: value, ...(field === "label" ? { field_name: toSnakeCase(value) } : {}) };
+      const next = { ...prev, [field]: value, ...(field === "label" && !editingId ? { field_name: toSnakeCase(value) } : {}) };
       if (field === "tipo") {
         next.agregacao_tipo = "none";
         next.usar_decimal = ["number", "calculado"].includes(value);
         next.read_only = value === "calculado";
+        if (value !== "select") {
+          next.options_source_entity = "";
+          next.options_label_field = "nome";
+          next.options_value_field = "id";
+        }
+        if (value !== "relation") {
+          next.relation_entity = "";
+          next.relation_display_field = "nome";
+        }
+        if (value !== "calculado") {
+          next.calculation_builder = initialForm.calculation_builder;
+          next.formula = "";
+          next.campos_dependentes = [];
+        }
       }
       return next;
     });
