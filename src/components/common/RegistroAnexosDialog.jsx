@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Paperclip, Plus, X, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, X, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const formatSize = (bytes = 0) => {
@@ -88,7 +88,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             <div className="px-4 md:px-8 py-1 max-w-[760px] space-y-1">
               <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">
-                  Nome do arquivo<span className="text-red-500 ml-0.5">*</span>
+                  Nome do arquivo:<span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="grid grid-cols-[minmax(0,1fr)_32px] border border-slate-300 bg-white focus-within:border-green-500 transition-colors overflow-hidden">
                   <Input
@@ -106,9 +106,10 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             </div>
           </div>
 
-          <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
+          <div className="px-4 md:px-8 max-w-[760px]">
+            <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
             <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
-              <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo</div>
+              <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo:</div>
               <div className="px-2 py-1 border-r border-slate-200">Arquivo</div>
               <div className="px-2 py-1 text-center"></div>
             </div>
@@ -120,7 +121,6 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
                 <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
               </div>
               <a href={anexo.file_url} target="_blank" rel="noreferrer" className="h-7 min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 px-2 border-r border-slate-200 overflow-hidden">
-                <Paperclip className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">{anexo.file_name}</span>
                 <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
                 <ExternalLink className="w-3 h-3 shrink-0" />
@@ -132,6 +132,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               </div>
             </div>
             )}
+            </div>
           </div>
         </div>
       </DialogContent>
