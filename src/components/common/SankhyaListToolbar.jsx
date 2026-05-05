@@ -92,13 +92,13 @@ export default function SankhyaListToolbar({
           </div>
         </div>
       </div>
-      <div className="h-8 flex items-center gap-2 bg-white border-b border-slate-300 px-2 hidden">
-        <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">{recordLabel}</span>
-        <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
-        <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
-          {operationLabel || (viewMode === "table" ? "VISUALIZAÇÃO DE TABELA" : "VISUALIZAÇÃO DE REGISTRO")}
-        </span>
-      </div>
+      
+
+
+
+
+
+      
     </div>);
 
 }
