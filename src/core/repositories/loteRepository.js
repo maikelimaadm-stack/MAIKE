@@ -174,7 +174,7 @@ export const loteRepository = {
       visivel_tabela: data.visivel_tabela !== false,
       visivel_relatorio: data.visivel_relatorio !== false,
       ordenavel: data.ordenavel !== false,
-      filtravel: data.filtravel !== false && data.filtravel !== false,
+      filtravel: data.filtravel !== false,
       alinhamento: data.alinhamento || "left",
       largura_coluna: data.largura_coluna || 160,
       ordem_tabela: data.ordem_tabela || campos.length + 1,
@@ -201,7 +201,7 @@ export const loteRepository = {
   async updateCampoPersonalizado(id, data) {
     return base44.entities.LayoutCampo.update(id, {
       ...data,
-      filtravel: data.filtravel !== false && data.filtravel !== false,
+      filtravel: data.filtravel !== false,
       options_source: data.options_source || data.options_source_entity || "",
       agregacao: data.agregacao || data.agregacao_tipo || undefined,
       dependencias: data.dependencias || data.campos_dependentes || []

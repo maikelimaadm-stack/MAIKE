@@ -122,7 +122,7 @@ export default function TabelaLotes({
         label: campo.label,
         default: true,
         sortable: campo.ordenavel !== false,
-        filtravel: campo.filtravel !== false && campo.filtravel !== false,
+        filtravel: campo.filtravel !== false,
         align: campo.alinhamento || "left",
         width: campo.largura_coluna || 160,
         ordem_tabela: campo.ordem_tabela ?? campo.ordem ?? 999,
