@@ -66,7 +66,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:rounded-lg sm:p-1 max-w-xl">
+      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-xl">
         <div className="space-y-1">
           <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
           <div className="border border-slate-200 bg-white">
@@ -95,30 +95,29 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             </div>
           </div>
 
-          <div className="border border-slate-200 rounded-none divide-y divide-slate-200 max-h-80 overflow-auto">
+          <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
+            <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
+              <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo</div>
+              <div className="px-2 py-1 border-r border-slate-200">Arquivo</div>
+              <div className="px-2 py-1 text-center">Lixeira</div>
+            </div>
             {anexos.length === 0 ?
             <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div> :
             anexos.map((anexo) =>
-            <div key={anexo.id} className="p-2 space-y-1 text-xs">
-              <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
-                <label className="text-[12px] text-slate-600 text-right leading-none">Nome do arquivo</label>
-                <div className="h-6 border border-slate-300 bg-white flex items-center px-1 overflow-hidden">
-                  <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
-                </div>
+            <div key={anexo.id} className="grid grid-cols-[1fr_1.4fr_40px] items-center border-b last:border-b-0 border-slate-200 text-xs">
+              <div className="h-7 px-2 flex items-center border-r border-slate-200 overflow-hidden">
+                <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
               </div>
-              <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
-                <label className="text-[12px] text-slate-600 text-right leading-none">Arquivo</label>
-                <div className="grid grid-cols-[minmax(0,1fr)_32px] border border-slate-300 bg-white overflow-hidden">
-                  <a href={anexo.file_url} target="_blank" rel="noreferrer" className="h-[22px] min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 px-1">
-                    <Paperclip className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{anexo.file_name}</span>
-                    <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </a>
-                  <Button type="button" variant="outline" size="icon" className="h-[22px] w-8 rounded-none border-y-0 border-r-0 border-l border-slate-300 bg-white hover:bg-red-50 text-red-600 shadow-none" onClick={() => deleteMutation.mutate(anexo.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
+              <a href={anexo.file_url} target="_blank" rel="noreferrer" className="h-7 min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 px-2 border-r border-slate-200 overflow-hidden">
+                <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{anexo.file_name}</span>
+                <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
+                <ExternalLink className="w-3 h-3 shrink-0" />
+              </a>
+              <div className="h-7 flex items-center justify-center">
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-600 hover:bg-red-50" onClick={() => deleteMutation.mutate(anexo.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </div>
             )}
