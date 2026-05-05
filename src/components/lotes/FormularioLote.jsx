@@ -307,7 +307,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
           <SelectContent>
             <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
             {campoEngine.getOptionsCampo(campo, relatedOptions).map((option) => (
-              <SelectItem key={option.value || option.label} value={option.value || option.label} className="text-xs">
+              <SelectItem key={option.value || option.label} value={String(option.value || option.label)} className="text-xs">
                 {String(option.label || option.value).toUpperCase()}
               </SelectItem>
             ))}
