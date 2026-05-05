@@ -202,7 +202,7 @@ export default function CadastroLotes() {
 
 
   return (
-    <div className="space-y-1 p-0 md:p-0">
+    <div className="space-y-1 p-0 md:p-0 bg-white">
       {!showForm &&
       <SankhyaListToolbar
         viewMode={viewMode}
