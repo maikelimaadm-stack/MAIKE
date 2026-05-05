@@ -295,6 +295,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
     const fieldKey = `campos_personalizados.${campo.field_name}`;
     const value = formData.campos_personalizados?.[campo.field_name] || "";
     const inputClass = "h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1";
+    const campoOptions = campoEngine.getOptionsCampo(campo, relatedOptions);
 
     if (campo.tipo === "textarea") {
       return <Textarea value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className="text-xs uppercase bg-transparent px-1" rows={campo.rows || 2} />;
@@ -306,11 +307,14 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
           <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder={(campo.placeholder || "SELECIONE").toUpperCase()} /></SelectTrigger>
           <SelectContent>
             <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-            {campoEngine.getOptionsCampo(campo, relatedOptions).map((option) => (
-              <SelectItem key={option.value || option.label} value={String(option.value || option.label)} className="text-xs">
-                {String(option.label || option.value).toUpperCase()}
-              </SelectItem>
-            ))}
+            {campoOptions.map((option) => {
+              const optionValue = String(option.value || option.label);
+              return (
+                <SelectItem key={optionValue} value={optionValue} className="text-xs">
+                  {String(option.label || option.value).toUpperCase()}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       );
