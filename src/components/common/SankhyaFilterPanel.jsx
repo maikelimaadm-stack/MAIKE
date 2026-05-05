@@ -27,6 +27,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const [visibleFields, setVisibleFields] = useState(DEFAULT_FIELDS);
   const [operators, setOperators] = useState(DEFAULT_OPERATORS);
   const [configOpen, setConfigOpen] = useState(false);
+  const [groupNames, setGroupNames] = useState({ "Detalhes do lote": "Detalhes do lote", Localização: "Localização", Identificação: "Identificação" });
   const [openGroups, setOpenGroups] = useState({ "Detalhes do lote": true, Localização: true, Identificação: true });
 
   const options = useMemo(() => {
@@ -118,7 +119,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const groupedFields = visibleFields.reduce((acc, fieldId) => {
     const field = FIELD_DEFS.find((item) => item.id === fieldId);
     if (!field) return acc;
-    acc[field.group] = [...(acc[field.group] || []), fieldId];
+    const groupLabel = groupNames[field.group] || field.group;
+    acc[groupLabel] = [...(acc[groupLabel] || []), fieldId];
     return acc;
   }, {});
 
@@ -159,7 +161,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         )}
       </div>
 
-      <SankhyaFilterConfigDialog open={configOpen} onOpenChange={setConfigOpen} fields={FIELD_DEFS} visibleFields={visibleFields} setVisibleFields={setVisibleFields} operators={operators} setOperators={setOperators} />
+      <SankhyaFilterConfigDialog open={configOpen} onOpenChange={setConfigOpen} fields={FIELD_DEFS} visibleFields={visibleFields} setVisibleFields={setVisibleFields} operators={operators} setOperators={setOperators} groupNames={groupNames} setGroupNames={setGroupNames} />
     </aside>
   );
 }
