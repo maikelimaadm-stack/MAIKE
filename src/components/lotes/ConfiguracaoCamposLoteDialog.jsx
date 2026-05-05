@@ -71,6 +71,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const camposCalculo = useMemo(() => montarCamposDisponiveis(campos, editingId), [campos, editingId]);
   const agregacoesPermitidas = AGREGACOES_POR_TIPO[form.tipo] || [];
+  const calculationItems = form.calculation_builder?.items || [];
+  const calculationFields = calculationItems.map((item) => item.field).filter(Boolean);
+  const hasInvalidCalculation = form.tipo === "calculado" && (calculationItems.length < 2 || calculationItems.some((item) => !item.field) || new Set(calculationFields).size !== calculationFields.length);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -100,15 +103,18 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
     return {
       ...form,
-      field_name: toSnakeCase(form.field_name || form.label),
+      field_name: toSnakeCase(form.label),
       col_span: 12,
       largura_coluna: 160,
       ordem_tabela: 999,
+      read_only: form.tipo === "calculado",
+      ordenavel: true,
+      filtravel: !["textarea"].includes(form.tipo),
       alinhamento: ["number", "calculado"].includes(form.tipo) ? "right" : "left",
       options: [],
       options_source: form.options_source_entity || "",
       agregacao_tipo: form.agregacao_tipo === "none" ? undefined : form.agregacao_tipo,
-      agregacao_campo_base: form.agregacao_campo_base || "",
+      agregacao_campo_base: "",
       formula,
       calculation_builder: { items: calculationItems },
       campos_dependentes: deps,
@@ -125,9 +131,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const fieldName = toSnakeCase(form.field_name || form.label);
+    const fieldName = toSnakeCase(form.label);
     if (!form.label.trim() || !fieldName) return toast.error("Informe o nome do campo.");
-    if (form.tipo === "calculado" && !montarFormulaVisual(form.calculation_builder?.items || [])) return toast.error("Selecione os campos do cálculo.");
+    if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
     if (form.tipo === "select" && !form.options_source_entity) return toast.error("Selecione a lista do sistema.");
     saveMutation.mutate();
@@ -135,7 +141,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const updateForm = (field, value) => {
     setForm((prev) => {
-      const next = { ...prev, [field]: value, ...(field === "label" && !prev.field_name ? { field_name: toSnakeCase(value) } : {}) };
+      const next = { ...prev, [field]: value, ...(field === "label" ? { field_name: toSnakeCase(value) } : {}) };
       if (field === "tipo") {
         next.agregacao_tipo = "none";
         next.usar_decimal = ["number", "calculado"].includes(value);
@@ -171,10 +177,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="border rounded-lg p-3 bg-slate-50 space-y-2">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <Field label="Nome do campo" className="md:col-span-2"><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-8 text-xs uppercase" /></Field>
             <Field label="Tipo"><Select value={form.tipo} onValueChange={(value) => updateForm("tipo", value)}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs">{tipo.label}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Identificação"><Input value={form.field_name} onChange={(e) => updateForm("field_name", toSnakeCase(e.target.value))} placeholder="automático" className="h-8 text-xs" disabled={!!editingId} /></Field>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -204,7 +209,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
-            {[["obrigatorio", "Obrigatório"], ["read_only", "Bloqueado"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"], ["filtravel", "Filtrável"]].map(([field, label]) => (
+            {[["obrigatorio", "Obrigatório"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) => (
               <label key={field} className="h-8 px-2 border rounded-md bg-white flex items-center justify-between gap-2 text-xs text-slate-700">
                 {label}<Switch checked={!!form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
               </label>
@@ -213,20 +218,19 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
           <div className="flex justify-end gap-2">
             {editingId && <Button type="button" variant="outline" size="sm" onClick={resetForm} className="h-7 text-xs"><X className="w-3.5 h-3.5" /> Cancelar edição</Button>}
-            <Button type="submit" size="sm" disabled={saveMutation.isPending} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button type="submit" size="sm" disabled={saveMutation.isPending || hasInvalidCalculation} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
               <Plus className="w-3.5 h-3.5" /> {editingId ? "Atualizar Campo" : "Criar Campo"}
             </Button>
           </div>
         </form>
 
         <div className="flex-1 overflow-auto border rounded-lg">
-          <div className="grid grid-cols-[1fr_130px_120px_240px_85px] gap-2 px-3 py-2 bg-slate-100 border-b text-xs font-semibold text-slate-700">
-            <span>Campo</span><span>Chave</span><span>Tipo</span><span>Uso</span><span>Ações</span>
+          <div className="grid grid-cols-[1fr_120px_240px_85px] gap-2 px-3 py-2 bg-slate-100 border-b text-xs font-semibold text-slate-700">
+            <span>Campo</span><span>Tipo</span><span>Uso</span><span>Ações</span>
           </div>
           {isLoading ? <div className="p-4 text-xs text-slate-500">Carregando...</div> : campos.length === 0 ? <div className="p-4 text-xs text-slate-400 text-center">Nenhum campo criado.</div> : campos.map((campo) => (
-            <div key={campo.id || campo.field_id} className="grid grid-cols-[1fr_130px_120px_240px_85px] gap-2 px-3 py-2 border-b text-xs items-center">
+            <div key={campo.id || campo.field_id} className="grid grid-cols-[1fr_120px_240px_85px] gap-2 px-3 py-2 border-b text-xs items-center">
               <span className="font-medium text-slate-800">{campo.label}</span>
-              <span className="font-mono text-slate-500 truncate">{campo.field_name}</span>
               <span>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</span>
               <div className="flex flex-wrap gap-1">
                 {campo.visivel_form && <Badge variant="outline" className="text-[10px]">Form</Badge>}

@@ -168,7 +168,7 @@ export const loteRepository = {
       col_span: data.col_span || 6,
       ordem: campos.length + 1,
       obrigatorio: !!data.obrigatorio,
-      read_only: !!data.read_only,
+      read_only: data.tipo === "calculado",
       ativo: true,
       visivel_form: data.visivel_form !== false,
       visivel_tabela: data.visivel_tabela !== false,
@@ -180,7 +180,7 @@ export const loteRepository = {
       ordem_tabela: data.ordem_tabela || campos.length + 1,
       agregacao: data.agregacao || data.agregacao_tipo || undefined,
       agregacao_tipo: data.agregacao_tipo || data.agregacao || undefined,
-      agregacao_campo_base: data.agregacao_campo_base || "",
+      agregacao_campo_base: "",
       options: data.options || [],
       options_source: data.options_source || data.options_source_entity || "",
       options_source_entity: data.options_source_entity || "",
@@ -201,6 +201,8 @@ export const loteRepository = {
   async updateCampoPersonalizado(id, data) {
     return base44.entities.LayoutCampo.update(id, {
       ...data,
+      read_only: data.tipo === "calculado",
+      agregacao_campo_base: "",
       filtravel: data.filtravel !== false,
       options_source: data.options_source || data.options_source_entity || "",
       agregacao: data.agregacao || data.agregacao_tipo || undefined,

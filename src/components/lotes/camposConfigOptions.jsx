@@ -9,14 +9,14 @@ export const ENTIDADES_RELACIONAIS = [
 ];
 
 export const CAMPOS_FIXOS_LOTE = [
-  { value: "quantidade_cabecas", label: "Quantidade de Cabeças", tipo: "number" },
-  { value: "quantidade_entrada", label: "Quantidade de Entrada", tipo: "number" },
-  { value: "peso_medio_kg", label: "Peso Médio Atual", tipo: "number" },
-  { value: "peso_entrada_kg", label: "Peso de Entrada", tipo: "number" },
-  { value: "idade_media_meses", label: "Idade Média", tipo: "number" },
-  { value: "valor_total_compra", label: "Valor Total Compra", tipo: "number" },
-  { value: "valor_por_cabeca", label: "Valor por Cabeça", tipo: "number" },
-  { value: "valor_frete", label: "Valor Frete", tipo: "number" },
+  { value: "quantidade_cabecas", label: "Quantidade de Cabeças", tipo: "number", mock: 50 },
+  { value: "quantidade_entrada", label: "Quantidade de Entrada", tipo: "number", mock: 50 },
+  { value: "peso_medio_kg", label: "Peso Médio Atual", tipo: "number", mock: 25 },
+  { value: "peso_entrada_kg", label: "Peso de Entrada", tipo: "number", mock: 25 },
+  { value: "idade_media_meses", label: "Idade Média", tipo: "number", mock: 18 },
+  { value: "valor_total_compra", label: "Valor Total Compra", tipo: "number", mock: 10000 },
+  { value: "valor_por_cabeca", label: "Valor por Cabeça", tipo: "number", mock: 200 },
+  { value: "valor_frete", label: "Valor Frete", tipo: "number", mock: 500 },
   { value: "nome", label: "Nome do Lote", tipo: "text" },
   { value: "categoria", label: "Categoria Atual", tipo: "text" },
   { value: "sexo", label: "Sexo", tipo: "select" },
@@ -58,9 +58,33 @@ export const montarFormulaVisual = (items = []) => {
     .join(" ");
 };
 
+export const montarFormulaAmigavel = (items = [], fields = []) => {
+  return items
+    .filter((item) => item.field)
+    .map((item, index) => {
+      const label = fields.find((field) => field.value === item.field)?.label || item.field;
+      return `${index > 0 ? `${item.operator || "+"} ` : ""}${label.toUpperCase()}`;
+    })
+    .join(" ");
+};
+
+export const calcularPreviewVisual = (items = [], fields = []) => {
+  const valores = Object.fromEntries(fields.map((field) => [field.value, Number(field.mock ?? 10)]));
+  const selecionados = items.filter((item) => item.field);
+  if (selecionados.length !== items.length || selecionados.length < 2) return null;
+  return selecionados.reduce((acc, item, index) => {
+    const value = valores[item.field] ?? 10;
+    if (index === 0) return value;
+    if (item.operator === "-") return acc - value;
+    if (item.operator === "*") return acc * value;
+    if (item.operator === "/") return value === 0 ? 0 : acc / value;
+    return acc + value;
+  }, 0);
+};
+
 export const montarCamposDisponiveis = (campos = [], editingId = null) => {
   const custom = campos
     .filter((campo) => campo.id !== editingId && ["number", "calculado"].includes(campo.tipo))
-    .map((campo) => ({ value: campo.field_name, label: campo.label, tipo: campo.tipo }));
+    .map((campo) => ({ value: campo.field_name, label: campo.label, tipo: campo.tipo, mock: 10 }));
   return [...CAMPOS_FIXOS_LOTE.filter((campo) => campo.tipo === "number"), ...custom];
 };

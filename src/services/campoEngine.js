@@ -211,8 +211,7 @@ export const campoEngine = {
         result[campo.id] = registros.filter((registro) => getRawValue(registro, campo) !== "").length;
         return;
       }
-      const campoBase = campo.agregacao_campo_base ? { ...campo, field_name: campo.agregacao_campo_base, customField: campo.agregacao_campo_base, tipo: "number" } : campo;
-      const valores = registros.map((registro) => Number(getRawValue(registro, campoBase))).filter((value) => !Number.isNaN(value));
+      const valores = registros.map((registro) => Number(getRawValue(registro, campo))).filter((value) => !Number.isNaN(value));
       if (valores.length === 0) return;
       if (tipo === "sum") result[campo.id] = valores.reduce((acc, value) => acc + value, 0);
       if (tipo === "avg") result[campo.id] = valores.reduce((acc, value) => acc + value, 0) / valores.length;

@@ -310,6 +310,8 @@ export default function TabelaLotes({
     return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, relatedOptions);
   }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
 
+  const getAgregacaoLabel = (tipo) => ({ sum: "Soma", avg: "Média", min: "Menor", max: "Maior", count: "Contagem" }[tipo] || "Total");
+
   const exportarTabela = (apenasSelecionados = false) => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
     const lotesParaExportar = apenasSelecionados ? lotesOrdenados.filter((lote) => selectedItems.includes(lote.id)) : lotesOrdenados;
@@ -605,7 +607,7 @@ export default function TabelaLotes({
                     <TableRow className="bg-slate-50 font-semibold">
                       {colunasOrdenadas.map((coluna) => (
                         <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
-                          {agregacoes[coluna.id] !== undefined ? Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 }) : coluna.id === "nome" ? "Totais" : ""}
+                          {agregacoes[coluna.id] !== undefined ? `${getAgregacaoLabel(coluna.agregacao_tipo || coluna.agregacao)}: ${Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 })}` : coluna.id === "nome" ? "Totais" : ""}
                         </TableCell>
                       ))}
                     </TableRow>
