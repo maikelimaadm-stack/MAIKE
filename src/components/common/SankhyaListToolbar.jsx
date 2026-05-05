@@ -93,7 +93,7 @@ export default function SankhyaListToolbar({
         </div>
       </div>
       {viewMode === "record" &&
-      <div className="mt-1 h-8 flex items-center gap-2 bg-white border-b-[0.5px] border-slate-100 px-2">
+      <div className="mt-1 h-8 flex items-center gap-2 bg-white border-t-[0.5px] border-b-[0.5px] border-slate-100 px-2">
           {recordLabel && <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">{recordLabel}</span>}
           <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
           <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
