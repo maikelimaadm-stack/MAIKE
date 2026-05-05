@@ -11,7 +11,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const update = (field, value) => onChange({ ...filters, [field]: value });
 
   return (
-    <aside className="w-full md:w-[340px] shrink-0 border-r border-slate-300 bg-white text-xs">
+    <aside className="w-[250px] shrink-0 border-r border-slate-300 bg-white text-xs min-h-[calc(100dvh-150px)]">
       <div className="border-b border-slate-300 p-1.5 space-y-1.5">
         <div className="flex items-center justify-between font-semibold text-slate-700">
           <span>Filtro personalizado</span>
@@ -44,14 +44,16 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         </div>
       </div>
 
-      <div className="max-h-[calc(100dvh-230px)] overflow-auto p-2 space-y-2">
-        <div>
-          <label className="block text-slate-600 mb-1">Código do lote</label>
-          <Input value={filters.numero_lote || ""} onChange={(e) => update("numero_lote", e.target.value)} className="h-7 text-xs" />
-        </div>
-        <div>
-          <label className="block text-slate-600 mb-1">Nome</label>
-          <Input value={filters.nome || ""} onChange={(e) => update("nome", e.target.value)} className="h-7 text-xs" />
+      <div className="max-h-[calc(100dvh-260px)] overflow-auto p-1.5 space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-slate-600 mb-1">Código</label>
+            <Input value={filters.numero_lote || ""} onChange={(e) => update("numero_lote", e.target.value)} className="h-7 text-xs" />
+          </div>
+          <div>
+            <label className="block text-slate-600 mb-1">Nome</label>
+            <Input value={filters.nome || ""} onChange={(e) => update("nome", e.target.value)} className="h-7 text-xs" />
+          </div>
         </div>
         <div>
           <label className="block text-slate-600 mb-1">Categoria</label>

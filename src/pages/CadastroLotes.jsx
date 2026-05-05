@@ -249,36 +249,6 @@ export default function CadastroLotes() {
 
   return (
     <div className="space-y-1 p-0 md:p-0 bg-white">
-      {!showForm &&
-      <SankhyaListToolbar
-        viewMode={viewMode}
-        total={lotesFiltradosPainel.length}
-        currentIndex={selectedIndex}
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        onNew={handleNew}
-        onToggleView={handleToggleView}
-        toggleViewDisabled={selectedTableItems.length > 1}
-        filterOpen={filterPanelOpen}
-        filterActive={hasActiveFilters}
-        onToggleFilter={() => setFilterPanelOpen((open) => !open)}
-        onClearFilter={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
-        onFirst={() => navigateRecord(0)}
-        onPrevious={() => navigateRecord(selectedIndex - 1)}
-        onNext={() => navigateRecord(selectedIndex + 1)}
-        onLast={() => navigateRecord(lotesFiltradosPainel.length - 1)}
-        onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
-        onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
-        onRefresh={handleRefresh}
-        onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
-        attachDisabled={selectedTableItems.length !== 1}
-        onSettingsClick={() => setShowConfigColunas(true)}
-        selectedCount={selectedTableItems.length}
-        title="Cadastro de Lotes"
-        recordLabel="" />
-
-      }
-
       {showForm &&
       <FormularioLote
         key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
@@ -328,14 +298,40 @@ export default function CadastroLotes() {
         onRefresh={handleRefresh} />
       }
 
-      <div className={showForm ? "hidden" : "flex items-start min-h-0"}>
+      <div className={showForm ? "hidden" : "flex items-start min-h-0 w-full overflow-hidden"}>
         <SankhyaFilterPanel
           open={filterPanelOpen}
           filters={filters}
           onChange={setFilters}
           onApply={() => setAppliedFilters(filters)}
           onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <SankhyaListToolbar
+            viewMode={viewMode}
+            total={lotesFiltradosPainel.length}
+            currentIndex={selectedIndex}
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            onNew={handleNew}
+            onToggleView={handleToggleView}
+            toggleViewDisabled={selectedTableItems.length > 1}
+            filterOpen={filterPanelOpen}
+            filterActive={hasActiveFilters}
+            onToggleFilter={() => setFilterPanelOpen((open) => !open)}
+            onClearFilter={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
+            onFirst={() => navigateRecord(0)}
+            onPrevious={() => navigateRecord(selectedIndex - 1)}
+            onNext={() => navigateRecord(selectedIndex + 1)}
+            onLast={() => navigateRecord(lotesFiltradosPainel.length - 1)}
+            onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
+            onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
+            onRefresh={handleRefresh}
+            onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
+            attachDisabled={selectedTableItems.length !== 1}
+            onSettingsClick={() => setShowConfigColunas(true)}
+            selectedCount={selectedTableItems.length}
+            title="Cadastro de Lotes"
+            recordLabel="" />
           <TabelaLotes
             key="table"
             lotes={lotesFiltradosPainel}
