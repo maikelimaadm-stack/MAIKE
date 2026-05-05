@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import ConfigurableForm from "@/components/dynamic/ConfigurableForm";
 
 import { applyPesagemFieldChange, getInitialPesagemFormData } from "@/services/pesagemService";
+import { setRecordValue } from "@/services/dynamicRecordService";
+import { getLabelFieldByEntity } from "@/config/dynamicFieldSources";
 
 export default function FormularioPesagem({ onSubmit, onCancel, initialData = null, isEditing = false, formConfig }) {
   const [formData, setFormData] = useState(() => getInitialPesagemFormData(initialData));
@@ -30,8 +32,43 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: dynamicOptions = {} } = useQuery({
+    queryKey: ["dynamic-field-options-pesagem", formConfig?.id, empresaSelecionadaId],
+    queryFn: async () => {
+      const customFields = (formConfig?.sections || []).flatMap((section) => section.fields || []).filter((field) => field.source === "customizado" && field.rules?.comportamento === "selecao" && field.rules?.origem?.entidade);
+      const entries = await Promise.all(customFields.map(async (field) => {
+        const entityName = field.rules.origem.entidade;
+        const labelField = field.rules.origem.coluna || getLabelFieldByEntity(entityName);
+        const all = await base44.entities[entityName].list(labelField);
+        const filtered = all.filter((item) => !item.empresa_id || item.empresa_id === empresaSelecionadaId);
+        return [field.name, filtered.map((item) => ({ value: item[labelField] || item.id, label: item[labelField] || item.nome || item.nome_produto || item.id }))];
+      }));
+      return Object.fromEntries(entries);
+    },
+    enabled: !!empresaSelecionadaId && !!formConfig?.sections,
+  });
+
   const handleChange = (field, value) => {
-    setFormData((currentData) => applyPesagemFieldChange(currentData, field, value));
+    const fieldConfig = typeof field === "string" ? { name: field } : field;
+    setFormData((currentData) => {
+      const updatedData = fieldConfig.source === "customizado"
+        ? setRecordValue(currentData, fieldConfig, value)
+        : applyPesagemFieldChange(currentData, fieldConfig.name, value);
+
+      const withCalculated = { ...updatedData };
+      (formConfig?.sections || []).flatMap((section) => section.fields || []).forEach((configuredField) => {
+        if (configuredField.source !== "customizado" || configuredField.rules?.comportamento !== "soma") return;
+        const campos = configuredField.rules?.soma?.campos || [];
+        const values = campos.map((campo) => Number(withCalculated[campo] ?? withCalculated.campos_personalizados?.[campo] ?? 0)).filter((number) => !Number.isNaN(number));
+        const total = values.reduce((sum, number) => sum + number, 0);
+        withCalculated.campos_personalizados = {
+          ...(withCalculated.campos_personalizados || {}),
+          [configuredField.name]: configuredField.rules?.soma?.tipo === "avg" && values.length ? total / values.length : total,
+        };
+      });
+
+      return withCalculated;
+    });
   };
 
   const handleSubmit = (event) => {
@@ -53,7 +90,7 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
               config={formConfig}
               formData={formData}
               onChange={handleChange}
-              context={{ fornecedores, produtos }}
+              context={{ fornecedores, produtos, dynamicOptions }}
             />
 
             <div className="flex justify-end gap-2 pt-2 border-t">

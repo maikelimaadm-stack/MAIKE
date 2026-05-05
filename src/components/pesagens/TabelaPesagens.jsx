@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Progress } from "@/components/ui/progress";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { PESAGEM_TABLE_COLUMNS } from "@/config/pesagensConfig";
+import { getRecordValue } from "@/services/dynamicRecordService";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -39,7 +40,7 @@ const formatarData = (dataString) => {
 };
 
 function getColumnValue(row, column) {
-  return row[column.accessor] ?? "";
+  return getRecordValue(row, column);
 }
 
 function formatColumnValue(value, column) {

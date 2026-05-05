@@ -1,8 +1,9 @@
 export const CUSTOM_VALUES_FIELD = "campos_personalizados";
 
 export function getRecordValue(record, field) {
-  if (field.source === "customizado") return record?.[CUSTOM_VALUES_FIELD]?.[field.accessor || field.name] ?? "";
-  return record?.[field.accessor || field.name] ?? "";
+  const key = field.accessor || field.name;
+  if (field.source === "customizado") return record?.[CUSTOM_VALUES_FIELD]?.[key] ?? "";
+  return record?.[key] ?? "";
 }
 
 export function setRecordValue(record, field, value) {

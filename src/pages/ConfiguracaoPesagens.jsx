@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Plus, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { ENTITY_OPTIONS, getFieldsByEntity, getSourceByEntity } from "@/config/dynamicFieldSources";
 
 const FIELD_TYPES = [
   { value: "text", label: "Texto" },
@@ -120,7 +121,7 @@ export default function ConfiguracaoPesagens() {
         comportamento: formData.comportamento,
         origem: formData.comportamento === "manual" ? null : {
           entidade: formData.entidade_origem,
-          tela: formData.tela_origem,
+          tela: getSourceByEntity(formData.entidade_origem)?.page || formData.tela_origem,
           coluna: formData.coluna_origem,
         },
         soma: formData.comportamento === "soma" ? {
@@ -148,12 +149,28 @@ export default function ConfiguracaoPesagens() {
         field_name: fieldName,
         origem: "customizado",
         label: formData.label.trim().toUpperCase(),
-        tipo: formData.tipo,
+        tipo: formData.comportamento === "selecao" ? "select" : formData.tipo,
         col_span: Number(formData.col_span || 6),
         ordem: nextOrder,
         obrigatorio: Boolean(formData.obrigatorio),
         ativo: true,
         uppercase: formData.tipo === "text" || formData.tipo === "textarea",
+        regras,
+      });
+
+      await base44.entities.LayoutTabelaColuna.create({
+        layout_id: layout.id,
+        column_id: fieldId,
+        entity_name: "Pesagem",
+        field_name: fieldName,
+        origem: "customizado",
+        label: formData.label.trim().toUpperCase(),
+        ordem: nextOrder + 100,
+        visivel: true,
+        ordenavel: true,
+        filtravel: true,
+        alinhamento: formData.tipo === "number" || formData.comportamento === "soma" ? "right" : "left",
+        formato: formData.tipo === "number" || formData.comportamento === "soma" ? "number" : undefined,
         regras,
       });
     },
@@ -243,9 +260,15 @@ export default function ConfiguracaoPesagens() {
 
               {formData.comportamento !== "manual" && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2">
-                  <Input className="h-8 text-xs uppercase" placeholder="ENTIDADE ORIGEM" value={formData.entidade_origem} onChange={(e) => setFormData((prev) => ({ ...prev, entidade_origem: e.target.value }))} />
-                  <Input className="h-8 text-xs uppercase" placeholder="PÁGINA/TELA ORIGEM" value={formData.tela_origem} onChange={(e) => setFormData((prev) => ({ ...prev, tela_origem: e.target.value }))} />
-                  <Input className="h-8 text-xs uppercase" placeholder="COLUNA ORIGEM" value={formData.coluna_origem} onChange={(e) => setFormData((prev) => ({ ...prev, coluna_origem: e.target.value }))} />
+                  <Select value={formData.entidade_origem} onValueChange={(value) => setFormData((prev) => ({ ...prev, entidade_origem: value, tela_origem: getSourceByEntity(value)?.page || "", coluna_origem: "" }))}>
+                    <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="PÁGINA/ENTIDADE" /></SelectTrigger>
+                    <SelectContent>{ENTITY_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value} className="text-xs uppercase">{option.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input className="h-8 text-xs uppercase bg-slate-100" placeholder="TELA" value={formData.tela_origem} readOnly />
+                  <Select value={formData.coluna_origem} onValueChange={(value) => setFormData((prev) => ({ ...prev, coluna_origem: value }))}>
+                    <SelectTrigger className="h-8 text-xs uppercase"><SelectValue placeholder="COLUNA" /></SelectTrigger>
+                    <SelectContent>{getFieldsByEntity(formData.entidade_origem).map((field) => <SelectItem key={field.value} value={field.value} className="text-xs uppercase">{field.label}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
               )}
 

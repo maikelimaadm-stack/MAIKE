@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ConfigurableField from "./ConfigurableField";
 import { applyFormRules } from "@/services/dynamicRulesEngine";
+import { getRecordValue } from "@/services/dynamicRecordService";
 
 const fieldClassName = "h-8 text-xs";
 const uppercaseClassName = "h-8 text-xs uppercase";
@@ -16,21 +17,24 @@ function getOptions(field, context) {
 }
 
 function renderFieldControl(field, formData, onChange, context) {
-  const value = formData[field.name] ?? "";
+  const value = getRecordValue(formData, field) ?? "";
   const commonProps = {
     value,
     required: field.required,
     disabled: field.disabled,
   };
 
-  if (field.type === "select") {
+  const behavior = field.rules?.comportamento;
+  const dynamicOptions = context.dynamicOptions?.[field.name];
+
+  if (field.type === "select" || behavior === "selecao") {
     return (
-      <Select value={String(value || "")} onValueChange={(selectedValue) => onChange(field.name, selectedValue)} required={field.required}>
+      <Select value={String(value || "")} onValueChange={(selectedValue) => onChange(field, selectedValue)} required={field.required}>
         <SelectTrigger className={field.uppercase ? uppercaseClassName : fieldClassName} aria-invalid={field.required && !value ? "true" : undefined}>
           <SelectValue placeholder={field.placeholder || "SELECIONE"} />
         </SelectTrigger>
         <SelectContent>
-          {getOptions(field, context).map((option) => (
+          {(dynamicOptions || getOptions(field, context)).map((option) => (
             <SelectItem key={option.value} value={option.value} className="text-xs uppercase">
               {option.label}
             </SelectItem>
@@ -46,14 +50,14 @@ function renderFieldControl(field, formData, onChange, context) {
         {...commonProps}
         rows={field.rows || 2}
         placeholder={field.placeholder}
-        onChange={(event) => onChange(field.name, event.target.value)}
+        onChange={(event) => onChange(field, event.target.value)}
         className="text-xs uppercase"
         style={field.uppercase ? { textTransform: "uppercase" } : undefined}
       />
     );
   }
 
-  if (field.type === "readonlyNumber") {
+  if (field.type === "readonlyNumber" || behavior === "soma") {
     const numberValue = Number(value || 0);
     return (
       <Input

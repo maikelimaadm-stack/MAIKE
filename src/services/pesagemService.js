@@ -21,6 +21,7 @@ export function getInitialPesagemFormData(initialData = null) {
     peso_bruto: initialData?.peso_bruto || "",
     peso_liquido: initialData?.peso_liquido || 0,
     observacoes: initialData?.observacoes?.toUpperCase() || "",
+    campos_personalizados: initialData?.campos_personalizados || {},
   };
 }
 
