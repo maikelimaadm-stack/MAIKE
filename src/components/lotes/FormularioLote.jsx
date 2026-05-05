@@ -431,6 +431,14 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onRefresh={onRefresh} />
         
 
+        <div className="h-8 flex items-center gap-2 bg-white border-b border-slate-300 px-4 md:px-8 max-w-[760px]">
+          <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">LOTE</span>
+          <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">
+            {`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
+          </span>
+          <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">{operationLabel}</span>
+        </div>
+
         <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
             <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
