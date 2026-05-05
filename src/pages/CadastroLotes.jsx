@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { toast } from "sonner";
@@ -23,6 +24,8 @@ export default function CadastroLotes() {
   const [formVersion, setFormVersion] = useState(0);
   const [returnRecordAfterNew, setReturnRecordAfterNew] = useState(null);
   const [attachmentsRecord, setAttachmentsRecord] = useState(null);
+  const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -50,6 +53,14 @@ export default function CadastroLotes() {
   const createLoteMutation = useMutation({
     mutationFn: (data) => loteRepository.create(data, { empresaId: empresaSelecionadaId }),
     onSuccess: async (created) => {
+      if (pendingAttachments.length) {
+        await Promise.all(pendingAttachments.map(({ id, ...anexo }) => base44.entities.RegistroAnexo.create({
+          ...anexo,
+          entity_name: "Lote",
+          record_id: created.id
+        })));
+        setPendingAttachments([]);
+      }
       queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) => [created, ...current]);
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
       await queryClient.refetchQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId], exact: true });
@@ -103,6 +114,7 @@ export default function CadastroLotes() {
     setEditingLote(null);
     setShowForm(true);
     setViewMode("record");
+    setPendingAttachments([]);
     setFormVersion((prev) => prev + 1);
   };
 
@@ -261,6 +273,8 @@ export default function CadastroLotes() {
           setEditingLote(null);
           setViewMode("table");
           setReturnRecordAfterNew(null);
+          setPendingAttachments([]);
+          setNewRecordAttachmentsOpen(false);
         }}
         onSettingsClick={handleOpenConfigCampos}
         onToggleView={handleToggleView}
@@ -273,8 +287,8 @@ export default function CadastroLotes() {
         onLast={() => navigateRecord(lotes.length - 1)}
         onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
         onDuplicate={() => editingLote && handleDuplicate(editingLote)}
-        onAttachClick={() => editingLote?.id && setAttachmentsRecord(editingLote)}
-        attachDisabled={!editingLote?.id || editingLote?._isDuplicate}
+        onAttachClick={() => editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)}
+        attachDisabled={false}
         onRefresh={handleRefresh} /> :
 
       <TabelaLotes
@@ -296,11 +310,18 @@ export default function CadastroLotes() {
         onOpenChange={setShowConfigCampos} />
 
       <RegistroAnexosDialog
-        open={!!attachmentsRecord?.id}
-        onOpenChange={(open) => !open && setAttachmentsRecord(null)}
+        open={!!attachmentsRecord?.id || newRecordAttachmentsOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAttachmentsRecord(null);
+            setNewRecordAttachmentsOpen(false);
+          }
+        }}
         entityName="Lote"
         recordId={attachmentsRecord?.id}
-        title={attachmentsRecord?.nome || attachmentsRecord?.numero_lote || "Lote"} />
+        title={attachmentsRecord?.nome || attachmentsRecord?.numero_lote || "Novo lote"}
+        pendingAnexos={pendingAttachments}
+        onPendingChange={setPendingAttachments} />
 
       <ConfirmDialog
         open={deleteState.open}

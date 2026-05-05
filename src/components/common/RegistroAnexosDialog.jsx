@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Paperclip, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { Paperclip, Plus, X, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const formatSize = (bytes = 0) => {
@@ -14,19 +14,21 @@ const formatSize = (bytes = 0) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-export default function RegistroAnexosDialog({ open, onOpenChange, entityName, recordId, title }) {
+export default function RegistroAnexosDialog({ open, onOpenChange, entityName, recordId, title, pendingAnexos = [], onPendingChange }) {
   const inputRef = useRef(null);
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [attachmentName, setAttachmentName] = useState("");
   const queryKey = ["registro-anexos", entityName, recordId];
 
-  const { data: anexos = [] } = useQuery({
+  const { data: savedAnexos = [] } = useQuery({
     queryKey,
     queryFn: () => base44.entities.RegistroAnexo.filter({ entity_name: entityName, record_id: recordId }, "-created_date"),
     enabled: open && !!entityName && !!recordId,
     initialData: []
   });
+
+  const anexos = recordId ? savedAnexos : pendingAnexos;
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.RegistroAnexo.delete(id),
@@ -45,9 +47,10 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
       return;
     }
     setUploading(true);
+    const novosAnexos = [];
     for (const file of files) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      await base44.entities.RegistroAnexo.create({
+      const anexoData = {
         entity_name: entityName,
         record_id: recordId,
         attachment_name: attachmentName.trim(),
@@ -55,7 +58,15 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
         file_url,
         file_type: file.type,
         file_size: file.size
-      });
+      };
+      if (recordId) {
+        await base44.entities.RegistroAnexo.create(anexoData);
+      } else {
+        novosAnexos.push({ ...anexoData, id: `pending-${Date.now()}-${file.name}` });
+      }
+    }
+    if (!recordId && novosAnexos.length) {
+      onPendingChange?.([...pendingAnexos, ...novosAnexos]);
     }
     setUploading(false);
     setAttachmentName("");
@@ -87,7 +98,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
                     className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1"
                     style={{ textTransform: "uppercase" }} />
                   
-                  <Button type="button" variant="outline" size="icon" onClick={() => inputRef.current?.click()} disabled={uploading || !recordId || !attachmentName.trim()} className="h-[22px] w-8 rounded-none border-y-0 border-r-0 border-l border-slate-300 bg-green-500 hover:bg-green-600 text-white shadow-none" title="Anexar arquivo">
+                  <Button type="button" variant="outline" size="icon" onClick={() => inputRef.current?.click()} disabled={uploading || !attachmentName.trim()} className="h-[22px] w-8 rounded-none border-y-0 border-r-0 border-l border-slate-300 bg-green-500 hover:bg-green-600 text-white shadow-none" title="Anexar arquivo">
                     {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
                   </Button>
                 </div>
@@ -99,7 +110,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
               <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo</div>
               <div className="px-2 py-1 border-r border-slate-200">Arquivo</div>
-              <div className="px-2 py-1 text-center">Lixeira</div>
+              <div className="px-2 py-1 text-center"></div>
             </div>
             {anexos.length === 0 ?
             <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div> :
@@ -115,8 +126,8 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
                 <ExternalLink className="w-3 h-3 shrink-0" />
               </a>
               <div className="h-7 flex items-center justify-center">
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-600 hover:bg-red-50" onClick={() => deleteMutation.mutate(anexo.id)}>
-                  <Trash2 className="w-3.5 h-3.5" />
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-600 hover:bg-red-50" onClick={() => recordId ? deleteMutation.mutate(anexo.id) : onPendingChange?.(pendingAnexos.filter((item) => item.id !== anexo.id))}>
+                  <X className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
