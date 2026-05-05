@@ -478,7 +478,7 @@ export default function TabelaLotes({
 
   return (
     <div className="space-y-1 overflow-hidden">
-      <Card className="overflow-hidden rounded-none">
+      <Card className="overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="p-0 overflow-hidden rounded-none">
           <div className="relative overflow-hidden">
             <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)] outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>

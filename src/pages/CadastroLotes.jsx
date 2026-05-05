@@ -220,7 +220,9 @@ export default function CadastroLotes() {
         onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
         onRefresh={handleRefresh}
         onSettingsClick={() => setShowConfigColunas(true)}
-        selectedCount={selectedTableItems.length} />
+        selectedCount={selectedTableItems.length}
+        title="Cadastro de Lotes"
+        recordLabel="LOTE" />
 
       }
 
