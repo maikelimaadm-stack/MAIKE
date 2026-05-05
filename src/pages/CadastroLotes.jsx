@@ -105,6 +105,7 @@ export default function CadastroLotes() {
   };
 
   const handleDuplicate = (lote) => {
+    setReturnRecordAfterNew(showForm && viewMode === "record" ? lote : null);
     const { id, created_date, updated_date, created_by, numero_lote, status, ...duplicatedData } = lote;
     setEditingLote({
       ...duplicatedData,
@@ -233,6 +234,13 @@ export default function CadastroLotes() {
             if (editingLote && !editingLote._isDuplicate) {
               setFormVersion((prev) => prev + 1);
               setViewMode("record");
+              return;
+            }
+            if (editingLote?._isDuplicate && returnRecordAfterNew) {
+              setEditingLote(returnRecordAfterNew);
+              setShowForm(true);
+              setViewMode("record");
+              setReturnRecordAfterNew(null);
               return;
             }
             if (!editingLote && returnRecordAfterNew) {
