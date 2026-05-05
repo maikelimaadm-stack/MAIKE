@@ -15,6 +15,7 @@ import TiposDocumento from './pages/TiposDocumento';
 import MotivosCompra from './pages/MotivosCompra';
 import Marcas from './pages/Marcas';
 import LancamentosAbastecimento from './pages/LancamentosAbastecimento';
+import ConfiguracaoPesagens from './pages/ConfiguracaoPesagens';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -99,6 +100,11 @@ const AuthenticatedApp = () => {
       <Route path="/LancamentosAbastecimento" element={
         <LayoutWrapper currentPageName="LancamentosAbastecimento">
           <LancamentosAbastecimento />
+        </LayoutWrapper>
+      } />
+      <Route path="/ConfiguracaoPesagens" element={
+        <LayoutWrapper currentPageName="ConfiguracaoPesagens">
+          <ConfiguracaoPesagens />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />

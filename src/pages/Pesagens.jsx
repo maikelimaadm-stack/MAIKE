@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Loader2, AlertCircle, X } from "lucide-react";
+import { Download, Upload, Loader2, AlertCircle, X, Settings } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -72,6 +73,7 @@ export default function Pesagens() {
   const [validRecordsToImport, setValidRecordsToImport] = useState([]);
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -508,7 +510,11 @@ export default function Pesagens() {
               <h1 className="text-xl font-bold text-slate-900">Pesagens</h1>
               <p className="text-xs text-slate-600">Controle de balança</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => navigate('/ConfiguracaoPesagens')} variant="outline" size="sm" className="h-8 text-xs">
+                <Settings className="w-3.5 h-3.5" />
+                Configurar
+              </Button>
               <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
                 Exportar
               </Button>
