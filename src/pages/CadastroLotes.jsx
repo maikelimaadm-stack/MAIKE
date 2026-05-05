@@ -114,6 +114,12 @@ export default function CadastroLotes() {
     setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
   };
 
+  const handleOpenConfigColunas = () => {
+    setShowForm(false);
+    setEditingLote(null);
+    setShowConfigColunas(true);
+  };
+
   const handleConfirmDelete = async () => {
     const ids = deleteState.ids;
     setDeleteState({ open: false, ids: [] });
@@ -162,7 +168,8 @@ export default function CadastroLotes() {
           initialData={editingLote}
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditingLote(null);}} /> :
+          onCancel={() => {setShowForm(false);setEditingLote(null);}}
+          onSettingsClick={handleOpenConfigColunas} /> :
 
 
         <TabelaLotes

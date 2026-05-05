@@ -4,7 +4,7 @@ import { Home, Filter, Table, Check, AlertTriangle, Search, Star, Clock, FileTex
 
 const iconButtonClass = "h-7 w-8 rounded-none border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700";
 
-export default function LegacyRecordToolbar({ title, statusLabel = "Editando registro", onCancel }) {
+export default function LegacyRecordToolbar({ title, statusLabel = "Editando registro", onCancel, onSettingsClick }) {
   return (
     <div className="border border-slate-300 bg-slate-100 shadow-sm">
       <div className="flex items-center gap-0 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
@@ -30,7 +30,7 @@ export default function LegacyRecordToolbar({ title, statusLabel = "Editando reg
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Zap className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
+          <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>
         </div>
       </div>
       <div className="h-8 px-2 flex items-center gap-2 bg-white border-b border-slate-200">
