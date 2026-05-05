@@ -104,33 +104,33 @@ export default function TabelaLotes({
   });
 
   const colunasDisponiveis = useMemo(() => {
-    const dinamicas = camposPersonalizados
-      .map(campoEngine.normalize)
-      .filter((campo) => campo.ativo !== false && campo.visivel_tabela === true)
-      .map((campo) => ({
-        ...campo,
-        id: `custom:${campo.field_name}`,
-        label: campo.label,
-        default: true,
-        sortable: campo.ordenavel !== false,
-        filtravel: campo.filtravel !== false,
-        align: campo.alinhamento || "left",
-        width: campo.largura_coluna || 160,
-        ordem_tabela: campo.ordem_tabela ?? campo.ordem ?? 999,
-        agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "",
-        agregacao_campo_base: campo.agregacao_campo_base || "",
-        customField: campo.field_name
-      }));
+    const dinamicas = camposPersonalizados.
+    map(campoEngine.normalize).
+    filter((campo) => campo.ativo !== false && campo.visivel_tabela === true).
+    map((campo) => ({
+      ...campo,
+      id: `custom:${campo.field_name}`,
+      label: campo.label,
+      default: true,
+      sortable: campo.ordenavel !== false,
+      filtravel: campo.filtravel !== false,
+      align: campo.alinhamento || "left",
+      width: campo.largura_coluna || 160,
+      ordem_tabela: campo.ordem_tabela ?? campo.ordem ?? 999,
+      agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "",
+      agregacao_campo_base: campo.agregacao_campo_base || "",
+      customField: campo.field_name
+    }));
     return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))];
   }, [camposPersonalizados]);
 
-  const relatedSources = useMemo(() => camposPersonalizados
-    .map((campo) => {
-      const normalized = campoEngine.normalize(campo);
-      const entity = campoEngine.getOptionsSourceKey(normalized);
-      return entity ? { entity, labelField: normalized.options_label_field || normalized.relation_display_field || "nome", valueField: normalized.options_value_field || "id" } : null;
-    })
-    .filter(Boolean), [camposPersonalizados]);
+  const relatedSources = useMemo(() => camposPersonalizados.
+  map((campo) => {
+    const normalized = campoEngine.normalize(campo);
+    const entity = campoEngine.getOptionsSourceKey(normalized);
+    return entity ? { entity, labelField: normalized.options_label_field || normalized.relation_display_field || "nome", valueField: normalized.options_value_field || "id" } : null;
+  }).
+  filter(Boolean), [camposPersonalizados]);
 
   const { data: relatedOptions = {} } = useQuery({
     queryKey: ["lote-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
@@ -343,8 +343,8 @@ export default function TabelaLotes({
 
   const handleRowTouch = (lote, event) => {
     const now = Date.now();
-    if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {event.preventDefault();onEdit(lote);}
-    else handleRowSelect(lote, event);
+    if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {event.preventDefault();onEdit(lote);} else
+    handleRowSelect(lote, event);
     lastTapRef.current = { id: lote.id, time: now };
   };
 
@@ -357,7 +357,7 @@ export default function TabelaLotes({
     return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, relatedOptions);
   }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
 
-  const getAgregacaoLabel = (tipo) => ({ sum: "Soma", avg: "Média", min: "Menor", max: "Maior", count: "Contagem" }[tipo] || "Total");
+  const getAgregacaoLabel = (tipo) => ({ sum: "Soma", avg: "Média", min: "Menor", max: "Maior", count: "Contagem" })[tipo] || "Total";
 
   const exportarTabela = (apenasSelecionados = false) => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
@@ -419,22 +419,22 @@ export default function TabelaLotes({
             </button>
           </div>
           <div className="p-2 space-y-2">
-            {isRangeFilter ? (
-              <div className="grid grid-cols-2 gap-2">
+            {isRangeFilter ?
+            <div className="grid grid-cols-2 gap-2">
                 <Input
-                  type={coluna?.tipo === "date" ? "date" : "number"}
-                  value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:")) || "").replace(coluna?.tipo === "date" ? "start:" : "min:", "")}
-                  onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "start" : "min"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:"))].filter(Boolean) }))}
-                  placeholder={coluna?.tipo === "date" ? "INÍCIO" : "MÍNIMO"}
-                  className="h-8 text-xs" />
+                type={coluna?.tipo === "date" ? "date" : "number"}
+                value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:")) || "").replace(coluna?.tipo === "date" ? "start:" : "min:", "")}
+                onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "start" : "min"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:"))].filter(Boolean) }))}
+                placeholder={coluna?.tipo === "date" ? "INÍCIO" : "MÍNIMO"}
+                className="h-8 text-xs" />
                 <Input
-                  type={coluna?.tipo === "date" ? "date" : "number"}
-                  value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:")) || "").replace(coluna?.tipo === "date" ? "end:" : "max:", "")}
-                  onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "end" : "max"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:"))].filter(Boolean) }))}
-                  placeholder={coluna?.tipo === "date" ? "FIM" : "MÁXIMO"}
-                  className="h-8 text-xs" />
-              </div>
-            ) : <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />}
+                type={coluna?.tipo === "date" ? "date" : "number"}
+                value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:")) || "").replace(coluna?.tipo === "date" ? "end:" : "max:", "")}
+                onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "end" : "max"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:"))].filter(Boolean) }))}
+                placeholder={coluna?.tipo === "date" ? "FIM" : "MÁXIMO"}
+                className="h-8 text-xs" />
+              </div> :
+            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />}
             {!isRangeFilter && <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
               <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
                 <Checkbox
@@ -566,15 +566,15 @@ export default function TabelaLotes({
                       </TableRow>
                   )
                   }
-                  {Object.keys(agregacoes).length > 0 && (
-                    <TableRow className="bg-slate-50 font-semibold">
-                      {colunasOrdenadas.map((coluna) => (
-                        <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
+                  {Object.keys(agregacoes).length > 0 &&
+                  <TableRow className="bg-slate-50 font-semibold">
+                      {colunasOrdenadas.map((coluna) =>
+                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
                           {agregacoes[coluna.id] !== undefined ? `${getAgregacaoLabel(coluna.agregacao_tipo || coluna.agregacao)}: ${Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 })}` : coluna.id === "nome" ? "Totais" : ""}
                         </TableCell>
-                      ))}
+                    )}
                     </TableRow>
-                  )}
+                  }
                 </TableBody>
               </Table>
             </div>
