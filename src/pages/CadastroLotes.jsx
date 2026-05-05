@@ -200,7 +200,7 @@ export default function CadastroLotes() {
       <AnimatePresence mode="wait">
         {showForm ?
         <FormularioLote
-          key="form"
+          key={`form-${editingLote?.id || editingLote?.numero_lote || 'novo'}`}
           initialData={editingLote}
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
