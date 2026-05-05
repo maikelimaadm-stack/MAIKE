@@ -41,9 +41,12 @@ export default function SankhyaListToolbar({
   onDelete,
   onDuplicate,
   onRefresh,
-  onSettingsClick
+  onSettingsClick,
+  selectedCount = 0
 }) {
   const canNavigate = total > 0;
+  const showDeleteSelectionAction = viewMode === "table" && selectedCount > 0;
+  const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1;
 
   return (
     <div className="border border-slate-300 bg-slate-100 shadow-sm overflow-hidden">
@@ -59,8 +62,8 @@ export default function SankhyaListToolbar({
         <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate} className={iconButtonClass}><ChevronLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate} className={iconButtonClass}><ChevronRight className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate} className={iconButtonClass}><ChevronsRight className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>
+        {showDeleteSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>}
+        {showDuplicateSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
         <Button type="button" variant="outline" size="icon" onClick={onRefresh} className={iconButtonClass}><RefreshCw className="w-3.5 h-3.5" /></Button>
 
         <div className="ml-auto flex items-center gap-0">

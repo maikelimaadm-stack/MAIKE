@@ -301,9 +301,14 @@ export default function TabelaLotes({
     setSelectedItems(lotesFiltrados.map((l) => l.id));
   };
 
+  const toggleSelectItem = (id) => {
+    setSelectedItems((prev) => prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]);
+  };
+
   const handleRowTouch = (lote, event) => {
     const now = Date.now();
     if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {event.preventDefault();onEdit(lote);}
+    else toggleSelectItem(lote.id);
     lastTapRef.current = { id: lote.id, time: now };
   };
 
@@ -545,7 +550,8 @@ export default function TabelaLotes({
                   lotesOrdenados.map((lote) =>
                   <TableRow
                     key={lote.id}
-                    className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100"
+                    className={`${selectedItems.includes(lote.id) ? "bg-emerald-50 hover:bg-emerald-100" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer`}
+                    onClick={() => toggleSelectItem(lote.id)}
                     onDoubleClick={() => onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
                     
@@ -562,7 +568,7 @@ export default function TabelaLotes({
                             onTouchEnd={(e) => e.stopPropagation()}>
                             
                                 <div className="flex items-center justify-center w-full h-full">
-                                  <Checkbox checked={selectedItems.includes(lote.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...prev, lote.id] : prev.filter((id) => id !== lote.id))} className="rounded-full peer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed shrink-0 shadow disabled:opacity-50 h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
+                                  <Checkbox checked={selectedItems.includes(lote.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...new Set([...prev, lote.id])] : prev.filter((id) => id !== lote.id))} className="rounded-full peer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed shrink-0 shadow disabled:opacity-50 h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                                 </div>
                               </TableCell>);
 

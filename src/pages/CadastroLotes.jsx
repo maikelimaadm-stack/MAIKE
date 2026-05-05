@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ export default function CadastroLotes() {
   const [viewMode, setViewMode] = useState("table");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTableItems, setSelectedTableItems] = useState([]);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -125,6 +126,15 @@ export default function CadastroLotes() {
   };
 
   const currentLote = lotes[selectedIndex] || lotes[0] || null;
+  const selectedTableLote = selectedTableItems.length === 1 ? lotes.find((item) => item.id === selectedTableItems[0]) : null;
+
+  const handleTableSelectionChange = useCallback((ids) => {
+    setSelectedTableItems(ids);
+    if (ids.length === 1) {
+      const index = lotes.findIndex((item) => item.id === ids[0]);
+      if (index >= 0) setSelectedIndex(index);
+    }
+  }, [lotes]);
 
   const handleToggleView = () => {
     if (showForm) {
@@ -143,6 +153,7 @@ export default function CadastroLotes() {
     const nextIndex = Math.min(Math.max(index, 0), Math.max(lotes.length - 1, 0));
     setSelectedIndex(nextIndex);
     if (showForm && lotes[nextIndex]) setEditingLote(lotes[nextIndex]);
+    if (!showForm && lotes[nextIndex]) setSelectedTableItems([lotes[nextIndex].id]);
   };
 
   const handleRefresh = () => {
@@ -189,10 +200,11 @@ export default function CadastroLotes() {
           onPrevious={() => navigateRecord(selectedIndex - 1)}
           onNext={() => navigateRecord(selectedIndex + 1)}
           onLast={() => navigateRecord(lotes.length - 1)}
-          onDelete={() => currentLote && handleRequestDelete(currentLote.id)}
-          onDuplicate={() => currentLote && handleDuplicate(currentLote)}
+          onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
+          onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
           onRefresh={handleRefresh}
           onSettingsClick={() => setShowConfigColunas(true)}
+          selectedCount={selectedTableItems.length}
         />
       )}
 
@@ -226,7 +238,8 @@ export default function CadastroLotes() {
           lotesComMovimentacoes={lotesComMovimentacoes}
           showConfigColunas={showConfigColunas}
           setShowConfigColunas={setShowConfigColunas}
-          searchTerm={searchTerm} />
+          searchTerm={searchTerm}
+          onSelectionChange={handleTableSelectionChange} />
       )}
 
       <ConfiguracaoCamposLoteDialog
