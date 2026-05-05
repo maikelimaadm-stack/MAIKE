@@ -10,6 +10,10 @@
       "type": "string",
       "description": "ID do registro vinculado ao anexo"
     },
+    "attachment_name": {
+      "type": "string",
+      "description": "Nome informado para identificar o anexo"
+    },
     "file_name": {
       "type": "string",
       "description": "Nome original do arquivo"
@@ -30,6 +34,7 @@
   "required": [
     "entity_name",
     "record_id",
+    "attachment_name",
     "file_name",
     "file_url"
   ]

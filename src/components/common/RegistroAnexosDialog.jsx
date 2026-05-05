@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Paperclip, Upload, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,6 +18,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
   const inputRef = useRef(null);
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [attachmentName, setAttachmentName] = useState("");
   const queryKey = ["registro-anexos", entityName, recordId];
 
   const { data: anexos = [] } = useQuery({
@@ -37,12 +39,18 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
   const handleFiles = async (event) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
+    if (!attachmentName.trim()) {
+      toast.error("Informe o nome do anexo.");
+      event.target.value = "";
+      return;
+    }
     setUploading(true);
     for (const file of files) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       await base44.entities.RegistroAnexo.create({
         entity_name: entityName,
         record_id: recordId,
+        attachment_name: attachmentName.trim(),
         file_name: file.name,
         file_url,
         file_type: file.type,
@@ -50,6 +58,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
       });
     }
     setUploading(false);
+    setAttachmentName("");
     event.target.value = "";
     queryClient.invalidateQueries({ queryKey });
     toast.success(files.length === 1 ? "Arquivo anexado." : "Arquivos anexados.");
@@ -67,24 +76,31 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
 
         <div className="space-y-3">
           <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
-          <Button type="button" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading || !recordId} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            Anexar arquivo
-          </Button>
+          <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
+            <Input
+              value={attachmentName}
+              onChange={(e) => setAttachmentName(e.target.value)}
+              placeholder="Nome do anexo"
+              className="h-8 text-xs"
+            />
+            <Button type="button" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading || !recordId} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              Selecionar arquivo
+            </Button>
+          </div>
 
           <div className="border border-slate-200 rounded-sm divide-y divide-slate-200 max-h-80 overflow-auto">
             {anexos.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div>
             ) : anexos.map((anexo) => (
-              <div key={anexo.id} className="flex items-center gap-2 p-2 text-xs">
-                <Paperclip className="w-3.5 h-3.5 text-slate-500" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-slate-700">{anexo.file_name}</div>
-                  <div className="text-slate-400">{formatSize(anexo.file_size)}</div>
-                </div>
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" asChild>
-                  <a href={anexo.file_url} target="_blank" rel="noreferrer"><ExternalLink className="w-3.5 h-3.5" /></a>
-                </Button>
+              <div key={anexo.id} className="grid grid-cols-[minmax(120px,1fr)_minmax(160px,1.4fr)_auto] items-center gap-2 p-2 text-xs">
+                <div className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</div>
+                <a href={anexo.file_url} target="_blank" rel="noreferrer" className="min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700">
+                  <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{anexo.file_name}</span>
+                  <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </a>
                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => deleteMutation.mutate(anexo.id)}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
