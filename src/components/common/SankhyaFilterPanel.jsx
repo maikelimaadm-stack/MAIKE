@@ -20,6 +20,16 @@ const FIELD_DEFS = [
 
 const DEFAULT_FIELDS = ["lote_codigo_nome", "sexo", "quantidade", "peso", "area_codigo_nome", "setor_codigo_nome"];
 const DEFAULT_OPERATORS = { quantidade: "between", peso: "between", data: "between" };
+const DEFAULT_FOLDERS = [
+  { id: "detalhes_lote", name: "Detalhes do lote" },
+  { id: "localizacao", name: "Localização" },
+  { id: "identificacao", name: "Identificação" }
+];
+const DEFAULT_FIELD_GROUPS = FIELD_DEFS.reduce((acc, field) => {
+  const folder = DEFAULT_FOLDERS.find((item) => item.name === field.group);
+  acc[field.id] = folder?.id || DEFAULT_FOLDERS[0].id;
+  return acc;
+}, {});
 const inputClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
 const selectClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
 
@@ -27,8 +37,9 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const [visibleFields, setVisibleFields] = useState(DEFAULT_FIELDS);
   const [operators, setOperators] = useState(DEFAULT_OPERATORS);
   const [configOpen, setConfigOpen] = useState(false);
-  const [groupNames, setGroupNames] = useState({ "Detalhes do lote": "Detalhes do lote", Localização: "Localização", Identificação: "Identificação" });
-  const [openGroups, setOpenGroups] = useState({ "Detalhes do lote": true, Localização: true, Identificação: true });
+  const [filterFolders, setFilterFolders] = useState(DEFAULT_FOLDERS);
+  const [fieldGroups, setFieldGroups] = useState(DEFAULT_FIELD_GROUPS);
+  const [openGroups, setOpenGroups] = useState({ detalhes_lote: true, localizacao: true, identificacao: true });
 
   const options = useMemo(() => {
     const uniqBy = (items, key) => Array.from(new Map(items.filter((item) => item?.[key]).map((item) => [item[key], item])).values())
@@ -50,8 +61,6 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
 
   const clearAll = () => {
     onClear();
-    setVisibleFields(DEFAULT_FIELDS);
-    setOperators(DEFAULT_OPERATORS);
   };
 
   const applyFilters = () => {
@@ -116,13 +125,10 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     );
   };
 
-  const groupedFields = visibleFields.reduce((acc, fieldId) => {
-    const field = FIELD_DEFS.find((item) => item.id === fieldId);
-    if (!field) return acc;
-    const groupLabel = groupNames[field.group] || field.group;
-    acc[groupLabel] = [...(acc[groupLabel] || []), fieldId];
-    return acc;
-  }, {});
+  const groupedFolders = filterFolders.map((folder) => ({
+    ...folder,
+    fields: visibleFields.filter((fieldId) => (fieldGroups[fieldId] || DEFAULT_FOLDERS[0].id) === folder.id)
+  })).filter((folder) => folder.fields.length > 0);
 
   return (
     <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
@@ -147,13 +153,13 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto">
-        {Object.entries(groupedFields).map(([group, fields]) => (
-          <div key={group} className="border-b border-slate-300">
-            <button type="button" onClick={() => setOpenGroups({ ...openGroups, [group]: !openGroups[group] })} className="w-full h-8 px-2 flex items-center gap-1 bg-slate-100 font-semibold text-slate-700 text-left">
-              {openGroups[group] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              {group}
+        {groupedFolders.map((folder) => (
+          <div key={folder.id} className="border-b border-slate-300">
+            <button type="button" onClick={() => setOpenGroups({ ...openGroups, [folder.id]: !openGroups[folder.id] })} className="w-full h-8 px-2 flex items-center gap-1 bg-slate-100 font-semibold text-slate-700 text-left">
+              {openGroups[folder.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              {folder.name}
             </button>
-            {openGroups[group] && <div className="p-1.5 space-y-1.5">{fields.map(renderField)}</div>}
+            {openGroups[folder.id] && <div className="p-1.5 space-y-1.5">{folder.fields.map(renderField)}</div>}
           </div>
         ))}
         {["Status Documentos", "Itens", "Liberações", "Parceiros", "WMS"].map((item) =>
@@ -161,7 +167,20 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         )}
       </div>
 
-      <SankhyaFilterConfigDialog open={configOpen} onOpenChange={setConfigOpen} fields={FIELD_DEFS} visibleFields={visibleFields} setVisibleFields={setVisibleFields} operators={operators} setOperators={setOperators} groupNames={groupNames} setGroupNames={setGroupNames} />
+      <SankhyaFilterConfigDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        fields={FIELD_DEFS}
+        visibleFields={visibleFields}
+        setVisibleFields={setVisibleFields}
+        operators={operators}
+        setOperators={setOperators}
+        filterFolders={filterFolders}
+        setFilterFolders={setFilterFolders}
+        fieldGroups={fieldGroups}
+        setFieldGroups={setFieldGroups}
+        setOpenGroups={setOpenGroups}
+      />
     </aside>
   );
 }
