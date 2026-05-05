@@ -202,85 +202,85 @@ export default function CadastroLotes() {
 
 
   return (
-    <div className="p-1 md:p-1 space-y-1">
-      {!showForm && (
-        <SankhyaListToolbar
-          viewMode={viewMode}
-          total={lotes.length}
-          currentIndex={selectedIndex}
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          onNew={handleNew}
-          onToggleView={handleToggleView}
-          onFirst={() => navigateRecord(0)}
-          onPrevious={() => navigateRecord(selectedIndex - 1)}
-          onNext={() => navigateRecord(selectedIndex + 1)}
-          onLast={() => navigateRecord(lotes.length - 1)}
-          onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
-          onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
-          onRefresh={handleRefresh}
-          onSettingsClick={() => setShowConfigColunas(true)}
-          selectedCount={selectedTableItems.length}
-        />
-      )}
+    <div className="space-y-1 p-0 md:p-0">
+      {!showForm &&
+      <SankhyaListToolbar
+        viewMode={viewMode}
+        total={lotes.length}
+        currentIndex={selectedIndex}
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        onNew={handleNew}
+        onToggleView={handleToggleView}
+        onFirst={() => navigateRecord(0)}
+        onPrevious={() => navigateRecord(selectedIndex - 1)}
+        onNext={() => navigateRecord(selectedIndex + 1)}
+        onLast={() => navigateRecord(lotes.length - 1)}
+        onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
+        onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
+        onRefresh={handleRefresh}
+        onSettingsClick={() => setShowConfigColunas(true)}
+        selectedCount={selectedTableItems.length} />
 
-      {showForm ? (
-        <FormularioLote
-          key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
-          initialData={editingLote}
-          isEditing={!!editingLote}
-          onSubmit={handleSubmit}
-          onCancel={() => {
-            if (editingLote && !editingLote._isDuplicate) {
-              setFormVersion((prev) => prev + 1);
-              setViewMode("record");
-              return;
-            }
-            if (editingLote?._isDuplicate && returnRecordAfterNew) {
-              setEditingLote(returnRecordAfterNew);
-              setShowForm(true);
-              setViewMode("record");
-              setReturnRecordAfterNew(null);
-              return;
-            }
-            if (!editingLote && returnRecordAfterNew) {
-              setEditingLote(returnRecordAfterNew);
-              setShowForm(true);
-              setViewMode("record");
-              setReturnRecordAfterNew(null);
-              return;
-            }
-            setShowForm(false);
-            setEditingLote(null);
-            setViewMode("table");
+      }
+
+      {showForm ?
+      <FormularioLote
+        key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
+        initialData={editingLote}
+        isEditing={!!editingLote}
+        onSubmit={handleSubmit}
+        onCancel={() => {
+          if (editingLote && !editingLote._isDuplicate) {
+            setFormVersion((prev) => prev + 1);
+            setViewMode("record");
+            return;
+          }
+          if (editingLote?._isDuplicate && returnRecordAfterNew) {
+            setEditingLote(returnRecordAfterNew);
+            setShowForm(true);
+            setViewMode("record");
             setReturnRecordAfterNew(null);
-          }}
-          onSettingsClick={handleOpenConfigCampos}
-          onToggleView={handleToggleView}
-          total={lotes.length}
-          currentIndex={selectedIndex}
-          onNew={handleNew}
-          onFirst={() => navigateRecord(0)}
-          onPrevious={() => navigateRecord(selectedIndex - 1)}
-          onNext={() => navigateRecord(selectedIndex + 1)}
-          onLast={() => navigateRecord(lotes.length - 1)}
-          onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
-          onDuplicate={() => editingLote && handleDuplicate(editingLote)}
-          onRefresh={handleRefresh} />
-      ) : (
-        <TabelaLotes
-          key="table"
-          lotes={lotes}
-          areas={areas}
-          onEdit={handleEdit}
-          onDuplicate={handleDuplicate}
-          onDelete={handleRequestDelete}
-          lotesComMovimentacoes={lotesComMovimentacoes}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas}
-          searchTerm={searchTerm}
-          onSelectionChange={handleTableSelectionChange} />
-      )}
+            return;
+          }
+          if (!editingLote && returnRecordAfterNew) {
+            setEditingLote(returnRecordAfterNew);
+            setShowForm(true);
+            setViewMode("record");
+            setReturnRecordAfterNew(null);
+            return;
+          }
+          setShowForm(false);
+          setEditingLote(null);
+          setViewMode("table");
+          setReturnRecordAfterNew(null);
+        }}
+        onSettingsClick={handleOpenConfigCampos}
+        onToggleView={handleToggleView}
+        total={lotes.length}
+        currentIndex={selectedIndex}
+        onNew={handleNew}
+        onFirst={() => navigateRecord(0)}
+        onPrevious={() => navigateRecord(selectedIndex - 1)}
+        onNext={() => navigateRecord(selectedIndex + 1)}
+        onLast={() => navigateRecord(lotes.length - 1)}
+        onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
+        onDuplicate={() => editingLote && handleDuplicate(editingLote)}
+        onRefresh={handleRefresh} /> :
+
+      <TabelaLotes
+        key="table"
+        lotes={lotes}
+        areas={areas}
+        onEdit={handleEdit}
+        onDuplicate={handleDuplicate}
+        onDelete={handleRequestDelete}
+        lotesComMovimentacoes={lotesComMovimentacoes}
+        showConfigColunas={showConfigColunas}
+        setShowConfigColunas={setShowConfigColunas}
+        searchTerm={searchTerm}
+        onSelectionChange={handleTableSelectionChange} />
+      }
 
       <ConfiguracaoCamposLoteDialog
         open={showConfigCampos}
