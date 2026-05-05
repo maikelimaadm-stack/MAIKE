@@ -66,11 +66,15 @@ export default function CadastroLotes() {
       const contains = (field, value) => String(field || "").toLowerCase().includes(String(value || "").toLowerCase().trim());
       if (appliedFilters.numero_lote && !contains(lote.numero_lote, appliedFilters.numero_lote)) return false;
       if (appliedFilters.nome && !contains(lote.nome, appliedFilters.nome)) return false;
+      if (appliedFilters.lote_codigo && !contains(lote.numero_lote, appliedFilters.lote_codigo)) return false;
+      if (appliedFilters.lote_nome && !contains(lote.nome, appliedFilters.lote_nome)) return false;
       if (appliedFilters.categoria && !contains(lote.categoria, appliedFilters.categoria)) return false;
       if (appliedFilters.sexo && appliedFilters.sexo !== "todos" && lote.sexo !== appliedFilters.sexo) return false;
       if (appliedFilters.status && appliedFilters.status !== "todos" && lote.status !== appliedFilters.status) return false;
-      if (appliedFilters.area && appliedFilters.area !== "todos" && ![lote.area_entrada_nome, lote.area_atual_nome].includes(appliedFilters.area)) return false;
-      if (appliedFilters.setor && appliedFilters.setor !== "todos" && lote.setor_nome !== appliedFilters.setor) return false;
+      if (appliedFilters.area_codigo && ![lote.area_entrada_id, lote.area_atual_id].some((value) => contains(value, appliedFilters.area_codigo))) return false;
+      if (appliedFilters.area_nome && ![lote.area_entrada_nome, lote.area_atual_nome].some((value) => contains(value, appliedFilters.area_nome))) return false;
+      if (appliedFilters.setor_codigo && !contains(lote.setor_id, appliedFilters.setor_codigo)) return false;
+      if (appliedFilters.setor_nome && !contains(lote.setor_nome, appliedFilters.setor_nome)) return false;
       const operators = appliedFilters._operators || {};
       const checkNumeric = (field, value) => {
         const operator = operators[field] || "between";

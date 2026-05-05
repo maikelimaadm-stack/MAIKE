@@ -12,6 +12,8 @@ const OPERATOR_LABELS = {
   exact: "Exato"
 };
 
+const GROUP_ORDER = ["Detalhes do lote", "Localização", "Identificação"];
+
 export default function SankhyaFilterConfigDialog({ open, onOpenChange, fields, visibleFields, setVisibleFields, operators, setOperators }) {
   const toggleField = (fieldId, checked) => {
     if (checked) {
@@ -37,7 +39,10 @@ export default function SankhyaFilterConfigDialog({ open, onOpenChange, fields, 
   const orderedFields = [
     ...visibleFields.map((id) => fields.find((field) => field.id === id)).filter(Boolean),
     ...fields.filter((field) => !visibleFields.includes(field.id))
-  ];
+  ].sort((a, b) => {
+    const groupDiff = GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group);
+    return groupDiff || 0;
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,7 +60,9 @@ export default function SankhyaFilterConfigDialog({ open, onOpenChange, fields, 
             return (
               <div key={field.id} className="grid grid-cols-[24px_1fr_130px_52px] items-center gap-2 border border-slate-200 bg-white px-2 py-1">
                 <Checkbox checked={checked} onCheckedChange={(value) => toggleField(field.id, !!value)} className="rounded-none h-4 w-4" />
-                <span className="font-medium text-slate-700 truncate">{field.label}</span>
+                <span className="font-medium text-slate-700 truncate">
+                  <span className="text-slate-400 mr-1">{field.group} /</span>{field.label}
+                </span>
                 {isNumeric ? (
                   <Select value={operators[field.id] || "between"} onValueChange={(value) => updateOperator(field.id, value)} disabled={!checked}>
                     <SelectTrigger className="h-7 rounded-none text-xs">
