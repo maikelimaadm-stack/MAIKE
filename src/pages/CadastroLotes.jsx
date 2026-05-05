@@ -243,7 +243,7 @@ export default function CadastroLotes() {
 
       }
 
-      {showForm ?
+      {showForm &&
       <FormularioLote
         key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
         initialData={editingLote}
@@ -289,21 +289,23 @@ export default function CadastroLotes() {
         onDuplicate={() => editingLote && handleDuplicate(editingLote)}
         onAttachClick={() => editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)}
         attachDisabled={false}
-        onRefresh={handleRefresh} /> :
-
-      <TabelaLotes
-        key="table"
-        lotes={lotes}
-        areas={areas}
-        onEdit={handleEdit}
-        onDuplicate={handleDuplicate}
-        onDelete={handleRequestDelete}
-        lotesComMovimentacoes={lotesComMovimentacoes}
-        showConfigColunas={showConfigColunas}
-        setShowConfigColunas={setShowConfigColunas}
-        searchTerm={searchTerm}
-        onSelectionChange={handleTableSelectionChange} />
+        onRefresh={handleRefresh} />
       }
+
+      <div className={showForm ? "hidden" : "block"}>
+        <TabelaLotes
+          key="table"
+          lotes={lotes}
+          areas={areas}
+          onEdit={handleEdit}
+          onDuplicate={handleDuplicate}
+          onDelete={handleRequestDelete}
+          lotesComMovimentacoes={lotesComMovimentacoes}
+          showConfigColunas={showConfigColunas}
+          setShowConfigColunas={setShowConfigColunas}
+          searchTerm={searchTerm}
+          onSelectionChange={handleTableSelectionChange} />
+      </div>
 
       <ConfiguracaoCamposLoteDialog
         open={showConfigCampos}
