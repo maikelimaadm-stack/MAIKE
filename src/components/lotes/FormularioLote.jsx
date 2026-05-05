@@ -407,7 +407,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])
   ];
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? "EDIÇÃO DE REGISTRO" : "NOVO REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? (isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO") : "NOVO REGISTRO";
 
   return (
     <div>

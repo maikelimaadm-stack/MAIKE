@@ -53,7 +53,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
       </div>
       <div className="h-8 px-2 flex items-center gap-2 bg-white border-b border-slate-200">
         <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">LOTE</span>
-        <span className="text-xs font-semibold text-slate-700 truncate">{title}</span>
+        <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
         {operationLabel && (
           <span className="ml-auto px-2 py-0.5 rounded-sm bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
             {operationLabel}
