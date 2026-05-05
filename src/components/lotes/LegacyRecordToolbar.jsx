@@ -9,12 +9,14 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
   return (
-    <div className="border border-slate-300 bg-slate-100 shadow-sm">
-      <div className="flex items-center gap-0 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
+    <div className="border border-slate-300 bg-slate-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-1 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-red-500 bg-red-500 hover:bg-red-600 text-white"><Filter className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-red-500 bg-red-500 hover:bg-red-600 text-white"><ChevronDown className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onToggleView} title="Visualizar tabela"><Table className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onToggleView} className={iconButtonClass} title="Visualizar tabela">
+          <Table className="w-3.5 h-3.5" />
+        </Button>
         <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-7 w-8 rounded-none border-green-500 bg-green-500 hover:bg-green-600 text-white"><Plus className="w-4 h-4" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onFirst} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Primeiro registro"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Registro anterior"><ChevronLeft className="w-3.5 h-3.5" /></Button>
@@ -37,7 +39,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
 
         
 
-        <div className="ml-auto flex items-center gap-0">
+        <div className="ml-auto flex items-center gap-1">
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Search className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Star className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Clock className="w-3.5 h-3.5" /></Button>
