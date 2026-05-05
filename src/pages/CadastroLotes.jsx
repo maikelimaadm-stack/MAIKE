@@ -6,6 +6,7 @@ import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposLoteDialog";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import loteRepository from "@/core/repositories/loteRepository";
 
@@ -21,6 +22,7 @@ export default function CadastroLotes() {
   const [selectedTableItems, setSelectedTableItems] = useState([]);
   const [formVersion, setFormVersion] = useState(0);
   const [returnRecordAfterNew, setReturnRecordAfterNew] = useState(null);
+  const [attachmentsRecord, setAttachmentsRecord] = useState(null);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -140,6 +142,7 @@ export default function CadastroLotes() {
 
   const currentLote = lotes[selectedIndex] || lotes[0] || null;
   const selectedTableLote = selectedTableItems.length === 1 ? lotes.find((item) => item.id === selectedTableItems[0]) : null;
+  const recordForAttachments = showForm ? editingLote : selectedTableLote;
 
   const handleTableSelectionChange = useCallback((ids) => {
     setSelectedTableItems((prev) => {
@@ -219,6 +222,8 @@ export default function CadastroLotes() {
         onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
         onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
         onRefresh={handleRefresh}
+        onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
+        attachDisabled={selectedTableItems.length !== 1}
         onSettingsClick={() => setShowConfigColunas(true)}
         selectedCount={selectedTableItems.length}
         title="Cadastro de Lotes"
@@ -268,6 +273,8 @@ export default function CadastroLotes() {
         onLast={() => navigateRecord(lotes.length - 1)}
         onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
         onDuplicate={() => editingLote && handleDuplicate(editingLote)}
+        onAttachClick={() => editingLote?.id && setAttachmentsRecord(editingLote)}
+        attachDisabled={!editingLote?.id || editingLote?._isDuplicate}
         onRefresh={handleRefresh} /> :
 
       <TabelaLotes
@@ -287,6 +294,13 @@ export default function CadastroLotes() {
       <ConfiguracaoCamposLoteDialog
         open={showConfigCampos}
         onOpenChange={setShowConfigCampos} />
+
+      <RegistroAnexosDialog
+        open={!!attachmentsRecord?.id}
+        onOpenChange={(open) => !open && setAttachmentsRecord(null)}
+        entityName="Lote"
+        recordId={attachmentsRecord?.id}
+        title={attachmentsRecord?.nome || attachmentsRecord?.numero_lote || "Lote"} />
 
       <ConfirmDialog
         open={deleteState.open}

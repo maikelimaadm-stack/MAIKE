@@ -37,6 +37,8 @@ export default function SankhyaListToolbar({
   onDelete,
   onDuplicate,
   onRefresh,
+  onAttachClick,
+  attachDisabled = false,
   onSettingsClick,
   selectedCount = 0,
   title = "REGISTROS",
@@ -77,7 +79,7 @@ export default function SankhyaListToolbar({
             <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
           </div>
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Paperclip className="w-3.5 h-3.5" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Selecione apenas um registro" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
           <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-200/60">
