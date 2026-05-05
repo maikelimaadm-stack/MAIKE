@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposLoteDialog";
@@ -197,8 +196,7 @@ export default function CadastroLotes() {
         />
       )}
 
-      <AnimatePresence mode="wait">
-        {showForm ?
+      {showForm ? (
         <FormularioLote
           key="form"
           initialData={editingLote}
@@ -216,9 +214,8 @@ export default function CadastroLotes() {
           onLast={() => navigateRecord(lotes.length - 1)}
           onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
           onDuplicate={() => editingLote && handleDuplicate(editingLote)}
-          onRefresh={handleRefresh} /> :
-
-
+          onRefresh={handleRefresh} />
+      ) : (
         <TabelaLotes
           key="table"
           lotes={lotes}
@@ -230,9 +227,7 @@ export default function CadastroLotes() {
           showConfigColunas={showConfigColunas}
           setShowConfigColunas={setShowConfigColunas}
           searchTerm={searchTerm} />
-
-        }
-      </AnimatePresence>
+      )}
 
       <ConfiguracaoCamposLoteDialog
         open={showConfigCampos}
