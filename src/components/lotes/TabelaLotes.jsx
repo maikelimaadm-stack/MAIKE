@@ -72,7 +72,8 @@ export default function TabelaLotes({
   onDelete,
   showConfigColunas,
   setShowConfigColunas,
-  searchTerm = ""
+  searchTerm = "",
+  onSelectionChange
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -90,6 +91,7 @@ export default function TabelaLotes({
   });
 
   const lastTapRef = useRef({ id: null, time: 0 });
+  const lastSelectedIdRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const tableRef = useRef(null);
   const [resizeColumnId, setResizeColumnId] = useState(null);
@@ -193,6 +195,7 @@ export default function TabelaLotes({
   };
 
   useEffect(() => {setSelectedItems((prev) => prev.filter((id) => lotes.some((l) => l.id === id)));}, [lotes]);
+  useEffect(() => {onSelectionChange?.(selectedItems);}, [selectedItems, onSelectionChange]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
@@ -210,7 +213,7 @@ export default function TabelaLotes({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
+    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && c.id !== "acoes" && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
 
   // Field value extraction for filters
@@ -303,12 +306,42 @@ export default function TabelaLotes({
 
   const toggleSelectItem = (id) => {
     setSelectedItems((prev) => prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]);
+    lastSelectedIdRef.current = id;
+  };
+
+  const handleRowSelect = (lote, event) => {
+    if (event?.target?.closest?.("button, input, [role='checkbox'], [data-radix-popper-content-wrapper]")) return;
+
+    if (event?.shiftKey && lastSelectedIdRef.current) {
+      const startIndex = lotesOrdenados.findIndex((item) => item.id === lastSelectedIdRef.current);
+      const endIndex = lotesOrdenados.findIndex((item) => item.id === lote.id);
+      if (startIndex >= 0 && endIndex >= 0) {
+        const [from, to] = [Math.min(startIndex, endIndex), Math.max(startIndex, endIndex)];
+        setSelectedItems(lotesOrdenados.slice(from, to + 1).map((item) => item.id));
+        return;
+      }
+    }
+
+    if (event?.ctrlKey || event?.metaKey) {
+      toggleSelectItem(lote.id);
+      return;
+    }
+
+    setSelectedItems([lote.id]);
+    lastSelectedIdRef.current = lote.id;
+  };
+
+  const handleTableKeyDown = (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      setSelectedItems(lotesOrdenados.map((lote) => lote.id));
+    }
   };
 
   const handleRowTouch = (lote, event) => {
     const now = Date.now();
     if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {event.preventDefault();onEdit(lote);}
-    else toggleSelectItem(lote.id);
+    else handleRowSelect(lote, event);
     lastTapRef.current = { id: lote.id, time: now };
   };
 
@@ -448,29 +481,14 @@ export default function TabelaLotes({
           {lotesFiltrados.length} de {lotes.length} registros
         </div>
         <div className="flex gap-2 flex-wrap">
-          {selectedItems.length > 0 &&
-          <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportarTabela(true)} className="text-xs">Exportar Selecionados</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => {onDelete(selectedItems);setSelectedItems([]);}} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          }
+          {selectedItems.length > 0 && <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedItems([])}>Limpar seleção ({selectedItems.length})</Button>}
         </div>
       </div>
 
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
           <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)] outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
@@ -551,7 +569,7 @@ export default function TabelaLotes({
                   <TableRow
                     key={lote.id}
                     className={`${selectedItems.includes(lote.id) ? "bg-emerald-50 hover:bg-emerald-100" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer`}
-                    onClick={() => toggleSelectItem(lote.id)}
+                    onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
                     
