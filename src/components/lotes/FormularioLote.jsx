@@ -431,7 +431,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onRefresh={onRefresh}
         />
 
-        <div className="px-4 md:px-8 py-3 space-y-1 max-w-[760px]">
+        <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
             <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
           </FL>
@@ -452,7 +452,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         </div>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        <div className="border-b border-slate-300 min-h-[360px] px-4 md:px-8 py-3">
+        <div className="border-b border-slate-300 min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" && (
               <div className="space-y-1">
