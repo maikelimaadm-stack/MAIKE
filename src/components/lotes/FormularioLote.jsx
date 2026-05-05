@@ -11,8 +11,8 @@ import { base44 } from "@/api/base44Client";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
-import LegacyRecordToolbar from "@/components/lotes/LegacyRecordToolbar.jsx";
-import LegacyTabs from "@/components/lotes/LegacyTabs.jsx";
+import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
+import LegacyTabs from "./LegacyTabs.jsx";
 
 const FL = ({ label, required, error, children, dataField, wide = false }) =>
   <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
