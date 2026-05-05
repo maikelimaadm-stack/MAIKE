@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -409,7 +408,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+    <div>
       <form onSubmit={handleSubmit} className="bg-white border border-slate-300 min-h-[calc(100dvh-150px)]">
         <LegacyRecordToolbar
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
@@ -593,6 +592,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           </div>
         )}
       </form>
-    </motion.div>
+    </div>
   );
 }
