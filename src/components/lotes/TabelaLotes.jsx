@@ -4,24 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger } from
-"@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { useQuery } from "@tanstack/react-query";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
 { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
-{ id: "acoes", label: "Ações", default: true, fixo: true, width: 25 },
 { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
 { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 200 },
 { id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
@@ -68,8 +59,6 @@ export default function TabelaLotes({
   lotes = [],
   areas = [],
   onEdit,
-  onDuplicate,
-  onDelete,
   showConfigColunas,
   setShowConfigColunas,
   searchTerm = "",
@@ -167,7 +156,7 @@ export default function TabelaLotes({
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
 
   const toggleResizeMode = (colunaId) => {
-    if (colunaId === "selecao" || colunaId === "acoes") return;
+    if (colunaId === "selecao") return;
     setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
   };
 
@@ -213,7 +202,7 @@ export default function TabelaLotes({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && c.id !== "acoes" && colunasVisiveis.includes(c.id));
+    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
 
   // Field value extraction for filters
@@ -480,9 +469,7 @@ export default function TabelaLotes({
         <div className="text-xs text-slate-500">
           {lotesFiltrados.length} de {lotes.length} registros
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {selectedItems.length > 0 && <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedItems([])}>Limpar seleção ({selectedItems.length})</Button>}
-        </div>
+        <div />
       </div>
 
       <Card className="overflow-hidden">
@@ -503,12 +490,6 @@ export default function TabelaLotes({
                               <Checkbox checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
                             </div>
                           </TableHead>);
-
-                      }
-
-                      if (coluna.id === "acoes") {
-                        return (
-                          <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b  border-gray-200" />);
 
                       }
 
@@ -587,34 +568,6 @@ export default function TabelaLotes({
                             
                                 <div className="flex items-center justify-center w-full h-full">
                                   <Checkbox checked={selectedItems.includes(lote.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...new Set([...prev, lote.id])] : prev.filter((id) => id !== lote.id))} className="rounded-full peer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed shrink-0 shadow disabled:opacity-50 h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                                </div>
-                              </TableCell>);
-
-                      }
-
-                      if (coluna.id === "acoes") {
-                        return (
-                          <TableCell
-                            key={`${lote.id}-acoes`}
-                            style={{ width: 25, minWidth: 25, maxWidth: 25 }}
-                            className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
-                            onClick={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}>
-                            
-                                <div className="flex items-center justify-center w-full h-full">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                                        <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                      <DropdownMenuItem onClick={() => onEdit(lote)} className="text-xs">Editar</DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => onDuplicate?.(lote)} className="text-xs">Duplicar cadastro</DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => onDelete(lote.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
                                 </div>
                               </TableCell>);
 
