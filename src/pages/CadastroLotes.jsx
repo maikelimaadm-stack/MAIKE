@@ -222,7 +222,7 @@ export default function CadastroLotes() {
         onSettingsClick={() => setShowConfigColunas(true)}
         selectedCount={selectedTableItems.length}
         title="Cadastro de Lotes"
-        recordLabel="LOTE" />
+        recordLabel="" />
 
       }
 
