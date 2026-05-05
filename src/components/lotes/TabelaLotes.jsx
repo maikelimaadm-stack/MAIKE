@@ -605,7 +605,7 @@ export default function TabelaLotes({
                     <TableRow className="bg-slate-50 font-semibold">
                       {colunasOrdenadas.map((coluna) => (
                         <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
-                          {agregacoes[coluna.id] !== undefined ? Number(agregacoes[coluna.id]).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : coluna.id === "nome" ? "Totais" : ""}
+                          {agregacoes[coluna.id] !== undefined ? Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 }) : coluna.id === "nome" ? "Totais" : ""}
                         </TableCell>
                       ))}
                     </TableRow>

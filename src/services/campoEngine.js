@@ -62,8 +62,16 @@ const getFormulaScope = (registro) => ({
 
 const tokenizeFormula = (formula) => String(formula || "").match(/[a-zA-Z_][a-zA-Z0-9_]*|\d+(?:[.,]\d+)?|[()+\-*/]/g) || [];
 
+const buildFormulaFromBuilder = (campo) => {
+  const items = campo?.calculation_builder?.items || [];
+  return items
+    .filter((item) => item.field)
+    .map((item, index) => `${index > 0 ? `${item.operator || "+"} ` : ""}${item.field}`)
+    .join(" ");
+};
+
 const calcularFormula = (registro, campo) => {
-  const tokens = tokenizeFormula(campo?.formula);
+  const tokens = tokenizeFormula(campo?.formula || buildFormulaFromBuilder(campo));
   const scope = getFormulaScope(registro);
   const output = [];
   const stack = [];
@@ -130,8 +138,11 @@ const formatValue = (value, campo, relatedOptions = {}) => {
   if (campo?.tipo === "select" || campo?.tipo === "relation" || getSourceKey(campo)) return resolveOptionLabel(value, campo, relatedOptions);
   if (campo?.tipo === "date" || campo?.id === "data") return formatDate(value);
   if (campo?.id === "valor") return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-  if (campo?.id === "peso") return `${value} kg`;
-  if (campo?.tipo === "calculado" || campo?.tipo === "number") return Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  if (campo?.id === "peso") return `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: campo?.usar_decimal ? campo.decimal_places ?? 2 : 2 })} kg`;
+  if (campo?.tipo === "calculado" || campo?.tipo === "number") {
+    const places = Math.min(6, Math.max(0, Number(campo?.decimal_places ?? 2)));
+    return Number(value).toLocaleString("pt-BR", campo?.usar_decimal ? { minimumFractionDigits: places, maximumFractionDigits: places } : { maximumFractionDigits: 2 });
+  }
   return value;
 };
 
@@ -143,10 +154,13 @@ export const campoEngine = {
       visivel_form: campo.visivel_form ?? campo.metadata?.visivel_formulario ?? true,
       visivel_tabela: campo.visivel_tabela ?? campo.metadata?.visivel_tabela ?? false,
       visivel_relatorio: campo.visivel_relatorio ?? campo.metadata?.visivel_relatorio ?? false,
-      filtravel: campo.filtravel ?? campo.filtravel ?? true,
+      filtravel: campo.filtravel ?? true,
       largura_coluna: campo.largura_coluna || campo.metadata?.largura_coluna || 160,
       ordem_tabela: campo.ordem_tabela ?? campo.metadata?.ordem_tabela ?? campo.ordem ?? 999,
-      agregacao_tipo: campo.agregacao_tipo || campo.agregacao || ""
+      agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "",
+      usar_decimal: !!campo.usar_decimal,
+      decimal_places: campo.decimal_places ?? 2,
+      calculation_builder: campo.calculation_builder || { items: [] }
     };
   },
 
@@ -193,6 +207,10 @@ export const campoEngine = {
     const result = {};
     colunas.filter((campo) => campo.agregacao_tipo || campo.agregacao).forEach((campo) => {
       const tipo = campo.agregacao_tipo || campo.agregacao;
+      if (tipo === "count") {
+        result[campo.id] = registros.filter((registro) => getRawValue(registro, campo) !== "").length;
+        return;
+      }
       const campoBase = campo.agregacao_campo_base ? { ...campo, field_name: campo.agregacao_campo_base, customField: campo.agregacao_campo_base, tipo: "number" } : campo;
       const valores = registros.map((registro) => Number(getRawValue(registro, campoBase))).filter((value) => !Number.isNaN(value));
       if (valores.length === 0) return;

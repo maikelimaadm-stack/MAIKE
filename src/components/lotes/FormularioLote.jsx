@@ -313,7 +313,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
 
     if (campo.tipo === "calculado") {
       const calculatedValue = campoEngine.calcularCampo(formData, campo);
-      return <Input value={Number(calculatedValue || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} readOnly placeholder="CALCULADO" className={`${inputClass} bg-slate-50`} />;
+      const places = Math.min(6, Math.max(0, Number(campo.decimal_places ?? 2)));
+      return <Input value={Number(calculatedValue || 0).toLocaleString("pt-BR", campo.usar_decimal ? { minimumFractionDigits: places, maximumFractionDigits: places } : { maximumFractionDigits: 2 })} readOnly placeholder="CALCULADO" className={`${inputClass} bg-slate-50`} />;
     }
 
     if (campo.tipo === "select" || campo.tipo === "relation") {
