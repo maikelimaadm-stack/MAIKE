@@ -31,7 +31,20 @@ export default function ConfiguracaoPesagens() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
-  const [formData, setFormData] = useState({ label: "", field_name: "", tipo: "text", obrigatorio: false, col_span: 6, section_id: "" });
+  const [formData, setFormData] = useState({
+    label: "",
+    field_name: "",
+    tipo: "text",
+    obrigatorio: false,
+    col_span: 6,
+    section_id: "geral",
+    comportamento: "manual",
+    entidade_origem: "",
+    tela_origem: "",
+    coluna_origem: "",
+    tipo_soma: "sum",
+    campos_soma: "",
+  });
 
   const { data: currentUser } = useQuery({
     queryKey: ["current-user-config-pesagens"],
@@ -57,8 +70,9 @@ export default function ConfiguracaoPesagens() {
 
       const layoutSecoes = layout ? secoes.filter((s) => s.layout_id === layout.id && s.ativo !== false) : [];
       const layoutCampos = layout ? campos.filter((c) => c.layout_id === layout.id) : [];
+      const secoesComPadrao = layoutSecoes.length ? layoutSecoes : [{ section_id: "geral", titulo: "Dados Gerais", ordem: 1 }];
 
-      return { layout, secoes: layoutSecoes, campos: layoutCampos, personalizados };
+      return { layout, secoes: secoesComPadrao, campos: layoutCampos, personalizados };
     },
     enabled: !!empresaSelecionadaId && !!currentUser?.email,
   });
@@ -74,12 +88,46 @@ export default function ConfiguracaoPesagens() {
 
   const createFieldMutation = useMutation({
     mutationFn: async () => {
-      if (!data.layout?.id) throw new Error("Layout de Pesagens não encontrado.");
       if (!formData.label.trim()) throw new Error("Informe o nome do campo.");
+
+      let layout = data.layout;
+      if (!layout?.id) {
+        layout = await base44.entities.LayoutConfiguracao.create({
+          tela: "Pesagens",
+          nome: "Layout de Pesagens",
+          descricao: "Layout padrão da tela de pesagens",
+          escopo: empresaSelecionadaId ? "empresa" : "sistema",
+          empresa_id: empresaSelecionadaId,
+          ativo: true,
+        });
+      }
+
+      const existingSection = (data.secoes || []).find((secao) => secao.section_id === selectedSectionId && secao.layout_id === layout.id);
+      if (!existingSection) {
+        await base44.entities.LayoutSecao.create({
+          layout_id: layout.id,
+          section_id: selectedSectionId,
+          titulo: selectedSectionId === "geral" ? "Dados Gerais" : selectedSectionId,
+          ordem: 1,
+          ativo: true,
+        });
+      }
 
       const fieldName = slugifyFieldName(formData.field_name || formData.label);
       const fieldId = `custom_${fieldName}`;
       const nextOrder = Math.max(0, ...(data.campos || []).filter((c) => c.section_id === selectedSectionId).map((c) => Number(c.ordem || 0))) + 1;
+      const regras = {
+        comportamento: formData.comportamento,
+        origem: formData.comportamento === "manual" ? null : {
+          entidade: formData.entidade_origem,
+          tela: formData.tela_origem,
+          coluna: formData.coluna_origem,
+        },
+        soma: formData.comportamento === "soma" ? {
+          tipo: formData.tipo_soma,
+          campos: formData.campos_soma.split(",").map((campo) => campo.trim()).filter(Boolean),
+        } : null,
+      };
 
       await base44.entities.CampoPersonalizado.create({
         entity_name: "Pesagem",
@@ -89,10 +137,11 @@ export default function ConfiguracaoPesagens() {
         tipo: formData.tipo,
         empresa_id: empresaSelecionadaId,
         ativo: true,
+        regras,
       });
 
       await base44.entities.LayoutCampo.create({
-        layout_id: data.layout.id,
+        layout_id: layout.id,
         section_id: selectedSectionId,
         field_id: fieldId,
         entity_name: "Pesagem",
@@ -105,14 +154,16 @@ export default function ConfiguracaoPesagens() {
         obrigatorio: Boolean(formData.obrigatorio),
         ativo: true,
         uppercase: formData.tipo === "text" || formData.tipo === "textarea",
+        regras,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["configuracao-pesagens"] });
       queryClient.invalidateQueries({ queryKey: ["layout-pesagens"] });
-      setFormData({ label: "", field_name: "", tipo: "text", obrigatorio: false, col_span: 6, section_id: selectedSectionId });
+      setFormData({ label: "", field_name: "", tipo: "text", obrigatorio: false, col_span: 6, section_id: selectedSectionId, comportamento: "manual", entidade_origem: "", tela_origem: "", coluna_origem: "", tipo_soma: "sum", campos_soma: "" });
       toast.success("Campo personalizado criado!");
     },
+    onError: (error) => toast.error(error.message || "Não foi possível salvar o campo."),
   });
 
   const toggleFieldMutation = useMutation({
@@ -174,8 +225,45 @@ export default function ConfiguracaoPesagens() {
               <Label className="text-xs uppercase">Seção</Label>
               <Select value={selectedSectionId} onValueChange={(value) => setFormData((prev) => ({ ...prev, section_id: value }))}>
                 <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
-                <SelectContent>{(data.secoes || []).map((secao) => <SelectItem key={secao.section_id} value={secao.section_id} className="text-xs uppercase">{secao.titulo || secao.section_id}</SelectItem>)}</SelectContent>
+                <SelectContent>{(data.secoes || [{ section_id: "geral", titulo: "Dados Gerais" }]).map((secao) => <SelectItem key={secao.section_id} value={secao.section_id} className="text-xs uppercase">{secao.titulo || secao.section_id}</SelectItem>)}</SelectContent>
               </Select>
+              <p className="text-[11px] text-slate-500">Seção é o bloco onde o campo aparece no formulário.</p>
+            </div>
+
+            <div className="space-y-1 border rounded-lg p-3 bg-slate-50">
+              <Label className="text-xs uppercase">Comportamento do campo</Label>
+              <Select value={formData.comportamento} onValueChange={(value) => setFormData((prev) => ({ ...prev, comportamento: value }))}>
+                <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual" className="text-xs uppercase">Manual</SelectItem>
+                  <SelectItem value="selecao" className="text-xs uppercase">Seleção de registro</SelectItem>
+                  <SelectItem value="soma" className="text-xs uppercase">Soma / cálculo</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {formData.comportamento !== "manual" && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2">
+                  <Input className="h-8 text-xs uppercase" placeholder="ENTIDADE ORIGEM" value={formData.entidade_origem} onChange={(e) => setFormData((prev) => ({ ...prev, entidade_origem: e.target.value }))} />
+                  <Input className="h-8 text-xs uppercase" placeholder="PÁGINA/TELA ORIGEM" value={formData.tela_origem} onChange={(e) => setFormData((prev) => ({ ...prev, tela_origem: e.target.value }))} />
+                  <Input className="h-8 text-xs uppercase" placeholder="COLUNA ORIGEM" value={formData.coluna_origem} onChange={(e) => setFormData((prev) => ({ ...prev, coluna_origem: e.target.value }))} />
+                </div>
+              )}
+
+              {formData.comportamento === "soma" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+                  <Select value={formData.tipo_soma} onValueChange={(value) => setFormData((prev) => ({ ...prev, tipo_soma: value }))}>
+                    <SelectTrigger className="h-8 text-xs uppercase"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sum" className="text-xs uppercase">Somar</SelectItem>
+                      <SelectItem value="avg" className="text-xs uppercase">Média</SelectItem>
+                      <SelectItem value="count" className="text-xs uppercase">Contar</SelectItem>
+                      <SelectItem value="min" className="text-xs uppercase">Menor</SelectItem>
+                      <SelectItem value="max" className="text-xs uppercase">Maior</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input className="h-8 text-xs" placeholder="campos que somam, separados por vírgula" value={formData.campos_soma} onChange={(e) => setFormData((prev) => ({ ...prev, campos_soma: e.target.value }))} />
+                </div>
+              )}
             </div>
             <label className="flex items-center gap-2 text-xs text-slate-700">
               <Checkbox checked={formData.obrigatorio} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, obrigatorio: Boolean(checked) }))} />
@@ -198,13 +286,14 @@ export default function ConfiguracaoPesagens() {
                   <TableHead className="text-xs py-2 px-3">Ativo</TableHead>
                   <TableHead className="text-xs py-2 px-3">Campo</TableHead>
                   <TableHead className="text-xs py-2 px-3">Tipo</TableHead>
+                  <TableHead className="text-xs py-2 px-3">Comportamento</TableHead>
                   <TableHead className="text-xs py-2 px-3">Seção</TableHead>
                   <TableHead className="text-xs py-2 px-3 text-right">Tamanho</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {customFieldsWithLayout.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-xs text-slate-400">Nenhum campo personalizado criado.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-xs text-slate-400">Nenhum campo personalizado criado.</TableCell></TableRow>
                 ) : customFieldsWithLayout.map((field) => (
                   <TableRow key={field.id} className="hover:bg-gray-50">
                     <TableCell className="text-xs py-2 px-3">
@@ -212,6 +301,7 @@ export default function ConfiguracaoPesagens() {
                     </TableCell>
                     <TableCell className="text-xs py-2 px-3 font-medium uppercase">{field.label}</TableCell>
                     <TableCell className="text-xs py-2 px-3 uppercase">{field.tipo}</TableCell>
+                    <TableCell className="text-xs py-2 px-3 uppercase">{field.regras?.comportamento || "manual"}</TableCell>
                     <TableCell className="text-xs py-2 px-3 uppercase">{field.layoutCampo?.section_id || "-"}</TableCell>
                     <TableCell className="text-xs py-2 px-3 text-right font-mono">{field.layoutCampo?.col_span || "-"}/12</TableCell>
                   </TableRow>
