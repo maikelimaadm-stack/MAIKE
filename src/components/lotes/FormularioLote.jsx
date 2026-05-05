@@ -96,10 +96,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return data.split("T")[0]; // Remove horas se vier do banco como DateTime
   };
 
-  const [formData, setFormData] = useState(initialData ? {
-    ...initialData,
-    sistema_produtivo: parseSistemasProdutivos(initialData.sistema_produtivo),
-    data_entrada: carregarDataEntrada(initialData.data_entrada)
+  const buildFormData = (data) => data ? {
+    ...data,
+    sistema_produtivo: parseSistemasProdutivos(data.sistema_produtivo),
+    data_entrada: carregarDataEntrada(data.data_entrada)
   } : {
     nome: "",
     quantidade_cabecas: "",
@@ -130,7 +130,15 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     identificador_nome: "",
     identificador_sigla: "",
     identificador_cor: ""
-  });
+  };
+
+  const [formData, setFormData] = useState(() => buildFormData(initialData));
+
+  React.useEffect(() => {
+    setFormData(buildFormData(initialData));
+    setErrors({});
+    setIsDirty(!isEditing || !!initialData?._isDuplicate);
+  }, [initialData?.id, initialData?.numero_lote, initialData?._isDuplicate, isEditing]);
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
