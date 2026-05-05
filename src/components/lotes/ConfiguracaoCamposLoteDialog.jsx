@@ -192,8 +192,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
         <form onSubmit={handleSubmit} className="border border-slate-300 bg-white space-y-1">
           <div className="px-4 md:px-8 py-3 space-y-1 max-w-[780px]">
-            <Field label="Nome do campo"><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
-            <Field label="Tipo"><Select value={form.tipo} onValueChange={(value) => updateForm("tipo", value)}><SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs">{tipo.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
+            <Field label="Tipo"><Select value={form.tipo} onValueChange={(value) => updateForm("tipo", value)}><SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs uppercase">{tipo.label}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
             <Field label="Descrição"><Input value={form.descricao} onChange={(e) => updateForm("descricao", e.target.value)} placeholder="EXPLICAÇÃO OPCIONAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
           </div>
@@ -203,7 +203,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
           <DecimalConfig form={form} updateForm={updateForm} />
 
-          <div className="px-4 md:px-8 space-y-1 max-w-[780px]">
+          <div className="px-4 md:px-8 pb-3 space-y-1 max-w-[780px]">
             <Field label="Totalizar na tabela">
               <Select value={form.agregacao_tipo} onValueChange={(value) => updateForm("agregacao_tipo", value)} disabled={agregacoesPermitidas.length === 0}>
                 <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger>
@@ -214,25 +214,24 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               </Select>
             </Field>
             <Field label="Prévia" wide>
-              <div className="px-2 py-1 text-xs text-slate-700 uppercase bg-slate-50 min-h-[22px]">
+              <div className="px-2 py-1 text-xs text-slate-700 uppercase bg-slate-50 min-h-[48px]">
                 {form.label || "Nome do campo"}: {form.tipo === "calculado" ? montarFormulaVisual(form.calculation_builder?.items || []) || "Calculado automaticamente" : form.placeholder || "Valor do campo"}
               </div>
             </Field>
-          </div>
-
-          <div className="px-4 md:px-8 pb-3 space-y-1 max-w-[780px]">
-            {[["obrigatorio", "Obrigatório"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) => (
-              <Field key={field} label={label}>
-                <div className="h-[22px] flex items-center justify-between px-1 text-xs text-slate-700">
-                  <span>{form[field] ? "SIM" : "NÃO"}</span><Switch checked={!!form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
-                </div>
-              </Field>
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 pt-1">
+              {[["obrigatorio", "Obrigatório"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) => (
+                <Field key={field} label={label}>
+                  <div className="h-[22px] flex items-center justify-between px-1 text-xs text-slate-700">
+                    <span>{form[field] ? "Sim" : "Não"}</span><Switch checked={!!form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
+                  </div>
+                </Field>
+              ))}
+            </div>
           </div>
 
           <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
-            {editingId && <Button type="button" variant="outline" size="sm" onClick={resetForm} className="h-7 text-xs"><X className="w-3.5 h-3.5" /> Cancelar edição</Button>}
-            <Button type="submit" size="sm" disabled={saveMutation.isPending || hasInvalidCalculation} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+            {editingId && <Button type="button" variant="outline" size="sm" onClick={resetForm} className="h-7 text-xs px-3"><X className="w-3.5 h-3.5" /> Cancelar edição</Button>}
+            <Button type="submit" size="sm" disabled={saveMutation.isPending || hasInvalidCalculation} className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
               <Plus className="w-3.5 h-3.5" /> {editingId ? "Atualizar Campo" : "Criar Campo"}
             </Button>
           </div>
@@ -265,11 +264,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   );
 }
 
-function Field({ label, children, className = "", wide = false }) {
+function Field({ label, children, className = "", required = false, wide = false }) {
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""} ${className}`}>
-      <label className="text-[12px] text-slate-600 md:text-right leading-none uppercase">{label}</label>
-      <div className={`${wide ? "min-h-6" : "h-6"} border border-slate-300 bg-white focus-within:border-green-500 transition-colors`}>
+    <div className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""} ${className}`}>
+      <label className="text-[12px] text-slate-600 text-right leading-none">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <div className={`${wide ? "min-h-6" : "h-6"} border border-slate-300 bg-white focus-within:border-green-500 transition-colors [&_input]:h-[22px] [&_button]:h-[22px] [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
         {children}
       </div>
     </div>
