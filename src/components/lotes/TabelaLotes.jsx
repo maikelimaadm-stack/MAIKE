@@ -61,8 +61,7 @@ export default function TabelaLotes({
   showConfigColunas,
   setShowConfigColunas,
   searchTerm = "",
-  onSelectionChange,
-  selectedIds = []
+  onSelectionChange
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -192,14 +191,8 @@ export default function TabelaLotes({
   }, [lotes]);
 
   useEffect(() => {
-    setSelectedItems((prev) => sameSelection(prev, selectedIds) ? prev : selectedIds);
-  }, [selectedIds]);
-
-  useEffect(() => {
-    if (!sameSelection(selectedItems, selectedIds)) {
-      onSelectionChange?.(selectedItems);
-    }
-  }, [selectedItems, selectedIds, onSelectionChange]);
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
