@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
+import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 
 const FIELD_DEFS = [
   { id: "lote_codigo_nome", label: "Código + Nome", group: "Detalhes do lote", type: "codeName" },
@@ -47,11 +48,31 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
 
     return {
       areas: uniqBy([
-        ...areas.map((a) => ({ codigo: a.numero_area || a.codigo || a.id, nome: a.nome, id: a.id })),
-        ...lotes.map((l) => ({ codigo: l.area_atual_id || l.area_entrada_id, nome: l.area_atual_nome || l.area_entrada_nome, id: l.area_atual_id || l.area_entrada_id }))
+        ...areas.map((a) => ({
+          codigo: a.numero_area || a.codigo || a.id,
+          nome: a.nome,
+          id: a.id,
+          details: [a.setor_nome && `Setor: ${a.setor_nome}`, a.tipo_area && `Tipo: ${a.tipo_area}`, a.status && `Status: ${a.status}`]
+        })),
+        ...lotes.map((l) => ({
+          codigo: l.area_atual_id || l.area_entrada_id,
+          nome: l.area_atual_nome || l.area_entrada_nome,
+          id: l.area_atual_id || l.area_entrada_id,
+          details: [l.setor_nome && `Setor: ${l.setor_nome}`, l.nome && `Lote vinculado: ${l.nome}`]
+        }))
       ], "nome"),
-      setores: uniqBy(lotes.map((l) => ({ codigo: l.setor_id, nome: l.setor_nome, id: l.setor_id })), "nome"),
-      lotes: uniqBy(lotes.map((l) => ({ codigo: l.numero_lote, nome: l.nome, id: l.id })), "nome")
+      setores: uniqBy(lotes.map((l) => ({
+        codigo: l.setor_id,
+        nome: l.setor_nome,
+        id: l.setor_id,
+        details: [l.area_atual_nome && `Área: ${l.area_atual_nome}`, l.nome && `Lote: ${l.nome}`]
+      })), "nome"),
+      lotes: uniqBy(lotes.map((l) => ({
+        codigo: l.numero_lote,
+        nome: l.nome,
+        id: l.id,
+        details: [l.categoria && `Categoria: ${l.categoria}`, l.area_atual_nome && `Área atual: ${l.area_atual_nome}`, l.status && `Status: ${l.status}`]
+      })), "nome")
     };
   }, [areas, lotes]);
 
@@ -66,16 +87,6 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const applyFilters = () => {
     onChange({ ...filters, _operators: operators });
     onApply();
-  };
-
-  const syncCodeName = (source, prefix, side, value) => {
-    const normalized = String(value || "").toLowerCase();
-    const found = (options[source] || []).find((item) => String(item[side] || "").toLowerCase() === normalized);
-    onChange({
-      ...filters,
-      [`${prefix}_${side}`]: value,
-      ...(found ? { [`${prefix}_${side === "codigo" ? "nome" : "codigo"}`]: found[side === "codigo" ? "nome" : "codigo"] || "" } : {})
-    });
   };
 
   const renderNumberInput = (field, suffix) => (
@@ -95,13 +106,14 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     return renderInput(field, suffix);
   };
 
-  const renderCodeName = (prefix, source) => (
-    <div className="grid grid-cols-[82px_1fr] gap-1">
-      <Input list={`${prefix}-codigos`} value={filters[`${prefix}_codigo`] || ""} onChange={(e) => syncCodeName(source, prefix, "codigo", e.target.value)} className={inputClass} placeholder="Código" />
-      <Input list={`${prefix}-nomes`} value={filters[`${prefix}_nome`] || ""} onChange={(e) => syncCodeName(source, prefix, "nome", e.target.value)} className={inputClass} placeholder="Nome" />
-      <datalist id={`${prefix}-codigos`}>{(options[source] || []).map((item) => <option key={`${item.id}-codigo`} value={item.codigo || ""}>{item.nome}</option>)}</datalist>
-      <datalist id={`${prefix}-nomes`}>{(options[source] || []).map((item) => <option key={`${item.id}-nome`} value={item.nome || ""}>{item.codigo}</option>)}</datalist>
-    </div>
+  const renderCodeName = (prefix, source, label) => (
+    <SankhyaCodeNameLookup
+      label={label}
+      prefix={prefix}
+      source={options[source] || []}
+      filters={filters}
+      onChange={onChange}
+    />
   );
 
   const renderField = (fieldId) => {
@@ -111,8 +123,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     return (
       <div key={field.id} className="border-b border-slate-200 pb-1">
         <label className="block mb-0.5 text-slate-600 truncate">{field.label}</label>
-        {field.type === "codeName" && renderCodeName("lote", "lotes")}
-        {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source)}
+        {field.type === "codeName" && renderCodeName("lote", "lotes", "lote")}
+        {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label.replace(" Código + Nome", ""))}
         {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} className={inputClass} />}
         {field.type === "select" &&
           <Select value={filters[field.id] || "todos"} onValueChange={(value) => update(field.id, value)}>
