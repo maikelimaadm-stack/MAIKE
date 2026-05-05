@@ -478,16 +478,8 @@ export default function TabelaLotes({
 
   return (
     <div className="space-y-1 overflow-hidden">
-      {/* Summary bar */}
-      <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
-        <div className="text-xs text-slate-500">
-          {lotesFiltrados.length} de {lotes.length} registros
-        </div>
-        <div />
-      </div>
-
-      <Card className="overflow-hidden">
-        <CardContent className="p-0 overflow-hidden">
+      <Card className="overflow-hidden rounded-none">
+        <CardContent className="p-0 overflow-hidden rounded-none">
           <div className="relative overflow-hidden">
             <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)] outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
