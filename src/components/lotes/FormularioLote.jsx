@@ -78,7 +78,7 @@ const parseSistemasProdutivos = (valor) => {
 };
 
 
-export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh, initialData, isEditing }) {
+export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh, initialData, isEditing }) {
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -429,7 +429,9 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onLast={onLast}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
-          onRefresh={onRefresh} />
+          onRefresh={onRefresh}
+          onAttachClick={onAttachClick}
+          attachDisabled={attachDisabled} />
         
 
         <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
