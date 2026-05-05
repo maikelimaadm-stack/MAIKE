@@ -63,8 +63,8 @@ export default function SankhyaListToolbar({
         {showRecordNavigation && <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate} className={iconButtonClass}><ChevronLeft className="w-3.5 h-3.5" /></Button>}
         {showRecordNavigation && <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate} className={iconButtonClass}><ChevronRight className="w-3.5 h-3.5" /></Button>}
         {showRecordNavigation && <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate} className={iconButtonClass}><ChevronsRight className="w-3.5 h-3.5" /></Button>}
-        {showDeleteSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>}
-        {showDuplicateSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
+        {showDeleteSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDelete} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>}
+        {showDuplicateSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
         <Button type="button" variant="outline" size="icon" onClick={onRefresh} className={iconButtonClass}><RefreshCw className="w-3.5 h-3.5" /></Button>
 
         <div className="ml-auto flex items-center gap-0">

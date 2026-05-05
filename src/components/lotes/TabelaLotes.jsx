@@ -324,8 +324,7 @@ export default function TabelaLotes({
       return;
     }
 
-    setSelectedItems([lote.id]);
-    lastSelectedIdRef.current = lote.id;
+    toggleSelectItem(lote.id);
   };
 
   const handleTableKeyDown = (event) => {

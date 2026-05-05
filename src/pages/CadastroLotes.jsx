@@ -129,7 +129,10 @@ export default function CadastroLotes() {
   const selectedTableLote = selectedTableItems.length === 1 ? lotes.find((item) => item.id === selectedTableItems[0]) : null;
 
   const handleTableSelectionChange = useCallback((ids) => {
-    setSelectedTableItems(ids);
+    setSelectedTableItems((prev) => {
+      const sameSelection = prev.length === ids.length && prev.every((id, index) => id === ids[index]);
+      return sameSelection ? prev : ids;
+    });
     if (ids.length === 1) {
       const index = lotes.findIndex((item) => item.id === ids[0]);
       if (index >= 0) setSelectedIndex(index);
