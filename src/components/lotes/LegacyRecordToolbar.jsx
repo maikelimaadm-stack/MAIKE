@@ -9,7 +9,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
   return (
-    <div className="bg-slate-100 shadow-sm overflow-hidden">
+    <div className="border border-slate-300 bg-slate-100 shadow-sm overflow-hidden">
       <div className="flex items-center gap-0 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-red-500 bg-red-500 hover:bg-red-600 text-white"><Filter className="w-3.5 h-3.5" /></Button>
