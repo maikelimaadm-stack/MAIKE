@@ -90,6 +90,71 @@ export const loteRepository = {
   async listFornecedores(empresaId) {
     const all = await base44.entities.Fornecedor.list();
     return filterByEmpresa(all, empresaId);
+  },
+
+  async ensureLoteLayoutBase() {
+    const layouts = await base44.entities.LayoutConfiguracao.list();
+    let layout = layouts.find((item) => item.tela === "CadastroLotes" && item.ativo !== false);
+
+    if (!layout) {
+      layout = await base44.entities.LayoutConfiguracao.create({
+        tela: "CadastroLotes",
+        nome: "Cadastro de Lotes",
+        descricao: "Layout configurável dos campos do cadastro de lotes",
+        escopo: "sistema",
+        versao_ativa: 1,
+        ativo: true
+      });
+    }
+
+    const secoes = await base44.entities.LayoutSecao.list();
+    let secao = secoes.find((item) => item.layout_id === layout.id && item.section_id === "campos_personalizados");
+
+    if (!secao) {
+      secao = await base44.entities.LayoutSecao.create({
+        layout_id: layout.id,
+        section_id: "campos_personalizados",
+        titulo: "Campos Personalizados",
+        ordem: 99,
+        ativo: true
+      });
+    }
+
+    return { layout, secao };
+  },
+
+  async listCamposPersonalizados() {
+    const { layout } = await this.ensureLoteLayoutBase();
+    const campos = await base44.entities.LayoutCampo.list();
+    return campos
+      .filter((campo) => campo.layout_id === layout.id && campo.entity_name === "Lote" && campo.origem === "customizado")
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+  },
+
+  async createCampoPersonalizado(data) {
+    const { layout, secao } = await this.ensureLoteLayoutBase();
+    const campos = await this.listCamposPersonalizados();
+    const fieldName = data.field_name;
+
+    return base44.entities.LayoutCampo.create({
+      layout_id: layout.id,
+      section_id: secao.section_id,
+      field_id: `lote_custom_${fieldName}`,
+      entity_name: "Lote",
+      field_name: fieldName,
+      origem: "customizado",
+      label: data.label,
+      tipo: data.tipo,
+      col_span: data.col_span || 6,
+      ordem: campos.length + 1,
+      obrigatorio: !!data.obrigatorio,
+      ativo: true,
+      metadata: {
+        visivel_formulario: data.visivel_formulario !== false,
+        visivel_tabela: data.visivel_tabela !== false,
+        visivel_relatorio: data.visivel_relatorio !== false
+      }
+    });
   }
 };
 

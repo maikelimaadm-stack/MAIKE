@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
+import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposLoteDialog";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import loteRepository from "@/core/repositories/loteRepository";
@@ -15,6 +16,7 @@ export default function CadastroLotes() {
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [showConfigCampos, setShowConfigCampos] = useState(false);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -114,10 +116,8 @@ export default function CadastroLotes() {
     setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
   };
 
-  const handleOpenConfigColunas = () => {
-    setShowForm(false);
-    setEditingLote(null);
-    setShowConfigColunas(true);
+  const handleOpenConfigCampos = () => {
+    setShowConfigCampos(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -169,7 +169,7 @@ export default function CadastroLotes() {
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
           onCancel={() => {setShowForm(false);setEditingLote(null);}}
-          onSettingsClick={handleOpenConfigColunas} /> :
+          onSettingsClick={handleOpenConfigCampos} /> :
 
 
         <TabelaLotes
@@ -185,6 +185,10 @@ export default function CadastroLotes() {
 
         }
       </AnimatePresence>
+
+      <ConfiguracaoCamposLoteDialog
+        open={showConfigCampos}
+        onOpenChange={setShowConfigCampos} />
 
       <ConfirmDialog
         open={deleteState.open}
