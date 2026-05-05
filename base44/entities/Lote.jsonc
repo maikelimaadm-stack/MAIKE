@@ -182,14 +182,6 @@
       "type": "string",
       "description": "Observa\u00e7\u00f5es sobre o lote"
     },
-    "layout_version": {
-      "type": "number",
-      "description": "Vers\u00e3o do layout/schema usada para salvar o registro"
-    },
-    "campos_personalizados": {
-      "type": "object",
-      "description": "Campos din\u00e2micos do lote, compat\u00edvel com JSONB em PostgreSQL"
-    },
     "status": {
       "type": "string",
       "enum": [
@@ -208,45 +200,5 @@
     "nome",
     "quantidade_cabecas",
     "motivo_entrada"
-  ],
-  "rls": {
-    "create": true,
-    "read": true,
-    "update": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "delete": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "write": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    }
-  }
+  ]
 }
