@@ -71,7 +71,8 @@ export default function TabelaLotes({
   onDuplicate,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas
+  setShowConfigColunas,
+  searchTerm = ""
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -232,7 +233,12 @@ export default function TabelaLotes({
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
 
   const lotesFiltrados = useMemo(() => {
+    const termo = String(searchTerm || "").toLowerCase().trim();
     return lotes.filter((lote) => {
+      if (termo) {
+        const matchesSearch = colunasDisponiveis.filter((c) => !c.fixo).some((col) => String(getFieldValue(lote, col.id) || "").toLowerCase().includes(termo));
+        if (!matchesSearch) return false;
+      }
       return colunasDisponiveis.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
@@ -257,7 +263,7 @@ export default function TabelaLotes({
         return filtro.includes(val);
       });
     });
-  }, [lotes, filtrosColunas, colunasDisponiveis, relatedOptions]);
+  }, [lotes, filtrosColunas, colunasDisponiveis, relatedOptions, searchTerm]);
 
   const lotesOrdenados = useMemo(() => {
     const sorted = [...lotesFiltrados];

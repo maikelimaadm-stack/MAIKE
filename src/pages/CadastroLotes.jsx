@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
@@ -17,6 +16,9 @@ export default function CadastroLotes() {
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [showConfigCampos, setShowConfigCampos] = useState(false);
+  const [viewMode, setViewMode] = useState("table");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -85,8 +87,11 @@ export default function CadastroLotes() {
   };
 
   const handleEdit = (lote) => {
+    const index = lotes.findIndex((item) => item.id === lote.id);
+    if (index >= 0) setSelectedIndex(index);
     setEditingLote(lote);
     setShowForm(true);
+    setViewMode("record");
   };
 
   const handleDuplicate = (lote) => {
@@ -120,6 +125,31 @@ export default function CadastroLotes() {
     setShowConfigCampos(true);
   };
 
+  const currentLote = lotes[selectedIndex] || lotes[0] || null;
+
+  const handleToggleView = () => {
+    if (showForm) {
+      setShowForm(false);
+      setEditingLote(null);
+      setViewMode("table");
+      return;
+    }
+    if (!currentLote) return;
+    setEditingLote(currentLote);
+    setShowForm(true);
+    setViewMode("record");
+  };
+
+  const navigateRecord = (index) => {
+    const nextIndex = Math.min(Math.max(index, 0), Math.max(lotes.length - 1, 0));
+    setSelectedIndex(nextIndex);
+    if (showForm && lotes[nextIndex]) setEditingLote(lotes[nextIndex]);
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
+  };
+
   const handleConfirmDelete = async () => {
     const ids = deleteState.ids;
     setDeleteState({ open: false, ids: [] });
@@ -147,19 +177,25 @@ export default function CadastroLotes() {
 
   return (
     <div className="p-1 md:p-1 space-y-1">
-      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-        <div>
-          <h1 className="font-bold text-slate-800">Cadastro de Lotes</h1>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-            <Settings className="w-4 h-4" />
-          </Button>
-          <Button onClick={() => {setShowForm(true);setEditingLote(null);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
-            Adicionar
-          </Button>
-        </div>
-      </div>}
+      {!showForm && (
+        <SankhyaListToolbar
+          viewMode={viewMode}
+          total={lotes.length}
+          currentIndex={selectedIndex}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          onNew={() => {setShowForm(true);setEditingLote(null);setViewMode("record");}}
+          onToggleView={handleToggleView}
+          onFirst={() => navigateRecord(0)}
+          onPrevious={() => navigateRecord(selectedIndex - 1)}
+          onNext={() => navigateRecord(selectedIndex + 1)}
+          onLast={() => navigateRecord(lotes.length - 1)}
+          onDelete={() => currentLote && handleRequestDelete(currentLote.id)}
+          onDuplicate={() => currentLote && handleDuplicate(currentLote)}
+          onRefresh={handleRefresh}
+          onSettingsClick={() => setShowConfigColunas(true)}
+        />
+      )}
 
       <AnimatePresence mode="wait">
         {showForm ?
@@ -168,8 +204,9 @@ export default function CadastroLotes() {
           initialData={editingLote}
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditingLote(null);}}
-          onSettingsClick={handleOpenConfigCampos} /> :
+          onCancel={() => {setShowForm(false);setEditingLote(null);setViewMode("table");}}
+          onSettingsClick={handleOpenConfigCampos}
+          onToggleView={handleToggleView} /> :
 
 
         <TabelaLotes
@@ -181,7 +218,8 @@ export default function CadastroLotes() {
           onDelete={handleRequestDelete}
           lotesComMovimentacoes={lotesComMovimentacoes}
           showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas} />
+          setShowConfigColunas={setShowConfigColunas}
+          searchTerm={searchTerm} />
 
         }
       </AnimatePresence>

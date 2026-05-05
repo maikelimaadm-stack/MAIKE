@@ -79,7 +79,7 @@ const parseSistemasProdutivos = (valor) => {
 };
 
 
-export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, initialData, isEditing }) {
+export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, onToggleView, initialData, isEditing }) {
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -405,6 +405,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
           statusLabel={isDuplicating ? "Duplicando registro" : isEditing ? "Editando registro" : "Inserindo registro"}
           onCancel={onCancel}
           onSettingsClick={onSettingsClick}
+          onToggleView={onToggleView}
         />
 
         <div className="px-4 md:px-8 py-3 space-y-1 max-w-[760px]">
