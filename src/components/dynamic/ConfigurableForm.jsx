@@ -17,7 +17,8 @@ function getOptions(field, context) {
 }
 
 function renderFieldControl(field, formData, onChange, context) {
-  const value = getRecordValue(formData, field) ?? "";
+  const fieldName = field.name || field.field_name;
+  const value = getRecordValue(formData, field) ?? formData?.[fieldName] ?? "";
   const commonProps = {
     value,
     required: field.required,
@@ -72,7 +73,7 @@ function renderFieldControl(field, formData, onChange, context) {
     <Input
       {...commonProps}
       aria-invalid={field.required && !value ? "true" : undefined}
-      type={field.type || "text"}
+      type={field.type === "number" || field.type === "date" ? field.type : "text"}
       step={field.step}
       placeholder={field.placeholder}
       readOnly={field.readOnly}

@@ -15,6 +15,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import useLoteLayoutSchema from "@/hooks/useLoteLayoutSchema";
+import campoEngine from "@/core/engine/campoEngine";
 
 const COLUNAS_DISPONIVEIS = [
 { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
@@ -42,6 +44,18 @@ const COLUNAS_DISPONIVEIS = [
 
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 const COLUMN_WIDTHS_KEY = "colunas_largura_cadastro_lotes";
+
+const FIXED_COLUMN_FIELD_MAP = {
+  codigo: { field_name: "numero_lote", type: "text", origem: "fixo" },
+  nome: { field_name: "nome", type: "text", origem: "fixo" },
+  cabecas: { field_name: "quantidade_entrada", type: "number", origem: "fixo" },
+  categoria: { field_name: "categoria_entrada", type: "text", origem: "fixo" },
+  sexo: { field_name: "sexo", type: "text", origem: "fixo" },
+  sistema_produtivo: { field_name: "sistema_produtivo", type: "text", origem: "fixo" },
+  status: { field_name: "status", type: "text", origem: "fixo" },
+  fornecedor: { field_name: "fornecedor_nome", type: "text", origem: "fixo" },
+  observacoes: { field_name: "observacoes", type: "text", origem: "fixo" },
+};
 const MIN_COLUMN_WIDTH = 80;
 
 const formatarData = (data) => {
@@ -70,6 +84,20 @@ export default function TabelaLotes({
   showConfigColunas,
   setShowConfigColunas
 }) {
+  const { schema: tableSchema } = useLoteLayoutSchema("table");
+  const dynamicColumns = useMemo(() => tableSchema.flatMap((section) => section.fields)
+    .filter((field) => field.origem === "customizado")
+    .map((field) => ({
+      id: field.name,
+      label: field.label,
+      default: false,
+      sortable: true,
+      align: field.type === "number" ? "right" : "left",
+      width: 160,
+      dynamicField: field,
+    })), [tableSchema]);
+  const colunasDisponiveis = useMemo(() => [...COLUNAS_DISPONIVEIS, ...dynamicColumns], [dynamicColumns]);
+  const defaultVisibleColumns = useMemo(() => [...DEFAULT_VISIBLE_COLUMNS], []);
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
@@ -79,7 +107,7 @@ export default function TabelaLotes({
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const [columnWidths, setColumnWidths] = useState(() => {
-    const defaults = Object.fromEntries(COLUNAS_DISPONIVEIS.map((c) => [c.id, c.width || 160]));
+    const defaults = Object.fromEntries(colunasDisponiveis.map((c) => [c.id, c.width || 160]));
     const saved = localStorage.getItem(COLUMN_WIDTHS_KEY);
     if (!saved) return defaults;
     try {return { ...defaults, ...JSON.parse(saved) };} catch {return defaults;}
@@ -94,16 +122,25 @@ export default function TabelaLotes({
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_cadastro_lotes");
     if (saved) {try {return JSON.parse(saved);} catch {/* fallback */}}
-    return COLUNAS_DISPONIVEIS.map((c) => c.id);
+    return colunasDisponiveis.map((c) => c.id);
   });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_cadastro_lotes");
-    if (saved) {try {return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));} catch {/* fallback */}}
-    return DEFAULT_VISIBLE_COLUMNS;
+    if (saved) {try {return Array.from(new Set([...JSON.parse(saved), ...defaultVisibleColumns]));} catch {/* fallback */}}
+    return defaultVisibleColumns;
   });
 
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
+
+  useEffect(() => {
+    const idsDisponiveis = colunasDisponiveis.map((coluna) => coluna.id);
+    setColunasOrdem((prev) => {
+      const merged = [...prev.filter((id) => idsDisponiveis.includes(id)), ...idsDisponiveis.filter((id) => !prev.includes(id))];
+      localStorage.setItem("colunas_ordem_cadastro_lotes", JSON.stringify(merged));
+      return merged;
+    });
+  }, [colunasDisponiveis]);
 
   const toggleResizeMode = (colunaId) => {
     if (colunaId === "selecao" || colunaId === "acoes") return;
@@ -151,11 +188,20 @@ export default function TabelaLotes({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
-  }, [colunasOrdem, colunasVisiveis]);
+    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
+  }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
+
+  const getColunaCampo = (colunaId) => {
+    const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
+    return coluna?.dynamicField || FIXED_COLUMN_FIELD_MAP[colunaId] || null;
+  };
 
   // Field value extraction for filters
   const getFieldValue = (lote, colunaId) => {
+    const colunaCampo = getColunaCampo(colunaId);
+    if (colunaCampo?.origem === "customizado") {
+      return campoEngine.formatar(colunaCampo, campoEngine.getValor(colunaCampo, lote)) || "";
+    }
     if (colunaId === "codigo") return String(lote.numero_lote || "");
     if (colunaId === "nome") return lote.nome || "";
     if (colunaId === "identificador") return [lote.identificador_nome].filter(Boolean).join(' - ');
@@ -175,16 +221,17 @@ export default function TabelaLotes({
     if (colunaId === "valor") return lote.valor_total_compra ? formatarValor(lote.valor_total_compra) : "";
     if (colunaId === "fornecedor") return lote.fornecedor_nome || "";
     if (colunaId === "observacoes") return lote.observacoes || "";
+    if (colunaCampo) return campoEngine.formatar(colunaCampo, campoEngine.getValor(colunaCampo, lote)) || "";
     return "";
   };
 
   const columnOptions = useMemo(() => {
     const opts = {};
-    COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).forEach((col) => {
+    colunasDisponiveis.filter((c) => !c.fixo).forEach((col) => {
       opts[col.id] = [...new Set(lotes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
     });
     return opts;
-  }, [lotes]);
+  }, [lotes, colunasDisponiveis]);
 
   const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
@@ -193,14 +240,14 @@ export default function TabelaLotes({
 
   const lotesFiltrados = useMemo(() => {
     return lotes.filter((lote) => {
-      return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
+      return colunasDisponiveis.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
         const val = getFieldValue(lote, col.id);
         return filtro.includes(val);
       });
     });
-  }, [lotes, filtrosColunas]);
+  }, [lotes, filtrosColunas, colunasDisponiveis]);
 
   const lotesOrdenados = useMemo(() => {
     const sorted = [...lotesFiltrados];
@@ -269,6 +316,8 @@ export default function TabelaLotes({
     if (colunaId === "valor") return formatarValor(lote.valor_total_compra);
     if (colunaId === "fornecedor") return lote.fornecedor_nome || "-";
     if (colunaId === "observacoes") return lote.observacoes || "-";
+    const colunaCampo = getColunaCampo(colunaId);
+    if (colunaCampo) return campoEngine.formatar(colunaCampo, campoEngine.getValor(colunaCampo, lote)) || "-";
     return "-";
   };
 
@@ -292,7 +341,7 @@ export default function TabelaLotes({
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
-    const columnLabel = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId)?.label || colunaId;
+    const columnLabel = colunasDisponiveis.find((c) => c.id === colunaId)?.label || colunaId;
     const options = columnOptions[colunaId] || [];
     const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
     const filteredOptions = options.filter((o) => String(o).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
@@ -556,7 +605,7 @@ export default function TabelaLotes({
       <ConfiguracaoColunasMapaDialog
         open={showConfigColunas}
         onOpenChange={setShowConfigColunas}
-        colunasDisponiveis={COLUNAS_DISPONIVEIS}
+        colunasDisponiveis={colunasDisponiveis}
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}

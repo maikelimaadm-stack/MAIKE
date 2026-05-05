@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Settings, Layers } from "lucide-react";
+import loteRepository from "@/core/repositories/loteRepository";
+import cadastroRepository from "@/core/repositories/cadastroRepository";
 import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
+import FormularioLoteDinamico from "@/components/lotes/FormularioLoteDinamico";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 
 export default function CadastroLotes() {
@@ -16,60 +17,33 @@ export default function CadastroLotes() {
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [usarFormularioDinamico, setUsarFormularioDinamico] = useState(() => localStorage.getItem("cadastro_lotes_form_dinamico") === "true");
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const ORIGENS_SISTEMA = ['MOVIMENTAÇÃO', 'REVERSÃO MOVIMENTAÇÃO', 'Nascimento', 'Mudança de Categoria', 'NASCIMENTO', 'MUDANÇA DE CATEGORIA'];
-
   const { data: lotes = [] } = useQuery({
     queryKey: ['lotes-cadastro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter((l) =>
-      l.empresa_id === empresaSelecionadaId &&
-      !ORIGENS_SISTEMA.includes(l.origem)
-      );
-    },
+    queryFn: () => loteRepository.list({ empresaId: empresaSelecionadaId }),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
+    queryFn: () => cadastroRepository.listAreasAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: lotesComMovimentacoes = [] } = useQuery({
     queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
-    queryFn: async () => {
-      const [movsPecuaria, movsMapa] = await Promise.all([
-      base44.entities.MovimentacaoPecuaria.list(),
-      base44.entities.MovimentacaoMapa.list()]
-      );
-      const idsPecuaria = movsPecuaria.filter((m) => m.empresa_id === empresaSelecionadaId && m.lote_id).map((m) => m.lote_id);
-      const idsMapa = movsMapa.filter((m) => m.empresa_id === empresaSelecionadaId && m.lote_id).map((m) => m.lote_id);
-      return [...new Set([...idsPecuaria, ...idsMapa])];
-    },
+    queryFn: () => loteRepository.listIdsComMovimentacoes(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const createLoteMutation = useMutation({
-    mutationFn: async (data) => {
-      const allLotes = await base44.entities.Lote.list();
-      const maxNum = allLotes.reduce((max, l) => Math.max(max, parseInt(l.numero_lote) || 0), 0);
-      return base44.entities.Lote.create({
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_lote: String(maxNum + 1),
-        status: 'Ativo'
-      });
-    },
+    mutationFn: (data) => loteRepository.create(data, { empresaId: empresaSelecionadaId }),
     onSuccess: async (created) => {
       queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) => [created, ...current]);
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
@@ -84,12 +58,8 @@ export default function CadastroLotes() {
 
   const updateLoteMutation = useMutation({
     mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.Lote.update(id, data);
-      await base44.functions.invoke('syncEntityReferences', {
-        event: { type: 'update', entity_name: 'Lote' },
-        data: updated,
-        old_data: oldData
-      });
+      const updated = await loteRepository.update(id, data);
+      await loteRepository.syncReferences({ data: updated, oldData });
       return updated;
     },
     onSuccess: async (updated) => {
@@ -107,7 +77,7 @@ export default function CadastroLotes() {
   });
 
   const deleteLoteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Lote.delete(id)
+    mutationFn: (id) => loteRepository.delete(id)
   });
 
   const handleSubmit = (data) => {
@@ -159,7 +129,6 @@ export default function CadastroLotes() {
 
     for (const id of ids) {
       try {
-        await ensureDeleteAllowed(base44, 'Lote', id);
         await deleteLoteMutation.mutateAsync(id);
         deletedCount += 1;
       } catch {
@@ -186,6 +155,18 @@ export default function CadastroLotes() {
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
             <Settings className="w-4 h-4" />
           </Button>
+          <Button
+            variant={usarFormularioDinamico ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              const next = !usarFormularioDinamico;
+              setUsarFormularioDinamico(next);
+              localStorage.setItem("cadastro_lotes_form_dinamico", String(next));
+            }}
+            className={`h-7 text-xs px-2 ${usarFormularioDinamico ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}>
+            <Layers className="w-3.5 h-3.5" />
+            {usarFormularioDinamico ? "Dinâmico" : "Antigo"}
+          </Button>
           <Button onClick={() => {setShowForm(true);setEditingLote(null);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
             Adicionar
           </Button>
@@ -194,12 +175,19 @@ export default function CadastroLotes() {
 
       <AnimatePresence mode="wait">
         {showForm ?
-        <FormularioLote
-          key="form"
-          initialData={editingLote}
-          isEditing={!!editingLote}
-          onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditingLote(null);}} /> :
+        (usarFormularioDinamico ?
+          <FormularioLoteDinamico
+            key="form-dinamico"
+            initialData={editingLote}
+            isEditing={!!editingLote}
+            onSubmit={handleSubmit}
+            onCancel={() => {setShowForm(false);setEditingLote(null);}} /> :
+          <FormularioLote
+            key="form"
+            initialData={editingLote}
+            isEditing={!!editingLote}
+            onSubmit={handleSubmit}
+            onCancel={() => {setShowForm(false);setEditingLote(null);}} />) :
 
 
         <TabelaLotes

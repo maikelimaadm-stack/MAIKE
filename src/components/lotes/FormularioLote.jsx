@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import cadastroRepository from "@/core/repositories/cadastroRepository";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
@@ -134,19 +134,13 @@ export default function FormularioLote({ onSubmit, onCancel, initialData, isEdit
 
   const { data: categoriasManejo = [] } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.CategoriaManejo.list();
-      return all.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
-    },
+    queryFn: () => cadastroRepository.listCategoriasManejo(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: fornecedores = [] } = useQuery({
     queryKey: ["fornecedores", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Fornecedor.list();
-      return all.filter((f) => f.empresa_id === empresaSelecionadaId);
-    },
+    queryFn: () => cadastroRepository.listFornecedores(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
