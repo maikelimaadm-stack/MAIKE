@@ -9,6 +9,7 @@ const normalize = (value) => String(value || "").toLowerCase().normalize("NFD").
 export default function SankhyaCodeNameLookup({ label, prefix, source = [], filters, onChange }) {
   const [open, setOpen] = useState(false);
   const query = filters[`${prefix}_nome`] || "";
+  const codeValue = filters[`${prefix}_codigo`] || "";
 
   const results = useMemo(() => {
     const term = normalize(query);
@@ -30,11 +31,20 @@ export default function SankhyaCodeNameLookup({ label, prefix, source = [], filt
     setOpen(!!value);
   };
 
+  const updateCode = (value) => {
+    const found = source.find((item) => String(item.codigo || "").toLowerCase() === String(value || "").toLowerCase());
+    onChange({
+      ...filters,
+      [`${prefix}_codigo`]: value,
+      [`${prefix}_nome`]: found?.nome || filters[`${prefix}_nome`] || ""
+    });
+  };
+
   return (
     <div className="relative">
-      <div className="grid grid-cols-[58px_1fr] gap-1 items-center">
+      <div className="grid grid-cols-[72px_1fr] gap-1 items-center">
         <div className="relative">
-          <Input value={filters[`${prefix}_codigo`] || ""} readOnly className={`${inputClass} pr-5 text-center font-semibold text-slate-600 bg-slate-50`} placeholder="Cód." />
+          <Input value={codeValue} onChange={(e) => updateCode(e.target.value)} className={`${inputClass} pr-5 text-center font-semibold text-slate-700`} placeholder="Código" />
           <Search className="absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
         </div>
         <Input
@@ -42,12 +52,12 @@ export default function SankhyaCodeNameLookup({ label, prefix, source = [], filt
           onChange={(e) => updateName(e.target.value)}
           onFocus={() => setOpen(!!query)}
           className={inputClass}
-          placeholder={`Pesquisar ${label.toLowerCase()}`}
+          placeholder={`Nome do ${label.toLowerCase()}`}
         />
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute z-50 left-[59px] right-0 mt-1 max-h-56 overflow-auto border border-slate-300 bg-white shadow-lg">
+        <div className="absolute z-50 left-[73px] right-0 mt-1 max-h-56 overflow-auto border border-slate-300 bg-white shadow-lg">
           {results.map((item) => (
             <button
               key={item.id || `${item.codigo}-${item.nome}`}

@@ -8,14 +8,14 @@ import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 
 const FIELD_DEFS = [
-  { id: "lote_codigo_nome", label: "Código + Nome", group: "Detalhes do lote", type: "codeName" },
+  { id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName" },
   { id: "sexo", label: "Sexo", group: "Detalhes do lote", type: "select", options: ["Macho", "Fêmea", "Misto"] },
   { id: "quantidade", label: "Quantidade de cabeças", group: "Detalhes do lote", type: "number" },
   { id: "peso", label: "Peso médio", group: "Detalhes do lote", type: "number" },
   { id: "categoria", label: "Categoria", group: "Detalhes do lote", type: "text" },
   { id: "status", label: "Status", group: "Detalhes do lote", type: "select", options: ["Ativo", "Inativo", "Vendido", "Abatido", "Transferido"] },
-  { id: "area_codigo_nome", label: "Área Código + Nome", group: "Localização", type: "codeNameDynamic", source: "areas" },
-  { id: "setor_codigo_nome", label: "Setor Código + Nome", group: "Localização", type: "codeNameDynamic", source: "setores" },
+  { id: "area_codigo_nome", label: "Área", group: "Localização", type: "codeNameDynamic", source: "areas" },
+  { id: "setor_codigo_nome", label: "Setor", group: "Localização", type: "codeNameDynamic", source: "setores" },
   { id: "data", label: "Data de entrada", group: "Identificação", type: "date" }
 ];
 
@@ -49,20 +49,20 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     return {
       areas: uniqBy([
         ...areas.map((a) => ({
-          codigo: a.numero_area || a.codigo || a.id,
+          codigo: a.numero_area || a.codigo || a.cod_area || "",
           nome: a.nome,
           id: a.id,
           details: [a.setor_nome && `Setor: ${a.setor_nome}`, a.tipo_area && `Tipo: ${a.tipo_area}`, a.status && `Status: ${a.status}`]
         })),
         ...lotes.map((l) => ({
-          codigo: l.area_atual_id || l.area_entrada_id,
+          codigo: l.area_atual_codigo || l.area_entrada_codigo || "",
           nome: l.area_atual_nome || l.area_entrada_nome,
           id: l.area_atual_id || l.area_entrada_id,
           details: [l.setor_nome && `Setor: ${l.setor_nome}`, l.nome && `Lote vinculado: ${l.nome}`]
         }))
       ], "nome"),
       setores: uniqBy(lotes.map((l) => ({
-        codigo: l.setor_id,
+        codigo: l.setor_codigo || l.numero_setor || "",
         nome: l.setor_nome,
         id: l.setor_id,
         details: [l.area_atual_nome && `Área: ${l.area_atual_nome}`, l.nome && `Lote: ${l.nome}`]
@@ -123,8 +123,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     return (
       <div key={field.id} className="border-b border-slate-200 pb-1">
         <label className="block mb-0.5 text-slate-600 truncate">{field.label}</label>
-        {field.type === "codeName" && renderCodeName("lote", "lotes", "lote")}
-        {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label.replace(" Código + Nome", ""))}
+        {field.type === "codeName" && renderCodeName("lote", "lotes", "Lote")}
+        {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
         {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} className={inputClass} />}
         {field.type === "select" &&
           <Select value={filters[field.id] || "todos"} onValueChange={(value) => update(field.id, value)}>
@@ -174,9 +174,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
             {openGroups[folder.id] && <div className="p-1.5 space-y-1.5">{folder.fields.map(renderField)}</div>}
           </div>
         ))}
-        {["Status Documentos", "Itens", "Liberações", "Parceiros", "WMS"].map((item) =>
-          <div key={item} className="h-8 px-2 flex items-center border-b border-slate-200 bg-slate-50 font-semibold text-slate-700">{item}</div>
-        )}
+
       </div>
 
       <SankhyaFilterConfigDialog
