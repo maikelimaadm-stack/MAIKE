@@ -67,7 +67,16 @@ export default function CadastroLotes() {
       if (appliedFilters.numero_lote && !contains(lote.numero_lote, appliedFilters.numero_lote)) return false;
       if (appliedFilters.nome && !contains(lote.nome, appliedFilters.nome)) return false;
       if (appliedFilters.categoria && !contains(lote.categoria, appliedFilters.categoria)) return false;
+      if (appliedFilters.sexo && appliedFilters.sexo !== "todos" && lote.sexo !== appliedFilters.sexo) return false;
       if (appliedFilters.status && appliedFilters.status !== "todos" && lote.status !== appliedFilters.status) return false;
+      if (appliedFilters.area && appliedFilters.area !== "todos" && ![lote.area_entrada_nome, lote.area_atual_nome].includes(appliedFilters.area)) return false;
+      if (appliedFilters.setor && appliedFilters.setor !== "todos" && lote.setor_nome !== appliedFilters.setor) return false;
+      const quantidade = Number(lote.quantidade_entrada ?? lote.quantidade_cabecas ?? 0);
+      if (appliedFilters.quantidade_min && quantidade < Number(appliedFilters.quantidade_min)) return false;
+      if (appliedFilters.quantidade_max && quantidade > Number(appliedFilters.quantidade_max)) return false;
+      const peso = Number(lote.peso_entrada_kg ?? lote.peso_medio_kg ?? 0);
+      if (appliedFilters.peso_min && peso < Number(appliedFilters.peso_min)) return false;
+      if (appliedFilters.peso_max && peso > Number(appliedFilters.peso_max)) return false;
       const dataEntrada = String(lote.data_entrada || "").split("T")[0];
       if (appliedFilters.data_inicio && dataEntrada < appliedFilters.data_inicio) return false;
       if (appliedFilters.data_fim && dataEntrada > appliedFilters.data_fim) return false;
@@ -304,7 +313,9 @@ export default function CadastroLotes() {
           filters={filters}
           onChange={setFilters}
           onApply={() => setAppliedFilters(filters)}
-          onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }} />
+          onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
+          lotes={lotes}
+          areas={areas} />
         <div className="min-w-0 flex-1 overflow-hidden">
           <SankhyaListToolbar
             viewMode={viewMode}
