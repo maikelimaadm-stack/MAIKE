@@ -24,7 +24,7 @@ import {
   ChevronDown } from
 "lucide-react";
 
-const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-50 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
+const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 
 export default function SankhyaListToolbar({
   viewMode = "table",
@@ -53,8 +53,8 @@ export default function SankhyaListToolbar({
   const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1;
 
   return (
-    <div className="border-[0.5px] border-slate-50 bg-white shadow-none overflow-hidden">
-      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-transparent border-b-[0.5px] border-slate-60">
+    <div className="border-[0.5px] border-slate-200/60 bg-white shadow-none overflow-hidden">
+      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-transparent border-b-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><ChevronDown className="w-3.5 h-3.5" /></Button>
@@ -71,7 +71,7 @@ export default function SankhyaListToolbar({
         <Button type="button" variant="outline" size="icon" onClick={onRefresh} className={iconButtonClass}><RefreshCw className="w-3.5 h-3.5" /></Button>
 
         <div className="ml-auto flex items-center gap-0">
-          <div className="relative h-7 w-44 md:w-56 border-y-0 border-l-[0.5px] border-slate-50 bg-white">
+          <div className="relative h-7 w-44 md:w-56 border-y-0 border-l-[0.5px] border-slate-200/60 bg-white">
             <input
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
@@ -87,7 +87,7 @@ export default function SankhyaListToolbar({
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Zap className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
-          <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-60">
+          <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-200/60">
             {viewMode === "record" && total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
         </div>
