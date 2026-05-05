@@ -86,7 +86,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               <span className="text-xs font-semibold text-slate-700 truncate">{title || "Lote"}</span>
             </div>
             <div className="px-4 md:px-8 py-1 w-full space-y-1">
-              <div className="grid items-center gap-1 grid-cols-[210px_minmax(0,1fr)] mx-1">
+              <div className="grid items-center gap-1 grid-cols-[210px_minmax(0,1fr)]">
                 <label className="text-[12px] text-slate-600 text-right leading-none">
                   Nome do arquivo:<span className="text-red-500 ml-0.5">*</span>
                 </label>
