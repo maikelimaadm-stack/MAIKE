@@ -10,7 +10,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
   const isLast = currentIndex >= total - 1;
   return (
     <div className="border border-slate-300 bg-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-0 h-8 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
+      <div className="flex items-center gap-0 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-red-500 bg-red-500 hover:bg-red-600 text-white"><Filter className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-red-500 bg-red-500 hover:bg-red-600 text-white"><ChevronDown className="w-3.5 h-3.5" /></Button>
@@ -53,7 +53,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
           </div>
         </div>
       </div>
-      <div className="h-7 px-2 flex items-center gap-2 bg-white border-b border-slate-200">
+      <div className="h-8 px-2 flex items-center gap-2 bg-white border-b border-slate-200">
         <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">LOTE</span>
         <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
         {operationLabel &&
