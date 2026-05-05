@@ -339,7 +339,10 @@ export default function CadastroLotes() {
             toggleViewDisabled={selectedTableItems.length > 1}
             filterOpen={filterPanelOpen}
             filterActive={hasActiveFilters}
-            onToggleFilter={() => setFilterPanelOpen((open) => !open)}
+            onToggleFilter={() => {
+              if (window.innerWidth < 768) return;
+              setFilterPanelOpen((open) => !open);
+            }}
             onClearFilter={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
             onFirst={() => navigateRecord(0)}
             onPrevious={() => navigateRecord(selectedIndex - 1)}
@@ -350,13 +353,16 @@ export default function CadastroLotes() {
             onRefresh={handleRefresh}
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
-            onSettingsClick={() => setShowConfigColunas(true)}
+            onSettingsClick={() => {
+              if (window.innerWidth < 768) return;
+              setShowConfigColunas(true);
+            }}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
           <div className="md:hidden fixed right-3 bottom-20 z-30 flex flex-col gap-2">
-            <button type="button" onClick={() => setFilterPanelOpen(true)} className="h-12 w-12 rounded-full bg-red-500 text-white shadow-lg flex items-center justify-center text-xs font-bold">Filtro</button>
-            <button type="button" onClick={() => setShowConfigCampos(true)} className="h-12 w-12 rounded-full bg-emerald-600 text-white shadow-lg flex items-center justify-center text-[10px] font-bold leading-none">Campos</button>
+            <button type="button" disabled className="h-12 w-12 rounded-full bg-slate-200 text-slate-400 shadow-lg flex items-center justify-center text-xs font-bold opacity-70">Filtro</button>
+            <button type="button" disabled className="h-12 w-12 rounded-full bg-slate-200 text-slate-400 shadow-lg flex items-center justify-center text-[10px] font-bold leading-none opacity-70">Campos</button>
           </div>
           <TabelaLotes
             key="table"

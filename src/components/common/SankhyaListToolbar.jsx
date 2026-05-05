@@ -59,7 +59,7 @@ export default function SankhyaListToolbar({
     <div className="bg-white">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onToggleFilter} className={filterOpen || filterActive ? "relative h-10 w-10 md:h-7 md:w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none flex-shrink-0" : iconButtonClass} title="Filtros">
+        <Button type="button" variant="outline" size="icon" onClick={onToggleFilter} className={filterOpen || filterActive ? "relative h-10 w-10 md:h-7 md:w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none flex-shrink-0 pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100" : `${iconButtonClass} pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100`} title="Filtros bloqueados no mobile">
           <Filter className="w-3.5 h-3.5" />
           {filterActive &&
           <span
@@ -95,7 +95,7 @@ export default function SankhyaListToolbar({
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Selecione apenas um registro" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={`${iconButtonClass} pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100`} title="Configuração bloqueada no mobile"><Settings className="w-3.5 h-3.5" /></Button>
           <div className="h-10 md:h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-200/60 flex-shrink-0">
             {viewMode === "record" && total > 0 ? `${currentIndex + 1}/${total}` : selectedCount > 0 ? `${selectedCount}/${total}` : total}
           </div>
