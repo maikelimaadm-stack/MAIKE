@@ -19,7 +19,7 @@ const FL = ({ label, required, error, children, dataField, wide = false }) =>
     <label className="text-[12px] text-slate-600 text-right leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
-    <div className={`${wide ? 'min-h-6' : 'h-6'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors [&_input]:h-[22px] [&_button]:h-[22px] [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
+    <div className={`${wide ? 'min-h-6' : 'h-6'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
       {children}
     </div>
   </div>;
@@ -452,7 +452,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         </div>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        <div className="border-b border-slate-300 min-h-[360px] px-4 md:px-8 py-1">
+        <div className="min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" &&
             <div className="space-y-1">
