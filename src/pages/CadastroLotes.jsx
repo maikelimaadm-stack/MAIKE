@@ -230,6 +230,11 @@ export default function CadastroLotes() {
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
           onCancel={() => {
+            if (editingLote && !editingLote._isDuplicate) {
+              setFormVersion((prev) => prev + 1);
+              setViewMode("record");
+              return;
+            }
             if (!editingLote && returnRecordAfterNew) {
               setEditingLote(returnRecordAfterNew);
               setShowForm(true);
