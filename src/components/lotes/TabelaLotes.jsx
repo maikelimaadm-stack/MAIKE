@@ -547,7 +547,7 @@ export default function TabelaLotes({
                   lotesOrdenados.map((lote) =>
                   <TableRow
                     key={lote.id}
-                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer`}
+                    className={`${selectedItems.includes(lote.id) ? "bg-gradient-to-b from-emerald-100 via-green-300 to-emerald-500 hover:from-emerald-200 hover:via-green-400 hover:to-emerald-600 text-slate-900" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer`}
                     onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
@@ -559,7 +559,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`px-2 py-1 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words ${selectedItems.includes(lote.id) ? "text-white border-green-600" : "text-gray-700"}`}>
+                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedItems.includes(lote.id) ? "text-slate-900 border-white" : "text-gray-700 border-gray-300"}`}>
                           
                               {renderCell(lote, coluna.id)}
                             </TableCell>);
