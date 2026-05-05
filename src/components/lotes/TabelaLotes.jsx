@@ -122,25 +122,43 @@ export default function TabelaLotes({
         label: campo.label,
         default: true,
         sortable: campo.ordenavel !== false,
-        filtravel: campo.filtravel !== false,
+        filtravel: campo.filtravel !== false && campo.filtravel !== false,
         align: campo.alinhamento || "left",
-        width: 160,
+        width: campo.largura_coluna || 160,
+        ordem_tabela: campo.ordem_tabela ?? campo.ordem ?? 999,
+        agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "",
+        agregacao_campo_base: campo.agregacao_campo_base || "",
         customField: campo.field_name
       }));
-    return [...COLUNAS_DISPONIVEIS, ...dinamicas];
+    return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))];
   }, [camposPersonalizados]);
 
+  const relatedSources = useMemo(() => camposPersonalizados
+    .map((campo) => {
+      const normalized = campoEngine.normalize(campo);
+      const entity = campoEngine.getOptionsSourceKey(normalized);
+      return entity ? { entity, labelField: normalized.options_label_field || normalized.relation_display_field || "nome", valueField: normalized.options_value_field || "id" } : null;
+    })
+    .filter(Boolean), [camposPersonalizados]);
+
   const { data: relatedOptions = {} } = useQuery({
-    queryKey: ["lote-related-options", camposPersonalizados.map((campo) => campo.options_source).filter(Boolean).join("|")],
-    queryFn: () => loteRepository.listOptionsSources(camposPersonalizados.map((campo) => campo.options_source)),
-    enabled: camposPersonalizados.some((campo) => !!campo.options_source),
+    queryKey: ["lote-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
+    queryFn: () => loteRepository.listOptionsSources(relatedSources),
+    enabled: relatedSources.length > 0,
     initialData: {}
   });
 
   useEffect(() => {
     const customVisible = colunasDisponiveis.filter((col) => col.id.startsWith("custom:") && col.default).map((col) => col.id);
     setColunasVisiveis((prev) => Array.from(new Set([...prev, ...customVisible])));
-    setColunasOrdem((prev) => Array.from(new Set([...prev, ...customVisible])));
+    setColunasOrdem((prev) => {
+      const merged = Array.from(new Set([...prev, ...customVisible]));
+      return merged.sort((a, b) => {
+        const colA = colunasDisponiveis.find((col) => col.id === a);
+        const colB = colunasDisponiveis.find((col) => col.id === b);
+        return (colA?.ordem_tabela || colA?.ordem || 0) - (colB?.ordem_tabela || colB?.ordem || 0);
+      });
+    });
   }, [colunasDisponiveis]);
 
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
@@ -218,6 +236,23 @@ export default function TabelaLotes({
       return colunasDisponiveis.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
+        const raw = campoEngine.getValorBruto(lote, col);
+        if (col.tipo === "number" || col.tipo === "calculado") {
+          const numberValue = Number(raw);
+          const min = filtro.find((item) => String(item).startsWith("min:"));
+          const max = filtro.find((item) => String(item).startsWith("max:"));
+          if (min && numberValue < Number(String(min).replace("min:", ""))) return false;
+          if (max && numberValue > Number(String(max).replace("max:", ""))) return false;
+          return true;
+        }
+        if (col.tipo === "date") {
+          const dateValue = String(raw || "").split("T")[0];
+          const start = filtro.find((item) => String(item).startsWith("start:"));
+          const end = filtro.find((item) => String(item).startsWith("end:"));
+          if (start && dateValue < String(start).replace("start:", "")) return false;
+          if (end && dateValue > String(end).replace("end:", "")) return false;
+          return true;
+        }
         const val = getFieldValue(lote, col.id);
         return filtro.includes(val);
       });
@@ -295,8 +330,10 @@ export default function TabelaLotes({
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
-    const columnLabel = colunasDisponiveis.find((c) => c.id === colunaId)?.label || colunaId;
+    const coluna = colunasDisponiveis.find((c) => c.id === colunaId);
+    const columnLabel = coluna?.label || colunaId;
     const options = columnOptions[colunaId] || [];
+    const isRangeFilter = coluna?.tipo === "number" || coluna?.tipo === "calculado" || coluna?.tipo === "date";
     const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
     const filteredOptions = options.filter((o) => String(o).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
     const allVisibleSelected = filteredOptions.length > 0 && filteredOptions.every((o) => valoresSelecionados.includes(o));
@@ -333,8 +370,23 @@ export default function TabelaLotes({
             </button>
           </div>
           <div className="p-2 space-y-2">
-            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />
-            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
+            {isRangeFilter ? (
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type={coluna?.tipo === "date" ? "date" : "number"}
+                  value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:")) || "").replace(coluna?.tipo === "date" ? "start:" : "min:", "")}
+                  onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "start" : "min"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:"))].filter(Boolean) }))}
+                  placeholder={coluna?.tipo === "date" ? "INÍCIO" : "MÍNIMO"}
+                  className="h-8 text-xs" />
+                <Input
+                  type={coluna?.tipo === "date" ? "date" : "number"}
+                  value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:")) || "").replace(coluna?.tipo === "date" ? "end:" : "max:", "")}
+                  onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "end" : "max"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:"))].filter(Boolean) }))}
+                  placeholder={coluna?.tipo === "date" ? "FIM" : "MÁXIMO"}
+                  className="h-8 text-xs" />
+              </div>
+            ) : <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />}
+            {!isRangeFilter && <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
               <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
                 <Checkbox
                   checked={allVisibleSelected}
@@ -360,7 +412,7 @@ export default function TabelaLotes({
                   <span className="block flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{option}</span>
                 </label>
               )}
-            </div>
+            </div>}
             <div className="flex items-center justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
                 Cancelar

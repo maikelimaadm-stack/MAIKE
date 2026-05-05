@@ -155,10 +155,17 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
     return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_form !== false);
   }, [camposPersonalizados]);
 
+  const relatedSources = useMemo(() => camposPersonalizadosForm
+    .map((campo) => {
+      const entity = campoEngine.getOptionsSourceKey(campo);
+      return entity ? { entity, labelField: campo.options_label_field || campo.relation_display_field || "nome", valueField: campo.options_value_field || "id" } : null;
+    })
+    .filter(Boolean), [camposPersonalizadosForm]);
+
   const { data: relatedOptions = {} } = useQuery({
-    queryKey: ["lote-form-related-options", camposPersonalizadosForm.map((campo) => campo.options_source).filter(Boolean).join("|")],
-    queryFn: () => loteRepository.listOptionsSources(camposPersonalizadosForm.map((campo) => campo.options_source)),
-    enabled: camposPersonalizadosForm.some((campo) => !!campo.options_source),
+    queryKey: ["lote-form-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
+    queryFn: () => loteRepository.listOptionsSources(relatedSources),
+    enabled: relatedSources.length > 0,
     initialData: {}
   });
 
@@ -282,13 +289,16 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
 
   const handleCustomChange = (fieldName, value) => {
     setErrors((prev) => ({ ...prev, [`campos_personalizados.${fieldName}`]: false }));
-    setFormData((prev) => ({
-      ...prev,
-      campos_personalizados: {
-        ...(prev.campos_personalizados || {}),
-        [fieldName]: value
-      }
-    }));
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        campos_personalizados: {
+          ...(prev.campos_personalizados || {}),
+          [fieldName]: value
+        }
+      };
+      return campoEngine.aplicarCamposCalculados(next, camposPersonalizadosForm);
+    });
   };
 
   const renderCampoPersonalizado = (campo) => {
@@ -301,7 +311,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
       return <Textarea value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className="text-xs uppercase bg-transparent px-1" rows={campo.rows || 2} />;
     }
 
-    if (campo.tipo === "select") {
+    if (campo.tipo === "calculado") {
+      const calculatedValue = campoEngine.calcularCampo(formData, campo);
+      return <Input value={Number(calculatedValue || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} readOnly placeholder="CALCULADO" className={`${inputClass} bg-slate-50`} />;
+    }
+
+    if (campo.tipo === "select" || campo.tipo === "relation") {
       return (
         <Select value={value || SELECT_EMPTY} onValueChange={(nextValue) => handleCustomChange(campo.field_name, nextValue === SELECT_EMPTY ? "" : nextValue)} disabled={campo.read_only}>
           <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder={(campo.placeholder || "SELECIONE").toUpperCase()} /></SelectTrigger>
@@ -334,7 +349,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
 
     const dataToSave = {
       ...formData,
-      campos_personalizados: formData.campos_personalizados || {},
+      campos_personalizados: campoEngine.aplicarCamposCalculados(formData, camposPersonalizadosForm).campos_personalizados || {},
       sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
       data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null,
       nome: formData.nome.toUpperCase(),

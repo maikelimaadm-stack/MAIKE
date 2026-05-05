@@ -93,14 +93,18 @@ export const loteRepository = {
   },
 
   async listOptionsSources(sources = []) {
-    const uniqueSources = [...new Set(sources.filter(Boolean))];
-    const entries = await Promise.all(uniqueSources.map(async (source) => {
-      const entityApi = base44.entities[source];
-      if (!entityApi?.list) return [source, []];
+    const configs = sources.map((source) => typeof source === "string" ? { entity: source } : source).filter((source) => source?.entity);
+    const unique = Array.from(new Map(configs.map((source) => [source.entity, source])).values());
+    const entries = await Promise.all(unique.map(async (source) => {
+      const entityApi = base44.entities[source.entity];
+      if (!entityApi?.list) return [source.entity, []];
       const records = await entityApi.list();
-      return [source, records.map((record) => ({
-        value: record.id,
-        label: record.nome || record.nome_produto || record.apelido || record.descricao || record.razao_social || record.full_name || record.email || record.id
+      const labelField = source.labelField || "nome";
+      const valueField = source.valueField || "id";
+      return [source.entity, records.map((record) => ({
+        ...record,
+        value: record[valueField] ?? record.id,
+        label: record[labelField] || record.nome || record.nome_produto || record.apelido || record.descricao || record.razao_social || record.full_name || record.email || record.id
       }))];
     }));
     return Object.fromEntries(entries);
@@ -170,15 +174,48 @@ export const loteRepository = {
       visivel_tabela: data.visivel_tabela !== false,
       visivel_relatorio: data.visivel_relatorio !== false,
       ordenavel: data.ordenavel !== false,
-      filtravel: data.filtravel !== false,
+      filtravel: data.filtravel !== false && data.filtravel !== false,
       alinhamento: data.alinhamento || "left",
-      agregacao: data.agregacao || undefined,
+      largura_coluna: data.largura_coluna || 160,
+      ordem_tabela: data.ordem_tabela || campos.length + 1,
+      agregacao: data.agregacao || data.agregacao_tipo || undefined,
+      agregacao_tipo: data.agregacao_tipo || data.agregacao || undefined,
+      agregacao_campo_base: data.agregacao_campo_base || "",
       options: data.options || [],
-      options_source: data.options_source || "",
+      options_source: data.options_source || data.options_source_entity || "",
+      options_source_entity: data.options_source_entity || "",
+      options_label_field: data.options_label_field || "nome",
+      options_value_field: data.options_value_field || "id",
+      relation_entity: data.relation_entity || "",
+      relation_display_field: data.relation_display_field || "nome",
       regras: data.regras || {},
       formula: data.formula || "",
-      dependencias: data.dependencias || []
+      dependencias: data.dependencias || data.campos_dependentes || [],
+      campos_dependentes: data.campos_dependentes || data.dependencias || []
     });
+  },
+
+  async updateCampoPersonalizado(id, data) {
+    return base44.entities.LayoutCampo.update(id, {
+      ...data,
+      filtravel: data.filtravel !== false && data.filtravel !== false,
+      options_source: data.options_source || data.options_source_entity || "",
+      agregacao: data.agregacao || data.agregacao_tipo || undefined,
+      dependencias: data.dependencias || data.campos_dependentes || []
+    });
+  },
+
+  async deleteCampoPersonalizado(campo) {
+    const fieldName = campo.field_name;
+    const lotes = await base44.entities.Lote.list();
+    const possuiDados = lotes.some((lote) => {
+      const value = lote.campos_personalizados?.[fieldName];
+      return value !== undefined && value !== null && String(value).trim() !== "";
+    });
+    if (possuiDados) {
+      throw new Error("Este campo já possui dados em lotes cadastrados e não pode ser excluído com segurança.");
+    }
+    return base44.entities.LayoutCampo.delete(campo.id);
   }
 };
 

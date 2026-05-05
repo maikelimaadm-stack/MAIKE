@@ -22,10 +22,22 @@ const FIXED_LOTE_FIELDS = {
   observacoes: "observacoes"
 };
 
+const OPERATORS = { "+": 1, "-": 1, "*": 2, "/": 2 };
+
+const isCustom = (campo) => campo?.customField || campo?.origem === "customizado" || String(campo?.id || "").startsWith("custom:");
+const getCustomKey = (campo) => campo?.customField || campo?.field_name || String(campo?.id || "").replace("custom:", "");
+
+const getSourceKey = (campo) => campo?.options_source_entity || campo?.relation_entity || campo?.options_source || "";
+const getLabelField = (campo) => campo?.options_label_field || campo?.relation_display_field || "nome";
+const getValueField = (campo) => campo?.options_value_field || "id";
+
 const getRawValue = (registro, campo) => {
   if (!registro || !campo) return "";
-  if (campo.customField || campo.origem === "customizado" || String(campo.id || "").startsWith("custom:")) {
-    const key = campo.customField || campo.field_name || String(campo.id).replace("custom:", "");
+
+  if (campo.tipo === "calculado") return calcularFormula(registro, campo);
+
+  if (isCustom(campo)) {
+    const key = getCustomKey(campo);
     return registro.campos_personalizados?.[key] ?? "";
   }
 
@@ -38,28 +50,88 @@ const getRawValue = (registro, campo) => {
   return registro[fieldName] ?? "";
 };
 
+const getFormulaScope = (registro) => ({
+  ...(registro || {}),
+  ...(registro?.campos_personalizados || {}),
+  quantidade: registro?.quantidade_entrada ?? registro?.quantidade_cabecas ?? 0,
+  cabecas: registro?.quantidade_entrada ?? registro?.quantidade_cabecas ?? 0,
+  peso: registro?.peso_entrada_kg ?? registro?.peso_medio_kg ?? 0,
+  peso_medio: registro?.peso_entrada_kg ?? registro?.peso_medio_kg ?? 0,
+  valor: registro?.valor_total_compra ?? 0
+});
+
+const tokenizeFormula = (formula) => String(formula || "").match(/[a-zA-Z_][a-zA-Z0-9_]*|\d+(?:[.,]\d+)?|[()+\-*/]/g) || [];
+
+const calcularFormula = (registro, campo) => {
+  const tokens = tokenizeFormula(campo?.formula);
+  const scope = getFormulaScope(registro);
+  const output = [];
+  const stack = [];
+
+  tokens.forEach((token) => {
+    if (/^\d/.test(token)) {
+      output.push(Number(token.replace(",", ".")));
+      return;
+    }
+    if (/^[a-zA-Z_]/.test(token)) {
+      output.push(Number(scope[token] ?? 0));
+      return;
+    }
+    if (token === "(") {
+      stack.push(token);
+      return;
+    }
+    if (token === ")") {
+      while (stack.length && stack[stack.length - 1] !== "(") output.push(stack.pop());
+      stack.pop();
+      return;
+    }
+    if (OPERATORS[token]) {
+      while (stack.length && OPERATORS[stack[stack.length - 1]] >= OPERATORS[token]) output.push(stack.pop());
+      stack.push(token);
+    }
+  });
+
+  while (stack.length) output.push(stack.pop());
+
+  const values = [];
+  output.forEach((token) => {
+    if (typeof token === "number") {
+      values.push(token);
+      return;
+    }
+    const b = values.pop() ?? 0;
+    const a = values.pop() ?? 0;
+    if (token === "+") values.push(a + b);
+    if (token === "-") values.push(a - b);
+    if (token === "*") values.push(a * b);
+    if (token === "/") values.push(b === 0 ? 0 : a / b);
+  });
+
+  const result = values[0];
+  return Number.isFinite(result) ? result : 0;
+};
+
 const formatDate = (value) => {
   if (!value) return "-";
   const [ano, mes, dia] = String(value).split("T")[0].split("-");
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : "-";
 };
 
+const resolveOptionLabel = (value, campo, relatedOptions = {}) => {
+  const sourceKey = getSourceKey(campo);
+  const options = sourceKey ? relatedOptions[sourceKey] || [] : campo?.options || [];
+  const option = options.find((item) => String(item.value ?? item[getValueField(campo)] ?? item.id) === String(value));
+  return option?.label ?? option?.[getLabelField(campo)] ?? option?.nome ?? value;
+};
+
 const formatValue = (value, campo, relatedOptions = {}) => {
   if (value === undefined || value === null || value === "") return "-";
-
-  if (campo?.options_source) {
-    const option = (relatedOptions[campo.options_source] || []).find((item) => String(item.value) === String(value));
-    if (option) return option.label;
-  }
-
-  if (campo?.tipo === "select") {
-    const option = (campo.options || []).find((item) => String(item.value || item.label) === String(value));
-    if (option) return option.label || option.value;
-  }
-
+  if (campo?.tipo === "select" || campo?.tipo === "relation" || getSourceKey(campo)) return resolveOptionLabel(value, campo, relatedOptions);
   if (campo?.tipo === "date" || campo?.id === "data") return formatDate(value);
   if (campo?.id === "valor") return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   if (campo?.id === "peso") return `${value} kg`;
+  if (campo?.tipo === "calculado" || campo?.tipo === "number") return Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   return value;
 };
 
@@ -67,10 +139,14 @@ export const campoEngine = {
   normalize(campo) {
     return {
       ...campo,
+      id: campo.id || (campo.origem === "customizado" ? `custom:${campo.field_name}` : campo.field_id),
       visivel_form: campo.visivel_form ?? campo.metadata?.visivel_formulario ?? true,
       visivel_tabela: campo.visivel_tabela ?? campo.metadata?.visivel_tabela ?? false,
       visivel_relatorio: campo.visivel_relatorio ?? campo.metadata?.visivel_relatorio ?? false,
-      filtravel: campo.filtravel ?? campo.filtravel ?? true
+      filtravel: campo.filtravel ?? campo.filtravel ?? true,
+      largura_coluna: campo.largura_coluna || campo.metadata?.largura_coluna || 160,
+      ordem_tabela: campo.ordem_tabela ?? campo.metadata?.ordem_tabela ?? campo.ordem ?? 999,
+      agregacao_tipo: campo.agregacao_tipo || campo.agregacao || ""
     };
   },
 
@@ -82,31 +158,48 @@ export const campoEngine = {
     return getRawValue(registro, campo);
   },
 
+  getOptionsSourceKey: getSourceKey,
+
   getOptionsCampo(campo, relatedOptions = {}) {
-    if (campo.options_source) return relatedOptions[campo.options_source] || [];
+    const sourceKey = getSourceKey(campo);
+    if (sourceKey) return relatedOptions[sourceKey] || [];
     return (campo.options || []).map((option) => ({
       value: option.value || option.label,
       label: option.label || option.value
     }));
   },
 
+  calcularCampo(registro, campo) {
+    return calcularFormula(registro, campo);
+  },
+
+  aplicarCamposCalculados(registro, campos = []) {
+    const personalizados = { ...(registro.campos_personalizados || {}) };
+    campos.filter((campo) => campo.tipo === "calculado").forEach((campo) => {
+      personalizados[campo.field_name] = calcularFormula({ ...registro, campos_personalizados: personalizados }, campo);
+    });
+    return { ...registro, campos_personalizados: personalizados };
+  },
+
   buildValidationSchema(campos) {
     const shape = {};
-    campos.filter((campo) => campo.obrigatorio).forEach((campo) => {
+    campos.filter((campo) => campo.obrigatorio && campo.tipo !== "calculado").forEach((campo) => {
       shape[campo.field_name] = z.union([z.string().min(1), z.number(), z.boolean()]);
     });
     return z.object(shape);
   },
 
-  calcularAgregacoes(registros, colunas, relatedOptions = {}) {
+  calcularAgregacoes(registros, colunas) {
     const result = {};
-    colunas.filter((campo) => campo.agregacao).forEach((campo) => {
-      const valores = registros.map((registro) => Number(getRawValue(registro, campo))).filter((value) => !Number.isNaN(value));
+    colunas.filter((campo) => campo.agregacao_tipo || campo.agregacao).forEach((campo) => {
+      const tipo = campo.agregacao_tipo || campo.agregacao;
+      const campoBase = campo.agregacao_campo_base ? { ...campo, field_name: campo.agregacao_campo_base, customField: campo.agregacao_campo_base, tipo: "number" } : campo;
+      const valores = registros.map((registro) => Number(getRawValue(registro, campoBase))).filter((value) => !Number.isNaN(value));
       if (valores.length === 0) return;
-      if (campo.agregacao === "sum") result[campo.id] = valores.reduce((acc, value) => acc + value, 0);
-      if (campo.agregacao === "avg") result[campo.id] = valores.reduce((acc, value) => acc + value, 0) / valores.length;
-      if (campo.agregacao === "min") result[campo.id] = Math.min(...valores);
-      if (campo.agregacao === "max") result[campo.id] = Math.max(...valores);
+      if (tipo === "sum") result[campo.id] = valores.reduce((acc, value) => acc + value, 0);
+      if (tipo === "avg") result[campo.id] = valores.reduce((acc, value) => acc + value, 0) / valores.length;
+      if (tipo === "min") result[campo.id] = Math.min(...valores);
+      if (tipo === "max") result[campo.id] = Math.max(...valores);
     });
     return result;
   }

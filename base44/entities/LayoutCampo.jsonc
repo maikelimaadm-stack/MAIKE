@@ -45,16 +45,25 @@
     },
     "tipo": {
       "type": "string",
-      "description": "Tipo de entrada: text, number, date, select, textarea etc."
+      "description": "Tipo de entrada: text, number, date, select, textarea, relation, calculado etc."
     },
     "col_span": {
       "type": "number",
       "default": 12,
-      "description": "Tamanho no grid de 12 colunas"
+      "description": "Tamanho no grid de 12 colunas, usado apenas no formul\u00e1rio"
+    },
+    "largura_coluna": {
+      "type": "number",
+      "default": 160,
+      "description": "Largura da coluna na tabela em pixels"
     },
     "ordem": {
       "type": "number",
-      "description": "Ordem dentro da se\u00e7\u00e3o"
+      "description": "Ordem dentro da se\u00e7\u00e3o/formul\u00e1rio"
+    },
+    "ordem_tabela": {
+      "type": "number",
+      "description": "Ordem espec\u00edfica da coluna na tabela"
     },
     "obrigatorio": {
       "type": "boolean",
@@ -114,7 +123,21 @@
         "min",
         "max"
       ],
-      "description": "Tipo de agrega\u00e7\u00e3o para rodap\u00e9 da tabela"
+      "description": "Tipo legado de agrega\u00e7\u00e3o"
+    },
+    "agregacao_tipo": {
+      "type": "string",
+      "enum": [
+        "sum",
+        "avg",
+        "min",
+        "max"
+      ],
+      "description": "Tipo real de agrega\u00e7\u00e3o no rodap\u00e9 da tabela"
+    },
+    "agregacao_campo_base": {
+      "type": "string",
+      "description": "Campo base usado para agrega\u00e7\u00e3o quando diferente do pr\u00f3prio campo"
     },
     "options": {
       "type": "array",
@@ -125,22 +148,49 @@
     },
     "options_source": {
       "type": "string",
-      "description": "Entidade/fonte din\u00e2mica de op\u00e7\u00f5es relacionais"
+      "description": "Fonte din\u00e2mica legada de op\u00e7\u00f5es relacionais"
+    },
+    "options_source_entity": {
+      "type": "string",
+      "description": "Entidade fonte para select din\u00e2mico"
+    },
+    "options_label_field": {
+      "type": "string",
+      "description": "Campo usado como label do select din\u00e2mico"
+    },
+    "options_value_field": {
+      "type": "string",
+      "description": "Campo usado como valor salvo do select din\u00e2mico"
+    },
+    "relation_entity": {
+      "type": "string",
+      "description": "Entidade relacionada para campos tipo relation"
+    },
+    "relation_display_field": {
+      "type": "string",
+      "description": "Campo exibido para campos tipo relation"
     },
     "regras": {
       "type": "object",
-      "description": "Regras din\u00e2micas de visibilidade, valida\u00e7\u00e3o e c\u00e1lculo"
+      "description": "Regras din\u00e2micas de visibilidade, valida\u00e7\u00e3o, autopreenchimento e c\u00e1lculo"
     },
     "formula": {
       "type": "string",
-      "description": "F\u00f3rmula de c\u00e1lculo do campo"
+      "description": "F\u00f3rmula segura de c\u00e1lculo do campo"
     },
     "dependencias": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Campos dos quais este campo depende"
+      "description": "Campos dos quais este campo depende (legado)"
+    },
+    "campos_dependentes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Campos dependentes usados no c\u00e1lculo"
     },
     "uppercase": {
       "type": "boolean",
