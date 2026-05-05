@@ -67,7 +67,7 @@ export default function SankhyaListToolbar({
 
 
         <div className="ml-auto flex items-center gap-0">
-          <div className="relative h-7 w-44 md:w-56 border-y-0 border-l-[0.5px] border-r-[0.5px] border-slate-200/60 bg-white">
+          <div className="relative h-7 w-44 md:w-56 border-y-0 border-l-[0.5px] border-slate-200/60 bg-white">
             <input
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
