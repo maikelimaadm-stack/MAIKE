@@ -87,7 +87,7 @@ export default function SankhyaListToolbar({
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Zap className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
-          <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] border-slate-50 bg-white flex items-center justify-center text-xs text-slate-600">
+          <div className="h-7 min-w-12 px-2 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-60">
             {viewMode === "record" && total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
         </div>
