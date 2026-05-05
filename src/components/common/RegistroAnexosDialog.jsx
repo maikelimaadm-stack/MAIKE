@@ -77,7 +77,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-xl">
+      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-[760px]">
         <div className="space-y-1">
           <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
           <div className="border border-slate-200 bg-white">
@@ -85,7 +85,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">ANEXOS</span>
               <span className="text-xs font-semibold text-slate-700 truncate">{title || "Lote"}</span>
             </div>
-            <div className="px-4 md:px-8 py-1 max-w-[760px] space-y-1">
+            <div className="px-4 md:px-8 py-1 w-full space-y-1">
               <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">
                   Nome do arquivo:<span className="text-red-500 ml-0.5">*</span>
@@ -106,7 +106,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             </div>
           </div>
 
-          <div className="px-4 md:px-8 max-w-[760px]">
+          <div className="px-4 md:px-8 py-1 w-full">
             <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
             <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
               <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo:</div>
