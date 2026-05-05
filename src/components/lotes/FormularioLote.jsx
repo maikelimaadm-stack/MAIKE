@@ -144,6 +144,16 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: camposPersonalizados = [] } = useQuery({
+    queryKey: ["lote-campos-personalizados"],
+    queryFn: () => loteRepository.listCamposPersonalizados(),
+    initialData: []
+  });
+
+  const camposPersonalizadosForm = useMemo(() => {
+    return camposPersonalizados.filter((campo) => campo.ativo !== false && campo.visivel_form !== false);
+  }, [camposPersonalizados]);
+
   React.useEffect(() => {
     const areaSelecionada = areas.find((item) => item.id === formData.area_entrada_id);
     if (areaSelecionada && formData.setor_id !== areaSelecionada.setor_id) {
@@ -209,6 +219,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
       }
     });
 
+    camposPersonalizadosForm.filter((campo) => campo.obrigatorio).forEach((campo) => {
+      if (isEmptyValue(formData.campos_personalizados?.[campo.field_name])) {
+        nextErrors[`campos_personalizados.${campo.field_name}`] = true;
+      }
+    });
+
     if (formData.motivo_entrada === "Compra") {
       [
       "fornecedor_id",
@@ -254,6 +270,41 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
     handleChange("sistema_produtivo", proximos);
   };
 
+  const handleCustomChange = (fieldName, value) => {
+    setErrors((prev) => ({ ...prev, [`campos_personalizados.${fieldName}`]: false }));
+    setFormData((prev) => ({
+      ...prev,
+      campos_personalizados: {
+        ...(prev.campos_personalizados || {}),
+        [fieldName]: value
+      }
+    }));
+  };
+
+  const renderCampoPersonalizado = (campo) => {
+    const fieldKey = `campos_personalizados.${campo.field_name}`;
+    const value = formData.campos_personalizados?.[campo.field_name] || "";
+    const inputClass = "h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1";
+
+    if (campo.tipo === "textarea") {
+      return <Textarea value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className="text-xs uppercase bg-transparent px-1" rows={campo.rows || 2} />;
+    }
+
+    if (campo.tipo === "select") {
+      return (
+        <Select value={value || SELECT_EMPTY} onValueChange={(nextValue) => handleCustomChange(campo.field_name, nextValue === SELECT_EMPTY ? "" : nextValue)} disabled={campo.read_only}>
+          <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder={(campo.placeholder || "SELECIONE").toUpperCase()} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+            {(campo.options || []).map((option) => <SelectItem key={option.value || option.label} value={option.value || option.label} className="text-xs">{String(option.label || option.value).toUpperCase()}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""}`} />;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -265,6 +316,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
 
     const dataToSave = {
       ...formData,
+      campos_personalizados: formData.campos_personalizados || {},
       sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
       data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null,
       nome: formData.nome.toUpperCase(),
@@ -308,6 +360,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
     { id: "compra", label: "Compra" },
     { id: "identificacao", label: "Identificação" },
     { id: "observacoes", label: "Observações" },
+    ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])
   ];
 
   return (
@@ -460,6 +513,18 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
                 {formData.motivo_entrada === "Outros" && <FL label="Motivo" required error={errors.motivo_outros} dataField="motivo_outros" wide><Textarea value={formData.motivo_outros || ""} onChange={(e) => handleChange("motivo_outros", e.target.value)} placeholder="DESCREVA O MOTIVO" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
                 {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
                 <FL label="Observações" wide><Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>
+              </div>
+            )}
+
+            {activeTab === "campos_personalizados" && (
+              <div className="space-y-1">
+                {camposPersonalizadosForm.length === 0 ? (
+                  <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div>
+                ) : camposPersonalizadosForm.map((campo) => (
+                  <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"}>
+                    {renderCampoPersonalizado(campo)}
+                  </FL>
+                ))}
               </div>
             )}
           </div>

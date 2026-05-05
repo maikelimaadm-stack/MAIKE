@@ -144,16 +144,25 @@ export const loteRepository = {
       field_name: fieldName,
       origem: "customizado",
       label: data.label,
+      placeholder: data.placeholder || "",
+      descricao: data.descricao || "",
       tipo: data.tipo,
       col_span: data.col_span || 6,
       ordem: campos.length + 1,
       obrigatorio: !!data.obrigatorio,
+      read_only: !!data.read_only,
       ativo: true,
-      metadata: {
-        visivel_formulario: data.visivel_formulario !== false,
-        visivel_tabela: data.visivel_tabela !== false,
-        visivel_relatorio: data.visivel_relatorio !== false
-      }
+      visivel_form: data.visivel_form !== false,
+      visivel_tabela: data.visivel_tabela !== false,
+      visivel_relatorio: data.visivel_relatorio !== false,
+      ordenavel: data.ordenavel !== false,
+      filtravel: data.filtravel !== false,
+      alinhamento: data.alinhamento || "left",
+      options: data.options || [],
+      options_source: data.options_source || "",
+      regras: data.regras || {},
+      formula: data.formula || "",
+      dependencias: data.dependencias || []
     });
   }
 };

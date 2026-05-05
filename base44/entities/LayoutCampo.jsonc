@@ -35,6 +35,14 @@
       "type": "string",
       "description": "R\u00f3tulo do campo"
     },
+    "placeholder": {
+      "type": "string",
+      "description": "Texto de placeholder"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o ou ajuda do campo"
+    },
     "tipo": {
       "type": "string",
       "description": "Tipo de entrada: text, number, date, select, textarea, readonlyNumber etc."
@@ -53,24 +61,81 @@
       "default": false,
       "description": "Obrigatoriedade padr\u00e3o"
     },
+    "read_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o campo \u00e9 somente leitura"
+    },
     "ativo": {
       "type": "boolean",
       "default": true,
-      "description": "Se o campo aparece no layout"
+      "description": "Se o campo est\u00e1 ativo"
     },
-    "placeholder": {
+    "visivel_form": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se aparece no formul\u00e1rio"
+    },
+    "visivel_tabela": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se aparece na tabela"
+    },
+    "visivel_relatorio": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se aparece em relat\u00f3rios"
+    },
+    "ordenavel": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se permite ordena\u00e7\u00e3o em tabela"
+    },
+    "filtravel": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se permite filtro em tabela"
+    },
+    "alinhamento": {
       "type": "string",
-      "description": "Texto de placeholder"
+      "enum": [
+        "left",
+        "center",
+        "right"
+      ],
+      "default": "left",
+      "description": "Alinhamento da coluna"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Op\u00e7\u00f5es est\u00e1ticas do campo select no formato {label,value}"
+    },
+    "options_source": {
+      "type": "string",
+      "description": "Fonte din\u00e2mica de op\u00e7\u00f5es"
+    },
+    "regras": {
+      "type": "object",
+      "description": "Regras din\u00e2micas de visibilidade, valida\u00e7\u00e3o e c\u00e1lculo"
+    },
+    "formula": {
+      "type": "string",
+      "description": "F\u00f3rmula de c\u00e1lculo do campo"
+    },
+    "dependencias": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Campos dos quais este campo depende"
     },
     "uppercase": {
       "type": "boolean",
       "default": false,
       "description": "Se deve converter para caixa alta"
-    },
-    "read_only": {
-      "type": "boolean",
-      "default": false,
-      "description": "Se o campo \u00e9 somente leitura"
     },
     "step": {
       "type": "string",
@@ -80,24 +145,9 @@
       "type": "number",
       "description": "Linhas para textarea"
     },
-    "options": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      },
-      "description": "Op\u00e7\u00f5es est\u00e1ticas do campo"
-    },
-    "options_source": {
-      "type": "string",
-      "description": "Fonte din\u00e2mica de op\u00e7\u00f5es"
-    },
-    "regras": {
-      "type": "object",
-      "description": "Regras din\u00e2micas: visibilidade, obrigatoriedade, c\u00e1lculo, depend\u00eancias"
-    },
     "metadata": {
       "type": "object",
-      "description": "Configura\u00e7\u00f5es adicionais do campo"
+      "description": "Configura\u00e7\u00f5es auxiliares legadas/opcionais"
     }
   },
   "required": [

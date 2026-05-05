@@ -14,6 +14,8 @@ import {
 "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import { useQuery } from "@tanstack/react-query";
+import loteRepository from "@/core/repositories/loteRepository";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
@@ -103,6 +105,34 @@ export default function TabelaLotes({
     return DEFAULT_VISIBLE_COLUMNS;
   });
 
+  const { data: camposPersonalizados = [] } = useQuery({
+    queryKey: ["lote-campos-personalizados"],
+    queryFn: () => loteRepository.listCamposPersonalizados(),
+    initialData: []
+  });
+
+  const colunasDisponiveis = useMemo(() => {
+    const dinamicas = camposPersonalizados
+      .filter((campo) => campo.ativo !== false && campo.visivel_tabela === true)
+      .map((campo) => ({
+        id: `custom:${campo.field_name}`,
+        label: campo.label,
+        default: true,
+        sortable: campo.ordenavel !== false,
+        filtravel: campo.filtravel !== false,
+        align: campo.alinhamento || "left",
+        width: 160,
+        customField: campo.field_name
+      }));
+    return [...COLUNAS_DISPONIVEIS, ...dinamicas];
+  }, [camposPersonalizados]);
+
+  useEffect(() => {
+    const customVisible = colunasDisponiveis.filter((col) => col.id.startsWith("custom:") && col.default).map((col) => col.id);
+    setColunasVisiveis((prev) => Array.from(new Set([...prev, ...customVisible])));
+    setColunasOrdem((prev) => Array.from(new Set([...prev, ...customVisible])));
+  }, [colunasDisponiveis]);
+
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
 
   const toggleResizeMode = (colunaId) => {
@@ -151,8 +181,8 @@ export default function TabelaLotes({
   };
 
   const colunasOrdenadas = useMemo(() => {
-    return colunasOrdem.map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
-  }, [colunasOrdem, colunasVisiveis]);
+    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
+  }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
 
   // Field value extraction for filters
   const getFieldValue = (lote, colunaId) => {
@@ -175,16 +205,17 @@ export default function TabelaLotes({
     if (colunaId === "valor") return lote.valor_total_compra ? formatarValor(lote.valor_total_compra) : "";
     if (colunaId === "fornecedor") return lote.fornecedor_nome || "";
     if (colunaId === "observacoes") return lote.observacoes || "";
+    if (String(colunaId).startsWith("custom:")) return lote.campos_personalizados?.[String(colunaId).replace("custom:", "")] || "";
     return "";
   };
 
   const columnOptions = useMemo(() => {
     const opts = {};
-    COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).forEach((col) => {
-      opts[col.id] = [...new Set(lotes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
+    colunasDisponiveis.filter((c) => !c.fixo).forEach((col) => {
+      opts[col.id] = [...new Set(lotes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" }));
     });
     return opts;
-  }, [lotes]);
+  }, [lotes, colunasDisponiveis]);
 
   const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
@@ -193,14 +224,14 @@ export default function TabelaLotes({
 
   const lotesFiltrados = useMemo(() => {
     return lotes.filter((lote) => {
-      return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
+      return colunasDisponiveis.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
         const val = getFieldValue(lote, col.id);
         return filtro.includes(val);
       });
     });
-  }, [lotes, filtrosColunas]);
+  }, [lotes, filtrosColunas, colunasDisponiveis]);
 
   const lotesOrdenados = useMemo(() => {
     const sorted = [...lotesFiltrados];
@@ -222,8 +253,8 @@ export default function TabelaLotes({
         const aV = Number(a.valor_total_compra || 0);const bV = Number(b.valor_total_compra || 0);
         return sortConfig.direction === "asc" ? aV - bV : bV - aV;
       }
-      const aVal = getFieldValue(a, sortConfig.key).toLowerCase();
-      const bVal = getFieldValue(b, sortConfig.key).toLowerCase();
+      const aVal = String(getFieldValue(a, sortConfig.key)).toLowerCase();
+      const bVal = String(getFieldValue(b, sortConfig.key)).toLowerCase();
       if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
@@ -269,6 +300,7 @@ export default function TabelaLotes({
     if (colunaId === "valor") return formatarValor(lote.valor_total_compra);
     if (colunaId === "fornecedor") return lote.fornecedor_nome || "-";
     if (colunaId === "observacoes") return lote.observacoes || "-";
+    if (String(colunaId).startsWith("custom:")) return lote.campos_personalizados?.[String(colunaId).replace("custom:", "")] || "-";
     return "-";
   };
 
@@ -292,7 +324,7 @@ export default function TabelaLotes({
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
-    const columnLabel = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId)?.label || colunaId;
+    const columnLabel = colunasDisponiveis.find((c) => c.id === colunaId)?.label || colunaId;
     const options = columnOptions[colunaId] || [];
     const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
     const filteredOptions = options.filter((o) => String(o).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
@@ -556,7 +588,7 @@ export default function TabelaLotes({
       <ConfiguracaoColunasMapaDialog
         open={showConfigColunas}
         onOpenChange={setShowConfigColunas}
-        colunasDisponiveis={COLUNAS_DISPONIVEIS}
+        colunasDisponiveis={colunasDisponiveis}
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
         toggleColuna={toggleColuna}

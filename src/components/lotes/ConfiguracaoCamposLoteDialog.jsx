@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -25,15 +26,29 @@ const toSnakeCase = (value) => String(value || "")
   .replace(/^_+|_+$/g, "")
   .toLowerCase();
 
+const parseOptions = (text) => String(text || "")
+  .split("\n")
+  .map((item) => item.trim())
+  .filter(Boolean)
+  .map((item) => ({ label: item.toUpperCase(), value: item }));
+
 const initialForm = {
   label: "",
   field_name: "",
+  placeholder: "",
+  descricao: "",
   tipo: "text",
   col_span: 6,
   obrigatorio: false,
-  visivel_formulario: true,
+  read_only: false,
+  visivel_form: true,
   visivel_tabela: true,
-  visivel_relatorio: true
+  visivel_relatorio: true,
+  ordenavel: true,
+  filtravel: true,
+  alinhamento: "left",
+  options_text: "",
+  options_source: ""
 };
 
 export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
@@ -50,12 +65,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const createMutation = useMutation({
     mutationFn: () => loteRepository.createCampoPersonalizado({
       ...form,
-      field_name: toSnakeCase(form.field_name || form.label)
+      field_name: toSnakeCase(form.field_name || form.label),
+      options: form.tipo === "select" ? parseOptions(form.options_text) : []
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
       setForm(initialForm);
-      toast.success("Campo personalizado criado!");
+      toast.success("Campo criado no LayoutCampo!");
     }
   });
 
@@ -79,13 +95,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[88vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-sm">Campos Personalizados do Lote</DialogTitle>
+          <DialogTitle className="text-sm">Campos do Lote - LayoutCampo</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="border rounded-lg p-3 bg-slate-50 space-y-2">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div className="md:col-span-2 space-y-1">
               <label className="text-xs uppercase text-slate-600">Label</label>
               <Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: ESCORE CORPORAL" className="h-8 text-xs uppercase" />
@@ -98,27 +114,63 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               <label className="text-xs uppercase text-slate-600">Tipo</label>
               <Select value={form.tipo} onValueChange={(value) => updateForm("tipo", value)}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>{TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs">{tipo.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs uppercase text-slate-600">Alinhamento</label>
+              <Select value={form.alinhamento} onValueChange={(value) => updateForm("alinhamento", value)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs">{tipo.label}</SelectItem>)}
+                  <SelectItem value="left" className="text-xs">Esquerda</SelectItem>
+                  <SelectItem value="center" className="text-xs">Centro</SelectItem>
+                  <SelectItem value="right" className="text-xs">Direita</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <label className="text-xs uppercase text-slate-600">Placeholder</label>
+              <Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO DE AJUDA" className="h-8 text-xs uppercase" />
+            </div>
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-xs uppercase text-slate-600">Descrição</label>
+              <Input value={form.descricao} onChange={(e) => updateForm("descricao", e.target.value)} placeholder="DESCRIÇÃO DO CAMPO" className="h-8 text-xs uppercase" />
+            </div>
+          </div>
+
+          {form.tipo === "select" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs uppercase text-slate-600">Opções - uma por linha</label>
+                <Textarea value={form.options_text} onChange={(e) => updateForm("options_text", e.target.value)} placeholder={"OPÇÃO 1\nOPÇÃO 2\nOPÇÃO 3"} className="text-xs uppercase min-h-20" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs uppercase text-slate-600">Fonte dinâmica</label>
+                <Input value={form.options_source} onChange={(e) => updateForm("options_source", e.target.value)} placeholder="EX: categorias_manejo" className="h-8 text-xs" />
+                <p className="text-[11px] text-slate-500">Use opções manuais ou uma fonte dinâmica futura.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs uppercase text-slate-600">Colunas</label>
               <Input type="number" min="1" max="12" value={form.col_span} onChange={(e) => updateForm("col_span", Number(e.target.value) || 6)} className="h-8 text-xs" />
             </div>
             {[
               ["obrigatorio", "Obrigatório"],
-              ["visivel_formulario", "Formulário"],
+              ["read_only", "Bloqueado"],
+              ["visivel_form", "Formulário"],
               ["visivel_tabela", "Tabela"],
-              ["visivel_relatorio", "Relatório"]
+              ["visivel_relatorio", "Relatório"],
+              ["ordenavel", "Ordenável"],
+              ["filtravel", "Filtrável"]
             ].map(([field, label]) => (
               <label key={field} className="h-8 px-2 border rounded-md bg-white flex items-center justify-between gap-2 text-xs text-slate-700">
-                {label}
-                <Switch checked={form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
+                {label}<Switch checked={form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
               </label>
             ))}
           </div>
@@ -131,22 +183,19 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
         </form>
 
         <div className="flex-1 overflow-auto border rounded-lg">
-          <div className="grid grid-cols-[1fr_130px_100px_170px] gap-2 px-3 py-2 bg-slate-100 border-b text-xs font-semibold text-slate-700">
-            <span>Campo</span><span>Chave</span><span>Tipo</span><span>Visibilidade</span>
+          <div className="grid grid-cols-[1fr_130px_90px_220px] gap-2 px-3 py-2 bg-slate-100 border-b text-xs font-semibold text-slate-700">
+            <span>Campo</span><span>Chave</span><span>Tipo</span><span>Uso</span>
           </div>
-          {isLoading ? (
-            <div className="p-4 text-xs text-slate-500">Carregando...</div>
-          ) : campos.length === 0 ? (
-            <div className="p-4 text-xs text-slate-400 text-center">Nenhum campo personalizado criado.</div>
-          ) : campos.map((campo) => (
-            <div key={campo.id || campo.field_id} className="grid grid-cols-[1fr_130px_100px_170px] gap-2 px-3 py-2 border-b text-xs items-center">
+          {isLoading ? <div className="p-4 text-xs text-slate-500">Carregando...</div> : campos.length === 0 ? <div className="p-4 text-xs text-slate-400 text-center">Nenhum campo criado.</div> : campos.map((campo) => (
+            <div key={campo.id || campo.field_id} className="grid grid-cols-[1fr_130px_90px_220px] gap-2 px-3 py-2 border-b text-xs items-center">
               <span className="font-medium text-slate-800">{campo.label}</span>
               <span className="font-mono text-slate-500">{campo.field_name}</span>
               <span>{campo.tipo}</span>
               <div className="flex flex-wrap gap-1">
-                {campo.metadata?.visivel_formulario && <Badge variant="outline" className="text-[10px]">Form</Badge>}
-                {campo.metadata?.visivel_tabela && <Badge variant="outline" className="text-[10px]">Tabela</Badge>}
-                {campo.metadata?.visivel_relatorio && <Badge variant="outline" className="text-[10px]">Rel.</Badge>}
+                {campo.visivel_form && <Badge variant="outline" className="text-[10px]">Form</Badge>}
+                {campo.visivel_tabela && <Badge variant="outline" className="text-[10px]">Tabela</Badge>}
+                {campo.visivel_relatorio && <Badge variant="outline" className="text-[10px]">Rel.</Badge>}
+                {campo.tipo === "select" && <Badge variant="secondary" className="text-[10px]">{campo.options?.length || 0} opções</Badge>}
               </div>
             </div>
           ))}
