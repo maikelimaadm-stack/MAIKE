@@ -71,12 +71,18 @@ export default function CadastroLotes() {
       if (appliedFilters.status && appliedFilters.status !== "todos" && lote.status !== appliedFilters.status) return false;
       if (appliedFilters.area && appliedFilters.area !== "todos" && ![lote.area_entrada_nome, lote.area_atual_nome].includes(appliedFilters.area)) return false;
       if (appliedFilters.setor && appliedFilters.setor !== "todos" && lote.setor_nome !== appliedFilters.setor) return false;
+      const operators = appliedFilters._operators || {};
+      const checkNumeric = (field, value) => {
+        const operator = operators[field] || "between";
+        if (operator === "exact" && appliedFilters[`${field}_exact`] && value !== Number(appliedFilters[`${field}_exact`])) return false;
+        if ((operator === "between" || operator === "gt") && appliedFilters[`${field}_min`] && value < Number(appliedFilters[`${field}_min`])) return false;
+        if ((operator === "between" || operator === "lt") && appliedFilters[`${field}_max`] && value > Number(appliedFilters[`${field}_max`])) return false;
+        return true;
+      };
       const quantidade = Number(lote.quantidade_entrada ?? lote.quantidade_cabecas ?? 0);
-      if (appliedFilters.quantidade_min && quantidade < Number(appliedFilters.quantidade_min)) return false;
-      if (appliedFilters.quantidade_max && quantidade > Number(appliedFilters.quantidade_max)) return false;
+      if (!checkNumeric("quantidade", quantidade)) return false;
       const peso = Number(lote.peso_entrada_kg ?? lote.peso_medio_kg ?? 0);
-      if (appliedFilters.peso_min && peso < Number(appliedFilters.peso_min)) return false;
-      if (appliedFilters.peso_max && peso > Number(appliedFilters.peso_max)) return false;
+      if (!checkNumeric("peso", peso)) return false;
       const dataEntrada = String(lote.data_entrada || "").split("T")[0];
       if (appliedFilters.data_inicio && dataEntrada < appliedFilters.data_inicio) return false;
       if (appliedFilters.data_fim && dataEntrada > appliedFilters.data_fim) return false;
