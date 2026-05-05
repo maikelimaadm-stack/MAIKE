@@ -4,7 +4,7 @@ import { Home, Filter, List, Check, X, Search, FileText, Paperclip, MoreHorizont
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 
-export default function LegacyRecordToolbar({ title, operationLabel, showSaveActions = false, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, operationLabel, showSaveActions = false, showDeleteDuplicateActions = true, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
@@ -21,8 +21,8 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
         <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Registro anterior"><ChevronLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate || isLast} className={iconButtonClass} title="Próximo registro"><ChevronRight className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate || isLast} className={iconButtonClass} title="Último registro"><ChevronsRight className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>
+        {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>}
+        {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
         <Button type="button" variant="outline" size="icon" onClick={onRefresh} className={iconButtonClass}><RefreshCw className="w-3.5 h-3.5" /></Button>
         {showSaveActions &&
         <>

@@ -416,6 +416,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
           operationLabel={operationLabel}
           showSaveActions={isDirty}
+          showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating}
           onCancel={onCancel}
           onSettingsClick={onSettingsClick}
           onToggleView={onToggleView}
