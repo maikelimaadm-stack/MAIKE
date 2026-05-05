@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Paperclip, Upload, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { Paperclip, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const formatSize = (bytes = 0) => {
@@ -40,7 +40,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
     if (!attachmentName.trim()) {
-      toast.error("Informe o nome do anexo.");
+      toast.error("Informe o nome do arquivo antes de anexar.");
       event.target.value = "";
       return;
     }
@@ -76,17 +76,30 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
 
         <div className="space-y-3">
           <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
-          <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
-            <Input
-              value={attachmentName}
-              onChange={(e) => setAttachmentName(e.target.value)}
-              placeholder="Nome do anexo"
-              className="h-8 text-xs"
-            />
-            <Button type="button" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading || !recordId} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              Selecionar arquivo
-            </Button>
+          <div className="border border-slate-200 bg-white">
+            <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
+              <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">ANEXO</span>
+              <span className="text-xs font-semibold text-slate-600">Novo arquivo</span>
+            </div>
+            <div className="px-4 md:px-8 py-3 max-w-[760px] space-y-1">
+              <div className="grid grid-cols-[160px_minmax(0,1fr)] items-center gap-1">
+                <label className="text-[12px] text-slate-600 text-right leading-none">
+                  Nome do arquivo<span className="text-red-500 ml-0.5">*</span>
+                </label>
+                <div className="grid grid-cols-[minmax(0,1fr)_32px] border border-slate-300 bg-white focus-within:border-green-500 transition-colors overflow-hidden">
+                  <Input
+                    value={attachmentName}
+                    onChange={(e) => setAttachmentName(e.target.value)}
+                    placeholder="EX: CONTRATO, NOTA FISCAL, GTA..."
+                    className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1"
+                    style={{ textTransform: "uppercase" }}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={() => inputRef.current?.click()} disabled={uploading || !recordId || !attachmentName.trim()} className="h-[22px] w-8 rounded-none border-y-0 border-r-0 border-l border-slate-300 bg-green-500 hover:bg-green-600 text-white shadow-none" title="Anexar arquivo">
+                    {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="border border-slate-200 rounded-sm divide-y divide-slate-200 max-h-80 overflow-auto">
