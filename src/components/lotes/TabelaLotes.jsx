@@ -12,7 +12,6 @@ import campoEngine from "@/services/campoEngine";
 import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
-{ id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
 { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
 { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 200 },
 { id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
@@ -62,7 +61,8 @@ export default function TabelaLotes({
   showConfigColunas,
   setShowConfigColunas,
   searchTerm = "",
-  onSelectionChange
+  onSelectionChange,
+  selectedIds = []
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -156,7 +156,6 @@ export default function TabelaLotes({
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
 
   const toggleResizeMode = (colunaId) => {
-    if (colunaId === "selecao") return;
     setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
   };
 
@@ -184,6 +183,7 @@ export default function TabelaLotes({
   };
 
   useEffect(() => {setSelectedItems((prev) => prev.filter((id) => lotes.some((l) => l.id === id)));}, [lotes]);
+  useEffect(() => {setSelectedItems(selectedIds);}, [selectedIds]);
   useEffect(() => {onSelectionChange?.(selectedItems);}, [selectedItems, onSelectionChange]);
 
   const toggleColuna = (colunaId) => {
@@ -483,16 +483,6 @@ export default function TabelaLotes({
                       const width = columnWidths[coluna.id] || coluna.width || 160;
                       const isResizing = resizeColumnId === coluna.id;
 
-                      if (coluna.id === "selecao") {
-                        return (
-                          <TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200">
-                            <div className="flex items-center justify-center w-full h-full">
-                              <Checkbox checked={selectedItems.length === lotesFiltrados.length && lotesFiltrados.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                            </div>
-                          </TableHead>);
-
-                      }
-
                       const filterControl = renderFilterControl(coluna.id);
 
                       return (
@@ -556,22 +546,6 @@ export default function TabelaLotes({
                     
                         {colunasOrdenadas.map((coluna) => {
                       const width = columnWidths[coluna.id] || coluna.width || 160;
-
-                      if (coluna.id === "selecao") {
-                        return (
-                          <TableCell
-                            key={`${lote.id}-selecao`}
-                            style={{ width: 25, minWidth: 25, maxWidth: 25 }}
-                            className="p-0 text-muted-foreground font-medium text-center align-middle px-0 h-7 border-r border-b border-gray-300"
-                            onClick={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}>
-                            
-                                <div className="flex items-center justify-center w-full h-full">
-                                  <Checkbox checked={selectedItems.includes(lote.id)} onCheckedChange={(checked) => setSelectedItems((prev) => checked ? [...new Set([...prev, lote.id])] : prev.filter((id) => id !== lote.id))} className="rounded-full peer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed shrink-0 shadow disabled:opacity-50 h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" />
-                                </div>
-                              </TableCell>);
-
-                      }
 
                       return (
                         <TableCell

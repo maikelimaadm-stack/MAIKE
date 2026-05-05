@@ -153,6 +153,7 @@ export default function CadastroLotes() {
     const nextIndex = Math.min(Math.max(index, 0), Math.max(lotes.length - 1, 0));
     setSelectedIndex(nextIndex);
     if (showForm && lotes[nextIndex]) setEditingLote(lotes[nextIndex]);
+    if (!showForm && lotes[nextIndex]) setSelectedTableItems([lotes[nextIndex].id]);
   };
 
   const handleRefresh = () => {
@@ -238,7 +239,8 @@ export default function CadastroLotes() {
           showConfigColunas={showConfigColunas}
           setShowConfigColunas={setShowConfigColunas}
           searchTerm={searchTerm}
-          onSelectionChange={handleTableSelectionChange} />
+          onSelectionChange={handleTableSelectionChange}
+          selectedIds={selectedTableItems} />
       )}
 
       <ConfiguracaoCamposLoteDialog
