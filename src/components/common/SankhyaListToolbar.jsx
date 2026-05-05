@@ -21,8 +21,8 @@ import {
   Zap,
   MoreHorizontal,
   Settings,
-  ChevronDown
-} from "lucide-react";
+  ChevronDown } from
+"lucide-react";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 shadow-none";
 
@@ -76,8 +76,8 @@ export default function SankhyaListToolbar({
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
               placeholder="Pesquisar registros..."
-              className="h-full w-full px-2 pr-7 text-xs bg-white outline-none"
-            />
+              className="h-full w-full px-2 pr-7 text-xs bg-white outline-none" />
+            
             <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
           </div>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Star className="w-3.5 h-3.5" /></Button>
@@ -92,13 +92,13 @@ export default function SankhyaListToolbar({
           </div>
         </div>
       </div>
-      <div className="h-8 flex items-center gap-2 bg-white border-b border-slate-300 px-2">
-        {recordLabel && <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">{recordLabel}</span>}
+      <div className="h-8 flex items-center gap-2 bg-white border-b border-slate-300 px-2 hidden">
+        <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">{recordLabel}</span>
         <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
         <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
           {operationLabel || (viewMode === "table" ? "VISUALIZAÇÃO DE TABELA" : "VISUALIZAÇÃO DE REGISTRO")}
         </span>
       </div>
-    </div>
-  );
+    </div>);
+
 }
