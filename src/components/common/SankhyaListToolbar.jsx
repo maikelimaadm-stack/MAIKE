@@ -31,6 +31,10 @@ export default function SankhyaListToolbar({
   onNew,
   onToggleView,
   toggleViewDisabled = false,
+  filterOpen = false,
+  filterActive = false,
+  onToggleFilter,
+  onClearFilter,
   onFirst,
   onPrevious,
   onNext,
@@ -55,7 +59,16 @@ export default function SankhyaListToolbar({
     <div className="bg-white">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onToggleFilter} className={filterOpen || filterActive ? "relative h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none" : iconButtonClass} title="Filtros">
+          <Filter className="w-3.5 h-3.5" />
+          {filterActive &&
+          <span
+            onClick={(e) => { e.stopPropagation(); onClearFilter?.(); }}
+            className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-white text-red-600 border border-red-500 text-[10px] leading-[12px] font-bold">
+            ×
+          </span>
+          }
+        </Button>
         
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} disabled={toggleViewDisabled} className={iconButtonClass} title={toggleViewDisabled ? "Selecione apenas um registro" : viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
           {viewMode === "table" ? <List className="w-3.5 h-3.5" /> : <Table className="w-3.5 h-3.5" />}

@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
+import SankhyaFilterPanel from "@/components/common/SankhyaFilterPanel";
 import { toast } from "sonner";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
@@ -26,6 +27,9 @@ export default function CadastroLotes() {
   const [attachmentsRecord, setAttachmentsRecord] = useState(null);
   const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filters, setFilters] = useState({ status: "todos" });
+  const [appliedFilters, setAppliedFilters] = useState({ status: "todos" });
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -49,6 +53,27 @@ export default function CadastroLotes() {
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
+
+  const hasActiveFilters = useMemo(() => {
+    return Object.entries(appliedFilters).some(([key, value]) => {
+      if (key === "status") return value && value !== "todos";
+      return Boolean(String(value || "").trim());
+    });
+  }, [appliedFilters]);
+
+  const lotesFiltradosPainel = useMemo(() => {
+    return lotes.filter((lote) => {
+      const contains = (field, value) => String(field || "").toLowerCase().includes(String(value || "").toLowerCase().trim());
+      if (appliedFilters.numero_lote && !contains(lote.numero_lote, appliedFilters.numero_lote)) return false;
+      if (appliedFilters.nome && !contains(lote.nome, appliedFilters.nome)) return false;
+      if (appliedFilters.categoria && !contains(lote.categoria, appliedFilters.categoria)) return false;
+      if (appliedFilters.status && appliedFilters.status !== "todos" && lote.status !== appliedFilters.status) return false;
+      const dataEntrada = String(lote.data_entrada || "").split("T")[0];
+      if (appliedFilters.data_inicio && dataEntrada < appliedFilters.data_inicio) return false;
+      if (appliedFilters.data_fim && dataEntrada > appliedFilters.data_fim) return false;
+      return true;
+    });
+  }, [lotes, appliedFilters]);
 
   const createLoteMutation = useMutation({
     mutationFn: (data) => loteRepository.create(data, { empresaId: empresaSelecionadaId }),
@@ -102,8 +127,9 @@ export default function CadastroLotes() {
   };
 
   const handleEdit = (lote) => {
-    const index = lotes.findIndex((item) => item.id === lote.id);
+    const index = lotesFiltradosPainel.findIndex((item) => item.id === lote.id);
     if (index >= 0) setSelectedIndex(index);
+    setSelectedTableItems([lote.id]);
     setEditingLote(lote);
     setShowForm(true);
     setViewMode("record");
@@ -152,8 +178,8 @@ export default function CadastroLotes() {
     setShowConfigCampos(true);
   };
 
-  const currentLote = lotes[selectedIndex] || lotes[0] || null;
-  const selectedTableLote = selectedTableItems.length === 1 ? lotes.find((item) => item.id === selectedTableItems[0]) : null;
+  const currentLote = lotesFiltradosPainel[selectedIndex] || lotesFiltradosPainel[0] || null;
+  const selectedTableLote = selectedTableItems.length === 1 ? lotesFiltradosPainel.find((item) => item.id === selectedTableItems[0]) : null;
   const recordForAttachments = showForm ? editingLote : selectedTableLote;
 
   const handleTableSelectionChange = useCallback((ids) => {
@@ -162,10 +188,10 @@ export default function CadastroLotes() {
       return sameSelection ? prev : ids;
     });
     if (ids.length === 1) {
-      const index = lotes.findIndex((item) => item.id === ids[0]);
+      const index = lotesFiltradosPainel.findIndex((item) => item.id === ids[0]);
       if (index >= 0) setSelectedIndex(index);
     }
-  }, [lotes]);
+  }, [lotesFiltradosPainel]);
 
   const handleToggleView = () => {
     if (showForm) {
@@ -184,11 +210,11 @@ export default function CadastroLotes() {
 
   const navigateRecord = (index) => {
     if (!showForm) return;
-    const nextIndex = Math.min(Math.max(index, 0), Math.max(lotes.length - 1, 0));
+    const nextIndex = Math.min(Math.max(index, 0), Math.max(lotesFiltradosPainel.length - 1, 0));
     setSelectedIndex(nextIndex);
-    if (lotes[nextIndex]) {
-      setEditingLote(lotes[nextIndex]);
-      setSelectedTableItems([lotes[nextIndex].id]);
+    if (lotesFiltradosPainel[nextIndex]) {
+      setEditingLote(lotesFiltradosPainel[nextIndex]);
+      setSelectedTableItems([lotesFiltradosPainel[nextIndex].id]);
     }
   };
 
@@ -226,17 +252,21 @@ export default function CadastroLotes() {
       {!showForm &&
       <SankhyaListToolbar
         viewMode={viewMode}
-        total={lotes.length}
+        total={lotesFiltradosPainel.length}
         currentIndex={selectedIndex}
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         onNew={handleNew}
         onToggleView={handleToggleView}
         toggleViewDisabled={selectedTableItems.length > 1}
+        filterOpen={filterPanelOpen}
+        filterActive={hasActiveFilters}
+        onToggleFilter={() => setFilterPanelOpen((open) => !open)}
+        onClearFilter={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
         onFirst={() => navigateRecord(0)}
         onPrevious={() => navigateRecord(selectedIndex - 1)}
         onNext={() => navigateRecord(selectedIndex + 1)}
-        onLast={() => navigateRecord(lotes.length - 1)}
+        onLast={() => navigateRecord(lotesFiltradosPainel.length - 1)}
         onDelete={() => selectedTableItems.length > 0 && handleRequestDelete(selectedTableItems)}
         onDuplicate={() => selectedTableLote && handleDuplicate(selectedTableLote)}
         onRefresh={handleRefresh}
@@ -284,13 +314,13 @@ export default function CadastroLotes() {
         }}
         onSettingsClick={handleOpenConfigCampos}
         onToggleView={handleToggleView}
-        total={lotes.length}
+        total={lotesFiltradosPainel.length}
         currentIndex={selectedIndex}
         onNew={handleNew}
         onFirst={() => navigateRecord(0)}
         onPrevious={() => navigateRecord(selectedIndex - 1)}
         onNext={() => navigateRecord(selectedIndex + 1)}
-        onLast={() => navigateRecord(lotes.length - 1)}
+        onLast={() => navigateRecord(lotesFiltradosPainel.length - 1)}
         onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
         onDuplicate={() => editingLote && handleDuplicate(editingLote)}
         onAttachClick={() => editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)}
@@ -298,20 +328,28 @@ export default function CadastroLotes() {
         onRefresh={handleRefresh} />
       }
 
-      <div className={showForm ? "hidden" : "block"}>
-        <TabelaLotes
-          key="table"
-          lotes={lotes}
-          areas={areas}
-          onEdit={handleEdit}
-          onDuplicate={handleDuplicate}
-          onDelete={handleRequestDelete}
-          lotesComMovimentacoes={lotesComMovimentacoes}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas}
-          searchTerm={searchTerm}
-          selectedRecordId={showForm ? editingLote?.id : undefined}
-          onSelectionChange={handleTableSelectionChange} />
+      <div className={showForm ? "hidden" : "flex items-start min-h-0"}>
+        <SankhyaFilterPanel
+          open={filterPanelOpen}
+          filters={filters}
+          onChange={setFilters}
+          onApply={() => setAppliedFilters(filters)}
+          onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }} />
+        <div className="min-w-0 flex-1">
+          <TabelaLotes
+            key="table"
+            lotes={lotesFiltradosPainel}
+            areas={areas}
+            onEdit={handleEdit}
+            onDuplicate={handleDuplicate}
+            onDelete={handleRequestDelete}
+            lotesComMovimentacoes={lotesComMovimentacoes}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas}
+            searchTerm={searchTerm}
+            selectedRecordId={showForm ? editingLote?.id : undefined}
+            onSelectionChange={handleTableSelectionChange} />
+        </div>
       </div>
 
       <ConfiguracaoCamposLoteDialog
