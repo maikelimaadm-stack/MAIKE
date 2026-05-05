@@ -206,7 +206,17 @@ export default function CadastroLotes() {
           onSubmit={handleSubmit}
           onCancel={() => {setShowForm(false);setEditingLote(null);setViewMode("table");}}
           onSettingsClick={handleOpenConfigCampos}
-          onToggleView={handleToggleView} /> :
+          onToggleView={handleToggleView}
+          total={lotes.length}
+          currentIndex={selectedIndex}
+          onNew={() => {setShowForm(true);setEditingLote(null);setViewMode("record");}}
+          onFirst={() => navigateRecord(0)}
+          onPrevious={() => navigateRecord(selectedIndex - 1)}
+          onNext={() => navigateRecord(selectedIndex + 1)}
+          onLast={() => navigateRecord(lotes.length - 1)}
+          onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
+          onDuplicate={() => editingLote && handleDuplicate(editingLote)}
+          onRefresh={handleRefresh} /> :
 
 
         <TabelaLotes
