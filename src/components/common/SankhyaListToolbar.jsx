@@ -57,7 +57,7 @@ export default function SankhyaListToolbar({
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-transparent bg-white border-r border-t border-b border-gray-200 [0.5px]">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><ChevronDown className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none hidden"><ChevronDown className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} className={iconButtonClass} title={viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
           {viewMode === "table" ? <List className="w-3.5 h-3.5" /> : <Table className="w-3.5 h-3.5" />}
         </Button>
