@@ -19,6 +19,7 @@ export default function CadastroLotes() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTableItems, setSelectedTableItems] = useState([]);
+  const [formVersion, setFormVersion] = useState(0);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -94,6 +95,13 @@ export default function CadastroLotes() {
     setViewMode("record");
   };
 
+  const handleNew = () => {
+    setEditingLote(null);
+    setShowForm(true);
+    setViewMode("record");
+    setFormVersion((prev) => prev + 1);
+  };
+
   const handleDuplicate = (lote) => {
     const { id, created_date, updated_date, created_by, numero_lote, status, ...duplicatedData } = lote;
     setEditingLote({
@@ -115,6 +123,8 @@ export default function CadastroLotes() {
       _isDuplicate: true
     });
     setShowForm(true);
+    setViewMode("record");
+    setFormVersion((prev) => prev + 1);
   };
 
   const handleRequestDelete = (ids) => {
@@ -197,7 +207,7 @@ export default function CadastroLotes() {
           currentIndex={selectedIndex}
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          onNew={() => {setShowForm(true);setEditingLote(null);setViewMode("record");}}
+          onNew={handleNew}
           onToggleView={handleToggleView}
           onFirst={() => navigateRecord(0)}
           onPrevious={() => navigateRecord(selectedIndex - 1)}
@@ -213,7 +223,7 @@ export default function CadastroLotes() {
 
       {showForm ? (
         <FormularioLote
-          key="form"
+          key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
           initialData={editingLote}
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
@@ -222,7 +232,7 @@ export default function CadastroLotes() {
           onToggleView={handleToggleView}
           total={lotes.length}
           currentIndex={selectedIndex}
-          onNew={() => {setShowForm(true);setEditingLote(null);setViewMode("record");}}
+          onNew={handleNew}
           onFirst={() => navigateRecord(0)}
           onPrevious={() => navigateRecord(selectedIndex - 1)}
           onNext={() => navigateRecord(selectedIndex + 1)}
