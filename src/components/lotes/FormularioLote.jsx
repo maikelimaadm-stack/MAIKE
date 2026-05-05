@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import loteRepository from "@/core/repositories/loteRepository";
+import campoEngine from "@/services/campoEngine";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
@@ -151,8 +152,15 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
   });
 
   const camposPersonalizadosForm = useMemo(() => {
-    return camposPersonalizados.filter((campo) => campo.ativo !== false && campo.visivel_form !== false);
+    return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_form !== false);
   }, [camposPersonalizados]);
+
+  const { data: relatedOptions = {} } = useQuery({
+    queryKey: ["lote-form-related-options", camposPersonalizadosForm.map((campo) => campo.options_source).filter(Boolean).join("|")],
+    queryFn: () => loteRepository.listOptionsSources(camposPersonalizadosForm.map((campo) => campo.options_source)),
+    enabled: camposPersonalizadosForm.some((campo) => !!campo.options_source),
+    initialData: {}
+  });
 
   React.useEffect(() => {
     const areaSelecionada = areas.find((item) => item.id === formData.area_entrada_id);
@@ -219,11 +227,13 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
       }
     });
 
-    camposPersonalizadosForm.filter((campo) => campo.obrigatorio).forEach((campo) => {
-      if (isEmptyValue(formData.campos_personalizados?.[campo.field_name])) {
-        nextErrors[`campos_personalizados.${campo.field_name}`] = true;
-      }
-    });
+    const customValidation = campoEngine.buildValidationSchema(camposPersonalizadosForm).safeParse(formData.campos_personalizados || {});
+    if (!customValidation.success) {
+      customValidation.error.issues.forEach((issue) => {
+        const fieldName = issue.path[0];
+        if (fieldName) nextErrors[`campos_personalizados.${fieldName}`] = true;
+      });
+    }
 
     if (formData.motivo_entrada === "Compra") {
       [
@@ -296,7 +306,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, in
           <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder={(campo.placeholder || "SELECIONE").toUpperCase()} /></SelectTrigger>
           <SelectContent>
             <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-            {(campo.options || []).map((option) => <SelectItem key={option.value || option.label} value={option.value || option.label} className="text-xs">{String(option.label || option.value).toUpperCase()}</SelectItem>)}
+            {campoEngine.getOptionsCampo(campo, relatedOptions).map((option) => (
+              <SelectItem key={option.value || option.label} value={option.value || option.label} className="text-xs">
+                {String(option.label || option.value).toUpperCase()}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       );

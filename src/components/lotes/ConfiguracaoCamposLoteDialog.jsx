@@ -47,6 +47,7 @@ const initialForm = {
   ordenavel: true,
   filtravel: true,
   alinhamento: "left",
+  agregacao: "none",
   options_text: "",
   options_source: ""
 };
@@ -66,7 +67,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     mutationFn: () => loteRepository.createCampoPersonalizado({
       ...form,
       field_name: toSnakeCase(form.field_name || form.label),
-      options: form.tipo === "select" ? parseOptions(form.options_text) : []
+      options: form.tipo === "select" ? parseOptions(form.options_text) : [],
+      agregacao: form.agregacao === "none" ? undefined : form.agregacao
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
@@ -128,6 +130,19 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <label className="text-xs uppercase text-slate-600">Agregação</label>
+              <Select value={form.agregacao} onValueChange={(value) => updateForm("agregacao", value)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" className="text-xs">Nenhuma</SelectItem>
+                  <SelectItem value="sum" className="text-xs">Soma</SelectItem>
+                  <SelectItem value="avg" className="text-xs">Média</SelectItem>
+                  <SelectItem value="min" className="text-xs">Mínimo</SelectItem>
+                  <SelectItem value="max" className="text-xs">Máximo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -149,8 +164,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               </div>
               <div className="space-y-1">
                 <label className="text-xs uppercase text-slate-600">Fonte dinâmica</label>
-                <Input value={form.options_source} onChange={(e) => updateForm("options_source", e.target.value)} placeholder="EX: categorias_manejo" className="h-8 text-xs" />
-                <p className="text-[11px] text-slate-500">Use opções manuais ou uma fonte dinâmica futura.</p>
+                <Input value={form.options_source} onChange={(e) => updateForm("options_source", e.target.value)} placeholder="EX: Fornecedor" className="h-8 text-xs" />
+                <p className="text-[11px] text-slate-500">Informe o nome da entidade para salvar o ID e exibir o nome amigável.</p>
               </div>
             </div>
           )}

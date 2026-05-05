@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { useQuery } from "@tanstack/react-query";
 import loteRepository from "@/core/repositories/loteRepository";
+import campoEngine from "@/services/campoEngine";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
@@ -113,8 +114,10 @@ export default function TabelaLotes({
 
   const colunasDisponiveis = useMemo(() => {
     const dinamicas = camposPersonalizados
+      .map(campoEngine.normalize)
       .filter((campo) => campo.ativo !== false && campo.visivel_tabela === true)
       .map((campo) => ({
+        ...campo,
         id: `custom:${campo.field_name}`,
         label: campo.label,
         default: true,
@@ -126,6 +129,13 @@ export default function TabelaLotes({
       }));
     return [...COLUNAS_DISPONIVEIS, ...dinamicas];
   }, [camposPersonalizados]);
+
+  const { data: relatedOptions = {} } = useQuery({
+    queryKey: ["lote-related-options", camposPersonalizados.map((campo) => campo.options_source).filter(Boolean).join("|")],
+    queryFn: () => loteRepository.listOptionsSources(camposPersonalizados.map((campo) => campo.options_source)),
+    enabled: camposPersonalizados.some((campo) => !!campo.options_source),
+    initialData: {}
+  });
 
   useEffect(() => {
     const customVisible = colunasDisponiveis.filter((col) => col.id.startsWith("custom:") && col.default).map((col) => col.id);
@@ -186,27 +196,8 @@ export default function TabelaLotes({
 
   // Field value extraction for filters
   const getFieldValue = (lote, colunaId) => {
-    if (colunaId === "codigo") return String(lote.numero_lote || "");
-    if (colunaId === "nome") return lote.nome || "";
-    if (colunaId === "identificador") return [lote.identificador_nome].filter(Boolean).join(' - ');
-    if (colunaId === "sigla") return lote.identificador_sigla || "";
-    if (colunaId === "cor") return lote.identificador_cor ? lote.identificador_cor.toUpperCase() : "";
-    if (colunaId === "cabecas") return String(lote.quantidade_entrada || lote.quantidade_cabecas || "");
-    if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "";
-    if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "";
-    if (colunaId === "sexo") return lote.sexo || "";
-    if (colunaId === "peso") return lote.peso_entrada_kg || lote.peso_medio_kg ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : "";
-    if (colunaId === "setor") return lote.setor_nome || "";
-    if (colunaId === "area") return lote.area_entrada_nome || "";
-    if (colunaId === "sistema_produtivo") return lote.sistema_produtivo || "";
-    if (colunaId === "motivo") return lote.motivo_entrada || lote.origem || "";
-    if (colunaId === "data") return formatarData(lote.data_entrada);
-    if (colunaId === "status") return lote.status || "";
-    if (colunaId === "valor") return lote.valor_total_compra ? formatarValor(lote.valor_total_compra) : "";
-    if (colunaId === "fornecedor") return lote.fornecedor_nome || "";
-    if (colunaId === "observacoes") return lote.observacoes || "";
-    if (String(colunaId).startsWith("custom:")) return lote.campos_personalizados?.[String(colunaId).replace("custom:", "")] || "";
-    return "";
+    const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
+    return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, relatedOptions);
   };
 
   const columnOptions = useMemo(() => {
@@ -215,7 +206,7 @@ export default function TabelaLotes({
       opts[col.id] = [...new Set(lotes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" }));
     });
     return opts;
-  }, [lotes, colunasDisponiveis]);
+  }, [lotes, colunasDisponiveis, relatedOptions]);
 
   const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
@@ -231,7 +222,7 @@ export default function TabelaLotes({
         return filtro.includes(val);
       });
     });
-  }, [lotes, filtrosColunas, colunasDisponiveis]);
+  }, [lotes, filtrosColunas, colunasDisponiveis, relatedOptions]);
 
   const lotesOrdenados = useMemo(() => {
     const sorted = [...lotesFiltrados];
@@ -260,7 +251,7 @@ export default function TabelaLotes({
       return 0;
     });
     return sorted;
-  }, [lotesFiltrados, sortConfig]);
+  }, [lotesFiltrados, sortConfig, colunasDisponiveis, relatedOptions]);
 
   const handleSort = (key) => setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
 
@@ -276,33 +267,13 @@ export default function TabelaLotes({
   };
 
   const renderCell = (lote, colunaId) => {
-    if (colunaId === "codigo") return lote.numero_lote || "-";
-    if (colunaId === "nome") return lote.nome || "-";
-    if (colunaId === "identificador") return lote.identificador_nome || "-";
-    if (colunaId === "sigla") return lote.identificador_sigla || "-";
-    if (colunaId === "cor") return lote.identificador_cor ? (
-      <div className="flex items-center gap-2">
-        <span className="inline-block h-3 w-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />
-        <span>{lote.identificador_cor.toUpperCase()}</span>
-      </div>
-    ) : "-";
-    if (colunaId === "cabecas") return lote.quantidade_entrada || lote.quantidade_cabecas || "-";
-    if (colunaId === "categoria") return lote.categoria_entrada || lote.categoria || "-";
-    if (colunaId === "categoria_manejo") return lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome || "-";
-    if (colunaId === "sexo") return lote.sexo || "-";
-    if (colunaId === "peso") return lote.peso_entrada_kg || lote.peso_medio_kg ? `${lote.peso_entrada_kg || lote.peso_medio_kg} kg` : "-";
-    if (colunaId === "setor") return lote.setor_nome || "-";
-    if (colunaId === "area") return lote.area_entrada_nome || "-";
-    if (colunaId === "sistema_produtivo") return lote.sistema_produtivo || "-";
-    if (colunaId === "motivo") return lote.motivo_entrada || lote.origem || "-";
-    if (colunaId === "data") return formatarData(lote.data_entrada);
-    if (colunaId === "status") return lote.status || "-";
-    if (colunaId === "valor") return formatarValor(lote.valor_total_compra);
-    if (colunaId === "fornecedor") return lote.fornecedor_nome || "-";
-    if (colunaId === "observacoes") return lote.observacoes || "-";
-    if (String(colunaId).startsWith("custom:")) return lote.campos_personalizados?.[String(colunaId).replace("custom:", "")] || "-";
-    return "-";
+    const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
+    return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, relatedOptions);
   };
+
+  const agregacoes = useMemo(() => {
+    return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, relatedOptions);
+  }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
 
   const exportarTabela = (apenasSelecionados = false) => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
@@ -578,6 +549,15 @@ export default function TabelaLotes({
                       </TableRow>
                   )
                   }
+                  {Object.keys(agregacoes).length > 0 && (
+                    <TableRow className="bg-slate-50 font-semibold">
+                      {colunasOrdenadas.map((coluna) => (
+                        <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
+                          {agregacoes[coluna.id] !== undefined ? Number(agregacoes[coluna.id]).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : coluna.id === "nome" ? "Totais" : ""}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

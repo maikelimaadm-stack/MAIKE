@@ -92,6 +92,20 @@ export const loteRepository = {
     return filterByEmpresa(all, empresaId);
   },
 
+  async listOptionsSources(sources = []) {
+    const uniqueSources = [...new Set(sources.filter(Boolean))];
+    const entries = await Promise.all(uniqueSources.map(async (source) => {
+      const entityApi = base44.entities[source];
+      if (!entityApi?.list) return [source, []];
+      const records = await entityApi.list();
+      return [source, records.map((record) => ({
+        value: record.id,
+        label: record.nome || record.nome_produto || record.apelido || record.descricao || record.razao_social || record.full_name || record.email || record.id
+      }))];
+    }));
+    return Object.fromEntries(entries);
+  },
+
   async ensureLoteLayoutBase() {
     const layouts = await base44.entities.LayoutConfiguracao.list();
     let layout = layouts.find((item) => item.tela === "CadastroLotes" && item.ativo !== false);
@@ -158,6 +172,7 @@ export const loteRepository = {
       ordenavel: data.ordenavel !== false,
       filtravel: data.filtravel !== false,
       alinhamento: data.alinhamento || "left",
+      agregacao: data.agregacao || undefined,
       options: data.options || [],
       options_source: data.options_source || "",
       regras: data.regras || {},
