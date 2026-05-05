@@ -553,7 +553,7 @@ export default function TabelaLotes({
                   lotesOrdenados.map((lote) =>
                   <TableRow
                     key={lote.id}
-                    className={`${selectedItems.includes(lote.id) ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer`}
+                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
                     onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
