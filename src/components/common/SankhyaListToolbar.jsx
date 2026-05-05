@@ -53,7 +53,7 @@ export default function SankhyaListToolbar({
   const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1;
 
   return (
-    <div>
+    <div className="border-[0.5px] border-slate-200/60/60 bg-white shadow-none overflow-hidden">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-transparent border-b-[0.5px] border-slate-50">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
