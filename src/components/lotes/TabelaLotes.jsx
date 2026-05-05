@@ -324,6 +324,12 @@ export default function TabelaLotes({
       return;
     }
 
+    if (selectedItems.includes(lote.id)) {
+      setSelectedItems([]);
+      lastSelectedIdRef.current = null;
+      return;
+    }
+
     setSelectedItems([lote.id]);
     lastSelectedIdRef.current = lote.id;
   };
