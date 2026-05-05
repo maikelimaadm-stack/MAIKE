@@ -174,8 +174,10 @@ export default function CadastroLotes() {
       setViewMode("table");
       return;
     }
-    if (!currentLote) return;
-    setEditingLote(currentLote);
+    if (selectedTableItems.length > 1) return;
+    const loteParaVisualizar = selectedTableLote || currentLote;
+    if (!loteParaVisualizar) return;
+    setEditingLote(loteParaVisualizar);
     setShowForm(true);
     setViewMode("record");
   };
@@ -184,7 +186,10 @@ export default function CadastroLotes() {
     if (!showForm) return;
     const nextIndex = Math.min(Math.max(index, 0), Math.max(lotes.length - 1, 0));
     setSelectedIndex(nextIndex);
-    if (lotes[nextIndex]) setEditingLote(lotes[nextIndex]);
+    if (lotes[nextIndex]) {
+      setEditingLote(lotes[nextIndex]);
+      setSelectedTableItems([lotes[nextIndex].id]);
+    }
   };
 
   const handleRefresh = () => {
@@ -227,6 +232,7 @@ export default function CadastroLotes() {
         onSearchChange={setSearchTerm}
         onNew={handleNew}
         onToggleView={handleToggleView}
+        toggleViewDisabled={selectedTableItems.length > 1}
         onFirst={() => navigateRecord(0)}
         onPrevious={() => navigateRecord(selectedIndex - 1)}
         onNext={() => navigateRecord(selectedIndex + 1)}
@@ -304,6 +310,7 @@ export default function CadastroLotes() {
           showConfigColunas={showConfigColunas}
           setShowConfigColunas={setShowConfigColunas}
           searchTerm={searchTerm}
+          selectedRecordId={showForm ? editingLote?.id : undefined}
           onSelectionChange={handleTableSelectionChange} />
       </div>
 

@@ -30,6 +30,7 @@ export default function SankhyaListToolbar({
   onSearchChange,
   onNew,
   onToggleView,
+  toggleViewDisabled = false,
   onFirst,
   onPrevious,
   onNext,
@@ -56,7 +57,7 @@ export default function SankhyaListToolbar({
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
         
-        <Button type="button" variant="outline" size="icon" onClick={onToggleView} className={iconButtonClass} title={viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
+        <Button type="button" variant="outline" size="icon" onClick={onToggleView} disabled={toggleViewDisabled} className={iconButtonClass} title={toggleViewDisabled ? "Selecione apenas um registro" : viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
           {viewMode === "table" ? <List className="w-3.5 h-3.5" /> : <Table className="w-3.5 h-3.5" />}
         </Button>
         <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus className="w-4 h-4" /></Button>

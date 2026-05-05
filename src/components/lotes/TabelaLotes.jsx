@@ -61,6 +61,7 @@ export default function TabelaLotes({
   showConfigColunas,
   setShowConfigColunas,
   searchTerm = "",
+  selectedRecordId,
   onSelectionChange
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
@@ -193,6 +194,12 @@ export default function TabelaLotes({
   useEffect(() => {
     onSelectionChange?.(selectedItems);
   }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    if (!selectedRecordId) return;
+    setSelectedItems((prev) => prev.length === 1 && prev[0] === selectedRecordId ? prev : [selectedRecordId]);
+    lastSelectedIdRef.current = selectedRecordId;
+  }, [selectedRecordId]);
 
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
@@ -342,9 +349,14 @@ export default function TabelaLotes({
   };
 
   const handleRowTouch = (lote, event) => {
+    const hadMultipleSelected = selectedItems.length > 1;
     const now = Date.now();
-    if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {event.preventDefault();onEdit(lote);} else
-    handleRowSelect(lote, event);
+    if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {
+      event.preventDefault();
+      if (!hadMultipleSelected) onEdit(lote);
+    } else {
+      handleRowSelect(lote, event);
+    }
     lastTapRef.current = { id: lote.id, time: now };
   };
 
@@ -547,7 +559,7 @@ export default function TabelaLotes({
                     key={lote.id}
                     className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
                     onClick={(event) => handleRowSelect(lote, event)}
-                    onDoubleClick={() => onEdit(lote)}
+                    onDoubleClick={() => selectedItems.length <= 1 && onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
                     
                         {colunasOrdenadas.map((coluna) => {
