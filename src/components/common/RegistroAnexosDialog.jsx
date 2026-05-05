@@ -86,7 +86,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               <span className="text-xs font-semibold text-slate-700 truncate">{title || "Lote"}</span>
             </div>
             <div className="px-4 md:px-8 py-1 w-full space-y-1">
-              <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
+              <div className="grid items-center gap-1 grid-cols-[210px_minmax(0,1fr)] mx-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">
                   Nome do arquivo:<span className="text-red-500 ml-0.5">*</span>
                 </label>
@@ -106,7 +106,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             </div>
           </div>
 
-          <div className="px-4 md:px-8 py-1 w-full">
+          <div className="py-1 w-full md:px-1 px-1">
             <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
             <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
               <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo:</div>
@@ -114,9 +114,9 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               <div className="px-2 py-1 text-center"></div>
             </div>
             {anexos.length === 0 ?
-            <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div> :
-            anexos.map((anexo) =>
-            <div key={anexo.id} className="grid grid-cols-[1fr_1.4fr_40px] items-center border-b last:border-b-0 border-slate-200 text-xs">
+              <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div> :
+              anexos.map((anexo) =>
+              <div key={anexo.id} className="grid grid-cols-[1fr_1.4fr_40px] items-center border-b last:border-b-0 border-slate-200 text-xs">
               <div className="h-7 px-2 flex items-center border-r border-slate-200 overflow-hidden">
                 <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
               </div>
@@ -131,7 +131,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
                 </Button>
               </div>
             </div>
-            )}
+              )}
             </div>
           </div>
         </div>
