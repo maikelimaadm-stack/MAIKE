@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Filter, Plus, ChevronDown, ChevronRight, X } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 
@@ -34,7 +34,7 @@ const DEFAULT_FIELD_GROUPS = FIELD_DEFS.reduce((acc, field) => {
 const inputClass = "h-10 md:h-6 rounded-none border-slate-300 px-2 md:px-1.5 text-sm md:text-xs shadow-none";
 const selectClass = "h-10 md:h-6 rounded-none border-slate-300 px-2 md:px-1.5 text-sm md:text-xs shadow-none";
 
-export default function SankhyaFilterPanel({ open, filters, onChange, onApply, onClear, lotes = [], areas = [] }) {
+export default function SankhyaFilterPanel({ open, filters, onChange, onApply, onClear, onClose, lotes = [], areas = [] }) {
   const [visibleFields, setVisibleFields] = useState(DEFAULT_FIELDS);
   const [operators, setOperators] = useState(DEFAULT_OPERATORS);
   const [configOpen, setConfigOpen] = useState(false);
@@ -87,6 +87,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const applyFilters = () => {
     onChange({ ...filters, _operators: operators });
     onApply();
+    if (filters.esconderAoAtualizar) onClose?.();
   };
 
   const renderNumberInput = (field, suffix) => (
@@ -144,6 +145,12 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
 
   return (
     <aside className="fixed md:static inset-x-0 bottom-0 top-[88px] md:inset-auto z-40 w-full md:w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-auto md:h-[calc(100dvh-150px)] max-h-none md:max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col shadow-2xl md:shadow-none rounded-t-xl md:rounded-none">
+      <div className="md:hidden h-10 px-3 border-b border-slate-300 flex items-center justify-between bg-white shrink-0">
+        <span className="font-semibold text-slate-800">Filtros</span>
+        <button type="button" onClick={onClose} className="h-8 w-8 inline-flex items-center justify-center rounded border border-slate-300 text-slate-700">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
       <div className="border-b border-slate-300 p-2 md:p-1 space-y-2 md:space-y-1 bg-white shrink-0">
         <div className="flex items-center gap-2 h-8 md:h-6">
           <Checkbox checked={!!filters.esconderAoAtualizar} onCheckedChange={(checked) => update("esconderAoAtualizar", !!checked)} className="h-4 w-4 md:h-3.5 md:w-3.5 rounded-none" />

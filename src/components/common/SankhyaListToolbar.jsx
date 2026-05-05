@@ -82,7 +82,7 @@ export default function SankhyaListToolbar({
         {showDuplicateSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
 
 
-        <div className="ml-auto flex items-center gap-0">
+        <div className="ml-0 md:ml-auto flex items-center gap-0 flex-shrink-0">
           <div className="relative h-10 md:h-7 w-52 md:w-56 border-y-0 border-l-[0.5px] border-slate-200/60 bg-white flex-shrink-0">
             <input
               value={searchValue}

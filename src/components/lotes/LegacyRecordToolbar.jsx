@@ -13,7 +13,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
     <div className="bg-white shadow-none overflow-hidden">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" className="h-10 w-10 md:h-7 md:w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none flex-shrink-0"><Filter className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" disabled className="h-10 w-10 md:h-7 md:w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-slate-100 text-slate-400 shadow-none flex-shrink-0 opacity-60" title="Filtros disponíveis na listagem"><Filter className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} className={iconButtonClass} title="Visualizar tabela">
           <List className="w-3.5 h-3.5" />
         </Button>
@@ -39,7 +39,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
 
         
 
-        <div className="ml-auto flex items-center gap-0">
+        <div className="ml-0 md:ml-auto flex items-center gap-0 flex-shrink-0">
 
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>

@@ -324,9 +324,10 @@ export default function CadastroLotes() {
           onChange={setFilters}
           onApply={() => setAppliedFilters(filters)}
           onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
+          onClose={() => setFilterPanelOpen(false)}
           lotes={lotes}
           areas={areas} />
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-hidden relative">
           <SankhyaListToolbar
             viewMode={viewMode}
             total={lotesFiltradosPainel.length}
@@ -353,6 +354,10 @@ export default function CadastroLotes() {
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
+          <div className="md:hidden fixed right-3 bottom-20 z-30 flex flex-col gap-2">
+            <button type="button" onClick={() => setFilterPanelOpen(true)} className="h-12 w-12 rounded-full bg-red-500 text-white shadow-lg flex items-center justify-center text-xs font-bold">Filtro</button>
+            <button type="button" onClick={() => setShowConfigCampos(true)} className="h-12 w-12 rounded-full bg-emerald-600 text-white shadow-lg flex items-center justify-center text-[10px] font-bold leading-none">Campos</button>
+          </div>
           <TabelaLotes
             key="table"
             lotes={lotesFiltradosPainel}
