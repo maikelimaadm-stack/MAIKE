@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -8,8 +7,8 @@ import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import loteRepository from "@/core/repositories/loteRepository";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -19,57 +18,29 @@ export default function CadastroLotes() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const ORIGENS_SISTEMA = ['MOVIMENTAÇÃO', 'REVERSÃO MOVIMENTAÇÃO', 'Nascimento', 'Mudança de Categoria', 'NASCIMENTO', 'MUDANÇA DE CATEGORIA'];
-
   const { data: lotes = [] } = useQuery({
     queryKey: ['lotes-cadastro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter((l) =>
-      l.empresa_id === empresaSelecionadaId &&
-      !ORIGENS_SISTEMA.includes(l.origem)
-      );
-    },
+    queryFn: () => loteRepository.list({ empresaId: empresaSelecionadaId, incluirSistema: false }),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
+    queryFn: () => loteRepository.listAreasAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: lotesComMovimentacoes = [] } = useQuery({
     queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
-    queryFn: async () => {
-      const [movsPecuaria, movsMapa] = await Promise.all([
-      base44.entities.MovimentacaoPecuaria.list(),
-      base44.entities.MovimentacaoMapa.list()]
-      );
-      const idsPecuaria = movsPecuaria.filter((m) => m.empresa_id === empresaSelecionadaId && m.lote_id).map((m) => m.lote_id);
-      const idsMapa = movsMapa.filter((m) => m.empresa_id === empresaSelecionadaId && m.lote_id).map((m) => m.lote_id);
-      return [...new Set([...idsPecuaria, ...idsMapa])];
-    },
+    queryFn: () => loteRepository.listLotesComMovimentacoes(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const createLoteMutation = useMutation({
-    mutationFn: async (data) => {
-      const allLotes = await base44.entities.Lote.list();
-      const maxNum = allLotes.reduce((max, l) => Math.max(max, parseInt(l.numero_lote) || 0), 0);
-      return base44.entities.Lote.create({
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_lote: String(maxNum + 1),
-        status: 'Ativo'
-      });
-    },
+    mutationFn: (data) => loteRepository.create(data, { empresaId: empresaSelecionadaId }),
     onSuccess: async (created) => {
       queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) => [created, ...current]);
       await queryClient.invalidateQueries({ queryKey: ['lotes-cadastro', empresaSelecionadaId] });
@@ -83,15 +54,7 @@ export default function CadastroLotes() {
   });
 
   const updateLoteMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.Lote.update(id, data);
-      await base44.functions.invoke('syncEntityReferences', {
-        event: { type: 'update', entity_name: 'Lote' },
-        data: updated,
-        old_data: oldData
-      });
-      return updated;
-    },
+    mutationFn: ({ id, data, oldData }) => loteRepository.update(id, data, { oldData }),
     onSuccess: async (updated) => {
       queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) =>
       current.map((item) => item.id === updated.id ? updated : item)
@@ -107,7 +70,7 @@ export default function CadastroLotes() {
   });
 
   const deleteLoteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Lote.delete(id)
+    mutationFn: (id) => loteRepository.delete(id)
   });
 
   const handleSubmit = (data) => {
@@ -159,7 +122,7 @@ export default function CadastroLotes() {
 
     for (const id of ids) {
       try {
-        await ensureDeleteAllowed(base44, 'Lote', id);
+        await loteRepository.ensureDeleteAllowed(id);
         await deleteLoteMutation.mutateAsync(id);
         deletedCount += 1;
       } catch {

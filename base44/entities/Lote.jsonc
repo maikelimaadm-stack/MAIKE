@@ -193,6 +193,10 @@
       ],
       "default": "Ativo",
       "description": "Status do lote"
+    },
+    "campos_personalizados": {
+      "type": "object",
+      "description": "Valores dos campos din\u00e2micos do lote, compat\u00edvel com JSONB no PostgreSQL"
     }
   },
   "required": [
@@ -200,5 +204,45 @@
     "nome",
     "quantidade_cabecas",
     "motivo_entrada"
-  ]
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
