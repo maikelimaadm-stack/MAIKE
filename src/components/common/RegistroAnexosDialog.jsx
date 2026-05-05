@@ -106,7 +106,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             </div>
           </div>
 
-          <div className="py-1 w-full md:px-1">
+          <div>
             <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
             <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
               <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo:</div>
