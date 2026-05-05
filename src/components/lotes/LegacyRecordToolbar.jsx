@@ -4,8 +4,10 @@ import { Home, Filter, Table, Check, AlertTriangle, Search, Star, Clock, FileTex
 
 const iconButtonClass = "h-7 w-8 rounded-none border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700";
 
-export default function LegacyRecordToolbar({ title, statusLabel = "Editando registro", onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, showSaveActions = false, onCancel, onSettingsClick, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
+  const isFirst = currentIndex <= 0;
+  const isLast = currentIndex >= total - 1;
   return (
     <div className="border border-slate-300 bg-slate-100 shadow-sm">
       <div className="flex items-center gap-0 border-b border-slate-300 overflow-x-auto whitespace-nowrap">
@@ -14,17 +16,21 @@ export default function LegacyRecordToolbar({ title, statusLabel = "Editando reg
         <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-none border-red-500 bg-red-500 hover:bg-red-600 text-white"><ChevronDown className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onToggleView} title="Visualizar tabela"><Table className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-7 w-8 rounded-none border-green-500 bg-green-500 hover:bg-green-600 text-white"><Plus className="w-4 h-4" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onFirst} disabled={!canNavigate} className={iconButtonClass}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate} className={iconButtonClass}><ChevronLeft className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate} className={iconButtonClass}><ChevronRight className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate} className={iconButtonClass}><ChevronsRight className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onFirst} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Primeiro registro"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Registro anterior"><ChevronLeft className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate || isLast} className={iconButtonClass} title="Próximo registro"><ChevronRight className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate || isLast} className={iconButtonClass} title="Último registro"><ChevronsRight className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={iconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onRefresh} className={iconButtonClass}><RefreshCw className="w-3.5 h-3.5" /></Button>
-        <Button type="submit" variant="outline" size="icon" className="h-7 w-12 rounded-none border-slate-300 bg-slate-50 hover:bg-emerald-50 text-slate-800"><Check className="w-4 h-4" /></Button>
-        <button type="button" onClick={onCancel} className="h-7 px-3 inline-flex items-center gap-1 border-y border-r border-slate-300 bg-slate-50 hover:bg-amber-50 text-xs text-slate-700">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Descartar
-        </button>
+        {showSaveActions && (
+          <>
+            <Button type="submit" variant="outline" size="icon" className="h-7 w-12 rounded-none border-slate-300 bg-slate-50 hover:bg-emerald-50 text-slate-800" title="Salvar alterações"><Check className="w-4 h-4" /></Button>
+            <button type="button" onClick={onCancel} className="h-7 px-3 inline-flex items-center gap-1 border-y border-r border-slate-300 bg-slate-50 hover:bg-amber-50 text-xs text-slate-700">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Descartar
+            </button>
+          </>
+        )}
 
         
 
