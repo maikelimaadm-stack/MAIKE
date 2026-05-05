@@ -20,6 +20,7 @@ export default function CadastroLotes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTableItems, setSelectedTableItems] = useState([]);
   const [formVersion, setFormVersion] = useState(0);
+  const [returnRecordAfterNew, setReturnRecordAfterNew] = useState(null);
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -96,6 +97,7 @@ export default function CadastroLotes() {
   };
 
   const handleNew = () => {
+    setReturnRecordAfterNew(showForm && viewMode === "record" ? editingLote || currentLote : null);
     setEditingLote(null);
     setShowForm(true);
     setViewMode("record");
@@ -227,7 +229,19 @@ export default function CadastroLotes() {
           initialData={editingLote}
           isEditing={!!editingLote}
           onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditingLote(null);setViewMode("table");}}
+          onCancel={() => {
+            if (!editingLote && returnRecordAfterNew) {
+              setEditingLote(returnRecordAfterNew);
+              setShowForm(true);
+              setViewMode("record");
+              setReturnRecordAfterNew(null);
+              return;
+            }
+            setShowForm(false);
+            setEditingLote(null);
+            setViewMode("table");
+            setReturnRecordAfterNew(null);
+          }}
           onSettingsClick={handleOpenConfigCampos}
           onToggleView={handleToggleView}
           total={lotes.length}
