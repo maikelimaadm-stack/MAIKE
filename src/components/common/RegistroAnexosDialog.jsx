@@ -68,7 +68,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-sm">
+          <DialogTitle className="flex items-center gap-2 text-sm hidden">
             <Paperclip className="w-4 h-4" />
             Anexos {title ? `- ${title}` : ""}
           </DialogTitle>
@@ -92,8 +92,8 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
                     onChange={(e) => setAttachmentName(e.target.value)}
                     placeholder="EX: CONTRATO, NOTA FISCAL, GTA..."
                     className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1"
-                    style={{ textTransform: "uppercase" }}
-                  />
+                    style={{ textTransform: "uppercase" }} />
+                  
                   <Button type="button" variant="outline" size="icon" onClick={() => inputRef.current?.click()} disabled={uploading || !recordId || !attachmentName.trim()} className="h-[22px] w-8 rounded-none border-y-0 border-r-0 border-l border-slate-300 bg-green-500 hover:bg-green-600 text-white shadow-none" title="Anexar arquivo">
                     {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
                   </Button>
@@ -103,10 +103,10 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
           </div>
 
           <div className="border border-slate-200 rounded-sm divide-y divide-slate-200 max-h-80 overflow-auto">
-            {anexos.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div>
-            ) : anexos.map((anexo) => (
-              <div key={anexo.id} className="grid grid-cols-[minmax(120px,1fr)_minmax(160px,1.4fr)_auto] items-center gap-2 p-2 text-xs">
+            {anexos.length === 0 ?
+            <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div> :
+            anexos.map((anexo) =>
+            <div key={anexo.id} className="grid grid-cols-[minmax(120px,1fr)_minmax(160px,1.4fr)_auto] items-center gap-2 p-2 text-xs">
                 <div className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</div>
                 <a href={anexo.file_url} target="_blank" rel="noreferrer" className="min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700">
                   <Paperclip className="w-3.5 h-3.5 shrink-0" />
@@ -118,10 +118,10 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
