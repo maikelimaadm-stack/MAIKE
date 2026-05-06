@@ -284,7 +284,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-sm hidden">Configuração Guiada de Campos</DialogTitle>
+          
         </DialogHeader>
 
         {showForm ?
