@@ -353,9 +353,19 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                 <strong>Atenção:</strong> Existem {eventosAbertos.length} evento(s) de suplementação em aberto na área de origem.
               </p>
               <p className="text-xs text-amber-800">
-                Para mover o gado, é necessário fechar esses períodos informando quanto sobrou no cocho.
+                Para mover o gado, é necessário fechar esses períodos informando a data do fechamento e quanto sobrou no cocho.
               </p>
             </div>
+
+            <FL label="Data do fechamento do consumo" required>
+              <Input
+                type="date"
+                value={formData.data_movimentacao}
+                onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })}
+                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                required
+              />
+            </FL>
 
             <div className="space-y-3">
               {eventosAbertos.map((evento) => {
