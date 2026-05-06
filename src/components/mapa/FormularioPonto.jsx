@@ -334,9 +334,41 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
       if (data.tipo_categoria === "DEPOSITO") {
         const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${data.nome}`;
+
+        if (!localEstoqueId && pontoSuplementacaoExistente) {
+          const locais = await base44.entities.LocalEstoque.list();
+          const nomesAntigos = [
+            pontoSuplementacaoExistente.local_estoque_nome,
+            pontoSuplementacaoExistente.nome_ponto,
+            item?.nome
+          ].filter(Boolean).map(normalizeText);
+          const localExistente = locais.find((local) =>
+            nomesAntigos.includes(normalizeText(local.nome)) ||
+            nomesAntigos.includes(normalizeText(String(local.descricao || "").replace("DEPÓSITO DE SUPLEMENTAÇÃO -", "")))
+          );
+          if (localExistente) {
+            localEstoqueId = localExistente.id;
+          }
+        }
+
         if (localEstoqueId) {
           await base44.entities.LocalEstoque.update(localEstoqueId, { nome: data.nome, descricao: descricaoLocal });
           localEstoqueNome = data.nome;
+
+          const [lotesEstoque, movimentacoesEstoque] = await Promise.all([
+            base44.entities.EstoqueLoteNota.filter({ local_estoque_id: localEstoqueId }),
+            base44.entities.MovimentacaoEstoque.list("-data_movimentacao", 500)
+          ]);
+
+          await Promise.all([
+            ...lotesEstoque.map((lote) => base44.entities.EstoqueLoteNota.update(lote.id, { local_estoque_nome: data.nome })),
+            ...movimentacoesEstoque
+              .filter((mov) => mov.local_estoque_origem === localEstoqueId || mov.local_estoque_destino === localEstoqueId)
+              .map((mov) => base44.entities.MovimentacaoEstoque.update(mov.id, {
+                ...(mov.local_estoque_origem === localEstoqueId ? { local_origem: data.nome } : {}),
+                ...(mov.local_estoque_destino === localEstoqueId ? { local_destino: data.nome } : {})
+              }))
+          ]);
         } else {
           const localCriado = await base44.entities.LocalEstoque.create({ nome: data.nome, descricao: descricaoLocal });
           localEstoqueId = localCriado.id;
@@ -394,7 +426,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     },
     onSuccess: () => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao"].includes(query.queryKey[0]) });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"].includes(query.queryKey[0]) });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success(item ? "Ponto atualizado com sucesso." : "Ponto cadastrado com sucesso.");
       onSave();
