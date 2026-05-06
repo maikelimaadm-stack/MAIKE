@@ -89,10 +89,14 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
       const payload = buildPayload();
       return editingId ? loteRepository.updateCampoPersonalizado(editingId, payload) : loteRepository.createCampoPersonalizado(payload);
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
-      resetForm();
-      toast.success(editingId ? "Campo atualizado." : "Campo criado.");
+    onSuccess: async (saved) => {
+      const wasEditing = !!editingId;
+      const result = await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
+      const updated = await loteRepository.listCamposPersonalizados();
+      const savedId = saved?.id || editingId;
+      const target = updated.find((c) => c.id === savedId) || saved;
+      if (target) loadCampoForm(target);
+      toast.success(wasEditing ? "Campo atualizado." : "Campo criado.");
     }
   });
 
