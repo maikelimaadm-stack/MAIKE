@@ -14,16 +14,18 @@ import VisualCalculationBuilder from "./VisualCalculationBuilder";
 import DecimalConfig from "./DecimalConfig";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
-import { AGREGACOES_POR_TIPO, montarCamposDisponiveis, montarFormulaVisual } from "./camposConfigOptions";
+import { montarCamposDisponiveis, montarFormulaVisual } from "./camposConfigOptions";
 
 const TIPOS_CAMPO = [
 { value: "text", label: "Texto" },
+{ value: "textarea", label: "Observação" },
 { value: "number", label: "Número" },
 { value: "date", label: "Data" },
+{ value: "datetime", label: "Data e Hora" },
+{ value: "time", label: "Hora" },
 { value: "select", label: "Lista de seleção" },
 { value: "relation", label: "Relação com cadastro" },
-{ value: "calculado", label: "Calculado" },
-{ value: "textarea", label: "Observação" }];
+{ value: "calculado", label: "Calculado" }];
 
 
 const toSnakeCase = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
@@ -79,7 +81,6 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const selectedCampoId = selectedCampoIds[0] || null;
   const selectedCampo = campos.find((campo) => (campo.id || campo.field_id) === selectedCampoId) || campos[0] || null;
   const selectedIndex = Math.max(0, campos.findIndex((campo) => (campo.id || campo.field_id) === (selectedCampo?.id || selectedCampo?.field_id)));
-  const agregacoesPermitidas = AGREGACOES_POR_TIPO[form.tipo] || [];
   const calculationItems = form.calculation_builder?.items || [];
   const calculationFields = calculationItems.map((item) => item.field).filter(Boolean);
   const hasInvalidCalculation = form.tipo === "calculado" && (calculationItems.length < 2 || calculationItems.some((item) => !item.field) || new Set(calculationFields).size !== calculationFields.length);
@@ -182,8 +183,14 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const fieldName = editingId ? form.field_name : toSnakeCase(form.label);
-    if (!form.label.trim() || !fieldName) return toast.error("Informe o nome do campo.");
+    const labelTrim = form.label.trim().toUpperCase();
+    const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
+    if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
+    const duplicate = campos.find((c) => c.id !== editingId && (
+      String(c.label || "").trim().toUpperCase() === labelTrim ||
+      String(c.field_name || "").toLowerCase() === fieldName.toLowerCase()
+    ));
+    if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
     if (form.tipo === "select" && !form.options_source_entity) return toast.error("Selecione a lista do sistema.");
@@ -192,8 +199,10 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const updateForm = (field, value) => {
     setIsDirty(true);
+    const upperFields = ["label", "placeholder", "descricao"];
+    const finalValue = upperFields.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     setForm((prev) => {
-      const next = { ...prev, [field]: value, ...(field === "label" && !editingId ? { field_name: toSnakeCase(value) } : {}) };
+      const next = { ...prev, [field]: finalValue, ...(field === "label" && !editingId ? { field_name: toSnakeCase(finalValue) } : {}) };
       if (field === "tipo") {
         next.agregacao_tipo = "none";
         next.usar_decimal = ["number", "calculado"].includes(value);
@@ -342,15 +351,6 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               {form.tipo === "relation" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="relation" />}
               {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
               <DecimalConfig form={form} updateForm={updateForm} />
-              <Field label="Totalizar na tabela">
-                <Select value={form.agregacao_tipo} onValueChange={(value) => updateForm("agregacao_tipo", value)} disabled={agregacoesPermitidas.length === 0}>
-                  <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-xs">Não totalizar</SelectItem>
-                    {agregacoesPermitidas.map((item) => <SelectItem key={item.value} value={item.value} className="text-xs">{item.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
               <Field label="Prévia" wide>
                 <div className="px-2 py-1 text-xs text-slate-700 uppercase bg-slate-50 min-h-[48px]">
                   {form.label || "Nome do campo"}: {form.tipo === "calculado" ? montarFormulaVisual(form.calculation_builder?.items || []) || "Calculado automaticamente" : form.placeholder || "Valor do campo"}
