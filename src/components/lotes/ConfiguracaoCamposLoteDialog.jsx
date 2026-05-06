@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import loteRepository from "@/core/repositories/loteRepository";
 import GuidedRelationConfig from "./GuidedRelationConfig";
@@ -65,6 +66,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedCampoIds, setSelectedCampoIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -135,6 +137,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setForm(initialForm);
     setEditingId(null);
     setIsDirty(false);
+    setIsDuplicating(false);
     setShowForm(false);
   };
 
@@ -169,6 +172,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setEditingId(null);
     setSelectedCampoIds([]);
     setIsDirty(true);
+    setIsDuplicating(false);
     setShowForm(true);
   };
 
@@ -215,6 +219,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setEditingId(campo.id);
     setSelectedCampoIds([campo.id || campo.field_id]);
     setIsDirty(false);
+    setIsDuplicating(false);
     setShowForm(true);
     setForm({
       ...initialForm,
@@ -231,13 +236,6 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   };
 
   const handleDiscard = () => {
-    if (editingId) {
-      const original = campos.find((campo) => campo.id === editingId);
-      if (original) {
-        loadCampoForm(original);
-        return;
-      }
-    }
     resetForm();
   };
 
@@ -275,10 +273,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setEditingId(null);
     setSelectedCampoIds([]);
     setIsDirty(true);
+    setIsDuplicating(true);
     setShowForm(true);
   };
 
-  const operationLabel = !editingId ? "NOVO REGISTRO" : isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -293,7 +292,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             title={form.label || (editingId ? "Editar campo" : "Novo campo")}
             operationLabel={operationLabel}
             showSaveActions={isDirty}
-            showDeleteDuplicateActions={!!editingId && !isDirty}
+            showDeleteDuplicateActions={!!editingId && !isDirty && !isDuplicating}
             onCancel={handleDiscard}
             onToggleView={handleToggleView}
             onNew={handleNew}
@@ -347,6 +346,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               </div>
               </div>
             </div>
+
+            {isDirty &&
+            <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
+                <Button type="button" variant="outline" onClick={handleDiscard} size="sm" className="h-7 text-xs px-3">Descartar</Button>
+                <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : editingId ? "Atualizar" : "Salvar"}</Button>
+              </div>
+            }
           </form> :
 
         <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
