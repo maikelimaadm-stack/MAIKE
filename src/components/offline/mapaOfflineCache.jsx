@@ -87,12 +87,13 @@ export async function refreshMapaCacheEntry(cacheKey, empresaId, options = {}) {
       rateLimitedUntil.delete(requestKey);
       return items;
     } catch (error) {
-      const isRateLimit = String(error?.message || '').toLowerCase().includes('rate limit exceeded');
-      if (isRateLimit) {
+      const message = String(error?.message || '').toLowerCase();
+      const shouldCooldown = message.includes('rate limit exceeded') || message.includes('network error');
+      if (shouldCooldown) {
         rateLimitedUntil.set(requestKey, Date.now() + RATE_LIMIT_COOLDOWN_MS);
-        return (await getEntityCacheItems(cacheStorageKey, normalizedEmpresaId)) || [];
       }
-      throw error;
+      console.warn(`Usando cache offline para ${cacheKey}:`, error?.message || error);
+      return (await getEntityCacheItems(cacheStorageKey, normalizedEmpresaId)) || [];
     }
   })();
 
