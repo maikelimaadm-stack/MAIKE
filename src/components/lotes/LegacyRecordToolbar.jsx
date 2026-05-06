@@ -43,7 +43,6 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
 
           <Button type="button" variant="outline" size="icon" className={showDeleteDuplicateActions ? iconButtonClass : fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>
           <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600">
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
