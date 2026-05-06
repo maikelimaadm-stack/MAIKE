@@ -1,13 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import loteRepository from "@/core/repositories/loteRepository";
 import GuidedRelationConfig from "./GuidedRelationConfig";
@@ -65,7 +63,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [selectedCampoId, setSelectedCampoId] = useState(null);
+  const [selectedCampoIds, setSelectedCampoIds] = useState([]);
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -75,6 +73,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   });
 
   const camposCalculo = useMemo(() => montarCamposDisponiveis(campos, editingId), [campos, editingId]);
+  const selectedCampoId = selectedCampoIds[0] || null;
   const selectedCampo = campos.find((campo) => (campo.id || campo.field_id) === selectedCampoId) || campos[0] || null;
   const selectedIndex = Math.max(0, campos.findIndex((campo) => (campo.id || campo.field_id) === (selectedCampo?.id || selectedCampo?.field_id)));
   const agregacoesPermitidas = AGREGACOES_POR_TIPO[form.tipo] || [];
@@ -142,12 +141,31 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
       resetForm();
       return;
     }
-    if (selectedCampo) handleEdit(selectedCampo);
+    if (selectedCampo && selectedCampoIds.length <= 1) handleEdit(selectedCampo);
+  };
+
+  const handleRowSelect = (campo, event) => {
+    const id = campo.id || campo.field_id;
+    setSelectedCampoIds((prev) => {
+      if (event?.ctrlKey || event?.metaKey) {
+        return prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      }
+      return [id];
+    });
+  };
+
+  const navigateCampo = (index) => {
+    const nextIndex = Math.min(Math.max(index, 0), Math.max(campos.length - 1, 0));
+    const campo = campos[nextIndex];
+    if (!campo) return;
+    setSelectedCampoIds([campo.id || campo.field_id]);
+    handleEdit(campo);
   };
 
   const handleNew = () => {
     setForm(initialForm);
     setEditingId(null);
+    setSelectedCampoIds([]);
     setShowForm(true);
   };
 
@@ -190,7 +208,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const handleEdit = (campo) => {
     const items = campo.calculation_builder?.items || (campo.campos_dependentes || campo.dependencias || []).map((field, index) => ({ field, operator: index === 0 ? "*" : "*" }));
     setEditingId(campo.id);
-    setSelectedCampoId(campo.id || campo.field_id);
+    setSelectedCampoIds([campo.id || campo.field_id]);
     setShowForm(true);
     setForm({
       ...initialForm,
@@ -205,6 +223,14 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const handleDelete = (campo) => {
     if (!window.confirm(`Excluir o campo "${campo.label}"? Esta ação não poderá ser desfeita.`)) return;
     deleteMutation.mutate(campo);
+  };
+
+  const handleDeleteSelected = () => {
+    const selecionados = campos.filter((campo) => selectedCampoIds.includes(campo.id || campo.field_id));
+    if (selecionados.length === 0) return;
+    if (!window.confirm(selecionados.length === 1 ? `Excluir o campo "${selecionados[0].label}"?` : `Excluir ${selecionados.length} campos selecionados?`)) return;
+    selecionados.forEach((campo) => deleteMutation.mutate(campo));
+    setSelectedCampoIds([]);
   };
 
   return (
@@ -226,6 +252,10 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               onNew={handleNew}
               total={campos.length}
               currentIndex={selectedIndex}
+              onFirst={() => navigateCampo(0)}
+              onPrevious={() => navigateCampo(selectedIndex - 1)}
+              onNext={() => navigateCampo(selectedIndex + 1)}
+              onLast={() => navigateCampo(campos.length - 1)}
               onSettingsClick={() => {}}
             />
 
@@ -275,43 +305,43 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               currentIndex={selectedIndex}
               onNew={handleNew}
               onToggleView={handleToggleView}
-              toggleViewDisabled={!selectedCampo}
+              toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
+              onDelete={handleDeleteSelected}
               onSettingsClick={() => {}}
-              selectedCount={selectedCampoId ? 1 : 0}
+              onAttachClick={() => {}}
+              attachDisabled
+              selectedCount={selectedCampoIds.length}
               title="Campos Personalizados"
               recordLabel="" />
             <div className="overflow-auto flex-1">
-              <Table className="border-collapse table-fixed w-full">
-                <TableHeader>
-                  <TableRow className="bg-blue-600 hover:bg-blue-600">
-                    <TableHead className="px-2 py-1 text-white text-xs font-bold border-r border-blue-500">Campo</TableHead>
-                    <TableHead className="px-2 py-1 text-white text-xs font-bold border-r border-blue-500 w-[150px]">Tipo</TableHead>
-                    <TableHead className="px-2 py-1 text-white text-xs font-bold border-r border-blue-500 w-[260px]">Uso</TableHead>
-                    <TableHead className="px-2 py-1 text-white text-xs font-bold w-[90px] text-center">Ações</TableHead>
+              <Table className="w-full my-1 min-w-[760px] border-separate border-spacing-0 table-fixed">
+                <TableHeader className="bg-white">
+                  <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
+                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7 w-[260px]">Campo</TableHead>
+                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7 w-[150px]">Tipo</TableHead>
+                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7">Uso</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow>
                   ) : campos.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow>
                   ) : campos.map((campo) => (
-                    <TableRow key={campo.id || campo.field_id} className={`border-b hover:bg-gray-100 cursor-pointer ${selectedCampoId === (campo.id || campo.field_id) ? "bg-emerald-50" : ""}`} onClick={() => setSelectedCampoId(campo.id || campo.field_id)} onDoubleClick={() => handleEdit(campo)}>
-                      <TableCell className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 font-medium">{campo.label}</TableCell>
-                      <TableCell className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300">{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
-                      <TableCell className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300">
+                    <TableRow
+                      key={campo.id || campo.field_id}
+                      className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
+                      onClick={(event) => handleRowSelect(campo, event)}
+                      onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
+                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words font-medium ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{campo.label}</TableCell>
+                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
+                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
                         <div className="flex flex-wrap gap-1">
-                          {campo.visivel_form && <Badge variant="outline" className="text-[10px]">Form</Badge>}
-                          {campo.visivel_tabela && <Badge variant="outline" className="text-[10px]">Tabela</Badge>}
+                          {campo.visivel_form && <Badge variant="outline" className="text-[10px] bg-white/90 text-slate-700">Form</Badge>}
+                          {campo.visivel_tabela && <Badge variant="outline" className="text-[10px] bg-white/90 text-slate-700">Tabela</Badge>}
                           {(campo.options_source_entity || campo.relation_entity) && <Badge variant="secondary" className="text-[10px]">Vínculo</Badge>}
                           {(campo.agregacao_tipo || campo.agregacao) && <Badge variant="secondary" className="text-[10px]">Total</Badge>}
                           {campo.usar_decimal && <Badge variant="secondary" className="text-[10px]">{campo.decimal_places ?? 2} dec.</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-2 py-1 text-center align-middle border-r border-b border-gray-300">
-                        <div className="flex justify-center gap-1">
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(campo)}><Pencil className="w-3.5 h-3.5" /></Button>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleDelete(campo)}><Trash2 className="w-3.5 h-3.5" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>

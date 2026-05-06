@@ -52,8 +52,8 @@ export default function SankhyaListToolbar({
 }) {
   const canNavigate = viewMode === "record" && total > 0;
   const showRecordNavigation = viewMode === "record";
-  const showDeleteSelectionAction = viewMode === "table" && selectedCount > 0;
-  const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1;
+  const showDeleteSelectionAction = viewMode === "table" && selectedCount > 0 && !!onDelete;
+  const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1 && !!onDuplicate;
 
   return (
     <div className="bg-white">
