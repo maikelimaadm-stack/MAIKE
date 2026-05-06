@@ -33,7 +33,7 @@ export default function GuidedRelationConfig({ form, updateForm, mode = "select"
   };
 
   return (
-    <div className="px-4 md:px-8 py-1 space-y-1 max-w-[780px]">
+    <>
       <Field label={title}>
         <Select value={entity || "none"} onValueChange={handleEntityChange}>
           <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
@@ -47,6 +47,6 @@ export default function GuidedRelationConfig({ form, updateForm, mode = "select"
       <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
         {selectedEntity ? `O sistema exibirá automaticamente: ${displayField}` : "Escolha um cadastro para o sistema configurar sozinho."}
       </div>
-    </div>
+    </>
   );
 }
