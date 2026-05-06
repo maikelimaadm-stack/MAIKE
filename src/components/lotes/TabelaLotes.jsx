@@ -501,6 +501,8 @@ export default function TabelaLotes({
                       const width = columnWidths[coluna.id] || coluna.width || 160;
                       const isResizing = resizeColumnId === coluna.id;
 
+                      const filterControl = renderFilterControl(coluna.id);
+
                       return (
                         <TableHead
                           key={coluna.id}
@@ -511,16 +513,20 @@ export default function TabelaLotes({
                             {coluna.label}
                           </div>
 
+                          {filterControl &&
                           <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <button
+                              {filterControl}
+                              <button
                               type="button"
                               className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`}
                               onClick={(e) => {e.stopPropagation();toggleResizeMode(coluna.id);}}
                               onTouchEnd={(e) => {e.stopPropagation();e.preventDefault();toggleResizeMode(coluna.id);}}
                               title="Redimensionar coluna">
-                              <GripVertical className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
+                              
+                                <GripVertical className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          }
 
                           {isResizing &&
                           <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
@@ -563,7 +569,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis ${selectedItems.includes(lote.id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
+                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedItems.includes(lote.id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
                           
                               {renderCell(lote, coluna.id)}
                             </TableCell>);
@@ -575,7 +581,7 @@ export default function TabelaLotes({
                   {Object.keys(agregacoes).length > 0 &&
                   <TableRow className="bg-slate-50 font-semibold">
                       {colunasOrdenadas.map((coluna) =>
-                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis">
+                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
                           {agregacoes[coluna.id] !== undefined ? `${getAgregacaoLabel(coluna.agregacao_tipo || coluna.agregacao)}: ${Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 })}` : coluna.id === "nome" ? "Totais" : ""}
                         </TableCell>
                     )}
