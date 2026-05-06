@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { OPERACOES_CALCULO, montarFormulaAmigavel, calcularPreviewVisual } from "./camposConfigOptions";
 
 const EMPTY_ITEM = { field: "", operator: "*" };
@@ -54,7 +54,7 @@ export default function VisualCalculationBuilder({ value = [], fields = [], onCh
               </Select>
             </div>
             <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-red-600 shrink-0" disabled={items.length <= 2} onClick={() => removeItem(index)}>
-              <Trash2 className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
@@ -62,8 +62,8 @@ export default function VisualCalculationBuilder({ value = [], fields = [], onCh
 
       <div className={fieldRow}>
         <div />
-        <Button type="button" variant="outline" size="sm" className="h-6 text-[11px] w-fit px-2" onClick={() => onChange([...items, { ...EMPTY_ITEM, operator: "+" }])}>
-          <Plus className="w-3 h-3 mr-1" /> Adicionar campo
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:bg-emerald-50" onClick={() => onChange([...items, { ...EMPTY_ITEM, operator: "+" }])} title="Adicionar campo">
+          <Plus className="w-4 h-4" />
         </Button>
       </div>
 
