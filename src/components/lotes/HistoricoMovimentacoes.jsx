@@ -486,6 +486,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
     const motivoBloqueio = getDeleteBlockReason(entry);
     if (motivoBloqueio) {
+      deleteLockRef.current = false;
       setDeletingId(null);
       alert(motivoBloqueio);
       return;
@@ -493,6 +494,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
     const mov = entry.raw;
     if (!confirm('Excluir este lançamento? O lote será revertido automaticamente.')) {
+      deleteLockRef.current = false;
       setDeletingId(null);
       return;
     }
@@ -734,11 +736,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       await base44.entities.MovimentacaoMapa.delete(mov.id);
 
       await Promise.all([
+        refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
         queryClient.invalidateQueries({ queryKey: ['lotes'] }),
         queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
         queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
         queryClient.invalidateQueries({ queryKey: ['todos-lotes-global'] }),
         queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
+        queryClient.invalidateQueries({ queryKey: ['mapa-cache'] }),
       ]);
       try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
       toast.success('Lançamento excluído e saldo revertido');
@@ -746,9 +751,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       console.error('Erro ao excluir lançamento:', error);
       if (error?.status === 404) {
         await Promise.all([
+          refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }),
+          refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true }),
           queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] }),
           queryClient.invalidateQueries({ queryKey: ['todas-movimentacoes-global'] }),
           queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
+          queryClient.invalidateQueries({ queryKey: ['mapa-cache'] }),
         ]);
         toast.success('Lançamento já estava excluído');
       } else {
