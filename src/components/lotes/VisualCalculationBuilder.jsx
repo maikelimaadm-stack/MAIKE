@@ -62,7 +62,7 @@ export default function VisualCalculationBuilder({ value = [], fields = [], onCh
 
       <div className={fieldRow}>
         <div />
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:bg-emerald-50" onClick={() => onChange([...items, { ...EMPTY_ITEM, operator: "+" }])} title="Adicionar campo">
+        <Button type="button" size="icon" className="h-6 w-6 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" onClick={() => onChange([...items, { ...EMPTY_ITEM, operator: "+" }])} title="Adicionar campo">
           <Plus className="w-4 h-4" />
         </Button>
       </div>
