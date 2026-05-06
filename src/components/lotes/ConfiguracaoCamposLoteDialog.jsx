@@ -209,7 +209,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     });
   };
 
-  const handleEdit = (campo) => {
+  const loadCampoForm = (campo) => {
     const items = campo.calculation_builder?.items || (campo.campos_dependentes || campo.dependencias || []).map((field, index) => ({ field, operator: index === 0 ? "*" : "*" }));
     setEditingId(campo.id);
     setSelectedCampoIds([campo.id || campo.field_id]);
@@ -223,6 +223,21 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
       usar_decimal: !!campo.usar_decimal,
       decimal_places: campo.decimal_places ?? 2
     });
+  };
+
+  const handleEdit = (campo) => {
+    loadCampoForm(campo);
+  };
+
+  const handleDiscard = () => {
+    if (editingId) {
+      const original = campos.find((campo) => campo.id === editingId);
+      if (original) {
+        loadCampoForm(original);
+        return;
+      }
+    }
+    resetForm();
   };
 
   const handleDelete = (campo) => {
@@ -254,7 +269,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               operationLabel={operationLabel}
               showSaveActions={isDirty}
               showDeleteDuplicateActions={!!editingId && !isDirty}
-              onCancel={resetForm}
+              onCancel={handleDiscard}
               onToggleView={handleToggleView}
               onNew={handleNew}
               total={campos.length}
