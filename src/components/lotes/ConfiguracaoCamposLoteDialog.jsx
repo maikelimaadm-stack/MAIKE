@@ -64,6 +64,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedCampoIds, setSelectedCampoIds] = useState([]);
+  const [isDirty, setIsDirty] = useState(false);
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -133,6 +134,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
+    setIsDirty(false);
     setShowForm(false);
   };
 
@@ -166,6 +168,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setForm(initialForm);
     setEditingId(null);
     setSelectedCampoIds([]);
+    setIsDirty(true);
     setShowForm(true);
   };
 
@@ -180,6 +183,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   };
 
   const updateForm = (field, value) => {
+    setIsDirty(true);
     setForm((prev) => {
       const next = { ...prev, [field]: value, ...(field === "label" && !editingId ? { field_name: toSnakeCase(value) } : {}) };
       if (field === "tipo") {
@@ -209,6 +213,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     const items = campo.calculation_builder?.items || (campo.campos_dependentes || campo.dependencias || []).map((field, index) => ({ field, operator: index === 0 ? "*" : "*" }));
     setEditingId(campo.id);
     setSelectedCampoIds([campo.id || campo.field_id]);
+    setIsDirty(false);
     setShowForm(true);
     setForm({
       ...initialForm,
@@ -233,6 +238,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([]);
   };
 
+  const operationLabel = !editingId ? "NOVO REGISTRO" : isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -244,9 +251,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           <form onSubmit={handleSubmit} className="border border-slate-300 bg-white min-h-[520px]">
             <LegacyRecordToolbar
               title={form.label || (editingId ? "Editar campo" : "Novo campo")}
-              operationLabel={editingId ? "EDIÇÃO DE REGISTRO" : "NOVO REGISTRO"}
-              showSaveActions
-              showDeleteDuplicateActions={false}
+              operationLabel={operationLabel}
+              showSaveActions={isDirty}
+              showDeleteDuplicateActions={!!editingId && !isDirty}
               onCancel={resetForm}
               onToggleView={handleToggleView}
               onNew={handleNew}
