@@ -80,8 +80,6 @@ export default function TabelaLotes({
   });
 
   const lastTapRef = useRef({ id: null, time: 0 });
-  const lastTouchHandledRef = useRef(0);
-  const touchStartRef = useRef({ x: 0, y: 0 });
   const lastSelectedIdRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const tableRef = useRef(null);
@@ -316,7 +314,6 @@ export default function TabelaLotes({
   };
 
   const handleRowSelect = (lote, event) => {
-    if (event?.type === "click" && Date.now() - lastTouchHandledRef.current < 450) return;
     if (event?.target?.closest?.("button, input, [role='checkbox'], [data-radix-popper-content-wrapper]")) return;
 
     if (event?.shiftKey && lastSelectedIdRef.current) {
@@ -351,23 +348,11 @@ export default function TabelaLotes({
     }
   };
 
-  const handleRowTouchStart = (event) => {
-    const touch = event.touches?.[0];
-    touchStartRef.current = { x: touch?.clientX || 0, y: touch?.clientY || 0 };
-  };
-
   const handleRowTouch = (lote, event) => {
-    const touch = event.changedTouches?.[0];
-    const deltaX = Math.abs((touch?.clientX || 0) - touchStartRef.current.x);
-    const deltaY = Math.abs((touch?.clientY || 0) - touchStartRef.current.y);
-    if (deltaX > 12 || deltaY > 12) return;
-
-    event.preventDefault();
-    lastTouchHandledRef.current = Date.now();
-
     const hadMultipleSelected = selectedItems.length > 1;
     const now = Date.now();
     if (lastTapRef.current.id === lote.id && now - lastTapRef.current.time < 300) {
+      event.preventDefault();
       if (!hadMultipleSelected) onEdit(lote);
     } else {
       handleRowSelect(lote, event);
@@ -572,10 +557,9 @@ export default function TabelaLotes({
                   lotesOrdenados.map((lote) =>
                   <TableRow
                     key={lote.id}
-                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none touch-manipulation`}
+                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
                     onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => selectedItems.length <= 1 && onEdit(lote)}
-                    onTouchStart={handleRowTouchStart}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
                     
                         {colunasOrdenadas.map((coluna) => {

@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy } from "lucide-react";
 
-const iconButtonClass = "h-10 w-10 md:h-7 md:w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none flex-shrink-0";
+const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
 export default function LegacyRecordToolbar({ title, operationLabel, showSaveActions = false, showDeleteDuplicateActions = true, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
@@ -13,11 +13,11 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
     <div className="bg-white shadow-none overflow-hidden">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" disabled className="h-10 w-10 md:h-7 md:w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-slate-100 text-slate-400 shadow-none flex-shrink-0 opacity-60" title="Filtros disponíveis na listagem"><Filter className="w-3.5 h-3.5" /></Button>
+        <Button type="button" variant="outline" size="icon" className="h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none"><Filter className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} className={iconButtonClass} title="Visualizar tabela">
           <List className="w-3.5 h-3.5" />
         </Button>
-        <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-10 w-10 md:h-7 md:w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none flex-shrink-0"><Plus className="w-4 h-4" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus className="w-4 h-4" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onFirst} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Primeiro registro"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Registro anterior"><ChevronLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate || isLast} className={iconButtonClass} title="Próximo registro"><ChevronRight className="w-3.5 h-3.5" /></Button>
@@ -39,13 +39,13 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
 
         
 
-        <div className="ml-0 md:ml-auto flex items-center gap-0 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-0">
 
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" className={`${iconButtonClass} pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100`} onClick={onSettingsClick} title="Configuração bloqueada no mobile"><Settings className="w-3.5 h-3.5" /></Button>
-          <div className="h-10 md:h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600 flex-shrink-0">
+          <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>
+          <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600">
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
         </div>

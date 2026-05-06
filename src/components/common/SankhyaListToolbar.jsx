@@ -19,7 +19,7 @@ import {
   Settings } from
 "lucide-react";
 
-const iconButtonClass = "h-10 w-10 md:h-7 md:w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none flex-shrink-0";
+const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
 export default function SankhyaListToolbar({
@@ -59,7 +59,7 @@ export default function SankhyaListToolbar({
     <div className="bg-white">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
         <Button type="button" variant="outline" size="icon" className={iconButtonClass}><Home className="w-3.5 h-3.5" /></Button>
-        <Button type="button" variant="outline" size="icon" onClick={onToggleFilter} className={filterOpen || filterActive ? "relative h-10 w-10 md:h-7 md:w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none flex-shrink-0 pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100" : `${iconButtonClass} pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100`} title="Filtros bloqueados no mobile">
+        <Button type="button" variant="outline" size="icon" onClick={onToggleFilter} className={filterOpen || filterActive ? "relative h-7 w-9 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-red-400 bg-red-500 hover:bg-red-600 text-white shadow-none" : iconButtonClass} title="Filtros">
           <Filter className="w-3.5 h-3.5" />
           {filterActive &&
           <span
@@ -73,7 +73,7 @@ export default function SankhyaListToolbar({
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} disabled={toggleViewDisabled} className={iconButtonClass} title={toggleViewDisabled ? "Selecione apenas um registro" : viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
           {viewMode === "table" ? <List className="w-3.5 h-3.5" /> : <Table className="w-3.5 h-3.5" />}
         </Button>
-        <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-10 w-10 md:h-7 md:w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none flex-shrink-0"><Plus className="w-4 h-4" /></Button>
+        <Button type="button" variant="outline" size="icon" onClick={onNew} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus className="w-4 h-4" /></Button>
         {showRecordNavigation && <Button type="button" variant="outline" size="icon" onClick={onFirst} disabled={!canNavigate} className={iconButtonClass}><ChevronsLeft className="w-3.5 h-3.5" /></Button>}
         {showRecordNavigation && <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate} className={iconButtonClass}><ChevronLeft className="w-3.5 h-3.5" /></Button>}
         {showRecordNavigation && <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate} className={iconButtonClass}><ChevronRight className="w-3.5 h-3.5" /></Button>}
@@ -82,8 +82,8 @@ export default function SankhyaListToolbar({
         {showDuplicateSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
 
 
-        <div className="ml-0 md:ml-auto flex items-center gap-0 flex-shrink-0">
-          <div className="relative h-10 md:h-7 w-52 md:w-56 border-y-0 border-l-[0.5px] border-slate-200/60 bg-white flex-shrink-0">
+        <div className="ml-auto flex items-center gap-0">
+          <div className="relative h-7 w-44 md:w-56 border-y-0 border-l-[0.5px] border-slate-200/60 bg-white">
             <input
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
@@ -95,8 +95,8 @@ export default function SankhyaListToolbar({
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Selecione apenas um registro" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={`${iconButtonClass} pointer-events-none opacity-60 md:pointer-events-auto md:opacity-100`} title="Configuração bloqueada no mobile"><Settings className="w-3.5 h-3.5" /></Button>
-          <div className="h-10 md:h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-200/60 flex-shrink-0">
+          <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>
+          <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] bg-white flex items-center justify-center text-xs text-slate-600 border-slate-200/60">
             {viewMode === "record" && total > 0 ? `${currentIndex + 1}/${total}` : selectedCount > 0 ? `${selectedCount}/${total}` : total}
           </div>
         </div>

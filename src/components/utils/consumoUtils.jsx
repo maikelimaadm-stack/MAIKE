@@ -97,7 +97,6 @@ export async function calcularConsumoLotesPonderadoPorTempo({
   evento,
   diasPeriodo,
   consumoTotal,
-  dataFechamento,
 }) {
   const [todosLotesSupl, lotesAtivos, movimentacoes] = await Promise.all([
     base44.entities.SuplementacaoLote.list(),
@@ -110,7 +109,7 @@ export async function calcularConsumoLotesPonderadoPorTempo({
   const movimentosRelacionados = movimentacoes.filter((mov) => mov.empresa_id === evento.empresa_id && lotesDoEvento.some((item) => item.lote_id === mov.lote_id));
 
   const dataInicio = evento.data_lancamento;
-  const dataFim = dataFechamento || new Date(parseDateLocal(evento.data_lancamento).getTime() + Math.max(1, Number(diasPeriodo || 1)) * 86400000);
+  const dataFim = new Date(parseDateLocal(evento.data_lancamento).getTime() + Math.max(1, Number(diasPeriodo || 1)) * 86400000);
 
   return buildTimeWeightedLoteAllocations({
     lotes: lotesRelacionados,
@@ -131,7 +130,7 @@ export async function calcularConsumoLotesPonderadoPorTempo({
  * @param {number} sobraFinal - Sobra registrada (kg)
  * @param {function} onProgress - Callback de progresso (opcional)
  */
-export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFinal, sobraInicial, dataFechamento, onProgress }) {
+export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) {
   const { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia } = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
@@ -143,7 +142,6 @@ export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFi
   await base44.entities.SuplementacaoEvento.update(evento.id, {
     sobra_kg: Number(sobraFinal || 0),
     dias_periodo: diasPeriodo,
-    data_fechamento_consumo: dataFechamento || null,
     consumo_diario_grupo_kg: consumoDiarioGrupo,
   });
 
@@ -155,7 +153,6 @@ export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFi
     evento,
     diasPeriodo,
     consumoTotal,
-    dataFechamento,
   });
   const alocacaoMap = new Map(alocacoes.map((item) => [item.loteId, item]));
 

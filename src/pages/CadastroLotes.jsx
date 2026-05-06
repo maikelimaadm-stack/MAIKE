@@ -324,10 +324,9 @@ export default function CadastroLotes() {
           onChange={setFilters}
           onApply={() => setAppliedFilters(filters)}
           onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
-          onClose={() => setFilterPanelOpen(false)}
           lotes={lotes}
           areas={areas} />
-        <div className="min-w-0 flex-1 overflow-hidden relative">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <SankhyaListToolbar
             viewMode={viewMode}
             total={lotesFiltradosPainel.length}
@@ -339,10 +338,7 @@ export default function CadastroLotes() {
             toggleViewDisabled={selectedTableItems.length > 1}
             filterOpen={filterPanelOpen}
             filterActive={hasActiveFilters}
-            onToggleFilter={() => {
-              if (window.innerWidth < 768) return;
-              setFilterPanelOpen((open) => !open);
-            }}
+            onToggleFilter={() => setFilterPanelOpen((open) => !open)}
             onClearFilter={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
             onFirst={() => navigateRecord(0)}
             onPrevious={() => navigateRecord(selectedIndex - 1)}
@@ -353,17 +349,10 @@ export default function CadastroLotes() {
             onRefresh={handleRefresh}
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
-            onSettingsClick={() => {
-              if (window.innerWidth < 768) return;
-              setShowConfigColunas(true);
-            }}
+            onSettingsClick={() => setShowConfigColunas(true)}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
-          <div className="md:hidden fixed right-3 bottom-20 z-30 flex flex-col gap-2">
-            <button type="button" disabled className="h-12 w-12 rounded-full bg-slate-200 text-slate-400 shadow-lg flex items-center justify-center text-xs font-bold opacity-70">Filtro</button>
-            <button type="button" disabled className="h-12 w-12 rounded-full bg-slate-200 text-slate-400 shadow-lg flex items-center justify-center text-[10px] font-bold leading-none opacity-70">Campos</button>
-          </div>
           <TabelaLotes
             key="table"
             lotes={lotesFiltradosPainel}

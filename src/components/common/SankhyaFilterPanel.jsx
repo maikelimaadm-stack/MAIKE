@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Filter, Plus, ChevronDown, ChevronRight, X } from "lucide-react";
+import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 
@@ -31,10 +31,10 @@ const DEFAULT_FIELD_GROUPS = FIELD_DEFS.reduce((acc, field) => {
   acc[field.id] = folder?.id || DEFAULT_FOLDERS[0].id;
   return acc;
 }, {});
-const inputClass = "h-10 md:h-6 rounded-none border-slate-300 px-2 md:px-1.5 text-sm md:text-xs shadow-none";
-const selectClass = "h-10 md:h-6 rounded-none border-slate-300 px-2 md:px-1.5 text-sm md:text-xs shadow-none";
+const inputClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
+const selectClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
 
-export default function SankhyaFilterPanel({ open, filters, onChange, onApply, onClear, onClose, lotes = [], areas = [] }) {
+export default function SankhyaFilterPanel({ open, filters, onChange, onApply, onClear, lotes = [], areas = [] }) {
   const [visibleFields, setVisibleFields] = useState(DEFAULT_FIELDS);
   const [operators, setOperators] = useState(DEFAULT_OPERATORS);
   const [configOpen, setConfigOpen] = useState(false);
@@ -87,7 +87,6 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const applyFilters = () => {
     onChange({ ...filters, _operators: operators });
     onApply();
-    if (filters.esconderAoAtualizar) onClose?.();
   };
 
   const renderNumberInput = (field, suffix) => (
@@ -122,8 +121,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     if (!field) return null;
 
     return (
-      <div key={field.id} className="border-b border-slate-200 pb-2 md:pb-1">
-        <label className="block mb-1 md:mb-0.5 text-slate-600 truncate text-xs md:text-[11px] font-medium md:font-normal">{field.label}</label>
+      <div key={field.id} className="border-b border-slate-200 pb-1">
+        <label className="block mb-0.5 text-slate-600 truncate">{field.label}</label>
         {field.type === "codeName" && renderCodeName("lote", "lotes", "Lote")}
         {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
         {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} className={inputClass} />}
@@ -144,29 +143,23 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   })).filter((folder) => folder.fields.length > 0);
 
   return (
-    <aside className="fixed md:static inset-x-0 bottom-0 top-[88px] md:inset-auto z-40 w-full md:w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-auto md:h-[calc(100dvh-150px)] max-h-none md:max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col shadow-2xl md:shadow-none rounded-t-xl md:rounded-none">
-      <div className="md:hidden h-10 px-3 border-b border-slate-300 flex items-center justify-between bg-white shrink-0">
-        <span className="font-semibold text-slate-800">Filtros</span>
-        <button type="button" onClick={onClose} className="h-8 w-8 inline-flex items-center justify-center rounded border border-slate-300 text-slate-700">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="border-b border-slate-300 p-2 md:p-1 space-y-2 md:space-y-1 bg-white shrink-0">
-        <div className="flex items-center gap-2 h-8 md:h-6">
-          <Checkbox checked={!!filters.esconderAoAtualizar} onCheckedChange={(checked) => update("esconderAoAtualizar", !!checked)} className="h-4 w-4 md:h-3.5 md:w-3.5 rounded-none" />
+    <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
+      <div className="border-b border-slate-300 p-1 space-y-1 bg-white shrink-0">
+        <div className="flex items-center gap-2 h-6">
+          <Checkbox checked={!!filters.esconderAoAtualizar} onCheckedChange={(checked) => update("esconderAoAtualizar", !!checked)} className="h-3.5 w-3.5 rounded-none" />
           <span className="font-semibold text-slate-700">Esconder ao atualizar</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-[88px_1fr] gap-2 md:gap-1">
-          <Button type="button" onClick={() => setConfigOpen(true)} className="h-10 md:h-7 rounded-none bg-green-500 hover:bg-green-600 text-white text-xs px-1"><Plus className="w-4 h-4" /> Filtro</Button>
-          <Button type="button" onClick={applyFilters} className="h-10 md:h-7 rounded-none bg-slate-600 hover:bg-slate-700 text-white text-xs">Aplicar</Button>
+        <div className="grid grid-cols-[88px_1fr] gap-1">
+          <Button type="button" onClick={() => setConfigOpen(true)} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-white text-xs px-1"><Plus className="w-4 h-4" /> Filtro</Button>
+          <Button type="button" onClick={applyFilters} className="h-7 rounded-none bg-slate-600 hover:bg-slate-700 text-white text-xs">Aplicar</Button>
         </div>
-        <div className="flex items-center justify-between h-8 md:h-6 border-t border-slate-200 pt-1">
-          <div className="flex items-center gap-2"><Checkbox checked={false} className="h-4 w-4 md:h-3.5 md:w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
-          <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-7 md:h-5 min-w-7 md:min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">0</button>
+        <div className="flex items-center justify-between h-6 border-t border-slate-200 pt-1">
+          <div className="flex items-center gap-2"><Checkbox checked={false} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
+          <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">0</button>
         </div>
       </div>
 
-      <div className="h-10 md:h-8 px-2 md:px-1.5 flex items-center justify-between border-b border-green-500 bg-slate-50 font-semibold text-slate-700 shrink-0">
+      <div className="h-8 px-1.5 flex items-center justify-between border-b border-green-500 bg-slate-50 font-semibold text-slate-700 shrink-0">
         <span>Filtros rápidos</span>
         <button type="button" onClick={clearAll} className="relative"><Filter className="w-4 h-4" /><span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-slate-700 text-white text-[9px] leading-3">×</span></button>
       </div>
@@ -174,11 +167,11 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       <div className="flex-1 min-h-0 overflow-auto">
         {groupedFolders.map((folder) => (
           <div key={folder.id} className="border-b border-slate-300">
-            <button type="button" onClick={() => setOpenGroups({ ...openGroups, [folder.id]: !openGroups[folder.id] })} className="w-full h-10 md:h-8 px-3 md:px-2 flex items-center gap-1 bg-slate-100 font-semibold text-slate-700 text-left">
+            <button type="button" onClick={() => setOpenGroups({ ...openGroups, [folder.id]: !openGroups[folder.id] })} className="w-full h-8 px-2 flex items-center gap-1 bg-slate-100 font-semibold text-slate-700 text-left">
               {openGroups[folder.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               {folder.name}
             </button>
-            {openGroups[folder.id] && <div className="p-3 md:p-1.5 space-y-3 md:space-y-1.5">{folder.fields.map(renderField)}</div>}
+            {openGroups[folder.id] && <div className="p-1.5 space-y-1.5">{folder.fields.map(renderField)}</div>}
           </div>
         ))}
 

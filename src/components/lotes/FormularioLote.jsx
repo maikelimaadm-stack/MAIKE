@@ -15,11 +15,11 @@ import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 
 const FL = ({ label, required, error, children, dataField, wide = false }) =>
-<div data-field={dataField} className={`grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] items-start md:items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
-    <label className="text-[12px] text-slate-600 text-left md:text-right leading-none pt-1 md:pt-0">
+<div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
+    <label className="text-[12px] text-slate-600 text-right leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
-    <div className={`${wide ? 'min-h-10 md:min-h-6' : 'min-h-10 md:h-6'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-visible md:overflow-hidden [&_input]:h-10 md:[&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-10 md:[&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[88px] md:[&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
+    <div className={`${wide ? 'min-h-6' : 'h-6'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
       {children}
     </div>
   </div>;
@@ -434,7 +434,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
-        <div className="px-3 md:px-8 py-2 md:py-1 space-y-2 md:space-y-1 max-w-[760px]">
+        <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
             <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
           </FL>
@@ -455,8 +455,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         </div>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        <div className="min-h-[360px] px-3 md:px-8 py-2 md:py-1">
-          <div className="max-w-[780px] space-y-2 md:space-y-1">
+        <div className="min-h-[360px] px-4 md:px-8 py-1">
+          <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" &&
             <div className="space-y-1">
                 <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada">
@@ -592,9 +592,9 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         </div>
 
         {isDirty &&
-        <div className="flex justify-end gap-2 p-2 bg-slate-50 border-t border-slate-200 sticky bottom-16 md:bottom-0 z-20">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-10 md:h-7 text-xs px-4 md:px-3 flex-1 md:flex-none">Descartar</Button>
-            <Button type="submit" size="sm" className="h-10 md:h-7 text-xs px-4 md:px-3 bg-emerald-600 hover:bg-emerald-700 text-white flex-1 md:flex-none">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
+        <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
           </div>
         }
       </form>
