@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import loteRepository from "@/core/repositories/loteRepository";
 import GuidedRelationConfig from "./GuidedRelationConfig";
-import VisualCalculationBuilder from "./VisualCalculationBuilder.jsx";
+import VisualCalculationBuilder from "./VisualCalculationBuilder";
 import DecimalConfig from "./DecimalConfig";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
