@@ -326,6 +326,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
         <form onSubmit={handleSubmit} className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
             <LegacyRecordToolbar
             title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
+            badgeLabel="CAMPO PERSONALIZADO"
             operationLabel={operationLabel}
             showSaveActions={isDirty}
             showDeleteDuplicateActions={!!editingId && !isDirty && !isDuplicating}

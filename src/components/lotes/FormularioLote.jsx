@@ -414,6 +414,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
       <form onSubmit={handleSubmit} className="bg-white min-h-[calc(100dvh-150px)]">
         <LegacyRecordToolbar
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
+          badgeLabel="LOTE"
           operationLabel={operationLabel}
           showSaveActions={isDirty}
           showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating}

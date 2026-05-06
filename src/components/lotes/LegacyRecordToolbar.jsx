@@ -5,7 +5,7 @@ import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Sett
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
-export default function LegacyRecordToolbar({ title, operationLabel, showSaveActions = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
@@ -51,8 +51,8 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
         </div>
       </div>
       <div className="mt-1 h-8 flex items-center gap-2 bg-white border-t border-b-[0.5px] border-slate-200/60 px-2">
-        <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">Campo personalizado:</span>
-        <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
+        <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold uppercase">{badgeLabel}</span>
+        <span className="text-xs font-semibold text-slate-700 uppercase truncate min-w-0 flex-1">{title}</span>
         {operationLabel &&
         <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
             {operationLabel}
