@@ -442,6 +442,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               diasPeriodo: diasPeriodoCalculado,
               sobraInicial: ultimoEvento.sobra_kg || 0,
               sobraFinal: parseNumber(formData.sobra_kg || 0),
+              dataFechamento: closingDateForPreviousPeriod,
             });
           } else {
             toast.warn("Datas inconsistentes — período anterior não foi fechado.");

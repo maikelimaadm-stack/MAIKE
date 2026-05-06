@@ -67,6 +67,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
     return {
       data_movimentacao: getTodayLocalDate(),
+      data_fechamento_consumo: getTodayLocalDate(),
       mover_todos: 'sim',
       setor_saida_id: areaOrigem?.setor_id || '',
       area_saida_id: areaSaidaId,
@@ -236,7 +237,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         setProgresso({ show: true, atual: i * 2 + 1, total: eventosAbertos.length * 2, mensagem: `Fechando evento ${i + 1}/${eventosAbertos.length}...` });
 
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
-        const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
+        const dataFechamento = formData.data_fechamento_consumo || formData.data_movimentacao;
+        const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, dataFechamento);
         const saldoFisicoMaximo = (evento.quantidade_total_kg || 0) + (evento.sobra_kg || 0);
         if (sobra < 0 || sobra > saldoFisicoMaximo) {
           throw new Error(`A sobra informada para ${evento.ponto_nome} está fora do limite físico do período.`);
@@ -249,6 +251,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           diasPeriodo,
           sobraInicial: evento.sobra_kg || 0,
           sobraFinal: sobra,
+          dataFechamento,
         });
       }
 
@@ -357,9 +360,18 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               </p>
             </div>
 
+            <FL label="Data do fechamento do consumo" required>
+              <Input
+                type="date"
+                value={formData.data_fechamento_consumo || formData.data_movimentacao}
+                onChange={(e) => setFormData({ ...formData, data_fechamento_consumo: e.target.value })}
+                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                required />
+            </FL>
+
             <div className="space-y-3">
               {eventosAbertos.map((evento) => {
-                const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
+                const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_fechamento_consumo || formData.data_movimentacao);
                 return (
                   <div key={evento.id} className="border border-slate-200 rounded-lg p-3 bg-white">
                     <div className="mb-3">

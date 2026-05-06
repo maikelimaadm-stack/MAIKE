@@ -1,0 +1,137 @@
+{
+  "name": "SuplementacaoEvento",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "ponto_suplementacao_id": {
+      "type": "string",
+      "description": "ID do ponto de suplementa\u00e7\u00e3o"
+    },
+    "ponto_nome": {
+      "type": "string",
+      "description": "Nome do ponto (cache)"
+    },
+    "area_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea principal onde ocorreu"
+    },
+    "area_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea principal ou resumo das \u00e1reas vinculadas"
+    },
+    "area_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs das \u00e1reas vinculadas ao lan\u00e7amento"
+    },
+    "area_nomes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Nomes das \u00e1reas vinculadas ao lan\u00e7amento"
+    },
+    "data_lancamento": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do lan\u00e7amento da suplementa\u00e7\u00e3o"
+    },
+    "data_fechamento_consumo": {
+      "type": "string",
+      "format": "date",
+      "description": "Data escolhida para o fechamento do consumo do per\u00edodo"
+    },
+    "produto": {
+      "type": "string",
+      "description": "Produto de suplementa\u00e7\u00e3o fornecido"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto (refer\u00eancia)"
+    },
+    "tipo_consumo": {
+      "type": "string",
+      "enum": [
+        "CONSUMO_DIARIO",
+        "CONSUMO_LIVRE"
+      ],
+      "description": "Tipo de consumo do produto no momento do lan\u00e7amento"
+    },
+    "quantidade_total_kg": {
+      "type": "number",
+      "description": "Quantidade total fornecida em kg"
+    },
+    "quantidade_sacos": {
+      "type": "number",
+      "description": "Quantidade em sacos (se aplic\u00e1vel)"
+    },
+    "peso_por_saco_kg": {
+      "type": "number",
+      "description": "Peso por saco no momento do lan\u00e7amento"
+    },
+    "unidade_lancamento": {
+      "type": "string",
+      "enum": [
+        "KG",
+        "SACO"
+      ],
+      "default": "KG",
+      "description": "Unidade usada pelo operador no lan\u00e7amento"
+    },
+    "sobra_kg": {
+      "type": "number",
+      "default": 0,
+      "description": "Sobra encontrada no cocho (kg)"
+    },
+    "dias_periodo": {
+      "type": "number",
+      "description": "Dias de consumo do per\u00edodo (at\u00e9 pr\u00f3ximo lan\u00e7amento ou data de fechamento escolhida)"
+    },
+    "consumo_diario_grupo_kg": {
+      "type": "number",
+      "description": "Consumo di\u00e1rio do grupo em kg"
+    },
+    "total_cabecas_afetadas": {
+      "type": "number",
+      "description": "Total de cabe\u00e7as nas \u00e1reas afetadas"
+    },
+    "peso_medio_lotes_kg": {
+      "type": "number",
+      "description": "Peso m\u00e9dio ponderado dos lotes no momento do lan\u00e7amento"
+    },
+    "peso_total_consumo": {
+      "type": "number",
+      "description": "Soma dos pesos de consumo (animais x fatores) - legado"
+    },
+    "consumo_esperado_pv_kg": {
+      "type": "number",
+      "description": "Consumo esperado calculado pelo %PV do produto"
+    },
+    "percentual_consumo_pv_usado": {
+      "type": "number",
+      "description": "%PV do produto usado no c\u00e1lculo"
+    },
+    "movimentacao_estoque_id": {
+      "type": "string",
+      "description": "ID da movimenta\u00e7\u00e3o de estoque gerada para a baixa do dep\u00f3sito"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre o evento de suplementa\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "ponto_suplementacao_id",
+    "data_lancamento",
+    "produto",
+    "quantidade_total_kg"
+  ]
+}
