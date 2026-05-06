@@ -68,7 +68,7 @@ export default function SankhyaListToolbar({
           <Filter className="w-3.5 h-3.5" />
           {filterActive &&
           <span
-            onClick={(e) => { e.stopPropagation(); onClearFilter?.(); }}
+            onClick={(e) => {e.stopPropagation();onClearFilter?.();}}
             className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-white text-red-600 border border-red-500 text-[10px] leading-[12px] font-bold">
             ×
           </span>
@@ -88,9 +88,9 @@ export default function SankhyaListToolbar({
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
               placeholder="Pesquisar registros..."
-              className="h-full w-full px-2 pr-7 text-xs bg-white outline-none" />
+              className="h-full w-full px-2 pr-7 text-xs bg-white outline-none hidden" />
             
-            <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+            <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 hidden" />
           </div>
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Selecione apenas um registro" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
