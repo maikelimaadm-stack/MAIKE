@@ -352,7 +352,9 @@ export default function CadastroLotes() {
             onSettingsClick={() => setShowConfigColunas(true)}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
-            recordLabel="" />
+            recordLabel=""
+            showHomeButton={false}
+            showFilterButton={false} />
           <TabelaLotes
             key="table"
             lotes={lotesFiltradosPainel}
