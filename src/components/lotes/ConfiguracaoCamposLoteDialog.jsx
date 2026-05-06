@@ -186,10 +186,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setIsDirty(true);
     setForm((prev) => {
       const next = { ...prev, [field]: value, ...(field === "label" && !editingId ? { field_name: toSnakeCase(value) } : {}) };
-      if (field === "tipo") {
+        if (field === "tipo") {
         next.agregacao_tipo = "none";
         next.usar_decimal = ["number", "calculado"].includes(value);
         next.read_only = value === "calculado";
+        next.visivel_form = value !== "calculado";
         if (value !== "select") {
           next.options_source_entity = "";
           next.options_label_field = "nome";
@@ -253,6 +254,30 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([]);
   };
 
+  const handleDeleteCurrent = () => {
+    if (!selectedCampo) return;
+    handleDelete(selectedCampo);
+    resetForm();
+  };
+
+  const handleDuplicateCurrent = () => {
+    if (!selectedCampo) return;
+    const { id, field_id, created_date, updated_date, created_by, ...copy } = selectedCampo;
+    setForm({
+      ...initialForm,
+      ...copy,
+      label: `${selectedCampo.label || "Campo"} - Cópia`,
+      field_name: "",
+      agregacao_tipo: selectedCampo.agregacao_tipo || selectedCampo.agregacao || "none",
+      usar_decimal: !!selectedCampo.usar_decimal,
+      decimal_places: selectedCampo.decimal_places ?? 2
+    });
+    setEditingId(null);
+    setSelectedCampoIds([]);
+    setIsDirty(true);
+    setShowForm(true);
+  };
+
   const operationLabel = !editingId ? "NOVO REGISTRO" : isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO";
 
   return (
@@ -263,7 +288,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
         </DialogHeader>
 
         {showForm ? (
-          <form onSubmit={handleSubmit} className="border border-slate-300 bg-white min-h-[520px]">
+          <form onSubmit={handleSubmit} className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
             <LegacyRecordToolbar
               title={form.label || (editingId ? "Editar campo" : "Novo campo")}
               operationLabel={operationLabel}
@@ -278,22 +303,21 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               onPrevious={() => navigateCampo(selectedIndex - 1)}
               onNext={() => navigateCampo(selectedIndex + 1)}
               onLast={() => navigateCampo(campos.length - 1)}
+              onDelete={handleDeleteCurrent}
+              onDuplicate={handleDuplicateCurrent}
               onSettingsClick={() => {}}
             />
 
-            <div className="px-4 md:px-8 py-3 space-y-1 max-w-[780px]">
+            <div className="flex-1 overflow-y-auto px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
               <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Tipo"><Select value={form.tipo} onValueChange={(value) => updateForm("tipo", value)}><SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs uppercase">{tipo.label}</SelectItem>)}</SelectContent></Select></Field>
               <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Descrição"><Input value={form.descricao} onChange={(e) => updateForm("descricao", e.target.value)} placeholder="EXPLICAÇÃO OPCIONAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
-            </div>
 
-            {form.tipo === "select" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="select" />}
-            {form.tipo === "relation" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="relation" />}
-            {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
-            <DecimalConfig form={form} updateForm={updateForm} />
-
-            <div className="px-4 md:px-8 pb-3 space-y-1 max-w-[780px]">
+              {form.tipo === "select" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="select" />}
+              {form.tipo === "relation" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="relation" />}
+              {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
+              <DecimalConfig form={form} updateForm={updateForm} />
               <Field label="Totalizar na tabela">
                 <Select value={form.agregacao_tipo} onValueChange={(value) => updateForm("agregacao_tipo", value)} disabled={agregacoesPermitidas.length === 0}>
                   <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger>
