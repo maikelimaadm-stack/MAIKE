@@ -365,10 +365,10 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                 <div className="flex items-center gap-4">
                   {[["obrigatorio", "Obrigatório"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) =>
                   <button key={field} type="button" onClick={() => updateForm(field, !form[field])} className="flex items-center gap-1.5 bg-transparent">
+                      <span className="text-[12px] text-slate-600">{label}</span>
                       <span className={`w-8 h-4 rounded-full relative inline-block transition-colors ${form[field] ? 'bg-green-500' : 'bg-slate-300'}`}>
                         <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form[field] ? 'right-0.5' : 'left-0.5'}`} />
                       </span>
-                      <span className="text-[12px] text-slate-600">{label}</span>
                     </button>
                   )}
                 </div>
