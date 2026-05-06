@@ -91,7 +91,14 @@ export default function SankhyaListToolbar({
 
 
 
-          
+          <div className="relative h-7 w-44 md:w-56 border-y-0 border-l-[0.5px] border-slate-200/60 bg-white">
+            <input
+              value={searchValue}
+              onChange={(e) => onSearchChange?.(e.target.value)}
+              placeholder="Pesquisar registros..."
+              className="h-full w-full px-2 pr-7 text-xs bg-white outline-none" />
+            <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          </div>
           <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Selecione apenas um registro" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
