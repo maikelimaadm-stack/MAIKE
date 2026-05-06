@@ -71,7 +71,7 @@ export async function refreshMapaCacheEntry(cacheKey, empresaId, options = {}) {
     return refreshPromises.get(requestKey);
   }
 
-  if (now < rateLimitUntil) {
+  if (!force && now < rateLimitUntil) {
     return getEntityCacheItems(cacheStorageKey, normalizedEmpresaId);
   }
 

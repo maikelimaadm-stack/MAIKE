@@ -165,9 +165,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       const areaSaida = areas.find((a) => a.id === formData.area_saida_id);
       const areaEntrada = areas.find((a) => a.id === formData.area_entrada_id);
       const movimentacoesCriadas = [];
-      const todosLotesSistema = await base44.entities.Lote.list();
+      const todosLotesSistema = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
       const lotesDestinoAtivos = todosLotesSistema.filter((l) =>
-      l.empresa_id === empresaSelecionadaId &&
       l.area_atual_id === formData.area_entrada_id &&
       l.status === 'Ativo'
       );
@@ -196,10 +195,27 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         });
 
         for (const lote of lotes) {
-          await base44.entities.Lote.update(lote.id, {
-            area_atual_id: formData.area_entrada_id,
-            area_atual_nome: areaEntrada?.nome || ''
-          });
+          const categoriaMovimento = (lote.categoria || '').toUpperCase();
+          const loteExistente = encontrarLoteDestinoCompativel(lote, categoriaMovimento);
+          const identificadorPayload = {
+            identificador_nome: lote.identificador_nome || null,
+            identificador_sigla: lote.identificador_sigla || null,
+            identificador_cor: lote.identificador_cor || null,
+          };
+
+          if (loteExistente) {
+            const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
+              quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + (lote.quantidade_cabecas || 0),
+              ...identificadorPayload
+            });
+            atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
+            await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+          } else {
+            await base44.entities.Lote.update(lote.id, {
+              area_atual_id: formData.area_entrada_id,
+              area_atual_nome: areaEntrada?.nome || ''
+            });
+          }
 
           const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
             empresa_id: empresaSelecionadaId,
@@ -350,27 +366,25 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       toast.success('Gado movido com sucesso!');
       setAreaDestinoPreSelecionada(null);
       setShowMovimentacao(false);
-      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } }));
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
-
-      const lotesNovos = await base44.entities.Lote.list();
-      const categoriasMovidas = variables.mover_todos === 'sim' ?
-      [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))] :
-      [...new Set((variables.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
-      const nomesOrigem = new Set(lotes.map((l) => l.nome));
-      const lotesDestino = lotesNovos.filter((l) =>
-      l.empresa_id === empresaSelecionadaId &&
-      l.area_atual_id === variables.area_entrada_id &&
-      l.status === 'Ativo' && (
-      nomesOrigem.has(l.nome) || categoriasMovidas.includes((l.categoria || '').toUpperCase()))
-      );
 
       setMovimentacaoPendente(null);
       setMovimentacoesCriadasIds((movimentacoesCriadas || []).map((item) => item.id).filter(Boolean));
 
       if (registrarPesagemAposMovimentacao) {
+        const lotesNovos = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
+        const categoriasMovidas = variables.mover_todos === 'sim' ?
+        [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))] :
+        [...new Set((variables.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
+        const nomesOrigem = new Set(lotes.map((l) => l.nome));
+        const lotesDestino = lotesNovos.filter((l) =>
+        l.area_atual_id === variables.area_entrada_id &&
+        l.status === 'Ativo' && (
+        nomesOrigem.has(l.nome) || categoriasMovidas.includes((l.categoria || '').toUpperCase()))
+        );
         setLotesAtualizados(lotesDestino.length > 0 ? lotesDestino : lotes);
         setShowPesagem(true);
         return;

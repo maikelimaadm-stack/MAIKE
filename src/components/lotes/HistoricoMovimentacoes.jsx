@@ -536,8 +536,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         });
       }
 
-      const lotesAll = await base44.entities.Lote.list();
-      const lotesEmpresa = lotesAll.filter(l => l.empresa_id === empresaSelecionadaId);
+      const lotesEmpresa = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
 
       const findLoteById = (id) => id ? lotesEmpresa.find(l => l.id === id) : null;
       const findLoteByNome = (nome, apenasAtivo = true) => lotesEmpresa.find(l =>
@@ -745,7 +744,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
         queryClient.invalidateQueries({ queryKey: ['mapa-cache'] }),
       ]);
-      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
+      try { window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } })); } catch {}
       toast.success('Lançamento excluído e saldo revertido');
     } catch (error) {
       console.error('Erro ao excluir lançamento:', error);

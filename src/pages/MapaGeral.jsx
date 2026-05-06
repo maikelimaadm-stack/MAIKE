@@ -636,24 +636,27 @@ export default function MapaGeral() {
     toast.error('Solte sobre outra área');
   }, [mapaGeralPermissions.mover_lotes, dragLotesEnabled]);
 
-  const executarRefreshMapa = useCallback(async (showToast = true, force = false) => {
+  const executarRefreshMapa = useCallback(async (showToast = true, force = false, cacheKeys = null) => {
     await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
 
     const refreshOptions = force ? { force: true } : {};
-    const refreshTasks = [
-    refreshMapaCacheEntry('lotes', empresaSelecionadaId, refreshOptions),
-    refreshMapaCacheEntry('areas', empresaSelecionadaId, refreshOptions),
-    refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, refreshOptions),
-    refreshMapaCacheEntry('pontosSuplementacao', empresaSelecionadaId, refreshOptions),
-    refreshMapaCacheEntry('pontos', empresaSelecionadaId, refreshOptions),
-    refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, refreshOptions)];
+    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'pontosSuplementacao', 'pontos', 'estoqueLotes'];
+    const refreshTasks = keysToRefresh.map((key) => refreshMapaCacheEntry(key, empresaSelecionadaId, refreshOptions));
 
-    if (modoColoracao === 'situacao_pasto') refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
-    if (podeUsarTarefasMapa) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, refreshOptions));
+    if (modoColoracao === 'situacao_pasto' && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
+    if (podeUsarTarefasMapa && !keysToRefresh.includes('tarefas') && !cacheKeys?.length) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, refreshOptions));
     await Promise.all(refreshTasks);
-    await Promise.all([refetchLotes(), refetchAreas(), refetchEventosSupl(), refetchPontosSupl(), refetchPontosRef(), refetchEstoqueLotes()]);
+
+    const refetchTasks = [];
+    if (keysToRefresh.includes('lotes')) refetchTasks.push(refetchLotes());
+    if (keysToRefresh.includes('areas')) refetchTasks.push(refetchAreas());
+    if (keysToRefresh.includes('eventosSuplementacao')) refetchTasks.push(refetchEventosSupl());
+    if (keysToRefresh.includes('pontosSuplementacao')) refetchTasks.push(refetchPontosSupl());
+    if (keysToRefresh.includes('pontos')) refetchTasks.push(refetchPontosRef());
+    if (keysToRefresh.includes('estoqueLotes')) refetchTasks.push(refetchEstoqueLotes());
+    await Promise.all(refetchTasks);
     if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
-    if (podeUsarTarefasMapa) await refetchTarefas();
+    if (podeUsarTarefasMapa && (!cacheKeys?.length || keysToRefresh.includes('tarefas'))) await refetchTarefas();
     if (showToast) toast.success('Mapa atualizado');
   }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
@@ -844,8 +847,8 @@ export default function MapaGeral() {
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
-    const h = async () => {
-      await executarRefreshMapa(false, true);
+    const h = async (event) => {
+      await executarRefreshMapa(false, true, event?.detail?.cacheKeys || null);
     };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);
