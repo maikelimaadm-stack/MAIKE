@@ -22,6 +22,9 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
         <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Registro anterior"><ChevronLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate || isLast} className={iconButtonClass} title="Próximo registro"><ChevronRight className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate || isLast} className={iconButtonClass} title="Último registro"><ChevronsRight className="w-3.5 h-3.5" /></Button>
+                  {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={fileButtonClass} title="Excluir registro"><Trash2 className="w-3.5 h-3.5" /></Button>}
+          {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass} title="Duplicar registro"><Copy className="w-3.5 h-3.5" /></Button>}
+
         {showSaveActions &&
         <>
             <Button type="submit" variant="outline" size="icon" className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>
@@ -38,8 +41,6 @@ export default function LegacyRecordToolbar({ title, operationLabel, showSaveAct
 
         <div className="ml-auto flex items-center gap-0">
 
-          {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={fileButtonClass} title="Excluir registro"><Trash2 className="w-3.5 h-3.5" /></Button>}
-          {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass} title="Duplicar registro"><Copy className="w-3.5 h-3.5" /></Button>}
           <Button type="button" variant="outline" size="icon" className={showDeleteDuplicateActions ? iconButtonClass : fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>
           <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
