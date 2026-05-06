@@ -63,7 +63,7 @@ export default function SankhyaListToolbar({
           <Filter className="w-3.5 h-3.5" />
           {filterActive &&
           <span
-            onClick={(e) => { e.stopPropagation(); onClearFilter?.(); }}
+            onClick={(e) => {e.stopPropagation();onClearFilter?.();}}
             className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-white text-red-600 border border-red-500 text-[10px] leading-[12px] font-bold">
             ×
           </span>
