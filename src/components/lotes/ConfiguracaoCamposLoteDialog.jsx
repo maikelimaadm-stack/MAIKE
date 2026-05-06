@@ -283,9 +283,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="hidden">
-          
-        </DialogHeader>
+        
+
+        
 
         {showForm ?
         <form onSubmit={handleSubmit} className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
