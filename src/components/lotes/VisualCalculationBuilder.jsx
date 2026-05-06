@@ -8,7 +8,7 @@ const EMPTY_ITEM = { field: "", operator: "*" };
 
 const fieldRow = "grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1";
 const fieldLabel = "text-[12px] text-slate-600 text-right leading-none";
-const fieldBox = "h-6 border border-slate-300 bg-white focus-within:border-green-500 transition-colors";
+const fieldBox = "h-6 border border-slate-300 bg-white focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none";
 const triggerCls = "h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1";
 
 export default function VisualCalculationBuilder({ value = [], fields = [], onChange }) {

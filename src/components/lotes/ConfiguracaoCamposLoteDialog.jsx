@@ -337,9 +337,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 pt-1">
                 {[["obrigatorio", "Obrigatório"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) =>
                 <Field key={field} label={label}>
-                    <div className="h-[22px] flex items-center justify-between px-1 text-xs text-slate-700">
-                      <span>{form[field] ? "Sim" : "Não"}</span><Switch checked={!!form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
-                    </div>
+                    <button type="button" onClick={() => updateForm(field, !form[field])} className="h-[22px] w-full flex items-center justify-start px-1 bg-transparent">
+                      <span className={`w-8 h-4 rounded-full relative inline-block transition-colors ${form[field] ? 'bg-green-500' : 'bg-slate-300'}`}>
+                        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form[field] ? 'right-0.5' : 'left-0.5'}`} />
+                      </span>
+                    </button>
                   </Field>
                 )}
               </div>
