@@ -282,7 +282,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col sm:!p-1">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
         <DialogHeader className="hidden">
           
         </DialogHeader>
@@ -361,7 +361,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             selectedCount={selectedCampoIds.length}
             title="Campos Personalizados"
             recordLabel=""
-            showUtilityActions={false} />
+            showUtilityActions={false}
+            showSearch={false} />
             <div className="overflow-auto flex-1">
               <Table className="w-full my-1 min-w-[760px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
