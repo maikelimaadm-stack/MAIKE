@@ -114,6 +114,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const pontoSuplementacaoExistente = useMemo(() => {
     if (!item) return null;
+    if (item.detalhe_suplementacao?.id) return item.detalhe_suplementacao;
+    if (item.ponto_suplementacao_id) {
+      const porId = pontosSuplementacao.find((ponto) => ponto.id === item.ponto_suplementacao_id);
+      if (porId) return porId;
+    }
+
     const nomeAtual = normalizeText(item.nome);
     const siglaAtual = normalizeText(item.sigla);
 
@@ -163,8 +169,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       capacidade_cocho_kg: item.capacidade_cocho_kg || (!isBatchItem ? pontoSuplementacaoExistente?.capacidade_cocho_kg : "") || "",
       setor_id: item.setor_id || (!isBatchItem ? pontoSuplementacaoExistente?.setor_id : "") || areas.find((area) => area.id === item.area_vinculada_id)?.setor_id || "",
       area_vinculada_id: item.area_vinculada_id || (!isBatchItem ? pontoSuplementacaoExistente?.area_vinculada_id : "") || "",
-      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : [],
-      deposito_origem_id: item.deposito_origem_id || "",
+      area_vinculada_ids: item.area_vinculada_ids?.length ? item.area_vinculada_ids : (!isBatchItem && pontoSuplementacaoExistente?.area_vinculada_ids?.length ? pontoSuplementacaoExistente.area_vinculada_ids : []),
+      deposito_origem_id: item.deposito_origem_id || (!isBatchItem ? pontoSuplementacaoExistente?.deposito_origem_id : "") || "",
       metragem_cocho_m: item.metragem_cocho_m || (!isBatchItem ? pontoSuplementacaoExistente?.metragem_cocho_m : "") || "",
       cobertura_cocho: item.cobertura_cocho || (!isBatchItem ? pontoSuplementacaoExistente?.cobertura_cocho : "") || "",
       consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || (!isBatchItem ? pontoSuplementacaoExistente?.consumo_ideal_por_cabeca_kg : "") || "",
@@ -323,8 +329,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id)) :
       [];
       const areaVinculadaPrincipal = areasVinculadas[0] || null;
-      let localEstoqueId = pontoSuplementacaoExistente?.local_estoque_id || null;
-      let localEstoqueNome = pontoSuplementacaoExistente?.local_estoque_nome || null;
+      let localEstoqueId = pontoSuplementacaoExistente?.local_estoque_id || item?.detalhe_suplementacao?.local_estoque_id || null;
+      let localEstoqueNome = pontoSuplementacaoExistente?.local_estoque_nome || item?.detalhe_suplementacao?.local_estoque_nome || null;
 
       if (data.tipo_categoria === "DEPOSITO") {
         const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${data.nome}`;
