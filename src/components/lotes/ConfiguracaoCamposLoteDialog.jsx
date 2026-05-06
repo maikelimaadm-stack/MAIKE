@@ -16,14 +16,14 @@ import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { AGREGACOES_POR_TIPO, montarCamposDisponiveis, montarFormulaVisual } from "./camposConfigOptions";
 
 const TIPOS_CAMPO = [
-  { value: "text", label: "Texto" },
-  { value: "number", label: "Número" },
-  { value: "date", label: "Data" },
-  { value: "select", label: "Lista de seleção" },
-  { value: "relation", label: "Relação com cadastro" },
-  { value: "calculado", label: "Calculado" },
-  { value: "textarea", label: "Observação" }
-];
+{ value: "text", label: "Texto" },
+{ value: "number", label: "Número" },
+{ value: "date", label: "Data" },
+{ value: "select", label: "Lista de seleção" },
+{ value: "relation", label: "Relação com cadastro" },
+{ value: "calculado", label: "Calculado" },
+{ value: "textarea", label: "Observação" }];
+
 
 const toSnakeCase = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
 
@@ -186,7 +186,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setIsDirty(true);
     setForm((prev) => {
       const next = { ...prev, [field]: value, ...(field === "label" && !editingId ? { field_name: toSnakeCase(value) } : {}) };
-        if (field === "tipo") {
+      if (field === "tipo") {
         next.agregacao_tipo = "none";
         next.usar_decimal = ["number", "calculado"].includes(value);
         next.read_only = value === "calculado";
@@ -284,29 +284,29 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-sm">Configuração Guiada de Campos</DialogTitle>
+          <DialogTitle className="text-sm hidden">Configuração Guiada de Campos</DialogTitle>
         </DialogHeader>
 
-        {showForm ? (
-          <form onSubmit={handleSubmit} className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
+        {showForm ?
+        <form onSubmit={handleSubmit} className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
             <LegacyRecordToolbar
-              title={form.label || (editingId ? "Editar campo" : "Novo campo")}
-              operationLabel={operationLabel}
-              showSaveActions={isDirty}
-              showDeleteDuplicateActions={!!editingId && !isDirty}
-              onCancel={handleDiscard}
-              onToggleView={handleToggleView}
-              onNew={handleNew}
-              total={campos.length}
-              currentIndex={selectedIndex}
-              onFirst={() => navigateCampo(0)}
-              onPrevious={() => navigateCampo(selectedIndex - 1)}
-              onNext={() => navigateCampo(selectedIndex + 1)}
-              onLast={() => navigateCampo(campos.length - 1)}
-              onDelete={handleDeleteCurrent}
-              onDuplicate={handleDuplicateCurrent}
-              onSettingsClick={() => {}}
-            />
+            title={form.label || (editingId ? "Editar campo" : "Novo campo")}
+            operationLabel={operationLabel}
+            showSaveActions={isDirty}
+            showDeleteDuplicateActions={!!editingId && !isDirty}
+            onCancel={handleDiscard}
+            onToggleView={handleToggleView}
+            onNew={handleNew}
+            total={campos.length}
+            currentIndex={selectedIndex}
+            onFirst={() => navigateCampo(0)}
+            onPrevious={() => navigateCampo(selectedIndex - 1)}
+            onNext={() => navigateCampo(selectedIndex + 1)}
+            onLast={() => navigateCampo(campos.length - 1)}
+            onDelete={handleDeleteCurrent}
+            onDuplicate={handleDuplicateCurrent}
+            onSettingsClick={() => {}} />
+          
 
             <div className="flex-1 overflow-y-auto">
               <div className="px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
@@ -334,33 +334,33 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                 </div>
               </Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 pt-1">
-                {[["obrigatorio", "Obrigatório"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) => (
-                  <Field key={field} label={label}>
+                {[["obrigatorio", "Obrigatório"], ["visivel_form", "Formulário"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) =>
+                <Field key={field} label={label}>
                     <div className="h-[22px] flex items-center justify-between px-1 text-xs text-slate-700">
                       <span>{form[field] ? "Sim" : "Não"}</span><Switch checked={!!form[field]} onCheckedChange={(checked) => updateForm(field, checked)} className="scale-75" />
                     </div>
                   </Field>
-                ))}
+                )}
               </div>
               </div>
             </div>
-          </form>
-        ) : (
-          <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
+          </form> :
+
+        <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
             <SankhyaListToolbar
-              viewMode="table"
-              total={campos.length}
-              currentIndex={selectedIndex}
-              onNew={handleNew}
-              onToggleView={handleToggleView}
-              toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
-              onDelete={handleDeleteSelected}
-              onSettingsClick={() => {}}
-              onAttachClick={() => {}}
-              attachDisabled
-              selectedCount={selectedCampoIds.length}
-              title="Campos Personalizados"
-              recordLabel="" />
+            viewMode="table"
+            total={campos.length}
+            currentIndex={selectedIndex}
+            onNew={handleNew}
+            onToggleView={handleToggleView}
+            toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
+            onDelete={handleDeleteSelected}
+            onSettingsClick={() => {}}
+            onAttachClick={() => {}}
+            attachDisabled
+            selectedCount={selectedCampoIds.length}
+            title="Campos Personalizados"
+            recordLabel="" />
             <div className="overflow-auto flex-1">
               <Table className="w-full my-1 min-w-[760px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
@@ -371,16 +371,16 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow>
-                  ) : campos.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow>
-                  ) : campos.map((campo) => (
-                    <TableRow
-                      key={campo.id || campo.field_id}
-                      className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
-                      onClick={(event) => handleRowSelect(campo, event)}
-                      onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
+                  {isLoading ?
+                <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow> :
+                campos.length === 0 ?
+                <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow> :
+                campos.map((campo) =>
+                <TableRow
+                  key={campo.id || campo.field_id}
+                  className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
+                  onClick={(event) => handleRowSelect(campo, event)}
+                  onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words font-medium ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{campo.label}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
@@ -393,15 +393,15 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                )}
                 </TableBody>
               </Table>
             </div>
           </div>
-        )}
+        }
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
 
 function Field({ label, children, className = "", required = false, wide = false }) {
@@ -413,6 +413,6 @@ function Field({ label, children, className = "", required = false, wide = false
       <div className={`${wide ? "min-h-6" : "h-6"} border border-slate-300 bg-white focus-within:border-green-500 transition-colors [&_input]:h-[22px] [&_button]:h-[22px] [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
         {children}
       </div>
-    </div>
-  );
+    </div>);
+
 }
