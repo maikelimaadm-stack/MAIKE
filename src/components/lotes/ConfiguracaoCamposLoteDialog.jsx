@@ -305,7 +305,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             onLast={() => navigateCampo(campos.length - 1)}
             onDelete={handleDeleteCurrent}
             onDuplicate={handleDuplicateCurrent}
-            onSettingsClick={() => {}} />
+            onSettingsClick={() => {}}
+            showUtilityActions={false} />
           
 
             <div className="flex-1 overflow-y-auto">
@@ -412,7 +413,7 @@ function Field({ label, children, className = "", required = false, wide = false
       <label className="text-[12px] text-slate-600 text-right leading-none">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      <div className={`${wide ? "min-h-6" : "h-6"} border border-slate-300 bg-white focus-within:border-green-500 transition-colors [&_input]:h-[22px] [&_button]:h-[22px] [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
+      <div className={`${wide ? 'min-h-6' : 'h-6'} border border-slate-300 bg-white focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
         {children}
       </div>
     </div>);
