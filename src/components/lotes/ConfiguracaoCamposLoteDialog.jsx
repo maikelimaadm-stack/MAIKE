@@ -240,6 +240,25 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   };
 
   const handleDiscard = () => {
+    // Editando registro existente: reverte para visualização do mesmo registro
+    if (editingId && !isDuplicating) {
+      const original = campos.find((campo) => campo.id === editingId);
+      if (original) {
+        loadCampoForm(original);
+        return;
+      }
+    }
+    // Novo/Duplicação: se houver registro selecionado anterior, abre em visualização; senão volta para lista
+    const previousId = selectedCampoIds[0];
+    const previous = previousId ? campos.find((c) => (c.id || c.field_id) === previousId) : null;
+    if (previous) {
+      loadCampoForm(previous);
+      return;
+    }
+    if (campos.length > 0) {
+      loadCampoForm(campos[0]);
+      return;
+    }
     resetForm();
   };
 
