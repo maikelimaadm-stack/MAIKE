@@ -7,13 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import loteRepository from "@/core/repositories/loteRepository";
 import GuidedRelationConfig from "./GuidedRelationConfig";
 import VisualCalculationBuilder from "./VisualCalculationBuilder";
 import DecimalConfig from "./DecimalConfig";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
+import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { AGREGACOES_POR_TIPO, montarCamposDisponiveis, montarFormulaVisual } from "./camposConfigOptions";
 
 const TIPOS_CAMPO = [
@@ -64,6 +65,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [selectedCampoId, setSelectedCampoId] = useState(null);
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -73,6 +75,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   });
 
   const camposCalculo = useMemo(() => montarCamposDisponiveis(campos, editingId), [campos, editingId]);
+  const selectedCampo = campos.find((campo) => (campo.id || campo.field_id) === selectedCampoId) || campos[0] || null;
+  const selectedIndex = Math.max(0, campos.findIndex((campo) => (campo.id || campo.field_id) === (selectedCampo?.id || selectedCampo?.field_id)));
   const agregacoesPermitidas = AGREGACOES_POR_TIPO[form.tipo] || [];
   const calculationItems = form.calculation_builder?.items || [];
   const calculationFields = calculationItems.map((item) => item.field).filter(Boolean);
@@ -133,6 +137,14 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setShowForm(false);
   };
 
+  const handleToggleView = () => {
+    if (showForm) {
+      resetForm();
+      return;
+    }
+    if (selectedCampo) handleEdit(selectedCampo);
+  };
+
   const handleNew = () => {
     setForm(initialForm);
     setEditingId(null);
@@ -178,6 +190,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const handleEdit = (campo) => {
     const items = campo.calculation_builder?.items || (campo.campos_dependentes || campo.dependencias || []).map((field, index) => ({ field, operator: index === 0 ? "*" : "*" }));
     setEditingId(campo.id);
+    setSelectedCampoId(campo.id || campo.field_id);
     setShowForm(true);
     setForm({
       ...initialForm,
@@ -205,8 +218,14 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           <form onSubmit={handleSubmit} className="border border-slate-300 bg-white min-h-[520px]">
             <LegacyRecordToolbar
               title={form.label || (editingId ? "Editar campo" : "Novo campo")}
-              statusLabel={editingId ? "Editando campo" : "Inserindo campo"}
+              operationLabel={editingId ? "EDIÇÃO DE REGISTRO" : "NOVO REGISTRO"}
+              showSaveActions
+              showDeleteDuplicateActions={false}
               onCancel={resetForm}
+              onToggleView={handleToggleView}
+              onNew={handleNew}
+              total={campos.length}
+              currentIndex={selectedIndex}
               onSettingsClick={() => {}}
             />
 
@@ -250,11 +269,18 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           </form>
         ) : (
           <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
-            <div className="flex items-center justify-between p-2 bg-slate-50 border-b border-slate-200">
-              <div className="text-xs text-slate-600">{campos.length} campos configurados</div>
-              <Button onClick={handleNew} size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white"><Plus className="w-3.5 h-3.5" />Adicionar</Button>
-            </div>
-            <div className="overflow-auto">
+            <SankhyaListToolbar
+              viewMode="table"
+              total={campos.length}
+              currentIndex={selectedIndex}
+              onNew={handleNew}
+              onToggleView={handleToggleView}
+              toggleViewDisabled={!selectedCampo}
+              onSettingsClick={() => {}}
+              selectedCount={selectedCampoId ? 1 : 0}
+              title="Campos Personalizados"
+              recordLabel="" />
+            <div className="overflow-auto flex-1">
               <Table className="border-collapse table-fixed w-full">
                 <TableHeader>
                   <TableRow className="bg-blue-600 hover:bg-blue-600">
@@ -270,7 +296,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                   ) : campos.length === 0 ? (
                     <TableRow><TableCell colSpan={4} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow>
                   ) : campos.map((campo) => (
-                    <TableRow key={campo.id || campo.field_id} className="border-b hover:bg-gray-100" onDoubleClick={() => handleEdit(campo)}>
+                    <TableRow key={campo.id || campo.field_id} className={`border-b hover:bg-gray-100 cursor-pointer ${selectedCampoId === (campo.id || campo.field_id) ? "bg-emerald-50" : ""}`} onClick={() => setSelectedCampoId(campo.id || campo.field_id)} onDoubleClick={() => handleEdit(campo)}>
                       <TableCell className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 font-medium">{campo.label}</TableCell>
                       <TableCell className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300">{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
                       <TableCell className="px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300">
