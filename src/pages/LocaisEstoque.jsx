@@ -71,8 +71,61 @@ export default function LocaisEstoque() {
   useEffect(() => { const fn = async () => { const sem = locais.filter(l => !l.numero_local); if (sem.length > 0) { for (const l of sem) { try { const n = await getNextLocalNumber(); await base44.entities.LocalEstoque.update(l.id, { numero_local: String(n) }); } catch {} } queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); } }; if (locais.length > 0) fn(); }, [locais, queryClient]);
 
   const createMutation = useMutation({ mutationFn: async (data) => { const n = await getNextLocalNumber(); return base44.entities.LocalEstoque.create({ ...data, numero_local: String(n) }); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); setShowForm(false); setEditing(null); toast.success('Local cadastrado!'); }, onError: (err) => toast.error(err.message || 'Erro.') });
-  const updateMutation = useMutation({ mutationFn: ({ id, data }) => base44.entities.LocalEstoque.update(id, data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); setShowForm(false); setEditing(null); toast.success('Local atualizado!'); }, onError: (err) => toast.error(err.message || 'Erro.') });
-  const deleteMutation = useMutation({ mutationFn: async (ids) => { const prods = await base44.entities.Produto.list(); const movs = await base44.entities.MovimentacaoEstoque.list(); for (const id of ids) { const l = locais.find(x => x.id === id); if (prods.some(p => p.local_estoque === l?.nome)) throw new Error(`❌ "${l?.nome}" possui produtos vinculados!`); if (movs.some(m => m.local_estoque_origem === l?.nome || m.local_estoque_destino === l?.nome)) throw new Error(`❌ "${l?.nome}" possui movimentações vinculadas!`); await base44.entities.LocalEstoque.delete(id); } }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); toast.success('Local(is) excluído(s)!'); setSelectedItems([]); }, onError: (err) => toast.error(err.message || 'Erro.') });
+
+  // Sincroniza alteração de Local de Estoque com o Depósito vinculado no mapa
+  const syncDepositoVinculado = async (localId, novoNome) => {
+    const pontosSupl = await base44.entities.PontoSuplementacao.list();
+    const pontoVinculado = pontosSupl.find((p) => p.local_estoque_id === localId && p.categoria_ponto === "DEPOSITO");
+    if (!pontoVinculado) return;
+
+    await base44.entities.PontoSuplementacao.update(pontoVinculado.id, { nome_ponto: novoNome, local_estoque_nome: novoNome });
+
+    const pontosRef = await base44.entities.PontoReferencia.list();
+    const refVinculada = pontosRef.find((r) => {
+      if (!r.coordenadas || !pontoVinculado.coordenadas) return false;
+      return r.coordenadas.lat === pontoVinculado.coordenadas.lat && r.coordenadas.lng === pontoVinculado.coordenadas.lng;
+    });
+    if (refVinculada) await base44.entities.PontoReferencia.update(refVinculada.id, { nome: novoNome });
+
+    const cochosVinculados = pontosSupl.filter((p) => p.deposito_origem_id === pontoVinculado.id);
+    await Promise.all(cochosVinculados.map((c) => base44.entities.PontoSuplementacao.update(c.id, { deposito_origem_nome: novoNome })));
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      const localAntigo = locais.find((l) => l.id === id);
+      const updated = await base44.entities.LocalEstoque.update(id, data);
+      if (localAntigo && data.nome && localAntigo.nome !== data.nome) {
+        await syncDepositoVinculado(id, data.nome);
+      }
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao"].includes(q.queryKey[0]) });
+      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+      setShowForm(false); setEditing(null); toast.success('Local atualizado!');
+    },
+    onError: (err) => toast.error(err.message || 'Erro.')
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (ids) => {
+      const prods = await base44.entities.Produto.list();
+      const movs = await base44.entities.MovimentacaoEstoque.list();
+      const pontosSupl = await base44.entities.PontoSuplementacao.list();
+      for (const id of ids) {
+        const l = locais.find(x => x.id === id);
+        const depositoVinculado = pontosSupl.find((p) => p.local_estoque_id === id && p.categoria_ponto === "DEPOSITO");
+        if (depositoVinculado) throw new Error(`❌ "${l?.nome}" pertence a um depósito do mapa. Exclua pelo mapa.`);
+        if (prods.some(p => p.local_estoque === l?.nome)) throw new Error(`❌ "${l?.nome}" possui produtos vinculados!`);
+        if (movs.some(m => m.local_estoque_origem === l?.nome || m.local_estoque_destino === l?.nome)) throw new Error(`❌ "${l?.nome}" possui movimentações vinculadas!`);
+        await base44.entities.LocalEstoque.delete(id);
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); toast.success('Local(is) excluído(s)!'); setSelectedItems([]); },
+    onError: (err) => toast.error(err.message || 'Erro.')
+  });
 
   const handleSubmit = (e) => { e.preventDefault(); const ne = {}; if (!formData.nome?.trim()) ne.nome = true; setErrors(ne); if (Object.keys(ne).length > 0) { toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS."); return; } const data = { nome: formData.nome.toUpperCase(), descricao: formData.descricao?.toUpperCase() || undefined, capacidade: formData.capacidade?.toUpperCase() || undefined, ativo: formData.ativo }; if (editing) updateMutation.mutate({ id: editing.id, data }); else createMutation.mutate(data); };
   const handleEdit = (item) => { setEditing(item); setFormData({ nome: item.nome || "", descricao: item.descricao || "", capacidade: item.capacidade || "", ativo: item.ativo !== false }); setShowForm(true); };
