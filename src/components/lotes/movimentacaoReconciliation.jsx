@@ -232,6 +232,89 @@ async function reconcileMudancaCategoria({ mov, diff, findLoteById, findLoteByNo
   await updateLoteQuantidade(loteCategoriaNova, toNumber(loteCategoriaNova.quantidade_cabecas) - retorno);
 }
 
+/**
+ * Reverte o efeito de uma movimentação no saldo dos lotes ANTES de deletá-la.
+ * Reaproveita a lógica de reconciliação tratando como uma "redução para zero" (diff = -quantidade).
+ * NÃO deleta o registro — apenas reverte os saldos. O caller é responsável pelo delete.
+ */
+export async function reverseMovementOnDelete({ empresaSelecionadaId, movement }) {
+  const quantidade = Math.max(0, toNumber(movement.quantidade_animais));
+  if (quantidade === 0) return;
+
+  // Bloqueia se houver registros posteriores que dependem desse saldo
+  if (movement.lote_id) {
+    await validarSemRegistrosPosteriores({
+      empresaId: empresaSelecionadaId,
+      loteId: movement.lote_id,
+      dataReferencia: movement.data_movimentacao,
+      createdDateReferencia: movement.created_date,
+      ignorarMovimentacaoId: movement.id,
+    });
+  }
+
+  const lotesAll = await base44.entities.Lote.list();
+  const lotesEmpresa = lotesAll.filter((lote) => lote.empresa_id === empresaSelecionadaId);
+  const { findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria } = createFinders(lotesEmpresa);
+  const lotePrincipal = findLoteById(movement.lote_id);
+
+  const diff = -quantidade; // tudo o que essa movimentação somou/subtraiu, agora desfaz
+
+  if (movement.tipo === "Morte" || movement.tipo === "Abate") {
+    // Originalmente tirou animais do lote -> devolver
+    if (!lotePrincipal) throw new Error("Não foi possível localizar o lote para reverter a exclusão.");
+    await updateLoteQuantidade(lotePrincipal, toNumber(lotePrincipal.quantidade_cabecas) + quantidade);
+    return;
+  }
+
+  if (movement.tipo === "Nascimento") {
+    // Originalmente adicionou animais -> remover
+    if (!lotePrincipal) throw new Error("Não foi possível localizar o lote para reverter a exclusão.");
+    ensureAvailable(lotePrincipal, quantidade, "O lote não tem saldo suficiente para reverter esse nascimento.");
+    await updateLoteQuantidade(lotePrincipal, toNumber(lotePrincipal.quantidade_cabecas) - quantidade);
+    return;
+  }
+
+  if (movement.tipo === "Transferência de Área") {
+    await reconcileTransferencia({
+      mov: movement,
+      diff,
+      findLoteById,
+      findLoteByNomeArea,
+      findLoteByNomeAreaCategoria,
+    });
+    return;
+  }
+
+  if (movement.tipo === "Mudança de Categoria") {
+    await reconcileMudancaCategoria({
+      mov: movement,
+      diff,
+      findLoteById,
+      findLoteByNomeAreaCategoria,
+    });
+    return;
+  }
+
+  if (movement.tipo === "Entrada") {
+    // Entrada (Compra/etc) adicionou animais -> remover
+    if (lotePrincipal) {
+      ensureAvailable(lotePrincipal, quantidade, "O lote não tem saldo suficiente para reverter essa entrada.");
+      await updateLoteQuantidade(lotePrincipal, toNumber(lotePrincipal.quantidade_cabecas) - quantidade);
+    }
+    return;
+  }
+
+  if (movement.tipo === "Saída") {
+    // Saída (Venda/etc) removeu animais -> devolver
+    if (lotePrincipal) {
+      await updateLoteQuantidade(lotePrincipal, toNumber(lotePrincipal.quantidade_cabecas) + quantidade);
+    }
+    return;
+  }
+
+  // Pesagem não altera quantidade — não há o que reverter no saldo
+}
+
 export async function reconcileMovementEdit({ empresaSelecionadaId, originalMovement, nextData }) {
   const quantidadeFinal = Math.max(0, toNumber(nextData.quantidade_animais ?? originalMovement.quantidade_animais));
   const payload = {

@@ -15,6 +15,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaMovimentacoesPecuaria from "@/components/movimentacoes-pecuaria/TabelaMovimentacoesPecuaria";
 import FormularioLancamentoManual from "@/components/pecuaria/FormularioLancamentoManual";
 import SaldoCategorias from "@/components/pecuaria/SaldoCategorias";
+import { reverseMovementOnDelete } from "@/components/lotes/movimentacaoReconciliation";
 
 const formatarDataSimples = (d) => {
   if (!d) return "-";
@@ -105,12 +106,27 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const confirmDelete = async () => {
     if (!deleteConfirmId?.length) return;
-    for (const id of deleteConfirmId) {
-      await base44.entities.MovimentacaoPecuaria.delete(id);
+    try {
+      for (const id of deleteConfirmId) {
+        const registro = movimentacoes.find((m) => m.id === id);
+        if (registro) {
+          // 1) Reverte o efeito da movimentação no saldo dos lotes
+          await reverseMovementOnDelete({
+            empresaSelecionadaId,
+            movement: registro,
+          });
+        }
+        // 2) Só então apaga o registro
+        await base44.entities.MovimentacaoPecuaria.delete(id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes-pecuaria"] });
+      queryClient.invalidateQueries({ queryKey: ["lotes"] });
+      toast.success(deleteConfirmId.length > 1 ? "Movimentações excluídas e saldos revertidos" : "Movimentação excluída e saldo revertido");
+      setDeleteConfirmId(null);
+    } catch (error) {
+      toast.error(error.message || "Erro ao excluir movimentação. Saldos não foram alterados.");
+      setDeleteConfirmId(null);
     }
-    queryClient.invalidateQueries({ queryKey: ["movimentacoes-pecuaria"] });
-    toast.success(deleteConfirmId.length > 1 ? "Movimentações excluídas" : "Movimentação excluída");
-    setDeleteConfirmId(null);
   };
 
   const handleEditCompleto = (mov) => {
