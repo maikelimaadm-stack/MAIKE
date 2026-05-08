@@ -364,8 +364,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           ? lotes.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0)
           : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
 
+        const lotesAtualizadosDestino = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
+        const categoriasMovidas = formData.mover_todos === 'sim'
+          ? [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))]
+          : [...new Set((formData.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
+        const nomesMovidos = new Set(lotes.map((l) => l.nome));
+        const lotesParaHistoricoSuplementacao = lotesAtualizadosDestino.filter((lote) =>
+          lote.area_atual_id === formData.area_entrada_id &&
+          lote.status === 'Ativo' &&
+          nomesMovidos.has(lote.nome) &&
+          categoriasMovidas.includes((lote.categoria || '').toUpperCase())
+        );
+
         for (const sobra of formData.sobras_destino_aproveitar) {
-          await base44.entities.SuplementacaoEvento.create({
+          const novoEventoSuplementacao = await base44.entities.SuplementacaoEvento.create({
             empresa_id: empresaSelecionadaId,
             ponto_suplementacao_id: sobra.ponto_id,
             ponto_nome: sobra.ponto_nome,
@@ -382,8 +394,32 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             dias_periodo: null,
             consumo_diario_grupo_kg: null,
             total_cabecas_afetadas: totalMovimentado,
-            observacoes: `Novo ciclo aberto automaticamente após movimentação, aproveitando sobra anterior de ${Number(sobra.sobra_kg || 0).toFixed(2)} kg.`,
+            peso_medio_lotes_kg: totalMovimentado > 0
+              ? lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0), 0) / totalMovimentado
+              : null,
+            observacoes: `Novo lançamento de consumo aberto automaticamente após movimentação, aproveitando sobra anterior de ${Number(sobra.sobra_kg || 0).toFixed(2)} kg.`,
           });
+
+          if (lotesParaHistoricoSuplementacao.length > 0) {
+            await base44.entities.SuplementacaoLote.bulkCreate(lotesParaHistoricoSuplementacao.map((lote) => ({
+              empresa_id: empresaSelecionadaId,
+              suplementacao_evento_id: novoEventoSuplementacao.id,
+              lote_id: lote.id,
+              lote_nome: lote.nome,
+              categoria: lote.categoria,
+              fator_consumo: 1,
+              peso_medio_lote_kg: Number(lote.peso_medio_kg || 0) || null,
+              data_lancamento: formData.data_movimentacao,
+              produto: sobra.produto,
+              cabecas_na_area: Number(lote.quantidade_cabecas || 0),
+              peso_consumo_lote: Number(lote.quantidade_cabecas || 0),
+              percentual_consumo_lote: totalMovimentado > 0 ? Number(lote.quantidade_cabecas || 0) / totalMovimentado : 0,
+              dias_periodo: null,
+              consumo_unitario_dia: null,
+              consumo_por_cabeca_dia_kg: null,
+              consumo_total_lote_periodo_kg: null,
+            })));
+          }
         }
       }
 
