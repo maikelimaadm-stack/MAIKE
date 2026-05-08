@@ -365,18 +365,23 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
 
         const lotesAtualizadosDestino = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
-        const categoriasMovidas = formData.mover_todos === 'sim'
-          ? [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))]
-          : [...new Set((formData.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
-        const nomesMovidos = new Set(lotes.map((l) => l.nome));
+        const produtosEmpresa = await base44.entities.Produto.filter({ empresa_id: empresaSelecionadaId });
         const lotesParaHistoricoSuplementacao = lotesAtualizadosDestino.filter((lote) =>
           lote.area_atual_id === formData.area_entrada_id &&
           lote.status === 'Ativo' &&
-          nomesMovidos.has(lote.nome) &&
-          categoriasMovidas.includes((lote.categoria || '').toUpperCase())
+          Number(lote.quantidade_cabecas || 0) > 0
         );
+        const totalCabecasHistorico = lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0);
+        const pesoMedioHistorico = totalCabecasHistorico > 0
+          ? lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0), 0) / totalCabecasHistorico
+          : 0;
 
         for (const sobra of formData.sobras_destino_aproveitar) {
+          const produtoSobra = produtosEmpresa.find((produto) => produto.id === sobra.produto_id || produto.nome_produto === sobra.produto) || null;
+          const percentualPV = Number(produtoSobra?.percentual_consumo_pv || 0);
+          const consumoEsperadoGrupo = percentualPV > 0 && pesoMedioHistorico > 0
+            ? (pesoMedioHistorico * (percentualPV / 100)) * totalCabecasHistorico
+            : null;
           const novoEventoSuplementacao = await base44.entities.SuplementacaoEvento.create({
             empresa_id: empresaSelecionadaId,
             ponto_suplementacao_id: sobra.ponto_id,
@@ -393,10 +398,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             sobra_kg: Number(sobra.sobra_kg || 0),
             dias_periodo: null,
             consumo_diario_grupo_kg: null,
-            total_cabecas_afetadas: totalMovimentado,
-            peso_medio_lotes_kg: totalMovimentado > 0
-              ? lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0), 0) / totalMovimentado
-              : null,
+            total_cabecas_afetadas: totalCabecasHistorico || totalMovimentado,
+            peso_medio_lotes_kg: pesoMedioHistorico || null,
+            consumo_esperado_pv_kg: consumoEsperadoGrupo,
+            percentual_consumo_pv_usado: percentualPV > 0 ? percentualPV : null,
             observacoes: `Novo lançamento de consumo aberto automaticamente após movimentação, aproveitando sobra anterior de ${Number(sobra.sobra_kg || 0).toFixed(2)} kg.`,
           });
 
@@ -409,6 +414,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               categoria: lote.categoria,
               fator_consumo: 1,
               peso_medio_lote_kg: Number(lote.peso_medio_kg || 0) || null,
+              consumo_esperado_pv_lote_kg: percentualPV > 0 && Number(lote.peso_medio_kg || 0) > 0
+                ? Number(lote.peso_medio_kg || 0) * (percentualPV / 100) * Number(lote.quantidade_cabecas || 0)
+                : null,
               data_lancamento: formData.data_movimentacao,
               produto: sobra.produto,
               cabecas_na_area: Number(lote.quantidade_cabecas || 0),
