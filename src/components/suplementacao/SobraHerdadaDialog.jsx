@@ -28,7 +28,11 @@ export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLan
           )}
         </div>
 
-        <div className="text-xs text-slate-600">O que deseja fazer com esse produto?</div>
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          Essa ação não altera o último fechamento. Ela apenas decide se a sobra entra como saldo inicial do novo lançamento.
+        </div>
+
+        <div className="text-xs font-medium text-slate-700">Como deseja iniciar o novo lançamento?</div>
 
         <div className="grid gap-2">
           <Button
@@ -38,8 +42,8 @@ export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLan
           >
             <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
             <div className="text-left">
-              <div className="text-xs font-semibold">Reabrir ciclo com essa sobra</div>
-              <div className="text-[10px] font-normal opacity-90">Reabre o último lançamento e retoma o consumo com {formatKg(sobraKg)} — sem nova baixa no depósito</div>
+              <div className="text-xs font-semibold">Abrir novo ciclo com essa sobra</div>
+              <div className="text-[10px] font-normal opacity-90">Cria um novo registro em aberto usando {formatKg(sobraKg)} como saldo inicial — sem reabrir o fechamento anterior</div>
             </div>
           </Button>
 

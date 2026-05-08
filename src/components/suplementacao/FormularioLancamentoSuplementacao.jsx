@@ -178,33 +178,18 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const precisaDecidirSobra = sobraPendenteDoCochoKg > 0 && !sobraHerdadaDecidida;
 
-  // REABRE o último evento: limpa o fechamento (dias_periodo, consumo_diario_grupo_kg)
-  // mantendo a sobra como saldo ativo. NÃO cria lançamento novo nem baixa do depósito.
-  const handleAproveitarSobra = async () => {
-    if (!ultimoEvento) return;
-    try {
-      setProgresso({ show: true, atual: 0, total: 1, mensagem: "Reabrindo ciclo com a sobra do cocho..." });
-      await base44.entities.SuplementacaoEvento.update(ultimoEvento.id, {
-        dias_periodo: null,
-        consumo_diario_grupo_kg: null,
-        observacoes: ultimoEvento.observacoes
-          ? `${ultimoEvento.observacoes}\n[Reaberto] Ciclo retomado com sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg.`
-          : `[Reaberto] Ciclo retomado com sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg.`,
-      });
-
-      await Promise.all([
-        refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
-      ]);
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "mapa-eventos-supl", "mapa-eventosSuplementacao", "suplementacao-ponto"].includes(q.queryKey[0]) });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
-
-      toast.success(`Ciclo reaberto com ${sobraPendenteDoCochoKg.toFixed(2)} kg de saldo no cocho.`);
-      setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      onCancel();
-    } catch (error) {
-      setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      toast.error(error.message || "Erro ao reabrir ciclo.");
-    }
+  // Usa a sobra do último fechamento como saldo inicial de um NOVO lançamento aberto.
+  // Não reabre nem altera o evento fechado anterior.
+  const handleAproveitarSobra = () => {
+    setSobraHerdadaKg(sobraPendenteDoCochoKg);
+    setFormData((prev) => ({
+      ...prev,
+      quantidade_total_kg: prev.quantidade_total_kg || "0",
+      sobra_kg: sobraPendenteDoCochoKg.toFixed(2),
+      observacoes: prev.observacoes || `Novo ciclo iniciado aproveitando sobra anterior de ${sobraPendenteDoCochoKg.toFixed(2)} kg.`,
+    }));
+    setSobraHerdadaDecidida(true);
+    toast.success(`Novo lançamento aberto com ${sobraPendenteDoCochoKg.toFixed(2)} kg de saldo inicial.`);
   };
 
   const handleDescartarSobra = () => {
@@ -370,11 +355,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     if (progresso.show) return;
 
     if (!formData.produto) return toast.error("Selecione um produto.");
-    if (quantidadeKg <= 0) return toast.error("Informe a quantidade fornecida.");
+    if (quantidadeKg <= 0 && sobraInformada <= 0) return toast.error("Informe a quantidade fornecida ou aproveite uma sobra anterior.");
     if (sobraInformada < 0) return toast.error("A sobra informada não pode ser negativa.");
     if (totalCabecas <= 0) return toast.error("Não há cabeças ativas nas áreas vinculadas.");
     if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
-    if (depositoVinculado?.local_estoque_id && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
+    if (depositoVinculado?.local_estoque_id && quantidadeKg > 0 && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
 
     if (ultimoEvento) {
       const saldoFisicoMaximo = (ultimoEvento.quantidade_total_kg || 0) + (ultimoEvento.sobra_kg || 0);
@@ -389,12 +374,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
 
     try {
-      const totalPassos = (depositoVinculado?.local_estoque_id ? 1 : 0) + 1;
+      const deveBaixarDeposito = depositoVinculado?.local_estoque_id && produtoSelecionado && quantidadeKg > 0;
+      const totalPassos = (deveBaixarDeposito ? 1 : 0) + 1;
       let passoAtual = 0;
       setProgresso({ show: true, atual: 0, total: totalPassos, mensagem: "Iniciando lançamento..." });
 
       let movimentoEstoque = null;
-      if (depositoVinculado?.local_estoque_id && produtoSelecionado) {
+      if (deveBaixarDeposito) {
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Baixando saldo do depósito..." });
         const saidaRegistrada = await registrarSaidaSuplementacao({
           empresaId: empresaSelecionadaId,
@@ -480,7 +466,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }
 
       try {
-        if (ultimoEvento) {
+        if (ultimoEvento && ultimoEvento.dias_periodo == null) {
           const diasPeriodoCalculado = calcularDiasPeriodo(
             ultimoEvento.data_lancamento,
             closingDateForPreviousPeriod
@@ -525,7 +511,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
   };
 
-  const botaoHabilitado = totalCabecas > 0 && formData.produto && quantidadeKg > 0;
+  const botaoHabilitado = totalCabecas > 0 && formData.produto && totalDisponivelNovo > 0;
 
   return (
     <>
@@ -733,7 +719,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
             <div className="flex justify-end gap-1 pt-1 border-t">
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-              <Button type="button" onClick={handleSalvar} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar"}</Button>
+              <Button type="button" onClick={handleSalvar} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar novo ciclo"}</Button>
             </div>
           </div>
         </CardContent>
