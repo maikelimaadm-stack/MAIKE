@@ -33,6 +33,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'confirmar_consumo', 'fechamento_consumo', 'movimentacao'
   const [eventosAbertos, setEventosAbertos] = useState([]);
   const [mostrarPerguntaConsumo, setMostrarPerguntaConsumo] = useState(false);
+  const [mostrarPerguntaSobraDestino, setMostrarPerguntaSobraDestino] = useState(false);
+  const [sobrasDestinoPendentes, setSobrasDestinoPendentes] = useState([]);
+  const [movimentacaoAguardandoSobra, setMovimentacaoAguardandoSobra] = useState(null);
+  const [sobraDestinoDecidida, setSobraDestinoDecidida] = useState(false);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
@@ -73,7 +77,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       setor_entrada_id: '',
       area_entrada_id: areaDestino || '',
       movimentacoes: movimentacoesPre,
-      sobras_cocho: {}
+      sobras_cocho: {},
+      sobras_destino_aproveitar: []
     };
   });
 
@@ -95,6 +100,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   const areasSaida = formData.setor_saida_id ? getAreasBySetor(formData.setor_saida_id) : [];
   const areasEntrada = formData.setor_entrada_id ? getAreasBySetor(formData.setor_entrada_id).filter((item) => item.id !== formData.area_saida_id) : [];
+
+  React.useEffect(() => {
+    setSobraDestinoDecidida(false);
+  }, [formData.area_entrada_id]);
 
   // Área de saída resolvida
   const areaSaidaResolvida = formData.area_saida_id || areaOrigem?.id || lotesOriginais[0]?.area_atual_id || '';
@@ -219,6 +228,50 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     setFormData({ ...formData, movimentacoes: novasMovimentacoes });
   };
 
+  const buscarSobrasDestinoPendentes = async () => {
+    if (!formData.area_entrada_id) return [];
+
+    const [todosPontos, todosEventos] = await Promise.all([
+      base44.entities.PontoSuplementacao.list(),
+      base44.entities.SuplementacaoEvento.list(),
+    ]);
+
+    const cochosDestino = todosPontos.filter((ponto) => {
+      const areaIds = Array.isArray(ponto.area_vinculada_ids) ? ponto.area_vinculada_ids.filter(Boolean) : [];
+      const vinculadoNaArea = areaIds.includes(formData.area_entrada_id) || ponto.area_vinculada_id === formData.area_entrada_id;
+      return ponto.empresa_id === empresaSelecionadaId && ponto.status !== 'Inativo' && String(ponto.categoria_ponto || '').toUpperCase() === 'COCHO' && vinculadoNaArea;
+    });
+
+    return cochosDestino.map((ponto) => {
+      const ultimoEvento = todosEventos
+        .filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === ponto.id)
+        .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
+
+      const sobraKg = Number(ultimoEvento?.sobra_kg || 0);
+      if (!ultimoEvento || sobraKg <= 0 || ultimoEvento.dias_periodo == null) return null;
+
+      return {
+        ponto_id: ponto.id,
+        ponto_nome: ponto.nome_ponto,
+        produto: ultimoEvento.produto,
+        produto_id: ultimoEvento.produto_id || null,
+        tipo_consumo: ultimoEvento.tipo_consumo || null,
+        sobra_kg: sobraKg,
+        ultimo_lancamento_data: ultimoEvento.data_lancamento,
+      };
+    }).filter(Boolean);
+  };
+
+  const executarMovimentacao = async (dados, sobrasAproveitar = []) => {
+    console.log('Enviando movimentação:', { ...dados, sobras_destino_aproveitar: sobrasAproveitar });
+    setLoading(true);
+    try {
+      await onSubmit({ ...dados, sobras_destino_aproveitar: sobrasAproveitar });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFecharEventos = async () => {
     if (loading) return;
     setLoading(true);
@@ -301,13 +354,18 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       }
     }
 
-    console.log('Enviando movimentação:', formData);
-    setLoading(true);
-    try {
-      await onSubmit(formData);
-    } finally {
-      setLoading(false);
+    if (!sobraDestinoDecidida) {
+      const pendentes = await buscarSobrasDestinoPendentes();
+      if (pendentes.length > 0) {
+        setSobrasDestinoPendentes(pendentes);
+        setMovimentacaoAguardandoSobra({ ...formData });
+        setMostrarPerguntaSobraDestino(true);
+        return;
+      }
+      setSobraDestinoDecidida(true);
     }
+
+    await executarMovimentacao(formData, []);
   };
 
   if (etapa === 'verificacao') {
@@ -684,6 +742,42 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             }}
           >
             Fechar consumo
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={mostrarPerguntaSobraDestino} onOpenChange={setMostrarPerguntaSobraDestino}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-sm">Aproveitar sobra no cocho de destino?</AlertDialogTitle>
+          <AlertDialogDescription className="text-xs space-y-2">
+            <span className="block">A área de entrada possui cocho(s) com sobra de ciclo fechado. Deseja abrir novo registro em aberto aproveitando esse saldo após salvar a movimentação?</span>
+            <span className="block rounded-md border border-amber-200 bg-amber-50 p-2 text-amber-900">
+              {sobrasDestinoPendentes.map((item) => `${item.ponto_nome}: ${item.sobra_kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`).join(' • ')}
+            </span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            className="h-8 text-xs"
+            onClick={() => {
+              setSobraDestinoDecidida(true);
+              setMostrarPerguntaSobraDestino(false);
+              executarMovimentacao(movimentacaoAguardandoSobra || formData, []);
+            }}
+          >
+            Não aproveitar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => {
+              setSobraDestinoDecidida(true);
+              setMostrarPerguntaSobraDestino(false);
+              executarMovimentacao(movimentacaoAguardandoSobra || formData, sobrasDestinoPendentes);
+            }}
+          >
+            Aproveitar saldo
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

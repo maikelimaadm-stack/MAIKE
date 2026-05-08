@@ -359,6 +359,34 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         }
       }
 
+      if (Array.isArray(formData.sobras_destino_aproveitar) && formData.sobras_destino_aproveitar.length > 0) {
+        const totalMovimentado = formData.mover_todos === 'sim'
+          ? lotes.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0)
+          : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
+
+        for (const sobra of formData.sobras_destino_aproveitar) {
+          await base44.entities.SuplementacaoEvento.create({
+            empresa_id: empresaSelecionadaId,
+            ponto_suplementacao_id: sobra.ponto_id,
+            ponto_nome: sobra.ponto_nome,
+            area_id: formData.area_entrada_id,
+            area_nome: areaEntrada?.nome || '',
+            area_ids: [formData.area_entrada_id],
+            area_nomes: [areaEntrada?.nome || ''].filter(Boolean),
+            data_lancamento: formData.data_movimentacao,
+            produto: sobra.produto,
+            produto_id: sobra.produto_id || null,
+            tipo_consumo: sobra.tipo_consumo || null,
+            quantidade_total_kg: 0,
+            sobra_kg: Number(sobra.sobra_kg || 0),
+            dias_periodo: null,
+            consumo_diario_grupo_kg: null,
+            total_cabecas_afetadas: totalMovimentado,
+            observacoes: `Novo ciclo aberto automaticamente após movimentação, aproveitando sobra anterior de ${Number(sobra.sobra_kg || 0).toFixed(2)} kg.`,
+          });
+        }
+      }
+
       return movimentacoesCriadas;
 
     },
