@@ -19,6 +19,7 @@ import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
 import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoPVUtils";
+import SobraHerdadaDialog from "./SobraHerdadaDialog";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -45,6 +46,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const queryClient = useQueryClient();
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: "" });
   const [mostrarConsumoLote, setMostrarConsumoLote] = useState(false);
+  const [sobraHerdadaDecidida, setSobraHerdadaDecidida] = useState(false);
+  const [sobraHerdadaKg, setSobraHerdadaKg] = useState(0);
   const [formData, setFormData] = useState({
     data_lancamento: getTodayLocalYMD(),
     data_fim_consumo_anterior: "",
@@ -161,6 +164,38 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId,
     staleTime: 2 * 60 * 1000,
   });
+
+  // === SOBRA HERDADA: detecta se o último evento tinha sobra E o cocho ficou sem lote no pasto ===
+  // Condição: último evento com sobra_kg > 0 + nenhum lote ativo na área no momento atual seria "fechamento sem reabertura"
+  // Mas o usuário pode estar abrindo o form justamente porque retornou lote — então usamos: se último evento foi um fechamento (dias_periodo preenchido) com sobra > 0 e ainda não tem evento de abertura depois.
+  const sobraPendenteDoCochoKg = useMemo(() => {
+    if (!ultimoEvento) return 0;
+    const sobra = Number(ultimoEvento.sobra_kg || 0);
+    // Considera sobra pendente apenas se o último evento foi um fechamento (dias_periodo preenchido) com sobra > 0
+    if (sobra > 0 && ultimoEvento.dias_periodo != null) return sobra;
+    return 0;
+  }, [ultimoEvento]);
+
+  const precisaDecidirSobra = sobraPendenteDoCochoKg > 0 && !sobraHerdadaDecidida;
+
+  const handleAproveitarSobra = () => {
+    setSobraHerdadaKg(sobraPendenteDoCochoKg);
+    setFormData((prev) => ({
+      ...prev,
+      sobra_kg: String(sobraPendenteDoCochoKg),
+      observacoes: prev.observacoes
+        ? `${prev.observacoes}\nSobra herdada do ciclo anterior: ${sobraPendenteDoCochoKg.toFixed(2)} kg (sem baixa no depósito).`
+        : `Sobra herdada do ciclo anterior: ${sobraPendenteDoCochoKg.toFixed(2)} kg (sem baixa no depósito).`,
+    }));
+    setSobraHerdadaDecidida(true);
+    toast.info(`Aproveitando ${sobraPendenteDoCochoKg.toFixed(2)} kg de sobra do ciclo anterior.`);
+  };
+
+  const handleDescartarSobra = () => {
+    setSobraHerdadaKg(0);
+    setFormData((prev) => ({ ...prev, sobra_kg: "0" }));
+    setSobraHerdadaDecidida(true);
+  };
 
   // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
@@ -478,6 +513,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   return (
     <>
+      <SobraHerdadaDialog
+        open={precisaDecidirSobra}
+        sobraKg={sobraPendenteDoCochoKg}
+        pontoNome={ponto?.nome_ponto}
+        ultimoLancamentoData={ultimoEvento?.data_lancamento}
+        onAproveitar={handleAproveitarSobra}
+        onDescartar={handleDescartarSobra}
+        onCancel={onCancel}
+      />
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="bg-emerald-50 border-b border-emerald-200 py-2 px-3"><CardTitle className="text-sm font-bold text-emerald-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
         <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden">
@@ -559,8 +603,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               )}
 
               <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">Sobra no cocho (kg)</label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="text" inputMode="decimal" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">
+                  Sobra no cocho (kg)
+                  {sobraHerdadaKg > 0 && <span className="ml-1 text-amber-700 font-semibold">• Herdada do ciclo anterior</span>}
+                </label>
+                <div className={`rounded-md border ${sobraHerdadaKg > 0 ? "border-amber-300 bg-amber-50" : "border-slate-300"} focus-within:border-emerald-500 transition-colors`}>
+                  <Input type="text" inputMode="decimal" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" />
+                </div>
               </div>
             </div>
 
