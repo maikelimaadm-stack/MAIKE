@@ -178,17 +178,33 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const precisaDecidirSobra = sobraPendenteDoCochoKg > 0 && !sobraHerdadaDecidida;
 
-  const handleAproveitarSobra = () => {
-    setSobraHerdadaKg(sobraPendenteDoCochoKg);
-    setFormData((prev) => ({
-      ...prev,
-      sobra_kg: String(sobraPendenteDoCochoKg),
-      observacoes: prev.observacoes
-        ? `${prev.observacoes}\nSobra herdada do ciclo anterior: ${sobraPendenteDoCochoKg.toFixed(2)} kg (sem baixa no depósito).`
-        : `Sobra herdada do ciclo anterior: ${sobraPendenteDoCochoKg.toFixed(2)} kg (sem baixa no depósito).`,
-    }));
-    setSobraHerdadaDecidida(true);
-    toast.info(`Aproveitando ${sobraPendenteDoCochoKg.toFixed(2)} kg de sobra do ciclo anterior.`);
+  // REABRE o último evento: limpa o fechamento (dias_periodo, consumo_diario_grupo_kg)
+  // mantendo a sobra como saldo ativo. NÃO cria lançamento novo nem baixa do depósito.
+  const handleAproveitarSobra = async () => {
+    if (!ultimoEvento) return;
+    try {
+      setProgresso({ show: true, atual: 0, total: 1, mensagem: "Reabrindo ciclo com a sobra do cocho..." });
+      await base44.entities.SuplementacaoEvento.update(ultimoEvento.id, {
+        dias_periodo: null,
+        consumo_diario_grupo_kg: null,
+        observacoes: ultimoEvento.observacoes
+          ? `${ultimoEvento.observacoes}\n[Reaberto] Ciclo retomado com sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg.`
+          : `[Reaberto] Ciclo retomado com sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg.`,
+      });
+
+      await Promise.all([
+        refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+      ]);
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "mapa-eventos-supl", "mapa-eventosSuplementacao", "suplementacao-ponto"].includes(q.queryKey[0]) });
+      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+
+      toast.success(`Ciclo reaberto com ${sobraPendenteDoCochoKg.toFixed(2)} kg de saldo no cocho.`);
+      setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
+      onCancel();
+    } catch (error) {
+      setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
+      toast.error(error.message || "Erro ao reabrir ciclo.");
+    }
   };
 
   const handleDescartarSobra = () => {

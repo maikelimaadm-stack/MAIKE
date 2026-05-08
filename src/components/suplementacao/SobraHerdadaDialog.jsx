@@ -38,8 +38,8 @@ export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLan
           >
             <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
             <div className="text-left">
-              <div className="text-xs font-semibold">Aproveitar a sobra</div>
-              <div className="text-[10px] font-normal opacity-90">Considera os {formatKg(sobraKg)} ainda no cocho — sem nova baixa no depósito</div>
+              <div className="text-xs font-semibold">Reabrir ciclo com essa sobra</div>
+              <div className="text-[10px] font-normal opacity-90">Reabre o último lançamento e retoma o consumo com {formatKg(sobraKg)} — sem nova baixa no depósito</div>
             </div>
           </Button>
 
@@ -52,7 +52,7 @@ export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLan
             <Trash2 className="w-4 h-4 mr-2 shrink-0 text-slate-500" />
             <div className="text-left">
               <div className="text-xs font-semibold">Sobra já foi descartada/baixada</div>
-              <div className="text-[10px] font-normal text-slate-500">Lançamento limpo, começa do zero</div>
+              <div className="text-[10px] font-normal text-slate-500">Faz um lançamento novo do zero</div>
             </div>
           </Button>
         </div>
