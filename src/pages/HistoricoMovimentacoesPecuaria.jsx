@@ -109,19 +109,19 @@ export default function HistoricoMovimentacoesPecuaria() {
     try {
       for (const id of deleteConfirmId) {
         const registro = movimentacoes.find((m) => m.id === id);
-        if (registro) {
-          // 1) Reverte o efeito da movimentação no saldo dos lotes
+        // Só reverte saldo do Lote se a movimentação estiver vinculada a um lote.
+        // Lançamentos manuais (sem lote_id) impactam apenas o saldo calculado da própria tela.
+        if (registro?.lote_id) {
           await reverseMovementOnDelete({
             empresaSelecionadaId,
             movement: registro,
           });
         }
-        // 2) Só então apaga o registro
         await base44.entities.MovimentacaoPecuaria.delete(id);
       }
       queryClient.invalidateQueries({ queryKey: ["movimentacoes-pecuaria"] });
       queryClient.invalidateQueries({ queryKey: ["lotes"] });
-      toast.success(deleteConfirmId.length > 1 ? "Movimentações excluídas e saldos revertidos" : "Movimentação excluída e saldo revertido");
+      toast.success(deleteConfirmId.length > 1 ? "Movimentações excluídas" : "Movimentação excluída");
       setDeleteConfirmId(null);
     } catch (error) {
       toast.error(error.message || "Erro ao excluir movimentação. Saldos não foram alterados.");
