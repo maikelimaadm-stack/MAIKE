@@ -672,6 +672,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           const loteNovoCategoria = await base44.entities.Lote.create({
             empresa_id: empresaSelecionadaId,
             nome: lote.nome,
+            identificador_nome: lote.identificador_nome,
+            identificador_sigla: lote.identificador_sigla,
+            identificador_cor: lote.identificador_cor,
             quantidade_cabecas: qtdMudar,
             quantidade_entrada: qtdMudar,
             categoria: mudanca.categoria_nova,
