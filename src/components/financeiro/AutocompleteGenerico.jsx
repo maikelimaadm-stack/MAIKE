@@ -38,7 +38,9 @@ export default function AutocompleteGenerico({
   }, [itemSelecionado, displayField, value]);
 
   useEffect(() => {
-    portalContainerRef.current = null;
+    if (wrapperRef.current) {
+      portalContainerRef.current = wrapperRef.current.closest('[role="dialog"]') || null;
+    }
   }, []);
 
   const calcPosition = useCallback(() => {
@@ -86,13 +88,15 @@ export default function AutocompleteGenerico({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open, itemSelecionado, displayField]);
 
-  const itensFiltrados = items.filter(item => {
-    const search = searchTerm.toLowerCase();
-    return searchFields.some(field => {
-      const fieldValue = item[field];
-      return fieldValue && String(fieldValue).toLowerCase().includes(search);
+  const itensFiltrados = [...items]
+    .sort((a, b) => String(a?.[displayField] || "").localeCompare(String(b?.[displayField] || ""), "pt-BR", { numeric: true, sensitivity: "base" }))
+    .filter(item => {
+      const search = searchTerm.toLowerCase();
+      return searchFields.some(field => {
+        const fieldValue = item[field];
+        return fieldValue && String(fieldValue).toLowerCase().includes(search);
+      });
     });
-  });
 
   useEffect(() => {
     if (!open) return;

@@ -35,7 +35,7 @@ function SelectValueInput({ field, value, onChange }) {
   return (
     <Select value={value || ""} onValueChange={onChange}>
       <SelectTrigger className={selectClass}><SelectValue placeholder="Selecione" /></SelectTrigger>
-      <SelectContent>{(field.options || []).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+      <SelectContent>{[...(field.options || [])].sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" })).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
     </Select>
   );
 }
