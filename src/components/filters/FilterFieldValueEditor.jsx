@@ -6,7 +6,8 @@ import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 
 const inputClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
 const textareaClass = "h-6 min-h-6 rounded-none border-slate-300 bg-white px-1.5 py-1 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
-const selectClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] shadow-none";
+const selectClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] uppercase shadow-none";
+const toUpper = (value) => String(value || "").toUpperCase();
 
 const isNoValueOperator = (operator) => operator === "empty" || operator === "notEmpty";
 const isListOperator = (operator) => ["custom", "in", "notIn"].includes(operator);
@@ -23,7 +24,7 @@ function SimpleValueInput({ type, value, onChange, placeholder }) {
       type={type === "date" ? "date" : type === "number" ? "number" : "text"}
       inputMode={type === "number" ? "decimal" : undefined}
       value={value || ""}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => onChange(toUpper(event.target.value))}
       placeholder={placeholder || "Valor padrão"}
       className={inputClass}
     />
@@ -44,8 +45,8 @@ function BooleanValueInput({ value, onChange }) {
     <Select value={value || ""} onValueChange={onChange}>
       <SelectTrigger className={selectClass}><SelectValue placeholder="Selecione" /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="true">Sim</SelectItem>
-        <SelectItem value="false">Não</SelectItem>
+        <SelectItem value="true">SIM</SelectItem>
+        <SelectItem value="false">NÃO</SelectItem>
       </SelectContent>
     </Select>
   );
@@ -69,8 +70,8 @@ function RelationalValueInput({ value = {}, onChange, relationOptions = [] }) {
       }}
       displayField="nome"
       searchFields={["codigo", "nome"]}
-      placeholder="Pesquisar"
-      inputClassName="h-6 !text-[11px]"
+      placeholder="PESQUISAR"
+      inputClassName="h-6 !text-[11px] uppercase"
       renderSubtext={(item) => item.codigo ? `Código: ${item.codigo}` : ""}
     />
   );
@@ -101,7 +102,7 @@ export default function FilterFieldValueEditor({ field, operator, value = {}, on
     }
 
     if (isListOperator(operator)) {
-      return <Textarea value={value.value || value.exact || ""} onChange={(event) => updateSingleValue(event.target.value)} placeholder="Informe um valor por linha ou separado por ;" className={textareaClass} />;
+      return <Textarea value={value.value || value.exact || ""} onChange={(event) => updateSingleValue(toUpper(event.target.value))} placeholder="INFORME UM VALOR POR LINHA OU SEPARADO POR ;" className={textareaClass} />;
     }
 
     if (isLowerBound(operator)) return <SimpleValueInput type={inputType} value={value.min} onChange={(next) => updateValue({ min: next })} placeholder="Valor mínimo" />;
@@ -111,7 +112,7 @@ export default function FilterFieldValueEditor({ field, operator, value = {}, on
     if (fieldType === "select") return <SelectValueInput field={field} value={value.value || value.exact || ""} onChange={updateSingleValue} />;
     if (field?.type === "codeName" || field?.type === "codeNameDynamic") return <RelationalValueInput value={value} onChange={onValueChange} relationOptions={relationOptions} />;
 
-    return <SimpleValueInput type={inputType} value={value.value || value.exact || ""} onChange={updateSingleValue} placeholder="Valor padrão" />;
+    return <SimpleValueInput type={inputType} value={value.value || value.exact || ""} onChange={updateSingleValue} placeholder="VALOR PADRÃO" />;
   };
 
   return <div className={hasValue(value) ? "bg-emerald-50/40" : ""}>{renderValueControl()}</div>;

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ const getOperatorOptions = (field) => {
 };
 
 const makeFolderId = () => `pasta_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+const toUpper = (value) => String(value || "").toUpperCase();
 
 export default function SankhyaFilterConfigDialog({
   open,
@@ -242,18 +243,23 @@ export default function SankhyaFilterConfigDialog({
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
                 <div className="grid grid-cols-[180px_1fr_32px] gap-1">
-                  <Select value={selectedFolderId || filterFolders[0]?.id} onValueChange={setSelectedFolderId}>
-                    <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue placeholder="Pasta" /></SelectTrigger>
-                    <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
-                  </Select>
                   <AutocompleteGenerico
-                  items={availableFields.map((field) => ({ ...field, nome: field.label }))}
+                    items={filterFolders.map((folder) => ({ ...folder, nome: toUpper(folder.name) }))}
+                    value={selectedFolderId || filterFolders[0]?.id || ""}
+                    onChange={setSelectedFolderId}
+                    displayField="nome"
+                    searchFields={["nome"]}
+                    placeholder="PASTA"
+                    inputClassName="h-7 text-xs uppercase"
+                  />
+                  <AutocompleteGenerico
+                  items={availableFields.map((field) => ({ ...field, nome: toUpper(field.label), group: toUpper(field.group) }))}
                   value={selectedFieldId}
                   onChange={setSelectedFieldId}
                   displayField="nome"
                   searchFields={["nome", "group"]}
                   placeholder="PESQUISAR CAMPO"
-                  inputClassName="h-7"
+                  inputClassName="h-7 text-xs uppercase"
                   renderSubtext={(item) => item.group} />
                 
                   <Button type="button" onClick={addSelectedField} title="Adicionar campo" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus /></Button>
@@ -279,18 +285,28 @@ export default function SankhyaFilterConfigDialog({
 
                 return (
                   <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
-                      <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
+                      <div className="min-w-0 truncate px-2 py-1 font-semibold uppercase text-slate-800 border-r border-slate-200">{toUpper(field.label)}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
-                        <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
-                          <SelectTrigger className="h-6 rounded-none text-[11px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <AutocompleteGenerico
+                          items={filterFolders.map((folder) => ({ ...folder, nome: toUpper(folder.name) }))}
+                          value={fieldGroups[field.id] || filterFolders[0]?.id || ""}
+                          onChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}
+                          displayField="nome"
+                          searchFields={["nome"]}
+                          placeholder="PASTA"
+                          inputClassName="h-6 text-[11px] uppercase"
+                        />
                       </div>
                       <div className="px-1 py-1 border-r border-slate-200">
-                        <Select value={operators[field.id] || operatorOptions[0]} onValueChange={(value) => updateFieldOperator(field.id, value)}>
-                          <SelectTrigger className="h-6 rounded-none text-[11px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>{operatorOptions.map((value) => <SelectItem key={value} value={value}>{OPERATOR_LABELS[value]}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <AutocompleteGenerico
+                          items={operatorOptions.map((value) => ({ id: value, nome: toUpper(OPERATOR_LABELS[value]) }))}
+                          value={operators[field.id] || operatorOptions[0]}
+                          onChange={(value) => updateFieldOperator(field.id, value)}
+                          displayField="nome"
+                          searchFields={["nome"]}
+                          placeholder="OPERADOR"
+                          inputClassName="h-6 text-[11px] uppercase"
+                        />
                       </div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <FilterFieldValueEditor
