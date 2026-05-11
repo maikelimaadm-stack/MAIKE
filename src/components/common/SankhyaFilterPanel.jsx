@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 import loteRepository from "@/core/repositories/loteRepository";
@@ -282,9 +283,18 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
           <Button type="button" onClick={() => setConfigOpen(true)} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-white text-xs px-1"><Plus className="w-4 h-4" /> Filtro</Button>
           <Button type="button" onClick={applyFilters} className="h-7 rounded-none bg-slate-600 hover:bg-slate-700 text-white text-xs">Aplicar</Button>
         </div>
-        <div className="flex items-center justify-between h-6 border-t border-slate-200 pt-1">
-         <div className="flex items-center gap-2"><Checkbox checked={activeConfigId !== "padrao"} onCheckedChange={toggleCustomFilter} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
-         <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">{activeConfig?.name || "PADRÃO"}</button>
+        <div className="border-t border-slate-200 pt-1 space-y-1">
+          <div className="flex items-center gap-2 h-6"><Checkbox checked={activeConfigId !== "padrao"} onCheckedChange={toggleCustomFilter} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
+          <AutocompleteGenerico
+            items={filterConfigs.map((config) => ({ ...config, nome: config.name }))}
+            value={activeConfigId || ""}
+            onChange={setActiveConfigId}
+            displayField="nome"
+            searchFields={["nome"]}
+            placeholder="FILTROS PERSONALIZADOS"
+            inputClassName="h-7 text-xs"
+            uppercaseDisplay={false}
+          />
         </div>
       </div>
 

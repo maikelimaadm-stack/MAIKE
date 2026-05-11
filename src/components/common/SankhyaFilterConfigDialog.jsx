@@ -65,24 +65,43 @@ export default function SankhyaFilterConfigDialog({
   const [configName, setConfigName] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [draftNew, setDraftNew] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState(filterFolders[0]?.id || "");
   const [selectedFieldId, setSelectedFieldId] = useState("");
 
   const selectedConfig = filterConfigs.find((config) => config.id === activeConfigId) || filterConfigs[0] || null;
   const selectedIndex = Math.max(0, filterConfigs.findIndex((config) => config.id === activeConfigId));
+  const isReadOnly = !!selectedConfig && !draftNew && !isDuplicating && !editMode;
+
+  const loadConfigState = (config) => {
+    setVisibleFields(config.visibleFields || []);
+    setOperators(config.operators || {});
+    setFilterFolders(config.filterFolders || []);
+    setFieldGroups(config.fieldGroups || {});
+    setFieldValues(config.fieldValues || {});
+    setFieldConfigs(config.fieldConfigs || {});
+    setOpenGroups(Object.fromEntries((config.filterFolders || []).map((folder) => [folder.id, true])));
+  };
 
   const openConfig = (config) => {
     if (!config) return;
     setDraftNew(false);
+    setIsDuplicating(false);
+    setEditMode(false);
     onSelectConfig(config.id);
+    loadConfigState(config);
     setConfigName(config.name || "");
     setSelectedFolderId((config.filterFolders || [])[0]?.id || "");
+    setSelectedFieldId("");
     setShowForm(true);
   };
 
   const handleNew = () => {
     const folder = { id: makeFolderId(), name: "GERAL" };
     setDraftNew(true);
+    setIsDuplicating(false);
+    setEditMode(true);
     setConfigName("NOVO FILTRO");
     setVisibleFields([]);
     setOperators({});
@@ -97,13 +116,45 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const handleSave = () => {
+    if (!editMode) return;
     const name = String(configName || "").trim().toUpperCase();
     if (!name) return;
-    onSaveConfig(name, draftNew);
+    onSaveConfig(name, draftNew || isDuplicating);
     setDraftNew(false);
+    setIsDuplicating(false);
+    setEditMode(false);
   };
 
+  const handleDiscard = () => {
+    if (selectedConfig && !draftNew && !isDuplicating) {
+      openConfig(selectedConfig);
+      return;
+    }
+    if (selectedConfig) {
+      openConfig(selectedConfig);
+      return;
+    }
+    setDraftNew(false);
+    setIsDuplicating(false);
+    setEditMode(false);
+    setShowForm(false);
+  };
+
+  const handleDuplicateCurrent = () => {
+    if (!selectedConfig) return;
+    loadConfigState(selectedConfig);
+    setConfigName(`${selectedConfig.name || "FILTRO"} - CÓPIA`);
+    setDraftNew(false);
+    setIsDuplicating(true);
+    setEditMode(true);
+    setSelectedFieldId("");
+    setShowForm(true);
+  };
+
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : selectedConfig && !draftNew ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+
   const moveField = (fieldId, direction) => {
+    if (isReadOnly) return;
     const index = visibleFields.indexOf(fieldId);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= visibleFields.length) return;
@@ -113,6 +164,7 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const addFolder = () => {
+    if (isReadOnly) return;
     const name = newFolderName.trim().toUpperCase();
     if (!name) return;
     const folder = { id: makeFolderId(), name };
@@ -123,10 +175,12 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const renameFolder = (folderId, name) => {
+    if (isReadOnly) return;
     setFilterFolders(filterFolders.map((folder) => folder.id === folderId ? { ...folder, name: String(name || "").toUpperCase() } : folder));
   };
 
   const removeFolder = (folderId) => {
+    if (isReadOnly) return;
     if (filterFolders.length <= 1) return;
     const fallbackId = filterFolders.find((folder) => folder.id !== folderId)?.id;
     setFilterFolders(filterFolders.filter((folder) => folder.id !== folderId));
@@ -134,6 +188,7 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const moveFolder = (folderId, direction) => {
+    if (isReadOnly) return;
     const index = filterFolders.findIndex((folder) => folder.id === folderId);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= filterFolders.length) return;
@@ -151,6 +206,7 @@ export default function SankhyaFilterConfigDialog({
   filter(Boolean);
 
   const addSelectedField = () => {
+    if (isReadOnly) return;
     if (!selectedFieldId || visibleFields.includes(selectedFieldId)) return;
     const folderId = selectedFolderId || filterFolders[0]?.id;
     setVisibleFields([...visibleFields, selectedFieldId]);
@@ -159,6 +215,7 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const removeSelectedField = (fieldId) => {
+    if (isReadOnly) return;
     setVisibleFields(visibleFields.filter((id) => id !== fieldId));
     const nextGroups = { ...fieldGroups };
     const nextValues = { ...fieldValues };
@@ -172,12 +229,14 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const updateFieldOperator = (fieldId, value) => {
+    if (isReadOnly) return;
     setOperators({ ...operators, [fieldId]: value });
     setFieldValues({ ...fieldValues, [fieldId]: {} });
     setFieldConfigs({ ...fieldConfigs, [fieldId]: { ...(fieldConfigs[fieldId] || {}), operator: value, value: {}, defaultValue: {} } });
   };
 
   const updateFieldValue = (fieldId, value) => {
+    if (isReadOnly) return;
     setFieldValues({ ...fieldValues, [fieldId]: value });
     setFieldConfigs({ ...fieldConfigs, [fieldId]: { ...(fieldConfigs[fieldId] || {}), value, defaultValue: value } });
   };
@@ -194,10 +253,13 @@ export default function SankhyaFilterConfigDialog({
             <LegacyRecordToolbar
             title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
             badgeLabel="FILTRO"
-            operationLabel="EDIÇÃO DE REGISTRO"
-            showSaveActions
+            operationLabel={operationLabel}
+            showSaveActions={editMode}
+            showEditAction={isReadOnly}
+            showDeleteDuplicateActions={!!selectedConfig && !editMode && !draftNew && !isDuplicating}
             onSave={handleSave}
-            onCancel={() => setShowForm(false)}
+            onCancel={handleDiscard}
+            onEditRecord={() => setEditMode(true)}
             onToggleView={() => setShowForm(false)}
             onNew={handleNew}
             total={filterConfigs.length}
@@ -207,11 +269,12 @@ export default function SankhyaFilterConfigDialog({
             onNext={() => openConfig(filterConfigs[selectedIndex + 1])}
             onLast={() => openConfig(filterConfigs[filterConfigs.length - 1])}
             onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
+            onDuplicate={handleDuplicateCurrent}
             onSettingsClick={() => {}}
             showUtilityActions={false} />
           
 
-            <div className="flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1">
+            <fieldset disabled={isReadOnly} className={`flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1 ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_button]:cursor-default" : ""}`}>
               <div className="space-y-1">
                 <label className="text-[12px] font-semibold text-slate-700 leading-none">Nome do filtro</label>
                 <div className="h-7 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
@@ -329,7 +392,7 @@ export default function SankhyaFilterConfigDialog({
 
               })}
               </div>
-            </div>
+            </fieldset>
           </div> :
 
         <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
