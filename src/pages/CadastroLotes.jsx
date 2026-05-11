@@ -83,9 +83,11 @@ export default function CadastroLotes() {
       const customList = (value) => String(value || "").split(/[;,\n]/).map((item) => item.trim().toLowerCase()).filter(Boolean);
       const checkText = (field, value) => {
         const filterValue = appliedFilters[field];
-        if (!filterValue || filterValue === "todos") return true;
         const operator = operators[field] || "contains";
         const text = String(value || "").toLowerCase();
+        if (operator === "empty") return !text;
+        if (operator === "notEmpty") return !!text;
+        if (!filterValue || filterValue === "todos") return true;
         const term = String(filterValue).toLowerCase().trim();
         if (operator === "empty") return !text;
         if (operator === "notEmpty") return !!text;

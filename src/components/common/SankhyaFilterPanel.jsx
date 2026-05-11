@@ -11,7 +11,7 @@ import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
 import FilterActiveChips from "@/components/filters/FilterActiveChips";
 import { FieldTypeBadge } from "@/components/filters/FilterBadges";
-import { buildFieldValuePatch } from "@/components/filters/FilterValueConfigInput";
+import { buildFiltersFromPreset } from "@/components/filters/filterPresetUtils";
 
 const FIELD_DEFS = [
   { id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 220, pinned: false, exportable: true } },
@@ -44,12 +44,11 @@ const DEFAULT_FILTER_CONFIG = {
   name: "PADRÃO",
   visibleFields: DEFAULT_FIELDS,
   operators: DEFAULT_OPERATORS,
-  fieldValues: {},
-  fieldConfigs: {},
   filterFolders: DEFAULT_FOLDERS,
   fieldGroups: DEFAULT_FIELD_GROUPS
 };
 const inputClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
+const selectClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
 
 export default function SankhyaFilterPanel({ open, filters, onChange, onApply, onClear, lotes = [], areas = [] }) {
   const [filterConfigs, setFilterConfigs] = useState(() => {
@@ -66,11 +65,11 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const activeConfig = filterConfigs.find((config) => config.id === activeConfigId) || filterConfigs[0] || DEFAULT_FILTER_CONFIG;
   const [visibleFields, setVisibleFields] = useState(activeConfig.visibleFields || DEFAULT_FIELDS);
   const [operators, setOperators] = useState(activeConfig.operators || DEFAULT_OPERATORS);
-  const [fieldValues, setFieldValues] = useState(activeConfig.fieldValues || {});
-  const [fieldConfigs, setFieldConfigs] = useState(activeConfig.fieldConfigs || {});
   const [configOpen, setConfigOpen] = useState(false);
   const [filterFolders, setFilterFolders] = useState(activeConfig.filterFolders || DEFAULT_FOLDERS);
   const [fieldGroups, setFieldGroups] = useState(activeConfig.fieldGroups || DEFAULT_FIELD_GROUPS);
+  const [fieldValues, setFieldValues] = useState(activeConfig.fieldValues || {});
+  const [fieldConfigs, setFieldConfigs] = useState(activeConfig.fieldConfigs || {});
   const [openGroups, setOpenGroups] = useState(Object.fromEntries((activeConfig.filterFolders || DEFAULT_FOLDERS).map((folder) => [folder.id, true])));
 
   const { data: camposPersonalizados = [] } = useQuery({
@@ -140,23 +139,29 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     const config = filterConfigs.find((item) => item.id === activeConfigId) || filterConfigs[0] || DEFAULT_FILTER_CONFIG;
     setVisibleFields(config.visibleFields || DEFAULT_FIELDS);
     setOperators(config.operators || DEFAULT_OPERATORS);
-    setFieldValues(config.fieldValues || {});
-    setFieldConfigs(config.fieldConfigs || {});
-    const nextOperators = config.operators || DEFAULT_OPERATORS;
-    const presetValues = Object.fromEntries((config.visibleFields || []).flatMap((fieldId) => {
-      const field = allFields.find((item) => item.id === fieldId);
-      if (!field) return [];
-      return Object.entries(buildFieldValuePatch(field, nextOperators[fieldId] || "contains", config.fieldValues || {}));
-    }));
-    if (Object.keys(presetValues).length) onChange({ ...filters, ...presetValues, _operators: nextOperators });
     setFilterFolders(config.filterFolders || DEFAULT_FOLDERS);
     setFieldGroups(config.fieldGroups || DEFAULT_FIELD_GROUPS);
+    setFieldValues(config.fieldValues || {});
+    setFieldConfigs(config.fieldConfigs || {});
+    const presetFilters = buildFiltersFromPreset(config, allFields, filters);
+    if (Object.keys(presetFilters).length > 1 && Object.keys(config.fieldValues || {}).length) {
+      onChange(presetFilters);
+      if (Object.values(config.fieldConfigs || {}).some((fieldConfig) => fieldConfig?.autoApply)) {
+        onApply(presetFilters);
+      }
+    }
     setOpenGroups(Object.fromEntries((config.filterFolders || DEFAULT_FOLDERS).map((folder) => [folder.id, true])));
-  }, [activeConfigId, allFields]);
+  }, [activeConfigId, allFields.length]);
 
   const handleSaveConfig = (name, createNew = false) => {
     const id = createNew ? `filtro_${Date.now()}` : activeConfigId || `filtro_${Date.now()}`;
-    const nextConfig = { id, name, visibleFields, operators, fieldValues, fieldConfigs, filterFolders, fieldGroups };
+    const mergedFieldConfigs = Object.fromEntries(visibleFields.map((fieldId) => [fieldId, {
+      ...(fieldConfigs[fieldId] || {}),
+      operator: operators[fieldId],
+      value: fieldValues[fieldId] || {},
+      defaultValue: fieldValues[fieldId] || {}
+    }]));
+    const nextConfig = { id, name, visibleFields, operators, filterFolders, fieldGroups, fieldValues, fieldConfigs: mergedFieldConfigs };
     setFilterConfigs((prev) => createNew ? [...prev.filter((config) => config.id !== id), nextConfig] : prev.map((config) => config.id === id ? nextConfig : config));
     setActiveConfigId(id);
   };
@@ -183,12 +188,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   };
 
   const applyFilters = () => {
-    const presetValues = Object.fromEntries(visibleFields.flatMap((fieldId) => {
-      const field = allFields.find((item) => item.id === fieldId);
-      if (!field) return [];
-      return Object.entries(buildFieldValuePatch(field, operators[fieldId] || "contains", fieldValues));
-    }));
-    const nextFilters = { ...filters, ...presetValues, _operators: operators };
+    const nextFilters = { ...filters, _operators: operators };
     onChange(nextFilters);
     onApply(nextFilters);
   };
@@ -226,14 +226,11 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const renderField = (fieldId) => {
     const field = allFields.find((item) => item.id === fieldId);
     if (!field) return null;
-    const config = fieldConfigs[field.id] || {};
-    if (config.hidden) return null;
-    const fieldInputClass = `${inputClass} ${config.readOnly ? "bg-slate-100 text-slate-500" : ""}`;
 
     return (
-      <div key={field.id} className={`rounded-sm border bg-white p-1.5 shadow-sm hover:border-emerald-200 ${config.required ? "border-red-200" : "border-slate-200"}`}>
+      <div key={field.id} className="rounded-sm border border-slate-200 bg-white p-1.5 shadow-sm hover:border-emerald-200">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <label className="min-w-0 truncate font-semibold text-slate-700">{field.label}{config.required ? " *" : ""}</label>
+          <label className="min-w-0 truncate font-semibold text-slate-700">{field.label}</label>
           <div className="flex items-center gap-1">
             {field.metadata?.favorite && <Star className="h-3 w-3 text-amber-500" />}
             {field.metadata?.quickFilter && <Zap className="h-3 w-3 text-blue-500" />}
@@ -242,9 +239,9 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         </div>
         {field.type === "codeName" && renderCodeName("lote", "lotes", "Lote")}
         {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
-        {field.type === "text" && <Input value={filters[field.id] || ""} disabled={config.readOnly} onChange={(e) => update(field.id, e.target.value)} placeholder={config.placeholder || (["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : "")} className={fieldInputClass} />}
+        {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : ""} className={inputClass} />}
         {field.type === "select" &&
-          <Input value={filters[field.id] || ""} disabled={config.readOnly} onChange={(e) => update(field.id, e.target.value)} placeholder={config.placeholder || (["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : "Digite o valor")} className={fieldInputClass} />}
+          <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : "Digite o valor"} className={inputClass} />}
         {field.type === "number" && renderOperatedField(field, renderNumberInput)}
         {field.type === "date" && renderOperatedField(field, renderDateInput)}
       </div>
@@ -273,6 +270,14 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         </div>
       </div>
 
+      <div className="border-b border-slate-200 bg-white px-1.5 py-1 text-[11px] text-slate-600">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold text-slate-700 truncate">Preset: {activeConfig?.name || "PADRÃO"}</span>
+          <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+            {Object.keys(fieldValues || {}).filter((key) => Object.values(fieldValues[key] || {}).some(Boolean)).length} pré-config.
+          </span>
+        </div>
+      </div>
       <FilterActiveChips filters={filters} fields={allFields} onRemove={removeFilterValue} onClear={clearAll} />
 
       <div className="h-8 px-1.5 flex items-center justify-between border-b border-green-500 bg-slate-50 font-semibold text-slate-700 shrink-0">
@@ -304,14 +309,14 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         setVisibleFields={setVisibleFields}
         operators={operators}
         setOperators={setOperators}
-        fieldValues={fieldValues}
-        setFieldValues={setFieldValues}
-        fieldConfigs={fieldConfigs}
-        setFieldConfigs={setFieldConfigs}
         filterFolders={filterFolders}
         setFilterFolders={setFilterFolders}
         fieldGroups={fieldGroups}
         setFieldGroups={setFieldGroups}
+        fieldValues={fieldValues}
+        setFieldValues={setFieldValues}
+        fieldConfigs={fieldConfigs}
+        setFieldConfigs={setFieldConfigs}
         setOpenGroups={setOpenGroups}
         filterConfigs={filterConfigs}
         activeConfigId={activeConfigId}
