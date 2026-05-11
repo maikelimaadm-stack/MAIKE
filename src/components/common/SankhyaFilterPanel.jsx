@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Filter, Plus, ChevronDown, ChevronRight, Star, Zap } from "lucide-react";
+import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
 import FilterActiveChips from "@/components/filters/FilterActiveChips";
-import { FieldTypeBadge } from "@/components/filters/FilterBadges";
+
 import { buildFiltersFromPreset } from "@/components/filters/filterPresetUtils";
 
 const FIELD_DEFS = [
@@ -83,7 +83,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       id: `custom:${campo.field_name}`,
       label: campo.label,
       group: "Campos personalizados",
-      type: ["number", "calculado"].includes(campo.tipo) ? "number" : campo.tipo === "date" ? "date" : campo.tipo === "select" && (campo.options || []).length > 0 ? "select" : "text",
+      type: ["number", "calculado"].includes(campo.tipo) ? "number" : campo.tipo === "date" ? "date" : campo.tipo === "boolean" || campo.tipo === "checkbox" ? "boolean" : campo.tipo === "select" && (campo.options || []).length > 0 ? "select" : "text",
       options: (campo.options || []).map((option) => option.label || option.value || option).sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" })),
       customField: campo.field_name,
       campo,
@@ -231,11 +231,6 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       <div key={field.id} className="rounded-sm border border-slate-200 bg-white p-1.5 shadow-sm hover:border-emerald-200">
         <div className="mb-1 flex items-center justify-between gap-2">
           <label className="min-w-0 truncate font-semibold text-slate-700">{field.label}</label>
-          <div className="flex items-center gap-1">
-            {field.metadata?.favorite && <Star className="h-3 w-3 text-amber-500" />}
-            {field.metadata?.quickFilter && <Zap className="h-3 w-3 text-blue-500" />}
-            <FieldTypeBadge type={field.type} />
-          </div>
         </div>
         {field.type === "codeName" && renderCodeName("lote", "lotes", "Lote")}
         {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
@@ -323,6 +318,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         onSelectConfig={setActiveConfigId}
         onSaveConfig={handleSaveConfig}
         onDeleteConfig={handleDeleteConfig}
+        relationOptions={options}
       />
     </aside>
   );
