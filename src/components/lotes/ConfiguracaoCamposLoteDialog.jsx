@@ -362,7 +362,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                 </div>
               </Field>
               <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 pt-1">
-                <span className="text-[12px] text-slate-600 text-right leading-none">Exibir em</span>
+                <span className="text-[12px] text-slate-600 text-right leading-none">Exibir em:</span>
                 <div className="flex items-center gap-4">
                   {[["obrigatorio", "Obrigatório"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) =>
                   <button key={field} type="button" onClick={() => updateForm(field, !form[field])} className="flex items-center gap-1.5 bg-transparent">
@@ -449,7 +449,7 @@ function Field({ label, children, className = "", required = false, wide = false
   return (
     <div className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""} ${className}`}>
       <label className="text-[12px] text-slate-600 text-right leading-none">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}:{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <div className={`${wide ? 'min-h-6' : 'h-6'} border border-slate-300 bg-white focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
         {children}

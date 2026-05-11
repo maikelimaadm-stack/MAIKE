@@ -31,7 +31,7 @@ export default function VisualCalculationBuilder({ value = [], fields = [], onCh
     <>
       {items.map((item, index) => (
         <div key={index} className={fieldRow}>
-          <label className={fieldLabel}>{index === 0 ? "Campo do cálculo" : `Operação ${index}`}</label>
+          <label className={fieldLabel}>{index === 0 ? "Campo do cálculo" : `Operação ${index}`}:</label>
           <div className="flex items-center gap-1">
             {index > 0 && (
               <div className={`${fieldBox} w-[90px]`}>
@@ -68,7 +68,7 @@ export default function VisualCalculationBuilder({ value = [], fields = [], onCh
       </div>
 
       <div className={fieldRow}>
-        <label className={fieldLabel}>Prévia do cálculo</label>
+        <label className={fieldLabel}>Prévia do cálculo:</label>
         <div className="border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-700 min-h-6">
           {formulaPreview || "selecione os campos"}{previewValue !== null ? ` = ${Number(previewValue).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}` : ""}
           {hasEmptyFields && <div className="text-[11px] text-amber-700">Preencha todos os campos do cálculo.</div>}
