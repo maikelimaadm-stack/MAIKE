@@ -181,6 +181,14 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     onClear();
   };
 
+  const toggleCustomFilter = (checked) => {
+    if (!checked) {
+      setActiveConfigId("padrao");
+      return;
+    }
+    setConfigOpen(true);
+  };
+
   const removeFilterValue = (key) => {
     const next = { ...filters };
     delete next[key];
@@ -260,8 +268,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
           <Button type="button" onClick={applyFilters} className="h-7 rounded-none bg-slate-600 hover:bg-slate-700 text-white text-xs">Aplicar</Button>
         </div>
         <div className="flex items-center justify-between h-6 border-t border-slate-200 pt-1">
-          <div className="flex items-center gap-2"><Checkbox checked={false} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
-          <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">{activeConfig?.name || "PADRÃO"}</button>
+         <div className="flex items-center gap-2"><Checkbox checked={activeConfigId !== "padrao"} onCheckedChange={toggleCustomFilter} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
+         <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">{activeConfig?.name || "PADRÃO"}</button>
         </div>
       </div>
 

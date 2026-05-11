@@ -6,7 +6,7 @@ import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 
 const inputClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
 const textareaClass = "h-6 min-h-6 rounded-none border-slate-300 bg-white px-1.5 py-1 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
-const selectClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] uppercase shadow-none";
+const selectClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] shadow-none";
 const toUpper = (value) => String(value || "").toUpperCase();
 
 const isNoValueOperator = (operator) => operator === "empty" || operator === "notEmpty";

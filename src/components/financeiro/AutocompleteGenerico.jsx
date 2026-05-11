@@ -15,7 +15,8 @@ export default function AutocompleteGenerico({
   renderSubtext,
   inputClassName = "",
   disabled = false,
-  readOnly = false
+  readOnly = false,
+  uppercaseDisplay = true
 }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,8 +32,10 @@ export default function AutocompleteGenerico({
   useEffect(() => {
     if (itemSelecionado) {
       setSearchTerm(itemSelecionado[displayField] || "");
+    } else if (!value) {
+      setSearchTerm("");
     }
-  }, [itemSelecionado, displayField]);
+  }, [itemSelecionado, displayField, value]);
 
   // Encontrar o container do portal: o DialogContent mais próximo ou o body
   useEffect(() => {
@@ -264,8 +267,8 @@ export default function AutocompleteGenerico({
           disabled={disabled}
           readOnly={readOnly}
           placeholder={placeholder}
-          className={`pr-8 h-8 text-xs uppercase rounded-none ${inputClassName}`}
-          style={{ textTransform: 'uppercase' }}
+          className={`pr-8 h-8 text-xs rounded-none ${uppercaseDisplay ? 'uppercase' : ''} ${inputClassName}`}
+          style={uppercaseDisplay ? { textTransform: 'uppercase' } : undefined}
         />
         {searchTerm && (
           <button
