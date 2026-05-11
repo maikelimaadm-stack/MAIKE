@@ -191,6 +191,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (isViewOnly) return;
     const labelTrim = form.label.trim().toUpperCase();
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
     if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
@@ -354,7 +355,6 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             showUtilityActions={false} />
           
 
-            <fieldset disabled={isViewOnly} className={`flex-1 overflow-hidden flex flex-col ${isViewOnly ? "opacity-75" : ""}`}>
             <div className="flex-1 overflow-y-auto">
               <div className="px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
               <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
@@ -386,7 +386,6 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               </div>
               </div>
             </div>
-            </fieldset>
 
             {editingEnabled && isDirty &&
             <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">

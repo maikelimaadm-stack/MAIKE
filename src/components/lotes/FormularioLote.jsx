@@ -443,7 +443,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
-        <fieldset disabled={isViewOnly} className={isViewOnly ? "opacity-75" : ""}>
         <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
             <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
@@ -473,7 +472,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
+                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {if (isViewOnly) return;const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
                     <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
@@ -600,8 +599,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             }
           </div>
         </div>
-
-        </fieldset>
 
         {editingEnabled && isDirty &&
         <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
