@@ -22,14 +22,13 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
         <Button type="button" variant="outline" size="icon" onClick={onPrevious} disabled={!canNavigate || isFirst} className={iconButtonClass} title="Registro anterior"><ChevronLeft className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onNext} disabled={!canNavigate || isLast} className={iconButtonClass} title="Próximo registro"><ChevronRight className="w-3.5 h-3.5" /></Button>
         <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate || isLast} className={iconButtonClass} title="Último registro"><ChevronsRight className="w-3.5 h-3.5" /></Button>
-                  {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={fileButtonClass} title="Excluir registro"><Trash2 className="w-3.5 h-3.5" /></Button>}
-          {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass} title="Duplicar registro"><Copy className="w-3.5 h-3.5" /></Button>}
-
         {showEditAction &&
-        <Button type="button" variant="outline" size="icon" onClick={onEditRecord} className={iconButtonClass} title="Editar registro">
+        <Button type="button" variant="outline" size="icon" onClick={onEditRecord} className={fileButtonClass} title="Editar registro">
           <Pencil className="w-3.5 h-3.5" />
         </Button>
         }
+        {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={showEditAction ? iconButtonClass : fileButtonClass} title="Excluir registro"><Trash2 className="w-3.5 h-3.5" /></Button>}
+        {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass} title="Duplicar registro"><Copy className="w-3.5 h-3.5" /></Button>}
 
         {showSaveActions &&
         <>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { useQuery } from "@tanstack/react-query";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import loteRepository from "@/core/repositories/loteRepository";
@@ -14,12 +14,12 @@ import { toast } from "sonner";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 
-const FL = ({ label, required, error, children, dataField, wide = false }) =>
+const FL = ({ label, required, error, children, dataField, wide = false, compact = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
     <label className="text-[12px] text-slate-600 text-right leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      {label}:{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
-    <div className={`${wide ? 'min-h-6' : 'h-6'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
+    <div className={`${wide ? 'min-h-6' : 'h-6'} ${compact ? 'w-44 max-w-full' : 'w-full'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
       {children}
     </div>
   </div>;
@@ -192,7 +192,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   }, [formData.setor_id, getAreasBySetor]);
 
   const isReadOnly = isEditing && !isDuplicating && !editMode;
-  const readOnlyClass = isReadOnly ? "bg-slate-50 text-slate-700 cursor-default" : "";
+  const readOnlyClass = isReadOnly ? "cursor-default" : "";
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${readOnlyClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -446,7 +446,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
-        <fieldset disabled={isReadOnly} className={isReadOnly ? "opacity-90 [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
+        <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
             <FL label="Descrição" required error={errors.nome} dataField="nome">
               <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
@@ -456,25 +456,25 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
               </div>
             </FL>
-            <FL label="Data de Alteração">
+            <FL label="Data de Alteração" compact>
               <div className="grid grid-cols-2 gap-1">
                 <Input value={new Date().toLocaleDateString("pt-BR")} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
                 <Input value={new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
               </div>
             </FL>
-            <FL label="Código">
+            <FL label="Código" compact>
               <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-right border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
             </FL>
           </div>
         </fieldset>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        <fieldset disabled={isReadOnly} className={isReadOnly ? "opacity-90 [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
+        <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
         <div className="min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" &&
             <div className="space-y-1">
-                <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada">
+                <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada" compact>
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
@@ -498,7 +498,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                     </SelectContent>
                   </Select>
                 </FL>
-                <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas">
+                <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas" compact>
                   <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Categoria de Manejo" required error={errors.categoria_manejo_id} dataField="categoria_manejo_id">
@@ -524,10 +524,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 <FL label="Raça Predominante" required error={errors.raca_predominante} dataField="raca_predominante">
                   <Input value={formData.raca_predominante || ""} onChange={(e) => handleChange("raca_predominante", e.target.value)} placeholder="RAÇA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
                 </FL>
-                <FL label="Peso Médio (kg)" required error={errors.peso_medio_kg} dataField="peso_medio_kg">
+                <FL label="Peso Médio (kg)" required error={errors.peso_medio_kg} dataField="peso_medio_kg" compact>
                   <Input type="number" step="0.1" value={formData.peso_medio_kg || ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} placeholder="0.0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
-                <FL label="Idade Média (meses)" required error={errors.idade_media_meses} dataField="idade_media_meses">
+                <FL label="Idade Média (meses)" required error={errors.idade_media_meses} dataField="idade_media_meses" compact>
                   <Input type="number" value={formData.idade_media_meses || ""} onChange={(e) => handleChange("idade_media_meses", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo" wide>
@@ -536,7 +536,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
                       {SISTEMAS.map((item) => {
                       const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
-                      return <label key={item} className="flex items-center gap-1 text-xs text-slate-700 uppercase cursor-pointer"><Checkbox checked={checked} onCheckedChange={() => toggleSistemaProdutivo(item)} className="h-3.5 w-3.5" /><span>{item}</span></label>;
+                      return <button key={item} type="button" onClick={() => toggleSistemaProdutivo(item)} className="flex items-center gap-1 text-xs text-slate-700 uppercase text-left bg-transparent hover:bg-slate-50 px-1">
+                          <span className={`w-8 h-4 rounded-full relative inline-block shrink-0 ${checked ? "bg-green-500" : "bg-slate-300"}`}>
+                            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${checked ? "right-0.5" : "left-0.5"}`} />
+                          </span>
+                          <span>{item}</span>
+                        </button>;
                     })}
                     </div>
                   </div>
@@ -558,12 +563,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 </FL>
                 <FL label="Cidade Origem" required={formData.motivo_entrada === "Compra"} error={errors.cidade_origem} dataField="cidade_origem"><Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
                 <FL label="Estado Origem" required={formData.motivo_entrada === "Compra"} error={errors.estado_origem} dataField="estado_origem"><Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
-                <FL label="Nota Fiscal" required={formData.motivo_entrada === "Compra"} error={errors.nota_fiscal} dataField="nota_fiscal"><Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="Nº DA NF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                <FL label="Nota Fiscal" required={formData.motivo_entrada === "Compra"} error={errors.nota_fiscal} dataField="nota_fiscal" compact><Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="Nº DA NF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
                 <FL label="Chave NF-e" required={formData.motivo_entrada === "Compra"} error={errors.chave_nfe} dataField="chave_nfe"><Input value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Nº GTA" required={formData.motivo_entrada === "Compra"} error={errors.numero_gta} dataField="numero_gta"><Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Valor Total (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_total_compra} dataField="valor_total_compra"><Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
-                <FL label="Valor p/ Cabeça (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_por_cabeca} dataField="valor_por_cabeca"><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
-                <FL label="Valor Frete (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_frete} dataField="valor_frete"><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+                <FL label="Nº GTA" required={formData.motivo_entrada === "Compra"} error={errors.numero_gta} dataField="numero_gta" compact><Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                <FL label="Valor Total (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_total_compra} dataField="valor_total_compra" compact><Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+                <FL label="Valor p/ Cabeça (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_por_cabeca} dataField="valor_por_cabeca" compact><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
+                <FL label="Valor Frete (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_frete} dataField="valor_frete" compact><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
               </div>
             }
 
@@ -597,7 +602,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 {camposPersonalizadosForm.length === 0 ?
               <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
               camposPersonalizadosForm.map((campo) =>
-              <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"}>
+              <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} compact={["number", "date", "time", "datetime", "calculado"].includes(campo.tipo)}>
                     {renderCampoPersonalizado(campo)}
                   </FL>
               )}
