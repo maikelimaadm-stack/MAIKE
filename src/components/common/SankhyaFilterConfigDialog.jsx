@@ -142,13 +142,13 @@ export default function SankhyaFilterConfigDialog({
     setFilterFolders(next);
   };
 
-  const availableFields = fields
-    .filter((field) => !visibleFields.includes(field.id))
-    .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { sensitivity: "base" }));
+  const availableFields = fields.
+  filter((field) => !visibleFields.includes(field.id)).
+  sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { sensitivity: "base" }));
 
-  const selectedFields = visibleFields
-    .map((id) => fields.find((field) => field.id === id))
-    .filter(Boolean);
+  const selectedFields = visibleFields.
+  map((id) => fields.find((field) => field.id === id)).
+  filter(Boolean);
 
   const addSelectedField = () => {
     if (!selectedFieldId || visibleFields.includes(selectedFieldId)) return;
@@ -189,29 +189,29 @@ export default function SankhyaFilterConfigDialog({
           <DialogTitle>Configuração de filtros personalizados</DialogTitle>
         </DialogHeader>
 
-        {showForm ? (
-          <div className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
+        {showForm ?
+        <div className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
             <LegacyRecordToolbar
-              title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
-              badgeLabel="FILTRO"
-              operationLabel="EDIÇÃO DE REGISTRO"
-              showSaveActions
-              onSave={handleSave}
-              onCancel={() => setShowForm(false)}
-              onToggleView={() => setShowForm(false)}
-              onNew={handleNew}
-              total={filterConfigs.length}
-              currentIndex={selectedIndex}
-              onFirst={() => openConfig(filterConfigs[0])}
-              onPrevious={() => openConfig(filterConfigs[selectedIndex - 1])}
-              onNext={() => openConfig(filterConfigs[selectedIndex + 1])}
-              onLast={() => openConfig(filterConfigs[filterConfigs.length - 1])}
-              onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
-              onSettingsClick={() => {}}
-              showUtilityActions={false}
-            />
+            title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
+            badgeLabel="FILTRO"
+            operationLabel="EDIÇÃO DE REGISTRO"
+            showSaveActions
+            onSave={handleSave}
+            onCancel={() => setShowForm(false)}
+            onToggleView={() => setShowForm(false)}
+            onNew={handleNew}
+            total={filterConfigs.length}
+            currentIndex={selectedIndex}
+            onFirst={() => openConfig(filterConfigs[0])}
+            onPrevious={() => openConfig(filterConfigs[selectedIndex - 1])}
+            onNext={() => openConfig(filterConfigs[selectedIndex + 1])}
+            onLast={() => openConfig(filterConfigs[filterConfigs.length - 1])}
+            onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
+            onSettingsClick={() => {}}
+            showUtilityActions={false} />
+          
 
-            <div className="flex-1 overflow-auto px-3 md:px-6 py-3 space-y-3 w-full">
+            <div className="flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-">
               <div className="grid grid-cols-[140px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">Nome do filtro:</label>
                 <div className="h-6 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
@@ -226,8 +226,8 @@ export default function SankhyaFilterConfigDialog({
                   <Button type="button" onClick={addFolder} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-xs font-semibold text-white shadow-none"><Plus className="w-4 h-4" /> Criar</Button>
                 </div>
                 <div className="space-y-1">
-                  {filterFolders.map((folder, index) => (
-                    <div key={folder.id} className="grid grid-cols-[1fr_92px] gap-2 items-center">
+                  {filterFolders.map((folder, index) =>
+                <div key={folder.id} className="grid grid-cols-[1fr_92px] gap-2 items-center">
                       <Input value={folder.name} onChange={(e) => renameFolder(folder.id, e.target.value)} className="h-7 rounded-none text-xs uppercase" />
                       <div className="flex justify-end gap-1">
                         <button type="button" onClick={() => moveFolder(folder.id, -1)} disabled={index === 0} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
@@ -235,7 +235,7 @@ export default function SankhyaFilterConfigDialog({
                         <button type="button" onClick={() => removeFolder(folder.id)} disabled={filterFolders.length <= 1} className="h-7 w-7 border border-red-200 text-red-600 disabled:opacity-30"><Trash2 className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>
-                  ))}
+                )}
                 </div>
               </div>
 
@@ -247,15 +247,15 @@ export default function SankhyaFilterConfigDialog({
                     <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
                   </Select>
                   <AutocompleteGenerico
-                    items={availableFields.map((field) => ({ ...field, nome: field.label }))}
-                    value={selectedFieldId}
-                    onChange={setSelectedFieldId}
-                    displayField="nome"
-                    searchFields={["nome", "group"]}
-                    placeholder="PESQUISAR CAMPO"
-                    inputClassName="h-7"
-                    renderSubtext={(item) => item.group}
-                  />
+                  items={availableFields.map((field) => ({ ...field, nome: field.label }))}
+                  value={selectedFieldId}
+                  onChange={setSelectedFieldId}
+                  displayField="nome"
+                  searchFields={["nome", "group"]}
+                  placeholder="PESQUISAR CAMPO"
+                  inputClassName="h-7"
+                  renderSubtext={(item) => item.group} />
+                
                   <Button type="button" onClick={addSelectedField} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-xs font-semibold text-white shadow-none"><Plus className="w-4 h-4" /> Adic.</Button>
                 </div>
               </div>
@@ -274,11 +274,11 @@ export default function SankhyaFilterConfigDialog({
                 </div>
                 {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
                 {selectedFields.map((field) => {
-                  const position = visibleFields.indexOf(field.id);
-                  const operatorOptions = getOperatorOptions(field);
+                const position = visibleFields.indexOf(field.id);
+                const operatorOptions = getOperatorOptions(field);
 
-                  return (
-                    <div key={field.id} className="grid grid-cols-[minmax(210px,1.5fr)_160px_170px_minmax(300px,2fr)_76px] items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0">
+                return (
+                  <div key={field.id} className="grid grid-cols-[minmax(210px,1.5fr)_160px_170px_minmax(300px,2fr)_76px] items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0">
                       <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
@@ -294,42 +294,42 @@ export default function SankhyaFilterConfigDialog({
                       </div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <FilterFieldValueEditor
-                          field={field}
-                          operator={operators[field.id] || operatorOptions[0]}
-                          value={fieldValues[field.id] || {}}
-                          onValueChange={(value) => updateFieldValue(field.id, value)}
-                          relationOptions={relationOptions[field.source || "lotes"] || []}
-                        />
+                        field={field}
+                        operator={operators[field.id] || operatorOptions[0]}
+                        value={fieldValues[field.id] || {}}
+                        onValueChange={(value) => updateFieldValue(field.id, value)}
+                        relationOptions={relationOptions[field.source || "lotes"] || []} />
+                      
                       </div>
                       <div className="flex items-center justify-center gap-0.5 px-1 py-1">
                         <button type="button" title="Mover para cima" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
                         <button type="button" title="Mover para baixo" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
                         <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border border-red-200 text-red-600"><Trash2 className="w-3 h-3 mx-auto" /></button>
                       </div>
-                    </div>
-                  );
-                })}
+                    </div>);
+
+              })}
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
+          </div> :
+
+        <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
             <SankhyaListToolbar
-              viewMode="table"
-              total={filterConfigs.length}
-              currentIndex={selectedIndex}
-              onNew={handleNew}
-              onToggleView={() => openConfig(selectedConfig)}
-              onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
-              onSettingsClick={() => {}}
-              onAttachClick={() => {}}
-              attachDisabled
-              selectedCount={selectedConfig ? 1 : 0}
-              title="Filtros Personalizados"
-              recordLabel=""
-              showUtilityActions={false}
-              showSearch={false}
-            />
+            viewMode="table"
+            total={filterConfigs.length}
+            currentIndex={selectedIndex}
+            onNew={handleNew}
+            onToggleView={() => openConfig(selectedConfig)}
+            onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
+            onSettingsClick={() => {}}
+            onAttachClick={() => {}}
+            attachDisabled
+            selectedCount={selectedConfig ? 1 : 0}
+            title="Filtros Personalizados"
+            recordLabel=""
+            showUtilityActions={false}
+            showSearch={false} />
+          
             <div className="overflow-auto flex-1">
               <Table className="w-full my-1 min-w-[640px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
@@ -340,21 +340,21 @@ export default function SankhyaFilterConfigDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filterConfigs.map((config) => (
-                    <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
+                  {filterConfigs.map((config) =>
+                <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b font-medium ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{config.name}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
                         {config.visibleFields?.length || 0} campos · {Object.keys(config.fieldValues || {}).filter((key) => Object.values(config.fieldValues?.[key] || {}).some(Boolean)).length} pré-configurados
                       </TableCell>
                       <TableCell className="px-2 py-1 text-xs border-r border-b text-center"><Badge variant="outline" className="bg-white/90 text-slate-700 text-[10px]">{config.id === activeConfigId ? "Ativo" : "Salvo"}</Badge></TableCell>
                     </TableRow>
-                  ))}
+                )}
                 </TableBody>
               </Table>
             </div>
           </div>
-        )}
+        }
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
