@@ -260,7 +260,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
+              <div className="ml-[141px] flex items-center justify-between text-xs font-semibold text-slate-700">
                 <span>Campos do filtro</span>
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
