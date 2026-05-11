@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import LegacyRecordToolbar from "@/components/lotes/LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
@@ -184,7 +184,7 @@ export default function SankhyaFilterConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+      <DialogContent className="w-[98vw] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de filtros personalizados</DialogTitle>
         </DialogHeader>
@@ -212,18 +212,18 @@ export default function SankhyaFilterConfigDialog({
           
 
             <div className="flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1">
-              <div className="grid grid-cols-[140px_minmax(0,1fr)] items-center gap-1">
-                <label className="text-[12px] text-slate-600 text-right leading-none">Nome do filtro:</label>
-                <div className="h-6 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
-                  <Input value={configName} onChange={(e) => setConfigName(e.target.value.toUpperCase())} className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
+              <div className="space-y-1">
+                <label className="text-[12px] font-semibold text-slate-700 leading-none">Nome do filtro</label>
+                <div className="h-7 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
+                  <Input value={configName} onChange={(e) => setConfigName(e.target.value.toUpperCase())} className="h-[26px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </div>
               </div>
 
               <div className="border border-slate-300 bg-slate-50 space-y-1 p-1">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
-                <div className="grid grid-cols-[1fr_90px] gap-1">
+                <div className="grid grid-cols-[1fr_32px] gap-1">
                   <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
-                  <Button type="button" onClick={addFolder} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-xs font-semibold text-white shadow-none"><Plus className="w-4 h-4" /> Criar</Button>
+                  <Button type="button" onClick={addFolder} title="Criar pasta" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus /></Button>
                 </div>
                 <div className="space-y-1">
                   {filterFolders.map((folder, index) =>
@@ -232,7 +232,7 @@ export default function SankhyaFilterConfigDialog({
                       <div className="flex justify-end gap-1">
                         <button type="button" onClick={() => moveFolder(folder.id, -1)} disabled={index === 0} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
                         <button type="button" onClick={() => moveFolder(folder.id, 1)} disabled={index === filterFolders.length - 1} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" onClick={() => removeFolder(folder.id)} disabled={filterFolders.length <= 1} className="h-7 w-7 border border-red-200 text-red-600 disabled:opacity-30"><Trash2 className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" onClick={() => removeFolder(folder.id)} disabled={filterFolders.length <= 1} className="h-7 w-7 border border-slate-300 text-slate-600 disabled:opacity-30"><X className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>
                 )}
@@ -241,7 +241,7 @@ export default function SankhyaFilterConfigDialog({
 
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
-                <div className="grid grid-cols-[150px_1fr_88px] gap-1">
+                <div className="grid grid-cols-[180px_1fr_32px] gap-1">
                   <Select value={selectedFolderId || filterFolders[0]?.id} onValueChange={setSelectedFolderId}>
                     <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue placeholder="Pasta" /></SelectTrigger>
                     <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
@@ -256,16 +256,16 @@ export default function SankhyaFilterConfigDialog({
                   inputClassName="h-7"
                   renderSubtext={(item) => item.group} />
                 
-                  <Button type="button" onClick={addSelectedField} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-xs font-semibold text-white shadow-none"><Plus className="w-4 h-4" /> Adic.</Button>
+                  <Button type="button" onClick={addSelectedField} title="Adicionar campo" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus /></Button>
                 </div>
               </div>
 
-              <div className="ml-[141px] flex items-center justify-between text-xs font-semibold text-slate-700">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
                 <span>Campos do filtro</span>
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
-                <div className="grid grid-cols-[minmax(210px,1.5fr)_160px_170px_minmax(300px,2fr)_76px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                   <div className="px-2 py-1 border-r border-slate-300">Campo</div>
                   <div className="px-2 py-1 border-r border-slate-300">Pasta</div>
                   <div className="px-2 py-1 border-r border-slate-300">Operador</div>
@@ -278,7 +278,7 @@ export default function SankhyaFilterConfigDialog({
                 const operatorOptions = getOperatorOptions(field);
 
                 return (
-                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid grid-cols-[minmax(30px,1.5fr)_1160px_170px_minmax(300px,2fr)_76px]">
+                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
                       <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
@@ -304,7 +304,7 @@ export default function SankhyaFilterConfigDialog({
                       <div className="flex items-center justify-center gap-0.5 px-1 py-1">
                         <button type="button" title="Mover para cima" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
                         <button type="button" title="Mover para baixo" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border border-red-200 text-red-600"><Trash2 className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border border-slate-300 text-slate-600"><X className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>);
 
