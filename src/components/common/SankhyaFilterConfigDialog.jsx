@@ -219,7 +219,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="border border-slate-300 bg-slate-50 shadow-sm space-y-1 p-1">
+              <div className="border border-slate-300 bg-slate-50 space-y-1 p-1">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
                 <div className="grid grid-cols-[1fr_90px] gap-1">
                   <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
@@ -239,7 +239,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="ml-[141px] border border-slate-300 bg-slate-50 p-2.5 space-y-2 shadow-sm">
+              <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
                 <div className="grid grid-cols-[150px_1fr_88px] gap-1">
                   <Select value={selectedFolderId || filterFolders[0]?.id} onValueChange={setSelectedFolderId}>
@@ -260,11 +260,11 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="ml-[141px] flex items-center justify-between text-xs font-semibold text-slate-700">
+              <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
                 <span>Campos do filtro</span>
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
-              <div className="ml-[141px] overflow-hidden border border-slate-300 bg-white">
+              <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
                 <div className="grid grid-cols-[minmax(210px,1.5fr)_160px_170px_minmax(300px,2fr)_76px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                   <div className="px-2 py-1 border-r border-slate-300">Campo</div>
                   <div className="px-2 py-1 border-r border-slate-300">Pasta</div>
