@@ -278,7 +278,7 @@ export default function SankhyaFilterConfigDialog({
                 const operatorOptions = getOperatorOptions(field);
 
                 return (
-                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid grid-cols-[minmax(21px,1.5fr)_160px_170px_minmax(300px,2fr)_76px]">
+                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid grid-cols-[minmax(30px,1.5fr)_1160px_170px_minmax(300px,2fr)_76px]">
                       <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
