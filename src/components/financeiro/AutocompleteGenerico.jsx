@@ -47,12 +47,15 @@ export default function AutocompleteGenerico({
   const calcPosition = useCallback(() => {
     if (!inputRef.current) return;
     const r = inputRef.current.getBoundingClientRect();
+    const dialogEl = wrapperRef.current?.closest('[role="dialog"]');
+    const dialogRect = dialogEl?.getBoundingClientRect();
+    portalContainerRef.current = dialogEl || null;
     
     setDropdownPos({
-      top: r.bottom + 2,
-      left: r.left,
+      top: dialogRect ? r.bottom - dialogRect.top + 2 : r.bottom + 2,
+      left: dialogRect ? r.left - dialogRect.left : r.left,
       width: r.width,
-      inDialog: false
+      inDialog: !!dialogRect
     });
   }, []);
 
@@ -61,7 +64,10 @@ export default function AutocompleteGenerico({
     if (!open) return;
     calcPosition();
     
-    const handleScroll = () => calcPosition();
+    const handleScroll = (event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(event.target)) return;
+      calcPosition();
+    };
     document.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleScroll);
     return () => {
@@ -161,8 +167,8 @@ export default function AutocompleteGenerico({
     if (!open || !dropdownPos) return null;
 
     const style = dropdownPos.inDialog
-      ? { position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999 }
-      : { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999 };
+      ? { position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999, pointerEvents: 'auto' }
+      : { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999, pointerEvents: 'auto' };
 
     let content = null;
 
@@ -237,7 +243,7 @@ export default function AutocompleteGenerico({
     const content = renderDropdownContent();
     if (!content) return null;
 
-    return ReactDOM.createPortal(content, document.body);
+    return ReactDOM.createPortal(content, portalContainerRef.current || document.body);
   };
 
   return (
