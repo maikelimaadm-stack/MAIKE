@@ -590,12 +590,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
         </fieldset>
 
-        {editMode &&
-        <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200 hidden">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
-          </div>
-        }
+        
+
+
+
+
+        
       </form>
     </div>);
 
