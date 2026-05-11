@@ -36,6 +36,8 @@ const COLUNAS_DISPONIVEIS = [
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 const COLUMN_WIDTHS_KEY = "colunas_largura_cadastro_lotes";
 const MIN_COLUMN_WIDTH = 80;
+const HEADER_ACTIONS_WIDTH = 42;
+const getColumnMinWidth = (coluna) => Math.max(MIN_COLUMN_WIDTH, String(coluna?.label || "").length * 7 + HEADER_ACTIONS_WIDTH + 18);
 
 const formatarData = (data) => {
   if (!data) return "-";
@@ -164,8 +166,8 @@ export default function TabelaLotes({
       if (!dragRef.current) return;
       if (e.cancelable) e.preventDefault();
       const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-      const { columnId, startX, startWidth } = dragRef.current;
-      setColumnWidths((prev) => ({ ...prev, [columnId]: Math.max(MIN_COLUMN_WIDTH, startWidth + (clientX - startX)) }));
+      const { columnId, startX, startWidth, minWidth } = dragRef.current;
+      setColumnWidths((prev) => ({ ...prev, [columnId]: Math.max(minWidth || MIN_COLUMN_WIDTH, startWidth + (clientX - startX)) }));
     };
     const onUp = () => {if (!dragRef.current) return;dragRef.current = null;document.body.style.cursor = "";document.body.style.userSelect = "";};
     window.addEventListener("mousemove", onMove);
@@ -175,10 +177,10 @@ export default function TabelaLotes({
     return () => {window.removeEventListener("mousemove", onMove);window.removeEventListener("mouseup", onUp);window.removeEventListener("touchmove", onMove);window.removeEventListener("touchend", onUp);};
   }, []);
 
-  const startDragResize = (e, colunaId) => {
+  const startDragResize = (e, coluna) => {
     e.preventDefault();e.stopPropagation();
     const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-    dragRef.current = { columnId: colunaId, startX: clientX, startWidth: columnWidths[colunaId] || 160 };
+    dragRef.current = { columnId: coluna.id, startX: clientX, startWidth: columnWidths[coluna.id] || coluna.width || 160, minWidth: getColumnMinWidth(coluna) };
     document.body.style.cursor = "col-resize";document.body.style.userSelect = "none";
   };
 
@@ -498,7 +500,7 @@ export default function TabelaLotes({
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
                     {colunasOrdenadas.map((coluna) => {
-                      const width = columnWidths[coluna.id] || coluna.width || 160;
+                      const width = Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna));
                       const isResizing = resizeColumnId === coluna.id;
 
                       const filterControl = renderFilterControl(coluna.id);
@@ -507,10 +509,10 @@ export default function TabelaLotes({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7">
-                          
-                          <div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                            {coluna.label}
+                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7">
+
+                          <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis text-center">
+                           {coluna.label}
                           </div>
 
                           {filterControl &&
@@ -531,8 +533,8 @@ export default function TabelaLotes({
                           {isResizing &&
                           <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
 
-                          onMouseDown={(e) => startDragResize(e, coluna.id)}
-                          onTouchStart={(e) => startDragResize(e, coluna.id)}
+                          onMouseDown={(e) => startDragResize(e, coluna)}
+                          onTouchStart={(e) => startDragResize(e, coluna)}
                           onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}
                           onDoubleClick={(e) => e.stopPropagation()}
                           onTouchEnd={(e) => e.stopPropagation()}>
@@ -563,13 +565,14 @@ export default function TabelaLotes({
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
                     
                         {colunasOrdenadas.map((coluna) => {
-                      const width = columnWidths[coluna.id] || coluna.width || 160;
+                      const width = Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna));
 
                       return (
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedItems.includes(lote.id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
+                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis ${selectedItems.includes(lote.id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}
+                          title={String(renderCell(lote, coluna.id) ?? "")}>
                           
                               {renderCell(lote, coluna.id)}
                             </TableCell>);
@@ -581,7 +584,7 @@ export default function TabelaLotes({
                   {Object.keys(agregacoes).length > 0 &&
                   <TableRow className="bg-slate-50 font-semibold">
                       {colunasOrdenadas.map((coluna) =>
-                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right">
+                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis">
                           {agregacoes[coluna.id] !== undefined ? `${getAgregacaoLabel(coluna.agregacao_tipo || coluna.agregacao)}: ${Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 })}` : coluna.id === "nome" ? "Totais" : ""}
                         </TableCell>
                     )}
