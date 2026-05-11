@@ -8,12 +8,20 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import LegacyRecordToolbar from "@/components/lotes/LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
+import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 
 const OPERATOR_LABELS = {
+  contains: "Contém",
+  exact: "Exato",
+  gte: "Maior igual",
+  lte: "Menor igual",
   between: "Entre",
-  gt: "Maior que",
-  lt: "Menor que",
-  exact: "Exato"
+  custom: "Personalizado"
+};
+
+const getOperatorOptions = (field) => {
+  if (field.type === "number" || field.type === "date") return ["between", "gte", "lte", "exact", "custom"];
+  return ["contains", "exact", "custom"];
 };
 
 const makeFolderId = () => `pasta_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -202,10 +210,16 @@ export default function SankhyaFilterConfigDialog({
                     <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue placeholder="Pasta" /></SelectTrigger>
                     <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Select value={selectedFieldId} onValueChange={setSelectedFieldId}>
-                    <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue placeholder="Selecione um campo em ordem alfabética" /></SelectTrigger>
-                    <SelectContent>{availableFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <AutocompleteGenerico
+                    items={availableFields.map((field) => ({ ...field, nome: field.label }))}
+                    value={selectedFieldId}
+                    onChange={setSelectedFieldId}
+                    displayField="nome"
+                    searchFields={["nome", "group"]}
+                    placeholder="PESQUISAR CAMPO"
+                    inputClassName="h-7"
+                    renderSubtext={(item) => item.group}
+                  />
                   <Button type="button" onClick={addSelectedField} className="h-7 rounded-none bg-green-600 hover:bg-green-700 text-xs"><Plus className="w-3.5 h-3.5" /> Adic.</Button>
                 </div>
               </div>
@@ -215,21 +229,19 @@ export default function SankhyaFilterConfigDialog({
                 {selectedFields.length === 0 && <div className="border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">Nenhum campo adicionado. Selecione uma pasta, escolha um campo e clique em Adic.</div>}
                 {selectedFields.map((field) => {
                   const position = visibleFields.indexOf(field.id);
-                  const isOperated = field.type === "number" || field.type === "date";
+                  const operatorOptions = getOperatorOptions(field);
 
                   return (
-                    <div key={field.id} className="grid grid-cols-[1fr_150px_130px_80px] items-center gap-2 border border-slate-200 bg-white px-2 py-1 text-xs">
+                    <div key={field.id} className="grid grid-cols-[1fr_150px_140px_80px] items-center gap-2 border border-slate-200 bg-white px-2 py-1 text-xs">
                       <span className="font-medium text-slate-700 truncate">{field.label}</span>
                       <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
                         <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
                       </Select>
-                      {isOperated ? (
-                        <Select value={operators[field.id] || "between"} onValueChange={(value) => setOperators({ ...operators, [field.id]: value })}>
-                          <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>{Object.entries(OPERATOR_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-                        </Select>
-                      ) : <span className="text-slate-500">Exato/contém</span>}
+                      <Select value={operators[field.id] || operatorOptions[0]} onValueChange={(value) => setOperators({ ...operators, [field.id]: value })}>
+                        <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{operatorOptions.map((value) => <SelectItem key={value} value={value}>{OPERATOR_LABELS[value]}</SelectItem>)}</SelectContent>
+                      </Select>
                       <div className="flex items-center justify-end gap-1">
                         <button type="button" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
                         <button type="button" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>

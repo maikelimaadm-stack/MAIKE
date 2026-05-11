@@ -79,30 +79,42 @@ export default function CadastroLotes() {
       if (appliedFilters.nome && !contains(lote.nome, appliedFilters.nome)) return false;
       if (appliedFilters.lote_codigo && !contains(lote.numero_lote, appliedFilters.lote_codigo)) return false;
       if (appliedFilters.lote_nome && !contains(lote.nome, appliedFilters.lote_nome)) return false;
-      if (appliedFilters.categoria && !contains(lote.categoria, appliedFilters.categoria)) return false;
-      if (appliedFilters.sexo && appliedFilters.sexo !== "todos" && lote.sexo !== appliedFilters.sexo) return false;
-      if (appliedFilters.status && appliedFilters.status !== "todos" && lote.status !== appliedFilters.status) return false;
+      const operators = appliedFilters._operators || {};
+      const customList = (value) => String(value || "").split(/[;,\n]/).map((item) => item.trim().toLowerCase()).filter(Boolean);
+      const checkText = (field, value) => {
+        const filterValue = appliedFilters[field];
+        if (!filterValue || filterValue === "todos") return true;
+        const operator = operators[field] || "contains";
+        const text = String(value || "").toLowerCase();
+        if (operator === "exact") return text === String(filterValue).toLowerCase().trim();
+        if (operator === "custom") return customList(filterValue).includes(text);
+        return text.includes(String(filterValue).toLowerCase().trim());
+      };
+      const checkNumeric = (field, value) => {
+        const operator = operators[field] || "between";
+        if (operator === "custom" && appliedFilters[`${field}_exact`] && !customList(appliedFilters[`${field}_exact`]).includes(String(value).toLowerCase())) return false;
+        if (operator === "exact" && appliedFilters[`${field}_exact`] && value !== Number(appliedFilters[`${field}_exact`])) return false;
+        if ((operator === "between" || operator === "gte") && appliedFilters[`${field}_min`] && value < Number(appliedFilters[`${field}_min`])) return false;
+        if ((operator === "between" || operator === "lte") && appliedFilters[`${field}_max`] && value > Number(appliedFilters[`${field}_max`])) return false;
+        return true;
+      };
+      if (!checkText("categoria", lote.categoria)) return false;
+      if (!checkText("sexo", lote.sexo)) return false;
+      if (!checkText("status", lote.status)) return false;
       if (appliedFilters.area_codigo && ![lote.area_entrada_id, lote.area_atual_id].some((value) => contains(value, appliedFilters.area_codigo))) return false;
       if (appliedFilters.area_nome && ![lote.area_entrada_nome, lote.area_atual_nome].some((value) => contains(value, appliedFilters.area_nome))) return false;
       if (appliedFilters.setor_codigo && !contains(lote.setor_id, appliedFilters.setor_codigo)) return false;
       if (appliedFilters.setor_nome && !contains(lote.setor_nome, appliedFilters.setor_nome)) return false;
-      const operators = appliedFilters._operators || {};
-      const checkNumeric = (field, value) => {
-        const operator = operators[field] || "between";
-        if (operator === "exact" && appliedFilters[`${field}_exact`] && value !== Number(appliedFilters[`${field}_exact`])) return false;
-        if ((operator === "between" || operator === "gt") && appliedFilters[`${field}_min`] && value < Number(appliedFilters[`${field}_min`])) return false;
-        if ((operator === "between" || operator === "lt") && appliedFilters[`${field}_max`] && value > Number(appliedFilters[`${field}_max`])) return false;
-        return true;
-      };
       const quantidade = Number(lote.quantidade_entrada ?? lote.quantidade_cabecas ?? 0);
       if (!checkNumeric("quantidade", quantidade)) return false;
       const peso = Number(lote.peso_entrada_kg ?? lote.peso_medio_kg ?? 0);
       if (!checkNumeric("peso", peso)) return false;
       const dataEntrada = String(lote.data_entrada || "").split("T")[0];
       const dataOperator = operators.data || "between";
+      if (dataOperator === "custom" && appliedFilters.data_exact && !customList(appliedFilters.data_exact).includes(dataEntrada.toLowerCase())) return false;
       if (dataOperator === "exact" && appliedFilters.data_exact && dataEntrada !== appliedFilters.data_exact) return false;
-      if ((dataOperator === "between" || dataOperator === "gt") && appliedFilters.data_min && dataEntrada < appliedFilters.data_min) return false;
-      if ((dataOperator === "between" || dataOperator === "lt") && appliedFilters.data_max && dataEntrada > appliedFilters.data_max) return false;
+      if ((dataOperator === "between" || dataOperator === "gte") && appliedFilters.data_min && dataEntrada < appliedFilters.data_min) return false;
+      if ((dataOperator === "between" || dataOperator === "lte") && appliedFilters.data_max && dataEntrada > appliedFilters.data_max) return false;
 
       for (const campo of camposFiltroPersonalizados) {
         const fieldId = `custom:${campo.field_name}`;
@@ -111,11 +123,13 @@ export default function CadastroLotes() {
         if (["number", "calculado"].includes(campo.tipo) && !checkNumeric(fieldId, Number(rawValue || 0))) return false;
         if (campo.tipo === "date") {
           const dateValue = String(rawValue || "").split("T")[0];
-          if (appliedFilters[`${fieldId}_min`] && dateValue < appliedFilters[`${fieldId}_min`]) return false;
-          if (appliedFilters[`${fieldId}_max`] && dateValue > appliedFilters[`${fieldId}_max`]) return false;
-          if (appliedFilters[`${fieldId}_exact`] && dateValue !== appliedFilters[`${fieldId}_exact`]) return false;
+          const dateOperator = operators[fieldId] || "between";
+          if (dateOperator === "custom" && appliedFilters[`${fieldId}_exact`] && !customList(appliedFilters[`${fieldId}_exact`]).includes(dateValue.toLowerCase())) return false;
+          if (dateOperator === "exact" && appliedFilters[`${fieldId}_exact`] && dateValue !== appliedFilters[`${fieldId}_exact`]) return false;
+          if ((dateOperator === "between" || dateOperator === "gte") && appliedFilters[`${fieldId}_min`] && dateValue < appliedFilters[`${fieldId}_min`]) return false;
+          if ((dateOperator === "between" || dateOperator === "lte") && appliedFilters[`${fieldId}_max`] && dateValue > appliedFilters[`${fieldId}_max`]) return false;
         }
-        if (!["number", "calculado", "date"].includes(campo.tipo) && appliedFilters[fieldId] && appliedFilters[fieldId] !== "todos" && !contains(displayValue, appliedFilters[fieldId])) return false;
+        if (!["number", "calculado", "date"].includes(campo.tipo) && !checkText(fieldId, displayValue)) return false;
       }
       return true;
     });

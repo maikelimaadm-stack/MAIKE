@@ -178,7 +178,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     if (operator === "between") {
       return <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">{renderInput(field, "min")}<span className="text-slate-500">a</span>{renderInput(field, "max")}</div>;
     }
-    const suffix = operator === "gt" ? "min" : operator === "lt" ? "max" : "exact";
+    const suffix = operator === "gte" ? "min" : operator === "lte" ? "max" : "exact";
     return renderInput(field, suffix);
   };
 
@@ -201,12 +201,9 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         <label className="block mb-0.5 text-slate-600 truncate">{field.label}</label>
         {field.type === "codeName" && renderCodeName("lote", "lotes", "Lote")}
         {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
-        {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} className={inputClass} />}
+        {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={(operators[field.id] || "contains") === "custom" ? "Ex: X; Y; Z" : ""} className={inputClass} />}
         {field.type === "select" &&
-          <Select value={filters[field.id] || "todos"} onValueChange={(value) => update(field.id, value)}>
-            <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="todos">Todos</SelectItem>{(field.options || []).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
-          </Select>}
+          <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={(operators[field.id] || "contains") === "custom" ? "Ex: X; Y; Z" : "Digite ou informe X;Y"} className={inputClass} />}
         {field.type === "number" && renderOperatedField(field, renderNumberInput)}
         {field.type === "date" && renderOperatedField(field, renderDateInput)}
       </div>
