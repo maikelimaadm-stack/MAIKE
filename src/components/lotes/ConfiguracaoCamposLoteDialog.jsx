@@ -69,6 +69,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const [selectedCampoIds, setSelectedCampoIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [editingEnabled, setEditingEnabled] = useState(false);
+  const isViewOnly = !!editingId && !isDuplicating && !editingEnabled;
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -147,6 +149,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setEditingId(null);
     setIsDirty(false);
     setIsDuplicating(false);
+    setEditingEnabled(false);
     setShowForm(false);
   };
 
@@ -182,6 +185,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([]);
     setIsDirty(true);
     setIsDuplicating(false);
+    setEditingEnabled(true);
     setShowForm(true);
   };
 
@@ -202,6 +206,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   };
 
   const updateForm = (field, value) => {
+    if (isViewOnly) return;
     setIsDirty(true);
     const upperFields = ["label", "placeholder", "descricao"];
     const finalValue = upperFields.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
@@ -237,6 +242,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([campo.id || campo.field_id]);
     setIsDirty(false);
     setIsDuplicating(false);
+    setEditingEnabled(false);
     setShowForm(true);
     setForm({
       ...initialForm,
@@ -310,10 +316,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([]);
     setIsDirty(true);
     setIsDuplicating(true);
+    setEditingEnabled(true);
     setShowForm(true);
   };
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? editingEnabled ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -328,8 +335,10 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
             badgeLabel="CAMPO PERSONALIZADO"
             operationLabel={operationLabel}
-            showSaveActions={isDirty}
-            showDeleteDuplicateActions={!!editingId && !isDirty && !isDuplicating}
+            showSaveActions={editingEnabled && isDirty}
+            showDeleteDuplicateActions={!!editingId && !isDirty && !isDuplicating && !editingEnabled}
+            showEditAction={isViewOnly}
+            onEdit={() => setEditingEnabled(true)}
             onCancel={handleDiscard}
             onToggleView={handleToggleView}
             onNew={handleNew}
@@ -345,6 +354,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             showUtilityActions={false} />
           
 
+            <fieldset disabled={isViewOnly} className={`flex-1 overflow-hidden flex flex-col ${isViewOnly ? "opacity-75" : ""}`}>
             <div className="flex-1 overflow-y-auto">
               <div className="px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
               <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
@@ -376,8 +386,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               </div>
               </div>
             </div>
+            </fieldset>
 
-            {isDirty &&
+            {editingEnabled && isDirty &&
             <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
                 <Button type="button" variant="outline" onClick={handleDiscard} size="sm" className="h-7 text-xs px-3">Descartar</Button>
                 <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : editingId ? "Atualizar" : "Salvar"}</Button>

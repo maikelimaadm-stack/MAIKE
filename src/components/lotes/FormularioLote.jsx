@@ -85,6 +85,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
   const [isDirty, setIsDirty] = useState(!isEditing || isDuplicating);
+  const [editingEnabled, setEditingEnabled] = useState(!isEditing || isDuplicating);
+  const isViewOnly = isEditing && !isDuplicating && !editingEnabled;
   // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
   const carregarDataEntrada = (data) => {
     if (!data) return new Date().toLocaleDateString("sv-SE");
@@ -137,6 +139,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     setFormData(buildFormData(initialData));
     setErrors({});
     setIsDirty(!isEditing || !!initialData?._isDuplicate);
+    setEditingEnabled(!isEditing || !!initialData?._isDuplicate);
   }, [initialData?.id, initialData?.numero_lote, initialData?._isDuplicate, isEditing]);
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -200,6 +203,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const handleChange = (field, value) => {
+    if (isViewOnly) return;
     setIsDirty(true);
     const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     const newData = { ...formData, [field]: normalizedValue };
@@ -297,6 +301,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const handleCustomChange = (fieldName, value) => {
+    if (isViewOnly) return;
     setIsDirty(true);
     setErrors((prev) => ({ ...prev, [`campos_personalizados.${fieldName}`]: false }));
     setFormData((prev) => {
@@ -351,6 +356,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isViewOnly) return;
     if (!validateForm()) return;
 
     const area = areas.find((item) => item.id === formData.area_entrada_id);
@@ -407,7 +413,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
 
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editingEnabled ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <div>
@@ -416,8 +422,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
           badgeLabel="LOTE"
           operationLabel={operationLabel}
-          showSaveActions={isDirty}
-          showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating}
+          showSaveActions={editingEnabled && isDirty}
+          showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating && !editingEnabled}
+          showEditAction={isViewOnly}
+          onEdit={() => setEditingEnabled(true)}
           onCancel={onCancel}
           onSettingsClick={onSettingsClick}
           onToggleView={onToggleView}
@@ -435,6 +443,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
+        <fieldset disabled={isViewOnly} className={isViewOnly ? "opacity-75" : ""}>
         <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
             <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
@@ -592,7 +601,9 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           </div>
         </div>
 
-        {isDirty &&
+        </fieldset>
+
+        {editingEnabled && isDirty &&
         <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
