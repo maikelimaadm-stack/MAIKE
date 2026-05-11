@@ -191,6 +191,16 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return [...lista].sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR", { sensitivity: "base" }));
   }, [formData.setor_id, getAreasBySetor]);
 
+  const opcoesSexo = useMemo(() => [
+    { id: "Macho", nome: "MACHO" },
+    { id: "Fêmea", nome: "FÊMEA" },
+    { id: "Misto", nome: "MISTO" }
+  ], []);
+
+  const opcoesMotivoEntrada = useMemo(() => MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() })), []);
+
+  const opcoesCores = useMemo(() => CORES_DISPONIVEIS.map((item) => ({ id: item.cor, nome: item.nome.toUpperCase(), cor: item.cor })), []);
+
   const isReadOnly = isEditing && !isDuplicating && !editMode;
   const readOnlyClass = isReadOnly ? "cursor-default" : "";
 
@@ -478,13 +488,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {if (isReadOnly) return;const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
-                    <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {setores.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico items={setores} value={formData.setor_id} onChange={(value) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: value || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
                 </FL>
                 <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
                   <AutocompleteGenerico items={areasDoSetor} value={formData.area_entrada_id} onChange={(value) => handleChange("area_entrada_id", value)} placeholder={formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO"} displayField="nome" searchFields={["nome", "numero_area"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
@@ -493,24 +497,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Categoria de Manejo" required error={errors.categoria_manejo_id} dataField="categoria_manejo_id">
-                  <Select value={formData.categoria_manejo_id || SELECT_EMPTY} onValueChange={(value) => handleChange("categoria_manejo_id", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {categoriasManejo.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico items={categoriasManejo} value={formData.categoria_manejo_id} onChange={(value) => handleChange("categoria_manejo_id", value)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} />
                 </FL>
                 <FL label="Sexo" required error={errors.sexo} dataField="sexo">
-                  <Select value={formData.sexo || SELECT_EMPTY} onValueChange={(value) => handleChange("sexo", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      <SelectItem value="Macho" className="text-xs">MACHO</SelectItem>
-                      <SelectItem value="Fêmea" className="text-xs">FÊMEA</SelectItem>
-                      <SelectItem value="Misto" className="text-xs">MISTO</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico items={opcoesSexo} value={formData.sexo} onChange={(value) => handleChange("sexo", value)} placeholder="BUSCAR SEXO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
                 </FL>
                 <FL label="Raça Predominante" required error={errors.raca_predominante} dataField="raca_predominante">
                   <Input value={formData.raca_predominante || ""} onChange={(e) => handleChange("raca_predominante", e.target.value)} placeholder="RAÇA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
@@ -543,25 +533,13 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             {activeTab === "compra" &&
             <div className="space-y-1">
                 <FL label="Motivo da Entrada" dataField="motivo_entrada">
-                  <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {MOTIVOS_ENTRADA.map((m) => <SelectItem key={m} value={m} className="text-xs">{m.toUpperCase()}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico items={opcoesMotivoEntrada} value={formData.motivo_entrada} onChange={(value) => handleChange("motivo_entrada", value)} placeholder="BUSCAR MOTIVO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
                 </FL>
 
                 {formData.motivo_entrada === "Compra" &&
                 <>
                   <FL label="Fornecedor" required error={errors.fornecedor_id} dataField="fornecedor_id">
-                    <Select value={formData.fornecedor_id || SELECT_EMPTY} onValueChange={(value) => handleChange("fornecedor_id", value === SELECT_EMPTY ? "" : value)}>
-                      <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                        {fornecedores.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <AutocompleteGenerico items={fornecedores} value={formData.fornecedor_id} onChange={(value) => handleChange("fornecedor_id", value)} placeholder="BUSCAR FORNECEDOR..." displayField="nome" searchFields={["nome", "cpf", "cnpj", "cidade", "estado"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
                   </FL>
                   <FL label="Cidade Origem" required error={errors.cidade_origem} dataField="cidade_origem"><Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
                   <FL label="Estado Origem" required error={errors.estado_origem} dataField="estado_origem"><Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
@@ -585,13 +563,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 <FL label="Identificador (Nome)"><Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
                 <FL label="Identificador (Sigla)"><Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
                 <FL label="Identificador (Cor)">
-                  <Select value={formData.identificador_cor || SELECT_EMPTY} onValueChange={(value) => handleChange("identificador_cor", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {CORES_DISPONIVEIS.map((c) => <SelectItem key={c.cor} value={c.cor} className="text-xs"><div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: c.cor }} />{c.nome.toUpperCase()}</div></SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico items={opcoesCores} value={formData.identificador_cor} onChange={(value) => handleChange("identificador_cor", value)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} />
                 </FL>
               </div>
             }

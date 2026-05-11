@@ -134,7 +134,7 @@ export default function AutocompleteGenerico({
         <div
           ref={dropdownRef}
           style={style}
-          className="bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto"
+          className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto"
         >
           {itensFiltrados.map((item) => (
             <div
@@ -167,7 +167,7 @@ export default function AutocompleteGenerico({
         <div
           ref={dropdownRef}
           style={style}
-          className="bg-white border border-slate-200 rounded-md shadow-lg"
+          className="bg-white border border-slate-200 rounded-none shadow-lg"
         >
           <div className="px-3 py-6 text-center text-xs text-slate-500">
             Nenhum item encontrado
@@ -208,7 +208,7 @@ export default function AutocompleteGenerico({
             setOpen(true);
           }}
           placeholder={placeholder}
-          className={`pr-8 h-8 text-xs uppercase ${inputClassName}`}
+          className={`pr-8 h-8 text-xs uppercase rounded-none ${inputClassName}`}
           style={{ textTransform: 'uppercase' }}
         />
         {searchTerm && (
