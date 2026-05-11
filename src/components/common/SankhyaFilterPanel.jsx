@@ -141,7 +141,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const handleSaveConfig = (name, createNew = false) => {
     const id = createNew ? `filtro_${Date.now()}` : activeConfigId || `filtro_${Date.now()}`;
     const nextConfig = { id, name, visibleFields, operators, filterFolders, fieldGroups };
-    setFilterConfigs((prev) => createNew ? [...prev, nextConfig] : prev.map((config) => config.id === id ? nextConfig : config));
+    setFilterConfigs((prev) => createNew ? [...prev.filter((config) => config.id !== id), nextConfig] : prev.map((config) => config.id === id ? nextConfig : config));
     setActiveConfigId(id);
   };
 

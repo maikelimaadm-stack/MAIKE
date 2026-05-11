@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,36 +40,41 @@ export default function SankhyaFilterConfigDialog({
   const [showForm, setShowForm] = useState(false);
   const [configName, setConfigName] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
+  const [draftNew, setDraftNew] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState(filterFolders[0]?.id || "");
+  const [selectedFieldId, setSelectedFieldId] = useState("");
 
   const selectedConfig = filterConfigs.find((config) => config.id === activeConfigId) || filterConfigs[0] || null;
   const selectedIndex = Math.max(0, filterConfigs.findIndex((config) => config.id === activeConfigId));
 
   const openConfig = (config) => {
     if (!config) return;
+    setDraftNew(false);
     onSelectConfig(config.id);
     setConfigName(config.name || "");
+    setSelectedFolderId((config.filterFolders || [])[0]?.id || "");
     setShowForm(true);
   };
 
   const handleNew = () => {
+    const folder = { id: makeFolderId(), name: "GERAL" };
+    setDraftNew(true);
     setConfigName("NOVO FILTRO");
-    onSaveConfig("NOVO FILTRO", true);
+    setVisibleFields([]);
+    setOperators({});
+    setFilterFolders([folder]);
+    setFieldGroups({});
+    setOpenGroups({ [folder.id]: true });
+    setSelectedFolderId(folder.id);
+    setSelectedFieldId("");
     setShowForm(true);
   };
 
   const handleSave = () => {
     const name = String(configName || "").trim().toUpperCase();
     if (!name) return;
-    onSaveConfig(name, false);
-  };
-
-  const toggleField = (fieldId, checked) => {
-    if (checked) {
-      setVisibleFields([...visibleFields, fieldId]);
-      if (!fieldGroups[fieldId]) setFieldGroups({ ...fieldGroups, [fieldId]: filterFolders[0]?.id });
-      return;
-    }
-    setVisibleFields(visibleFields.filter((id) => id !== fieldId));
+    onSaveConfig(name, draftNew);
+    setDraftNew(false);
   };
 
   const moveField = (fieldId, direction) => {
@@ -88,6 +92,7 @@ export default function SankhyaFilterConfigDialog({
     const folder = { id: makeFolderId(), name };
     setFilterFolders([...filterFolders, folder]);
     setOpenGroups((prev) => ({ ...prev, [folder.id]: true }));
+    setSelectedFolderId(folder.id);
     setNewFolderName("");
   };
 
@@ -111,10 +116,28 @@ export default function SankhyaFilterConfigDialog({
     setFilterFolders(next);
   };
 
-  const orderedFields = [
-    ...visibleFields.map((id) => fields.find((field) => field.id === id)).filter(Boolean),
-    ...fields.filter((field) => !visibleFields.includes(field.id))
-  ];
+  const availableFields = fields
+    .filter((field) => !visibleFields.includes(field.id))
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { sensitivity: "base" }));
+
+  const selectedFields = visibleFields
+    .map((id) => fields.find((field) => field.id === id))
+    .filter(Boolean);
+
+  const addSelectedField = () => {
+    if (!selectedFieldId || visibleFields.includes(selectedFieldId)) return;
+    const folderId = selectedFolderId || filterFolders[0]?.id;
+    setVisibleFields([...visibleFields, selectedFieldId]);
+    setFieldGroups({ ...fieldGroups, [selectedFieldId]: folderId });
+    setSelectedFieldId("");
+  };
+
+  const removeSelectedField = (fieldId) => {
+    setVisibleFields(visibleFields.filter((id) => id !== fieldId));
+    const nextGroups = { ...fieldGroups };
+    delete nextGroups[fieldId];
+    setFieldGroups(nextGroups);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -172,30 +195,45 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
+              <div className="ml-[191px] border border-slate-300 bg-slate-50 p-2 space-y-2">
+                <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
+                <div className="grid grid-cols-[150px_1fr_88px] gap-1">
+                  <Select value={selectedFolderId || filterFolders[0]?.id} onValueChange={setSelectedFolderId}>
+                    <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue placeholder="Pasta" /></SelectTrigger>
+                    <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Select value={selectedFieldId} onValueChange={setSelectedFieldId}>
+                    <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue placeholder="Selecione um campo em ordem alfabética" /></SelectTrigger>
+                    <SelectContent>{availableFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Button type="button" onClick={addSelectedField} className="h-7 rounded-none bg-green-600 hover:bg-green-700 text-xs"><Plus className="w-3.5 h-3.5" /> Adic.</Button>
+                </div>
+              </div>
+
               <div className="ml-[191px] text-xs font-semibold text-slate-700">Campos dentro das pastas</div>
               <div className="ml-[191px] space-y-1">
-                {orderedFields.map((field) => {
-                  const checked = visibleFields.includes(field.id);
+                {selectedFields.length === 0 && <div className="border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">Nenhum campo adicionado. Selecione uma pasta, escolha um campo e clique em Adic.</div>}
+                {selectedFields.map((field) => {
                   const position = visibleFields.indexOf(field.id);
                   const isOperated = field.type === "number" || field.type === "date";
 
                   return (
-                    <div key={field.id} className="grid grid-cols-[24px_1fr_150px_130px_52px] items-center gap-2 border border-slate-200 bg-white px-2 py-1 text-xs">
-                      <Checkbox checked={checked} onCheckedChange={(value) => toggleField(field.id, !!value)} className="rounded-none h-4 w-4" />
+                    <div key={field.id} className="grid grid-cols-[1fr_150px_130px_80px] items-center gap-2 border border-slate-200 bg-white px-2 py-1 text-xs">
                       <span className="font-medium text-slate-700 truncate">{field.label}</span>
-                      <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })} disabled={!checked}>
+                      <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
                         <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
                       </Select>
                       {isOperated ? (
-                        <Select value={operators[field.id] || "between"} onValueChange={(value) => setOperators({ ...operators, [field.id]: value })} disabled={!checked}>
+                        <Select value={operators[field.id] || "between"} onValueChange={(value) => setOperators({ ...operators, [field.id]: value })}>
                           <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{Object.entries(OPERATOR_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
                         </Select>
                       ) : <span className="text-slate-500">Exato/contém</span>}
                       <div className="flex items-center justify-end gap-1">
-                        <button type="button" onClick={() => moveField(field.id, -1)} disabled={!checked || position <= 0} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" onClick={() => moveField(field.id, 1)} disabled={!checked || position < 0 || position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border border-red-200 text-red-600"><Trash2 className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>
                   );
