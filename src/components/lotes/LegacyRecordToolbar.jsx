@@ -1,11 +1,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy } from "lucide-react";
+import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, Pencil } from "lucide-react";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
-export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showEditAction = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onEditRecord, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
@@ -24,6 +24,12 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
         <Button type="button" variant="outline" size="icon" onClick={onLast} disabled={!canNavigate || isLast} className={iconButtonClass} title="Último registro"><ChevronsRight className="w-3.5 h-3.5" /></Button>
                   {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDelete} disabled={!canNavigate} className={fileButtonClass} title="Excluir registro"><Trash2 className="w-3.5 h-3.5" /></Button>}
           {showDeleteDuplicateActions && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} disabled={!canNavigate} className={iconButtonClass} title="Duplicar registro"><Copy className="w-3.5 h-3.5" /></Button>}
+
+        {showEditAction &&
+        <Button type="button" variant="outline" size="icon" onClick={onEditRecord} className={iconButtonClass} title="Editar registro">
+          <Pencil className="w-3.5 h-3.5" />
+        </Button>
+        }
 
         {showSaveActions &&
         <>

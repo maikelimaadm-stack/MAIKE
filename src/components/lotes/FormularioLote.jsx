@@ -85,6 +85,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
   const [isDirty, setIsDirty] = useState(!isEditing || isDuplicating);
+  const [editMode, setEditMode] = useState(!isEditing || isDuplicating);
   // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
   const carregarDataEntrada = (data) => {
     if (!data) return new Date().toLocaleDateString("sv-SE");
@@ -137,6 +138,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     setFormData(buildFormData(initialData));
     setErrors({});
     setIsDirty(!isEditing || !!initialData?._isDuplicate);
+    setEditMode(!isEditing || !!initialData?._isDuplicate);
   }, [initialData?.id, initialData?.numero_lote, initialData?._isDuplicate, isEditing]);
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -189,8 +191,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return [...lista].sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR", { sensitivity: "base" }));
   }, [formData.setor_id, getAreasBySetor]);
 
+  const isReadOnly = isEditing && !isDuplicating && !editMode;
+  const readOnlyClass = isReadOnly ? "bg-slate-50 text-slate-700 cursor-default" : "";
+
   const getFieldClassName = (field, baseClass) => {
-    return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
+    return `${baseClass} ${readOnlyClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
   };
 
   const isEmptyValue = (value) => {
@@ -200,6 +205,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const handleChange = (field, value) => {
+    if (isReadOnly) return;
     setIsDirty(true);
     const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     const newData = { ...formData, [field]: normalizedValue };
@@ -289,6 +295,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return false;
   };
   const toggleSistemaProdutivo = (sistema) => {
+    if (isReadOnly) return;
     const atuais = parseSistemasProdutivos(formData.sistema_produtivo);
     const proximos = atuais.includes(sistema) ?
     atuais.filter((item) => item !== sistema) :
@@ -297,6 +304,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const handleCustomChange = (fieldName, value) => {
+    if (isReadOnly) return;
     setIsDirty(true);
     setErrors((prev) => ({ ...prev, [`campos_personalizados.${fieldName}`]: false }));
     setFormData((prev) => {
@@ -318,7 +326,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     const campoOptions = campoEngine.getOptionsCampo(campo, relatedOptions);
 
     if (campo.tipo === "textarea") {
-      return <Textarea value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className="text-xs uppercase bg-transparent px-1" rows={campo.rows || 2} />;
+      return <Textarea value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only || isReadOnly} className={`text-xs uppercase bg-transparent px-1 ${readOnlyClass}`} rows={campo.rows || 2} />;
     }
 
     if (campo.tipo === "calculado") {
@@ -329,7 +337,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
     if (campo.tipo === "select" || campo.tipo === "relation") {
       return (
-        <Select value={value || SELECT_EMPTY} onValueChange={(nextValue) => handleCustomChange(campo.field_name, nextValue === SELECT_EMPTY ? "" : nextValue)} disabled={campo.read_only}>
+        <Select value={value || SELECT_EMPTY} onValueChange={(nextValue) => handleCustomChange(campo.field_name, nextValue === SELECT_EMPTY ? "" : nextValue)} disabled={campo.read_only || isReadOnly}>
           <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder={(campo.placeholder || "SELECIONE").toUpperCase()} /></SelectTrigger>
           <SelectContent>
             <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
@@ -346,7 +354,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
     }
 
-    return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""}`} />;
+    return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""} ${readOnlyClass}`} />;
   };
 
   const handleSubmit = (e) => {
@@ -407,7 +415,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
 
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <div>
@@ -416,9 +424,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
           badgeLabel="LOTE"
           operationLabel={operationLabel}
-          showSaveActions={isDirty}
-          showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating}
+          showSaveActions={editMode}
+          showEditAction={isReadOnly}
+          showDeleteDuplicateActions={isEditing && !editMode && !isDuplicating}
           onCancel={onCancel}
+          onEditRecord={() => setEditMode(true)}
           onSettingsClick={onSettingsClick}
           onToggleView={onToggleView}
           total={total}
@@ -435,7 +445,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
-        <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
+        <fieldset disabled={isReadOnly} className="disabled:opacity-100">
+          <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
           <FL label="Descrição" required error={errors.nome} dataField="nome">
             <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
           </FL>
@@ -453,9 +464,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           <FL label="Código">
             <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-right border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
           </FL>
-        </div>
+          </div>
+        </fieldset>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+        <fieldset disabled={isReadOnly} className="disabled:opacity-100">
         <div className="min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" &&
@@ -591,8 +604,9 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             }
           </div>
         </div>
+        </fieldset>
 
-        {isDirty &&
+        {editMode &&
         <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
