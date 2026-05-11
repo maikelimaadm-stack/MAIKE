@@ -36,7 +36,7 @@ export default function GuidedRelationConfig({ form, updateForm, mode = "select"
     <>
       <Field label={title}>
         <AutocompleteGenerico
-          items={ENTIDADES_RELACIONAIS}
+          items={ENTIDADES_RELACIONAIS.map((item) => ({ ...item, id: item.value }))}
           value={entity || ""}
           onChange={(value) => handleEntityChange(value || "none")}
           placeholder="BUSCAR CADASTRO..."
