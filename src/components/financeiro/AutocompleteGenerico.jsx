@@ -25,6 +25,7 @@ export default function AutocompleteGenerico({
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const interactingWithDropdownRef = useRef(false);
   const portalContainerRef = useRef(null);
 
   const itemSelecionado = items.find(item => item.id === value);
@@ -75,6 +76,7 @@ export default function AutocompleteGenerico({
     function handleClickOutside(event) {
       const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(event.target);
       const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+      if (interactingWithDropdownRef.current) return;
       if (!isInsideWrapper && !isInsideDropdown) {
         setOpen(false);
         if (itemSelecionado) {
@@ -169,6 +171,19 @@ export default function AutocompleteGenerico({
         <div
           ref={dropdownRef}
           style={style}
+          onPointerDownCapture={() => {
+            interactingWithDropdownRef.current = true;
+          }}
+          onPointerUpCapture={() => {
+            setTimeout(() => {
+              interactingWithDropdownRef.current = false;
+            }, 120);
+          }}
+          onMouseLeave={() => {
+            setTimeout(() => {
+              interactingWithDropdownRef.current = false;
+            }, 120);
+          }}
           onWheel={(e) => e.stopPropagation()}
           className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto overscroll-contain"
         >
@@ -246,6 +261,7 @@ export default function AutocompleteGenerico({
           }}
           onBlur={() => {
             setTimeout(() => {
+              if (interactingWithDropdownRef.current) return;
               const activeElement = document.activeElement;
               const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(activeElement);
               const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(activeElement);
