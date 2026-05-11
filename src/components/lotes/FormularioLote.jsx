@@ -192,10 +192,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   }, [formData.setor_id, getAreasBySetor]);
 
   const opcoesSexo = useMemo(() => [
-    { id: "Macho", nome: "MACHO" },
-    { id: "Fêmea", nome: "FÊMEA" },
-    { id: "Misto", nome: "MISTO" }
-  ], []);
+  { id: "Macho", nome: "MACHO" },
+  { id: "Fêmea", nome: "FÊMEA" },
+  { id: "Misto", nome: "MISTO" }],
+  []);
 
   const opcoesMotivoEntrada = useMemo(() => MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() })), []);
 
@@ -483,7 +483,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         <div className="min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" &&
-            <div className="space-y-1">
+              <div className="space-y-1">
                 <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada" compact>
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
@@ -516,22 +516,22 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                     <div className="text-xs text-slate-600">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
                       {SISTEMAS.map((item) => {
-                      const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
-                      return <button key={item} type="button" onClick={() => toggleSistemaProdutivo(item)} className="flex items-center gap-1 text-xs text-slate-700 uppercase text-left bg-transparent hover:bg-slate-50 px-1">
+                        const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
+                        return <button key={item} type="button" onClick={() => toggleSistemaProdutivo(item)} className="flex items-center gap-1 text-xs text-slate-700 uppercase text-left bg-transparent hover:bg-slate-50 px-1">
                           <span className={`w-8 h-4 rounded-full relative inline-block shrink-0 ${checked ? "bg-green-500" : "bg-slate-300"}`}>
                             <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${checked ? "right-0.5" : "left-0.5"}`} />
                           </span>
                           <span>{item}</span>
                         </button>;
-                    })}
+                      })}
                     </div>
                   </div>
                 </FL>
               </div>
-            }
+              }
 
             {activeTab === "compra" &&
-            <div className="space-y-1">
+              <div className="space-y-1">
                 <FL label="Motivo da Entrada" dataField="motivo_entrada">
                   <AutocompleteGenerico items={opcoesMotivoEntrada} value={formData.motivo_entrada} onChange={(value) => handleChange("motivo_entrada", value)} placeholder="BUSCAR MOTIVO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
                 </FL>
@@ -556,42 +556,42 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
                 {!formData.motivo_entrada && <div className="ml-[191px] text-[11px] text-slate-500 pb-1">Selecione um motivo para exibir os campos correspondentes.</div>}
               </div>
-            }
+              }
 
             {activeTab === "identificacao" &&
-            <div className="space-y-1">
+              <div className="space-y-1">
                 <FL label="Identificador (Nome)"><Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
                 <FL label="Identificador (Sigla)"><Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
                 <FL label="Identificador (Cor)">
                   <AutocompleteGenerico items={opcoesCores} value={formData.identificador_cor} onChange={(value) => handleChange("identificador_cor", value)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} />
                 </FL>
               </div>
-            }
+              }
 
             {activeTab === "observacoes" &&
-            <div className="space-y-1">
+              <div className="space-y-1">
                 <FL label="Observações" wide><Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>
               </div>
-            }
+              }
 
             {activeTab === "campos_personalizados" &&
-            <div className="space-y-1">
+              <div className="space-y-1">
                 {camposPersonalizadosForm.length === 0 ?
-              <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
-              camposPersonalizadosForm.map((campo) =>
-              <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} compact={["number", "date", "time", "datetime", "calculado"].includes(campo.tipo)}>
+                <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
+                camposPersonalizadosForm.map((campo) =>
+                <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} compact={["number", "date", "time", "datetime", "calculado"].includes(campo.tipo)}>
                     {renderCampoPersonalizado(campo)}
                   </FL>
-              )}
+                )}
               </div>
-            }
+              }
           </div>
         </div>
 
         </fieldset>
 
         {editMode &&
-        <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
+        <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200 hidden">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
           </div>
