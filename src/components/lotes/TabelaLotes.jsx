@@ -436,7 +436,7 @@ export default function TabelaLotes({
         </PopoverTrigger>
         <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999] rounded-none">
           <div className="space-y-0.5 border-b px-1 py-1">
-            <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => {handleSort(colunaId);setMenuFiltroAberto(null);}}>
+            <button type="button" className="flex items-center w-full h-8 text-xs hover:bg-slate-100 rounded pr-2 pl-2" onClick={() => {handleSort(colunaId);setMenuFiltroAberto(null);}}>
               <ArrowDownAZ className="w-4 h-4 mr-2" /> Classificar do Menor para o Maior
             </button>
             <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => {setSortConfig({ key: colunaId, direction: "desc" });setMenuFiltroAberto(null);}}>
