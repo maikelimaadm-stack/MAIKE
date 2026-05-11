@@ -187,13 +187,14 @@ export default function AutocompleteGenerico({
             <div
               key={item.id}
               onPointerDown={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
-                handleSelect(item);
               }}
               onMouseDown={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelect(item);
               }}
               onWheel={(e) => e.stopPropagation()}
               onMouseEnter={() => setActiveIndex(index)}
