@@ -219,7 +219,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="border border-slate-300 bg-slate-50 p-2.5 space-y-2 shadow-sm ml-[14px]">
+              <div className="border border-slate-300 bg-slate-50 shadow-sm space-y-1 p-1">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
                 <div className="grid grid-cols-[1fr_90px] gap-1">
                   <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
