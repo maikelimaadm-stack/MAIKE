@@ -166,7 +166,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   const relatedSources = useMemo(() => camposPersonalizadosForm.
   map((campo) => {
     const entity = campoEngine.getOptionsSourceKey(campo);
-    return entity ? { entity, labelField: campo.options_label_field || campo.relation_display_field || "nome", valueField: campo.options_value_field || "id" } : null;
+    return campo.tipo === "relation" && entity ? { entity, labelField: campo.options_label_field || campo.relation_display_field || "nome", valueField: campo.options_value_field || "id" } : null;
   }).
   filter(Boolean), [camposPersonalizadosForm]);
 
@@ -367,7 +367,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           id: optionValue,
           nome: String(option.label || option.value || "").toUpperCase()
         };
-      });
+      }).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
 
       return (
         <AutocompleteGenerico

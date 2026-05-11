@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import loteRepository from "@/core/repositories/loteRepository";
 import GuidedRelationConfig from "./GuidedRelationConfig";
+import ManualSelectOptionsConfig from "./ManualSelectOptionsConfig";
 import VisualCalculationBuilder from "./VisualCalculationBuilder";
 import DecimalConfig from "./DecimalConfig";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
@@ -51,6 +52,7 @@ const initialForm = {
   agregacao_tipo: "none",
   agregacao_campo_base: "",
   options_source_entity: "",
+  options_text: "",
   options_label_field: "nome",
   options_value_field: "id",
   relation_entity: "",
@@ -117,6 +119,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     const calculationItems = form.calculation_builder?.items || [];
     const formula = form.tipo === "calculado" ? montarFormulaVisual(calculationItems) : "";
     const deps = calculationItems.map((item) => item.field).filter(Boolean);
+    const manualOptions = form.tipo === "select" ? String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean).filter((item, index, array) => array.indexOf(item) === index).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).map((item) => ({ value: item, label: item })) : [];
 
     return {
       ...form,
@@ -128,8 +131,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
       ordenavel: true,
       filtravel: !["textarea"].includes(form.tipo),
       alinhamento: ["number", "calculado"].includes(form.tipo) ? "right" : "left",
-      options: [],
-      options_source: form.options_source_entity || "",
+      options: manualOptions,
+      options_text: form.tipo === "select" ? manualOptions.map((option) => option.label).join("\n") : "",
+      options_source: "",
       agregacao_tipo: form.agregacao_tipo === "none" ? undefined : form.agregacao_tipo,
       agregacao_campo_base: "",
       formula,
@@ -203,7 +207,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
-    if (form.tipo === "select" && !form.options_source_entity) return toast.error("Selecione a lista do sistema.");
+    if (form.tipo === "select" && String(form.options_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return toast.error("Informe pelo menos uma opção da lista.");
     saveMutation.mutate();
   };
 
@@ -220,10 +224,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
         next.read_only = value === "calculado";
         next.visivel_form = value !== "calculado";
         if (value !== "select") {
-          next.options_source_entity = "";
-          next.options_label_field = "nome";
-          next.options_value_field = "id";
+          next.options = [];
+          next.options_text = "";
         }
+        next.options_source_entity = "";
+        next.options_label_field = "nome";
+        next.options_value_field = "id";
         if (value !== "relation") {
           next.relation_entity = "";
           next.relation_display_field = "nome";
@@ -249,6 +255,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setForm({
       ...initialForm,
       ...campo,
+      options_text: campo.options_text || (campo.options || []).map((option) => option.label || option.value || option).join("\n"),
       agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "none",
       calculation_builder: { items: items.length ? items : initialForm.calculation_builder.items },
       usar_decimal: !!campo.usar_decimal,
@@ -308,6 +315,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setForm({
       ...initialForm,
       ...copy,
+      options_text: copy.options_text || (copy.options || []).map((option) => option.label || option.value || option).join("\n"),
       label: `${selectedCampo.label || "Campo"} - Cópia`,
       field_name: "",
       agregacao_tipo: selectedCampo.agregacao_tipo || selectedCampo.agregacao || "none",
@@ -363,7 +371,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
               <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Descrição"><Input value={form.descricao} onChange={(e) => updateForm("descricao", e.target.value)} placeholder="EXPLICAÇÃO OPCIONAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
 
-              {form.tipo === "select" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="select" />}
+              {form.tipo === "select" && <ManualSelectOptionsConfig form={form} updateForm={updateForm} />}
               {form.tipo === "relation" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="relation" />}
               {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
               <DecimalConfig form={form} updateForm={updateForm} />

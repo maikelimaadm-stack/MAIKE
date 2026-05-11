@@ -27,7 +27,7 @@ const OPERATORS = { "+": 1, "-": 1, "*": 2, "/": 2 };
 const isCustom = (campo) => campo?.customField || campo?.origem === "customizado" || String(campo?.id || "").startsWith("custom:");
 const getCustomKey = (campo) => campo?.customField || campo?.field_name || String(campo?.id || "").replace("custom:", "");
 
-const getSourceKey = (campo) => campo?.options_source_entity || campo?.relation_entity || campo?.options_source || "";
+const getSourceKey = (campo) => campo?.tipo === "relation" ? campo?.relation_entity || "" : campo?.options_source_entity || campo?.options_source || "";
 const getLabelField = (campo) => campo?.options_label_field || campo?.relation_display_field || "nome";
 const getValueField = (campo) => campo?.options_value_field || "id";
 
@@ -176,11 +176,11 @@ export const campoEngine = {
 
   getOptionsCampo(campo, relatedOptions = {}) {
     const sourceKey = getSourceKey(campo);
-    if (sourceKey) return relatedOptions[sourceKey] || [];
+    if (campo?.tipo === "relation" && sourceKey) return relatedOptions[sourceKey] || [];
     return (campo.options || []).map((option) => ({
       value: option.value || option.label,
       label: option.label || option.value
-    }));
+    })).sort((a, b) => String(a.label || "").localeCompare(String(b.label || ""), "pt-BR", { sensitivity: "base" }));
   },
 
   calcularCampo(registro, campo) {
