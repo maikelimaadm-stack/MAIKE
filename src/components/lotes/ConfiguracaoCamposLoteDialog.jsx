@@ -239,7 +239,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const loadCampoForm = (campo) => {
     const items = campo.calculation_builder?.items || (campo.campos_dependentes || campo.dependencias || []).map((field, index) => ({ field, operator: index === 0 ? "*" : "*" }));
-    setEditingId(campo.id);
+    setEditingId(campo.id || campo.field_id);
     setSelectedCampoIds([campo.id || campo.field_id]);
     setIsDirty(false);
     setIsDuplicating(false);
