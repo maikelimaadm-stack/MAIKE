@@ -94,6 +94,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [eixosXSintetico, setEixosXSintetico] = useState(['setor']); // Múltiplas colunas do eixo X
   const [eixosYSintetico, setEixosYSintetico] = useState(['categoria']); // Múltiplas linhas do eixo Y
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false); // Mostrar Entradas/Saídas/Saldo nas células
+  const [mostrarEntradasSaidasSintetico, setMostrarEntradasSaidasSintetico] = useState(true);
 
   // Opções de linha para o eixo Y do relatório sintético (matriz)
   const EIXO_Y_OPCOES = [
@@ -327,6 +328,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     setEixosXSintetico(['setor']);
     setEixosYSintetico(['categoria']);
     setMostrarDetalhes(false);
+    setMostrarEntradasSaidasSintetico(true);
   };
 
   const totalEntradas = movimentacoesFiltradas.filter((m) => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
@@ -434,13 +436,24 @@ export default function RelatorioMovimentacoesPecuaria() {
                   </Popover>
                 </div>
                 <div className="space-y-1 flex items-end">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                    id="mostrarDetalhes"
-                    checked={mostrarDetalhes}
-                    onCheckedChange={setMostrarDetalhes} />
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                      id="mostrarDetalhes"
+                      checked={mostrarDetalhes}
+                      onCheckedChange={setMostrarDetalhes} />
 
-                    <label htmlFor="mostrarDetalhes" className="text-xs cursor-pointer">Mostrar E/S/Saldo</label>
+                      <label htmlFor="mostrarDetalhes" className="text-xs cursor-pointer">Mostrar E/S/Saldo nas células</label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={mostrarEntradasSaidasSintetico ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => setMostrarEntradasSaidasSintetico((prev) => !prev)}
+                      className={`h-7 text-xs ${!mostrarEntradasSaidasSintetico ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                    >
+                      {mostrarEntradasSaidasSintetico ? "Ocultar Entradas/Saídas" : "Mostrar Entradas/Saídas"}
+                    </Button>
                   </div>
                 </div>
               </>
@@ -780,12 +793,16 @@ export default function RelatorioMovimentacoesPecuaria() {
                             {col}
                           </TableHead>
                       )}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
-                          Entradas
-                        </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
-                          Saídas
-                        </TableHead>
+                        {mostrarEntradasSaidasSintetico && (
+                          <>
+                            <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
+                              Entradas
+                            </TableHead>
+                            <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
+                              Saídas
+                            </TableHead>
+                          </>
+                        )}
                         <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
                           Saldo
                         </TableHead>
@@ -816,12 +833,16 @@ export default function RelatorioMovimentacoesPecuaria() {
                               </TableCell>);
 
                       })}
-                          <TableCell className="border border-gray-300 text-xs text-center py-1 bg-green-50">
-                            {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
-                          </TableCell>
-                          <TableCell className="border border-gray-300 text-xs text-center py-1 bg-red-50">
-                            {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
-                          </TableCell>
+                          {mostrarEntradasSaidasSintetico && (
+                            <>
+                              <TableCell className="border border-gray-300 text-xs text-center py-1 bg-green-50">
+                                {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
+                              </TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-center py-1 bg-red-50">
+                                {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
+                              </TableCell>
+                            </>
+                          )}
                           <TableCell className="border border-gray-300 text-xs text-center py-1 font-bold bg-blue-50">
                             {formatarNumero(totaisLinhaFinal[linha].saldo)}
                           </TableCell>
@@ -850,12 +871,16 @@ export default function RelatorioMovimentacoesPecuaria() {
                             </TableCell>);
 
                       })}
-                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-green-100">
-                          {formatarNumero(totalGeral.entradas)}
-                        </TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-red-100">
-                          {formatarNumero(totalGeral.saidas)}
-                        </TableCell>
+                        {mostrarEntradasSaidasSintetico && (
+                          <>
+                            <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-green-100">
+                              {formatarNumero(totalGeral.entradas)}
+                            </TableCell>
+                            <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-red-100">
+                              {formatarNumero(totalGeral.saidas)}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-blue-100">
                           {formatarNumero(totalGeral.saldo)}
                         </TableCell>
