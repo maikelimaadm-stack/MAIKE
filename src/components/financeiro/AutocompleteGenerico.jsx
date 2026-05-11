@@ -86,8 +86,8 @@ export default function AutocompleteGenerico({
         }
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [open, itemSelecionado, displayField]);
 
   const itensFiltrados = [...items]
@@ -177,13 +177,9 @@ export default function AutocompleteGenerico({
           onPointerUpCapture={() => {
             setTimeout(() => {
               interactingWithDropdownRef.current = false;
-            }, 120);
+            }, 300);
           }}
-          onMouseLeave={() => {
-            setTimeout(() => {
-              interactingWithDropdownRef.current = false;
-            }, 120);
-          }}
+          onMouseLeave={() => {}}
           onWheel={(e) => e.stopPropagation()}
           className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto overscroll-contain"
         >
@@ -259,15 +255,7 @@ export default function AutocompleteGenerico({
             calcPosition();
             setOpen(true);
           }}
-          onBlur={() => {
-            setTimeout(() => {
-              if (interactingWithDropdownRef.current) return;
-              const activeElement = document.activeElement;
-              const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(activeElement);
-              const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(activeElement);
-              if (!isInsideDropdown && !isInsideWrapper) setOpen(false);
-            }, 80);
-          }}
+          onBlur={() => {}}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           readOnly={readOnly}
