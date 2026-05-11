@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
+import loteRepository from "@/core/repositories/loteRepository";
+import campoEngine from "@/services/campoEngine";
 
 const FIELD_DEFS = [
   { id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName" },
@@ -31,16 +34,58 @@ const DEFAULT_FIELD_GROUPS = FIELD_DEFS.reduce((acc, field) => {
   acc[field.id] = folder?.id || DEFAULT_FOLDERS[0].id;
   return acc;
 }, {});
+const FILTER_CONFIGS_KEY = "cadastro_lotes_filter_configs";
+const ACTIVE_FILTER_CONFIG_KEY = "cadastro_lotes_active_filter_config";
+const DEFAULT_FILTER_CONFIG = {
+  id: "padrao",
+  name: "PADRÃO",
+  visibleFields: DEFAULT_FIELDS,
+  operators: DEFAULT_OPERATORS,
+  filterFolders: DEFAULT_FOLDERS,
+  fieldGroups: DEFAULT_FIELD_GROUPS
+};
 const inputClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
 const selectClass = "h-6 rounded-none border-slate-300 px-1.5 text-xs shadow-none";
 
 export default function SankhyaFilterPanel({ open, filters, onChange, onApply, onClear, lotes = [], areas = [] }) {
-  const [visibleFields, setVisibleFields] = useState(DEFAULT_FIELDS);
-  const [operators, setOperators] = useState(DEFAULT_OPERATORS);
+  const [filterConfigs, setFilterConfigs] = useState(() => {
+    const saved = localStorage.getItem(FILTER_CONFIGS_KEY);
+    if (!saved) return [DEFAULT_FILTER_CONFIG];
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.length ? parsed : [DEFAULT_FILTER_CONFIG];
+    } catch {
+      return [DEFAULT_FILTER_CONFIG];
+    }
+  });
+  const [activeConfigId, setActiveConfigId] = useState(() => localStorage.getItem(ACTIVE_FILTER_CONFIG_KEY) || "padrao");
+  const activeConfig = filterConfigs.find((config) => config.id === activeConfigId) || filterConfigs[0] || DEFAULT_FILTER_CONFIG;
+  const [visibleFields, setVisibleFields] = useState(activeConfig.visibleFields || DEFAULT_FIELDS);
+  const [operators, setOperators] = useState(activeConfig.operators || DEFAULT_OPERATORS);
   const [configOpen, setConfigOpen] = useState(false);
-  const [filterFolders, setFilterFolders] = useState(DEFAULT_FOLDERS);
-  const [fieldGroups, setFieldGroups] = useState(DEFAULT_FIELD_GROUPS);
-  const [openGroups, setOpenGroups] = useState({ detalhes_lote: true, localizacao: true, identificacao: true });
+  const [filterFolders, setFilterFolders] = useState(activeConfig.filterFolders || DEFAULT_FOLDERS);
+  const [fieldGroups, setFieldGroups] = useState(activeConfig.fieldGroups || DEFAULT_FIELD_GROUPS);
+  const [openGroups, setOpenGroups] = useState(Object.fromEntries((activeConfig.filterFolders || DEFAULT_FOLDERS).map((folder) => [folder.id, true])));
+
+  const { data: camposPersonalizados = [] } = useQuery({
+    queryKey: ["lote-campos-personalizados"],
+    queryFn: () => loteRepository.listCamposPersonalizados(),
+    initialData: []
+  });
+
+  const customFields = useMemo(() => {
+    return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_tabela !== false).map((campo) => ({
+      id: `custom:${campo.field_name}`,
+      label: campo.label,
+      group: "Campos personalizados",
+      type: ["number", "calculado"].includes(campo.tipo) ? "number" : campo.tipo === "date" ? "date" : campo.tipo === "select" && (campo.options || []).length > 0 ? "select" : "text",
+      options: (campo.options || []).map((option) => option.label || option.value || option).sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" })),
+      customField: campo.field_name,
+      campo
+    }));
+  }, [camposPersonalizados]);
+
+  const allFields = useMemo(() => [...FIELD_DEFS, ...customFields], [customFields]);
 
   const options = useMemo(() => {
     const uniqBy = (items, key) => Array.from(new Map(items.filter((item) => item?.[key]).map((item) => [item[key], item])).values())
@@ -75,6 +120,37 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       })), "nome")
     };
   }, [areas, lotes]);
+
+  useEffect(() => {
+    localStorage.setItem(FILTER_CONFIGS_KEY, JSON.stringify(filterConfigs));
+  }, [filterConfigs]);
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_FILTER_CONFIG_KEY, activeConfigId);
+  }, [activeConfigId]);
+
+  useEffect(() => {
+    const config = filterConfigs.find((item) => item.id === activeConfigId) || filterConfigs[0] || DEFAULT_FILTER_CONFIG;
+    setVisibleFields(config.visibleFields || DEFAULT_FIELDS);
+    setOperators(config.operators || DEFAULT_OPERATORS);
+    setFilterFolders(config.filterFolders || DEFAULT_FOLDERS);
+    setFieldGroups(config.fieldGroups || DEFAULT_FIELD_GROUPS);
+    setOpenGroups(Object.fromEntries((config.filterFolders || DEFAULT_FOLDERS).map((folder) => [folder.id, true])));
+  }, [activeConfigId]);
+
+  const handleSaveConfig = (name, createNew = false) => {
+    const id = createNew ? `filtro_${Date.now()}` : activeConfigId || `filtro_${Date.now()}`;
+    const nextConfig = { id, name, visibleFields, operators, filterFolders, fieldGroups };
+    setFilterConfigs((prev) => createNew ? [...prev, nextConfig] : prev.map((config) => config.id === id ? nextConfig : config));
+    setActiveConfigId(id);
+  };
+
+  const handleDeleteConfig = (id) => {
+    if (filterConfigs.length <= 1) return;
+    const next = filterConfigs.filter((config) => config.id !== id);
+    setFilterConfigs(next);
+    if (activeConfigId === id) setActiveConfigId(next[0]?.id || "padrao");
+  };
 
   if (!open) return null;
 
@@ -117,7 +193,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   );
 
   const renderField = (fieldId) => {
-    const field = FIELD_DEFS.find((item) => item.id === fieldId);
+    const field = allFields.find((item) => item.id === fieldId);
     if (!field) return null;
 
     return (
@@ -129,7 +205,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         {field.type === "select" &&
           <Select value={filters[field.id] || "todos"} onValueChange={(value) => update(field.id, value)}>
             <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="todos">Todos</SelectItem>{field.options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+            <SelectContent><SelectItem value="todos">Todos</SelectItem>{(field.options || []).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
           </Select>}
         {field.type === "number" && renderOperatedField(field, renderNumberInput)}
         {field.type === "date" && renderOperatedField(field, renderDateInput)}
@@ -155,7 +231,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         </div>
         <div className="flex items-center justify-between h-6 border-t border-slate-200 pt-1">
           <div className="flex items-center gap-2"><Checkbox checked={false} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
-          <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">0</button>
+          <button type="button" onClick={clearAll} className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-red-500 text-white text-[11px] font-bold">{activeConfig?.name || "PADRÃO"}</button>
         </div>
       </div>
 
@@ -180,7 +256,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       <SankhyaFilterConfigDialog
         open={configOpen}
         onOpenChange={setConfigOpen}
-        fields={FIELD_DEFS}
+        fields={allFields}
         visibleFields={visibleFields}
         setVisibleFields={setVisibleFields}
         operators={operators}
@@ -190,6 +266,11 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         fieldGroups={fieldGroups}
         setFieldGroups={setFieldGroups}
         setOpenGroups={setOpenGroups}
+        filterConfigs={filterConfigs}
+        activeConfigId={activeConfigId}
+        onSelectConfig={setActiveConfigId}
+        onSaveConfig={handleSaveConfig}
+        onDeleteConfig={handleDeleteConfig}
       />
     </aside>
   );

@@ -11,6 +11,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import loteRepository from "@/core/repositories/loteRepository";
+import campoEngine from "@/services/campoEngine";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -54,6 +55,16 @@ export default function CadastroLotes() {
     initialData: []
   });
 
+  const { data: camposPersonalizadosFiltro = [] } = useQuery({
+    queryKey: ["lote-campos-personalizados"],
+    queryFn: () => loteRepository.listCamposPersonalizados(),
+    initialData: []
+  });
+
+  const camposFiltroPersonalizados = useMemo(() => {
+    return camposPersonalizadosFiltro.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_tabela !== false);
+  }, [camposPersonalizadosFiltro]);
+
   const hasActiveFilters = useMemo(() => {
     return Object.entries(appliedFilters).some(([key, value]) => {
       if (key === "status") return value && value !== "todos";
@@ -88,11 +99,27 @@ export default function CadastroLotes() {
       const peso = Number(lote.peso_entrada_kg ?? lote.peso_medio_kg ?? 0);
       if (!checkNumeric("peso", peso)) return false;
       const dataEntrada = String(lote.data_entrada || "").split("T")[0];
-      if (appliedFilters.data_inicio && dataEntrada < appliedFilters.data_inicio) return false;
-      if (appliedFilters.data_fim && dataEntrada > appliedFilters.data_fim) return false;
+      const dataOperator = operators.data || "between";
+      if (dataOperator === "exact" && appliedFilters.data_exact && dataEntrada !== appliedFilters.data_exact) return false;
+      if ((dataOperator === "between" || dataOperator === "gt") && appliedFilters.data_min && dataEntrada < appliedFilters.data_min) return false;
+      if ((dataOperator === "between" || dataOperator === "lt") && appliedFilters.data_max && dataEntrada > appliedFilters.data_max) return false;
+
+      for (const campo of camposFiltroPersonalizados) {
+        const fieldId = `custom:${campo.field_name}`;
+        const rawValue = lote.campos_personalizados?.[campo.field_name];
+        const displayValue = campoEngine.getValorCampo(lote, { ...campo, id: fieldId, customField: campo.field_name });
+        if (["number", "calculado"].includes(campo.tipo) && !checkNumeric(fieldId, Number(rawValue || 0))) return false;
+        if (campo.tipo === "date") {
+          const dateValue = String(rawValue || "").split("T")[0];
+          if (appliedFilters[`${fieldId}_min`] && dateValue < appliedFilters[`${fieldId}_min`]) return false;
+          if (appliedFilters[`${fieldId}_max`] && dateValue > appliedFilters[`${fieldId}_max`]) return false;
+          if (appliedFilters[`${fieldId}_exact`] && dateValue !== appliedFilters[`${fieldId}_exact`]) return false;
+        }
+        if (!["number", "calculado", "date"].includes(campo.tipo) && appliedFilters[fieldId] && appliedFilters[fieldId] !== "todos" && !contains(displayValue, appliedFilters[fieldId])) return false;
+      }
       return true;
     });
-  }, [lotes, appliedFilters]);
+  }, [lotes, appliedFilters, camposFiltroPersonalizados]);
 
   const createLoteMutation = useMutation({
     mutationFn: (data) => loteRepository.create(data, { empresaId: empresaSelecionadaId }),
