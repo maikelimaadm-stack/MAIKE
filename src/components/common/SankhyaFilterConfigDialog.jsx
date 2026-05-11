@@ -211,7 +211,7 @@ export default function SankhyaFilterConfigDialog({
             showUtilityActions={false} />
           
 
-            <div className="flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-">
+            <div className="flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1">
               <div className="grid grid-cols-[140px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">Nome do filtro:</label>
                 <div className="h-6 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
@@ -219,7 +219,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="border border-slate-300 bg-slate-50 p-2.5 space-y-2 ml-[141px] shadow-sm">
+              <div className="border border-slate-300 bg-slate-50 p-2.5 space-y-2 shadow-sm ml-[14px]">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
                 <div className="grid grid-cols-[1fr_90px] gap-1">
                   <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
