@@ -86,16 +86,28 @@ export default function CadastroLotes() {
         if (!filterValue || filterValue === "todos") return true;
         const operator = operators[field] || "contains";
         const text = String(value || "").toLowerCase();
-        if (operator === "exact") return text === String(filterValue).toLowerCase().trim();
-        if (operator === "custom") return customList(filterValue).includes(text);
-        return text.includes(String(filterValue).toLowerCase().trim());
+        const term = String(filterValue).toLowerCase().trim();
+        if (operator === "empty") return !text;
+        if (operator === "notEmpty") return !!text;
+        if (operator === "exact") return text === term;
+        if (operator === "different") return text !== term;
+        if (operator === "startsWith") return text.startsWith(term);
+        if (operator === "endsWith") return text.endsWith(term);
+        if (operator === "notContains") return !text.includes(term);
+        if (operator === "custom" || operator === "in") return customList(filterValue).includes(text);
+        if (operator === "notIn") return !customList(filterValue).includes(text);
+        return text.includes(term);
       };
       const checkNumeric = (field, value) => {
         const operator = operators[field] || "between";
-        if (operator === "custom" && appliedFilters[`${field}_exact`] && !customList(appliedFilters[`${field}_exact`]).includes(String(value).toLowerCase())) return false;
+        if (operator === "empty") return value === null || value === undefined || value === "" || Number.isNaN(value);
+        if (operator === "notEmpty") return !(value === null || value === undefined || value === "" || Number.isNaN(value));
+        if ((operator === "custom" || operator === "in") && appliedFilters[`${field}_exact`] && !customList(appliedFilters[`${field}_exact`]).includes(String(value).toLowerCase())) return false;
+        if (operator === "notIn" && appliedFilters[`${field}_exact`] && customList(appliedFilters[`${field}_exact`]).includes(String(value).toLowerCase())) return false;
         if (operator === "exact" && appliedFilters[`${field}_exact`] && value !== Number(appliedFilters[`${field}_exact`])) return false;
-        if ((operator === "between" || operator === "gte") && appliedFilters[`${field}_min`] && value < Number(appliedFilters[`${field}_min`])) return false;
-        if ((operator === "between" || operator === "lte") && appliedFilters[`${field}_max`] && value > Number(appliedFilters[`${field}_max`])) return false;
+        if (operator === "different" && appliedFilters[`${field}_exact`] && value === Number(appliedFilters[`${field}_exact`])) return false;
+        if ((operator === "between" || operator === "gte" || operator === "gt") && appliedFilters[`${field}_min`] && (operator === "gt" ? value <= Number(appliedFilters[`${field}_min`]) : value < Number(appliedFilters[`${field}_min`]))) return false;
+        if ((operator === "between" || operator === "lte" || operator === "lt") && appliedFilters[`${field}_max`] && (operator === "lt" ? value >= Number(appliedFilters[`${field}_max`]) : value > Number(appliedFilters[`${field}_max`]))) return false;
         return true;
       };
       if (!checkText("categoria", lote.categoria)) return false;
@@ -111,10 +123,14 @@ export default function CadastroLotes() {
       if (!checkNumeric("peso", peso)) return false;
       const dataEntrada = String(lote.data_entrada || "").split("T")[0];
       const dataOperator = operators.data || "between";
-      if (dataOperator === "custom" && appliedFilters.data_exact && !customList(appliedFilters.data_exact).includes(dataEntrada.toLowerCase())) return false;
+      if (dataOperator === "empty" && dataEntrada) return false;
+      if (dataOperator === "notEmpty" && !dataEntrada) return false;
+      if ((dataOperator === "custom" || dataOperator === "in") && appliedFilters.data_exact && !customList(appliedFilters.data_exact).includes(dataEntrada.toLowerCase())) return false;
+      if (dataOperator === "notIn" && appliedFilters.data_exact && customList(appliedFilters.data_exact).includes(dataEntrada.toLowerCase())) return false;
       if (dataOperator === "exact" && appliedFilters.data_exact && dataEntrada !== appliedFilters.data_exact) return false;
-      if ((dataOperator === "between" || dataOperator === "gte") && appliedFilters.data_min && dataEntrada < appliedFilters.data_min) return false;
-      if ((dataOperator === "between" || dataOperator === "lte") && appliedFilters.data_max && dataEntrada > appliedFilters.data_max) return false;
+      if (dataOperator === "different" && appliedFilters.data_exact && dataEntrada === appliedFilters.data_exact) return false;
+      if ((dataOperator === "between" || dataOperator === "gte" || dataOperator === "gt") && appliedFilters.data_min && (dataOperator === "gt" ? dataEntrada <= appliedFilters.data_min : dataEntrada < appliedFilters.data_min)) return false;
+      if ((dataOperator === "between" || dataOperator === "lte" || dataOperator === "lt") && appliedFilters.data_max && (dataOperator === "lt" ? dataEntrada >= appliedFilters.data_max : dataEntrada > appliedFilters.data_max)) return false;
 
       for (const campo of camposFiltroPersonalizados) {
         const fieldId = `custom:${campo.field_name}`;
@@ -124,10 +140,14 @@ export default function CadastroLotes() {
         if (campo.tipo === "date") {
           const dateValue = String(rawValue || "").split("T")[0];
           const dateOperator = operators[fieldId] || "between";
-          if (dateOperator === "custom" && appliedFilters[`${fieldId}_exact`] && !customList(appliedFilters[`${fieldId}_exact`]).includes(dateValue.toLowerCase())) return false;
+          if (dateOperator === "empty" && dateValue) return false;
+          if (dateOperator === "notEmpty" && !dateValue) return false;
+          if ((dateOperator === "custom" || dateOperator === "in") && appliedFilters[`${fieldId}_exact`] && !customList(appliedFilters[`${fieldId}_exact`]).includes(dateValue.toLowerCase())) return false;
+          if (dateOperator === "notIn" && appliedFilters[`${fieldId}_exact`] && customList(appliedFilters[`${fieldId}_exact`]).includes(dateValue.toLowerCase())) return false;
           if (dateOperator === "exact" && appliedFilters[`${fieldId}_exact`] && dateValue !== appliedFilters[`${fieldId}_exact`]) return false;
-          if ((dateOperator === "between" || dateOperator === "gte") && appliedFilters[`${fieldId}_min`] && dateValue < appliedFilters[`${fieldId}_min`]) return false;
-          if ((dateOperator === "between" || dateOperator === "lte") && appliedFilters[`${fieldId}_max`] && dateValue > appliedFilters[`${fieldId}_max`]) return false;
+          if (dateOperator === "different" && appliedFilters[`${fieldId}_exact`] && dateValue === appliedFilters[`${fieldId}_exact`]) return false;
+          if ((dateOperator === "between" || dateOperator === "gte" || dateOperator === "gt") && appliedFilters[`${fieldId}_min`] && (dateOperator === "gt" ? dateValue <= appliedFilters[`${fieldId}_min`] : dateValue < appliedFilters[`${fieldId}_min`])) return false;
+          if ((dateOperator === "between" || dateOperator === "lte" || dateOperator === "lt") && appliedFilters[`${fieldId}_max`] && (dateOperator === "lt" ? dateValue >= appliedFilters[`${fieldId}_max`] : dateValue > appliedFilters[`${fieldId}_max`])) return false;
         }
         if (!["number", "calculado", "date"].includes(campo.tipo) && !checkText(fieldId, displayValue)) return false;
       }

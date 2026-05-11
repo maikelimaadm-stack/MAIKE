@@ -4,22 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Filter, Plus, ChevronDown, ChevronRight, Star, Zap } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
+import FilterActiveChips from "@/components/filters/FilterActiveChips";
+import { FieldTypeBadge } from "@/components/filters/FilterBadges";
 
 const FIELD_DEFS = [
-  { id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName" },
-  { id: "sexo", label: "Sexo", group: "Detalhes do lote", type: "select", options: ["Macho", "Fêmea", "Misto"] },
-  { id: "quantidade", label: "Quantidade de cabeças", group: "Detalhes do lote", type: "number" },
-  { id: "peso", label: "Peso médio", group: "Detalhes do lote", type: "number" },
-  { id: "categoria", label: "Categoria", group: "Detalhes do lote", type: "text" },
-  { id: "status", label: "Status", group: "Detalhes do lote", type: "select", options: ["Ativo", "Inativo", "Vendido", "Abatido", "Transferido"] },
-  { id: "area_codigo_nome", label: "Área", group: "Localização", type: "codeNameDynamic", source: "areas" },
-  { id: "setor_codigo_nome", label: "Setor", group: "Localização", type: "codeNameDynamic", source: "setores" },
-  { id: "data", label: "Data de entrada", group: "Identificação", type: "date" }
+  { id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 220, pinned: false, exportable: true } },
+  { id: "sexo", label: "Sexo", group: "Detalhes do lote", type: "select", options: ["Macho", "Fêmea", "Misto"], metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 120, pinned: false, exportable: true } },
+  { id: "quantidade", label: "Quantidade de cabeças", group: "Detalhes do lote", type: "number", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 150, pinned: false, exportable: true } },
+  { id: "peso", label: "Peso médio", group: "Detalhes do lote", type: "number", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 130, pinned: false, exportable: true } },
+  { id: "categoria", label: "Categoria", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
+  { id: "status", label: "Status", group: "Detalhes do lote", type: "select", options: ["Ativo", "Inativo", "Vendido", "Abatido", "Transferido"], metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 120, pinned: false, exportable: true } },
+  { id: "area_codigo_nome", label: "Área", group: "Localização", type: "codeNameDynamic", source: "areas", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 180, pinned: false, exportable: true } },
+  { id: "setor_codigo_nome", label: "Setor", group: "Localização", type: "codeNameDynamic", source: "setores", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
+  { id: "data", label: "Data de entrada", group: "Identificação", type: "date", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: false, width: 130, pinned: false, exportable: true } }
 ];
 
 const DEFAULT_FIELDS = ["lote_codigo_nome", "sexo", "quantidade", "peso", "area_codigo_nome", "setor_codigo_nome"];
@@ -81,7 +83,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       type: ["number", "calculado"].includes(campo.tipo) ? "number" : campo.tipo === "date" ? "date" : campo.tipo === "select" && (campo.options || []).length > 0 ? "select" : "text",
       options: (campo.options || []).map((option) => option.label || option.value || option).sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" })),
       customField: campo.field_name,
-      campo
+      campo,
+      metadata: { searchable: true, sortable: true, favorite: false, hidden: false, quickFilter: false, width: 160, pinned: false, exportable: true, customField: true }
     }));
   }, [camposPersonalizados]);
 
@@ -160,6 +163,12 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     onClear();
   };
 
+  const removeFilterValue = (key) => {
+    const next = { ...filters };
+    delete next[key];
+    onChange(next);
+  };
+
   const applyFilters = () => {
     onChange({ ...filters, _operators: operators });
     onApply();
@@ -178,7 +187,10 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     if (operator === "between") {
       return <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">{renderInput(field, "min")}<span className="text-slate-500">a</span>{renderInput(field, "max")}</div>;
     }
-    const suffix = operator === "gte" ? "min" : operator === "lte" ? "max" : "exact";
+    if (operator === "empty" || operator === "notEmpty") {
+      return <div className="h-6 flex items-center px-1.5 border border-slate-200 bg-slate-50 text-[11px] text-slate-500">Não precisa preencher valor</div>;
+    }
+    const suffix = operator === "gte" || operator === "gt" ? "min" : operator === "lte" || operator === "lt" ? "max" : "exact";
     return renderInput(field, suffix);
   };
 
@@ -197,13 +209,20 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     if (!field) return null;
 
     return (
-      <div key={field.id} className="border-b border-slate-200 pb-1">
-        <label className="block mb-0.5 text-slate-600 truncate">{field.label}</label>
+      <div key={field.id} className="rounded-sm border border-slate-200 bg-white p-1.5 shadow-sm hover:border-emerald-200">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <label className="min-w-0 truncate font-semibold text-slate-700">{field.label}</label>
+          <div className="flex items-center gap-1">
+            {field.metadata?.favorite && <Star className="h-3 w-3 text-amber-500" />}
+            {field.metadata?.quickFilter && <Zap className="h-3 w-3 text-blue-500" />}
+            <FieldTypeBadge type={field.type} />
+          </div>
+        </div>
         {field.type === "codeName" && renderCodeName("lote", "lotes", "Lote")}
         {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
-        {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={(operators[field.id] || "contains") === "custom" ? "Ex: X; Y; Z" : ""} className={inputClass} />}
+        {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : ""} className={inputClass} />}
         {field.type === "select" &&
-          <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={(operators[field.id] || "contains") === "custom" ? "Ex: X; Y; Z" : "Digite ou informe X;Y"} className={inputClass} />}
+          <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : "Digite o valor"} className={inputClass} />}
         {field.type === "number" && renderOperatedField(field, renderNumberInput)}
         {field.type === "date" && renderOperatedField(field, renderDateInput)}
       </div>
@@ -232,6 +251,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         </div>
       </div>
 
+      <FilterActiveChips filters={filters} fields={allFields} onRemove={removeFilterValue} onClear={clearAll} />
+
       <div className="h-8 px-1.5 flex items-center justify-between border-b border-green-500 bg-slate-50 font-semibold text-slate-700 shrink-0">
         <span>Filtros rápidos</span>
         <button type="button" onClick={clearAll} className="relative"><Filter className="w-4 h-4" /><span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-slate-700 text-white text-[9px] leading-3">×</span></button>
@@ -240,9 +261,12 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       <div className="flex-1 min-h-0 overflow-auto">
         {groupedFolders.map((folder) => (
           <div key={folder.id} className="border-b border-slate-300">
-            <button type="button" onClick={() => setOpenGroups({ ...openGroups, [folder.id]: !openGroups[folder.id] })} className="w-full h-8 px-2 flex items-center gap-1 bg-slate-100 font-semibold text-slate-700 text-left">
-              {openGroups[folder.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              {folder.name}
+            <button type="button" onClick={() => setOpenGroups({ ...openGroups, [folder.id]: !openGroups[folder.id] })} className="w-full h-8 px-2 flex items-center justify-between gap-1 bg-slate-100 font-semibold text-slate-700 text-left hover:bg-slate-200">
+              <span className="flex min-w-0 items-center gap-1">
+                {openGroups[folder.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                <span className="truncate">{folder.name}</span>
+              </span>
+              <span className="rounded-sm bg-white px-1.5 py-0.5 text-[10px] text-slate-500 border border-slate-200">{folder.fields.length}</span>
             </button>
             {openGroups[folder.id] && <div className="p-1.5 space-y-1.5">{folder.fields.map(renderField)}</div>}
           </div>

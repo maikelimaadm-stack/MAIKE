@@ -9,19 +9,30 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import LegacyRecordToolbar from "@/components/lotes/LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
+import { FieldTypeBadge, OperatorBadge, FieldMetaIndicators } from "@/components/filters/FilterBadges";
 
 const OPERATOR_LABELS = {
   contains: "Contém",
+  notContains: "Não contém",
   exact: "Exato",
+  different: "Diferente",
+  startsWith: "Começa com",
+  endsWith: "Termina com",
+  empty: "Vazio",
+  notEmpty: "Não vazio",
   gte: "Maior igual",
   lte: "Menor igual",
+  gt: "Maior que",
+  lt: "Menor que",
   between: "Entre",
+  in: "Dentro da lista",
+  notIn: "Fora da lista",
   custom: "Personalizado"
 };
 
 const getOperatorOptions = (field) => {
-  if (field.type === "number" || field.type === "date") return ["between", "gte", "lte", "exact", "custom"];
-  return ["contains", "exact", "custom"];
+  if (field.type === "number" || field.type === "date") return ["between", "gte", "lte", "gt", "lt", "exact", "different", "empty", "notEmpty", "in", "notIn", "custom"];
+  return ["contains", "notContains", "exact", "different", "startsWith", "endsWith", "empty", "notEmpty", "in", "notIn", "custom"];
 };
 
 const makeFolderId = () => `pasta_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -175,7 +186,7 @@ export default function SankhyaFilterConfigDialog({
               showUtilityActions={false}
             />
 
-            <div className="flex-1 overflow-auto px-4 md:px-8 py-2 space-y-2 max-w-[900px]">
+            <div className="flex-1 overflow-auto px-3 md:px-6 py-3 space-y-3 max-w-[1040px]">
               <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">Nome do filtro:</label>
                 <div className="h-6 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
@@ -183,7 +194,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="border border-slate-300 bg-slate-50 p-2 space-y-2 ml-[191px]">
+              <div className="border border-slate-300 bg-slate-50 p-2.5 space-y-2 ml-[191px] shadow-sm">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
                 <div className="grid grid-cols-[1fr_90px] gap-1">
                   <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
@@ -203,7 +214,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="ml-[191px] border border-slate-300 bg-slate-50 p-2 space-y-2">
+              <div className="ml-[191px] border border-slate-300 bg-slate-50 p-2.5 space-y-2 shadow-sm">
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
                 <div className="grid grid-cols-[150px_1fr_88px] gap-1">
                   <Select value={selectedFolderId || filterFolders[0]?.id} onValueChange={setSelectedFolderId}>
@@ -224,16 +235,28 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="ml-[191px] text-xs font-semibold text-slate-700">Campos dentro das pastas</div>
-              <div className="ml-[191px] space-y-1">
+              <div className="ml-[191px] flex items-center justify-between text-xs font-semibold text-slate-700">
+                <span>Campos dentro das pastas</span>
+                <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
+              </div>
+              <div className="ml-[191px] space-y-1.5">
                 {selectedFields.length === 0 && <div className="border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">Nenhum campo adicionado. Selecione uma pasta, escolha um campo e clique em Adic.</div>}
                 {selectedFields.map((field) => {
                   const position = visibleFields.indexOf(field.id);
                   const operatorOptions = getOperatorOptions(field);
 
                   return (
-                    <div key={field.id} className="grid grid-cols-[1fr_150px_140px_80px] items-center gap-2 border border-slate-200 bg-white px-2 py-1 text-xs">
-                      <span className="font-medium text-slate-700 truncate">{field.label}</span>
+                    <div key={field.id} className="grid grid-cols-[minmax(180px,1fr)_150px_140px_80px] items-center gap-2 border border-slate-200 bg-white px-2 py-1.5 text-xs shadow-sm hover:border-emerald-200 hover:bg-emerald-50/30">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-slate-800 truncate">{field.label}</span>
+                          <FieldMetaIndicators metadata={field.metadata} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <FieldTypeBadge type={field.type} />
+                          <OperatorBadge label={OPERATOR_LABELS[operators[field.id] || operatorOptions[0]]} />
+                        </div>
+                      </div>
                       <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
                         <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
