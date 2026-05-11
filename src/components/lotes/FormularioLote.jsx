@@ -341,7 +341,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     const next = {
       ...current,
       [part]: nextValue,
-      time: part === "date" && nextValue && !current.time ? horaAtual : current.time
+      ...(part === "date" && nextValue && !current.time ? { time: horaAtual } : {})
     };
     handleCustomChange(fieldName, next.date ? `${next.date}T${next.time || "00:00"}` : "");
   };
