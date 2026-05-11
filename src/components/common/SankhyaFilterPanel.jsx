@@ -9,8 +9,6 @@ import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
-import FilterActiveChips from "@/components/filters/FilterActiveChips";
-
 import { buildFiltersFromPreset } from "@/components/filters/filterPresetUtils";
 
 const FIELD_DEFS = [
@@ -204,12 +202,6 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     setConfigOpen(true);
   };
 
-  const removeFilterValue = (key) => {
-    const next = { ...filters };
-    delete next[key];
-    onChange(next);
-  };
-
   const applyFilters = () => {
     const nextFilters = { ...filters, _operators: operators };
     onChange(nextFilters);
@@ -297,16 +289,6 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
           </Select>
         </div>
       </div>
-
-      <div className="border-b border-slate-200 bg-white px-1.5 py-1 text-[11px] text-slate-600">
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold text-slate-700 truncate">Preset: {activeConfig?.name || "PADRÃO"}</span>
-          <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-            {Object.keys(fieldValues || {}).filter((key) => Object.values(fieldValues[key] || {}).some(Boolean)).length} pré-config.
-          </span>
-        </div>
-      </div>
-      <FilterActiveChips filters={filters} fields={allFields} onRemove={removeFilterValue} onClear={clearAll} />
 
       <div className="h-8 px-1.5 flex items-center justify-between border-b border-green-500 bg-slate-50 font-semibold text-slate-700 shrink-0">
         <span>Filtros rápidos</span>

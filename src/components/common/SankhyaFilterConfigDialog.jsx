@@ -274,24 +274,24 @@ export default function SankhyaFilterConfigDialog({
             showUtilityActions={false} />
           
 
-            <fieldset disabled={isReadOnly} className={`flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1 ${isReadOnly ? "[&_input]:cursor-default [&_button]:cursor-default" : ""}`}>
+            <div className={`flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1 ${isReadOnly ? "[&_input]:cursor-default [&_button]:cursor-default" : ""}`}>
               <div className="space-y-1">
                 <label className="text-[12px] font-semibold text-slate-700 leading-none">Nome do filtro</label>
                 <div className="h-7 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
-                  <Input value={configName} onChange={(e) => setConfigName(e.target.value.toUpperCase())} className="h-[26px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
+                  <Input value={configName} readOnly={isReadOnly} onChange={(e) => !isReadOnly && setConfigName(e.target.value.toUpperCase())} className="h-[26px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </div>
               </div>
 
               <div className="border border-slate-300 bg-slate-50 space-y-1 p-1">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
                 <div className="grid grid-cols-[1fr_32px] gap-1">
-                  <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
+                  <Input value={newFolderName} readOnly={isReadOnly} onChange={(e) => !isReadOnly && setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
                   <Button type="button" onClick={addFolder} title="Criar pasta" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus /></Button>
                 </div>
                 <div className="space-y-1">
                   {filterFolders.map((folder, index) =>
                 <div key={folder.id} className="grid grid-cols-[1fr_92px] gap-2 items-center">
-                      <Input value={folder.name} onChange={(e) => renameFolder(folder.id, e.target.value)} className="h-7 rounded-none text-xs uppercase" />
+                      <Input value={folder.name} readOnly={isReadOnly} onChange={(e) => renameFolder(folder.id, e.target.value)} className="h-7 rounded-none text-xs uppercase" />
                       <div className="flex justify-end gap-1">
                         <button type="button" onClick={() => moveFolder(folder.id, -1)} disabled={index === 0} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
                         <button type="button" onClick={() => moveFolder(folder.id, 1)} disabled={index === filterFolders.length - 1} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
@@ -308,7 +308,7 @@ export default function SankhyaFilterConfigDialog({
                   <AutocompleteGenerico
                     items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
                     value={selectedFolderId || ""}
-                    onChange={setSelectedFolderId}
+                    onChange={(value) => !isReadOnly && setSelectedFolderId(value)}
                     displayField="nome"
                     searchFields={["nome"]}
                     placeholder="PASTA"
@@ -318,7 +318,7 @@ export default function SankhyaFilterConfigDialog({
                   <AutocompleteGenerico
                   items={availableFields.map((field) => ({ ...field, nome: field.label, group: field.group }))}
                   value={selectedFieldId}
-                  onChange={setSelectedFieldId}
+                  onChange={(value) => !isReadOnly && setSelectedFieldId(value)}
                   displayField="nome"
                   searchFields={["nome", "group"]}
                   placeholder="PESQUISAR CAMPO"
@@ -354,7 +354,7 @@ export default function SankhyaFilterConfigDialog({
                         <AutocompleteGenerico
                           items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
                           value={fieldGroups[field.id] ?? ""}
-                          onChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}
+                          onChange={(value) => !isReadOnly && setFieldGroups({ ...fieldGroups, [field.id]: value })}
                           displayField="nome"
                           searchFields={["nome"]}
                           placeholder="PASTA"
@@ -392,7 +392,7 @@ export default function SankhyaFilterConfigDialog({
 
               })}
               </div>
-            </fieldset>
+            </div>
           </div> :
 
         <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
