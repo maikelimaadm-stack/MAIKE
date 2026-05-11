@@ -196,6 +196,7 @@ export default function SankhyaFilterConfigDialog({
               badgeLabel="FILTRO"
               operationLabel="EDIÇÃO DE REGISTRO"
               showSaveActions
+              onSave={handleSave}
               onCancel={() => setShowForm(false)}
               onToggleView={() => setShowForm(false)}
               onNew={handleNew}
@@ -210,19 +211,19 @@ export default function SankhyaFilterConfigDialog({
               showUtilityActions={false}
             />
 
-            <div className="flex-1 overflow-auto px-3 md:px-6 py-3 space-y-3 max-w-[1040px]">
-              <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
+            <div className="flex-1 overflow-auto px-3 md:px-6 py-3 space-y-3 w-full">
+              <div className="grid grid-cols-[140px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">Nome do filtro:</label>
                 <div className="h-6 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
                   <Input value={configName} onChange={(e) => setConfigName(e.target.value.toUpperCase())} className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </div>
               </div>
 
-              <div className="border border-slate-300 bg-slate-50 p-2.5 space-y-2 ml-[191px] shadow-sm">
+              <div className="border border-slate-300 bg-slate-50 p-2.5 space-y-2 ml-[141px] shadow-sm">
                 <div className="font-semibold text-slate-700 text-xs">Pastas do filtro</div>
                 <div className="grid grid-cols-[1fr_90px] gap-1">
                   <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value.toUpperCase())} placeholder="NOME DA NOVA PASTA" className="h-7 rounded-none text-xs uppercase" />
-                  <Button type="button" onClick={addFolder} className="h-7 rounded-none bg-green-600 hover:bg-green-700 text-xs"><Plus className="w-3.5 h-3.5" /> Criar</Button>
+                  <Button type="button" onClick={addFolder} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-xs font-semibold text-white shadow-none"><Plus className="w-4 h-4" /> Criar</Button>
                 </div>
                 <div className="space-y-1">
                   {filterFolders.map((folder, index) => (
@@ -238,7 +239,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
               </div>
 
-              <div className="ml-[191px] border border-slate-300 bg-slate-50 p-2.5 space-y-2 shadow-sm">
+              <div className="ml-[141px] border border-slate-300 bg-slate-50 p-2.5 space-y-2 shadow-sm">
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
                 <div className="grid grid-cols-[150px_1fr_88px] gap-1">
                   <Select value={selectedFolderId || filterFolders[0]?.id} onValueChange={setSelectedFolderId}>
@@ -255,16 +256,16 @@ export default function SankhyaFilterConfigDialog({
                     inputClassName="h-7"
                     renderSubtext={(item) => item.group}
                   />
-                  <Button type="button" onClick={addSelectedField} className="h-7 rounded-none bg-green-600 hover:bg-green-700 text-xs"><Plus className="w-3.5 h-3.5" /> Adic.</Button>
+                  <Button type="button" onClick={addSelectedField} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-xs font-semibold text-white shadow-none"><Plus className="w-4 h-4" /> Adic.</Button>
                 </div>
               </div>
 
-              <div className="ml-[191px] flex items-center justify-between text-xs font-semibold text-slate-700">
+              <div className="ml-[141px] flex items-center justify-between text-xs font-semibold text-slate-700">
                 <span>Campos do filtro</span>
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
-              <div className="ml-[191px] overflow-hidden border border-slate-300 bg-white">
-                <div className="grid grid-cols-[minmax(150px,1.3fr)_120px_130px_minmax(170px,1.4fr)_76px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+              <div className="ml-[141px] overflow-hidden border border-slate-300 bg-white">
+                <div className="grid grid-cols-[minmax(210px,1.5fr)_160px_170px_minmax(300px,2fr)_76px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                   <div className="px-2 py-1 border-r border-slate-300">Campo</div>
                   <div className="px-2 py-1 border-r border-slate-300">Pasta</div>
                   <div className="px-2 py-1 border-r border-slate-300">Operador</div>
@@ -277,7 +278,7 @@ export default function SankhyaFilterConfigDialog({
                   const operatorOptions = getOperatorOptions(field);
 
                   return (
-                    <div key={field.id} className="grid grid-cols-[minmax(150px,1.3fr)_120px_130px_minmax(170px,1.4fr)_76px] items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0">
+                    <div key={field.id} className="grid grid-cols-[minmax(210px,1.5fr)_160px_170px_minmax(300px,2fr)_76px] items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0">
                       <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
@@ -309,10 +310,6 @@ export default function SankhyaFilterConfigDialog({
                   );
                 })}
               </div>
-            </div>
-
-            <div className="border-t border-slate-200 bg-slate-50 p-2 flex justify-end">
-              <Button type="button" onClick={handleSave} className="h-7 rounded-none bg-emerald-600 hover:bg-emerald-700 text-xs">Salvar filtro</Button>
             </div>
           </div>
         ) : (

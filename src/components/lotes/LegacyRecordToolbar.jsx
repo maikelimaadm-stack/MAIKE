@@ -5,7 +5,7 @@ import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Sett
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
-export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showEditAction = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onEditRecord, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showEditAction = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSave, onEditRecord, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
@@ -32,7 +32,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
 
         {showSaveActions &&
         <>
-            <Button type="submit" variant="outline" size="icon" className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>
+            <Button type="button" variant="outline" size="icon" onClick={onSave} className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>
             <Button type="button" variant="outline" size="icon" onClick={onCancel} className={iconButtonClass} title="Descartar">
               <X className="w-3.5 h-3.5" />
             </Button>
