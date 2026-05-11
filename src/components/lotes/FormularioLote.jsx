@@ -359,6 +359,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!validateForm()) return;
 
     const area = areas.find((item) => item.id === formData.area_entrada_id);
@@ -445,30 +446,30 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
-        <fieldset disabled={isReadOnly} className="disabled:opacity-100">
+        <fieldset disabled={isReadOnly} className={isReadOnly ? "opacity-90 [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
-          <FL label="Descrição" required error={errors.nome} dataField="nome">
-            <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
-          </FL>
-          <FL label="Ativo">
-            <div className="h-[22px] flex items-center px-1">
-              <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
-            </div>
-          </FL>
-          <FL label="Data de Alteração">
-            <div className="grid grid-cols-2 gap-1">
-              <Input value={new Date().toLocaleDateString("pt-BR")} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
-              <Input value={new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
-            </div>
-          </FL>
-          <FL label="Código">
-            <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-right border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
-          </FL>
+            <FL label="Descrição" required error={errors.nome} dataField="nome">
+              <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
+            </FL>
+            <FL label="Ativo">
+              <div className="h-[22px] flex items-center px-1">
+                <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
+              </div>
+            </FL>
+            <FL label="Data de Alteração">
+              <div className="grid grid-cols-2 gap-1">
+                <Input value={new Date().toLocaleDateString("pt-BR")} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
+                <Input value={new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
+              </div>
+            </FL>
+            <FL label="Código">
+              <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-right border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
+            </FL>
           </div>
         </fieldset>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        <fieldset disabled={isReadOnly} className="disabled:opacity-100">
+        <fieldset disabled={isReadOnly} className={isReadOnly ? "opacity-90 [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
         <div className="min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
             {activeTab === "geral" &&
@@ -477,7 +478,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
+                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {if (isReadOnly) return;const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
                     <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
@@ -604,6 +605,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             }
           </div>
         </div>
+
         </fieldset>
 
         {editMode &&
