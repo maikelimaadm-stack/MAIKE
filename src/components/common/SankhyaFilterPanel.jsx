@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
-import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
 import loteRepository from "@/core/repositories/loteRepository";
@@ -283,18 +282,19 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
           <Button type="button" onClick={() => setConfigOpen(true)} className="h-7 rounded-none bg-green-500 hover:bg-green-600 text-white text-xs px-1"><Plus className="w-4 h-4" /> Filtro</Button>
           <Button type="button" onClick={applyFilters} className="h-7 rounded-none bg-slate-600 hover:bg-slate-700 text-white text-xs">Aplicar</Button>
         </div>
-        <div className="border-t border-slate-200 pt-1 space-y-1">
-          <div className="flex items-center gap-2 h-6"><Checkbox checked={activeConfigId !== "padrao"} onCheckedChange={toggleCustomFilter} className="h-3.5 w-3.5 rounded-none" /><span className="font-semibold text-slate-700">Filtro personalizado</span></div>
-          <AutocompleteGenerico
-            items={filterConfigs.map((config) => ({ ...config, nome: config.name }))}
-            value={activeConfigId || ""}
-            onChange={setActiveConfigId}
-            displayField="nome"
-            searchFields={["nome"]}
-            placeholder="FILTROS PERSONALIZADOS"
-            inputClassName="h-7 text-xs"
-            uppercaseDisplay={false}
-          />
+        <div className="border-t border-slate-200 pt-1">
+          <Select value={activeConfigId || "padrao"} onValueChange={setActiveConfigId}>
+            <SelectTrigger className="h-7 rounded-none border-slate-300 px-2 text-xs shadow-none">
+              <SelectValue placeholder="FILTROS PERSONALIZADOS" />
+            </SelectTrigger>
+            <SelectContent>
+              {filterConfigs.map((config) => (
+                <SelectItem key={config.id} value={config.id} className="text-xs">
+                  {config.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

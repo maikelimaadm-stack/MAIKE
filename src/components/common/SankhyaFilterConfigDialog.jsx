@@ -274,7 +274,7 @@ export default function SankhyaFilterConfigDialog({
             showUtilityActions={false} />
           
 
-            <fieldset disabled={isReadOnly} className={`flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1 ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_button]:cursor-default" : ""}`}>
+            <fieldset disabled={isReadOnly} className={`flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1 ${isReadOnly ? "[&_input]:cursor-default [&_button]:cursor-default" : ""}`}>
               <div className="space-y-1">
                 <label className="text-[12px] font-semibold text-slate-700 leading-none">Nome do filtro</label>
                 <div className="h-7 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
@@ -334,7 +334,7 @@ export default function SankhyaFilterConfigDialog({
                 <span>Campos do filtro</span>
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
-              <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
+              <div className="border border-slate-300 bg-slate-50 p-1 space-y-1 overflow-x-auto">
                 <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold text-slate-600">
                   <div className="px-2 py-1 border-r border-slate-300">Campo</div>
                   <div className="px-2 py-1 border-r border-slate-300">Pasta</div>
@@ -348,8 +348,8 @@ export default function SankhyaFilterConfigDialog({
                 const operatorOptions = getOperatorOptions(field);
 
                 return (
-                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
-                      <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
+                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
+                      <div className="min-w-0 whitespace-normal break-words px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <AutocompleteGenerico
                           items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
