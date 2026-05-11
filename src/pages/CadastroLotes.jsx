@@ -383,7 +383,7 @@ export default function CadastroLotes() {
           open={filterPanelOpen}
           filters={filters}
           onChange={setFilters}
-          onApply={() => setAppliedFilters(filters)}
+          onApply={(nextFilters) => setAppliedFilters(nextFilters || filters)}
           onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
           lotes={lotes}
           areas={areas} />

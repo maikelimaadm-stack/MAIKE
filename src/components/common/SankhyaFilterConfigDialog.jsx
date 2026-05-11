@@ -10,6 +10,8 @@ import LegacyRecordToolbar from "@/components/lotes/LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { FieldTypeBadge, OperatorBadge, FieldMetaIndicators } from "@/components/filters/FilterBadges";
+import FilterValueConfigInput, { clearFieldValueKeys } from "@/components/filters/FilterValueConfigInput";
+import FilterFieldBehaviorConfig from "@/components/filters/FilterFieldBehaviorConfig";
 
 const OPERATOR_LABELS = {
   contains: "Contém",
@@ -45,6 +47,10 @@ export default function SankhyaFilterConfigDialog({
   setVisibleFields,
   operators,
   setOperators,
+  fieldValues,
+  setFieldValues,
+  fieldConfigs,
+  setFieldConfigs,
   filterFolders,
   setFilterFolders,
   fieldGroups,
@@ -81,6 +87,8 @@ export default function SankhyaFilterConfigDialog({
     setConfigName("NOVO FILTRO");
     setVisibleFields([]);
     setOperators({});
+    setFieldValues({});
+    setFieldConfigs({});
     setFilterFolders([folder]);
     setFieldGroups({});
     setOpenGroups({ [folder.id]: true });
@@ -152,15 +160,20 @@ export default function SankhyaFilterConfigDialog({
   };
 
   const removeSelectedField = (fieldId) => {
+    const field = fields.find((item) => item.id === fieldId);
     setVisibleFields(visibleFields.filter((id) => id !== fieldId));
     const nextGroups = { ...fieldGroups };
     delete nextGroups[fieldId];
     setFieldGroups(nextGroups);
+    if (field) setFieldValues(clearFieldValueKeys(field, fieldValues));
+    const nextConfigs = { ...fieldConfigs };
+    delete nextConfigs[fieldId];
+    setFieldConfigs(nextConfigs);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de filtros personalizados</DialogTitle>
         </DialogHeader>
@@ -186,7 +199,7 @@ export default function SankhyaFilterConfigDialog({
               showUtilityActions={false}
             />
 
-            <div className="flex-1 overflow-auto px-3 md:px-6 py-3 space-y-3 max-w-[1040px]">
+            <div className="flex-1 overflow-auto px-3 md:px-6 py-3 space-y-3 max-w-[1180px]">
               <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
                 <label className="text-[12px] text-slate-600 text-right leading-none">Nome do filtro:</label>
                 <div className="h-6 border border-slate-300 bg-white focus-within:border-green-500 overflow-hidden">
@@ -246,7 +259,7 @@ export default function SankhyaFilterConfigDialog({
                   const operatorOptions = getOperatorOptions(field);
 
                   return (
-                    <div key={field.id} className="grid grid-cols-[minmax(180px,1fr)_150px_140px_80px] items-center gap-2 border border-slate-200 bg-white px-2 py-1.5 text-xs shadow-sm hover:border-emerald-200 hover:bg-emerald-50/30">
+                    <div key={field.id} className="grid grid-cols-[minmax(180px,1fr)_150px_140px_minmax(220px,1.1fr)_80px] items-start gap-2 border border-slate-200 bg-white px-2 py-1.5 text-xs shadow-sm hover:border-emerald-200 hover:bg-emerald-50/30">
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-1.5">
                           <span className="font-semibold text-slate-800 truncate">{field.label}</span>
@@ -255,16 +268,30 @@ export default function SankhyaFilterConfigDialog({
                         <div className="flex flex-wrap items-center gap-1">
                           <FieldTypeBadge type={field.type} />
                           <OperatorBadge label={OPERATOR_LABELS[operators[field.id] || operatorOptions[0]]} />
+                          {Object.keys(fieldValues || {}).some((key) => key === field.id || key.startsWith(`${field.id}_`) || (field.id === "lote_codigo_nome" && ["lote_codigo", "lote_nome"].includes(key)) || (field.type === "codeNameDynamic" && key.startsWith(`${field.id.replace("_codigo_nome", "")}_`))) && <OperatorBadge label="Pré-configurado" />}
                         </div>
                       </div>
                       <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
                         <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
                       </Select>
-                      <Select value={operators[field.id] || operatorOptions[0]} onValueChange={(value) => setOperators({ ...operators, [field.id]: value })}>
+                      <Select value={operators[field.id] || operatorOptions[0]} onValueChange={(value) => {
+                        setOperators({ ...operators, [field.id]: value });
+                        setFieldValues(clearFieldValueKeys(field, fieldValues));
+                      }}>
                         <SelectTrigger className="h-7 rounded-none text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{operatorOptions.map((value) => <SelectItem key={value} value={value}>{OPERATOR_LABELS[value]}</SelectItem>)}</SelectContent>
                       </Select>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-semibold uppercase text-slate-500">Valor padrão</div>
+                        <FilterValueConfigInput field={field} operator={operators[field.id] || operatorOptions[0]} fieldValues={fieldValues} onChange={setFieldValues} />
+                        <details className="group rounded-sm border border-slate-100 bg-white/70 px-1 py-0.5">
+                          <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase text-slate-500 hover:text-emerald-700">Configurações do campo</summary>
+                          <div className="mt-1">
+                            <FilterFieldBehaviorConfig config={fieldConfigs[field.id] || {}} onChange={(config) => setFieldConfigs({ ...fieldConfigs, [field.id]: config })} />
+                          </div>
+                        </details>
+                      </div>
                       <div className="flex items-center justify-end gap-1">
                         <button type="button" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
                         <button type="button" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
@@ -311,7 +338,7 @@ export default function SankhyaFilterConfigDialog({
                   {filterConfigs.map((config) => (
                     <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b font-medium ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{config.name}</TableCell>
-                      <TableCell className={`px-2 py-1 text-xs border-r border-b ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{config.visibleFields?.length || 0} campos configurados</TableCell>
+                      <TableCell className={`px-2 py-1 text-xs border-r border-b ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{config.visibleFields?.length || 0} campos · {Object.keys(config.fieldValues || {}).length} valores · {Object.keys(config.fieldConfigs || {}).length} comportamentos</TableCell>
                       <TableCell className="px-2 py-1 text-xs border-r border-b text-center"><Badge variant="outline" className="bg-white/90 text-slate-700 text-[10px]">{config.id === activeConfigId ? "Ativo" : "Salvo"}</Badge></TableCell>
                     </TableRow>
                   ))}
