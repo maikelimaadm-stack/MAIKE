@@ -55,7 +55,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
           </div>
         </div>
       </div>
-      <div className="mt-1 h-8 flex items-center gap-2 bg-white border-t border-b-[0.5px] border-slate-200/60 px-2">
+      <div className="h-8 flex items-center gap-2 bg-white border-t border-b-[0.5px] border-slate-200/60 px-2">
         <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold uppercase">{badgeLabel}</span>
         <span className="text-xs font-semibold text-slate-700 uppercase truncate min-w-0 flex-1">{title}</span>
         {operationLabel &&
