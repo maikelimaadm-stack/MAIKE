@@ -329,6 +329,18 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     });
   };
 
+  const splitDateTimeValue = (value) => {
+    if (!value) return { date: "", time: "" };
+    const [datePart, timePart = ""] = String(value).replace(" ", "T").split("T");
+    return { date: datePart || "", time: timePart.slice(0, 5) || "" };
+  };
+
+  const handleCustomDateTimeChange = (fieldName, part, nextValue) => {
+    const current = splitDateTimeValue(formData.campos_personalizados?.[fieldName]);
+    const next = { ...current, [part]: nextValue };
+    handleCustomChange(fieldName, next.date ? `${next.date}T${next.time || "00:00"}` : "");
+  };
+
   const renderCampoPersonalizado = (campo) => {
     const fieldKey = `campos_personalizados.${campo.field_name}`;
     const value = formData.campos_personalizados?.[campo.field_name] || "";
@@ -362,6 +374,19 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           </SelectContent>
         </Select>);
 
+    }
+
+    if (campo.tipo === "time") {
+      return <Input type="time" value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />;
+    }
+
+    if (["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo)) {
+      const dateTimeValue = splitDateTimeValue(value);
+      return (
+        <div className="grid grid-cols-2 gap-1">
+          <Input type="date" value={dateTimeValue.date} onChange={(e) => handleCustomDateTimeChange(campo.field_name, "date", e.target.value)} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />
+          <Input type="time" value={dateTimeValue.time} onChange={(e) => handleCustomDateTimeChange(campo.field_name, "time", e.target.value)} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />
+        </div>);
     }
 
     return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""} ${readOnlyClass}`} />;
@@ -464,12 +489,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             <FL label="Ativo" compact>
               <div className="h-[22px] flex items-center px-1">
                 <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
-              </div>
-            </FL>
-            <FL label="Data de Alteração" compact>
-              <div className="grid grid-cols-2 gap-1">
-                <Input value={new Date().toLocaleDateString("pt-BR")} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
-                <Input value={new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} readOnly className="h-[22px] text-xs text-center border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
               </div>
             </FL>
             <FL label="Código" compact>
