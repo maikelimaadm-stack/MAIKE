@@ -1,5 +1,5 @@
 import React from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { ENTIDADES_RELACIONAIS } from "./camposConfigOptions";
 
 function Field({ label, children }) {
@@ -35,13 +35,16 @@ export default function GuidedRelationConfig({ form, updateForm, mode = "select"
   return (
     <>
       <Field label={title}>
-        <Select value={entity || "none"} onValueChange={handleEntityChange}>
-          <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none" className="text-xs">SELECIONE UM CADASTRO</SelectItem>
-            {ENTIDADES_RELACIONAIS.map((item) => <SelectItem key={item.value} value={item.value} className="text-xs uppercase">{item.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <AutocompleteGenerico
+          items={ENTIDADES_RELACIONAIS}
+          value={entity || ""}
+          onChange={(value) => handleEntityChange(value || "none")}
+          placeholder="BUSCAR CADASTRO..."
+          displayField="label"
+          searchFields={["label", "value"]}
+          className="w-full"
+          inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1 uppercase"
+        />
       </Field>
 
       <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
