@@ -191,9 +191,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
     if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
     const duplicate = campos.find((c) => c.id !== editingId && (
-      String(c.label || "").trim().toUpperCase() === labelTrim ||
-      String(c.field_name || "").toLowerCase() === fieldName.toLowerCase()
-    ));
+    String(c.label || "").trim().toUpperCase() === labelTrim ||
+    String(c.field_name || "").toLowerCase() === fieldName.toLowerCase())
+    );
     if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
@@ -378,11 +378,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             </div>
 
             {isDirty &&
-            <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
+          <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200 hidden">
                 <Button type="button" variant="outline" onClick={handleDiscard} size="sm" className="h-7 text-xs px-3">Descartar</Button>
                 <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : editingId ? "Atualizar" : "Salvar"}</Button>
               </div>
-            }
+          }
           </form> :
 
         <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
