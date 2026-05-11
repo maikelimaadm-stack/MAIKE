@@ -85,8 +85,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
   const [isDirty, setIsDirty] = useState(!isEditing || isDuplicating);
-  const [editingEnabled, setEditingEnabled] = useState(!isEditing || isDuplicating);
-  const isViewOnly = isEditing && !isDuplicating && !editingEnabled;
   // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
   const carregarDataEntrada = (data) => {
     if (!data) return new Date().toLocaleDateString("sv-SE");
@@ -139,7 +137,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     setFormData(buildFormData(initialData));
     setErrors({});
     setIsDirty(!isEditing || !!initialData?._isDuplicate);
-    setEditingEnabled(!isEditing || !!initialData?._isDuplicate);
   }, [initialData?.id, initialData?.numero_lote, initialData?._isDuplicate, isEditing]);
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -203,7 +200,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const handleChange = (field, value) => {
-    if (isViewOnly) return;
     setIsDirty(true);
     const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     const newData = { ...formData, [field]: normalizedValue };
@@ -301,7 +297,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const handleCustomChange = (fieldName, value) => {
-    if (isViewOnly) return;
     setIsDirty(true);
     setErrors((prev) => ({ ...prev, [`campos_personalizados.${fieldName}`]: false }));
     setFormData((prev) => {
@@ -356,7 +351,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isViewOnly) return;
     if (!validateForm()) return;
 
     const area = areas.find((item) => item.id === formData.area_entrada_id);
@@ -413,7 +407,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
 
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editingEnabled ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <div>
@@ -422,10 +416,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
           badgeLabel="LOTE"
           operationLabel={operationLabel}
-          showSaveActions={editingEnabled && isDirty}
-          showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating && !editingEnabled}
-          showEditAction={isViewOnly}
-          onEdit={() => setEditingEnabled(true)}
+          showSaveActions={isDirty}
+          showDeleteDuplicateActions={isEditing && !isDirty && !isDuplicating}
           onCancel={onCancel}
           onSettingsClick={onSettingsClick}
           onToggleView={onToggleView}
@@ -472,7 +464,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {if (isViewOnly) return;const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
+                  <Select value={formData.setor_id || SELECT_EMPTY} onValueChange={(value) => {const novoSetor = value === SELECT_EMPTY ? "" : value;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: novoSetor, area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}}>
                     <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
@@ -600,7 +592,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           </div>
         </div>
 
-        {editingEnabled && isDirty &&
+        {isDirty &&
         <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Descartar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : isEditing ? "Atualizar" : "Salvar"}</Button>
