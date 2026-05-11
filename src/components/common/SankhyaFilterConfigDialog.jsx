@@ -290,7 +290,7 @@ export default function SankhyaFilterConfigDialog({
                       <div className="px-1 py-1 border-r border-slate-200">
                         <AutocompleteGenerico
                           items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
-                          value={fieldGroups[field.id] || filterFolders[0]?.id || ""}
+                          value={fieldGroups[field.id] ?? ""}
                           onChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}
                           displayField="nome"
                           searchFields={["nome"]}
@@ -302,7 +302,7 @@ export default function SankhyaFilterConfigDialog({
                       <div className="px-1 py-1 border-r border-slate-200">
                         <AutocompleteGenerico
                           items={operatorOptions.map((value) => ({ id: value, nome: OPERATOR_LABELS[value] }))}
-                          value={operators[field.id] || operatorOptions[0]}
+                          value={operators[field.id] ?? ""}
                           onChange={(value) => updateFieldOperator(field.id, value)}
                           displayField="nome"
                           searchFields={["nome"]}

@@ -160,7 +160,9 @@ export default function AutocompleteGenerico({
     if (disabled || readOnly) return;
     onChange("");
     setSearchTerm("");
-    setOpen(false);
+    calcPosition();
+    setOpen(true);
+    inputRef.current?.focus();
   };
 
   const hasResults = itensFiltrados.length > 0;
