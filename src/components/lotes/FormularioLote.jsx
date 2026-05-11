@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +26,6 @@ const FL = ({ label, required, error, children, dataField, wide = false, compact
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
-const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = [
 "nome",
 "identificador_nome",
@@ -363,21 +361,27 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     }
 
     if (campo.tipo === "select" || campo.tipo === "relation") {
-      return (
-        <Select value={value || SELECT_EMPTY} onValueChange={(nextValue) => handleCustomChange(campo.field_name, nextValue === SELECT_EMPTY ? "" : nextValue)} disabled={campo.read_only || isReadOnly}>
-          <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder={(campo.placeholder || "SELECIONE").toUpperCase()} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-            {campoOptions.map((option) => {
-              const optionValue = String(option.value || option.label);
-              return (
-                <SelectItem key={optionValue} value={optionValue} className="text-xs">
-                  {String(option.label || option.value).toUpperCase()}
-                </SelectItem>);
+      const opcoesCampoPersonalizado = campoOptions.map((option) => {
+        const optionValue = String(option.value || option.label || "");
+        return {
+          id: optionValue,
+          nome: String(option.label || option.value || "").toUpperCase()
+        };
+      });
 
-            })}
-          </SelectContent>
-        </Select>);
+      return (
+        <AutocompleteGenerico
+          items={opcoesCampoPersonalizado}
+          value={value}
+          onChange={(nextValue) => handleCustomChange(campo.field_name, nextValue || "")}
+          placeholder={(campo.placeholder || "BUSCAR OPÇÃO...").toUpperCase()}
+          displayField="nome"
+          searchFields={["nome"]}
+          disabled={campo.read_only || isReadOnly}
+          readOnly={campo.read_only || isReadOnly}
+          className="w-full"
+          inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1"
+        />);
 
     }
 

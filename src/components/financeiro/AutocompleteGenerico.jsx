@@ -13,11 +13,14 @@ export default function AutocompleteGenerico({
   searchFields = ["nome"],
   renderItem,
   renderSubtext,
-  inputClassName = ""
+  inputClassName = "",
+  disabled = false,
+  readOnly = false
 }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [dropdownPos, setDropdownPos] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -105,13 +108,53 @@ export default function AutocompleteGenerico({
     });
   });
 
+  useEffect(() => {
+    if (!open) return;
+    const selectedIndex = itensFiltrados.findIndex((item) => item.id === value);
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [open, searchTerm, value, itensFiltrados.length]);
+
   const handleSelect = useCallback((item) => {
+    if (disabled || readOnly) return;
     onChange(item.id);
     setSearchTerm(item[displayField] || "");
     setOpen(false);
-  }, [onChange, displayField]);
+  }, [onChange, displayField, disabled, readOnly]);
+
+  const handleKeyDown = (e) => {
+    if (disabled || readOnly) return;
+
+    if (e.key === "Tab") {
+      setOpen(false);
+      return;
+    }
+
+    if (e.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      setActiveIndex((prev) => Math.min(prev + 1, Math.max(itensFiltrados.length - 1, 0)));
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+      return;
+    }
+
+    if (e.key === "Enter" && open && itensFiltrados[activeIndex]) {
+      e.preventDefault();
+      handleSelect(itensFiltrados[activeIndex]);
+    }
+  };
 
   const handleClear = () => {
+    if (disabled || readOnly) return;
     onChange("");
     setSearchTerm("");
     setOpen(false);
@@ -136,7 +179,7 @@ export default function AutocompleteGenerico({
           style={style}
           className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto"
         >
-          {itensFiltrados.map((item) => (
+          {itensFiltrados.map((item, index) => (
             <div
               key={item.id}
               onMouseDown={(e) => {
@@ -144,8 +187,9 @@ export default function AutocompleteGenerico({
                 e.stopPropagation();
                 handleSelect(item);
               }}
+              onMouseEnter={() => setActiveIndex(index)}
               className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
-                value === item.id ? 'bg-emerald-50' : ''
+                activeIndex === index ? 'bg-slate-100' : value === item.id ? 'bg-emerald-50' : ''
               }`}
             >
               {renderItem ? renderItem(item) : (
@@ -204,9 +248,21 @@ export default function AutocompleteGenerico({
             calcPosition();
           }}
           onFocus={() => {
+            if (disabled || readOnly) return;
             calcPosition();
             setOpen(true);
           }}
+          onBlur={() => {
+            setTimeout(() => {
+              const activeElement = document.activeElement;
+              const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(activeElement);
+              const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(activeElement);
+              if (!isInsideDropdown && !isInsideWrapper) setOpen(false);
+            }, 80);
+          }}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          readOnly={readOnly}
           placeholder={placeholder}
           className={`pr-8 h-8 text-xs uppercase rounded-none ${inputClassName}`}
           style={{ textTransform: 'uppercase' }}
