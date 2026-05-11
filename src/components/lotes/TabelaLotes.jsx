@@ -451,27 +451,27 @@ export default function TabelaLotes({
               <X className="w-4 h-4 mr-2" /> Limpar Filtro de "{columnLabel}"
             </button>
           </div>
-          <div className="p-2 space-y-2">
+          <div className="p-1 space-y-1">
             {isRangeFilter ?
-            <div className="space-y-2">
-                <div className="text-[11px] font-semibold text-slate-500">Entre</div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <div className="space-y-1">
+                <div className="text-[11px] leading-none font-semibold text-slate-500">Entre</div>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
                   <Input
                   type={filterType === "date" ? "date" : "number"}
                   value={String(valoresSelecionados.find((item) => String(item).startsWith(filterType === "date" ? "start:" : "min:")) || "").replace(filterType === "date" ? "start:" : "min:", "")}
                   onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${filterType === "date" ? "start" : "min"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(filterType === "date" ? "start:" : "min:"))].filter(Boolean) }))}
                   placeholder="De"
-                  className="h-8 text-xs rounded-none" />
+                  className="h-[22px] text-xs rounded-none shadow-none focus-visible:ring-0 px-1" />
                   <span className="text-xs text-slate-500">a</span>
                   <Input
                   type={filterType === "date" ? "date" : "number"}
                   value={String(valoresSelecionados.find((item) => String(item).startsWith(filterType === "date" ? "end:" : "max:")) || "").replace(filterType === "date" ? "end:" : "max:", "")}
                   onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${filterType === "date" ? "end" : "max"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(filterType === "date" ? "end:" : "max:"))].filter(Boolean) }))}
                   placeholder="Até"
-                  className="h-8 text-xs rounded-none" />
+                  className="h-[22px] text-xs rounded-none shadow-none focus-visible:ring-0 px-1" />
                 </div>
               </div> :
-            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase rounded-none" />}
+            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-[22px] text-xs uppercase rounded-none shadow-none focus-visible:ring-0 px-1" />}
             {(filterType === "list" || isRangeFilter) && <div className="border border-slate-300 rounded-none max-h-64 overflow-y-auto p-1 bg-white">
               <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
                 <Checkbox
