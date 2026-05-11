@@ -263,46 +263,48 @@ export default function SankhyaFilterConfigDialog({
                 <span>Campos do filtro</span>
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
-              <div className="ml-[191px] space-y-1.5">
-                {selectedFields.length === 0 && <div className="border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
+              <div className="ml-[191px] overflow-hidden border border-slate-300 bg-white">
+                <div className="grid grid-cols-[minmax(150px,1.3fr)_120px_130px_minmax(170px,1.4fr)_76px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                  <div className="px-2 py-1 border-r border-slate-300">Campo</div>
+                  <div className="px-2 py-1 border-r border-slate-300">Pasta</div>
+                  <div className="px-2 py-1 border-r border-slate-300">Operador</div>
+                  <div className="px-2 py-1 border-r border-slate-300">Valor padrão</div>
+                  <div className="px-2 py-1 text-center">Ações</div>
+                </div>
+                {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
                 {selectedFields.map((field) => {
                   const position = visibleFields.indexOf(field.id);
                   const operatorOptions = getOperatorOptions(field);
 
                   return (
-                    <div key={field.id} className="overflow-hidden border border-slate-200 bg-white text-xs shadow-sm hover:border-emerald-300">
-                      <div className="grid grid-cols-[minmax(180px,1fr)_150px_150px_80px] items-center gap-2 px-2 py-2">
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Campo</div>
-                          <div className="truncate font-semibold text-slate-800">{field.label}</div>
-                        </div>
-                        <div>
-                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pasta</div>
-                          <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
-                            <SelectTrigger className="h-8 rounded-none text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Operador</div>
-                          <Select value={operators[field.id] || operatorOptions[0]} onValueChange={(value) => updateFieldOperator(field.id, value)}>
-                            <SelectTrigger className="h-8 rounded-none text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>{operatorOptions.map((value) => <SelectItem key={value} value={value}>{OPERATOR_LABELS[value]}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-end justify-end gap-1 pt-4">
-                          <button type="button" title="Mover para cima" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-7 w-7 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
-                          <button type="button" title="Mover para baixo" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-7 w-7 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
-                          <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-7 w-7 border border-red-200 text-red-600"><Trash2 className="w-3 h-3 mx-auto" /></button>
-                        </div>
+                    <div key={field.id} className="grid grid-cols-[minmax(150px,1.3fr)_120px_130px_minmax(170px,1.4fr)_76px] items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0">
+                      <div className="min-w-0 truncate px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
+                      <div className="px-1 py-1 border-r border-slate-200">
+                        <Select value={fieldGroups[field.id] || filterFolders[0]?.id} onValueChange={(value) => setFieldGroups({ ...fieldGroups, [field.id]: value })}>
+                          <SelectTrigger className="h-6 rounded-none text-[11px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectContent>
+                        </Select>
                       </div>
-                      <FilterFieldValueEditor
-                        field={field}
-                        operator={operators[field.id] || operatorOptions[0]}
-                        value={fieldValues[field.id] || {}}
-                        onValueChange={(value) => updateFieldValue(field.id, value)}
-                        relationOptions={relationOptions[field.source || "lotes"] || []}
-                      />
+                      <div className="px-1 py-1 border-r border-slate-200">
+                        <Select value={operators[field.id] || operatorOptions[0]} onValueChange={(value) => updateFieldOperator(field.id, value)}>
+                          <SelectTrigger className="h-6 rounded-none text-[11px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>{operatorOptions.map((value) => <SelectItem key={value} value={value}>{OPERATOR_LABELS[value]}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="px-1 py-1 border-r border-slate-200">
+                        <FilterFieldValueEditor
+                          field={field}
+                          operator={operators[field.id] || operatorOptions[0]}
+                          value={fieldValues[field.id] || {}}
+                          onValueChange={(value) => updateFieldValue(field.id, value)}
+                          relationOptions={relationOptions[field.source || "lotes"] || []}
+                        />
+                      </div>
+                      <div className="flex items-center justify-center gap-0.5 px-1 py-1">
+                        <button type="button" title="Mover para cima" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" title="Mover para baixo" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border border-red-200 text-red-600"><Trash2 className="w-3 h-3 mx-auto" /></button>
+                      </div>
                     </div>
                   );
                 })}

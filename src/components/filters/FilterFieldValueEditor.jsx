@@ -4,9 +4,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 
-const inputClass = "h-8 rounded-none border-slate-300 bg-white px-2 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
-const textareaClass = "min-h-[58px] rounded-none border-slate-300 bg-white px-2 py-1.5 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
-const selectClass = "h-8 rounded-none border-slate-300 bg-white px-2 text-xs shadow-none";
+const inputClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
+const textareaClass = "h-6 min-h-6 rounded-none border-slate-300 bg-white px-1.5 py-1 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-emerald-500";
+const selectClass = "h-6 rounded-none border-slate-300 bg-white px-1.5 text-[11px] shadow-none";
 
 const isNoValueOperator = (operator) => operator === "empty" || operator === "notEmpty";
 const isListOperator = (operator) => ["custom", "in", "notIn"].includes(operator);
@@ -69,8 +69,8 @@ function RelationalValueInput({ value = {}, onChange, relationOptions = [] }) {
       }}
       displayField="nome"
       searchFields={["codigo", "nome"]}
-      placeholder="Pesquisar e selecionar"
-      inputClassName="h-8"
+      placeholder="Pesquisar"
+      inputClassName="h-6 !text-[11px]"
       renderSubtext={(item) => item.codigo ? `Código: ${item.codigo}` : ""}
     />
   );
@@ -85,14 +85,14 @@ export default function FilterFieldValueEditor({ field, operator, value = {}, on
 
   const renderValueControl = () => {
     if (isNoValueOperator(operator)) {
-      return <div className="flex h-8 items-center border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-500">Este operador não usa valor padrão.</div>;
+      return <div className="flex h-6 items-center border border-slate-200 bg-white px-1.5 text-[11px] text-slate-500">Sem valor</div>;
     }
 
     if (operator === "between") {
       const startLabel = fieldType === "date" ? "Data inicial" : "Mínimo";
       const endLabel = fieldType === "date" ? "Data final" : "Máximo";
       return (
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+        <div className="grid grid-cols-[minmax(54px,1fr)_auto_minmax(54px,1fr)] items-center gap-1">
           <SimpleValueInput type={inputType} value={value.min} onChange={(next) => updateValue({ min: next })} placeholder={startLabel} />
           <span className="text-[11px] font-semibold text-slate-500">até</span>
           <SimpleValueInput type={inputType} value={value.max} onChange={(next) => updateValue({ max: next })} placeholder={endLabel} />
@@ -114,13 +114,5 @@ export default function FilterFieldValueEditor({ field, operator, value = {}, on
     return <SimpleValueInput type={inputType} value={value.value || value.exact || ""} onChange={updateSingleValue} placeholder="Valor padrão" />;
   };
 
-  return (
-    <div className="border-t border-slate-100 bg-slate-50/70 px-2 py-2">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Valor padrão do filtro</span>
-        {hasValue(value) && <span className="rounded-sm border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">salvo</span>}
-      </div>
-      {renderValueControl()}
-    </div>
-  );
+  return <div className={hasValue(value) ? "bg-emerald-50/40" : ""}>{renderValueControl()}</div>;
 }
