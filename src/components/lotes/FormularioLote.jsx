@@ -461,7 +461,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             <FL label="Descrição" required error={errors.nome} dataField="nome">
               <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
             </FL>
-            <FL label="Ativo">
+            <FL label="Ativo" compact>
               <div className="h-[22px] flex items-center px-1">
                 <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
               </div>
@@ -512,12 +512,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                   <Input type="number" value={formData.idade_media_meses || ""} onChange={(e) => handleChange("idade_media_meses", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
                 <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo" wide>
-                  <div className="px-2 py-1 space-y-1 bg-transparent">
-                    <div className="text-xs text-slate-600">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+                  <div className="px-1 py-1 space-y-1 bg-transparent">
+                    <div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div>
+                    <div className="space-y-1">
                       {SISTEMAS.map((item) => {
                         const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
-                        return <button key={item} type="button" onClick={() => toggleSistemaProdutivo(item)} className="flex items-center gap-1 text-xs text-slate-700 uppercase text-left bg-transparent hover:bg-slate-50 px-1">
+                        return <button key={item} type="button" onClick={() => toggleSistemaProdutivo(item)} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-transparent hover:bg-slate-50 px-1">
                           <span className={`w-8 h-4 rounded-full relative inline-block shrink-0 ${checked ? "bg-green-500" : "bg-slate-300"}`}>
                             <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${checked ? "right-0.5" : "left-0.5"}`} />
                           </span>
