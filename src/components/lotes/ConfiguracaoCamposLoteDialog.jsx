@@ -69,6 +69,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const [selectedCampoIds, setSelectedCampoIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -84,6 +85,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   const calculationItems = form.calculation_builder?.items || [];
   const calculationFields = calculationItems.map((item) => item.field).filter(Boolean);
   const hasInvalidCalculation = form.tipo === "calculado" && (calculationItems.length < 2 || calculationItems.some((item) => !item.field) || new Set(calculationFields).size !== calculationFields.length);
+  const isReadOnly = !!editingId && !isDuplicating && !editMode;
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -147,6 +149,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setEditingId(null);
     setIsDirty(false);
     setIsDuplicating(false);
+    setEditMode(false);
     setShowForm(false);
   };
 
@@ -182,11 +185,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([]);
     setIsDirty(true);
     setIsDuplicating(false);
+    setEditMode(true);
     setShowForm(true);
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (isReadOnly) return;
     const labelTrim = form.label.trim().toUpperCase();
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
     if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
@@ -202,6 +207,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
   };
 
   const updateForm = (field, value) => {
+    if (isReadOnly) return;
     setIsDirty(true);
     const upperFields = ["label", "placeholder", "descricao"];
     const finalValue = upperFields.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
@@ -237,6 +243,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([campo.id || campo.field_id]);
     setIsDirty(false);
     setIsDuplicating(false);
+    setEditMode(false);
     setShowForm(true);
     setForm({
       ...initialForm,
@@ -310,10 +317,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
     setSelectedCampoIds([]);
     setIsDirty(true);
     setIsDuplicating(true);
+    setEditMode(true);
     setShowForm(true);
   };
 
-  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? isDirty ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+  const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -328,9 +336,11 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
             badgeLabel="CAMPO PERSONALIZADO"
             operationLabel={operationLabel}
-            showSaveActions={isDirty}
-            showDeleteDuplicateActions={!!editingId && !isDirty && !isDuplicating}
+            showSaveActions={editMode}
+            showEditAction={isReadOnly}
+            showDeleteDuplicateActions={!!editingId && !editMode && !isDuplicating}
             onCancel={handleDiscard}
+            onEditRecord={() => setEditMode(true)}
             onToggleView={handleToggleView}
             onNew={handleNew}
             total={campos.length}
@@ -345,7 +355,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             showUtilityActions={false} />
           
 
-            <div className="flex-1 overflow-y-auto">
+            <fieldset disabled={isReadOnly} className={`flex-1 overflow-y-auto ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}`}>
               <div className="px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
               <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Tipo"><Select value={form.tipo} onValueChange={(value) => updateForm("tipo", value)}><SelectTrigger className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_CAMPO.map((tipo) => <SelectItem key={tipo.value} value={tipo.value} className="text-xs uppercase">{tipo.label}</SelectItem>)}</SelectContent></Select></Field>
@@ -375,9 +385,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
                 </div>
               </div>
               </div>
-            </div>
+            </fieldset>
 
-            {isDirty &&
+            {editMode &&
           <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200 hidden">
                 <Button type="button" variant="outline" onClick={handleDiscard} size="sm" className="h-7 text-xs px-3">Descartar</Button>
                 <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : editingId ? "Atualizar" : "Salvar"}</Button>
