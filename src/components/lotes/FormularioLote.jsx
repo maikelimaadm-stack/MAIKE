@@ -410,7 +410,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const tabs = [
   { id: "geral", label: "Geral" },
-  { id: "compra", label: "Compra" },
+  { id: "compra", label: "Motivo" },
   { id: "identificacao", label: "Identificação" },
   { id: "observacoes", label: "Observações" },
   ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
@@ -489,15 +489,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
                   <AutocompleteGenerico items={areasDoSetor} value={formData.area_entrada_id} onChange={(value) => handleChange("area_entrada_id", value)} placeholder={formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO"} displayField="nome" searchFields={["nome", "numero_area"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
                 </FL>
-                <FL label="Motivo da Entrada" dataField="motivo_entrada">
-                  <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
-                    <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {MOTIVOS_ENTRADA.map((m) => <SelectItem key={m} value={m} className="text-xs">{m.toUpperCase()}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FL>
                 <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas" compact>
                   <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
                 </FL>
@@ -551,24 +542,41 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
             {activeTab === "compra" &&
             <div className="space-y-1">
-                {formData.motivo_entrada !== "Compra" && <div className="ml-[191px] text-[11px] text-slate-500 pb-1">Selecione o motivo de entrada como COMPRA para exigir estes dados.</div>}
-                <FL label="Fornecedor" required={formData.motivo_entrada === "Compra"} error={errors.fornecedor_id} dataField="fornecedor_id">
-                  <Select value={formData.fornecedor_id || SELECT_EMPTY} onValueChange={(value) => handleChange("fornecedor_id", value === SELECT_EMPTY ? "" : value)}>
+                <FL label="Motivo da Entrada" dataField="motivo_entrada">
+                  <Select value={formData.motivo_entrada || SELECT_EMPTY} onValueChange={(value) => handleChange("motivo_entrada", value === SELECT_EMPTY ? "" : value)}>
                     <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                      {fornecedores.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
+                      {MOTIVOS_ENTRADA.map((m) => <SelectItem key={m} value={m} className="text-xs">{m.toUpperCase()}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </FL>
-                <FL label="Cidade Origem" required={formData.motivo_entrada === "Compra"} error={errors.cidade_origem} dataField="cidade_origem"><Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Estado Origem" required={formData.motivo_entrada === "Compra"} error={errors.estado_origem} dataField="estado_origem"><Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
-                <FL label="Nota Fiscal" required={formData.motivo_entrada === "Compra"} error={errors.nota_fiscal} dataField="nota_fiscal" compact><Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="Nº DA NF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Chave NF-e" required={formData.motivo_entrada === "Compra"} error={errors.chave_nfe} dataField="chave_nfe"><Input value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Nº GTA" required={formData.motivo_entrada === "Compra"} error={errors.numero_gta} dataField="numero_gta" compact><Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Valor Total (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_total_compra} dataField="valor_total_compra" compact><Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
-                <FL label="Valor p/ Cabeça (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_por_cabeca} dataField="valor_por_cabeca" compact><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
-                <FL label="Valor Frete (R$)" required={formData.motivo_entrada === "Compra"} error={errors.valor_frete} dataField="valor_frete" compact><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+
+                {formData.motivo_entrada === "Compra" &&
+                <>
+                  <FL label="Fornecedor" required error={errors.fornecedor_id} dataField="fornecedor_id">
+                    <Select value={formData.fornecedor_id || SELECT_EMPTY} onValueChange={(value) => handleChange("fornecedor_id", value === SELECT_EMPTY ? "" : value)}>
+                      <SelectTrigger className="h-[22px] text-xs border-0 rounded-none shadow-none focus:ring-0 bg-transparent px-1"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
+                        {fornecedores.map((item) => <SelectItem key={item.id} value={item.id} className="text-xs">{(item.nome || "").toUpperCase()}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FL>
+                  <FL label="Cidade Origem" required error={errors.cidade_origem} dataField="cidade_origem"><Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Estado Origem" required error={errors.estado_origem} dataField="estado_origem"><Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
+                  <FL label="Nota Fiscal" required error={errors.nota_fiscal} dataField="nota_fiscal" compact><Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="Nº DA NF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Chave NF-e" required error={errors.chave_nfe} dataField="chave_nfe"><Input value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Nº GTA" required error={errors.numero_gta} dataField="numero_gta" compact><Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Valor Total (R$)" required error={errors.valor_total_compra} dataField="valor_total_compra" compact><Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+                  <FL label="Valor p/ Cabeça (R$)" required error={errors.valor_por_cabeca} dataField="valor_por_cabeca" compact><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
+                  <FL label="Valor Frete (R$)" required error={errors.valor_frete} dataField="valor_frete" compact><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+                </>}
+
+                {formData.motivo_entrada === "Ajuste" && <FL label="Motivo do Ajuste" required error={errors.motivo_ajuste} dataField="motivo_ajuste" wide><Textarea value={formData.motivo_ajuste || ""} onChange={(e) => handleChange("motivo_ajuste", e.target.value)} placeholder="DESCREVA O MOTIVO DO AJUSTE" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
+                {formData.motivo_entrada === "Outros" && <FL label="Motivo" required error={errors.motivo_outros} dataField="motivo_outros" wide><Textarea value={formData.motivo_outros || ""} onChange={(e) => handleChange("motivo_outros", e.target.value)} placeholder="DESCREVA O MOTIVO" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
+                {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
+                {!formData.motivo_entrada && <div className="ml-[191px] text-[11px] text-slate-500 pb-1">Selecione um motivo para exibir os campos correspondentes.</div>}
               </div>
             }
 
@@ -590,9 +598,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
             {activeTab === "observacoes" &&
             <div className="space-y-1">
-                {formData.motivo_entrada === "Ajuste" && <FL label="Motivo do Ajuste" required error={errors.motivo_ajuste} dataField="motivo_ajuste" wide><Textarea value={formData.motivo_ajuste || ""} onChange={(e) => handleChange("motivo_ajuste", e.target.value)} placeholder="DESCREVA O MOTIVO DO AJUSTE" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
-                {formData.motivo_entrada === "Outros" && <FL label="Motivo" required error={errors.motivo_outros} dataField="motivo_outros" wide><Textarea value={formData.motivo_outros || ""} onChange={(e) => handleChange("motivo_outros", e.target.value)} placeholder="DESCREVA O MOTIVO" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
-                {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
                 <FL label="Observações" wide><Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>
               </div>
             }
