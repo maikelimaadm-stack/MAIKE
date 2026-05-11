@@ -500,7 +500,7 @@ export default function TabelaLotes({
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
                     {colunasOrdenadas.map((coluna) => {
-                      const width = Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna));
+                      const width = Math.max(getColumnMinWidth(coluna), columnWidths[coluna.id] || coluna.width || 160);
                       const isResizing = resizeColumnId === coluna.id;
 
                       const filterControl = renderFilterControl(coluna.id);
