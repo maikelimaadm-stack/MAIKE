@@ -400,7 +400,11 @@ export default function CadastroLotes() {
           open={filterPanelOpen}
           filters={filters}
           onChange={setFilters}
-          onApply={(nextFilters) => setAppliedFilters(nextFilters || filters)}
+          onApply={(nextFilters) => {
+            const applied = nextFilters || filters;
+            setAppliedFilters(applied);
+            if (applied.esconderAoAtualizar) setFilterPanelOpen(false);
+          }}
           onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
           lotes={lotes}
           areas={areas} />
