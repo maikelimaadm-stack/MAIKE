@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
@@ -205,9 +205,6 @@ export default function SankhyaFilterConfigDialog({
   map((id) => fields.find((field) => field.id === id)).
   filter(Boolean);
 
-  const selectTriggerClass = "h-7 rounded-none border-slate-300 px-2 text-xs shadow-none";
-  const compactSelectTriggerClass = "h-6 rounded-none border-slate-300 px-2 text-[11px] shadow-none";
-
   const addSelectedField = () => {
     if (isReadOnly) return;
     if (!selectedFieldId || visibleFields.includes(selectedFieldId)) return;
@@ -308,30 +305,29 @@ export default function SankhyaFilterConfigDialog({
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1">
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
                 <div className="grid grid-cols-[180px_1fr_32px] gap-1">
-                  <Select value={selectedFolderId || ""} onValueChange={(value) => !isReadOnly && setSelectedFolderId(value)} disabled={isReadOnly}>
-                    <SelectTrigger className={selectTriggerClass}>
-                      <SelectValue placeholder="PASTA" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filterFolders.map((folder) => (
-                        <SelectItem key={folder.id} value={folder.id} className="text-xs">
-                          {folder.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={selectedFieldId || ""} onValueChange={(value) => !isReadOnly && setSelectedFieldId(value)} disabled={isReadOnly}>
-                    <SelectTrigger className={selectTriggerClass}>
-                      <SelectValue placeholder="SELECIONAR CAMPO" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableFields.map((field) => (
-                        <SelectItem key={field.id} value={field.id} className="text-xs">
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico
+                    items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
+                    value={selectedFolderId || ""}
+                    onChange={(value) => !isReadOnly && setSelectedFolderId(value)}
+                    displayField="nome"
+                    searchFields={["nome"]}
+                    placeholder="PESQUISAR PASTA"
+                    inputClassName="h-7 text-xs"
+                    readOnly={isReadOnly}
+                    uppercaseDisplay={false}
+                  />
+                  <AutocompleteGenerico
+                    items={availableFields.map((field) => ({ ...field, nome: field.label, group: field.group }))}
+                    value={selectedFieldId}
+                    onChange={(value) => !isReadOnly && setSelectedFieldId(value)}
+                    displayField="nome"
+                    searchFields={["nome", "group"]}
+                    placeholder="PESQUISAR CAMPO"
+                    inputClassName="h-7 text-xs"
+                    renderSubtext={(item) => item.group}
+                    readOnly={isReadOnly}
+                    uppercaseDisplay={false}
+                  />
                 
                   <Button type="button" onClick={addSelectedField} title="Adicionar campo" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus /></Button>
                 </div>
@@ -358,32 +354,30 @@ export default function SankhyaFilterConfigDialog({
                   <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
                       <div className="min-w-0 whitespace-normal break-words px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
                       <div className="px-1 py-1 border-r border-slate-200">
-                        <Select value={fieldGroups[field.id] ?? ""} onValueChange={(value) => !isReadOnly && setFieldGroups({ ...fieldGroups, [field.id]: value })} disabled={isReadOnly}>
-                          <SelectTrigger className={compactSelectTriggerClass}>
-                            <SelectValue placeholder="PASTA" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filterFolders.map((folder) => (
-                              <SelectItem key={folder.id} value={folder.id} className="text-xs">
-                                {folder.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <AutocompleteGenerico
+                          items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
+                          value={fieldGroups[field.id] ?? ""}
+                          onChange={(value) => !isReadOnly && setFieldGroups({ ...fieldGroups, [field.id]: value })}
+                          displayField="nome"
+                          searchFields={["nome"]}
+                          placeholder="PASTA"
+                          inputClassName="h-6 text-[11px]"
+                          readOnly={isReadOnly}
+                          uppercaseDisplay={false}
+                        />
                       </div>
                       <div className="px-1 py-1 border-r border-slate-200">
-                        <Select value={operators[field.id] ?? ""} onValueChange={(value) => updateFieldOperator(field.id, value)} disabled={isReadOnly}>
-                          <SelectTrigger className={compactSelectTriggerClass}>
-                            <SelectValue placeholder="OPERADOR" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {operatorOptions.map((value) => (
-                              <SelectItem key={value} value={value} className="text-xs">
-                                {OPERATOR_LABELS[value]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <AutocompleteGenerico
+                          items={operatorOptions.map((value) => ({ id: value, nome: OPERATOR_LABELS[value] }))}
+                          value={operators[field.id] ?? ""}
+                          onChange={(value) => updateFieldOperator(field.id, value)}
+                          displayField="nome"
+                          searchFields={["nome"]}
+                          placeholder="OPERADOR"
+                          inputClassName="h-6 text-[11px]"
+                          readOnly={isReadOnly}
+                          uppercaseDisplay={false}
+                        />
                       </div>
                       <div className="px-1 py-1 border-r border-slate-200">
                         <FilterFieldValueEditor
