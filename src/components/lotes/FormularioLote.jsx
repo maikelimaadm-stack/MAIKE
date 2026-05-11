@@ -14,12 +14,12 @@ import { toast } from "sonner";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 
-const FL = ({ label, required, error, children, dataField, wide = false, compact = false }) =>
+const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
     <label className="text-[12px] text-slate-600 text-right leading-none">
       {label}:{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
-    <div className={`${wide ? 'min-h-6' : 'h-6'} ${compact ? 'w-44 max-w-full' : 'w-full'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
+    <div className={`${wide ? 'min-h-6' : 'h-6'} ${medium ? 'w-64 max-w-full' : compact ? 'w-44 max-w-full' : 'w-full'} border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
       {children}
     </div>
   </div>;
@@ -337,7 +337,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const handleCustomDateTimeChange = (fieldName, part, nextValue) => {
     const current = splitDateTimeValue(formData.campos_personalizados?.[fieldName]);
-    const next = { ...current, [part]: nextValue };
+    const horaAtual = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const next = {
+      ...current,
+      [part]: nextValue,
+      time: part === "date" && nextValue && !current.time ? horaAtual : current.time
+    };
     handleCustomChange(fieldName, next.date ? `${next.date}T${next.time || "00:00"}` : "");
   };
 
@@ -602,7 +607,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 {camposPersonalizadosForm.length === 0 ?
                 <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
                 camposPersonalizadosForm.map((campo) =>
-                <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} compact={["number", "date", "time", "datetime", "calculado"].includes(campo.tipo)}>
+                <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} medium={["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo)} compact={["number", "date", "time", "calculado"].includes(campo.tipo)}>
                     {renderCampoPersonalizado(campo)}
                   </FL>
                 )}
