@@ -9,7 +9,7 @@ import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunas
 import { useQuery } from "@tanstack/react-query";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
-import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Save } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
 { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
@@ -240,6 +240,19 @@ export default function TabelaLotes({
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
   const setValoresFiltro = (colunaId, values) => setFiltrosColunas((prev) => ({ ...prev, [colunaId]: values }));
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
+  const getColumnFilterType = (coluna) => {
+    if (coluna?.tipo === "date" || coluna?.id === "data") return "date";
+    if (["number", "calculado"].includes(coluna?.tipo) || ["codigo", "cabecas", "peso", "valor"].includes(coluna?.id)) return "number";
+    return "list";
+  };
+  const getComparableValue = (lote, coluna) => {
+    if (coluna.id === "codigo") return Number(lote.numero_lote || 0);
+    if (coluna.id === "cabecas") return Number(lote.quantidade_entrada || lote.quantidade_cabecas || 0);
+    if (coluna.id === "peso") return Number(lote.peso_entrada_kg || lote.peso_medio_kg || 0);
+    if (coluna.id === "valor") return Number(lote.valor_total_compra || 0);
+    if (coluna.id === "data") return String(lote.data_entrada || "").split("T")[0];
+    return campoEngine.getValorBruto(lote, coluna);
+  };
 
   const lotesFiltrados = useMemo(() => {
     const termo = String(searchTerm || "").toLowerCase().trim();
@@ -251,8 +264,9 @@ export default function TabelaLotes({
       return colunasDisponiveis.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
-        const raw = campoEngine.getValorBruto(lote, col);
-        if (col.tipo === "number" || col.tipo === "calculado") {
+        const filterType = getColumnFilterType(col);
+        const raw = getComparableValue(lote, col);
+        if (filterType === "number") {
           const numberValue = Number(raw);
           const min = filtro.find((item) => String(item).startsWith("min:"));
           const max = filtro.find((item) => String(item).startsWith("max:"));
@@ -260,7 +274,7 @@ export default function TabelaLotes({
           if (max && numberValue > Number(String(max).replace("max:", ""))) return false;
           return true;
         }
-        if (col.tipo === "date") {
+        if (filterType === "date") {
           const dateValue = String(raw || "").split("T")[0];
           const start = filtro.find((item) => String(item).startsWith("start:"));
           const end = filtro.find((item) => String(item).startsWith("end:"));
@@ -396,7 +410,8 @@ export default function TabelaLotes({
     const coluna = colunasDisponiveis.find((c) => c.id === colunaId);
     const columnLabel = coluna?.label || colunaId;
     const options = columnOptions[colunaId] || [];
-    const isRangeFilter = coluna?.tipo === "number" || coluna?.tipo === "calculado" || coluna?.tipo === "date";
+    const filterType = getColumnFilterType(coluna);
+    const isRangeFilter = filterType === "number" || filterType === "date";
     const valoresSelecionados = filtroTemp.colunaId === colunaId ? filtroTemp.valores : getValoresFiltro(colunaId);
     const filteredOptions = options.filter((o) => String(o).toLowerCase().includes(buscaFiltroMenu.toLowerCase()));
     const allVisibleSelected = filteredOptions.length > 0 && filteredOptions.every((o) => valoresSelecionados.includes(o));
@@ -415,7 +430,7 @@ export default function TabelaLotes({
             <Filter className="w-2 h-2" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
+        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999] rounded-none">
           <div className="p-1 space-y-0.5 border-b">
             <button type="button" className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded" onClick={() => {handleSort(colunaId);setMenuFiltroAberto(null);}}>
               <ArrowDownAZ className="w-4 h-4 mr-2" /> Classificar do Menor para o Maior
@@ -434,22 +449,26 @@ export default function TabelaLotes({
           </div>
           <div className="p-2 space-y-2">
             {isRangeFilter ?
-            <div className="grid grid-cols-2 gap-2">
-                <Input
-                type={coluna?.tipo === "date" ? "date" : "number"}
-                value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:")) || "").replace(coluna?.tipo === "date" ? "start:" : "min:", "")}
-                onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "start" : "min"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "start:" : "min:"))].filter(Boolean) }))}
-                placeholder={coluna?.tipo === "date" ? "INÍCIO" : "MÍNIMO"}
-                className="h-8 text-xs" />
-                <Input
-                type={coluna?.tipo === "date" ? "date" : "number"}
-                value={String(valoresSelecionados.find((item) => String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:")) || "").replace(coluna?.tipo === "date" ? "end:" : "max:", "")}
-                onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${coluna?.tipo === "date" ? "end" : "max"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(coluna?.tipo === "date" ? "end:" : "max:"))].filter(Boolean) }))}
-                placeholder={coluna?.tipo === "date" ? "FIM" : "MÁXIMO"}
-                className="h-8 text-xs" />
+            <div className="space-y-2">
+                <div className="text-[11px] font-semibold uppercase text-slate-500">Entre</div>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <Input
+                  type={filterType === "date" ? "date" : "number"}
+                  value={String(valoresSelecionados.find((item) => String(item).startsWith(filterType === "date" ? "start:" : "min:")) || "").replace(filterType === "date" ? "start:" : "min:", "")}
+                  onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${filterType === "date" ? "start" : "min"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(filterType === "date" ? "start:" : "min:"))].filter(Boolean) }))}
+                  placeholder="De"
+                  className="h-8 text-xs rounded-none" />
+                  <span className="text-xs text-slate-500">a</span>
+                  <Input
+                  type={filterType === "date" ? "date" : "number"}
+                  value={String(valoresSelecionados.find((item) => String(item).startsWith(filterType === "date" ? "end:" : "max:")) || "").replace(filterType === "date" ? "end:" : "max:", "")}
+                  onChange={(e) => setFiltroTemp((prev) => ({ ...prev, valores: [e.target.value ? `${filterType === "date" ? "end" : "max"}:${e.target.value}` : "", ...prev.valores.filter((item) => !String(item).startsWith(filterType === "date" ? "end:" : "max:"))].filter(Boolean) }))}
+                  placeholder="Até"
+                  className="h-8 text-xs rounded-none" />
+                </div>
               </div> :
-            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase" />}
-            {!isRangeFilter && <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
+            <Input value={buscaFiltroMenu} onChange={(e) => setBuscaFiltroMenu(e.target.value)} placeholder="PESQUISAR" className="h-8 text-xs uppercase rounded-none" />}
+            {!isRangeFilter && <div className="border border-slate-300 rounded-none max-h-64 overflow-y-auto p-1 bg-white">
               <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200 whitespace-nowrap overflow-hidden">
                 <Checkbox
                   checked={allVisibleSelected}
@@ -477,11 +496,11 @@ export default function TabelaLotes({
               )}
             </div>}
             <div className="flex items-center justify-end gap-2 pt-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
-                Cancelar
+              <Button variant="outline" size="icon" title="Cancelar" className="h-8 w-8 rounded-none text-slate-700" onClick={() => {setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
+                <X className="w-4 h-4" />
               </Button>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {setValoresFiltro(colunaId, filtroTemp.valores);setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
-                OK
+              <Button size="icon" title="Aplicar filtro" className="h-8 w-8 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {setValoresFiltro(colunaId, filtroTemp.valores);setMenuFiltroAberto(null);setBuscaFiltroMenu("");setFiltroTemp({ colunaId: null, valores: [] });}}>
+                <Save className="w-4 h-4" />
               </Button>
             </div>
           </div>
