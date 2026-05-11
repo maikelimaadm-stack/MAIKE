@@ -115,6 +115,18 @@ export default function CadastroLotes() {
       if (!checkText("categoria", lote.categoria)) return false;
       if (!checkText("sexo", lote.sexo)) return false;
       if (!checkText("status", lote.status)) return false;
+      if (!checkText("identificador", lote.identificador_nome)) return false;
+      if (!checkText("sigla", lote.identificador_sigla)) return false;
+      if (!checkText("raca", lote.raca_predominante)) return false;
+      if (!checkText("sistema_produtivo", lote.sistema_produtivo)) return false;
+      if (!checkText("motivo", lote.motivo_entrada)) return false;
+      if (!checkText("origem", lote.origem)) return false;
+      if (!checkText("fornecedor", lote.fornecedor_nome)) return false;
+      if (!checkText("nota_fiscal", lote.nota_fiscal)) return false;
+      if (!checkText("numero_gta", lote.numero_gta)) return false;
+      if (!checkText("cidade_origem", lote.cidade_origem)) return false;
+      if (!checkText("estado_origem", lote.estado_origem)) return false;
+      if (!checkText("observacoes", lote.observacoes)) return false;
       if (appliedFilters.area_codigo && ![lote.area_entrada_id, lote.area_atual_id].some((value) => contains(value, appliedFilters.area_codigo))) return false;
       if (appliedFilters.area_nome && ![lote.area_entrada_nome, lote.area_atual_nome].some((value) => contains(value, appliedFilters.area_nome))) return false;
       if (appliedFilters.setor_codigo && !contains(lote.setor_id, appliedFilters.setor_codigo)) return false;
@@ -123,6 +135,9 @@ export default function CadastroLotes() {
       if (!checkNumeric("quantidade", quantidade)) return false;
       const peso = Number(lote.peso_entrada_kg ?? lote.peso_medio_kg ?? 0);
       if (!checkNumeric("peso", peso)) return false;
+      if (!checkNumeric("valor", Number(lote.valor_total_compra ?? 0))) return false;
+      if (!checkNumeric("valor_por_cabeca", Number(lote.valor_por_cabeca ?? 0))) return false;
+      if (!checkNumeric("valor_frete", Number(lote.valor_frete ?? 0))) return false;
       const dataEntrada = String(lote.data_entrada || "").split("T")[0];
       const dataOperator = operators.data || "between";
       if (dataOperator === "empty" && dataEntrada) return false;

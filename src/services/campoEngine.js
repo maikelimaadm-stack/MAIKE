@@ -19,6 +19,14 @@ const FIXED_LOTE_FIELDS = {
   status: "status",
   valor: "valor_total_compra",
   fornecedor: "fornecedor_nome",
+  origem: "origem",
+  raca: "raca_predominante",
+  nota_fiscal: "nota_fiscal",
+  numero_gta: "numero_gta",
+  cidade_origem: "cidade_origem",
+  estado_origem: "estado_origem",
+  valor_por_cabeca: "valor_por_cabeca",
+  valor_frete: "valor_frete",
   observacoes: "observacoes"
 };
 

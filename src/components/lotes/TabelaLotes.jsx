@@ -30,6 +30,14 @@ const COLUNAS_DISPONIVEIS = [
 { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 100 },
 { id: "valor", label: "Valor Total", default: true, sortable: true, align: "right", width: 140 },
 { id: "fornecedor", label: "Fornecedor", default: true, sortable: true, align: "left", width: 160 },
+{ id: "origem", label: "Origem", default: true, sortable: true, align: "left", width: 140 },
+{ id: "raca", label: "Raça Predominante", default: true, sortable: true, align: "left", width: 160 },
+{ id: "nota_fiscal", label: "Nota Fiscal", default: true, sortable: true, align: "left", width: 130 },
+{ id: "numero_gta", label: "GTA", default: true, sortable: true, align: "left", width: 120 },
+{ id: "cidade_origem", label: "Cidade Origem", default: true, sortable: true, align: "left", width: 150 },
+{ id: "estado_origem", label: "UF Origem", default: true, sortable: true, align: "left", width: 90 },
+{ id: "valor_por_cabeca", label: "Valor/Cabeça", default: true, sortable: true, align: "right", width: 140 },
+{ id: "valor_frete", label: "Valor Frete", default: true, sortable: true, align: "right", width: 130 },
 { id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 }];
 
 

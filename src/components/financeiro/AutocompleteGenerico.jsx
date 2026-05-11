@@ -37,37 +37,20 @@ export default function AutocompleteGenerico({
     }
   }, [itemSelecionado, displayField, value]);
 
-  // Encontrar o container do portal: o DialogContent mais próximo ou o body
   useEffect(() => {
-    if (wrapperRef.current) {
-      const dialogContent = wrapperRef.current.closest('[role="dialog"]');
-      portalContainerRef.current = dialogContent || null;
-    }
+    portalContainerRef.current = null;
   }, []);
 
   const calcPosition = useCallback(() => {
     if (!inputRef.current) return;
     const r = inputRef.current.getBoundingClientRect();
     
-    const container = portalContainerRef.current;
-    if (container) {
-      // Se estamos dentro de um Dialog, calcular posição relativa ao Dialog
-      const containerRect = container.getBoundingClientRect();
-      setDropdownPos({
-        top: r.bottom - containerRect.top + 2,
-        left: r.left - containerRect.left,
-        width: r.width,
-        inDialog: true
-      });
-    } else {
-      // Fora de Dialog, usar posição fixa na viewport
-      setDropdownPos({
-        top: r.bottom + 2,
-        left: r.left,
-        width: r.width,
-        inDialog: false
-      });
-    }
+    setDropdownPos({
+      top: r.bottom + 2,
+      left: r.left,
+      width: r.width,
+      inDialog: false
+    });
   }, []);
 
   // Recalcular posição quando abre ou quando rola o scroll
@@ -232,12 +215,6 @@ export default function AutocompleteGenerico({
     const content = renderDropdownContent();
     if (!content) return null;
 
-    const container = portalContainerRef.current;
-    if (container) {
-      // Dentro de um Dialog: renderizar via portal no DialogContent
-      return ReactDOM.createPortal(content, container);
-    }
-    // Fora de Dialog: renderizar via portal no body
     return ReactDOM.createPortal(content, document.body);
   };
 
