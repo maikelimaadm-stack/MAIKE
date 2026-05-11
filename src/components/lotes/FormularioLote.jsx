@@ -523,7 +523,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                             checked={checked}
                             onChange={() => toggleSistemaProdutivo(item)}
                             disabled={isReadOnly}
-                            className="h-3 w-3 rounded-none border-slate-400 text-green-600 focus:ring-0"
+                            className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0"
                           />
                           <span>{item}</span>
                         </label>;
