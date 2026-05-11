@@ -8,7 +8,7 @@ export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
         key={tab.id}
         type="button"
         onClick={() => onChange(tab.id)}
-        className={`h-8 border border-b-0 text-xs whitespace-nowrap pr-5 pl-5 pt-1 ${activeTab === tab.id ? "bg-white text-slate-800 font-semibold -mb-px" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
+        className={`h-8 border border-b-0 text-xs whitespace-nowrap pr-5 pl-5 my-3 ${activeTab === tab.id ? "bg-white text-slate-800 font-semibold -mb-px" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
         
           {tab.label}
         </button>
