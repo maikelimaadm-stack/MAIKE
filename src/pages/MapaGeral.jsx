@@ -842,8 +842,7 @@ export default function MapaGeral() {
 
     renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
   }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
-  const mostrarPesoMedioNoMapa = Boolean(filtroPesoMin || filtroPesoMax);
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && filtroStatus === 'com_alerta', mostrarPesoMedioNoMapa);}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, mostrarPesoMedioNoMapa, handleClickLotes, handleDragLotes]);
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && filtroStatus === 'com_alerta');}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
@@ -892,6 +891,8 @@ export default function MapaGeral() {
 
   // ─── Render ───
   const totalCabecas = lotesFiltrados.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
+  const pesoTotalFiltrado = lotesFiltrados.reduce((s, l) => s + (Number(l.peso_medio_kg) || 0) * (Number(l.quantidade_cabecas) || 0), 0);
+  const pesoMedioGeral = totalCabecas > 0 && pesoTotalFiltrado > 0 ? Math.round(pesoTotalFiltrado / totalCabecas) : 0;
   const areasOcupadas = new Set(lotesFiltrados.map((l) => l.area_atual_id).filter(Boolean)).size;
   const totalAlertas = lotesFiltrados.filter((l) => l.alertas.length > 0).length;
 
@@ -925,8 +926,11 @@ export default function MapaGeral() {
         <div className="absolute bottom-2 left-2 right-2 z-10">
           <div className="bg-white/95 text-[10px] px-2 rounded-lg inline-flex max-w-full items-center gap-3 shadow-md border border-slate-200 pointer-events-auto">
             <div className="text-center">
-              <div className="font-bold text-emerald-700 text-sm leading-tight">{totalCabecas}</div>
-              <div className="text-slate-500">Animais</div>
+              <div className="font-bold text-emerald-700 text-sm leading-tight flex items-center gap-1.5 justify-center">
+                <span>{totalCabecas}</span>
+                {pesoMedioGeral > 0 && <span className="text-blue-700">| {pesoMedioGeral} kg</span>}
+              </div>
+              <div className="text-slate-500">Animais{pesoMedioGeral > 0 ? ' | Peso méd.' : ''}</div>
             </div>
             <div className="w-px h-5 bg-slate-200" />
             <div className="text-center">

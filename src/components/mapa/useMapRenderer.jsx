@@ -371,7 +371,7 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Lotes (agrupados por área) ───
-  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes, canDragLotes = true, blinkAlerts = false, showPesoMedio = false) => {
+  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes, canDragLotes = true, blinkAlerts = false) => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const prefix = 'lote_area_';
@@ -415,11 +415,6 @@ export default function useMapRenderer(mapInstanceRef) {
       const latSpan = bounds.getNorthEast().lat() - bounds.getSouthWest().lat();
       const offsetCenter = new google.maps.LatLng(centroidLat + latSpan * 0.12, centroidLng);
       const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
-      const pesoTotal = lotesNaArea.reduce((sum, l) => sum + (Number(l.peso_medio_kg) || 0) * (Number(l.quantidade_cabecas) || 0), 0);
-      const pesoMedio = totalCabecas > 0 && pesoTotal > 0 ? pesoTotal / totalCabecas : 0;
-      const markerLabel = showPesoMedio && pesoMedio > 0
-        ? `${totalCabecas} | ${Math.round(pesoMedio)}kg`
-        : String(totalCabecas);
       const cats = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase().trim()).filter(Boolean))].sort();
       const loteReferencia = lotesNaArea[0] || null;
       let cfg;
@@ -450,8 +445,6 @@ export default function useMapRenderer(mapInstanceRef) {
           lat: offsetCenter.lat(),
           lng: offsetCenter.lng(),
           totalCabecas,
-          pesoMedio: Math.round(pesoMedio),
-          showPesoMedio,
           totalAlertas,
           title: area.nome,
           draggable: !!canDragLotes,
@@ -460,7 +453,7 @@ export default function useMapRenderer(mapInstanceRef) {
         });
         if (markerStateCache.get(key) !== nextState) {
           const lbl = existing.getLabel();
-          if (lbl?.text !== markerLabel) existing.setLabel({ text: markerLabel, color: '#fff', fontSize: showPesoMedio ? '9px' : '11px', fontWeight: 'bold' });
+          if (lbl?.text !== String(totalCabecas)) existing.setLabel({ text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' });
           existing.setPosition(offsetCenter);
           existing.setTitle(area.nome);
           existing.setZIndex(totalAlertas > 0 ? 2000 : 1000);
@@ -478,7 +471,7 @@ export default function useMapRenderer(mapInstanceRef) {
       } else {
         const marker = new google.maps.Marker({
           position: offsetCenter, map, icon,
-          label: { text: markerLabel, color: '#fff', fontSize: showPesoMedio ? '9px' : '11px', fontWeight: 'bold' },
+          label: { text: String(totalCabecas), color: '#fff', fontSize: '11px', fontWeight: 'bold' },
           title: area.nome, zIndex: totalAlertas > 0 ? 2000 : 1000, draggable: !!canDragLotes
         });
         if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 50, true);
@@ -501,8 +494,6 @@ export default function useMapRenderer(mapInstanceRef) {
           lat: offsetCenter.lat(),
           lng: offsetCenter.lng(),
           totalCabecas,
-          pesoMedio: Math.round(pesoMedio),
-          showPesoMedio,
           totalAlertas,
           title: area.nome,
           draggable: !!canDragLotes,
