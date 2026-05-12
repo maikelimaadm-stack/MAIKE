@@ -12,39 +12,39 @@ import campoEngine from "@/services/campoEngine";
 import { buildFiltersFromPreset } from "@/components/filters/filterPresetUtils";
 
 const FIELD_DEFS = [
-  { id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 220, pinned: false, exportable: true } },
-  { id: "sexo", label: "Sexo", group: "Detalhes do lote", type: "select", options: ["Macho", "Fêmea", "Misto"], metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 120, pinned: false, exportable: true } },
-  { id: "quantidade", label: "Quantidade de cabeças", group: "Detalhes do lote", type: "number", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 150, pinned: false, exportable: true } },
-  { id: "peso", label: "Peso médio", group: "Detalhes do lote", type: "number", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 130, pinned: false, exportable: true } },
-  { id: "categoria", label: "Categoria", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
-  { id: "status", label: "Status", group: "Detalhes do lote", type: "select", options: ["Ativo", "Inativo", "Vendido", "Abatido", "Transferido"], metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 120, pinned: false, exportable: true } },
-  { id: "identificador", label: "Identificador", group: "Identificação", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
-  { id: "sigla", label: "Sigla", group: "Identificação", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 90, pinned: false, exportable: true } },
-  { id: "raca", label: "Raça predominante", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
-  { id: "sistema_produtivo", label: "Sistema produtivo", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
-  { id: "motivo", label: "Motivo", group: "Entrada", type: "select", options: ["Compra", "Ajuste", "Inventário", "Outros"], metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 140, pinned: false, exportable: true } },
-  { id: "origem", label: "Origem", group: "Entrada", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 140, pinned: false, exportable: true } },
-  { id: "fornecedor", label: "Fornecedor", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
-  { id: "nota_fiscal", label: "Nota fiscal", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 130, pinned: false, exportable: true } },
-  { id: "numero_gta", label: "GTA", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 120, pinned: false, exportable: true } },
-  { id: "cidade_origem", label: "Cidade origem", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 150, pinned: false, exportable: true } },
-  { id: "estado_origem", label: "UF origem", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 90, pinned: false, exportable: true } },
-  { id: "valor", label: "Valor total", group: "Compra", type: "number", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 140, pinned: false, exportable: true } },
-  { id: "valor_por_cabeca", label: "Valor por cabeça", group: "Compra", type: "number", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 150, pinned: false, exportable: true } },
-  { id: "valor_frete", label: "Valor frete", group: "Compra", type: "number", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 130, pinned: false, exportable: true } },
-  { id: "observacoes", label: "Observações", group: "Observações", type: "text", metadata: { searchable: true, sortable: false, favorite: false, quickFilter: true, width: 220, pinned: false, exportable: true } },
-  { id: "area_codigo_nome", label: "Área", group: "Localização", type: "codeNameDynamic", source: "areas", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 180, pinned: false, exportable: true } },
-  { id: "setor_codigo_nome", label: "Setor", group: "Localização", type: "codeNameDynamic", source: "setores", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
-  { id: "data", label: "Data de entrada", group: "Identificação", type: "date", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: false, width: 130, pinned: false, exportable: true } }
-];
+{ id: "lote_codigo_nome", label: "Lote", group: "Detalhes do lote", type: "codeName", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 220, pinned: false, exportable: true } },
+{ id: "sexo", label: "Sexo", group: "Detalhes do lote", type: "select", options: ["Macho", "Fêmea", "Misto"], metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 120, pinned: false, exportable: true } },
+{ id: "quantidade", label: "Quantidade de cabeças", group: "Detalhes do lote", type: "number", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 150, pinned: false, exportable: true } },
+{ id: "peso", label: "Peso médio", group: "Detalhes do lote", type: "number", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 130, pinned: false, exportable: true } },
+{ id: "categoria", label: "Categoria", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
+{ id: "status", label: "Status", group: "Detalhes do lote", type: "select", options: ["Ativo", "Inativo", "Vendido", "Abatido", "Transferido"], metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 120, pinned: false, exportable: true } },
+{ id: "identificador", label: "Identificador", group: "Identificação", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
+{ id: "sigla", label: "Sigla", group: "Identificação", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 90, pinned: false, exportable: true } },
+{ id: "raca", label: "Raça predominante", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
+{ id: "sistema_produtivo", label: "Sistema produtivo", group: "Detalhes do lote", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
+{ id: "motivo", label: "Motivo", group: "Entrada", type: "select", options: ["Compra", "Ajuste", "Inventário", "Outros"], metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 140, pinned: false, exportable: true } },
+{ id: "origem", label: "Origem", group: "Entrada", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 140, pinned: false, exportable: true } },
+{ id: "fornecedor", label: "Fornecedor", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 160, pinned: false, exportable: true } },
+{ id: "nota_fiscal", label: "Nota fiscal", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 130, pinned: false, exportable: true } },
+{ id: "numero_gta", label: "GTA", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 120, pinned: false, exportable: true } },
+{ id: "cidade_origem", label: "Cidade origem", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 150, pinned: false, exportable: true } },
+{ id: "estado_origem", label: "UF origem", group: "Compra", type: "text", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 90, pinned: false, exportable: true } },
+{ id: "valor", label: "Valor total", group: "Compra", type: "number", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 140, pinned: false, exportable: true } },
+{ id: "valor_por_cabeca", label: "Valor por cabeça", group: "Compra", type: "number", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 150, pinned: false, exportable: true } },
+{ id: "valor_frete", label: "Valor frete", group: "Compra", type: "number", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 130, pinned: false, exportable: true } },
+{ id: "observacoes", label: "Observações", group: "Observações", type: "text", metadata: { searchable: true, sortable: false, favorite: false, quickFilter: true, width: 220, pinned: false, exportable: true } },
+{ id: "area_codigo_nome", label: "Área", group: "Localização", type: "codeNameDynamic", source: "areas", metadata: { searchable: true, sortable: true, favorite: true, quickFilter: true, width: 180, pinned: false, exportable: true } },
+{ id: "setor_codigo_nome", label: "Setor", group: "Localização", type: "codeNameDynamic", source: "setores", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: true, width: 180, pinned: false, exportable: true } },
+{ id: "data", label: "Data de entrada", group: "Identificação", type: "date", metadata: { searchable: true, sortable: true, favorite: false, quickFilter: false, width: 130, pinned: false, exportable: true } }];
+
 
 const DEFAULT_FIELDS = ["lote_codigo_nome", "sexo", "quantidade", "peso", "area_codigo_nome", "setor_codigo_nome"];
 const DEFAULT_OPERATORS = { quantidade: "between", peso: "between", data: "between" };
 const DEFAULT_FOLDERS = [
-  { id: "detalhes_lote", name: "Detalhes do lote" },
-  { id: "localizacao", name: "Localização" },
-  { id: "identificacao", name: "Identificação" }
-];
+{ id: "detalhes_lote", name: "Detalhes do lote" },
+{ id: "localizacao", name: "Localização" },
+{ id: "identificacao", name: "Identificação" }];
+
 const DEFAULT_FIELD_GROUPS = FIELD_DEFS.reduce((acc, field) => {
   const folder = DEFAULT_FOLDERS.find((item) => item.name === field.group);
   acc[field.id] = folder?.id || DEFAULT_FOLDERS[0].id;
@@ -107,24 +107,24 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const allFields = useMemo(() => [...FIELD_DEFS, ...customFields], [customFields]);
 
   const options = useMemo(() => {
-    const uniqBy = (items, key) => Array.from(new Map(items.filter((item) => item?.[key]).map((item) => [item[key], item])).values())
-      .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
+    const uniqBy = (items, key) => Array.from(new Map(items.filter((item) => item?.[key]).map((item) => [item[key], item])).values()).
+    sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
 
     return {
       areas: uniqBy([
-        ...areas.map((a) => ({
-          codigo: a.numero_area || a.codigo || a.cod_area || "",
-          nome: a.nome,
-          id: a.id,
-          details: [a.setor_nome && `Setor: ${a.setor_nome}`, a.tipo_area && `Tipo: ${a.tipo_area}`, a.status && `Status: ${a.status}`]
-        })),
-        ...lotes.map((l) => ({
-          codigo: l.area_atual_codigo || l.area_entrada_codigo || "",
-          nome: l.area_atual_nome || l.area_entrada_nome,
-          id: l.area_atual_id || l.area_entrada_id,
-          details: [l.setor_nome && `Setor: ${l.setor_nome}`, l.nome && `Lote vinculado: ${l.nome}`]
-        }))
-      ], "nome"),
+      ...areas.map((a) => ({
+        codigo: a.numero_area || a.codigo || a.cod_area || "",
+        nome: a.nome,
+        id: a.id,
+        details: [a.setor_nome && `Setor: ${a.setor_nome}`, a.tipo_area && `Tipo: ${a.tipo_area}`, a.status && `Status: ${a.status}`]
+      })),
+      ...lotes.map((l) => ({
+        codigo: l.area_atual_codigo || l.area_entrada_codigo || "",
+        nome: l.area_atual_nome || l.area_entrada_nome,
+        id: l.area_atual_id || l.area_entrada_id,
+        details: [l.setor_nome && `Setor: ${l.setor_nome}`, l.nome && `Lote vinculado: ${l.nome}`]
+      }))],
+      "nome"),
       setores: uniqBy(lotes.map((l) => ({
         codigo: l.setor_codigo || l.numero_setor || "",
         nome: l.setor_nome,
@@ -208,13 +208,13 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     onApply(nextFilters);
   };
 
-  const renderNumberInput = (field, suffix) => (
-    <Input inputMode="decimal" value={filters[`${field.id}_${suffix}`] || ""} onChange={(e) => update(`${field.id}_${suffix}`, e.target.value)} className={inputClass} />
-  );
+  const renderNumberInput = (field, suffix) =>
+  <Input inputMode="decimal" value={filters[`${field.id}_${suffix}`] || ""} onChange={(e) => update(`${field.id}_${suffix}`, e.target.value)} className={inputClass} />;
 
-  const renderDateInput = (field, suffix) => (
-    <Input type="date" value={filters[`${field.id}_${suffix}`] || ""} onChange={(e) => update(`${field.id}_${suffix}`, e.target.value)} className={inputClass} />
-  );
+
+  const renderDateInput = (field, suffix) =>
+  <Input type="date" value={filters[`${field.id}_${suffix}`] || ""} onChange={(e) => update(`${field.id}_${suffix}`, e.target.value)} className={inputClass} />;
+
 
   const renderOperatedField = (field, renderInput) => {
     const operator = operators[field.id] || "between";
@@ -228,15 +228,15 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     return renderInput(field, suffix);
   };
 
-  const renderCodeName = (prefix, source, label) => (
-    <SankhyaCodeNameLookup
-      label={label}
-      prefix={prefix}
-      source={options[source] || []}
-      filters={filters}
-      onChange={onChange}
-    />
-  );
+  const renderCodeName = (prefix, source, label) =>
+  <SankhyaCodeNameLookup
+    label={label}
+    prefix={prefix}
+    source={options[source] || []}
+    filters={filters}
+    onChange={onChange} />;
+
+
 
   const renderField = (fieldId) => {
     const field = allFields.find((item) => item.id === fieldId);
@@ -251,11 +251,11 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         {field.type === "codeNameDynamic" && renderCodeName(field.id.replace("_codigo_nome", ""), field.source, field.label)}
         {field.type === "text" && <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : ""} className={inputClass} />}
         {field.type === "select" &&
-          <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : "Digite o valor"} className={inputClass} />}
+        <Input value={filters[field.id] || ""} onChange={(e) => update(field.id, e.target.value)} placeholder={["custom", "in", "notIn"].includes(operators[field.id] || "contains") ? "Ex: X; Y; Z" : "Digite o valor"} className={inputClass} />}
         {field.type === "number" && renderOperatedField(field, renderNumberInput)}
         {field.type === "date" && renderOperatedField(field, renderDateInput)}
-      </div>
-    );
+      </div>);
+
   };
 
   const groupedFolders = filterFolders.map((folder) => ({
@@ -289,15 +289,15 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
           onSelectConfig={setActiveConfigId}
           onSaveConfig={handleSaveConfig}
           onDeleteConfig={handleDeleteConfig}
-          relationOptions={options}
-        />
-      </section>
-    );
+          relationOptions={options} />
+        
+      </section>);
+
   }
 
   return (
     <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
-      <div className="border-b border-slate-300 p-1 space-y-1 bg-white shrink-0">
+      <div className="border-slate-300 p-1 space-y-1 bg-white shrink-0 border">
         <div className="flex items-center gap-2 h-6">
           <Checkbox checked={!!filters.esconderAoAtualizar} onCheckedChange={(checked) => update("esconderAoAtualizar", !!checked)} className="h-3.5 w-3.5 rounded-none" />
           <span className="font-semibold text-slate-700">Esconder ao atualizar</span>
@@ -312,11 +312,11 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
               <SelectValue placeholder="FILTROS PERSONALIZADOS" />
             </SelectTrigger>
             <SelectContent>
-              {filterConfigs.map((config) => (
-                <SelectItem key={config.id} value={config.id} className="text-xs">
+              {filterConfigs.map((config) =>
+              <SelectItem key={config.id} value={config.id} className="text-xs">
                   {config.name}
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -328,8 +328,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto">
-        {groupedFolders.map((folder) => (
-          <div key={folder.id} className="border-b border-slate-300">
+        {groupedFolders.map((folder) =>
+        <div key={folder.id} className="border-b border-slate-300">
             <button type="button" onClick={() => setOpenGroups({ ...openGroups, [folder.id]: !openGroups[folder.id] })} className="w-full h-8 px-2 flex items-center justify-between gap-1 bg-slate-100 font-semibold text-slate-700 text-left hover:bg-slate-200">
               <span className="flex min-w-0 items-center gap-1">
                 {openGroups[folder.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
@@ -339,7 +339,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
             </button>
             {openGroups[folder.id] && <div className="p-1.5 space-y-1.5">{folder.fields.map(renderField)}</div>}
           </div>
-        ))}
+        )}
 
       </div>
 
@@ -365,8 +365,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         onSelectConfig={setActiveConfigId}
         onSaveConfig={handleSaveConfig}
         onDeleteConfig={handleDeleteConfig}
-        relationOptions={options}
-      />
-    </aside>
-  );
+        relationOptions={options} />
+      
+    </aside>);
+
 }
