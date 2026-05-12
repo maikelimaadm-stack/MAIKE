@@ -248,7 +248,7 @@ export default function AutocompleteGenerico({
 
   return (
     <div ref={wrapperRef} className={`relative ${className || ''}`}>
-      <div className="relative rounded-sm">
+      <div className="relative">
         <Input
           ref={inputRef}
           value={searchTerm}
