@@ -5,8 +5,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
@@ -17,7 +17,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
   const isLast = currentIndex >= total - 1;
   return (
     <div className="bg-white shadow-none overflow-hidden">
-      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white">
+      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-t">
 
 
         {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
