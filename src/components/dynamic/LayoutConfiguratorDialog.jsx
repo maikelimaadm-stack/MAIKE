@@ -278,7 +278,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[94vw] max-w-6xl h-[82vh] max-h-[760px] overflow-hidden flex flex-col !p-0 !rounded-none">
+      <DialogContent className="!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !h-screen !max-h-none overflow-hidden flex flex-col !p-0 !rounded-none">
         {content}
       </DialogContent>
     </Dialog>
