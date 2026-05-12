@@ -332,38 +332,38 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
-  const content = (
-    <div className="w-full h-full overflow-hidden flex flex-col bg-white">
-      {!inline && (
-        <DialogHeader className="sr-only">
+  const content =
+  <div className="w-full h-full overflow-hidden flex flex-col bg-white">
+      {!inline &&
+    <DialogHeader className="sr-only">
           <DialogTitle>Configuração de campos personalizados</DialogTitle>
         </DialogHeader>
-      )}
+    }
 
         {showForm ?
-        <form onSubmit={handleSubmit} className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
+    <form onSubmit={handleSubmit} className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
             <LegacyRecordToolbar
-            title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
-            badgeLabel="CAMPO PERSONALIZADO"
-            operationLabel={operationLabel}
-            showSaveActions={editMode}
-            showEditAction={isReadOnly}
-            showDeleteDuplicateActions={!!editingId && !editMode && !isDuplicating}
-            onCancel={handleDiscard}
-            onEditRecord={() => setEditMode(true)}
-            onToggleView={handleToggleView}
-            onBack={() => onOpenChange(false)}
-            onNew={handleNew}
-            total={campos.length}
-            currentIndex={selectedIndex}
-            onFirst={() => navigateCampo(0)}
-            onPrevious={() => navigateCampo(selectedIndex - 1)}
-            onNext={() => navigateCampo(selectedIndex + 1)}
-            onLast={() => navigateCampo(campos.length - 1)}
-            onDelete={handleDeleteCurrent}
-            onDuplicate={handleDuplicateCurrent}
-            onSettingsClick={() => {}}
-            showUtilityActions={false} />
+        title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
+        badgeLabel="CAMPO PERSONALIZADO"
+        operationLabel={operationLabel}
+        showSaveActions={editMode}
+        showEditAction={isReadOnly}
+        showDeleteDuplicateActions={!!editingId && !editMode && !isDuplicating}
+        onCancel={handleDiscard}
+        onEditRecord={() => setEditMode(true)}
+        onToggleView={handleToggleView}
+        onBack={() => onOpenChange(false)}
+        onNew={handleNew}
+        total={campos.length}
+        currentIndex={selectedIndex}
+        onFirst={() => navigateCampo(0)}
+        onPrevious={() => navigateCampo(selectedIndex - 1)}
+        onNext={() => navigateCampo(selectedIndex + 1)}
+        onLast={() => navigateCampo(campos.length - 1)}
+        onDelete={handleDeleteCurrent}
+        onDuplicate={handleDuplicateCurrent}
+        onSettingsClick={() => {}}
+        showUtilityActions={false} />
           
 
             <fieldset className={`flex-1 overflow-y-auto ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}`}>
@@ -386,46 +386,46 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
                 <span className="text-[12px] text-slate-600 text-right leading-none">Exibir em:</span>
                 <div className="flex items-center gap-4">
                   {[["obrigatorio", "Obrigatório"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) =>
-                  <button key={field} type="button" onClick={() => updateForm(field, !form[field])} className="flex items-center gap-1.5 bg-transparent">
+              <button key={field} type="button" onClick={() => updateForm(field, !form[field])} className="flex items-center gap-1.5 bg-transparent">
                       <span className="text-[12px] text-slate-600">{label}</span>
                       <span className={`w-8 h-4 rounded-full relative inline-block transition-colors ${form[field] ? 'bg-green-500' : 'bg-slate-300'}`}>
                         <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form[field] ? 'right-0.5' : 'left-0.5'}`} />
                       </span>
                     </button>
-                  )}
+              )}
                 </div>
               </div>
               </div>
             </fieldset>
 
             {editMode &&
-          <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200 hidden">
+      <div className="flex justify-end gap-1 p-2 bg-slate-50 border-t border-slate-200 hidden">
                 <Button type="button" variant="outline" onClick={handleDiscard} size="sm" className="h-7 text-xs px-3">Descartar</Button>
                 <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isDuplicating ? "Salvar" : editingId ? "Atualizar" : "Salvar"}</Button>
               </div>
-          }
+      }
           </form> :
 
-        <div className="flex-1 min-h-0 overflow-hidden border border-slate-300 bg-white flex flex-col">
+    <div className="flex-1 min-h-0 overflow-hidden border border-slate-300 bg-white flex flex-col">
             <SankhyaListToolbar
-            viewMode="table"
-            total={campos.length}
-            currentIndex={selectedIndex}
-            onNew={handleNew}
-            onToggleView={handleToggleView}
-            onBack={() => onOpenChange(false)}
-            toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
-            onDelete={handleDeleteSelected}
-            onSettingsClick={() => {}}
-            onAttachClick={() => {}}
-            attachDisabled
-            selectedCount={selectedCampoIds.length}
-            title="Campos Personalizados"
-            recordLabel=""
-            showUtilityActions={false}
-            showSearch={false} />
+        viewMode="table"
+        total={campos.length}
+        currentIndex={selectedIndex}
+        onNew={handleNew}
+        onToggleView={handleToggleView}
+        onBack={() => onOpenChange(false)}
+        toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
+        onDelete={handleDeleteSelected}
+        onSettingsClick={() => {}}
+        onAttachClick={() => {}}
+        attachDisabled
+        selectedCount={selectedCampoIds.length}
+        title="Campos Personalizados"
+        recordLabel=""
+        showUtilityActions={false}
+        showSearch={false} />
             <div className="overflow-auto flex-1">
-              <Table className="w-full my-1 min-w-[760px] border-separate border-spacing-0 table-fixed">
+              <Table className="w-full min-w-[760px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
                     <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7 w-[260px]">Campo</TableHead>
@@ -435,15 +435,15 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
                 </TableHeader>
                 <TableBody>
                   {isLoading ?
-                <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow> :
-                campos.length === 0 ?
-                <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow> :
-                campos.map((campo) =>
-                <TableRow
-                  key={campo.id || campo.field_id}
-                  className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
-                  onClick={(event) => handleRowSelect(campo, event)}
-                  onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
+            <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow> :
+            campos.length === 0 ?
+            <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow> :
+            campos.map((campo) =>
+            <TableRow
+              key={campo.id || campo.field_id}
+              className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
+              onClick={(event) => handleRowSelect(campo, event)}
+              onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words font-medium ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{campo.label}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
@@ -456,14 +456,14 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
                         </div>
                       </TableCell>
                     </TableRow>
-                )}
+            )}
                 </TableBody>
               </Table>
             </div>
           </div>
-        }
-    </div>
-  );
+    }
+    </div>;
+
 
   if (inline) return open ? content : null;
 
