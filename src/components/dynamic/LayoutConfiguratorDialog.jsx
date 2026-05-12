@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Check, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronsLeft, ChevronsRight, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -56,7 +56,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const [draftAggregationConfig, setDraftAggregationConfig] = useState(aggregationConfig);
   const [activePanelId, setActivePanelId] = useState(panels[0]?.id || "");
   const [selectedAvailable, setSelectedAvailable] = useState(null);
+  const [selectedAvailableIds, setSelectedAvailableIds] = useState([]);
   const [selectedPanelField, setSelectedPanelField] = useState(null);
+  const [selectedPanelFieldIds, setSelectedPanelFieldIds] = useState([]);
   const [search, setSearch] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [draggedFieldId, setDraggedFieldId] = useState(null);
@@ -73,7 +75,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftAggregationConfig(aggregationConfig);
     setActivePanelId(panels[0]?.id || "");
     setSelectedAvailable(null);
+    setSelectedAvailableIds([]);
     setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
     setSearch("");
     setIsEditing(false);
     setEditingPanelId(null);
@@ -94,19 +98,45 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   }, [fields, usedFieldIds, search]);
 
   const addField = () => {
-    if (!selectedAvailable || !activePanel) return;
-    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [...(prev[activePanel.id] || []), selectedAvailable] }));
-    setSelectedPanelField(selectedAvailable);
+    const ids = selectedAvailableIds.length ? selectedAvailableIds : selectedAvailable ? [selectedAvailable] : [];
+    if (!ids.length || !activePanel) return;
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [...(prev[activePanel.id] || []), ...ids.filter((id) => !(prev[activePanel.id] || []).includes(id))] }));
+    setSelectedPanelField(ids[ids.length - 1]);
+    setSelectedPanelFieldIds(ids);
     setSelectedAvailable(null);
+    setSelectedAvailableIds([]);
+  };
+
+  const addAllFields = () => {
+    if (!activePanel || availableFields.length === 0) return;
+    const ids = availableFields.map((field) => field.id);
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [...(prev[activePanel.id] || []), ...ids.filter((id) => !(prev[activePanel.id] || []).includes(id))] }));
+    setSelectedPanelField(ids[ids.length - 1]);
+    setSelectedPanelFieldIds(ids);
+    setSelectedAvailable(null);
+    setSelectedAvailableIds([]);
   };
 
   const removeField = () => {
-    if (!selectedPanelField || !activePanel) return;
-    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => id !== selectedPanelField) }));
-    setDraftHiddenFieldIds((prev) => prev.filter((id) => id !== selectedPanelField));
-    setDraftLockedFieldIds((prev) => prev.filter((id) => id !== selectedPanelField));
-    setDraftRequiredFieldIds((prev) => prev.filter((id) => id !== selectedPanelField));
+    const ids = selectedPanelFieldIds.length ? selectedPanelFieldIds : selectedPanelField ? [selectedPanelField] : [];
+    if (!ids.length || !activePanel) return;
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
+    setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setDraftRequiredFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
+  };
+
+  const removeAllFields = () => {
+    if (!activePanel || panelFieldIds.length === 0) return;
+    const ids = [...panelFieldIds];
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [] }));
+    setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setDraftRequiredFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
   };
 
   const createPanel = () => {
@@ -134,6 +164,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftRequiredFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
     setActivePanelId(draftPanels.find((panel) => panel.id !== activePanel.id)?.id || "");
     setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
     setEditingPanelId(null);
   };
 
@@ -175,6 +206,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftLockedFieldIds((prev) => prev.filter((id) => id !== draggedFieldId));
     setDraftRequiredFieldIds((prev) => prev.filter((id) => id !== draggedFieldId));
     setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
     setDraggedFieldId(null);
   };
 
@@ -182,7 +214,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     if (!draggedFieldId || !activePanel || panelFieldIds.includes(draggedFieldId)) return;
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [...(prev[activePanel.id] || []), draggedFieldId] }));
     setSelectedPanelField(draggedFieldId);
+    setSelectedPanelFieldIds([draggedFieldId]);
     setSelectedAvailable(null);
+    setSelectedAvailableIds([]);
     setDraggedFieldId(null);
   };
 
@@ -242,28 +276,37 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftAggregationConfig(defaultConfig.aggregationConfig || {});
     setActivePanelId(defaultConfig.panels?.[0]?.id || "");
     setSelectedAvailable(null);
+    setSelectedAvailableIds([]);
     setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
   };
 
-  const renderAvailableField = (field) =>
-  <button
-    key={field.id}
-    type="button"
-    disabled={!isEditing}
-    draggable={isEditing}
-    onClick={() => setSelectedAvailable(field.id)}
-    onDragStart={() => {setDraggedFieldId(field.id);setSelectedAvailable(field.id);}}
-    onDragEnd={() => setDraggedFieldId(null)}
-    className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${selectedAvailable === field.id ? "bg-gray-100 border-green-500 ring-2 ring-green-500 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
+  const renderAvailableField = (field) => {
+    const selected = selectedAvailableIds.includes(field.id);
+    return <button
+      key={field.id}
+      type="button"
+      disabled={!isEditing}
+      draggable={isEditing}
+      onClick={() => {
+        setSelectedAvailable(field.id);
+        setSelectedAvailableIds((prev) => prev.includes(field.id) ? prev.filter((id) => id !== field.id) : [...prev, field.id]);
+        setSelectedPanelField(null);
+        setSelectedPanelFieldIds([]);
+      }}
+      onDragStart={() => {setDraggedFieldId(field.id);setSelectedAvailable(field.id);setSelectedAvailableIds([field.id]);}}
+      onDragEnd={() => setDraggedFieldId(null)}
+      className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
     
       {isCustomField(field) && <CustomMarker />}
       <div className="text-xs font-semibold truncate">{field.label}</div>
       <div className="text-[10px] text-slate-500 truncate">Disponível</div>
     </button>;
+  };
 
 
   const renderPanelField = (field, index) => {
-    const selected = selectedPanelField === field.id;
+    const selected = selectedPanelFieldIds.includes(field.id);
     const hidden = draftHiddenFieldIds.includes(field.id);
     const locked = draftLockedFieldIds.includes(field.id);
     const required = field.required || draftRequiredFieldIds.includes(field.id);
@@ -272,13 +315,18 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         key={field.id}
         type="button"
         disabled={!isEditing}
-        onClick={() => setSelectedPanelField(field.id)}
+        onClick={() => {
+          setSelectedPanelField(field.id);
+          setSelectedPanelFieldIds((prev) => prev.includes(field.id) ? prev.filter((id) => id !== field.id) : [...prev, field.id]);
+          setSelectedAvailable(null);
+          setSelectedAvailableIds([]);
+        }}
         draggable={isEditing}
-        onDragStart={() => {setDraggedFieldId(field.id);setSelectedPanelField(field.id);}}
+        onDragStart={() => {setDraggedFieldId(field.id);setSelectedPanelField(field.id);setSelectedPanelFieldIds([field.id]);}}
         onDragOver={(event) => {event.preventDefault();reorderField(field.id);}}
         onDrop={() => setDraggedFieldId(null)}
         onDragEnd={() => setDraggedFieldId(null)}
-        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left items-center transition-all flex border justify-between overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "bg-gray-100 border-green-500 ring-2 ring-green-500 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : ""}`}>
+        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left items-center transition-all flex border justify-between overflow-hidden focus-visible:outline-none ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : ""}`}>
         
         {isCustomField(field) && <CustomMarker />}
         <span className="flex items-center gap-1 min-w-0">
@@ -322,8 +370,10 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </aside>
 
           <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-8">
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedAvailable} onClick={addField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Adicionar ao painel"><ArrowRight className="w-5 h-5" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedPanelField} onClick={removeField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || availableFields.length === 0} onClick={addAllFields} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover todos para o painel"><ChevronsRight className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedAvailableIds.length === 0} onClick={addField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Adicionar selecionados ao painel"><ArrowRight className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedPanelFieldIds.length === 0} onClick={removeField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover selecionados para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || panelFieldIds.length === 0} onClick={removeAllFields} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover todos para disponíveis"><ChevronsLeft className="w-5 h-5" /></Button>
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
@@ -346,6 +396,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                     setEditingPanelId(null);
                     setActivePanelId(panel.id);
                     setSelectedPanelField(null);
+                    setSelectedPanelFieldIds([]);
                   }}
                   className={`relative h-8 px-4 border border-b-0 text-xs whitespace-nowrap transition-all overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
                   
