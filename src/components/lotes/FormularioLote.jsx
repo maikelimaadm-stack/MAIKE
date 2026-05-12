@@ -535,6 +535,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
           requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
           aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
+          defaultConfig={{ panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {} }}
           onSave={saveLayoutConfig}
         />
       </section>

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, EyeOff, List, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, EyeOff, List, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -26,7 +26,7 @@ function GreenCheck({ checked, disabled = false, onChange }) {
   );
 }
 
-export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, onSave, inline = false }) {
+export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, defaultConfig = null, onSave, inline = false }) {
   const [draftPanels, setDraftPanels] = useState(panels);
   const [draftLayout, setDraftLayout] = useState(layout);
   const [draftHiddenFieldIds, setDraftHiddenFieldIds] = useState(hiddenFieldIds);
@@ -176,6 +176,19 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     onOpenChange(false);
   };
 
+  const restoreDefault = () => {
+    if (!defaultConfig) return;
+    setDraftPanels(defaultConfig.panels || []);
+    setDraftLayout(defaultConfig.layout || {});
+    setDraftHiddenFieldIds(defaultConfig.hiddenFieldIds || []);
+    setDraftLockedFieldIds(defaultConfig.lockedFieldIds || []);
+    setDraftRequiredFieldIds(defaultConfig.requiredFieldIds || []);
+    setDraftAggregationConfig(defaultConfig.aggregationConfig || {});
+    setActivePanelId(defaultConfig.panels?.[0]?.id || "");
+    setSelectedAvailable(null);
+    setSelectedPanelField(null);
+  };
+
   const renderAvailableField = (field) => (
     <button
       key={field.id}
@@ -220,14 +233,15 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
       <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="h-8 border-b border-slate-300 bg-white flex items-center gap-0">
-          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Voltar"><ArrowLeft className="w-4 h-4" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing((value) => !value)} className={`h-8 w-9 rounded-none border-y-0 border-l-0 ${isEditing ? "bg-emerald-50 text-emerald-700" : ""}`} title="Editar organização"><List className="w-4 h-4" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={createPanel} className="h-8 w-9 rounded-none border-y-0 border-l-0 bg-green-500 hover:bg-green-600 text-white hover:text-white" title="Novo painel"><Plus className="w-4 h-4" /></Button>
-          <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem} onClick={deletePanel} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Excluir painel"><Trash2 className="w-4 h-4" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={handleSave} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Salvar"><Check className="w-4 h-4" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Descartar"><X className="w-4 h-4" /></Button>
-          <div className="ml-auto pr-4 text-xs text-slate-600">{Math.max(draftPanels.findIndex((panel) => panel.id === activePanel?.id), 0) + 1}/{draftPanels.length || 1}</div>
+        <div className="h-7 flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-b border-slate-300">
+          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Editar layout"><List className="w-3.5 h-3.5" /></Button>
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={restoreDefault} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Restaurar padrão"><RotateCcw className="w-3.5 h-3.5" /></Button>}
+          <div className="ml-auto h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-l-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600">
+            {draftPanels.length > 0 ? `${Math.max(draftPanels.findIndex((panel) => panel.id === activePanel?.id), 0) + 1}/${draftPanels.length}` : 0}
+          </div>
         </div>
 
         <div className="grid grid-cols-[320px_45px_1fr] flex-1 min-h-0">
@@ -267,6 +281,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
             <div className="h-10 border-b border-slate-200 flex items-center gap-2 px-2 bg-slate-50">
               <span className="text-xs text-slate-600">Painel:</span>
               <Input value={activePanel?.label || ""} onChange={(e) => setDraftPanels((prev) => prev.map((panel) => panel.id === activePanel?.id ? { ...panel, label: e.target.value.toUpperCase() } : panel))} readOnly={activePanelIsSystem || !isEditing} className="h-7 w-72 rounded-none text-xs uppercase bg-white" />
+              <Button type="button" variant="outline" size="icon" disabled={!isEditing} onClick={createPanel} className="h-7 w-8 rounded-none bg-green-500 hover:bg-green-600 text-white hover:text-white" title="Novo painel"><Plus className="w-4 h-4" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel || activePanelIsSystem} onClick={deletePanel} className="h-7 w-8 rounded-none" title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>
               <span className="text-[11px] text-slate-500">Movendo painel: <b>{activePanel?.label || "nenhum"}</b></span>
               <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel} onClick={() => movePanel(-1)} className="h-7 w-8 rounded-none" title="Mover painel para esquerda"><ChevronLeft className="w-4 h-4" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel} onClick={() => movePanel(1)} className="h-7 w-8 rounded-none" title="Mover painel para direita"><ChevronRight className="w-4 h-4" /></Button>
