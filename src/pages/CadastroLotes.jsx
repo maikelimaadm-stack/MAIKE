@@ -6,7 +6,7 @@ import SankhyaFilterPanel from "@/components/common/SankhyaFilterPanel";
 import { toast } from "sonner";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
-import ConfiguracaoLayoutLoteDialog from "@/components/lotes/ConfiguracaoLayoutLoteDialog";
+import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposLoteDialog";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
@@ -348,7 +348,7 @@ export default function CadastroLotes() {
     <div className="space-y-1 p-0 md:p-0 bg-white">
       {showConfigCampos && (
         <section className="w-[calc(100vw-1px)] max-w-full bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
-          <ConfiguracaoLayoutLoteDialog
+          <ConfiguracaoCamposLoteDialog
             open={showConfigCampos}
             onOpenChange={setShowConfigCampos}
             inline

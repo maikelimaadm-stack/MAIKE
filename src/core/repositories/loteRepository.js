@@ -1,6 +1,5 @@
 import { base44 } from "@/api/base44Client";
 import { ensureDeleteAllowed as ensureEntityDeleteAllowed } from "@/lib/entityDeleteGuards";
-import { LOTE_FIXED_FIELDS, LOTE_LAYOUT_SECTIONS } from "@/components/lotes/loteFixedFields";
 
 const ORIGENS_SISTEMA = [
   "MOVIMENTAÇÃO",
@@ -127,87 +126,19 @@ export const loteRepository = {
     }
 
     const secoes = await base44.entities.LayoutSecao.list();
-    const existingSections = secoes.filter((item) => item.layout_id === layout.id);
-    const createdSections = [];
+    let secao = secoes.find((item) => item.layout_id === layout.id && item.section_id === "campos_personalizados");
 
-    for (const section of LOTE_LAYOUT_SECTIONS) {
-      let current = existingSections.find((item) => item.section_id === section.section_id);
-      if (!current) {
-        current = await base44.entities.LayoutSecao.create({
-          layout_id: layout.id,
-          section_id: section.section_id,
-          titulo: section.titulo,
-          ordem: section.ordem,
-          ativo: true,
-          metadata: { is_principal: !!section.is_principal }
-        });
-      }
-      createdSections.push(current);
+    if (!secao) {
+      secao = await base44.entities.LayoutSecao.create({
+        layout_id: layout.id,
+        section_id: "campos_personalizados",
+        titulo: "Campos Personalizados",
+        ordem: 99,
+        ativo: true
+      });
     }
 
-    const campos = await base44.entities.LayoutCampo.list();
-    const existingFields = campos.filter((item) => item.layout_id === layout.id && item.entity_name === "Lote");
-
-    for (const field of LOTE_FIXED_FIELDS) {
-      const exists = existingFields.find((item) => item.field_name === field.field_name && item.origem === "fixo");
-      if (!exists) {
-        await base44.entities.LayoutCampo.create({
-          layout_id: layout.id,
-          section_id: field.section_id,
-          field_id: `lote_fixed_${field.field_name}`,
-          entity_name: "Lote",
-          field_name: field.field_name,
-          origem: "fixo",
-          label: field.label,
-          tipo: field.tipo,
-          ordem: field.ordem,
-          obrigatorio: !!field.obrigatorio,
-          read_only: ["readonly", "status"].includes(field.tipo),
-          ativo: true,
-          visivel_form: true,
-          visivel_tabela: false,
-          visivel_relatorio: false,
-          ordenavel: false,
-          filtravel: false,
-          metadata: { protected_required: !!field.protected_required, conditional_required: field.conditional_required || "" }
-        });
-      }
-    }
-
-    const secao = createdSections.find((item) => item.section_id === "campos_personalizados");
-    return { layout, secao, secoes: createdSections };
-  },
-
-  async listLayoutSections() {
-    const { layout } = await this.ensureLoteLayoutBase();
-    const secoes = await base44.entities.LayoutSecao.list();
-    return secoes.filter((secao) => secao.layout_id === layout.id && secao.ativo !== false).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-  },
-
-  async createLayoutSection({ titulo }) {
-    const { layout } = await this.ensureLoteLayoutBase();
-    const secoes = await this.listLayoutSections();
-    return base44.entities.LayoutSecao.create({
-      layout_id: layout.id,
-      section_id: `painel_${Date.now()}`,
-      titulo,
-      ordem: (secoes.length + 1) * 10,
-      ativo: true
-    });
-  },
-
-  async updateLayoutSection(id, data) {
-    return base44.entities.LayoutSecao.update(id, data);
-  },
-
-  async listCamposLayout() {
-    const { layout } = await this.ensureLoteLayoutBase();
-    const campos = await base44.entities.LayoutCampo.list();
-    return campos.filter((campo) => campo.layout_id === layout.id && campo.entity_name === "Lote" && campo.ativo !== false).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-  },
-
-  async updateCampoLayout(id, data) {
-    return base44.entities.LayoutCampo.update(id, data);
+    return { layout, secao };
   },
 
   async listCamposPersonalizados() {

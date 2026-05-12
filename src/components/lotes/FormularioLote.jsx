@@ -153,18 +153,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     enabled: !!empresaSelecionadaId
   });
 
-  const { data: layoutSections = [] } = useQuery({
-    queryKey: ["lote-layout-sections"],
-    queryFn: () => loteRepository.listLayoutSections(),
-    initialData: []
-  });
-
-  const { data: camposLayout = [] } = useQuery({
-    queryKey: ["lote-layout-campos"],
-    queryFn: () => loteRepository.listCamposLayout(),
-    initialData: []
-  });
-
   const { data: camposPersonalizados = [] } = useQuery({
     queryKey: ["lote-campos-personalizados"],
     queryFn: () => loteRepository.listCamposPersonalizados(),
@@ -413,82 +401,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""} ${readOnlyClass}`} />;
   };
 
-  const isLayoutFieldRequired = (campo) => {
-    if (!campo) return false;
-    const conditional = campo.metadata?.conditional_required;
-    if (conditional) {
-      const [field, expected] = conditional.split(":");
-      return formData?.[field] === expected;
-    }
-    return !!campo.obrigatorio || !!campo.metadata?.protected_required;
-  };
-
-  const shouldShowLayoutField = (campo) => {
-    const conditional = campo.metadata?.conditional_required;
-    if (!conditional) return true;
-    const [field, expected] = conditional.split(":");
-    return formData?.[field] === expected;
-  };
-
-  const renderLayoutField = (campo) => {
-    if (!shouldShowLayoutField(campo)) return null;
-    const field = campo.field_name;
-    const label = campo.label;
-    const required = isLayoutFieldRequired(campo);
-    const inputClass = "h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1";
-    const commonProps = { value: formData[field] || "", onChange: (e) => handleChange(field, e.target.value), readOnly: campo.read_only || isReadOnly };
-
-    if (campo.origem === "customizado") {
-      return <FL key={campo.id || campo.field_id} label={label} required={required} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} medium={["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo)} compact={["number", "date", "time", "calculado"].includes(campo.tipo)}>{renderCampoPersonalizado(campo)}</FL>;
-    }
-
-    if (field === "ativo_visual") {
-      return <FL key={field} label={label} compact><div className="h-[22px] flex items-center px-1"><span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span></div></FL>;
-    }
-
-    if (field === "numero_lote" || campo.tipo === "readonly") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field} compact><Input value={formData[field] || ""} readOnly className={`${inputClass} bg-slate-50`} /></FL>;
-    }
-
-    if (field === "setor_id") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={setores} value={formData.setor_id} onChange={(value) => { if (isReadOnly) return; setIsDirty(true); setFormData((prev) => ({ ...prev, setor_id: value || "", area_entrada_id: "" })); setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false })); }} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /></FL>;
-    }
-
-    if (field === "area_entrada_id") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={areasDoSetor} value={formData.area_entrada_id} onChange={(value) => handleChange("area_entrada_id", value)} placeholder={formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO"} displayField="nome" searchFields={["nome", "numero_area"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /></FL>;
-    }
-
-    if (field === "categoria_manejo_id") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={categoriasManejo} value={formData.categoria_manejo_id} onChange={(value) => handleChange("categoria_manejo_id", value)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /></FL>;
-    }
-
-    if (field === "sexo") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={opcoesSexo} value={formData.sexo} onChange={(value) => handleChange("sexo", value)} placeholder="BUSCAR SEXO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /></FL>;
-    }
-
-    if (field === "motivo_entrada") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={opcoesMotivoEntrada} value={formData.motivo_entrada} onChange={(value) => handleChange("motivo_entrada", value)} placeholder="BUSCAR MOTIVO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /></FL>;
-    }
-
-    if (field === "fornecedor_id") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={fornecedores} value={formData.fornecedor_id} onChange={(value) => handleChange("fornecedor_id", value)} placeholder="BUSCAR FORNECEDOR..." displayField="nome" searchFields={["nome", "cpf", "cnpj", "cidade", "estado"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /></FL>;
-    }
-
-    if (field === "identificador_cor") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field}><AutocompleteGenerico items={opcoesCores} value={formData.identificador_cor} onChange={(value) => handleChange("identificador_cor", value)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /></FL>;
-    }
-
-    if (field === "sistema_produtivo") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field} wide><div className="px-1 py-1 space-y-1 bg-transparent"><div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div><div className="border border-slate-300 bg-white p-1 space-y-1">{SISTEMAS.map((item) => { const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item); return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer"><input type="checkbox" checked={checked} onChange={() => toggleSistemaProdutivo(item)} disabled={isReadOnly} className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0" /><span>{item}</span></label>; })}</div></div></FL>;
-    }
-
-    if (campo.tipo === "textarea") {
-      return <FL key={field} label={label} required={required} error={errors[field]} dataField={field} wide><Textarea value={formData[field] || ""} onChange={(e) => handleChange(field, e.target.value)} placeholder={(campo.placeholder || label || "").toUpperCase()} className={`text-xs uppercase bg-transparent px-1 ${readOnlyClass}`} style={{ textTransform: "uppercase" }} rows={2} /></FL>;
-    }
-
-    return <FL key={field} label={label} required={required} error={errors[field]} dataField={field} compact={["number", "date"].includes(campo.tipo)}><Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} step={field === "peso_medio_kg" ? "0.1" : campo.tipo === "number" ? "0.01" : undefined} {...commonProps} placeholder={(campo.placeholder || label || "").toUpperCase()} className={`${inputClass} ${UPPERCASE_FIELDS.includes(field) ? "uppercase" : ""} ${readOnlyClass}`} style={UPPERCASE_FIELDS.includes(field) ? { textTransform: "uppercase" } : undefined} /> </FL>;
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isReadOnly) return;
@@ -540,14 +452,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     onSubmit(dataToSave);
   };
 
-  const visibleLayoutFields = useMemo(() => camposLayout.filter((campo) => campo.visivel_form !== false), [camposLayout]);
-  const principalLayoutFields = useMemo(() => visibleLayoutFields.filter((campo) => campo.section_id === "principal"), [visibleLayoutFields]);
-  const layoutTabs = useMemo(() => layoutSections.filter((secao) => secao.ativo !== false && !secao.metadata?.is_principal).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)), [layoutSections]);
-  const tabs = layoutTabs.map((secao) => ({ id: secao.section_id, label: secao.titulo }));
-
-  React.useEffect(() => {
-    if (tabs.length > 0 && !tabs.some((tab) => tab.id === activeTab)) setActiveTab(tabs[0].id);
-  }, [tabs, activeTab]);
+  const tabs = [
+  { id: "geral", label: "Geral" },
+  { id: "compra", label: "Motivo" },
+  { id: "identificacao", label: "Identificação" },
+  { id: "observacoes", label: "Observações" },
+  ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
 
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
@@ -582,11 +492,17 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
-            {(principalLayoutFields.length ? principalLayoutFields : [
-              { field_name: "nome", label: "Descrição", obrigatorio: true },
-              { field_name: "ativo_visual", label: "Ativo" },
-              { field_name: "numero_lote", label: "Código" }
-            ]).map((campo) => renderLayoutField(campo))}
+            <FL label="Descrição" required error={errors.nome} dataField="nome">
+              <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
+            </FL>
+            <FL label="Ativo" compact>
+              <div className="h-[22px] flex items-center px-1">
+                <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
+              </div>
+            </FL>
+            <FL label="Código" compact>
+              <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
+            </FL>
           </div>
         </fieldset>
 
@@ -594,12 +510,113 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
         <div className="min-h-[360px] px-4 md:px-8 py-1">
           <div className="max-w-[780px] space-y-1">
-            <div className="space-y-1">
-              {visibleLayoutFields
-                .filter((campo) => campo.section_id === activeTab)
-                .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
-                .map((campo) => renderLayoutField(campo))}
-            </div>
+            {activeTab === "geral" &&
+              <div className="space-y-1">
+                <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada" compact>
+                  <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
+                </FL>
+                <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
+                  <AutocompleteGenerico items={setores} value={formData.setor_id} onChange={(value) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: value || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
+                </FL>
+                <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
+                  <AutocompleteGenerico items={areasDoSetor} value={formData.area_entrada_id} onChange={(value) => handleChange("area_entrada_id", value)} placeholder={formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO"} displayField="nome" searchFields={["nome", "numero_area"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
+                </FL>
+                <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas" compact>
+                  <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
+                </FL>
+                <FL label="Categoria de Manejo" required error={errors.categoria_manejo_id} dataField="categoria_manejo_id">
+                  <AutocompleteGenerico items={categoriasManejo} value={formData.categoria_manejo_id} onChange={(value) => handleChange("categoria_manejo_id", value)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} />
+                </FL>
+                <FL label="Sexo" required error={errors.sexo} dataField="sexo">
+                  <AutocompleteGenerico items={opcoesSexo} value={formData.sexo} onChange={(value) => handleChange("sexo", value)} placeholder="BUSCAR SEXO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
+                </FL>
+                <FL label="Raça Predominante" required error={errors.raca_predominante} dataField="raca_predominante">
+                  <Input value={formData.raca_predominante || ""} onChange={(e) => handleChange("raca_predominante", e.target.value)} placeholder="RAÇA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
+                </FL>
+                <FL label="Peso Médio (kg)" required error={errors.peso_medio_kg} dataField="peso_medio_kg" compact>
+                  <Input type="number" step="0.1" value={formData.peso_medio_kg || ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} placeholder="0.0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
+                </FL>
+                <FL label="Idade Média (meses)" required error={errors.idade_media_meses} dataField="idade_media_meses" compact>
+                  <Input type="number" value={formData.idade_media_meses || ""} onChange={(e) => handleChange("idade_media_meses", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
+                </FL>
+                <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo" wide>
+                  <div className="px-1 py-1 space-y-1 bg-transparent">
+                    <div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div>
+                    <div className="border border-slate-300 bg-white p-1 space-y-1">
+                      {SISTEMAS.map((item) => {
+                        const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
+                        return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSistemaProdutivo(item)}
+                            disabled={isReadOnly}
+                            className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0"
+                          />
+                          <span>{item}</span>
+                        </label>;
+                      })}
+                    </div>
+                  </div>
+                </FL>
+              </div>
+              }
+
+            {activeTab === "compra" &&
+              <div className="space-y-1">
+                <FL label="Motivo da Entrada" dataField="motivo_entrada">
+                  <AutocompleteGenerico items={opcoesMotivoEntrada} value={formData.motivo_entrada} onChange={(value) => handleChange("motivo_entrada", value)} placeholder="BUSCAR MOTIVO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
+                </FL>
+
+                {formData.motivo_entrada === "Compra" &&
+                <>
+                  <FL label="Fornecedor" required error={errors.fornecedor_id} dataField="fornecedor_id">
+                    <AutocompleteGenerico items={fornecedores} value={formData.fornecedor_id} onChange={(value) => handleChange("fornecedor_id", value)} placeholder="BUSCAR FORNECEDOR..." displayField="nome" searchFields={["nome", "cpf", "cnpj", "cidade", "estado"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
+                  </FL>
+                  <FL label="Cidade Origem" required error={errors.cidade_origem} dataField="cidade_origem"><Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Estado Origem" required error={errors.estado_origem} dataField="estado_origem"><Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
+                  <FL label="Nota Fiscal" required error={errors.nota_fiscal} dataField="nota_fiscal" compact><Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="Nº DA NF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Chave NF-e" required error={errors.chave_nfe} dataField="chave_nfe"><Input value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Nº GTA" required error={errors.numero_gta} dataField="numero_gta" compact><Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                  <FL label="Valor Total (R$)" required error={errors.valor_total_compra} dataField="valor_total_compra" compact><Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+                  <FL label="Valor p/ Cabeça (R$)" required error={errors.valor_por_cabeca} dataField="valor_por_cabeca" compact><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
+                  <FL label="Valor Frete (R$)" required error={errors.valor_frete} dataField="valor_frete" compact><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
+                </>}
+
+                {formData.motivo_entrada === "Ajuste" && <FL label="Motivo do Ajuste" required error={errors.motivo_ajuste} dataField="motivo_ajuste" wide><Textarea value={formData.motivo_ajuste || ""} onChange={(e) => handleChange("motivo_ajuste", e.target.value)} placeholder="DESCREVA O MOTIVO DO AJUSTE" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
+                {formData.motivo_entrada === "Outros" && <FL label="Motivo" required error={errors.motivo_outros} dataField="motivo_outros" wide><Textarea value={formData.motivo_outros || ""} onChange={(e) => handleChange("motivo_outros", e.target.value)} placeholder="DESCREVA O MOTIVO" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
+                {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
+                {!formData.motivo_entrada && <div className="ml-[191px] text-[11px] text-slate-500 pb-1">Selecione um motivo para exibir os campos correspondentes.</div>}
+              </div>
+              }
+
+            {activeTab === "identificacao" &&
+              <div className="space-y-1">
+                <FL label="Identificador (Nome)"><Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
+                <FL label="Identificador (Sigla)"><Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
+                <FL label="Identificador (Cor)">
+                  <AutocompleteGenerico items={opcoesCores} value={formData.identificador_cor} onChange={(value) => handleChange("identificador_cor", value)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} />
+                </FL>
+              </div>
+              }
+
+            {activeTab === "observacoes" &&
+              <div className="space-y-1">
+                <FL label="Observações" wide><Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>
+              </div>
+              }
+
+            {activeTab === "campos_personalizados" &&
+              <div className="space-y-1">
+                {camposPersonalizadosForm.length === 0 ?
+                <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
+                camposPersonalizadosForm.map((campo) =>
+                <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} medium={["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo)} compact={["number", "date", "time", "calculado"].includes(campo.tipo)}>
+                    {renderCampoPersonalizado(campo)}
+                  </FL>
+                )}
+              </div>
+              }
           </div>
         </div>
 
