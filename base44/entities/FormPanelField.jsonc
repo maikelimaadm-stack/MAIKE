@@ -1,0 +1,71 @@
+{
+  "name": "FormPanelField",
+  "type": "object",
+  "properties": {
+    "layout_id": {
+      "type": "string",
+      "description": "ID do layout do formul\u00e1rio"
+    },
+    "panel_id": {
+      "type": "string",
+      "description": "ID l\u00f3gico do painel"
+    },
+    "field_id": {
+      "type": "string",
+      "description": "ID l\u00f3gico do campo"
+    },
+    "entity_name": {
+      "type": "string",
+      "description": "Entidade do campo"
+    },
+    "field_name": {
+      "type": "string",
+      "description": "Nome/chave do campo"
+    },
+    "origem": {
+      "type": "string",
+      "enum": [
+        "fixo",
+        "customizado"
+      ],
+      "default": "fixo",
+      "description": "Origem do campo"
+    },
+    "label": {
+      "type": "string",
+      "description": "R\u00f3tulo do campo"
+    },
+    "tipo": {
+      "type": "string",
+      "description": "Tipo do campo"
+    },
+    "ordem": {
+      "type": "number",
+      "description": "Ordem do campo no painel"
+    },
+    "visivel": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o campo est\u00e1 vis\u00edvel"
+    },
+    "obrigatorio": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o campo \u00e9 obrigat\u00f3rio"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Configura\u00e7\u00f5es adicionais de layout"
+    }
+  },
+  "required": [
+    "layout_id",
+    "panel_id",
+    "field_id",
+    "entity_name",
+    "field_name",
+    "label",
+    "tipo",
+    "ordem"
+  ]
+}

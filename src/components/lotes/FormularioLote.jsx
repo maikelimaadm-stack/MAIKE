@@ -12,6 +12,8 @@ import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
+import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
+import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
@@ -82,6 +84,12 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
+  const [layoutConfigOpen, setLayoutConfigOpen] = useState(false);
+  const [formLayoutConfig, setFormLayoutConfig] = useState(() => {
+    const saved = localStorage.getItem("cadastro_lotes_form_layout_config");
+    if (!saved) return null;
+    try { return JSON.parse(saved); } catch { return null; }
+  });
   const [isDirty, setIsDirty] = useState(!isEditing || isDuplicating);
   const [editMode, setEditMode] = useState(!isEditing || isDuplicating);
   // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
@@ -452,13 +460,61 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     onSubmit(dataToSave);
   };
 
-  const tabs = [
-  { id: "geral", label: "Geral" },
-  { id: "compra", label: "Motivo" },
-  { id: "identificacao", label: "Identificação" },
-  { id: "observacoes", label: "Observações" },
-  ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])];
+  const basePanels = [
+    { id: "geral", label: "Geral" },
+    { id: "compra", label: "Motivo" },
+    { id: "identificacao", label: "Identificação" },
+    { id: "observacoes", label: "Observações" },
+    ...(camposPersonalizadosForm.length > 0 ? [{ id: "campos_personalizados", label: "Campos Personalizados" }] : [])
+  ];
 
+  const dynamicFields = useMemo(() => [
+    { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
+    { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} onChange={(nextValue) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
+    { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
+    { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas" },
+    { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
+    { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
+    { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
+    { id: "peso_medio_kg", name: "peso_medio_kg", label: "Peso Médio (kg)", type: "number", required: true, compact: true, errorKey: "peso_medio_kg" },
+    { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses" },
+    { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="px-1 py-1 space-y-1 bg-transparent"><div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div><div className="border border-slate-300 bg-white p-1 space-y-1">{SISTEMAS.map((item) => { const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item); return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer"><input type="checkbox" checked={checked} onChange={() => toggleSistemaProdutivo(item)} disabled={isReadOnly} className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0" /><span>{item}</span></label>; })}</div></div> },
+    { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "autocomplete", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
+    { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: formData.motivo_entrada === "Compra", errorKey: "fornecedor_id", options: fornecedores, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "cidade_origem", name: "cidade_origem", label: "Cidade Origem", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "cidade_origem", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "estado_origem", name: "estado_origem", label: "Estado Origem", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "estado_origem", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "nota_fiscal", name: "nota_fiscal", label: "Nota Fiscal", type: "text", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "nota_fiscal", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "chave_nfe", name: "chave_nfe", label: "Chave NF-e", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "chave_nfe", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "numero_gta", name: "numero_gta", label: "Nº GTA", type: "text", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "numero_gta", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "valor_total_compra", name: "valor_total_compra", label: "Valor Total (R$)", type: "number", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "valor_total_compra", showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "valor_por_cabeca", name: "valor_por_cabeca", label: "Valor p/ Cabeça (R$)", type: "number", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "valor_por_cabeca", readOnly: true, showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "valor_frete", name: "valor_frete", label: "Valor Frete (R$)", type: "number", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "valor_frete", showWhen: (values) => values.motivo_entrada === "Compra" },
+    { id: "motivo_ajuste", name: "motivo_ajuste", label: "Motivo do Ajuste", type: "textarea", required: formData.motivo_entrada === "Ajuste", wide: true, errorKey: "motivo_ajuste", showWhen: (values) => values.motivo_entrada === "Ajuste" },
+    { id: "motivo_outros", name: "motivo_outros", label: "Motivo", type: "textarea", required: formData.motivo_entrada === "Outros", wide: true, errorKey: "motivo_outros", showWhen: (values) => values.motivo_entrada === "Outros" },
+    { id: "identificador_nome", name: "identificador_nome", label: "Identificador (Nome)", type: "text", uppercase: true, placeholder: "EX: CONFINAMENTO" },
+    { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
+    { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
+    { id: "observacoes", name: "observacoes", label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." },
+    ...camposPersonalizadosForm.map((campo) => ({ id: `custom:${campo.field_name}`, name: campo.field_name, label: campo.label, type: campo.tipo, required: campo.obrigatorio, errorKey: `campos_personalizados.${campo.field_name}`, wide: campo.tipo === "textarea", medium: ["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo), compact: ["number", "date", "time", "calculado"].includes(campo.tipo), render: () => renderCampoPersonalizado(campo) }))
+  ], [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, camposPersonalizadosForm, errors, isReadOnly, relatedOptions]);
+
+  const defaultLayout = {
+    geral: ["data_entrada", "setor_id", "area_entrada_id", "quantidade_cabecas", "categoria_manejo_id", "sexo", "raca_predominante", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
+    compra: ["motivo_entrada", "fornecedor_id", "cidade_origem", "estado_origem", "nota_fiscal", "chave_nfe", "numero_gta", "valor_total_compra", "valor_por_cabeca", "valor_frete", "motivo_ajuste", "motivo_outros"],
+    identificacao: ["identificador_nome", "identificador_sigla", "identificador_cor"],
+    observacoes: ["observacoes"],
+    campos_personalizados: camposPersonalizadosForm.map((campo) => `custom:${campo.field_name}`)
+  };
+
+  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [] };
+  const tabs = activeLayoutConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0);
+
+  const saveLayoutConfig = (nextConfig) => {
+    const normalized = { ...nextConfig, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
+    setFormLayoutConfig(normalized);
+    localStorage.setItem("cadastro_lotes_form_layout_config", JSON.stringify(normalized));
+    if (!normalized.panels.some((panel) => panel.id === activeTab)) setActiveTab(normalized.panels[0]?.id || "geral");
+  };
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
@@ -475,6 +531,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onCancel={onCancel}
           onEditRecord={() => setEditMode(true)}
           onSettingsClick={onSettingsClick}
+          onLayoutConfigClick={() => setLayoutConfigOpen(true)}
           onToggleView={onToggleView}
           total={total}
           currentIndex={currentIndex}
@@ -508,119 +565,32 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-        <div className="min-h-[360px] px-4 md:px-8 py-1">
-          <div className="max-w-[780px] space-y-1">
-            {activeTab === "geral" &&
-              <div className="space-y-1">
-                <FL label="Data de Entrada" required error={errors.data_entrada} dataField="data_entrada" compact>
-                  <Input type="date" value={formData.data_entrada || ""} onChange={(e) => handleChange("data_entrada", e.target.value)} className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
-                </FL>
-                <FL label="Setor" required error={errors.setor_id} dataField="setor_id">
-                  <AutocompleteGenerico items={setores} value={formData.setor_id} onChange={(value) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: value || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
-                </FL>
-                <FL label="Área de Entrada" required error={errors.area_entrada_id} dataField="area_entrada_id">
-                  <AutocompleteGenerico items={areasDoSetor} value={formData.area_entrada_id} onChange={(value) => handleChange("area_entrada_id", value)} placeholder={formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO"} displayField="nome" searchFields={["nome", "numero_area"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
-                </FL>
-                <FL label="Qtd. Cabeças" required error={errors.quantidade_cabecas} dataField="quantidade_cabecas" compact>
-                  <Input type="number" value={formData.quantidade_cabecas || ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
-                </FL>
-                <FL label="Categoria de Manejo" required error={errors.categoria_manejo_id} dataField="categoria_manejo_id">
-                  <AutocompleteGenerico items={categoriasManejo} value={formData.categoria_manejo_id} onChange={(value) => handleChange("categoria_manejo_id", value)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} />
-                </FL>
-                <FL label="Sexo" required error={errors.sexo} dataField="sexo">
-                  <AutocompleteGenerico items={opcoesSexo} value={formData.sexo} onChange={(value) => handleChange("sexo", value)} placeholder="BUSCAR SEXO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
-                </FL>
-                <FL label="Raça Predominante" required error={errors.raca_predominante} dataField="raca_predominante">
-                  <Input value={formData.raca_predominante || ""} onChange={(e) => handleChange("raca_predominante", e.target.value)} placeholder="RAÇA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
-                </FL>
-                <FL label="Peso Médio (kg)" required error={errors.peso_medio_kg} dataField="peso_medio_kg" compact>
-                  <Input type="number" step="0.1" value={formData.peso_medio_kg || ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} placeholder="0.0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
-                </FL>
-                <FL label="Idade Média (meses)" required error={errors.idade_media_meses} dataField="idade_media_meses" compact>
-                  <Input type="number" value={formData.idade_media_meses || ""} onChange={(e) => handleChange("idade_media_meses", e.target.value)} placeholder="0" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" />
-                </FL>
-                <FL label="Sistema Produtivo" required error={errors.sistema_produtivo} dataField="sistema_produtivo" wide>
-                  <div className="px-1 py-1 space-y-1 bg-transparent">
-                    <div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div>
-                    <div className="border border-slate-300 bg-white p-1 space-y-1">
-                      {SISTEMAS.map((item) => {
-                        const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);
-                        return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleSistemaProdutivo(item)}
-                            disabled={isReadOnly}
-                            className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0"
-                          />
-                          <span>{item}</span>
-                        </label>;
-                      })}
-                    </div>
-                  </div>
-                </FL>
-              </div>
-              }
-
-            {activeTab === "compra" &&
-              <div className="space-y-1">
-                <FL label="Motivo da Entrada" dataField="motivo_entrada">
-                  <AutocompleteGenerico items={opcoesMotivoEntrada} value={formData.motivo_entrada} onChange={(value) => handleChange("motivo_entrada", value)} placeholder="BUSCAR MOTIVO..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
-                </FL>
-
-                {formData.motivo_entrada === "Compra" &&
-                <>
-                  <FL label="Fornecedor" required error={errors.fornecedor_id} dataField="fornecedor_id">
-                    <AutocompleteGenerico items={fornecedores} value={formData.fornecedor_id} onChange={(value) => handleChange("fornecedor_id", value)} placeholder="BUSCAR FORNECEDOR..." displayField="nome" searchFields={["nome", "cpf", "cnpj", "cidade", "estado"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" />
-                  </FL>
-                  <FL label="Cidade Origem" required error={errors.cidade_origem} dataField="cidade_origem"><Input value={formData.cidade_origem || ""} onChange={(e) => handleChange("cidade_origem", e.target.value)} placeholder="CIDADE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                  <FL label="Estado Origem" required error={errors.estado_origem} dataField="estado_origem"><Input value={formData.estado_origem || ""} onChange={(e) => handleChange("estado_origem", e.target.value)} placeholder="UF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
-                  <FL label="Nota Fiscal" required error={errors.nota_fiscal} dataField="nota_fiscal" compact><Input value={formData.nota_fiscal || ""} onChange={(e) => handleChange("nota_fiscal", e.target.value)} placeholder="Nº DA NF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                  <FL label="Chave NF-e" required error={errors.chave_nfe} dataField="chave_nfe"><Input value={formData.chave_nfe || ""} onChange={(e) => handleChange("chave_nfe", e.target.value)} placeholder="44 DÍGITOS" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                  <FL label="Nº GTA" required error={errors.numero_gta} dataField="numero_gta" compact><Input value={formData.numero_gta || ""} onChange={(e) => handleChange("numero_gta", e.target.value)} placeholder="GTA" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                  <FL label="Valor Total (R$)" required error={errors.valor_total_compra} dataField="valor_total_compra" compact><Input type="number" step="0.01" value={formData.valor_total_compra || ""} onChange={(e) => handleChange("valor_total_compra", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
-                  <FL label="Valor p/ Cabeça (R$)" required error={errors.valor_por_cabeca} dataField="valor_por_cabeca" compact><Input type="number" step="0.01" value={formData.valor_por_cabeca || ""} readOnly placeholder="Calculado" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /></FL>
-                  <FL label="Valor Frete (R$)" required error={errors.valor_frete} dataField="valor_frete" compact><Input type="number" step="0.01" value={formData.valor_frete || ""} onChange={(e) => handleChange("valor_frete", e.target.value)} placeholder="0.00" className="h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></FL>
-                </>}
-
-                {formData.motivo_entrada === "Ajuste" && <FL label="Motivo do Ajuste" required error={errors.motivo_ajuste} dataField="motivo_ajuste" wide><Textarea value={formData.motivo_ajuste || ""} onChange={(e) => handleChange("motivo_ajuste", e.target.value)} placeholder="DESCREVA O MOTIVO DO AJUSTE" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
-                {formData.motivo_entrada === "Outros" && <FL label="Motivo" required error={errors.motivo_outros} dataField="motivo_outros" wide><Textarea value={formData.motivo_outros || ""} onChange={(e) => handleChange("motivo_outros", e.target.value)} placeholder="DESCREVA O MOTIVO" className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>}
-                {formData.motivo_entrada === "Inventário" && <div className="ml-[191px] border border-slate-300 p-2 bg-slate-50 text-xs text-slate-600">Registro de inventário para contagem e conferência do rebanho.</div>}
-                {!formData.motivo_entrada && <div className="ml-[191px] text-[11px] text-slate-500 pb-1">Selecione um motivo para exibir os campos correspondentes.</div>}
-              </div>
-              }
-
-            {activeTab === "identificacao" &&
-              <div className="space-y-1">
-                <FL label="Identificador (Nome)"><Input value={formData.identificador_nome || ""} onChange={(e) => handleChange("identificador_nome", e.target.value)} placeholder="EX: CONFINAMENTO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /></FL>
-                <FL label="Identificador (Sigla)"><Input value={formData.identificador_sigla || ""} onChange={(e) => handleChange("identificador_sigla", e.target.value.slice(0, 2))} placeholder="EX: CF" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} maxLength={2} /></FL>
-                <FL label="Identificador (Cor)">
-                  <AutocompleteGenerico items={opcoesCores} value={formData.identificador_cor} onChange={(value) => handleChange("identificador_cor", value)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} />
-                </FL>
-              </div>
-              }
-
-            {activeTab === "observacoes" &&
-              <div className="space-y-1">
-                <FL label="Observações" wide><Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase bg-transparent px-1" style={{ textTransform: "uppercase" }} rows={2} /></FL>
-              </div>
-              }
-
-            {activeTab === "campos_personalizados" &&
-              <div className="space-y-1">
-                {camposPersonalizadosForm.length === 0 ?
-                <div className="ml-[191px] text-xs text-slate-500">Nenhum campo personalizado configurado.</div> :
-                camposPersonalizadosForm.map((campo) =>
-                <FL key={campo.id || campo.field_id} label={campo.label} required={campo.obrigatorio} error={errors[`campos_personalizados.${campo.field_name}`]} dataField={`campos_personalizados.${campo.field_name}`} wide={campo.tipo === "textarea"} medium={["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo)} compact={["number", "date", "time", "calculado"].includes(campo.tipo)}>
-                    {renderCampoPersonalizado(campo)}
-                  </FL>
-                )}
-              </div>
-              }
+          <div className="min-h-[360px] px-4 md:px-8 py-1">
+            <div className="max-w-[780px] space-y-1">
+              <DynamicFormRenderer
+                panels={tabs}
+                fields={dynamicFields}
+                layout={activeLayoutConfig.layout}
+                hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                activePanelId={activeTab}
+                values={formData}
+                errors={errors}
+                onChange={handleChange}
+                readOnly={isReadOnly}
+              />
+            </div>
           </div>
-        </div>
-
         </fieldset>
+
+        <LayoutConfiguratorDialog
+          open={layoutConfigOpen}
+          onOpenChange={setLayoutConfigOpen}
+          panels={tabs}
+          fields={dynamicFields}
+          layout={activeLayoutConfig.layout}
+          hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+          onSave={saveLayoutConfig}
+        />
 
         
 

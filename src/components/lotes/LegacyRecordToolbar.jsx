@@ -1,11 +1,17 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, Pencil, ArrowLeft } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
-export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showEditAction = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSave, onEditRecord, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, onBack, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
+export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showEditAction = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSave, onEditRecord, onSettingsClick, onLayoutConfigClick, onAttachClick, attachDisabled = false, onToggleView, onBack, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
   const isFirst = currentIndex <= 0;
   const isLast = currentIndex >= total - 1;
@@ -49,7 +55,18 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
 
           {showUtilityActions && <Button type="button" variant="outline" size="icon" className={showDeleteDuplicateActions ? iconButtonClass : fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>}
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>}
+          {showUtilityActions &&
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="icon" className={iconButtonClass} title="Mais opções"><MoreHorizontal className="w-3.5 h-3.5" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
+              <DropdownMenuItem onClick={onLayoutConfigClick} disabled={!onLayoutConfigClick} className="h-8 cursor-pointer gap-2 text-xs">
+                <Settings className="w-3.5 h-3.5 text-slate-600" />
+                Layout do formulário
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>}
           <div className={`h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600 ${showUtilityActions ? '' : 'border-l-[0.5px]'}`}>
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
