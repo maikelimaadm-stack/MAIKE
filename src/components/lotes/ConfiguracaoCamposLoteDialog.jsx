@@ -334,7 +334,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!w-[98vw] !max-w-[98vw] h-[calc(100dvh-24px)] max-h-[calc(100dvh-24px)] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+      <DialogContent className="!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !h-screen !max-h-none overflow-hidden flex flex-col !p-0 !rounded-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de campos personalizados</DialogTitle>
         </DialogHeader>
