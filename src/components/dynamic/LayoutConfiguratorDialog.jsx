@@ -313,7 +313,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           
             <div className="text-sm font-semibold text-slate-800 mb-2">Campos disponíveis</div>
             <div className="relative mb-3">
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="h-6 rounded-none text-xs pr-7" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="rounded-none text-xs pr-3 pl-3 h-" />
               <Search className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-1.5" />
             </div>
             <div className="flex-1 overflow-auto space-y-1 pr-1" onDragOver={(event) => event.preventDefault()} onDrop={dropFieldToAvailable}>
