@@ -69,7 +69,7 @@ export default function SankhyaListToolbar({
   const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1 && !!onDuplicate;
 
   return (
-    <div>
+    <div className="border-t">
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap border-">
 
         
