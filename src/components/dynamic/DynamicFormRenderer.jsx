@@ -38,11 +38,14 @@ function DefaultControl({ field, value, onChange, readOnly }) {
   return <Input type={field.type === "datetime" ? "datetime-local" : field.type || "text"} value={value || ""} onChange={(e) => onChange(field.name, e.target.value)} readOnly={readOnly || field.readOnly} placeholder={field.placeholder} className={`${inputClass} ${field.uppercase ? "uppercase" : ""}`} />;
 }
 
+const isCustomField = (field) => field?.origem === "customizado" || String(field?.id || "").startsWith("custom:");
+const displayCustomPrefix = (label, shouldPrefix) => shouldPrefix && !String(label || "").trim().startsWith("-") ? `- ${label}` : label;
+
 function FieldFrame({ field, error, children }) {
   return (
     <div data-field={field.dataField || field.name} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${field.wide ? "md:col-span-2" : ""}`}>
       <label className="text-[12px] text-slate-600 text-right leading-none">
-        {field.label}:{field.required && <span className="text-red-500 ml-0.5">*</span>}
+        {displayCustomPrefix(field.label, isCustomField(field))}:{field.required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <div className={`${field.wide ? "min-h-6" : "h-6"} ${field.medium ? "w-64 max-w-full" : field.compact ? "w-44 max-w-full" : "w-full"} border ${error ? "border-red-500 bg-red-50" : "border-slate-300 bg-white"} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
         {children}
