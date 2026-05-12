@@ -278,7 +278,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         onDragOver={(event) => {event.preventDefault();reorderField(field.id);}}
         onDrop={() => setDraggedFieldId(null)}
         onDragEnd={() => setDraggedFieldId(null)}
-        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between transition-all overflow-hidden text-[hsl(var(--foreground))] bg-gray-50 ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "border-red-500" : "bg-green-500 border-green-500 hover:bg-green-600"}`}>
+        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between transition-all overflow-hidden text-[hsl(var(--foreground))] bg-gray-50 border-slate-200 ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "" : "bg-green-500 border-green-500 hover:bg-green-600"}`}>
         
         {isCustomField(field) && <CustomMarker />}
         <span className="flex items-center gap-1 min-w-0">
