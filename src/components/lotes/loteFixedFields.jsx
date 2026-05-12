@@ -1,0 +1,41 @@
+export const LOTE_LAYOUT_SECTIONS = [
+  { section_id: "principal", titulo: "Cabeçalho", ordem: 1, is_principal: true },
+  { section_id: "geral", titulo: "Geral", ordem: 10 },
+  { section_id: "compra", titulo: "Motivo", ordem: 20 },
+  { section_id: "identificacao", titulo: "Identificação", ordem: 30 },
+  { section_id: "observacoes", titulo: "Observações", ordem: 40 },
+  { section_id: "campos_personalizados", titulo: "Campos Personalizados", ordem: 50 }
+];
+
+export const LOTE_FIXED_FIELDS = [
+  { field_name: "nome", label: "Descrição", tipo: "text", section_id: "principal", ordem: 1, obrigatorio: true, protected_required: true },
+  { field_name: "status_visual", label: "Ativo", tipo: "readonly", section_id: "principal", ordem: 2 },
+  { field_name: "numero_lote", label: "Código", tipo: "readonly", section_id: "principal", ordem: 3 },
+  { field_name: "data_entrada", label: "Data de Entrada", tipo: "date", section_id: "geral", ordem: 1, obrigatorio: true },
+  { field_name: "setor_id", label: "Setor", tipo: "relation", section_id: "geral", ordem: 2, obrigatorio: true },
+  { field_name: "area_entrada_id", label: "Área de Entrada", tipo: "relation", section_id: "geral", ordem: 3, obrigatorio: true },
+  { field_name: "quantidade_cabecas", label: "Qtd. Cabeças", tipo: "number", section_id: "geral", ordem: 4, obrigatorio: true, protected_required: true },
+  { field_name: "categoria_manejo_id", label: "Categoria de Manejo", tipo: "relation", section_id: "geral", ordem: 5, obrigatorio: true },
+  { field_name: "sexo", label: "Sexo", tipo: "select", section_id: "geral", ordem: 6, obrigatorio: true },
+  { field_name: "raca_predominante", label: "Raça Predominante", tipo: "text", section_id: "geral", ordem: 7, obrigatorio: true },
+  { field_name: "peso_medio_kg", label: "Peso Médio (kg)", tipo: "number", section_id: "geral", ordem: 8, obrigatorio: true },
+  { field_name: "idade_media_meses", label: "Idade Média (meses)", tipo: "number", section_id: "geral", ordem: 9, obrigatorio: true },
+  { field_name: "sistema_produtivo", label: "Sistema Produtivo", tipo: "multiselect", section_id: "geral", ordem: 10, obrigatorio: true },
+  { field_name: "motivo_entrada", label: "Motivo da Entrada", tipo: "select", section_id: "compra", ordem: 1 },
+  { field_name: "fornecedor_id", label: "Fornecedor", tipo: "relation", section_id: "compra", ordem: 2, conditional_required: "Compra" },
+  { field_name: "cidade_origem", label: "Cidade Origem", tipo: "text", section_id: "compra", ordem: 3, conditional_required: "Compra" },
+  { field_name: "estado_origem", label: "Estado Origem", tipo: "text", section_id: "compra", ordem: 4, conditional_required: "Compra" },
+  { field_name: "nota_fiscal", label: "Nota Fiscal", tipo: "text", section_id: "compra", ordem: 5, conditional_required: "Compra" },
+  { field_name: "chave_nfe", label: "Chave NF-e", tipo: "text", section_id: "compra", ordem: 6, conditional_required: "Compra" },
+  { field_name: "numero_gta", label: "Nº GTA", tipo: "text", section_id: "compra", ordem: 7, conditional_required: "Compra" },
+  { field_name: "valor_total_compra", label: "Valor Total (R$)", tipo: "number", section_id: "compra", ordem: 8, conditional_required: "Compra" },
+  { field_name: "valor_por_cabeca", label: "Valor p/ Cabeça (R$)", tipo: "readonly", section_id: "compra", ordem: 9, conditional_required: "Compra" },
+  { field_name: "valor_frete", label: "Valor Frete (R$)", tipo: "number", section_id: "compra", ordem: 10, conditional_required: "Compra" },
+  { field_name: "motivo_ajuste", label: "Motivo do Ajuste", tipo: "textarea", section_id: "compra", ordem: 11, conditional_required: "Ajuste" },
+  { field_name: "motivo_outros", label: "Motivo", tipo: "textarea", section_id: "compra", ordem: 12, conditional_required: "Outros" },
+  { field_name: "inventario_info", label: "Inventário", tipo: "readonly", section_id: "compra", ordem: 13 },
+  { field_name: "identificador_nome", label: "Identificador (Nome)", tipo: "text", section_id: "identificacao", ordem: 1 },
+  { field_name: "identificador_sigla", label: "Identificador (Sigla)", tipo: "text", section_id: "identificacao", ordem: 2 },
+  { field_name: "identificador_cor", label: "Identificador (Cor)", tipo: "select", section_id: "identificacao", ordem: 3 },
+  { field_name: "observacoes", label: "Observações", tipo: "textarea", section_id: "observacoes", ordem: 1 }
+];
