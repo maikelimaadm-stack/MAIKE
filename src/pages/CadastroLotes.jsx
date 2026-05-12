@@ -347,7 +347,12 @@ export default function CadastroLotes() {
 
 
   return (
-    <div className="space-y-1 p-0 md:p-0 bg-white">
+    <div className="cadastro-lotes-rounded-scope space-y-1 p-0 md:p-0 bg-white">
+      <style>{`
+        .cadastro-lotes-rounded-scope :where(.border, input, textarea, button, [role="button"], [data-radix-select-trigger]) {
+          border-radius: 1.5px !important;
+        }
+      `}</style>
       {showConfigCampos && (
         <section className="w-[calc(100vw-1px)] max-w-full bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
           <ConfiguracaoCamposLoteDialog
