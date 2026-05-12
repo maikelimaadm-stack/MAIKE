@@ -263,6 +263,38 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
     fields: visibleFields.filter((fieldId) => (fieldGroups[fieldId] || DEFAULT_FOLDERS[0].id) === folder.id)
   })).filter((folder) => folder.fields.length > 0);
 
+  if (configOpen) {
+    return (
+      <section className="w-[min(1180px,calc(100vw-24px))] shrink-0 border-r border-slate-300 bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+        <SankhyaFilterConfigDialog
+          inline
+          open={configOpen}
+          onOpenChange={setConfigOpen}
+          fields={allFields}
+          visibleFields={visibleFields}
+          setVisibleFields={setVisibleFields}
+          operators={operators}
+          setOperators={setOperators}
+          filterFolders={filterFolders}
+          setFilterFolders={setFilterFolders}
+          fieldGroups={fieldGroups}
+          setFieldGroups={setFieldGroups}
+          fieldValues={fieldValues}
+          setFieldValues={setFieldValues}
+          fieldConfigs={fieldConfigs}
+          setFieldConfigs={setFieldConfigs}
+          setOpenGroups={setOpenGroups}
+          filterConfigs={filterConfigs}
+          activeConfigId={activeConfigId}
+          onSelectConfig={setActiveConfigId}
+          onSaveConfig={handleSaveConfig}
+          onDeleteConfig={handleDeleteConfig}
+          relationOptions={options}
+        />
+      </section>
+    );
+  }
+
   return (
     <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
       <div className="border-b border-slate-300 p-1 space-y-1 bg-white shrink-0">
@@ -312,7 +344,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
       </div>
 
       <SankhyaFilterConfigDialog
-        open={configOpen}
+        open={false}
         onOpenChange={setConfigOpen}
         fields={allFields}
         visibleFields={visibleFields}

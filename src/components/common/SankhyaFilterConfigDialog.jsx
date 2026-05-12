@@ -59,7 +59,8 @@ export default function SankhyaFilterConfigDialog({
   onSelectConfig,
   onSaveConfig,
   onDeleteConfig,
-  relationOptions = {}
+  relationOptions = {},
+  inline = false
 }) {
   const [showForm, setShowForm] = useState(false);
   const [configName, setConfigName] = useState("");
@@ -241,15 +242,25 @@ export default function SankhyaFilterConfigDialog({
     setFieldConfigs({ ...fieldConfigs, [fieldId]: { ...(fieldConfigs[fieldId] || {}), value, defaultValue: value } });
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+  if (!open) return null;
+
+  const content = (
+    <div className={inline ? "w-full h-full overflow-hidden flex flex-col bg-white" : "w-full overflow-hidden flex flex-col"}>
+      {!inline && (
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de filtros personalizados</DialogTitle>
         </DialogHeader>
+      )}
 
-        {showForm ?
-        <div className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
+      {inline && (
+        <div className="h-9 shrink-0 border-b border-slate-300 bg-slate-50 px-2 flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-700">Configuração de filtros personalizados</span>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-7 rounded-none text-xs">Voltar aos filtros</Button>
+        </div>
+      )}
+
+      {showForm ?
+        <div className={`border border-slate-300 bg-white min-h-[420px] flex flex-col overflow-hidden ${inline ? "h-full border-0" : "h-[calc(90vh-90px)]"}`}>
             <LegacyRecordToolbar
             title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
             badgeLabel="FILTRO"
@@ -441,7 +452,17 @@ export default function SankhyaFilterConfigDialog({
             </div>
           </div>
         }
+    </div>
+  );
+
+  if (inline) return content;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[98vw] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+        {content}
       </DialogContent>
-    </Dialog>);
+    </Dialog>
+  );
 
 }
