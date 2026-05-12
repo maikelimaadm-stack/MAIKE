@@ -51,7 +51,7 @@ function FieldFrame({ field, error, children }) {
   );
 }
 
-export default function DynamicFormRenderer({ panels = [], fields = [], layout = {}, hiddenFieldIds = [], activePanelId, values = {}, errors = {}, onChange, readOnly = false, context = {} }) {
+export default function DynamicFormRenderer({ panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], activePanelId, values = {}, errors = {}, onChange, readOnly = false, context = {} }) {
   const activePanel = panels.find((panel) => panel.id === activePanelId) || panels[0];
   const activeFieldIds = layout?.[activePanel?.id] || [];
 
@@ -70,9 +70,11 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
       ) : visibleFields.map((field) => {
         const value = field.getValue ? field.getValue(values, context) : values[field.name];
         const error = errors[field.errorKey || field.name];
+        const configuredField = { ...field, required: field.required || requiredFieldIds.includes(field.id) };
+        const fieldReadOnly = readOnly || lockedFieldIds.includes(field.id);
         return (
-          <FieldFrame key={field.id} field={field} error={error}>
-            {field.render ? field.render({ field, value, values, errors, onChange, readOnly, context }) : <DefaultControl field={field} value={value} onChange={onChange} readOnly={readOnly} />}
+          <FieldFrame key={field.id} field={configuredField} error={error}>
+            {field.render ? field.render({ field: configuredField, value, values, errors, onChange, readOnly: fieldReadOnly, context }) : <DefaultControl field={configuredField} value={value} onChange={onChange} readOnly={fieldReadOnly} />}
           </FieldFrame>
         );
       })}

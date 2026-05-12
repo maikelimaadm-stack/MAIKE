@@ -506,14 +506,15 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     campos_personalizados: camposPersonalizadosForm.map((campo) => `custom:${campo.field_name}`)
   };
 
-  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [] };
-  const tabs = activeLayoutConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0);
+  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [] };
+  const tabs = activeLayoutConfig.panels.filter((panel) => !panel.hidden && (panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0));
 
   const saveLayoutConfig = (nextConfig) => {
     const normalized = { ...nextConfig, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
     setFormLayoutConfig(normalized);
     localStorage.setItem("cadastro_lotes_form_layout_config", JSON.stringify(normalized));
-    if (!normalized.panels.some((panel) => panel.id === activeTab)) setActiveTab(normalized.panels[0]?.id || "geral");
+    const visiblePanels = normalized.panels.filter((panel) => !panel.hidden);
+    if (!visiblePanels.some((panel) => panel.id === activeTab)) setActiveTab(visiblePanels[0]?.id || "geral");
   };
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
@@ -572,6 +573,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 fields={dynamicFields}
                 layout={activeLayoutConfig.layout}
                 hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+                requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
                 activePanelId={activeTab}
                 values={formData}
                 errors={errors}
@@ -589,6 +592,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           fields={dynamicFields}
           layout={activeLayoutConfig.layout}
           hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+          lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+          requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
           onSave={saveLayoutConfig}
         />
 
