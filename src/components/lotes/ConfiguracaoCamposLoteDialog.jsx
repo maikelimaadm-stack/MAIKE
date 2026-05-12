@@ -334,13 +334,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+      <DialogContent className="!w-[98vw] !max-w-[98vw] h-[calc(100dvh-24px)] max-h-[calc(100dvh-24px)] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de campos personalizados</DialogTitle>
         </DialogHeader>
 
         {showForm ?
-        <form onSubmit={handleSubmit} className="border border-slate-300 bg-white h-[calc(90vh-90px)] min-h-[420px] flex flex-col overflow-hidden">
+        <form onSubmit={handleSubmit} className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
             <LegacyRecordToolbar
             title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
             badgeLabel="CAMPO PERSONALIZADO"
@@ -366,7 +366,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           
 
             <fieldset className={`flex-1 overflow-y-auto ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}`}>
-              <div className="px-4 md:px-8 py-2 space-y-1 max-w-[920px]">
+              <div className="px-4 md:px-8 py-2 space-y-1 w-full max-w-none">
               <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Tipo"><AutocompleteGenerico items={TIPOS_CAMPO.map((tipo) => ({ ...tipo, id: tipo.value }))} value={form.tipo} onChange={(value) => updateForm("tipo", value)} placeholder="BUSCAR TIPO..." displayField="label" searchFields={["label", "value"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1 uppercase" /></Field>
               <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
@@ -405,7 +405,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           }
           </form> :
 
-        <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
+        <div className="flex-1 min-h-0 overflow-hidden border border-slate-300 bg-white flex flex-col">
             <SankhyaListToolbar
             viewMode="table"
             total={campos.length}
