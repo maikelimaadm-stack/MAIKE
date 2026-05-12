@@ -12,7 +12,7 @@ export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
         key={tab.id}
         type="button"
         onClick={() => onChange(tab.id)}
-        className={`relative h-8 border border-b-0 text-xs whitespace-nowrap px-5 transition-all border-t-2 overflow-hidden ${activeTab === tab.id ? "bg-white text-slate-800 font-semibold -mb-px" : ""}`}>
+        className={`relative h-8 border border-b-0 text-xs whitespace-nowrap transition-all border-t-2 overflow-hidden px-4 border-t-green-500 ${activeTab === tab.id ? "bg-white text-slate-800 font-semibold -mb-px" : ""}`}>
           {isCustomPanel(tab) && <CustomMarker />}
           {tab.label}
         </button>
