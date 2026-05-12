@@ -334,7 +334,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
+      <DialogContent className="w-[98vw] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de campos personalizados</DialogTitle>
         </DialogHeader>
@@ -351,6 +351,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             onCancel={handleDiscard}
             onEditRecord={() => setEditMode(true)}
             onToggleView={handleToggleView}
+            onBack={() => onOpenChange(false)}
             onNew={handleNew}
             total={campos.length}
             currentIndex={selectedIndex}
@@ -365,7 +366,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
           
 
             <fieldset className={`flex-1 overflow-y-auto ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}`}>
-              <div className="px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
+              <div className="px-4 md:px-8 py-2 space-y-1 max-w-[920px]">
               <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Tipo"><AutocompleteGenerico items={TIPOS_CAMPO.map((tipo) => ({ ...tipo, id: tipo.value }))} value={form.tipo} onChange={(value) => updateForm("tipo", value)} placeholder="BUSCAR TIPO..." displayField="label" searchFields={["label", "value"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1 uppercase" /></Field>
               <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
@@ -411,6 +412,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             currentIndex={selectedIndex}
             onNew={handleNew}
             onToggleView={handleToggleView}
+            onBack={() => onOpenChange(false)}
             toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
             onDelete={handleDeleteSelected}
             onSettingsClick={() => {}}
