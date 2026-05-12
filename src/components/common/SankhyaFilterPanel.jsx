@@ -265,7 +265,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
 
   if (configOpen) {
     return (
-      <section className="w-[min(1180px,calc(100vw-24px))] shrink-0 border-r border-slate-300 bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+      <section className="w-[calc(100vw-1px)] max-w-full shrink-0 border-r border-slate-300 bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
         <SankhyaFilterConfigDialog
           inline
           open={configOpen}
