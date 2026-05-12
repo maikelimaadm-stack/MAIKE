@@ -313,7 +313,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           
             <div className="text-sm font-semibold text-slate-800 mb-2">Campos disponíveis</div>
             <div className="relative mb-3">
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="rounded-none text-xs pr-3 pl-3 h-" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="rounded-none text-xs pr-3 pl-3 h-7" />
               <Search className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-1.5" />
             </div>
             <div className="flex-1 overflow-auto space-y-1 pr-1" onDragOver={(event) => event.preventDefault()} onDrop={dropFieldToAvailable}>
@@ -373,7 +373,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               </div>
             </div>
 
-            <div className="h-28 border-t border-slate-300 bg-slate-50 px-3 py-2 flex items-center gap-5">
+            <div className="border-t border-slate-300 px-3 py-2 flex items-center gap-5 h-10 bg-slate-5">
               <div className="w-64">
                 <div className="text-xs font-semibold text-slate-700">Campo selecionado</div>
                 <div className="text-xs text-slate-500 truncate">{selectedField ? `Movendo/configurando: ${selectedField.label}` : "Selecione um campo do painel"}</div>
