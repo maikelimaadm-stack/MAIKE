@@ -39,7 +39,7 @@ function DefaultControl({ field, value, onChange, readOnly }) {
 }
 
 const isCustomField = (field) => field?.origem === "customizado" || String(field?.id || "").startsWith("custom:");
-const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[12px] border-l-transparent border-b-[12px] border-b-green-500" />;
+const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[9px] border-l-transparent border-b-[9px] border-b-green-500" />;
 
 function FieldFrame({ field, error, children }) {
   return (

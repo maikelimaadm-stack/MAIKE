@@ -2,7 +2,7 @@ import React from "react";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const isCustomPanel = (tab) => tab && !SYSTEM_PANEL_IDS.includes(tab.id);
-const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[12px] border-l-transparent border-b-[12px] border-b-green-500" />;
+const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[9px] border-l-transparent border-b-[9px] border-b-green-500" />;
 
 export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
   return (
