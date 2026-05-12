@@ -406,7 +406,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       }
           </form> :
 
-    <div className="flex-1 min-h-0 overflow-hidden border bg-white flex flex-col border-slate-200">
+    <div className="flex-1 min-h-0 overflow-hidden border bg-white flex flex-col border-slate-300">
             <SankhyaListToolbar
         viewMode="table"
         total={campos.length}
