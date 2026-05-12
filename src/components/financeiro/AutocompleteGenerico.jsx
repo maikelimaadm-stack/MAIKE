@@ -3,10 +3,10 @@ import ReactDOM from "react-dom";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-export default function AutocompleteGenerico({ 
-  items, 
-  value, 
-  onChange, 
+export default function AutocompleteGenerico({
+  items,
+  value,
+  onChange,
   className,
   placeholder = "Buscar...",
   displayField = "nome",
@@ -28,7 +28,7 @@ export default function AutocompleteGenerico({
   const interactingWithDropdownRef = useRef(false);
   const portalContainerRef = useRef(null);
 
-  const itemSelecionado = items.find(item => item.id === value);
+  const itemSelecionado = items.find((item) => item.id === value);
 
   useEffect(() => {
     if (itemSelecionado) {
@@ -50,7 +50,7 @@ export default function AutocompleteGenerico({
     const dialogEl = wrapperRef.current?.closest('[role="dialog"]');
     const dialogRect = dialogEl?.getBoundingClientRect();
     portalContainerRef.current = dialogEl || null;
-    
+
     setDropdownPos({
       top: dialogRect ? r.bottom - dialogRect.top + 2 : r.bottom + 2,
       left: dialogRect ? r.left - dialogRect.left : r.left,
@@ -63,7 +63,7 @@ export default function AutocompleteGenerico({
   useEffect(() => {
     if (!open) return;
     calcPosition();
-    
+
     const handleScroll = (event) => {
       if (dropdownRef.current && dropdownRef.current.contains(event.target)) return;
       calcPosition();
@@ -96,15 +96,15 @@ export default function AutocompleteGenerico({
     return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [open, itemSelecionado, displayField]);
 
-  const itensFiltrados = [...items]
-    .sort((a, b) => String(a?.[displayField] || "").localeCompare(String(b?.[displayField] || ""), "pt-BR", { numeric: true, sensitivity: "base" }))
-    .filter(item => {
-      const search = searchTerm.toLowerCase();
-      return searchFields.some(field => {
-        const fieldValue = item[field];
-        return fieldValue && String(fieldValue).toLowerCase().includes(search);
-      });
+  const itensFiltrados = [...items].
+  sort((a, b) => String(a?.[displayField] || "").localeCompare(String(b?.[displayField] || ""), "pt-BR", { numeric: true, sensitivity: "base" })).
+  filter((item) => {
+    const search = searchTerm.toLowerCase();
+    return searchFields.some((field) => {
+      const fieldValue = item[field];
+      return fieldValue && String(fieldValue).toLowerCase().includes(search);
     });
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -166,74 +166,74 @@ export default function AutocompleteGenerico({
   const renderDropdownContent = () => {
     if (!open || !dropdownPos) return null;
 
-    const style = dropdownPos.inDialog
-      ? { position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999, pointerEvents: 'auto' }
-      : { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999, pointerEvents: 'auto' };
+    const style = dropdownPos.inDialog ?
+    { position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999, pointerEvents: 'auto' } :
+    { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 999999, pointerEvents: 'auto' };
 
     let content = null;
 
     if (hasResults) {
-      content = (
+      content =
+      <div
+        ref={dropdownRef}
+        style={style}
+        onPointerDownCapture={() => {
+          interactingWithDropdownRef.current = true;
+        }}
+        onPointerUpCapture={() => {
+          setTimeout(() => {
+            interactingWithDropdownRef.current = false;
+          }, 300);
+        }}
+        onMouseLeave={() => {}}
+        onWheel={(e) => e.stopPropagation()}
+        className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto overscroll-contain">
+        
+          {itensFiltrados.map((item, index) =>
         <div
-          ref={dropdownRef}
-          style={style}
-          onPointerDownCapture={() => {
-            interactingWithDropdownRef.current = true;
+          key={item.id}
+          onPointerDown={(e) => {
+            e.stopPropagation();
           }}
-          onPointerUpCapture={() => {
-            setTimeout(() => {
-              interactingWithDropdownRef.current = false;
-            }, 300);
+          onMouseDown={(e) => {
+            e.stopPropagation();
           }}
-          onMouseLeave={() => {}}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSelect(item);
+          }}
           onWheel={(e) => e.stopPropagation()}
-          className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto overscroll-contain"
-        >
-          {itensFiltrados.map((item, index) => (
-            <div
-              key={item.id}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSelect(item);
-              }}
-              onWheel={(e) => e.stopPropagation()}
-              onMouseEnter={() => setActiveIndex(index)}
-              className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
-                activeIndex === index ? 'bg-slate-100' : value === item.id ? 'bg-emerald-50' : ''
-              }`}
-            >
-              {renderItem ? renderItem(item) : (
-                <>
+          onMouseEnter={() => setActiveIndex(index)}
+          className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
+          activeIndex === index ? 'bg-slate-100' : value === item.id ? 'bg-emerald-50' : ''}`
+          }>
+          
+              {renderItem ? renderItem(item) :
+          <>
                   <div className="text-xs font-medium text-slate-900">
                     {item[displayField]}
                   </div>
-                  {renderSubtext && (
-                    <div className="text-[10px] text-slate-500">{renderSubtext(item)}</div>
-                  )}
+                  {renderSubtext &&
+            <div className="text-[10px] text-slate-500">{renderSubtext(item)}</div>
+            }
                 </>
-              )}
+          }
             </div>
-          ))}
-        </div>
-      );
+        )}
+        </div>;
+
     } else if (showEmpty) {
-      content = (
-        <div
-          ref={dropdownRef}
-          style={style}
-          className="bg-white border border-slate-200 rounded-none shadow-lg"
-        >
+      content =
+      <div
+        ref={dropdownRef}
+        style={style}
+        className="bg-white border border-slate-200 rounded-none shadow-lg">
+        
           <div className="px-3 py-6 text-center text-xs text-slate-500">
             Nenhum item encontrado
           </div>
-        </div>
-      );
+        </div>;
+
     }
 
     return content;
@@ -248,7 +248,7 @@ export default function AutocompleteGenerico({
 
   return (
     <div ref={wrapperRef} className={`relative ${className || ''}`}>
-      <div className="relative">
+      <div className="relative rounded-sm">
         <Input
           ref={inputRef}
           value={searchTerm}
@@ -268,19 +268,19 @@ export default function AutocompleteGenerico({
           readOnly={readOnly}
           placeholder={placeholder}
           className={`pr-8 h-8 text-xs rounded-none ${uppercaseDisplay ? 'uppercase' : ''} ${inputClassName}`}
-          style={uppercaseDisplay ? { textTransform: 'uppercase' } : undefined}
-        />
-        {searchTerm && !disabled && !readOnly && (
-          <button
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleClear(); }}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-          >
+          style={uppercaseDisplay ? { textTransform: 'uppercase' } : undefined} />
+        
+        {searchTerm && !disabled && !readOnly &&
+        <button
+          type="button"
+          onMouseDown={(e) => {e.preventDefault();e.stopPropagation();handleClear();}}
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          
             <X className="w-3.5 h-3.5" />
           </button>
-        )}
+        }
       </div>
       {renderDropdown()}
-    </div>
-  );
+    </div>);
+
 }
