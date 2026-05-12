@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, EyeOff, List, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -39,6 +39,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const [search, setSearch] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [draggedFieldId, setDraggedFieldId] = useState(null);
+  const [draggedPanelId, setDraggedPanelId] = useState(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -141,6 +142,35 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: list }));
   };
 
+  const dropFieldToAvailable = () => {
+    if (!draggedFieldId || !activePanel) return;
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => id !== draggedFieldId) }));
+    setDraftHiddenFieldIds((prev) => prev.filter((id) => id !== draggedFieldId));
+    setDraftLockedFieldIds((prev) => prev.filter((id) => id !== draggedFieldId));
+    setDraftRequiredFieldIds((prev) => prev.filter((id) => id !== draggedFieldId));
+    setSelectedPanelField(null);
+    setDraggedFieldId(null);
+  };
+
+  const dropAvailableFieldToPanel = () => {
+    if (!draggedFieldId || !activePanel || panelFieldIds.includes(draggedFieldId)) return;
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [...(prev[activePanel.id] || []), draggedFieldId] }));
+    setSelectedPanelField(draggedFieldId);
+    setSelectedAvailable(null);
+    setDraggedFieldId(null);
+  };
+
+  const reorderPanel = (targetPanelId) => {
+    if (!draggedPanelId || !targetPanelId || draggedPanelId === targetPanelId) return;
+    const next = [...draftPanels];
+    const from = next.findIndex((panel) => panel.id === draggedPanelId);
+    const to = next.findIndex((panel) => panel.id === targetPanelId);
+    if (from < 0 || to < 0) return;
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setDraftPanels(next);
+  };
+
   const toggleListValue = (setter, fieldId, checked) => {
     if (!fieldId) return;
     setter((prev) => checked ? Array.from(new Set([...prev, fieldId])) : prev.filter((id) => id !== fieldId));
@@ -176,25 +206,15 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     onOpenChange(false);
   };
 
-  const restoreDefault = () => {
-    if (!defaultConfig) return;
-    setDraftPanels(defaultConfig.panels || []);
-    setDraftLayout(defaultConfig.layout || {});
-    setDraftHiddenFieldIds(defaultConfig.hiddenFieldIds || []);
-    setDraftLockedFieldIds(defaultConfig.lockedFieldIds || []);
-    setDraftRequiredFieldIds(defaultConfig.requiredFieldIds || []);
-    setDraftAggregationConfig(defaultConfig.aggregationConfig || {});
-    setActivePanelId(defaultConfig.panels?.[0]?.id || "");
-    setSelectedAvailable(null);
-    setSelectedPanelField(null);
-  };
-
   const renderAvailableField = (field) => (
     <button
       key={field.id}
       type="button"
       disabled={!isEditing}
+      draggable={isEditing}
       onClick={() => setSelectedAvailable(field.id)}
+      onDragStart={() => { setDraggedFieldId(field.id); setSelectedAvailable(field.id); }}
+      onDragEnd={() => setDraggedFieldId(null)}
       className={`w-full rounded-sm px-2 py-1.5 text-left ${selectedAvailable === field.id ? "bg-green-500 text-white" : "bg-slate-600 text-white hover:bg-slate-700"}`}
     >
       <div className="text-xs font-semibold truncate">{field.label}</div>
@@ -233,15 +253,13 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
       <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="h-7 flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-b border-slate-300">
+        <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-b border-slate-300 overflow-hidden">
           <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>
-          <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Editar layout"><List className="w-3.5 h-3.5" /></Button>
+          {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none" title="Novo painel"><Plus className="w-4 h-4" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem} onClick={deletePanel} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={restoreDefault} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Restaurar padrão"><RotateCcw className="w-3.5 h-3.5" /></Button>}
-          <div className="ml-auto h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-l-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600">
-            {draftPanels.length > 0 ? `${Math.max(draftPanels.findIndex((panel) => panel.id === activePanel?.id), 0) + 1}/${draftPanels.length}` : 0}
-          </div>
         </div>
 
         <div className="grid grid-cols-[320px_45px_1fr] flex-1 min-h-0">
@@ -254,8 +272,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="h-6 rounded-none text-xs pr-7" />
               <Search className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-1.5" />
             </div>
-            <div className="flex-1 overflow-auto space-y-1 pr-1">
-              {availableFields.length === 0 ? <div className="text-xs text-slate-400 py-4 text-center">Todos os campos estão em uso.</div> : availableFields.map(renderAvailableField)}
+            <div className="flex-1 overflow-auto space-y-1 pr-1" onDragOver={(event) => event.preventDefault()} onDrop={dropFieldToAvailable}>
+              {availableFields.length === 0 ? <div className="text-xs text-slate-400 py-4 text-center">Solte aqui para remover do painel.</div> : availableFields.map(renderAvailableField)}
             </div>
           </aside>
 
@@ -270,7 +288,17 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                 const isActive = activePanel?.id === panel.id;
                 const isEmpty = (draftLayout[panel.id] || []).length === 0;
                 return (
-                  <button key={panel.id} type="button" onClick={() => { setActivePanelId(panel.id); setSelectedPanelField(null); }} className={`h-8 px-5 border border-b-0 text-xs whitespace-nowrap ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                  <button
+                    key={panel.id}
+                    type="button"
+                    draggable={isEditing}
+                    onDragStart={() => { setDraggedPanelId(panel.id); setActivePanelId(panel.id); }}
+                    onDragOver={(event) => { event.preventDefault(); reorderPanel(panel.id); }}
+                    onDrop={() => setDraggedPanelId(null)}
+                    onDragEnd={() => setDraggedPanelId(null)}
+                    onClick={() => { setActivePanelId(panel.id); setSelectedPanelField(null); }}
+                    className={`h-8 px-5 border border-b-0 text-xs whitespace-nowrap transition-all ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}
+                  >
                     {panel.label}
                   </button>
                 );
@@ -281,15 +309,13 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
             <div className="h-10 border-b border-slate-200 flex items-center gap-2 px-2 bg-slate-50">
               <span className="text-xs text-slate-600">Painel:</span>
               <Input value={activePanel?.label || ""} onChange={(e) => setDraftPanels((prev) => prev.map((panel) => panel.id === activePanel?.id ? { ...panel, label: e.target.value.toUpperCase() } : panel))} readOnly={activePanelIsSystem || !isEditing} className="h-7 w-72 rounded-none text-xs uppercase bg-white" />
-              <Button type="button" variant="outline" size="icon" disabled={!isEditing} onClick={createPanel} className="h-7 w-8 rounded-none bg-green-500 hover:bg-green-600 text-white hover:text-white" title="Novo painel"><Plus className="w-4 h-4" /></Button>
-              <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel || activePanelIsSystem} onClick={deletePanel} className="h-7 w-8 rounded-none" title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>
               <span className="text-[11px] text-slate-500">Movendo painel: <b>{activePanel?.label || "nenhum"}</b></span>
               <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel} onClick={() => movePanel(-1)} className="h-7 w-8 rounded-none" title="Mover painel para esquerda"><ChevronLeft className="w-4 h-4" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel} onClick={() => movePanel(1)} className="h-7 w-8 rounded-none" title="Mover painel para direita"><ChevronRight className="w-4 h-4" /></Button>
             </div>
 
             <div className="flex-1 overflow-auto p-3">
-              <div className="flex flex-wrap content-start gap-2 min-h-[160px]">
+              <div className="flex flex-wrap content-start gap-2 min-h-[160px]" onDragOver={(event) => event.preventDefault()} onDrop={dropAvailableFieldToPanel}>
                 {panelFields.length === 0 ? <div className="text-xs text-slate-400 p-4">Painel vazio. Se for painel do sistema, ele será ocultado ao salvar.</div> : panelFields.map(renderPanelField)}
               </div>
             </div>
