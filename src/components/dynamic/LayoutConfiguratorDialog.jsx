@@ -7,11 +7,11 @@ import { ArrowLeft, ArrowRight, Check, EyeOff, Pencil, Plus, RotateCcw, Search, 
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
-  { value: "sum", label: "Soma" },
-  { value: "avg", label: "Média" },
-  { value: "max", label: "Maior" },
-  { value: "min", label: "Menor" }
-];
+{ value: "sum", label: "Soma" },
+{ value: "avg", label: "Média" },
+{ value: "max", label: "Maior" },
+{ value: "min", label: "Menor" }];
+
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
@@ -23,15 +23,15 @@ const CustomMarker = () => <span className="pointer-events-none absolute bottom-
 
 const formatPanelLabel = (value) => {
   const lowerWords = new Set(["da", "de", "do", "das", "dos", "e"]);
-  return String(value || "")
-    .toLowerCase()
-    .split(/(\s+)/)
-    .map((part, index) => {
-      if (!part.trim()) return part;
-      if (index > 0 && lowerWords.has(part)) return part;
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join("");
+  return String(value || "").
+  toLowerCase().
+  split(/(\s+)/).
+  map((part, index) => {
+    if (!part.trim()) return part;
+    if (index > 0 && lowerWords.has(part)) return part;
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }).
+  join("");
 };
 
 function GreenCheck({ checked, disabled = false, onChange }) {
@@ -40,11 +40,11 @@ function GreenCheck({ checked, disabled = false, onChange }) {
       type="button"
       disabled={disabled}
       onClick={() => !disabled && onChange?.(!checked)}
-      className={`w-8 h-4 rounded-full relative inline-block transition-colors ${checked ? "bg-green-500" : "bg-slate-300"} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-    >
+      className={`w-8 h-4 rounded-full relative inline-block transition-colors ${checked ? "bg-green-500" : "bg-slate-300"} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+      
       <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${checked ? "right-0.5" : "left-0.5"}`} />
-    </button>
-  );
+    </button>);
+
 }
 
 export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, defaultConfig = null, onSave, inline = false }) {
@@ -88,9 +88,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const availableFields = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return fields
-      .filter((field) => !usedFieldIds.has(field.id))
-      .filter((field) => !term || String(field.label || "").toLowerCase().includes(term));
+    return fields.
+    filter((field) => !usedFieldIds.has(field.id)).
+    filter((field) => !term || String(field.label || "").toLowerCase().includes(term));
   }, [fields, usedFieldIds, search]);
 
   const addField = () => {
@@ -205,8 +205,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const setAggregationEnabled = (fieldId, enabled) => {
     setDraftAggregationConfig((prev) => {
       const next = { ...prev };
-      if (!enabled) delete next[fieldId];
-      else next[fieldId] = { enabled: true, type: prev[fieldId]?.type || "sum" };
+      if (!enabled) delete next[fieldId];else
+      next[fieldId] = { enabled: true, type: prev[fieldId]?.type || "sum" };
       return next;
     });
   };
@@ -245,22 +245,22 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setSelectedPanelField(null);
   };
 
-  const renderAvailableField = (field) => (
-    <button
-      key={field.id}
-      type="button"
-      disabled={!isEditing}
-      draggable={isEditing}
-      onClick={() => setSelectedAvailable(field.id)}
-      onDragStart={() => { setDraggedFieldId(field.id); setSelectedAvailable(field.id); }}
-      onDragEnd={() => setDraggedFieldId(null)}
-      className={`relative w-full rounded-sm px-2 py-1.5 text-left overflow-hidden ${selectedAvailable === field.id ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"}`}
-    >
+  const renderAvailableField = (field) =>
+  <button
+    key={field.id}
+    type="button"
+    disabled={!isEditing}
+    draggable={isEditing}
+    onClick={() => setSelectedAvailable(field.id)}
+    onDragStart={() => {setDraggedFieldId(field.id);setSelectedAvailable(field.id);}}
+    onDragEnd={() => setDraggedFieldId(null)}
+    className={`relative w-full rounded-sm px-2 py-1.5 text-left overflow-hidden ${selectedAvailable === field.id ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"}`}>
+    
       {isCustomField(field) && <CustomMarker />}
       <div className="text-xs font-semibold truncate">{field.label}</div>
       <div className="text-[10px] opacity-80 truncate">Disponível</div>
-    </button>
-  );
+    </button>;
+
 
   const renderPanelField = (field, index) => {
     const selected = selectedPanelField === field.id;
@@ -274,23 +274,23 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         disabled={!isEditing}
         onClick={() => setSelectedPanelField(field.id)}
         draggable={isEditing}
-        onDragStart={() => { setDraggedFieldId(field.id); setSelectedPanelField(field.id); }}
-        onDragOver={(event) => { event.preventDefault(); reorderField(field.id); }}
+        onDragStart={() => {setDraggedFieldId(field.id);setSelectedPanelField(field.id);}}
+        onDragOver={(event) => {event.preventDefault();reorderField(field.id);}}
         onDrop={() => setDraggedFieldId(null)}
         onDragEnd={() => setDraggedFieldId(null)}
-        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between transition-all overflow-hidden ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "bg-red-500 text-white border-red-500" : "bg-green-500 text-white border-green-500 hover:bg-green-600"}`}
-      >
+        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between transition-all overflow-hidden bg-gray-800 ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "text-white border-red-500" : "bg-green-500 text-white border-green-500 hover:bg-green-600"}`}>
+        
         {isCustomField(field) && <CustomMarker />}
         <span className="flex items-center gap-1 min-w-0">
           <span className="text-xs font-semibold truncate">{field.label}</span>
         </span>
         <span className="flex items-center gap-1 ml-2 opacity-90">{hidden && <EyeOff className="w-3 h-3" />}{locked && <span className="text-[10px]">B</span>}{required && <span className="text-[10px]">*</span>}</span>
-      </button>
-    );
+      </button>);
+
   };
 
-  const content = (
-    <div className="w-full h-full overflow-hidden flex flex-col bg-white">
+  const content =
+  <div className="w-full h-full overflow-hidden flex flex-col bg-white">
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
       <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -308,9 +308,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
         <div className="grid grid-cols-[320px_45px_1fr] flex-1 min-h-0">
           <aside
-            className="border-r border-slate-300 bg-white p-2 overflow-hidden flex flex-col"
+          className="border-r border-slate-300 bg-white p-2 overflow-hidden flex flex-col">
 
-          >
+          
             <div className="text-sm font-semibold text-slate-800 mb-2">Campos disponíveis</div>
             <div className="relative mb-3">
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="h-6 rounded-none text-xs pr-7" />
@@ -329,40 +329,40 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
             <div className="h-9 border-b border-slate-300 bg-white flex items-end px-1 gap-1 overflow-x-auto">
               {draftPanels.map((panel) => {
-                const isActive = activePanel?.id === panel.id;
-                const isEmpty = (draftLayout[panel.id] || []).length === 0;
-                const panelLabel = formatPanelLabel(panel.label);
-                return (
-                  <button
-                    key={panel.id}
-                    type="button"
-                    draggable={isEditing}
-                    onDragStart={() => { setDraggedPanelId(panel.id); setActivePanelId(panel.id); }}
-                    onDragOver={(event) => { event.preventDefault(); reorderPanel(panel.id); }}
-                    onDrop={() => setDraggedPanelId(null)}
-                    onDragEnd={() => setDraggedPanelId(null)}
-                    onClick={() => {
-                      if (isActive && isEditing && !SYSTEM_PANEL_IDS.includes(panel.id)) setEditingPanelId(panel.id);
-                      else setEditingPanelId(null);
-                      setActivePanelId(panel.id);
-                      setSelectedPanelField(null);
-                    }}
-                    className={`relative h-8 px-4 border border-b-0 text-xs whitespace-nowrap transition-all overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}
-                  >
+              const isActive = activePanel?.id === panel.id;
+              const isEmpty = (draftLayout[panel.id] || []).length === 0;
+              const panelLabel = formatPanelLabel(panel.label);
+              return (
+                <button
+                  key={panel.id}
+                  type="button"
+                  draggable={isEditing}
+                  onDragStart={() => {setDraggedPanelId(panel.id);setActivePanelId(panel.id);}}
+                  onDragOver={(event) => {event.preventDefault();reorderPanel(panel.id);}}
+                  onDrop={() => setDraggedPanelId(null)}
+                  onDragEnd={() => setDraggedPanelId(null)}
+                  onClick={() => {
+                    if (isActive && isEditing && !SYSTEM_PANEL_IDS.includes(panel.id)) setEditingPanelId(panel.id);else
+                    setEditingPanelId(null);
+                    setActivePanelId(panel.id);
+                    setSelectedPanelField(null);
+                  }}
+                  className={`relative h-8 px-4 border border-b-0 text-xs whitespace-nowrap transition-all overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                  
                     {isCustomPanel(panel) && <CustomMarker />}
-                    {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ? (
-                      <Input
-                        value={panel.label || ""}
-                        autoFocus
-                        onClick={(event) => event.stopPropagation()}
-                        onBlur={() => setEditingPanelId(null)}
-                        onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: formatPanelLabel(event.target.value) } : item))}
-                        className="h-6 w-40 border-0 bg-transparent p-0 text-xs font-semibold normal-case shadow-none focus-visible:ring-0"
-                      />
-                    ) : panelLabel}
-                  </button>
-                );
-              })}
+                    {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
+                  <Input
+                    value={panel.label || ""}
+                    autoFocus
+                    onClick={(event) => event.stopPropagation()}
+                    onBlur={() => setEditingPanelId(null)}
+                    onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: formatPanelLabel(event.target.value) } : item))}
+                    className="h-6 w-40 border-0 bg-transparent p-0 text-xs font-semibold normal-case shadow-none focus-visible:ring-0" /> :
+
+                  panelLabel}
+                  </button>);
+
+            })}
 
             </div>
 
@@ -408,8 +408,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </main>
         </div>
       </div>
-    </div>
-  );
+    </div>;
+
 
   if (inline) return open ? content : null;
 
@@ -418,6 +418,6 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       <DialogContent className="!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !h-screen !max-h-none overflow-hidden flex flex-col !p-0 !rounded-none">
         {content}
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
