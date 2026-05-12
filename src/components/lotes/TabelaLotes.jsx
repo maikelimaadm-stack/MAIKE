@@ -109,6 +109,25 @@ export default function TabelaLotes({
     return DEFAULT_VISIBLE_COLUMNS;
   });
 
+  const [layoutAggregationConfig, setLayoutAggregationConfig] = useState(() => {
+    const saved = localStorage.getItem("cadastro_lotes_table_aggregation_config");
+    if (!saved) return {};
+    try { return JSON.parse(saved); } catch { return {}; }
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const saved = localStorage.getItem("cadastro_lotes_table_aggregation_config");
+      try { setLayoutAggregationConfig(saved ? JSON.parse(saved) : {}); } catch { setLayoutAggregationConfig({}); }
+    };
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("cadastro-lotes-layout-updated", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("cadastro-lotes-layout-updated", handleStorage);
+    };
+  }, []);
+
   const { data: camposPersonalizados = [] } = useQuery({
     queryKey: ["lote-campos-personalizados"],
     queryFn: () => loteRepository.listCamposPersonalizados(),
@@ -133,8 +152,11 @@ export default function TabelaLotes({
       agregacao_campo_base: campo.agregacao_campo_base || "",
       customField: campo.field_name
     }));
-    return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))];
-  }, [camposPersonalizados]);
+    return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))].map((coluna) => {
+      const config = layoutAggregationConfig[coluna.id];
+      return config?.enabled ? { ...coluna, agregacao_tipo: config.type, agregacao: config.type, usar_decimal: true } : { ...coluna, agregacao_tipo: "", agregacao: "" };
+    });
+  }, [camposPersonalizados, layoutAggregationConfig]);
 
   const relatedSources = useMemo(() => camposPersonalizados.
   map((campo) => {
