@@ -254,11 +254,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     onClick={() => setSelectedAvailable(field.id)}
     onDragStart={() => {setDraggedFieldId(field.id);setSelectedAvailable(field.id);}}
     onDragEnd={() => setDraggedFieldId(null)}
-    className={`relative w-full rounded-sm px-2 py-1.5 text-left overflow-hidden ${selectedAvailable === field.id ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"}`}>
+    className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${selectedAvailable === field.id ? "bg-gray-100 border-green-500 ring-2 ring-green-500 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
     
       {isCustomField(field) && <CustomMarker />}
       <div className="text-xs font-semibold truncate">{field.label}</div>
-      <div className="text-[10px] opacity-80 truncate">Disponível</div>
+      <div className="text-[10px] text-slate-500 truncate">Disponível</div>
     </button>;
 
 
@@ -278,7 +278,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         onDragOver={(event) => {event.preventDefault();reorderField(field.id);}}
         onDrop={() => setDraggedFieldId(null)}
         onDragEnd={() => setDraggedFieldId(null)}
-        className={` ${draggedFieldId === field.id ? "opacity-50 scale-95 relative h-8 min-w-[210px] px-2 rounded-sm text-left items-center border-slate-200 transition-all flex border justify-between overflow-hidden text-[hsl(var(--foreground))] bg-gray-50" : ""} ${selected ? "" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "" : "bg-green-500 border-green-500 hover:bg-green-600"}`}>
+        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left items-center transition-all flex border justify-between overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "bg-gray-100 border-green-500 ring-2 ring-green-500 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : ""}`}>
         
         {isCustomField(field) && <CustomMarker />}
         <span className="flex items-center gap-1 min-w-0">
@@ -322,8 +322,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </aside>
 
           <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-8">
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedAvailable} onClick={addField} className={greenButtonClass} title="Adicionar ao painel"><ArrowRight className="w-5 h-5" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedPanelField} onClick={removeField} className={greenButtonClass} title="Mover para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedAvailable} onClick={addField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Adicionar ao painel"><ArrowRight className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedPanelField} onClick={removeField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
