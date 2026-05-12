@@ -13,7 +13,7 @@ const AGGREGATION_OPTIONS = [
 { value: "min", label: "Menor" }];
 
 
-const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
+const iconButtonClass = "h-7 w-8 rounded-none border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-700 shadow-none disabled:opacity-40 disabled:bg-white";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
 const isCustomPanel = (panel) => panel && !SYSTEM_PANEL_IDS.includes(panel.id);
@@ -281,6 +281,22 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setSelectedPanelFieldIds([]);
   };
 
+  const discardChanges = () => {
+    setDraftPanels(panels);
+    setDraftLayout(layout);
+    setDraftHiddenFieldIds(hiddenFieldIds);
+    setDraftLockedFieldIds(lockedFieldIds);
+    setDraftRequiredFieldIds(requiredFieldIds);
+    setDraftAggregationConfig(aggregationConfig);
+    setActivePanelId(panels[0]?.id || "");
+    setSelectedAvailable(null);
+    setSelectedAvailableIds([]);
+    setSelectedPanelField(null);
+    setSelectedPanelFieldIds([]);
+    setEditingPanelId(null);
+    setIsEditing(false);
+  };
+
   const renderAvailableField = (field) => {
     const selected = selectedAvailableIds.includes(field.id);
     return <button
@@ -343,12 +359,12 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
       <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-b border-slate-300 overflow-hidden">
-          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Voltar"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className={greenButtonClass} title="Novo painel"><Plus className="w-4 h-4" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem} onClick={deletePanel} className={iconButtonClass} title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={discardChanges} className={iconButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
           <div className="ml-auto flex items-center gap-0">
             {isEditing && <Button type="button" variant="outline" size="icon" onClick={restoreDefault} className={iconButtonClass} title="Restaurar padrão"><RotateCcw className="w-3.5 h-3.5" /></Button>}
           </div>
@@ -369,11 +385,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
             </div>
           </aside>
 
-          <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-8">
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || availableFields.length === 0} onClick={addAllFields} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover todos para o painel"><ChevronsRight className="w-5 h-5" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedAvailableIds.length === 0} onClick={addField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Adicionar selecionados ao painel"><ArrowRight className="w-5 h-5" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedPanelFieldIds.length === 0} onClick={removeField} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover selecionados para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={!isEditing || panelFieldIds.length === 0} onClick={removeAllFields} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white text-slate-900 hover:bg-slate-50 shadow-none disabled:opacity-40" title="Mover todos para disponíveis"><ChevronsLeft className="w-5 h-5" /></Button>
+          <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-0">
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || panelFieldIds.length === 0} onClick={removeAllFields} className={iconButtonClass} title="Mover todos para disponíveis"><ChevronsLeft className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedPanelFieldIds.length === 0} onClick={removeField} className={iconButtonClass} title="Mover selecionados para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedAvailableIds.length === 0} onClick={addField} className={iconButtonClass} title="Adicionar selecionados ao painel"><ArrowRight className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || availableFields.length === 0} onClick={addAllFields} className={iconButtonClass} title="Mover todos para o painel"><ChevronsRight className="w-5 h-5" /></Button>
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
