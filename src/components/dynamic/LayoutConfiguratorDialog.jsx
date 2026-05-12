@@ -16,6 +16,19 @@ const AGGREGATION_OPTIONS = [
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
+const formatPanelLabel = (value) => {
+  const lowerWords = new Set(["da", "de", "do", "das", "dos", "e"]);
+  return String(value || "")
+    .toLowerCase()
+    .split(/(\s+)/)
+    .map((part, index) => {
+      if (!part.trim()) return part;
+      if (index > 0 && lowerWords.has(part)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join("");
+};
+
 function GreenCheck({ checked, disabled = false, onChange }) {
   return (
     <button
@@ -43,6 +56,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const [isEditing, setIsEditing] = useState(false);
   const [draggedFieldId, setDraggedFieldId] = useState(null);
   const [draggedPanelId, setDraggedPanelId] = useState(null);
+  const [editingPanelId, setEditingPanelId] = useState(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -57,6 +71,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setSelectedPanelField(null);
     setSearch("");
     setIsEditing(false);
+    setEditingPanelId(null);
   }, [open, panels, layout, hiddenFieldIds, lockedFieldIds, requiredFieldIds, aggregationConfig]);
 
   const activePanel = draftPanels.find((panel) => panel.id === activePanelId) || draftPanels[0];
@@ -91,10 +106,12 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const createPanel = () => {
     const id = `painel_${Date.now()}`;
-    const nextPanel = { id, label: "NOVO PAINEL" };
+    const nextNumber = draftPanels.filter((panel) => !SYSTEM_PANEL_IDS.includes(panel.id)).length + 1;
+    const nextPanel = { id, label: `Painel Personalizado ${nextNumber}` };
     setDraftPanels((prev) => [...prev, nextPanel]);
     setDraftLayout((prev) => ({ ...prev, [id]: [] }));
     setActivePanelId(id);
+    setEditingPanelId(id);
     setIsEditing(true);
   };
 
@@ -112,6 +129,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftRequiredFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
     setActivePanelId(draftPanels.find((panel) => panel.id !== activePanel.id)?.id || "");
     setSelectedPanelField(null);
+    setEditingPanelId(null);
   };
 
   const movePanel = (direction) => {
@@ -315,17 +333,24 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                     onDragOver={(event) => { event.preventDefault(); reorderPanel(panel.id); }}
                     onDrop={() => setDraggedPanelId(null)}
                     onDragEnd={() => setDraggedPanelId(null)}
-                    onClick={() => { setActivePanelId(panel.id); setSelectedPanelField(null); }}
+                    onClick={() => {
+                      if (isActive && isEditing && !SYSTEM_PANEL_IDS.includes(panel.id)) setEditingPanelId(panel.id);
+                      else setEditingPanelId(null);
+                      setActivePanelId(panel.id);
+                      setSelectedPanelField(null);
+                    }}
                     className={`h-8 px-4 border border-b-0 text-xs whitespace-nowrap transition-all ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}
                   >
-                    {isEditing && !SYSTEM_PANEL_IDS.includes(panel.id) ? (
+                    {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ? (
                       <Input
                         value={panel.label || ""}
+                        autoFocus
                         onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: event.target.value.toUpperCase() } : item))}
-                        className="h-6 w-32 border-0 bg-transparent p-0 text-xs font-semibold uppercase shadow-none focus-visible:ring-0"
+                        onBlur={() => setEditingPanelId(null)}
+                        onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: formatPanelLabel(event.target.value) } : item))}
+                        className="h-6 w-40 border-0 bg-transparent p-0 text-xs font-semibold normal-case shadow-none focus-visible:ring-0"
                       />
-                    ) : panel.label}
+                    ) : formatPanelLabel(panel.label)}
                   </button>
                 );
               })}
