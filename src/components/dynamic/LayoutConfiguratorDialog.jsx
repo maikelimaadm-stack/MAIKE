@@ -18,7 +18,8 @@ const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0
 
 const isCustomPanel = (panel) => panel && !SYSTEM_PANEL_IDS.includes(panel.id);
 const isCustomField = (field) => field?.origem === "customizado" || String(field?.id || "").startsWith("custom:");
-const displayCustomPrefix = (label, shouldPrefix) => shouldPrefix && !String(label || "").trim().startsWith("-") ? `- ${label}` : label;
+
+const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[12px] border-l-transparent border-b-[12px] border-b-green-500" />;
 
 const formatPanelLabel = (value) => {
   const lowerWords = new Set(["da", "de", "do", "das", "dos", "e"]);
@@ -253,9 +254,10 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       onClick={() => setSelectedAvailable(field.id)}
       onDragStart={() => { setDraggedFieldId(field.id); setSelectedAvailable(field.id); }}
       onDragEnd={() => setDraggedFieldId(null)}
-      className={`w-full rounded-sm px-2 py-1.5 text-left ${selectedAvailable === field.id ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"}`}
+      className={`relative w-full rounded-sm px-2 py-1.5 text-left overflow-hidden ${selectedAvailable === field.id ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"}`}
     >
-      <div className="text-xs font-semibold truncate">{displayCustomPrefix(field.label, isCustomField(field))}</div>
+      {isCustomField(field) && <CustomMarker />}
+      <div className="text-xs font-semibold truncate">{field.label}</div>
       <div className="text-[10px] opacity-80 truncate">Disponível</div>
     </button>
   );
@@ -276,10 +278,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         onDragOver={(event) => { event.preventDefault(); reorderField(field.id); }}
         onDrop={() => setDraggedFieldId(null)}
         onDragEnd={() => setDraggedFieldId(null)}
-        className={`h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between transition-all ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "bg-red-500 text-white border-red-500" : "bg-green-500 text-white border-green-500 hover:bg-green-600"}`}
+        className={`relative h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between transition-all overflow-hidden ${draggedFieldId === field.id ? "opacity-50 scale-95" : ""} ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "bg-red-500 text-white border-red-500" : "bg-green-500 text-white border-green-500 hover:bg-green-600"}`}
       >
+        {isCustomField(field) && <CustomMarker />}
         <span className="flex items-center gap-1 min-w-0">
-          <span className="text-xs font-semibold truncate">{displayCustomPrefix(field.label, isCustomField(field))}</span>
+          <span className="text-xs font-semibold truncate">{field.label}</span>
         </span>
         <span className="flex items-center gap-1 ml-2 opacity-90">{hidden && <EyeOff className="w-3 h-3" />}{locked && <span className="text-[10px]">B</span>}{required && <span className="text-[10px]">*</span>}</span>
       </button>
@@ -344,8 +347,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                       setActivePanelId(panel.id);
                       setSelectedPanelField(null);
                     }}
-                    className={`h-8 px-4 border border-b-0 text-xs whitespace-nowrap transition-all ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}
+                    className={`relative h-8 px-4 border border-b-0 text-xs whitespace-nowrap transition-all overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white border-t-2 border-t-green-500 font-semibold text-slate-800" : "bg-slate-50 text-slate-700 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}
                   >
+                    {isCustomPanel(panel) && <CustomMarker />}
                     {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ? (
                       <Input
                         value={panel.label || ""}
@@ -355,7 +359,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                         onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: formatPanelLabel(event.target.value) } : item))}
                         className="h-6 w-40 border-0 bg-transparent p-0 text-xs font-semibold normal-case shadow-none focus-visible:ring-0"
                       />
-                    ) : displayCustomPrefix(panelLabel, isCustomPanel(panel))}
+                    ) : panelLabel}
                   </button>
                 );
               })}
