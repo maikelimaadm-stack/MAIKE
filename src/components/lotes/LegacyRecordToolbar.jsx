@@ -17,7 +17,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
   const isLast = currentIndex >= total - 1;
   return (
     <div className="bg-white shadow-none overflow-hidden">
-      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border">
+      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-t">
 
 
         {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
