@@ -41,13 +41,13 @@ function DefaultControl({ field, value, onChange, readOnly }) {
 const isCustomField = (field) => field?.origem === "customizado" || String(field?.id || "").startsWith("custom:");
 const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[7px] border-l-transparent border-b-[7px] border-b-green-500" />;
 
-function FieldFrame({ field, error, children }) {
+function FieldFrame({ field, error, children, className = "" }) {
   return (
     <div data-field={field.dataField || field.name} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${field.wide ? "md:col-span-2" : ""}`}>
       <label className="text-[12px] text-slate-600 text-right leading-none">
         {field.label}:{field.required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      <div className={`relative ${field.wide ? "min-h-6" : "h-6"} ${field.medium ? "w-64 max-w-full" : field.compact ? "w-44 max-w-full" : "w-full"} border ${error ? "border-red-500 bg-red-50" : "border-slate-300 bg-white"} focus-within:border-green-500 transition-colors overflow-hidden [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
+      <div className={`relative ${field.wide ? "min-h-6" : "h-6"} ${field.medium ? "w-64 max-w-full" : field.compact ? "w-44 max-w-full" : "w-full"} border ${error ? "border-red-500 bg-red-50" : "border-slate-300 bg-white"} focus-within:border-green-500 transition-colors overflow-hidden ${className} [&_input]:h-[22px] [&_input]:border-0 [&_input]:rounded-none [&_input]:shadow-none [&_input]:focus-visible:ring-0 [&_button]:h-[22px] [&_button]:border-0 [&_button]:rounded-none [&_button]:shadow-none [&_textarea]:min-h-[48px] [&_textarea]:rounded-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0`}>
         {isCustomField(field) && <CustomMarker />}
         {children}
       </div>
@@ -55,7 +55,7 @@ function FieldFrame({ field, error, children }) {
   );
 }
 
-export default function DynamicFormRenderer({ panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], activePanelId, values = {}, errors = {}, onChange, readOnly = false, context = {} }) {
+export default function DynamicFormRenderer({ panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], activePanelId, values = {}, errors = {}, onChange, readOnly = false, context = {}, fieldClassName = "" }) {
   const activePanel = panels.find((panel) => panel.id === activePanelId) || panels[0];
   const activeFieldIds = layout?.[activePanel?.id] || [];
 
@@ -77,7 +77,7 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
         const configuredField = { ...field, required: field.required || requiredFieldIds.includes(field.id) };
         const fieldReadOnly = readOnly || lockedFieldIds.includes(field.id);
         return (
-          <FieldFrame key={field.id} field={configuredField} error={error}>
+          <FieldFrame key={field.id} field={configuredField} error={error} className={fieldClassName}>
             {field.render ? field.render({ field: configuredField, value, values, errors, onChange, readOnly: fieldReadOnly, context }) : <DefaultControl field={configuredField} value={value} onChange={onChange} readOnly={fieldReadOnly} />}
           </FieldFrame>
         );
