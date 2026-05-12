@@ -70,7 +70,7 @@ export default function SankhyaListToolbar({
 
   return (
     <div>
-      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap border-t">
+      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap border-">
 
         
         {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
