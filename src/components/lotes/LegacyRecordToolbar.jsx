@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, Pencil, ArrowLeft } from "lucide-react";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
@@ -49,8 +50,29 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
 
           {showUtilityActions && <Button type="button" variant="outline" size="icon" className={showDeleteDuplicateActions ? iconButtonClass : fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>}
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" className={iconButtonClass}><MoreHorizontal className="w-3.5 h-3.5" /></Button>}
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>}
+          {showUtilityActions &&
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="icon" className={iconButtonClass} title="Mais opções">
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={onSettingsClick} className="text-xs">
+                <Settings className="w-3.5 h-3.5 mr-2" />
+                Organizar painéis e campos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAttachClick} disabled={attachDisabled} className="text-xs">
+                <Paperclip className="w-3.5 h-3.5 mr-2" />
+                Anexos
+              </DropdownMenuItem>
+              {onRefresh &&
+              <DropdownMenuItem onClick={onRefresh} className="text-xs">
+                <FileText className="w-3.5 h-3.5 mr-2" />
+                Atualizar registro
+              </DropdownMenuItem>}
+            </DropdownMenuContent>
+          </DropdownMenu>}
           <div className={`h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-slate-200/60 bg-white flex items-center justify-center text-xs text-slate-600 ${showUtilityActions ? '' : 'border-l-[0.5px]'}`}>
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
