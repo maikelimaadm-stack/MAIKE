@@ -26,7 +26,7 @@ function GreenCheck({ checked, disabled = false, onChange }) {
   );
 }
 
-export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, onSave }) {
+export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, onSave, inline = false }) {
   const [draftPanels, setDraftPanels] = useState(panels);
   const [draftLayout, setDraftLayout] = useState(layout);
   const [draftHiddenFieldIds, setDraftHiddenFieldIds] = useState(hiddenFieldIds);
@@ -275,6 +275,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       </div>
     </div>
   );
+
+  if (inline) return open ? content : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

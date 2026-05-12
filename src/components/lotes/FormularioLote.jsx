@@ -521,6 +521,26 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
+  if (layoutConfigOpen) {
+    return (
+      <section className="w-[calc(100vw-1px)] max-w-full bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+        <LayoutConfiguratorDialog
+          open={layoutConfigOpen}
+          onOpenChange={setLayoutConfigOpen}
+          inline
+          panels={tabs}
+          fields={dynamicFields}
+          layout={activeLayoutConfig.layout}
+          hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+          lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+          requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+          aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
+          onSave={saveLayoutConfig}
+        />
+      </section>
+    );
+  }
+
   return (
     <div>
       <form onSubmit={handleSubmit} className="bg-white min-h-[calc(100dvh-150px)]">
@@ -587,18 +607,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           </div>
         </fieldset>
 
-        <LayoutConfiguratorDialog
-          open={layoutConfigOpen}
-          onOpenChange={setLayoutConfigOpen}
-          panels={tabs}
-          fields={dynamicFields}
-          layout={activeLayoutConfig.layout}
-          hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
-          lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
-          requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
-          aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
-          onSave={saveLayoutConfig}
-        />
+
 
         
 
