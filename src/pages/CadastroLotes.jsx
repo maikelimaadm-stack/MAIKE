@@ -444,8 +444,16 @@ export default function CadastroLotes() {
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
             onSettingsClick={() => setShowConfigColunas(true)}
-            onExportPdf={() => printVisibleLotesTable({ ...visibleTableData, title: "Cadastro de Lotes" })}
-            onExportExcel={() => exportVisibleLotesTableToExcel({ ...visibleTableData, title: "Cadastro de Lotes" })}
+            onExportPdf={() => printVisibleLotesTable({
+              ...visibleTableData,
+              rows: selectedTableItems.length > 0 ? visibleTableData.selectedRows || [] : visibleTableData.rows,
+              title: "Cadastro de Lotes"
+            })}
+            onExportExcel={() => exportVisibleLotesTableToExcel({
+              ...visibleTableData,
+              rows: selectedTableItems.length > 0 ? visibleTableData.selectedRows || [] : visibleTableData.rows,
+              title: "Cadastro de Lotes"
+            })}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />

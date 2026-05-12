@@ -422,9 +422,12 @@ export default function TabelaLotes({
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
     onVisibleDataChange?.({
       columns: colunasExportaveis.map((coluna) => ({ id: coluna.id, label: coluna.label })),
-      rows: lotesOrdenados.map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id)))
+      rows: lotesOrdenados.map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id))),
+      selectedRows: lotesOrdenados
+        .filter((lote) => selectedItems.includes(lote.id))
+        .map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id)))
     });
-  }, [colunasOrdenadas, lotesOrdenados, relatedOptions, onVisibleDataChange]);
+  }, [colunasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange]);
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
