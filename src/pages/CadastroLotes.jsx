@@ -12,6 +12,7 @@ import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
+import { exportVisibleLotesTableToExcel, printVisibleLotesTable } from "@/components/lotes/loteTableExportUtils";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -31,6 +32,7 @@ export default function CadastroLotes() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState({ status: "todos" });
   const [appliedFilters, setAppliedFilters] = useState({ status: "todos" });
+  const [visibleTableData, setVisibleTableData] = useState({ columns: [], rows: [] });
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -442,6 +444,8 @@ export default function CadastroLotes() {
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
             onSettingsClick={() => setShowConfigColunas(true)}
+            onExportPdf={() => printVisibleLotesTable({ ...visibleTableData, title: "Cadastro de Lotes" })}
+            onExportExcel={() => exportVisibleLotesTableToExcel({ ...visibleTableData, title: "Cadastro de Lotes" })}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
@@ -457,7 +461,8 @@ export default function CadastroLotes() {
             setShowConfigColunas={setShowConfigColunas}
             searchTerm={searchTerm}
             selectedRecordId={showForm ? editingLote?.id : undefined}
-            onSelectionChange={handleTableSelectionChange} />
+            onSelectionChange={handleTableSelectionChange}
+            onVisibleDataChange={setVisibleTableData} />
         </div>
       </div>
 

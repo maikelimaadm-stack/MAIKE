@@ -72,7 +72,8 @@ export default function TabelaLotes({
   setShowConfigColunas,
   searchTerm = "",
   selectedRecordId,
-  onSelectionChange
+  onSelectionChange,
+  onVisibleDataChange
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -416,6 +417,14 @@ export default function TabelaLotes({
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  useEffect(() => {
+    const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    onVisibleDataChange?.({
+      columns: colunasExportaveis.map((coluna) => ({ id: coluna.id, label: coluna.label })),
+      rows: lotesOrdenados.map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id)))
+    });
+  }, [colunasOrdenadas, lotesOrdenados, relatedOptions, onVisibleDataChange]);
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
