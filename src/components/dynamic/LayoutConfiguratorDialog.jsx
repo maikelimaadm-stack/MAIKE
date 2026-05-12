@@ -369,7 +369,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   <div className="w-full h-full overflow-hidden flex flex-col bg-white">
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
-      <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div className="border-slate-300 bg-white min-h-0 flex flex-col overflow-hidden flex-1 border-b">
         <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-b border-slate-300 overflow-hidden">
           <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Voltar"><ChevronLeft className="w-3.5 h-3.5" /></Button>
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className={iconButtonClass} title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
@@ -469,12 +469,12 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Obrigatório</span>
                 <GreenCheck checked={!!selectedField && (selectedField.required || draftRequiredFieldIds.includes(selectedField.id))} disabled={!selectedField || selectedField?.required || !isEditing} onChange={(checked) => {
-                  if (checked) {
-                    setDraftHiddenFieldIds((prev) => prev.filter((id) => id !== selectedField?.id));
-                    setDraftLockedFieldIds((prev) => prev.filter((id) => id !== selectedField?.id));
-                  }
-                  toggleListValue(setDraftRequiredFieldIds, selectedField?.id, checked);
-                }} />
+                if (checked) {
+                  setDraftHiddenFieldIds((prev) => prev.filter((id) => id !== selectedField?.id));
+                  setDraftLockedFieldIds((prev) => prev.filter((id) => id !== selectedField?.id));
+                }
+                toggleListValue(setDraftRequiredFieldIds, selectedField?.id, checked);
+              }} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Totalizar</span>
