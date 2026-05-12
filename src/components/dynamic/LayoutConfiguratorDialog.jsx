@@ -370,7 +370,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
       <div className="border-slate-300 bg-white min-h-0 flex flex-col overflow-hidden flex-1 border-b">
-        <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-b border-slate-300 overflow-hidden">
+        <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-slate-300 overflow-hidden border">
           <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Voltar"><ChevronLeft className="w-3.5 h-3.5" /></Button>
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className={iconButtonClass} title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className={greenButtonClass} title="Novo painel"><Plus className="w-4 h-4" /></Button>}
