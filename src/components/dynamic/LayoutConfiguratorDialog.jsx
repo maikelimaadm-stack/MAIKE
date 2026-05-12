@@ -19,7 +19,7 @@ const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0
 const isCustomPanel = (panel) => panel && !SYSTEM_PANEL_IDS.includes(panel.id);
 const isCustomField = (field) => field?.origem === "customizado" || String(field?.id || "").startsWith("custom:");
 
-const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[9px] border-l-transparent border-b-[9px] border-b-green-500" />;
+const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[7px] border-l-transparent border-b-[7px] border-b-green-500" />;
 
 const formatPanelLabel = (value) => {
   const lowerWords = new Set(["da", "de", "do", "das", "dos", "e"]);
