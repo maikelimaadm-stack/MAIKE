@@ -13,6 +13,7 @@ const AGGREGATION_OPTIONS = [
   { value: "min", label: "Menor" }
 ];
 
+const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
 function GreenCheck({ checked, disabled = false, onChange }) {
@@ -272,10 +273,12 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className="h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white shadow-none" title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className={greenButtonClass} title="Novo painel"><Plus className="w-4 h-4" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem} onClick={deletePanel} className={greenButtonClass} title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className={greenButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={greenButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={restoreDefault} className={greenButtonClass} title="Restaurar padrão"><RotateCcw className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem} onClick={deletePanel} className={iconButtonClass} title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
+          <div className="ml-auto flex items-center gap-0">
+            {isEditing && <Button type="button" variant="outline" size="icon" onClick={restoreDefault} className={iconButtonClass} title="Restaurar padrão"><RotateCcw className="w-3.5 h-3.5" /></Button>}
+          </div>
         </div>
 
         <div className="grid grid-cols-[320px_45px_1fr] flex-1 min-h-0">
