@@ -6,7 +6,7 @@ const CustomMarker = () => <span className="pointer-events-none absolute bottom-
 
 export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
   return (
-    <div className="flex items-end gap-0 overflow-x-auto border-b border-slate-300 bg-white md:px-12">
+    <div className="flex items-end gap-0 overflow-x-auto bg-white md:px-12">
       {tabs.map((tab) => {
         const active = activeTab === tab.id;
         return (
@@ -14,7 +14,7 @@ export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`relative h-8 px-4 border border-slate-300 text-xs whitespace-nowrap overflow-visible transition-all duration-150 ${active ? "bg-white text-slate-800 font-semibold border-b-white after:absolute after:left-0 after:right-0 after:-bottom-px after:h-px after:bg-white after:z-20" : "bg-slate-50 text-slate-700 border-b-0 hover:bg-white"}`}>
+            className={`relative h-8 px-4 border border-slate-300 text-xs whitespace-nowrap overflow-hidden transition-colors ${active ? "bg-white text-slate-800 font-semibold border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"}`}>
             {isCustomPanel(tab) && <CustomMarker />}
             {tab.label}
           </button>

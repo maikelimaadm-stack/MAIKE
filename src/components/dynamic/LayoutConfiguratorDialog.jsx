@@ -405,7 +405,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
-            <div className="h-9 border-b border-slate-300 bg-white flex items-end px-1 gap-0 overflow-x-auto">
+            <div className="h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto">
               {draftPanels.map((panel) => {
               const isActive = activePanel?.id === panel.id;
               const isEmpty = (draftLayout[panel.id] || []).length === 0;
@@ -426,7 +426,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                     setSelectedPanelField(null);
                     setSelectedPanelFieldIds([]);
                   }}
-                  className={`relative h-8 px-4 border border-slate-300 text-xs whitespace-nowrap transition-all duration-150 overflow-visible ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-b-white after:absolute after:left-0 after:right-0 after:-bottom-px after:h-px after:bg-white after:z-20" : "bg-slate-50 text-slate-700 border-b-0 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                  className={`relative h-8 px-4 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
                   
                     {isCustomPanel(panel) && <CustomMarker />}
                     {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
