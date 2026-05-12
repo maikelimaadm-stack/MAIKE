@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff, Plus, Search, Trash2, GripVertical } from "lucide-react";
-import LegacyRecordToolbar from "@/components/lotes/LegacyRecordToolbar.jsx";
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, EyeOff, Pencil, Search, X } from "lucide-react";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -38,7 +37,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const [selectedAvailable, setSelectedAvailable] = useState(null);
   const [selectedPanelField, setSelectedPanelField] = useState(null);
   const [search, setSearch] = useState("");
-  const [dragState, setDragState] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -52,6 +51,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setSelectedAvailable(null);
     setSelectedPanelField(null);
     setSearch("");
+    setIsEditing(false);
   }, [open, panels, layout, hiddenFieldIds, lockedFieldIds, requiredFieldIds, aggregationConfig]);
 
   const activePanel = draftPanels.find((panel) => panel.id === activePanelId) || draftPanels[0];
@@ -60,7 +60,6 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const panelFields = panelFieldIds.map((id) => fields.find((field) => field.id === id)).filter(Boolean);
   const selectedField = fields.find((field) => field.id === selectedPanelField) || null;
   const activePanelIsSystem = SYSTEM_PANEL_IDS.includes(activePanel?.id);
-  const canDeleteActivePanel = !!activePanel && !activePanelIsSystem;
 
   const availableFields = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -68,25 +67,6 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       .filter((field) => !usedFieldIds.has(field.id))
       .filter((field) => !term || String(field.label || "").toLowerCase().includes(term));
   }, [fields, usedFieldIds, search]);
-
-  const createPanel = () => {
-    const id = `painel_${Date.now()}`;
-    setDraftPanels((prev) => [...prev, { id, label: "NOVO PAINEL", custom: true }]);
-    setDraftLayout((prev) => ({ ...prev, [id]: [] }));
-    setActivePanelId(id);
-    setSelectedPanelField(null);
-  };
-
-  const deletePanel = () => {
-    if (!canDeleteActivePanel) return;
-    const nextPanels = draftPanels.filter((panel) => panel.id !== activePanel.id);
-    const nextLayout = { ...draftLayout };
-    delete nextLayout[activePanel.id];
-    setDraftPanels(nextPanels);
-    setDraftLayout(nextLayout);
-    setActivePanelId(nextPanels[0]?.id || "");
-    setSelectedPanelField(null);
-  };
 
   const addField = () => {
     if (!selectedAvailable || !activePanel) return;
@@ -159,42 +139,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     onOpenChange(false);
   };
 
-  const handleDrop = (targetType, targetIndex = null) => {
-    if (!dragState || !activePanel) return;
-
-    if (targetType === "panel" && dragState.type === "available") {
-      if (usedFieldIds.has(dragState.fieldId)) return;
-      setDraftLayout((prev) => {
-        const list = [...(prev[activePanel.id] || [])];
-        const insertAt = targetIndex === null ? list.length : targetIndex;
-        list.splice(insertAt, 0, dragState.fieldId);
-        return { ...prev, [activePanel.id]: list };
-      });
-      setSelectedPanelField(dragState.fieldId);
-    }
-
-    if (targetType === "panel" && dragState.type === "panel") {
-      setDraftLayout((prev) => {
-        const list = [...(prev[activePanel.id] || [])].filter((id) => id !== dragState.fieldId);
-        const insertAt = targetIndex === null ? list.length : targetIndex;
-        list.splice(insertAt, 0, dragState.fieldId);
-        return { ...prev, [activePanel.id]: list };
-      });
-    }
-
-    if (targetType === "available" && dragState.type === "panel") {
-      setSelectedPanelField(dragState.fieldId);
-      setTimeout(removeField, 0);
-    }
-    setDragState(null);
-  };
-
   const renderAvailableField = (field) => (
     <button
       key={field.id}
       type="button"
-      draggable
-      onDragStart={() => setDragState({ type: "available", fieldId: field.id })}
+      disabled={!isEditing}
       onClick={() => setSelectedAvailable(field.id)}
       className={`w-full rounded-sm px-2 py-1.5 text-left ${selectedAvailable === field.id ? "bg-green-500 text-white" : "bg-slate-600 text-white hover:bg-slate-700"}`}
     >
@@ -212,15 +161,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       <button
         key={field.id}
         type="button"
-        draggable
-        onDragStart={() => setDragState({ type: "panel", fieldId: field.id })}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={() => handleDrop("panel", index)}
+        disabled={!isEditing}
         onClick={() => setSelectedPanelField(field.id)}
         className={`h-8 min-w-[210px] px-2 rounded-sm text-left border flex items-center justify-between ${selected ? "ring-2 ring-green-500" : ""} ${hidden ? "bg-slate-100 text-slate-400 border-slate-300" : required ? "bg-red-500 text-white border-red-500" : "bg-slate-600 text-white border-slate-600"}`}
       >
         <span className="flex items-center gap-1 min-w-0">
-          <GripVertical className="w-3 h-3 shrink-0 opacity-70" />
           <span className="text-xs font-semibold truncate">{field.label}</span>
         </span>
         <span className="flex items-center gap-1 ml-2 opacity-90">{hidden && <EyeOff className="w-3 h-3" />}{locked && <span className="text-[10px]">B</span>}{required && <span className="text-[10px]">*</span>}</span>
@@ -233,27 +178,21 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>
 
       <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
-        <LegacyRecordToolbar
-          title="LAYOUT DO FORMULÁRIO"
-          badgeLabel="CONFIGURAÇÃO"
-          operationLabel="EDIÇÃO DE LAYOUT"
-          showSaveActions
-          showDeleteDuplicateActions={false}
-          showUtilityActions={false}
-          onSave={handleSave}
-          onCancel={() => onOpenChange(false)}
-          onToggleView={() => onOpenChange(false)}
-          onBack={() => onOpenChange(false)}
-          onNew={createPanel}
-          total={draftPanels.length}
-          currentIndex={Math.max(0, draftPanels.findIndex((panel) => panel.id === activePanel?.id))}
-        />
+        <div className="h-9 border-b border-slate-200 bg-white flex items-center gap-0">
+          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Voltar"><ArrowLeft className="w-4 h-4" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className={`h-8 w-9 rounded-none border-y-0 border-l-0 ${isEditing ? "bg-emerald-50 text-emerald-700" : ""}`} title="Editar"><Pencil className="w-4 h-4" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={handleSave} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Salvar"><Check className="w-4 h-4" /></Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-9 rounded-none border-y-0 border-l-0" title="Descartar"><X className="w-4 h-4" /></Button>
+          <div className="ml-3 flex items-center gap-2 min-w-0">
+            <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold uppercase">CONFIGURAÇÃO</span>
+            <span className="text-xs font-semibold text-slate-700 uppercase truncate">LAYOUT DO FORMULÁRIO</span>
+          </div>
+        </div>
 
         <div className="grid grid-cols-[240px_45px_1fr] flex-1 min-h-0">
           <aside
             className="border-r border-slate-300 bg-white p-2 overflow-hidden flex flex-col"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => handleDrop("available")}
+
           >
             <div className="text-sm font-semibold text-slate-800 mb-2">Campos disponíveis</div>
             <div className="relative mb-3">
@@ -266,8 +205,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </aside>
 
           <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-8">
-            <Button type="button" variant="outline" size="icon" onClick={addField} className="h-10 w-9 rounded-none" title="Adicionar ao painel"><ArrowRight className="w-5 h-5" /></Button>
-            <Button type="button" variant="outline" size="icon" onClick={removeField} className="h-10 w-9 rounded-none" title="Mover para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedAvailable} onClick={addField} className="h-10 w-9 rounded-none" title="Adicionar ao painel"><ArrowRight className="w-5 h-5" /></Button>
+            <Button type="button" variant="outline" size="icon" disabled={!isEditing || !selectedPanelField} onClick={removeField} className="h-10 w-9 rounded-none" title="Mover para disponíveis"><ArrowLeft className="w-5 h-5" /></Button>
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
@@ -281,19 +220,18 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                   </button>
                 );
               })}
-              <Button type="button" variant="outline" size="icon" onClick={createPanel} className="h-8 w-10 rounded-none border-b-0 bg-green-500 hover:bg-green-600 text-white border-green-500 ml-1" title="Criar painel"><Plus className="w-4 h-4" /></Button>
-              <Button type="button" variant="outline" size="icon" onClick={deletePanel} disabled={!canDeleteActivePanel} className="h-8 w-10 rounded-none border-b-0" title={canDeleteActivePanel ? "Excluir painel criado" : "Painel do sistema não pode ser excluído"}><Trash2 className="w-4 h-4" /></Button>
-              <Button type="button" variant="outline" size="icon" onClick={() => movePanel(-1)} className="h-8 w-9 rounded-none border-b-0" title="Mover painel para esquerda"><ChevronLeft className="w-4 h-4" /></Button>
-              <Button type="button" variant="outline" size="icon" onClick={() => movePanel(1)} className="h-8 w-9 rounded-none border-b-0" title="Mover painel para direita"><ChevronRight className="w-4 h-4" /></Button>
+
             </div>
 
             <div className="h-10 border-b border-slate-200 flex items-center gap-2 px-2 bg-slate-50">
               <span className="text-xs text-slate-600">Painel:</span>
-              <Input value={activePanel?.label || ""} onChange={(e) => setDraftPanels((prev) => prev.map((panel) => panel.id === activePanel?.id ? { ...panel, label: e.target.value.toUpperCase() } : panel))} readOnly={activePanelIsSystem} className="h-7 w-72 rounded-none text-xs uppercase bg-white" />
-              {activePanelIsSystem && <span className="text-[11px] text-slate-500">Painel do sistema: pode ser movido, mas não excluído.</span>}
+              <Input value={activePanel?.label || ""} onChange={(e) => setDraftPanels((prev) => prev.map((panel) => panel.id === activePanel?.id ? { ...panel, label: e.target.value.toUpperCase() } : panel))} readOnly={activePanelIsSystem || !isEditing} className="h-7 w-72 rounded-none text-xs uppercase bg-white" />
+              <span className="text-[11px] text-slate-500">Movendo painel: <b>{activePanel?.label || "nenhum"}</b></span>
+              <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel} onClick={() => movePanel(-1)} className="h-7 w-8 rounded-none" title="Mover painel para esquerda"><ChevronLeft className="w-4 h-4" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={!isEditing || !activePanel} onClick={() => movePanel(1)} className="h-7 w-8 rounded-none" title="Mover painel para direita"><ChevronRight className="w-4 h-4" /></Button>
             </div>
 
-            <div className="flex-1 overflow-auto p-2" onDragOver={(e) => e.preventDefault()} onDrop={() => handleDrop("panel")}>
+            <div className="flex-1 overflow-auto p-2">
               <div className="flex flex-wrap gap-2 min-h-[120px]">
                 {panelFields.length === 0 ? <div className="text-xs text-slate-400 p-4">Painel vazio. Se for painel do sistema, ele será ocultado ao salvar.</div> : panelFields.map(renderPanelField)}
               </div>
@@ -301,27 +239,27 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
             <div className="h-28 border-t border-slate-300 bg-slate-50 px-3 py-2 flex items-center gap-5">
               <div className="w-64">
-                <div className="text-xs font-semibold text-slate-700">Configuração do campo</div>
-                <div className="text-xs text-slate-500 truncate">{selectedField ? selectedField.label : "Selecione um campo do painel"}</div>
+                <div className="text-xs font-semibold text-slate-700">Campo selecionado</div>
+                <div className="text-xs text-slate-500 truncate">{selectedField ? `Movendo/configurando: ${selectedField.label}` : "Selecione um campo do painel"}</div>
               </div>
 
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Oculto</span>
-                <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />
+                <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Bloqueado</span>
-                <GreenCheck checked={!!selectedField && draftLockedFieldIds.includes(selectedField.id)} disabled={!selectedField} onChange={(checked) => toggleListValue(setDraftLockedFieldIds, selectedField?.id, checked)} />
+                <GreenCheck checked={!!selectedField && draftLockedFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing} onChange={(checked) => toggleListValue(setDraftLockedFieldIds, selectedField?.id, checked)} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Obrigatório</span>
-                <GreenCheck checked={!!selectedField && (selectedField.required || draftRequiredFieldIds.includes(selectedField.id))} disabled={!selectedField || selectedField?.required} onChange={(checked) => toggleListValue(setDraftRequiredFieldIds, selectedField?.id, checked)} />
+                <GreenCheck checked={!!selectedField && (selectedField.required || draftRequiredFieldIds.includes(selectedField.id))} disabled={!selectedField || selectedField?.required || !isEditing} onChange={(checked) => toggleListValue(setDraftRequiredFieldIds, selectedField?.id, checked)} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Totalizar</span>
-                <GreenCheck checked={!!selectedField && !!draftAggregationConfig[selectedField.id]?.enabled} disabled={!selectedField || !selectedField?.totalizable} onChange={(checked) => setAggregationEnabled(selectedField?.id, checked)} />
+                <GreenCheck checked={!!selectedField && !!draftAggregationConfig[selectedField.id]?.enabled} disabled={!selectedField || !selectedField?.totalizable || !isEditing} onChange={(checked) => setAggregationEnabled(selectedField?.id, checked)} />
               </label>
-              <Select value={selectedField ? draftAggregationConfig[selectedField.id]?.type || "sum" : "sum"} onValueChange={(value) => selectedField && setAggregationType(selectedField.id, value)} disabled={!selectedField || !draftAggregationConfig[selectedField.id]?.enabled}>
+              <Select value={selectedField ? draftAggregationConfig[selectedField.id]?.type || "sum" : "sum"} onValueChange={(value) => selectedField && setAggregationType(selectedField.id, value)} disabled={!selectedField || !draftAggregationConfig[selectedField.id]?.enabled || !isEditing}>
                 <SelectTrigger className="h-7 w-28 rounded-none text-xs bg-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -329,8 +267,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                   {AGGREGATION_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value} className="text-xs">{option.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Button type="button" variant="outline" size="icon" disabled={!selectedField} onClick={() => moveField(-1)} className="h-8 w-9 rounded-none" title="Mover campo para cima"><ChevronLeft className="w-4 h-4 rotate-90" /></Button>
-              <Button type="button" variant="outline" size="icon" disabled={!selectedField} onClick={() => moveField(1)} className="h-8 w-9 rounded-none" title="Mover campo para baixo"><ChevronRight className="w-4 h-4 rotate-90" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={!selectedField || !isEditing} onClick={() => moveField(-1)} className="h-8 w-9 rounded-none" title="Mover campo para cima"><ChevronLeft className="w-4 h-4 rotate-90" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={!selectedField || !isEditing} onClick={() => moveField(1)} className="h-8 w-9 rounded-none" title="Mover campo para baixo"><ChevronRight className="w-4 h-4 rotate-90" /></Button>
             </div>
           </main>
         </div>
@@ -340,7 +278,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !h-screen !max-h-none overflow-hidden flex flex-col !p-0 !rounded-none">
+      <DialogContent className="w-[94vw] max-w-6xl h-[82vh] max-h-[760px] overflow-hidden flex flex-col !p-0 !rounded-none">
         {content}
       </DialogContent>
     </Dialog>

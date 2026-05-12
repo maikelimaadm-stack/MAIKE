@@ -152,8 +152,18 @@ export default function TabelaLotes({
       agregacao_campo_base: campo.agregacao_campo_base || "",
       customField: campo.field_name
     }));
+    const formFieldToColumnId = {
+      quantidade_cabecas: "cabecas",
+      peso_medio_kg: "peso",
+      valor_total_compra: "valor"
+    };
+    const aggregationByColumn = { ...layoutAggregationConfig };
+    Object.entries(formFieldToColumnId).forEach(([fieldId, columnId]) => {
+      if (layoutAggregationConfig[fieldId]?.enabled) aggregationByColumn[columnId] = layoutAggregationConfig[fieldId];
+    });
+
     return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))].map((coluna) => {
-      const config = layoutAggregationConfig[coluna.id];
+      const config = aggregationByColumn[coluna.id];
       return config?.enabled ? { ...coluna, agregacao_tipo: config.type, agregacao: config.type, usar_decimal: true } : { ...coluna, agregacao_tipo: "", agregacao: "" };
     });
   }, [camposPersonalizados, layoutAggregationConfig]);
