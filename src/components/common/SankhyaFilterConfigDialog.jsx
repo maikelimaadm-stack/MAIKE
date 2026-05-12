@@ -244,39 +244,39 @@ export default function SankhyaFilterConfigDialog({
 
   if (!open) return null;
 
-  const content = (
-    <div className={inline ? "w-full h-full overflow-hidden flex flex-col bg-white" : "w-full overflow-hidden flex flex-col"}>
-      {!inline && (
-        <DialogHeader className="sr-only">
+  const content =
+  <div className={inline ? "w-full h-full overflow-hidden flex flex-col bg-white" : "w-full overflow-hidden flex flex-col"}>
+      {!inline &&
+    <DialogHeader className="sr-only">
           <DialogTitle>Configuração de filtros personalizados</DialogTitle>
         </DialogHeader>
-      )}
+    }
 
       {showForm ?
-        <div className={`border border-slate-300 bg-white min-h-[420px] flex flex-col overflow-hidden ${inline ? "h-full border-0" : "h-[calc(90vh-90px)]"}`}>
+    <div className={`border border-slate-300 bg-white min-h-[420px] flex flex-col overflow-hidden ${inline ? "h-full border-0" : "h-[calc(90vh-90px)]"}`}>
             <LegacyRecordToolbar
-            title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
-            badgeLabel="FILTRO"
-            operationLabel={operationLabel}
-            showSaveActions={editMode}
-            showEditAction={isReadOnly}
-            showDeleteDuplicateActions={!!selectedConfig && !editMode && !draftNew && !isDuplicating}
-            onSave={handleSave}
-            onCancel={handleDiscard}
-            onEditRecord={() => setEditMode(true)}
-            onToggleView={() => setShowForm(false)}
-            onBack={() => onOpenChange(false)}
-            onNew={handleNew}
-            total={filterConfigs.length}
-            currentIndex={selectedIndex}
-            onFirst={() => openConfig(filterConfigs[0])}
-            onPrevious={() => openConfig(filterConfigs[selectedIndex - 1])}
-            onNext={() => openConfig(filterConfigs[selectedIndex + 1])}
-            onLast={() => openConfig(filterConfigs[filterConfigs.length - 1])}
-            onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
-            onDuplicate={handleDuplicateCurrent}
-            onSettingsClick={() => {}}
-            showUtilityActions={false} />
+        title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
+        badgeLabel="FILTRO"
+        operationLabel={operationLabel}
+        showSaveActions={editMode}
+        showEditAction={isReadOnly}
+        showDeleteDuplicateActions={!!selectedConfig && !editMode && !draftNew && !isDuplicating}
+        onSave={handleSave}
+        onCancel={handleDiscard}
+        onEditRecord={() => setEditMode(true)}
+        onToggleView={() => setShowForm(false)}
+        onBack={() => onOpenChange(false)}
+        onNew={handleNew}
+        total={filterConfigs.length}
+        currentIndex={selectedIndex}
+        onFirst={() => openConfig(filterConfigs[0])}
+        onPrevious={() => openConfig(filterConfigs[selectedIndex - 1])}
+        onNext={() => openConfig(filterConfigs[selectedIndex + 1])}
+        onLast={() => openConfig(filterConfigs[filterConfigs.length - 1])}
+        onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
+        onDuplicate={handleDuplicateCurrent}
+        onSettingsClick={() => {}}
+        showUtilityActions={false} />
           
 
             <div className={`flex-1 overflow-auto w-full md:px-1 py-1 space-y-1 px-1 ${isReadOnly ? "[&_input]:cursor-default [&_button]:cursor-default" : ""}`}>
@@ -295,7 +295,7 @@ export default function SankhyaFilterConfigDialog({
                 </div>
                 <div className="space-y-1">
                   {filterFolders.map((folder, index) =>
-                <div key={folder.id} className="grid grid-cols-[1fr_92px] gap-2 items-center">
+            <div key={folder.id} className="grid grid-cols-[1fr_92px] gap-2 items-center">
                       <Input value={folder.name} readOnly={isReadOnly} onChange={(e) => renameFolder(folder.id, e.target.value)} className="h-7 rounded-none text-xs uppercase" />
                       <div className="flex justify-end gap-1">
                         <button type="button" onClick={() => moveFolder(folder.id, -1)} disabled={index === 0} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
@@ -303,7 +303,7 @@ export default function SankhyaFilterConfigDialog({
                         <button type="button" onClick={() => removeFolder(folder.id)} disabled={filterFolders.length <= 1} className="h-7 w-7 border border-slate-300 text-slate-600 disabled:opacity-30"><X className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>
-                )}
+            )}
                 </div>
               </div>
 
@@ -311,28 +311,28 @@ export default function SankhyaFilterConfigDialog({
                 <div className="font-semibold text-slate-700 text-xs">Adicionar campo na pasta</div>
                 <div className="grid grid-cols-[180px_1fr_32px] gap-1">
                   <AutocompleteGenerico
-                    items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
-                    value={selectedFolderId || ""}
-                    onChange={(value) => !isReadOnly && setSelectedFolderId(value)}
-                    displayField="nome"
-                    searchFields={["nome"]}
-                    placeholder="PESQUISAR PASTA"
-                    inputClassName="h-7 text-xs"
-                    readOnly={isReadOnly}
-                    uppercaseDisplay={false}
-                  />
+              items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
+              value={selectedFolderId || ""}
+              onChange={(value) => !isReadOnly && setSelectedFolderId(value)}
+              displayField="nome"
+              searchFields={["nome"]}
+              placeholder="PESQUISAR PASTA"
+              inputClassName="h-7 text-xs"
+              readOnly={isReadOnly}
+              uppercaseDisplay={false} />
+            
                   <AutocompleteGenerico
-                    items={availableFields.map((field) => ({ ...field, nome: field.label, group: field.group }))}
-                    value={selectedFieldId}
-                    onChange={(value) => !isReadOnly && setSelectedFieldId(value)}
-                    displayField="nome"
-                    searchFields={["nome", "group"]}
-                    placeholder="PESQUISAR CAMPO"
-                    inputClassName="h-7 text-xs"
-                    renderSubtext={(item) => item.group}
-                    readOnly={isReadOnly}
-                    uppercaseDisplay={false}
-                  />
+              items={availableFields.map((field) => ({ ...field, nome: field.label, group: field.group }))}
+              value={selectedFieldId}
+              onChange={(value) => !isReadOnly && setSelectedFieldId(value)}
+              displayField="nome"
+              searchFields={["nome", "group"]}
+              placeholder="PESQUISAR CAMPO"
+              inputClassName="h-7 text-xs"
+              renderSubtext={(item) => item.group}
+              readOnly={isReadOnly}
+              uppercaseDisplay={false} />
+            
                 
                   <Button type="button" onClick={addSelectedField} title="Adicionar campo" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white shadow-none"><Plus /></Button>
                 </div>
@@ -352,45 +352,45 @@ export default function SankhyaFilterConfigDialog({
                 </div>
                 {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
                 {selectedFields.map((field) => {
-                const position = visibleFields.indexOf(field.id);
-                const operatorOptions = getOperatorOptions(field);
+            const position = visibleFields.indexOf(field.id);
+            const operatorOptions = getOperatorOptions(field);
 
-                return (
-                  <div key={field.id} className="items-center border-b border-gray-300 text-xs hover:bg-gray-100 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
+            return (
+              <div key={field.id} className="items-center border-b border-gray-300 text-xs hover:bg-gray-100 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
                       <div className="min-w-0 whitespace-normal break-words px-2 py-1 font-semibold text-gray-700 border-r border-gray-300">{field.label}</div>
                       <div className="px-1 py-1 border-r border-gray-300">
                         <AutocompleteGenerico
-                          items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
-                          value={fieldGroups[field.id] ?? ""}
-                          onChange={(value) => !isReadOnly && setFieldGroups({ ...fieldGroups, [field.id]: value })}
-                          displayField="nome"
-                          searchFields={["nome"]}
-                          placeholder="PASTA"
-                          inputClassName="h-6 text-[11px]"
-                          readOnly={isReadOnly}
-                          uppercaseDisplay={false}
-                        />
+                    items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
+                    value={fieldGroups[field.id] ?? ""}
+                    onChange={(value) => !isReadOnly && setFieldGroups({ ...fieldGroups, [field.id]: value })}
+                    displayField="nome"
+                    searchFields={["nome"]}
+                    placeholder="PASTA"
+                    inputClassName="h-6 text-[11px]"
+                    readOnly={isReadOnly}
+                    uppercaseDisplay={false} />
+                  
                       </div>
                       <div className="px-1 py-1 border-r border-gray-300">
                         <AutocompleteGenerico
-                          items={operatorOptions.map((value) => ({ id: value, nome: OPERATOR_LABELS[value] }))}
-                          value={operators[field.id] ?? ""}
-                          onChange={(value) => updateFieldOperator(field.id, value)}
-                          displayField="nome"
-                          searchFields={["nome"]}
-                          placeholder="OPERADOR"
-                          inputClassName="h-6 text-[11px]"
-                          readOnly={isReadOnly}
-                          uppercaseDisplay={false}
-                        />
+                    items={operatorOptions.map((value) => ({ id: value, nome: OPERATOR_LABELS[value] }))}
+                    value={operators[field.id] ?? ""}
+                    onChange={(value) => updateFieldOperator(field.id, value)}
+                    displayField="nome"
+                    searchFields={["nome"]}
+                    placeholder="OPERADOR"
+                    inputClassName="h-6 text-[11px]"
+                    readOnly={isReadOnly}
+                    uppercaseDisplay={false} />
+                  
                       </div>
                       <div className="px-1 py-1 border-r border-gray-300">
                         <FilterFieldValueEditor
-                        field={field}
-                        operator={operators[field.id] || operatorOptions[0]}
-                        value={fieldValues[field.id] || {}}
-                        onValueChange={(value) => updateFieldValue(field.id, value)}
-                        relationOptions={relationOptions[field.source || "lotes"] || []} />
+                    field={field}
+                    operator={operators[field.id] || operatorOptions[0]}
+                    value={fieldValues[field.id] || {}}
+                    onValueChange={(value) => updateFieldValue(field.id, value)}
+                    relationOptions={relationOptions[field.source || "lotes"] || []} />
                       
                       </div>
                       <div className="flex items-center justify-center gap-0.5 px-1 py-1">
@@ -400,31 +400,31 @@ export default function SankhyaFilterConfigDialog({
                       </div>
                     </div>);
 
-              })}
+          })}
               </div>
             </div>
           </div> :
 
-        <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
+    <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
             <SankhyaListToolbar
-            viewMode="table"
-            total={filterConfigs.length}
-            currentIndex={selectedIndex}
-            onNew={handleNew}
-            onToggleView={() => openConfig(selectedConfig)}
-            onBack={() => onOpenChange(false)}
-            onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
-            onSettingsClick={() => {}}
-            onAttachClick={() => {}}
-            attachDisabled
-            selectedCount={selectedConfig ? 1 : 0}
-            title="Filtros Personalizados"
-            recordLabel=""
-            showUtilityActions={false}
-            showSearch={false} />
+        viewMode="table"
+        total={filterConfigs.length}
+        currentIndex={selectedIndex}
+        onNew={handleNew}
+        onToggleView={() => openConfig(selectedConfig)}
+        onBack={() => onOpenChange(false)}
+        onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
+        onSettingsClick={() => {}}
+        onAttachClick={() => {}}
+        attachDisabled
+        selectedCount={selectedConfig ? 1 : 0}
+        title="Filtros Personalizados"
+        recordLabel=""
+        showUtilityActions={false}
+        showSearch={false} />
           
             <div className="overflow-auto flex-1">
-              <Table className="w-full my-1 min-w-[640px] border-separate border-spacing-0 table-fixed">
+              <Table className="w-full min-w-[640px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
                     <TableHead className="h-7 w-[260px] text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Filtro</TableHead>
@@ -434,21 +434,21 @@ export default function SankhyaFilterConfigDialog({
                 </TableHeader>
                 <TableBody>
                   {filterConfigs.map((config) =>
-                <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
+            <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b font-medium ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{config.name}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b ${config.id === activeConfigId ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
                         {config.visibleFields?.length || 0} campos · {Object.keys(config.fieldValues || {}).filter((key) => Object.values(config.fieldValues?.[key] || {}).some(Boolean)).length} pré-configurados
                       </TableCell>
                       <TableCell className="px-2 py-1 text-xs border-r border-b text-center"><Badge variant="outline" className="bg-white/90 text-slate-700 text-[10px]">{config.id === activeConfigId ? "Ativo" : "Salvo"}</Badge></TableCell>
                     </TableRow>
-                )}
+            )}
                 </TableBody>
               </Table>
             </div>
           </div>
-        }
-    </div>
-  );
+    }
+    </div>;
+
 
   if (inline) return content;
 
@@ -457,7 +457,7 @@ export default function SankhyaFilterConfigDialog({
       <DialogContent className="w-[98vw] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col sm:!p-1 sm:!rounded-none">
         {content}
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 
 }
