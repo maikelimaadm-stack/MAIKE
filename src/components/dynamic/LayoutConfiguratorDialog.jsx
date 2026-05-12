@@ -175,7 +175,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const content = (
     <div className="w-full h-full overflow-hidden flex flex-col bg-white">
-      <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>
+      {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
       <div className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className="h-9 border-b border-slate-200 bg-white flex items-center gap-0">
