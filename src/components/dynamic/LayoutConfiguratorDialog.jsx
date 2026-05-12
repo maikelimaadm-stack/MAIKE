@@ -426,7 +426,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                     setSelectedPanelField(null);
                     setSelectedPanelFieldIds([]);
                   }}
-                  className={`relative h-8 px-4 border border-slate-300 text-xs whitespace-nowrap transition-all duration-150 overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-b-white -mb-px" : "bg-slate-50 text-slate-700 border-b-0 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                  className={`relative h-8 px-4 border border-slate-300 text-xs whitespace-nowrap transition-all duration-150 overflow-visible ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-b-white after:absolute after:left-0 after:right-0 after:-bottom-px after:h-px after:bg-white after:z-20" : "bg-slate-50 text-slate-700 border-b-0 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
                   
                     {isCustomPanel(panel) && <CustomMarker />}
                     {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
