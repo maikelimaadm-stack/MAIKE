@@ -346,7 +346,17 @@ export default function CadastroLotes() {
 
   return (
     <div className="space-y-1 p-0 md:p-0 bg-white">
-      {showForm &&
+      {showConfigCampos && (
+        <section className="w-[calc(100vw-1px)] max-w-full bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+          <ConfiguracaoCamposLoteDialog
+            open={showConfigCampos}
+            onOpenChange={setShowConfigCampos}
+            inline
+          />
+        </section>
+      )}
+
+      {!showConfigCampos && showForm &&
       <FormularioLote
         key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
         initialData={editingLote}
@@ -395,7 +405,7 @@ export default function CadastroLotes() {
         onRefresh={handleRefresh} />
       }
 
-      <div className={showForm ? "hidden" : "flex items-start min-h-0 w-full overflow-hidden"}>
+      <div className={showForm || showConfigCampos ? "hidden" : "flex items-start min-h-0 w-full overflow-hidden"}>
         <SankhyaFilterPanel
           open={filterPanelOpen}
           filters={filters}
@@ -450,10 +460,6 @@ export default function CadastroLotes() {
             onSelectionChange={handleTableSelectionChange} />
         </div>
       </div>
-
-      <ConfiguracaoCamposLoteDialog
-        open={showConfigCampos}
-        onOpenChange={setShowConfigCampos} />
 
       <RegistroAnexosDialog
         open={!!attachmentsRecord?.id || newRecordAttachmentsOpen}

@@ -64,7 +64,7 @@ const initialForm = {
   decimal_places: 2
 };
 
-export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
+export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inline = false }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
@@ -332,12 +332,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : editingId ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !h-screen !max-h-none overflow-hidden flex flex-col !p-0 !rounded-none">
+  const content = (
+    <div className="w-full h-full overflow-hidden flex flex-col bg-white">
+      {!inline && (
         <DialogHeader className="sr-only">
           <DialogTitle>Configuração de campos personalizados</DialogTitle>
         </DialogHeader>
+      )}
 
         {showForm ?
         <form onSubmit={handleSubmit} className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -461,6 +462,15 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange }) {
             </div>
           </div>
         }
+    </div>
+  );
+
+  if (inline) return open ? content : null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !h-screen !max-h-none overflow-hidden flex flex-col !p-0 !rounded-none">
+        {content}
       </DialogContent>
     </Dialog>);
 
