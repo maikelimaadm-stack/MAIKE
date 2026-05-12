@@ -252,13 +252,6 @@ export default function SankhyaFilterConfigDialog({
         </DialogHeader>
       )}
 
-      {inline && (
-        <div className="h-9 shrink-0 border-b border-slate-300 bg-slate-50 px-2 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-700">Configuração de filtros personalizados</span>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-7 rounded-none text-xs">Voltar aos filtros</Button>
-        </div>
-      )}
-
       {showForm ?
         <div className={`border border-slate-300 bg-white min-h-[420px] flex flex-col overflow-hidden ${inline ? "h-full border-0" : "h-[calc(90vh-90px)]"}`}>
             <LegacyRecordToolbar
@@ -272,6 +265,7 @@ export default function SankhyaFilterConfigDialog({
             onCancel={handleDiscard}
             onEditRecord={() => setEditMode(true)}
             onToggleView={() => setShowForm(false)}
+            onBack={() => onOpenChange(false)}
             onNew={handleNew}
             total={filterConfigs.length}
             currentIndex={selectedIndex}
@@ -349,12 +343,12 @@ export default function SankhyaFilterConfigDialog({
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1 overflow-x-auto">
-                <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-slate-100 border-b border-slate-300 text-[10px] font-bold text-slate-600">
-                  <div className="px-2 py-1 border-r border-slate-300">Campo</div>
-                  <div className="px-2 py-1 border-r border-slate-300">Pasta</div>
-                  <div className="px-2 py-1 border-r border-slate-300">Operador</div>
-                  <div className="px-2 py-1 border-r border-slate-300">Valor padrão</div>
-                  <div className="px-2 py-1 text-center">Ações</div>
+                <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-white border-t border-b border-gray-200 text-xs font-medium text-gray-900">
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Campo</div>
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Pasta</div>
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Operador</div>
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Valor padrão</div>
+                  <div className="h-7 px-2 leading-7 text-center">Ações</div>
                 </div>
                 {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
                 {selectedFields.map((field) => {
@@ -362,9 +356,9 @@ export default function SankhyaFilterConfigDialog({
                 const operatorOptions = getOperatorOptions(field);
 
                 return (
-                  <div key={field.id} className="items-center border-b border-slate-200 text-xs hover:bg-emerald-50/30 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
-                      <div className="min-w-0 whitespace-normal break-words px-2 py-1 font-semibold text-slate-800 border-r border-slate-200">{field.label}</div>
-                      <div className="px-1 py-1 border-r border-slate-200">
+                  <div key={field.id} className="items-center border-b border-gray-300 text-xs hover:bg-gray-100 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
+                      <div className="min-w-0 whitespace-normal break-words px-2 py-1 font-semibold text-gray-700 border-r border-gray-300">{field.label}</div>
+                      <div className="px-1 py-1 border-r border-gray-300">
                         <AutocompleteGenerico
                           items={filterFolders.map((folder) => ({ ...folder, nome: folder.name }))}
                           value={fieldGroups[field.id] ?? ""}
@@ -377,7 +371,7 @@ export default function SankhyaFilterConfigDialog({
                           uppercaseDisplay={false}
                         />
                       </div>
-                      <div className="px-1 py-1 border-r border-slate-200">
+                      <div className="px-1 py-1 border-r border-gray-300">
                         <AutocompleteGenerico
                           items={operatorOptions.map((value) => ({ id: value, nome: OPERATOR_LABELS[value] }))}
                           value={operators[field.id] ?? ""}
@@ -390,7 +384,7 @@ export default function SankhyaFilterConfigDialog({
                           uppercaseDisplay={false}
                         />
                       </div>
-                      <div className="px-1 py-1 border-r border-slate-200">
+                      <div className="px-1 py-1 border-r border-gray-300">
                         <FilterFieldValueEditor
                         field={field}
                         operator={operators[field.id] || operatorOptions[0]}
@@ -418,6 +412,7 @@ export default function SankhyaFilterConfigDialog({
             currentIndex={selectedIndex}
             onNew={handleNew}
             onToggleView={() => openConfig(selectedConfig)}
+            onBack={() => onOpenChange(false)}
             onDelete={() => selectedConfig && onDeleteConfig(selectedConfig.id)}
             onSettingsClick={() => {}}
             onAttachClick={() => {}}
@@ -432,9 +427,9 @@ export default function SankhyaFilterConfigDialog({
               <Table className="w-full my-1 min-w-[640px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
-                    <TableHead className="h-7 w-[260px] text-xs text-center border-r border-t border-b border-gray-200 bg-white">Filtro</TableHead>
-                    <TableHead className="h-7 text-xs text-center border-r border-t border-b border-gray-200 bg-white">Campos</TableHead>
-                    <TableHead className="h-7 w-[120px] text-xs text-center border-r border-t border-b border-gray-200 bg-white">Status</TableHead>
+                    <TableHead className="h-7 w-[260px] text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Filtro</TableHead>
+                    <TableHead className="h-7 text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Campos</TableHead>
+                    <TableHead className="h-7 w-[120px] text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

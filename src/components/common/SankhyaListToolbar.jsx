@@ -16,7 +16,8 @@ import {
   FileText,
   Paperclip,
   MoreHorizontal,
-  Settings } from
+  Settings,
+  ArrowLeft } from
 "lucide-react";
 
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
@@ -30,6 +31,7 @@ export default function SankhyaListToolbar({
   onSearchChange,
   onNew,
   onToggleView,
+  onBack,
   toggleViewDisabled = false,
   filterOpen = false,
   filterActive = false,
@@ -62,6 +64,7 @@ export default function SankhyaListToolbar({
       <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-[0.5px] border-slate-200/60">
 
         
+        {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} disabled={toggleViewDisabled} className={iconButtonClass} title={toggleViewDisabled ? "Selecione apenas um registro" : viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
           {viewMode === "table" ? <List className="w-3.5 h-3.5" /> : <Table className="w-3.5 h-3.5" />}
         </Button>
