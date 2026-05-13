@@ -1,48 +1,79 @@
 import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Droplet, Wrench, AlertTriangle, CheckCircle2 } from "lucide-react";
-
-const getIcon = (tipo) => {
-  if (["Limpeza", "Tratamento da água", "Aplicação de produto", "Análise da água", "Abastecimento"].includes(tipo)) return Droplet;
-  if (["Manutenção", "Troca de boia", "Troca de encanamento"].includes(tipo)) return Wrench;
-  if (["Vazamento", "Contaminação"].includes(tipo)) return AlertTriangle;
-  return CheckCircle2;
-};
 
 const statusClass = {
-  Pendente: "bg-amber-50 text-amber-700 border-amber-200",
-  Concluído: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Emergencial: "bg-red-50 text-red-700 border-red-200"
+  Pendente: "text-amber-700 border-amber-200 bg-amber-50",
+  Concluído: "text-emerald-700 border-emerald-200 bg-emerald-50",
+  Emergencial: "text-red-700 border-red-200 bg-red-50"
 };
 
+const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
+const formatMoney = (value) => value ? `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-";
+
 export default function BebedouroTimeline({ historico = [] }) {
-  if (!historico.length) return <div className="text-xs text-slate-500 p-3">Nenhum lançamento registrado.</div>;
+  if (!historico.length) return <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>;
 
   return (
-    <div className="space-y-2">
-      {historico.map((item) => {
-        const Icon = getIcon(item.tipo_lancamento);
-        return (
-          <div key={item.id} className="relative pl-8 pb-3 border-l border-slate-200 ml-3 last:pb-0">
-            <div className="absolute -left-3 top-0 h-6 w-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
-              <Icon className="h-3.5 w-3.5 text-slate-700" />
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="text-xs font-semibold text-slate-900">{item.tipo_lancamento}</div>
-                <Badge variant="outline" className={`text-[10px] ${statusClass[item.status] || statusClass.Concluído}`}>{item.status}</Badge>
+    <Card className="border-slate-200 shadow-sm">
+      <CardHeader className="bg-slate-50 border-b py-3 px-3">
+        <CardTitle className="text-sm font-semibold">Histórico do Bebedouro ({historico.length})</CardTitle>
+      </CardHeader>
+      <CardContent className="p-2">
+        <div className="max-h-[60vh] overflow-y-auto space-y-1">
+          {historico.map((item) => (
+            <div key={item.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{formatDateBR(item.data_lancamento)}</span>
+                  <Badge variant="outline" className={`text-[10px] ${statusClass[item.status] || statusClass.Concluído}`}>{item.status || "Concluído"}</Badge>
+                </div>
               </div>
-              <div className="text-[10px] text-slate-500">{item.data_lancamento ? new Date(`${item.data_lancamento}T00:00:00`).toLocaleDateString("pt-BR") : "-"} {item.hora_lancamento || ""} · {item.responsavel || "Sem responsável"}</div>
-              {item.descricao && <div className="text-xs text-slate-700 mt-1 whitespace-pre-wrap">{item.descricao}</div>}
-              {(item.produto_utilizado || item.quantidade_utilizada || item.custo) && <div className="grid grid-cols-3 gap-1 mt-2 text-[10px]">
-                <div className="rounded bg-slate-50 p-1"><span className="text-slate-500">Produto</span><div className="font-semibold">{item.produto_utilizado || "-"}</div></div>
-                <div className="rounded bg-slate-50 p-1"><span className="text-slate-500">Qtd.</span><div className="font-semibold">{item.quantidade_utilizada || "-"}</div></div>
-                <div className="rounded bg-slate-50 p-1"><span className="text-slate-500">Custo</span><div className="font-semibold">{item.custo ? `R$ ${Number(item.custo).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "-"}</div></div>
-              </div>}
+
+              <div className="text-xs font-semibold text-slate-900">{item.tipo_lancamento || "Lançamento"}</div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                <InfoBox label="Responsável" value={item.responsavel || "-"} />
+                <InfoBox label="Hora" value={item.hora_lancamento || "-"} />
+                <InfoBox label="Custo" value={formatMoney(item.custo)} />
+                <InfoBox label="Status" value={item.status || "-"} />
+              </div>
+
+              {(item.produto_utilizado || item.quantidade_utilizada) && (
+                <div>
+                  <SectionLabel>PRODUTO</SectionLabel>
+                  <div className="grid grid-cols-2 gap-1 text-[10px]">
+                    <InfoBox label="Produto" value={item.produto_utilizado || "-"} />
+                    <InfoBox label="Quantidade" value={item.quantidade_utilizada || "-"} />
+                  </div>
+                </div>
+              )}
+
+              {(item.nivel_risco || item.cor_agua || item.turbidez || item.odor) && (
+                <div>
+                  <SectionLabel>SANIDADE DA ÁGUA</SectionLabel>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                    <InfoBox label="Risco" value={item.nivel_risco || "-"} />
+                    <InfoBox label="Cor" value={item.cor_agua || "-"} />
+                    <InfoBox label="Turbidez" value={item.turbidez || "-"} />
+                    <InfoBox label="Odor" value={item.odor || "-"} />
+                  </div>
+                </div>
+              )}
+
+              {item.descricao && <div className="text-[10px] text-slate-500 break-words">Obs: {item.descricao}</div>}
             </div>
-          </div>
-        );
-      })}
-    </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
+}
+
+function SectionLabel({ children }) {
+  return <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 mb-0.5">{children}</div>;
+}
+
+function InfoBox({ label, value }) {
+  return <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">{label}</div><div className="font-semibold text-slate-900 break-words">{value}</div></div>;
 }

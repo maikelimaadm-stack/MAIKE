@@ -49,6 +49,15 @@ export default function DetalhesBebedouro({ bebedouro }) {
     enabled: !!empresaId,
     staleTime: 60 * 1000
   });
+  const { data: pontosReferencia = [] } = useQuery({
+    queryKey: ["pontos-referencia-bebedouro-detalhe", empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoReferencia.list();
+      return all.filter((ponto) => ponto.empresa_id === empresaId && ponto.ativo !== false);
+    },
+    enabled: !!empresaId,
+    staleTime: 60 * 1000
+  });
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
   const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
   const ultimoSanitario = historico.find((item) => item.nivel_risco || item.cor_agua || item.presenca_contaminacao) || sanidade[0];
@@ -66,6 +75,8 @@ export default function DetalhesBebedouro({ bebedouro }) {
     });
   }, [iconesConfig, bebedouro?.tipo, bebedouro?.nome]);
   const subIconePonto = bebedouro?.sub_icone_url || bebedouro?.icone_url || iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
+  const pontoReferencia = pontosReferencia.find((ponto) => ponto.id === bebedouro?.ponto_referencia_id || normalizeText(ponto.nome) === normalizeText(bebedouro?.nome) || normalizeText(ponto.sigla) === normalizeText(bebedouro?.codigo_interno));
+  const numeroBebedouro = pontoReferencia?.numero_ponto || bebedouro?.numero_ponto || bebedouro?.codigo_interno || "-";
   const areaIdsBebedouro = Array.isArray(bebedouro.area_vinculada_ids) && bebedouro.area_vinculada_ids.length ? bebedouro.area_vinculada_ids : bebedouro.pasto_id ? [bebedouro.pasto_id] : [];
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
   const lotesAtendidos = lotes.filter((lote) => areaIdsBebedouro.includes(lote.area_atual_id));
@@ -110,20 +121,31 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
       <CardSection title="Último Registro">
         {ultimoLancamento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-1">
-            <div className="flex items-center justify-between gap-2"><div className="font-semibold leading-tight text-slate-900">{ultimoLancamento.tipo_lancamento}</div><span className="text-slate-500 px-1">Data: {formatDateBR(ultimoLancamento.data_lancamento)}</span></div>
-            <SectionLabel>DADOS DO LANÇAMENTO</SectionLabel>
-            <div className="grid grid-cols-2 gap-1 text-[10px]"><MetricBox label="Status" value={ultimoLancamento.status || "-"} /><MetricBox label="Custo" value={ultimoLancamento.custo ? `R$ ${formatDecimal(ultimoLancamento.custo)}` : "-"} /></div>
-            {(ultimoLancamento.produto_utilizado || ultimoLancamento.quantidade_utilizada) && <><SectionLabel>PRODUTO</SectionLabel><div className="grid grid-cols-2 gap-1 text-[10px]"><MetricBox label="Produto" value={ultimoLancamento.produto_utilizado || "-"} /><MetricBox label="Quantidade" value={ultimoLancamento.quantidade_utilizada || "-"} /></div></>}
-            {(ultimoLancamento.nivel_risco || ultimoLancamento.cor_agua || ultimoLancamento.turbidez) && <><SectionLabel>SANIDADE DA ÁGUA</SectionLabel><div className="grid grid-cols-3 gap-1 text-[10px]"><MetricBox label="Risco" value={ultimoLancamento.nivel_risco || "-"} /><MetricBox label="Cor" value={ultimoLancamento.cor_agua || "-"} /><MetricBox label="Turbidez" value={ultimoLancamento.turbidez || "-"} /></div></>}
-            {ultimoLancamento.descricao && <div className="break-words text-[10px] italic text-slate-500 mt-1">{ultimoLancamento.descricao}</div>}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 hover:bg-gray-50 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{formatDateBR(ultimoLancamento.data_lancamento)}</span>
+                <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{ultimoLancamento.status || "Concluído"}</Badge>
+              </div>
+            </div>
+            <div className="text-xs font-semibold text-slate-900">{ultimoLancamento.tipo_lancamento || "Lançamento"}</div>
+            <SectionLabel>LANÇAMENTO</SectionLabel>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+              <MiniInfo label="Responsável" value={ultimoLancamento.responsavel || "-"} />
+              <MiniInfo label="Hora" value={ultimoLancamento.hora_lancamento || "-"} />
+              <MiniInfo label="Custo" value={ultimoLancamento.custo ? `R$ ${formatDecimal(ultimoLancamento.custo)}` : "-"} />
+              <MiniInfo label="Tipo" value={ultimoLancamento.tipo_lancamento || "-"} />
+            </div>
+            {(ultimoLancamento.produto_utilizado || ultimoLancamento.quantidade_utilizada) && <><SectionLabel>PRODUTO</SectionLabel><div className="grid grid-cols-2 gap-1 text-[10px]"><MiniInfo label="Produto" value={ultimoLancamento.produto_utilizado || "-"} /><MiniInfo label="Quantidade" value={ultimoLancamento.quantidade_utilizada || "-"} /></div></>}
+            {(ultimoLancamento.nivel_risco || ultimoLancamento.cor_agua || ultimoLancamento.turbidez) && <><SectionLabel>SANIDADE DA ÁGUA</SectionLabel><div className="grid grid-cols-3 gap-1 text-[10px]"><MiniInfo label="Risco" value={ultimoLancamento.nivel_risco || "-"} /><MiniInfo label="Cor" value={ultimoLancamento.cor_agua || "-"} /><MiniInfo label="Turbidez" value={ultimoLancamento.turbidez || "-"} /></div></>}
+            {ultimoLancamento.descricao && <div className="text-[10px] text-slate-500 break-words">Obs: {ultimoLancamento.descricao}</div>}
           </div>
         ) : <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>}
       </CardSection>
 
       <CardSection title="Informações do Bebedouro">
         <div className="space-y-1 text-[10px]">
-          <InfoLine label="Número" value={bebedouro.codigo_interno || "-"} />
+          <InfoLine label="Número" value={numeroBebedouro} />
           <InfoLine label="Tipo" value={bebedouro.tipo || "-"} />
           <InfoLine label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
           <InfoLine label="Origem da água" value={bebedouro.origem_agua || "-"} />
@@ -148,6 +170,10 @@ function MetricBox({ label, value }) {
 
 function SectionLabel({ children }) {
   return <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 mb-0.5">{children}</div>;
+}
+
+function MiniInfo({ label, value }) {
+  return <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">{label}</div><div className="font-semibold text-slate-900 break-words">{value}</div></div>;
 }
 
 function CardSection({ title, children }) {
