@@ -8,7 +8,6 @@ import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import { useBebedouroSanidade } from "@/hooks/useBebedouroSanidade";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
-import { getBebedouroStatusVisual } from "@/services/bebedouroService";
 
 const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
@@ -25,12 +24,22 @@ const getPeriodDays = (periodicidade, personalizado) => {
   if (periodicidade === "Mensal") return 30;
   return 0;
 };
+const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
 export default function DetalhesBebedouro({ bebedouro }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const registroReal = Boolean(bebedouro?.id);
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+    },
+    enabled: !!empresaId,
+    staleTime: 10 * 60 * 1000
+  });
   const { data: lotes = [] } = useQuery({
     queryKey: ["lotes-bebedouro-detalhe", empresaId],
     queryFn: async () => {
@@ -42,10 +51,21 @@ export default function DetalhesBebedouro({ bebedouro }) {
   });
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
   const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
-  const visual = useMemo(() => getBebedouroStatusVisual({ bebedouro, historico, sanidade }), [bebedouro, historico, sanidade]);
   const ultimoSanitario = historico.find((item) => item.nivel_risco || item.cor_agua || item.presenca_contaminacao) || sanidade[0];
   const ultimoLancamento = historico[0];
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
+  const iconePonto = useMemo(() => {
+    const tipoBebedouro = normalizeText(bebedouro?.tipo || "");
+    const nomeBebedouro = normalizeText(bebedouro?.nome || "");
+    return iconesConfig.find((item) => {
+      const categoriaIcone = normalizeText(item.categoria || "");
+      if (categoriaIcone === "BEBEDOURO") return true;
+      if (categoriaIcone && tipoBebedouro.includes(categoriaIcone)) return true;
+      if (categoriaIcone && nomeBebedouro.includes(categoriaIcone)) return true;
+      return false;
+    });
+  }, [iconesConfig, bebedouro?.tipo, bebedouro?.nome]);
+  const subIconePonto = bebedouro?.sub_icone_url || bebedouro?.icone_url || iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const areaIdsBebedouro = Array.isArray(bebedouro.area_vinculada_ids) && bebedouro.area_vinculada_ids.length ? bebedouro.area_vinculada_ids : bebedouro.pasto_id ? [bebedouro.pasto_id] : [];
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
   const lotesAtendidos = lotes.filter((lote) => areaIdsBebedouro.includes(lote.area_atual_id));
@@ -72,13 +92,19 @@ export default function DetalhesBebedouro({ bebedouro }) {
       </div>
 
       <CardSection title="Informações de Bebedouro">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
-          <MetricBox label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
-          <MetricBox label="Origem da água" value={bebedouro.origem_agua || "-"} />
-          <MetricBox label="Pastos atendidos" value={nomesPastos.join(", ") || "-"} />
-          <MetricBox label="Próxima inspeção" value={proximaInspecao} />
-          <MetricBox label="Próxima limpeza" value={proximaLimpeza} />
-          <MetricBox label="Animais consumindo água" value={totalAnimaisAgua ? `${totalAnimaisAgua.toLocaleString("pt-BR")} cab.` : "-"} />
+        <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
+          <div className="flex items-center justify-center min-w-[120px] py-2">
+            {subIconePonto ? (
+              <img src={subIconePonto} alt={bebedouro.tipo || "Bebedouro"} className="h-[68px] w-[68px] object-contain pointer-events-none" />
+            ) : (
+              <div className="h-[68px] w-[68px] rounded border border-slate-200 bg-slate-50" />
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+            <MetricBox label="Próxima inspeção" value={proximaInspecao} />
+            <MetricBox label="Próxima limpeza" value={proximaLimpeza} />
+            <MetricBox label="Animais consumindo água" value={totalAnimaisAgua ? `${totalAnimaisAgua.toLocaleString("pt-BR")} cab.` : "-"} />
+          </div>
         </div>
       </CardSection>
 
@@ -99,6 +125,9 @@ export default function DetalhesBebedouro({ bebedouro }) {
         <div className="space-y-1 text-[10px]">
           <InfoLine label="Número" value={bebedouro.codigo_interno || "-"} />
           <InfoLine label="Tipo" value={bebedouro.tipo || "-"} />
+          <InfoLine label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
+          <InfoLine label="Origem da água" value={bebedouro.origem_agua || "-"} />
+          <InfoLine label="Pastos atendidos" value={nomesPastos.join(", ") || "-"} />
           <InfoLine label="Status" value={bebedouro.status || "-"} />
           <InfoLine label="Áreas vinculadas" value={nomesPastos.join(", ") || "-"} />
           <InfoLine label="Rotina limpeza" value={bebedouro.dias_limpeza_personalizado ? `${bebedouro.dias_limpeza_personalizado} dia(s)` : bebedouro.periodicidade_limpeza || "-"} />
