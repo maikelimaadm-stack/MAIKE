@@ -71,7 +71,7 @@ export default function SankhyaListToolbar({
 
   return (
     <div className="bg-white">
-      <div className={`flex items-center gap-0 overflow-x-auto whitespace-nowrap border-y ${toolbarLineClass}`}>
+      <div className={`flex items-center gap-0 overflow-x-auto whitespace-nowrap border-y ${toolbarLineClass} [&>*:first-child]:border-l-[0.5px]`}>
 
         
         {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
@@ -97,7 +97,7 @@ export default function SankhyaListToolbar({
         {showDuplicateSelectionAction && <Button type="button" variant="outline" size="icon" onClick={onDuplicate} className={iconButtonClass}><Copy className="w-3.5 h-3.5" /></Button>}
 
 
-        <div className="ml-auto flex items-center gap-0">
+        <div className="ml-auto flex items-center gap-0 [&>*:first-child]:border-l-[0.5px]">
           
 
 

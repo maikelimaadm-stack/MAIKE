@@ -18,7 +18,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
   const isLast = currentIndex >= total - 1;
   return (
     <div className="bg-white shadow-none overflow-hidden">
-      <div className={`flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-y ${toolbarLineClass}`}>
+      <div className={`flex items-center gap-0 overflow-x-auto whitespace-nowrap bg-white border-y ${toolbarLineClass} [&>*:first-child]:border-l-[0.5px]`}>
 
 
         {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
@@ -52,7 +52,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
 
         
 
-        <div className="ml-auto flex items-center gap-0">
+        <div className="ml-auto flex items-center gap-0 [&>*:first-child]:border-l-[0.5px]">
 
           {showUtilityActions && <Button type="button" variant="outline" size="icon" className={showDeleteDuplicateActions ? iconButtonClass : fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>}

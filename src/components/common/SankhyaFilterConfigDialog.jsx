@@ -297,10 +297,10 @@ export default function SankhyaFilterConfigDialog({
                   {filterFolders.map((folder, index) =>
             <div key={folder.id} className="grid grid-cols-[1fr_92px] gap-2 items-center">
                       <Input value={folder.name} readOnly={isReadOnly} onChange={(e) => renameFolder(folder.id, e.target.value)} className="h-7 rounded-none text-xs uppercase" />
-                      <div className="flex justify-end gap-1">
-                        <button type="button" onClick={() => moveFolder(folder.id, -1)} disabled={index === 0} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" onClick={() => moveFolder(folder.id, 1)} disabled={index === filterFolders.length - 1} className="h-7 w-7 border border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" onClick={() => removeFolder(folder.id)} disabled={filterFolders.length <= 1} className="h-7 w-7 border border-slate-300 text-slate-600 disabled:opacity-30"><X className="w-3 h-3 mx-auto" /></button>
+                      <div className="flex justify-end gap-0 [&>*:first-child]:border-l-[0.5px]">
+                        <button type="button" onClick={() => moveFolder(folder.id, -1)} disabled={index === 0} className="h-7 w-7 border-y border-r border-l-0 border-slate-300 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" onClick={() => moveFolder(folder.id, 1)} disabled={index === filterFolders.length - 1} className="h-7 w-7 border-y border-r border-l-0 border-slate-300 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" onClick={() => removeFolder(folder.id)} disabled={filterFolders.length <= 1} className="h-7 w-7 border-y border-r border-l-0 border-slate-300 text-slate-600 disabled:opacity-30"><X className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>
             )}
@@ -393,10 +393,10 @@ export default function SankhyaFilterConfigDialog({
                     relationOptions={relationOptions[field.source || "lotes"] || []} />
                       
                       </div>
-                      <div className="flex items-center justify-center gap-0.5 px-1 py-1">
-                        <button type="button" title="Mover para cima" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" title="Mover para baixo" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border border-slate-300 text-slate-600 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
-                        <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border border-slate-300 text-slate-600"><X className="w-3 h-3 mx-auto" /></button>
+                      <div className="flex items-center justify-center gap-0 px-1 py-1 [&>*:first-child]:border-l-[0.5px]">
+                        <button type="button" title="Mover para cima" onClick={() => moveField(field.id, -1)} disabled={position <= 0} className="h-6 w-6 border-y border-r border-l-0 border-slate-300 text-slate-600 disabled:opacity-30"><ChevronUp className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" title="Mover para baixo" onClick={() => moveField(field.id, 1)} disabled={position === visibleFields.length - 1} className="h-6 w-6 border-y border-r border-l-0 border-slate-300 text-slate-600 disabled:opacity-30"><ChevronDown className="w-3 h-3 mx-auto" /></button>
+                        <button type="button" title="Remover campo" onClick={() => removeSelectedField(field.id)} className="h-6 w-6 border-y border-r border-l-0 border-slate-300 text-slate-600"><X className="w-3 h-3 mx-auto" /></button>
                       </div>
                     </div>);
 
