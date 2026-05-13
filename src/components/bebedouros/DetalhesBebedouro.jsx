@@ -53,8 +53,6 @@ export default function DetalhesBebedouro({ bebedouro }) {
         <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      {alertas.length > 0 && <CardSection title="Alertas"><div className="space-y-1">{alertas.map((alerta, idx) => <div key={idx} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 font-medium">• {alerta.descricao}</div>)}</div></CardSection>}
-
       <CardSection title="Condição do Bebedouro">
         <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
           <div className="flex flex-col items-center justify-center gap-1 min-w-[130px] py-2">
