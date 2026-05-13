@@ -20,11 +20,27 @@
     },
     "pasto_id": {
       "type": "string",
-      "description": "ID do pasto/\u00e1rea vinculada"
+      "description": "ID do pasto/\u00e1rea principal vinculada"
     },
     "pasto_nome": {
       "type": "string",
-      "description": "Nome do pasto/\u00e1rea vinculada"
+      "description": "Nome do pasto/\u00e1rea principal vinculada"
+    },
+    "area_vinculada_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs dos pastos/\u00e1reas vinculados ao bebedouro"
+    },
+    "area_vinculada_nomes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Nomes dos pastos/\u00e1reas vinculados ao bebedouro"
     },
     "setor_id": {
       "type": "string",
@@ -48,19 +64,20 @@
     },
     "capacidade_litros": {
       "type": "number",
-      "description": "Capacidade em litros"
+      "description": "Capacidade de \u00e1gua em litros"
     },
     "origem_agua": {
       "type": "string",
       "enum": [
         "Po\u00e7o",
+        "\u00c1gua encanada",
         "Mina",
         "Rio",
         "Represa",
         "Rede",
         "Outro"
       ],
-      "description": "Origem da \u00e1gua"
+      "description": "Origem/tipo da \u00e1gua"
     },
     "coordenadas": {
       "type": "object",
@@ -100,11 +117,11 @@
     },
     "dias_limpeza_personalizado": {
       "type": "number",
-      "description": "Dias para limpeza quando periodicidade personalizada"
+      "description": "Intervalo de limpeza em dias"
     },
     "dias_inspecao_personalizado": {
       "type": "number",
-      "description": "Dias para inspe\u00e7\u00e3o quando periodicidade personalizada"
+      "description": "Intervalo de inspe\u00e7\u00e3o em dias"
     },
     "observacoes": {
       "type": "string",

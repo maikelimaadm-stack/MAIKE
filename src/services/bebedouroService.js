@@ -1,5 +1,5 @@
 export const BEBEDOURO_TIPOS = ["Caixa d’água", "Bebedouro australiano", "Concreto", "Tambor", "Natural", "Outro"];
-export const BEBEDOURO_ORIGENS_AGUA = ["Poço", "Mina", "Rio", "Represa", "Rede", "Outro"];
+export const BEBEDOURO_ORIGENS_AGUA = ["Poço", "Água encanada", "Mina", "Rio", "Represa", "Rede", "Outro"];
 export const BEBEDOURO_STATUS = ["Ativo", "Em manutenção", "Inativo"];
 export const BEBEDOURO_HISTORICO_TIPOS = ["Limpeza", "Tratamento da água", "Aplicação de produto", "Manutenção", "Vazamento", "Troca de boia", "Troca de encanamento", "Análise da água", "Contaminação", "Inspeção", "Abastecimento", "Outro"];
 export const BEBEDOURO_HISTORICO_STATUS = ["Pendente", "Concluído", "Emergencial"];

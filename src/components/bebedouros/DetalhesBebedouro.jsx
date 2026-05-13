@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import { useBebedouroSanidade } from "@/hooks/useBebedouroSanidade";
 import BebedouroStatusBadge from "./BebedouroStatusBadge";
@@ -11,54 +10,91 @@ import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
 import FormularioSanidadeBebedouro from "./FormularioSanidadeBebedouro";
 import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebedouroService";
 
+const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
+
 export default function DetalhesBebedouro({ bebedouro }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const [showLancamento, setShowLancamento] = useState(false);
   const [showSanidade, setShowSanidade] = useState(false);
+  const [showHistorico, setShowHistorico] = useState(false);
   const { data: historico = [] } = useBebedouroHistorico(empresaId, bebedouro?.id);
   const { data: sanidade = [] } = useBebedouroSanidade(empresaId, bebedouro?.id);
   const visual = useMemo(() => getBebedouroStatusVisual({ bebedouro, historico, sanidade }), [bebedouro, historico, sanidade]);
   const alertas = useMemo(() => buildBebedouroAlertas(bebedouro, historico, sanidade), [bebedouro, historico, sanidade]);
   const ultimoSanitario = sanidade[0];
+  const ultimoLancamento = historico[0];
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
+  const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
 
   return (
-    <div className="space-y-2" translate="no">
-      <div className="flex items-center gap-2 flex-wrap border-b pb-2">
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Bebedouro: {bebedouro.nome}</Badge>
-        <BebedouroStatusBadge visual={visual} />
-        <Badge variant="outline" className="text-xs">{bebedouro.tipo}</Badge>
+    <div className="space-y-1" translate="no">
+      <div className="pb-1 border-b space-y-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          <Badge variant="outline" className="bg-blue-100 text-blue-900 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-blue-200">Bebedouro: {bebedouro.nome}</Badge>
+          <BebedouroStatusBadge visual={visual} />
+          <Badge variant="outline" className="text-xs">{bebedouro.tipo}</Badge>
+        </div>
       </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <Info label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
-        <Info label="Origem da água" value={bebedouro.origem_agua || "-"} />
-        <Info label="Pasto" value={bebedouro.pasto_nome || "-"} />
-        <Info label="Custo acumulado" value={`R$ ${custoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />
-      </div>
-
-      {alertas.length > 0 && <Card className="border-red-200 bg-red-50"><CardContent className="p-2 space-y-1">{alertas.map((alerta, idx) => <div key={idx} className="text-xs text-red-800 font-medium">• {alerta.descricao}</div>)}</CardContent></Card>}
 
       <div className="grid grid-cols-2 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowSanidade(true)}>Sanidade da água</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs col-span-2" onClick={() => setShowSanidade(true)}>Sanidade da água</Button>
       </div>
 
-      <Card className="border-slate-200 shadow-sm"><CardContent className="p-2 space-y-1">
-        <div className="text-[11px] font-bold text-slate-900">Última avaliação sanitária</div>
-        {ultimoSanitario ? <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]"><Info label="Risco" value={ultimoSanitario.nivel_risco} /><Info label="Cor" value={ultimoSanitario.cor_agua || "-"} /><Info label="Odor" value={ultimoSanitario.odor || "-"} /><Info label="Turbidez" value={ultimoSanitario.turbidez || "-"} /></div> : <div className="text-xs text-slate-500">Nenhuma avaliação registrada.</div>}
-      </CardContent></Card>
+      {alertas.length > 0 && <CardSection title="Alertas"><div className="space-y-1">{alertas.map((alerta, idx) => <div key={idx} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 font-medium">• {alerta.descricao}</div>)}</div></CardSection>}
 
-      <Card className="border-slate-200 shadow-sm"><CardContent className="p-2 space-y-2"><div className="text-[11px] font-bold text-slate-900">Histórico do Bebedouro</div><BebedouroTimeline historico={historico} /></CardContent></Card>
+      <CardSection title="Resumo do Bebedouro">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+          <CardInfo label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
+          <CardInfo label="Origem da água" value={bebedouro.origem_agua || "-"} />
+          <CardInfo label="Último lançamento" value={ultimoLancamento ? formatDateBR(ultimoLancamento.data_lancamento) : "-"} />
+          <CardInfo label="Custo acumulado" value={`R$ ${formatDecimal(custoTotal)}`} />
+        </div>
+      </CardSection>
 
-      <Card className="border-slate-200 shadow-sm"><CardContent className="p-2 space-y-1 text-xs"><div className="text-[11px] font-bold text-slate-900">Informações</div><div>Código: <b>{bebedouro.codigo_interno || "-"}</b></div><div>Status: <b>{bebedouro.status}</b></div><div>Observações: <b>{bebedouro.observacoes || "-"}</b></div></CardContent></Card>
+      <CardSection title="Última avaliação sanitária">
+        {ultimoSanitario ? <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]"><CardInfo label="Risco" value={ultimoSanitario.nivel_risco} /><CardInfo label="Cor" value={ultimoSanitario.cor_agua || "-"} /><CardInfo label="Odor" value={ultimoSanitario.odor || "-"} /><CardInfo label="Turbidez" value={ultimoSanitario.turbidez || "-"} /></div> : <div className="text-xs text-slate-500">Nenhuma avaliação registrada.</div>}
+      </CardSection>
 
-      <Dialog open={showLancamento} onOpenChange={setShowLancamento}><DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-sm">Novo lançamento do bebedouro</DialogTitle></DialogHeader><FormularioLancamentoBebedouro bebedouro={bebedouro} onCancel={() => setShowLancamento(false)} onSaved={() => setShowLancamento(false)} /></DialogContent></Dialog>
-      <Dialog open={showSanidade} onOpenChange={setShowSanidade}><DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-sm">Sanidade da água</DialogTitle></DialogHeader><FormularioSanidadeBebedouro bebedouro={bebedouro} onCancel={() => setShowSanidade(false)} onSaved={() => setShowSanidade(false)} /></DialogContent></Dialog>
+      <CardSection title="Último Registro">
+        {ultimoLancamento ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-0">
+            <div className="flex items-center justify-between"><div className="font-semibold leading-tight text-slate-900">{ultimoLancamento.tipo_lancamento}</div><span className="text-slate-500 px-1">Data: {formatDateBR(ultimoLancamento.data_lancamento)}</span></div>
+            <div className="grid grid-cols-3 gap-1 mt-1"><CardInfo label="Status" value={ultimoLancamento.status || "-"} /><CardInfo label="Produto" value={ultimoLancamento.produto_utilizado || "-"} /><CardInfo label="Custo" value={ultimoLancamento.custo ? `R$ ${formatDecimal(ultimoLancamento.custo)}` : "-"} /></div>
+            {ultimoLancamento.descricao && <div className="break-words text-[10px] italic text-slate-500 mt-1">{ultimoLancamento.descricao}</div>}
+          </div>
+        ) : <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>}
+      </CardSection>
+
+      <CardSection title="Informações do Bebedouro">
+        <div className="space-y-1 text-[10px]">
+          <InfoLine label="Código" value={bebedouro.codigo_interno || "-"} />
+          <InfoLine label="Tipo" value={bebedouro.tipo || "-"} />
+          <InfoLine label="Status" value={bebedouro.status || "-"} />
+          <InfoLine label="Pastos vinculados" value={nomesPastos.join(", ") || "-"} />
+          <InfoLine label="Rotina limpeza" value={bebedouro.dias_limpeza_personalizado ? `${bebedouro.dias_limpeza_personalizado} dia(s)` : bebedouro.periodicidade_limpeza || "-"} />
+          <InfoLine label="Rotina inspeção" value={bebedouro.dias_inspecao_personalizado ? `${bebedouro.dias_inspecao_personalizado} dia(s)` : bebedouro.periodicidade_inspecao || "-"} />
+          <InfoLine label="Observações" value={bebedouro.observacoes || "-"} />
+        </div>
+      </CardSection>
+
+      <Dialog open={showLancamento} onOpenChange={setShowLancamento}><DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoBebedouro bebedouro={bebedouro} onCancel={() => setShowLancamento(false)} onSaved={() => setShowLancamento(false)} /></DialogContent></Dialog>
+      <Dialog open={showSanidade} onOpenChange={setShowSanidade}><DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioSanidadeBebedouro bebedouro={bebedouro} onCancel={() => setShowSanidade(false)} onSaved={() => setShowSanidade(false)} /></DialogContent></Dialog>
+      <Dialog open={showHistorico} onOpenChange={setShowHistorico}><DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto"><CardSection title="Histórico do Bebedouro"><BebedouroTimeline historico={historico} /></CardSection></DialogContent></Dialog>
     </div>
   );
 }
 
-function Info({ label, value }) {
-  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-2"><div className="text-[10px] text-slate-500">{label}</div><div className="text-xs font-bold text-slate-900 break-words">{value}</div></div>;
+function CardInfo({ label, value }) {
+  return <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
+}
+
+function CardSection({ title, children }) {
+  return <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1"><div className="text-[11px] font-bold text-slate-900">{title}</div>{children}</div>;
+}
+
+function InfoLine({ label, value }) {
+  return <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">{label}:</span><span className="font-semibold text-slate-900 break-words">{value}</span></div>;
 }

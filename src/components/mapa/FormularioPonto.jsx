@@ -76,7 +76,12 @@ const createEmptyForm = () => ({
   limite_maximo_consumo: "",
   dias_alerta_reposicao: "3",
   estoque_minimo_kg: "",
-  alerta_sem_lancamento_dias: "10"
+  alerta_sem_lancamento_dias: "10",
+  tipo_bebedouro: "Bebedouro australiano",
+  capacidade_agua_litros: "",
+  origem_agua: "Poço",
+  dias_limpeza_personalizado: "30",
+  dias_inspecao_personalizado: "7"
 });
 
 export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null, suggestedDepositoId = null }) {
@@ -113,6 +118,15 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     enabled: !!empresaSelecionadaId
   });
 
+  const { data: bebedourosForm = [] } = useQuery({
+    queryKey: ["bebedouros-form", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Bebedouro.list();
+      return all.filter((bebedouro) => bebedouro.empresa_id === empresaSelecionadaId && bebedouro.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId
+  });
+
   const pontoSuplementacaoExistente = useMemo(() => {
     if (!item) return null;
     if (item.detalhe_suplementacao?.id) return item.detalhe_suplementacao;
@@ -126,6 +140,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
     return pontosSuplementacao.find((ponto) => normalizeText(ponto.nome_ponto) === nomeAtual || siglaAtual && normalizeText(ponto.sigla) === siglaAtual) || null;
   }, [item, pontosSuplementacao]);
+
+  const bebedouroExistente = useMemo(() => {
+    if (!item) return null;
+    const nomeAtual = normalizeText(item.nome);
+    const siglaAtual = normalizeText(item.sigla);
+    return bebedourosForm.find((bebedouro) => bebedouro.ponto_referencia_id === item.id || normalizeText(bebedouro.nome) === nomeAtual || siglaAtual && normalizeText(bebedouro.codigo_interno) === siglaAtual) || null;
+  }, [item, bebedourosForm]);
 
   const depositosDisponiveis = useMemo(() => {
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "") === "DEPOSITO");
@@ -179,9 +200,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       limite_maximo_consumo: item.limite_maximo_consumo || (!isBatchItem ? pontoSuplementacaoExistente?.limite_maximo_consumo : "") || "",
       dias_alerta_reposicao: item.dias_alerta_reposicao || (!isBatchItem ? pontoSuplementacaoExistente?.dias_alerta_reposicao : "") || "3",
       estoque_minimo_kg: item.estoque_minimo_kg || (!isBatchItem ? pontoSuplementacaoExistente?.estoque_minimo_kg : "") || "",
-      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || (!isBatchItem ? pontoSuplementacaoExistente?.alerta_sem_lancamento_dias : "") || "10"
+      alerta_sem_lancamento_dias: item.alerta_sem_lancamento_dias || (!isBatchItem ? pontoSuplementacaoExistente?.alerta_sem_lancamento_dias : "") || "10",
+      tipo_bebedouro: (!isBatchItem ? bebedouroExistente?.tipo : "") || "Bebedouro australiano",
+      capacidade_agua_litros: (!isBatchItem ? bebedouroExistente?.capacidade_litros : "") || "",
+      origem_agua: (!isBatchItem ? bebedouroExistente?.origem_agua : "") || "Poço",
+      dias_limpeza_personalizado: (!isBatchItem ? bebedouroExistente?.dias_limpeza_personalizado : "") || "30",
+      dias_inspecao_personalizado: (!isBatchItem ? bebedouroExistente?.dias_inspecao_personalizado : "") || "7"
     });
-  }, [item, pontoSuplementacaoExistente, areas]);
+  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas]);
 
   const handleCapturaGPS = (localizacao) => {
     setCoordenadasGPS(localizacao);
@@ -314,7 +340,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       await base44.entities.PontoReferencia.create(payloadPonto);
 
       if (normalizeText(data.tipo).includes("BEBEDOURO")) {
-        const areaSelecionada = areas.find((area) => area.id === data.area_vinculada_id || (data.area_vinculada_ids || []).includes(area.id));
+        const areasSelecionadas = areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id));
+        const areaSelecionada = areasSelecionadas[0] || null;
         const bebedouros = await base44.entities.Bebedouro.list();
         const bebedouroExistente = bebedouros.find((bebedouro) => bebedouro.ponto_referencia_id === pontoReferencia.id);
         const payloadBebedouro = {
@@ -324,10 +351,17 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           codigo_interno: data.sigla,
           pasto_id: areaSelecionada?.id || null,
           pasto_nome: areaSelecionada?.nome || null,
+          area_vinculada_ids: areasSelecionadas.map((area) => area.id),
+          area_vinculada_nomes: areasSelecionadas.map((area) => area.nome),
           setor_id: data.setor_id || areaSelecionada?.setor_id || null,
-          setor_nome: areaSelecionada?.setor_nome || null,
-          tipo: "Bebedouro australiano",
-          origem_agua: "Poço",
+          setor_nome: areaSelecionada?.setor_nome || setores.find((setor) => setor.id === data.setor_id)?.nome || null,
+          tipo: data.tipo_bebedouro || "Bebedouro australiano",
+          capacidade_litros: data.capacidade_agua_litros ? parseFloat(data.capacidade_agua_litros) : null,
+          origem_agua: data.origem_agua || "Poço",
+          periodicidade_limpeza: "Personalizado",
+          periodicidade_inspecao: "Personalizado",
+          dias_limpeza_personalizado: data.dias_limpeza_personalizado ? parseInt(data.dias_limpeza_personalizado) : 30,
+          dias_inspecao_personalizado: data.dias_inspecao_personalizado ? parseInt(data.dias_inspecao_personalizado) : 7,
           coordenadas: coordenadasGPS || coordenadas,
           status: "Ativo",
           ativo: true,
@@ -476,13 +510,23 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
 
-    if ((ehCocho || ehDeposito) && !formData.setor_id) {
+    if ((ehCocho || ehDeposito || ehBebedouro) && !formData.setor_id) {
       toast.error("Selecione o setor do ponto.");
       return;
     }
 
     if (ehCocho && !(formData.area_vinculada_ids || []).length) {
       toast.error("Selecione pelo menos uma área do cocho.");
+      return;
+    }
+
+    if (ehBebedouro && !(formData.area_vinculada_ids || []).length) {
+      toast.error("Selecione pelo menos um pasto do bebedouro.");
+      return;
+    }
+
+    if (ehBebedouro && !formData.capacidade_agua_litros) {
+      toast.error("Informe a capacidade de água do bebedouro.");
       return;
     }
 
@@ -537,8 +581,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setor_id: formData.setor_id,
       produto_padrao: ehCocho ? formData.produto_padrao : null,
       capacidade_cocho_kg: formData.capacidade_cocho_kg,
-      area_vinculada_id: ehCocho ? formData.area_vinculada_ids?.[0] || "" : ehBebedouro ? formData.area_vinculada_id || "" : null,
-      area_vinculada_ids: ehCocho ? formData.area_vinculada_ids : ehBebedouro && formData.area_vinculada_id ? [formData.area_vinculada_id] : [],
+      area_vinculada_id: ehCocho || ehBebedouro ? formData.area_vinculada_ids?.[0] || "" : null,
+      area_vinculada_ids: ehCocho || ehBebedouro ? formData.area_vinculada_ids : [],
       deposito_origem_id: ehCocho ? formData.deposito_origem_id : null,
       metragem_cocho_m: ehCocho ? formData.metragem_cocho_m : null,
       cobertura_cocho: ehCocho ? formData.cobertura_cocho : null,
@@ -548,6 +592,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       dias_alerta_reposicao: ehCocho ? formData.dias_alerta_reposicao : null,
       estoque_minimo_kg: ehDeposito ? formData.estoque_minimo_kg : null,
       alerta_sem_lancamento_dias: ehCocho ? formData.alerta_sem_lancamento_dias : null,
+      tipo_bebedouro: ehBebedouro ? formData.tipo_bebedouro : null,
+      capacidade_agua_litros: ehBebedouro ? formData.capacidade_agua_litros : null,
+      origem_agua: ehBebedouro ? formData.origem_agua : null,
+      dias_limpeza_personalizado: ehBebedouro ? formData.dias_limpeza_personalizado : null,
+      dias_inspecao_personalizado: ehBebedouro ? formData.dias_inspecao_personalizado : null,
       tipo_categoria: ehDeposito ? "DEPOSITO" : ehCocho ? "COCHO" : null
     });
   };
@@ -711,9 +760,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         {ehBebedouro &&
             <div className="space-y-1 border-t pt-1">
             <div className="text-xs font-semibold text-slate-700">Dados do Bebedouro</div>
+            {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <FL label="Setor">
-                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }))}>
+              <FL label="Setor" required>
+                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => {
+                  setSelecionouSetorManualmente(true);
+                  setSelecionouAreasManualmente(true);
+                  setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }));
+                }}>
                   <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
@@ -721,14 +775,51 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                   </SelectContent>
                 </Select>
               </FL>
-              <FL label="Pasto vinculado">
-                <Select value={formData.area_vinculada_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, area_vinculada_id: value === '__none__' ? '' : value, area_vinculada_ids: value === '__none__' ? [] : [value] }))}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o pasto" /></SelectTrigger>
+              <div className="space-y-1 lg:col-span-2">
+                <Label className="text-xs">Pastos vinculados *</Label>
+                <div className="rounded-lg border border-slate-200 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-[11px] text-slate-500">Selecione um ou mais pastos atendidos por este mesmo bebedouro.</p>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-h-20 overflow-y-auto pr-1">
+                    {areasDoSetor.map((area) => {
+                      const checked = formData.area_vinculada_ids?.includes(area.id);
+                      const nomeArea = area.nome || area.area_vinculada_nome || `ÁREA ${area.numero_area || ''}`.trim();
+                      return (
+                        <label key={area.id} className="flex items-start gap-2 py-1 text-xs cursor-pointer group">
+                          <Checkbox checked={checked} onCheckedChange={(value) => toggleAreaVinculada(area.id, Boolean(value))} className="mt-0.5" />
+                          <span className="font-medium text-slate-700 group-hover:text-emerald-700 transition-colors">{nomeArea}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <FL label="Tipo do bebedouro" required>
+                <Select value={formData.tipo_bebedouro} onValueChange={(value) => setFormData((prev) => ({ ...prev, tipo_bebedouro: value }))}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__" className="text-xs">Sem pasto</SelectItem>
-                    {areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}
+                    {["Caixa d’água", "Bebedouro australiano", "Concreto", "Tambor", "Natural", "Outro"].map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </FL>
+              <FL label="Capacidade de água (litros)" required>
+                <Input type="number" step="0.01" value={formData.capacidade_agua_litros} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_agua_litros: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Origem / tipo de água">
+                <Select value={formData.origem_agua} onValueChange={(value) => setFormData((prev) => ({ ...prev, origem_agua: value }))}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {["Poço", "Água encanada", "Mina", "Rio", "Represa", "Rede", "Outro"].map((origem) => <SelectItem key={origem} value={origem} className="text-xs">{origem}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </FL>
+              <FL label="Rotina de limpeza (dias)">
+                <Input type="number" value={formData.dias_limpeza_personalizado} onChange={(e) => setFormData((prev) => ({ ...prev, dias_limpeza_personalizado: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Rotina de inspeção (dias)">
+                <Input type="number" value={formData.dias_inspecao_personalizado} onChange={(e) => setFormData((prev) => ({ ...prev, dias_inspecao_personalizado: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
             </div>
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">Ao salvar, este ponto será criado também no módulo de Gestão de Bebedouros.</div>
