@@ -1032,8 +1032,7 @@ export default function MapaGeral() {
       </Dialog>
 
       <Dialog open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro}>
-        <DialogContent className="bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-sm">Detalhes do Bebedouro</DialogTitle></DialogHeader>
+        <DialogContent className="overflow-x-hidden p-1 bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} />}
         </DialogContent>
       </Dialog>

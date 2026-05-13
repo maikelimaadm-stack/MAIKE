@@ -30,9 +30,7 @@ export default function DetalhesBebedouro({ bebedouro }) {
     <div className="space-y-1" translate="no">
       <div className="pb-1 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="bg-blue-100 text-blue-900 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-blue-200">Bebedouro: {bebedouro.nome}</Badge>
-          <BebedouroStatusBadge visual={visual} />
-          <Badge variant="outline" className="text-xs">{bebedouro.tipo}</Badge>
+          <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {bebedouro.nome}</Badge>
         </div>
       </div>
 
@@ -45,24 +43,27 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
       {alertas.length > 0 && <CardSection title="Alertas"><div className="space-y-1">{alertas.map((alerta, idx) => <div key={idx} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 font-medium">• {alerta.descricao}</div>)}</div></CardSection>}
 
-      <CardSection title="Resumo do Bebedouro">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-          <CardInfo label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
-          <CardInfo label="Origem da água" value={bebedouro.origem_agua || "-"} />
-          <CardInfo label="Último lançamento" value={ultimoLancamento ? formatDateBR(ultimoLancamento.data_lancamento) : "-"} />
-          <CardInfo label="Custo acumulado" value={`R$ ${formatDecimal(custoTotal)}`} />
+      <CardSection title="Condição do Bebedouro">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+          <MetricBox label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
+          <MetricBox label="Origem da água" value={bebedouro.origem_agua || "-"} />
+          <MetricBox label="Último lançamento" value={ultimoLancamento ? formatDateBR(ultimoLancamento.data_lancamento) : "-"} />
         </div>
       </CardSection>
 
-      <CardSection title="Última avaliação sanitária">
-        {ultimoSanitario ? <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]"><CardInfo label="Risco" value={ultimoSanitario.nivel_risco} /><CardInfo label="Cor" value={ultimoSanitario.cor_agua || "-"} /><CardInfo label="Odor" value={ultimoSanitario.odor || "-"} /><CardInfo label="Turbidez" value={ultimoSanitario.turbidez || "-"} /></div> : <div className="text-xs text-slate-500">Nenhuma avaliação registrada.</div>}
+      <CardSection title="Sanidade da água">
+        {ultimoSanitario ? <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]"><MetricBox label="Risco" value={ultimoSanitario.nivel_risco || "-"} /><MetricBox label="Cor" value={ultimoSanitario.cor_agua || "-"} /><MetricBox label="Turbidez" value={ultimoSanitario.turbidez || "-"} /></div> : <div className="text-xs text-slate-500">Nenhuma avaliação registrada.</div>}
       </CardSection>
 
       <CardSection title="Último Registro">
         {ultimoLancamento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-0">
-            <div className="flex items-center justify-between"><div className="font-semibold leading-tight text-slate-900">{ultimoLancamento.tipo_lancamento}</div><span className="text-slate-500 px-1">Data: {formatDateBR(ultimoLancamento.data_lancamento)}</span></div>
-            <div className="grid grid-cols-3 gap-1 mt-1"><CardInfo label="Status" value={ultimoLancamento.status || "-"} /><CardInfo label="Produto" value={ultimoLancamento.produto_utilizado || "-"} /><CardInfo label="Custo" value={ultimoLancamento.custo ? `R$ ${formatDecimal(ultimoLancamento.custo)}` : "-"} /></div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-1">
+            <div className="flex items-center justify-between gap-2"><div className="font-semibold leading-tight text-slate-900">{ultimoLancamento.tipo_lancamento}</div><span className="text-slate-500 px-1">Data: {formatDateBR(ultimoLancamento.data_lancamento)}</span></div>
+            <div className="grid grid-cols-2 gap-1 text-[10px]">
+              <MetricBox label="Status" value={ultimoLancamento.status || "-"} />
+              <MetricBox label="Custo" value={ultimoLancamento.custo ? `R$ ${formatDecimal(ultimoLancamento.custo)}` : "-"} />
+            </div>
+            {(ultimoLancamento.produto_utilizado || ultimoLancamento.quantidade_utilizada) && <div className="grid grid-cols-2 gap-1 text-[10px]"><MetricBox label="Produto" value={ultimoLancamento.produto_utilizado || "-"} /><MetricBox label="Quantidade" value={ultimoLancamento.quantidade_utilizada || "-"} /></div>}
             {ultimoLancamento.descricao && <div className="break-words text-[10px] italic text-slate-500 mt-1">{ultimoLancamento.descricao}</div>}
           </div>
         ) : <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>}
@@ -70,12 +71,13 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
       <CardSection title="Informações do Bebedouro">
         <div className="space-y-1 text-[10px]">
-          <InfoLine label="Código" value={bebedouro.codigo_interno || "-"} />
+          <InfoLine label="Número" value={bebedouro.codigo_interno || "-"} />
           <InfoLine label="Tipo" value={bebedouro.tipo || "-"} />
           <InfoLine label="Status" value={bebedouro.status || "-"} />
-          <InfoLine label="Pastos vinculados" value={nomesPastos.join(", ") || "-"} />
+          <InfoLine label="Áreas vinculadas" value={nomesPastos.join(", ") || "-"} />
           <InfoLine label="Rotina limpeza" value={bebedouro.dias_limpeza_personalizado ? `${bebedouro.dias_limpeza_personalizado} dia(s)` : bebedouro.periodicidade_limpeza || "-"} />
           <InfoLine label="Rotina inspeção" value={bebedouro.dias_inspecao_personalizado ? `${bebedouro.dias_inspecao_personalizado} dia(s)` : bebedouro.periodicidade_inspecao || "-"} />
+          <InfoLine label="Custo acumulado" value={`R$ ${formatDecimal(custoTotal)}`} />
           <InfoLine label="Observações" value={bebedouro.observacoes || "-"} />
         </div>
       </CardSection>
@@ -86,8 +88,8 @@ export default function DetalhesBebedouro({ bebedouro }) {
   );
 }
 
-function CardInfo({ label, value }) {
-  return <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
+function MetricBox({ label, value }) {
+  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
 }
 
 function CardSection({ title, children }) {
