@@ -121,23 +121,13 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
       <CardSection title="Último Registro">
         {ultimoLancamento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 hover:bg-gray-50 space-y-1">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1">
-                <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{formatDateBR(ultimoLancamento.data_lancamento)}</span>
-                <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{ultimoLancamento.status || "Concluído"}</Badge>
-              </div>
+              <div className="text-xs font-semibold text-slate-900">{ultimoLancamento.tipo_lancamento || "Lançamento"}</div>
+              <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
+                {formatDateBR(ultimoLancamento.data_lancamento)}{ultimoLancamento.hora_lancamento ? ` · ${ultimoLancamento.hora_lancamento}` : ""}
+              </span>
             </div>
-            <div className="text-xs font-semibold text-slate-900">{ultimoLancamento.tipo_lancamento || "Lançamento"}</div>
-            <SectionLabel>LANÇAMENTO</SectionLabel>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-              <MiniInfo label="Responsável" value={ultimoLancamento.responsavel || "-"} />
-              <MiniInfo label="Hora" value={ultimoLancamento.hora_lancamento || "-"} />
-              <MiniInfo label="Custo" value={ultimoLancamento.custo ? `R$ ${formatDecimal(ultimoLancamento.custo)}` : "-"} />
-              <MiniInfo label="Tipo" value={ultimoLancamento.tipo_lancamento || "-"} />
-            </div>
-            {(ultimoLancamento.produto_utilizado || ultimoLancamento.quantidade_utilizada) && <><SectionLabel>PRODUTO</SectionLabel><div className="grid grid-cols-2 gap-1 text-[10px]"><MiniInfo label="Produto" value={ultimoLancamento.produto_utilizado || "-"} /><MiniInfo label="Quantidade" value={ultimoLancamento.quantidade_utilizada || "-"} /></div></>}
-            {(ultimoLancamento.nivel_risco || ultimoLancamento.cor_agua || ultimoLancamento.turbidez) && <><SectionLabel>SANIDADE DA ÁGUA</SectionLabel><div className="grid grid-cols-3 gap-1 text-[10px]"><MiniInfo label="Risco" value={ultimoLancamento.nivel_risco || "-"} /><MiniInfo label="Cor" value={ultimoLancamento.cor_agua || "-"} /><MiniInfo label="Turbidez" value={ultimoLancamento.turbidez || "-"} /></div></>}
             {ultimoLancamento.descricao && <div className="text-[10px] text-slate-500 break-words">Obs: {ultimoLancamento.descricao}</div>}
           </div>
         ) : <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>}

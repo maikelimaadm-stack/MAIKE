@@ -32,8 +32,7 @@ export default function BebedouroTimeline({ historico = [] }) {
 
               <div className="text-xs font-semibold text-slate-900">{item.tipo_lancamento || "Lançamento"}</div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                <InfoBox label="Responsável" value={item.responsavel || "-"} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
                 <InfoBox label="Hora" value={item.hora_lancamento || "-"} />
                 <InfoBox label="Custo" value={formatMoney(item.custo)} />
                 <InfoBox label="Status" value={item.status || "-"} />
