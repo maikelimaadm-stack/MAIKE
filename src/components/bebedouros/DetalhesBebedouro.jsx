@@ -4,64 +4,59 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import PontoPercentIcon from "@/components/mapa/PontoPercentIcon";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import { useBebedouroSanidade } from "@/hooks/useBebedouroSanidade";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
-import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebedouroService";
+import { getBebedouroStatusVisual } from "@/services/bebedouroService";
 
 const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
-const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+const addDaysToDate = (value, days) => {
+  if (!value || !days) return "-";
+  const date = new Date(`${String(value).split("T")[0]}T00:00:00`);
+  date.setDate(date.getDate() + Number(days));
+  return date.toLocaleDateString("pt-BR");
+};
+const getPeriodDays = (periodicidade, personalizado) => {
+  if (periodicidade === "Personalizado") return Number(personalizado || 0);
+  if (periodicidade === "Semanal") return 7;
+  if (periodicidade === "Quinzenal") return 15;
+  if (periodicidade === "Mensal") return 30;
+  return 0;
+};
 
 export default function DetalhesBebedouro({ bebedouro }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const registroReal = Boolean(bebedouro?.id);
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
+  const { data: lotes = [] } = useQuery({
+    queryKey: ["lotes-bebedouro-detalhe", empresaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+      const all = await base44.entities.Lote.list();
+      return all.filter((lote) => lote.empresa_id === empresaId && lote.status === "Ativo");
     },
     enabled: !!empresaId,
-    staleTime: 10 * 60 * 1000
+    staleTime: 60 * 1000
   });
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
   const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
   const visual = useMemo(() => getBebedouroStatusVisual({ bebedouro, historico, sanidade }), [bebedouro, historico, sanidade]);
-  const alertas = useMemo(() => buildBebedouroAlertas(bebedouro, historico, sanidade), [bebedouro, historico, sanidade]);
   const ultimoSanitario = historico.find((item) => item.nivel_risco || item.cor_agua || item.presenca_contaminacao) || sanidade[0];
   const ultimoLancamento = historico[0];
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
+  const areaIdsBebedouro = Array.isArray(bebedouro.area_vinculada_ids) && bebedouro.area_vinculada_ids.length ? bebedouro.area_vinculada_ids : bebedouro.pasto_id ? [bebedouro.pasto_id] : [];
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
-  const iconePonto = useMemo(() => {
-    const tipoBebedouro = normalizeText(bebedouro?.tipo || "");
-    const nomeBebedouro = normalizeText(bebedouro?.nome || "");
-    return iconesConfig.find((item) => {
-      const categoriaIcone = normalizeText(item.categoria || "");
-      if (categoriaIcone === "BEBEDOURO") return true;
-      if (tipoBebedouro.includes(categoriaIcone) && categoriaIcone) return true;
-      if (nomeBebedouro.includes(categoriaIcone) && categoriaIcone) return true;
-      return false;
-    });
-  }, [iconesConfig, bebedouro?.tipo, bebedouro?.nome]);
-  const subIconePonto = bebedouro?.sub_icone_url || bebedouro?.icone_url || iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
-  const percentCondicao = visual.nivel === "critico" ? 0.05 : visual.nivel === "alerta" ? 0.35 : 1;
+  const lotesAtendidos = lotes.filter((lote) => areaIdsBebedouro.includes(lote.area_atual_id));
+  const totalAnimaisAgua = lotesAtendidos.reduce((total, lote) => total + Number(lote.quantidade_cabecas || 0), 0);
+  const ultimoLancamentoLimpeza = historico.find((item) => item.tipo_lancamento === "Limpeza");
+  const ultimaInspecao = historico.find((item) => item.tipo_lancamento === "Inspeção") || ultimoSanitario;
+  const diasLimpeza = getPeriodDays(bebedouro.periodicidade_limpeza, bebedouro.dias_limpeza_personalizado);
+  const diasInspecao = getPeriodDays(bebedouro.periodicidade_inspecao, bebedouro.dias_inspecao_personalizado);
+  const proximaLimpeza = addDaysToDate(ultimoLancamentoLimpeza?.data_lancamento, diasLimpeza);
+  const proximaInspecao = addDaysToDate(ultimaInspecao?.data_lancamento || ultimaInspecao?.data_avaliacao, diasInspecao);
 
-  const resumoProdutos = useMemo(() => {
-    const mapa = new Map();
-    historico.forEach((item) => {
-      if (!item.produto_utilizado) return;
-      const atual = mapa.get(item.produto_utilizado) || { produto: item.produto_utilizado, quantidade: 0, custo: 0 };
-      atual.quantidade += Number(item.quantidade_utilizada || 0);
-      atual.custo += Number(item.custo || 0);
-      mapa.set(item.produto_utilizado, atual);
-    });
-    return Array.from(mapa.values()).sort((a, b) => a.produto.localeCompare(b.produto));
-  }, [historico]);
 
   return (
     <div className="space-y-1" translate="no">
@@ -76,42 +71,15 @@ export default function DetalhesBebedouro({ bebedouro }) {
         <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <CardSection title="Condição do Bebedouro">
-        <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
-          <div className="pb-1 flex flex-col gap-1">
-            <div className="flex items-end gap-3">
-              <div className="flex flex-col items-center gap-0.5" title="Condição do bebedouro">
-                <PontoPercentIcon
-                  imageUrl={subIconePonto}
-                  label={bebedouro.tipo || "Bebedouro"}
-                  percent={percentCondicao}
-                  fillClassName={visual.nivel === "critico" ? "bg-red-500" : visual.nivel === "alerta" ? "bg-yellow-400" : "bg-lime-400"} />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 pl-1">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${visual.nivel === "critico" ? "bg-red-500" : visual.nivel === "alerta" ? "bg-yellow-400" : "bg-lime-400"}`} />
-              <span className="text-[8px] text-slate-500">{visual.label}</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
-            <MetricBox label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
-            <MetricBox label="Origem da água" value={bebedouro.origem_agua || "-"} />
-            <MetricBox label="Último lançamento" value={ultimoLancamento ? formatDateBR(ultimoLancamento.data_lancamento) : "-"} />
-          </div>
+      <CardSection title="Informações de Bebedouro">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+          <MetricBox label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
+          <MetricBox label="Origem da água" value={bebedouro.origem_agua || "-"} />
+          <MetricBox label="Pastos atendidos" value={nomesPastos.join(", ") || "-"} />
+          <MetricBox label="Próxima inspeção" value={proximaInspecao} />
+          <MetricBox label="Próxima limpeza" value={proximaLimpeza} />
+          <MetricBox label="Animais consumindo água" value={totalAnimaisAgua ? `${totalAnimaisAgua.toLocaleString("pt-BR")} cab.` : "-"} />
         </div>
-      </CardSection>
-
-      <CardSection title="Total Utilizado por Produto">
-        {resumoProdutos.length === 0 ? <div className="text-xs text-slate-500">Nenhum produto lançado ainda.</div> :
-          <div className="space-y-1">
-            {resumoProdutos.map((item) => <div key={item.produto} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
-                <div className="truncate font-medium text-slate-900">{item.produto}</div>
-                <div className="whitespace-nowrap font-semibold text-slate-900">{formatDecimal(item.quantidade)} un.</div>
-                <div className="whitespace-nowrap font-semibold text-slate-900">R$ {formatDecimal(item.custo)}</div>
-              </div>
-            </div>)}
-          </div>}
       </CardSection>
 
       <CardSection title="Último Registro">
