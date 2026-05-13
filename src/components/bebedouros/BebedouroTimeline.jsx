@@ -64,14 +64,12 @@ export default function BebedouroTimeline({ historico = [] }) {
                 </div>
               )}
 
-              {(item.nivel_risco || item.cor_agua || item.turbidez || item.odor) && (
+              {(item.qualidade_agua || item.escore_agua) && (
                 <div>
-                  <SectionLabel>SANIDADE DA ÁGUA</SectionLabel>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                    <InfoBox label="Risco" value={item.nivel_risco || "-"} />
-                    <InfoBox label="Cor" value={item.cor_agua || "-"} />
-                    <InfoBox label="Turbidez" value={item.turbidez || "-"} />
-                    <InfoBox label="Odor" value={item.odor || "-"} />
+                  <SectionLabel>QUALIDADE DA ÁGUA</SectionLabel>
+                  <div className="grid grid-cols-2 gap-1 text-[10px]">
+                    <InfoBox label="Qualidade" value={item.qualidade_agua || "-"} />
+                    <InfoBox label="Escore" value={item.escore_agua || "-"} />
                   </div>
                 </div>
               )}

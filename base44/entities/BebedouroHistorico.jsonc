@@ -47,7 +47,7 @@
     },
     "descricao": {
       "type": "string",
-      "description": "Descri\u00e7\u00e3o detalhada"
+      "description": "Observa\u00e7\u00e3o do lan\u00e7amento"
     },
     "produto_utilizado": {
       "type": "string",
@@ -61,52 +61,18 @@
       "type": "number",
       "description": "Custo do lan\u00e7amento"
     },
-    "cor_agua": {
-      "type": "string",
-      "description": "Cor da \u00e1gua"
+    "escore_agua": {
+      "type": "number",
+      "description": "Escore da qualidade da \u00e1gua"
     },
-    "odor": {
-      "type": "string",
-      "description": "Odor identificado"
-    },
-    "turbidez": {
-      "type": "string",
-      "description": "Turbidez da \u00e1gua"
-    },
-    "presenca_algas": {
-      "type": "boolean",
-      "default": false,
-      "description": "Presen\u00e7a de algas"
-    },
-    "presenca_barro": {
-      "type": "boolean",
-      "default": false,
-      "description": "Presen\u00e7a de barro"
-    },
-    "presenca_contaminacao": {
-      "type": "boolean",
-      "default": false,
-      "description": "Presen\u00e7a de contamina\u00e7\u00e3o"
-    },
-    "necessita_limpeza": {
-      "type": "boolean",
-      "default": false,
-      "description": "Necessita limpeza"
-    },
-    "necessita_tratamento": {
-      "type": "boolean",
-      "default": false,
-      "description": "Necessita tratamento"
-    },
-    "nivel_risco": {
+    "qualidade_agua": {
       "type": "string",
       "enum": [
-        "Baixo",
-        "M\u00e9dio",
-        "Alto"
+        "Boa",
+        "M\u00e9dia",
+        "Ruim"
       ],
-      "default": "Baixo",
-      "description": "N\u00edvel de risco da \u00e1gua"
+      "description": "Classifica\u00e7\u00e3o da qualidade da \u00e1gua"
     },
     "fotos": {
       "type": "array",

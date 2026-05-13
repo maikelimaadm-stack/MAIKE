@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import bebedouroRepository from "@/repositories/bebedouroRepository";
 import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/services/bebedouroService";
 import { toast } from "sonner";
@@ -21,15 +20,7 @@ const FL = ({ label, required, children }) => (
   </div>
 );
 
-const CHECK_FIELDS = [
-  ["presenca_algas", "Presença de algas"],
-  ["presenca_barro", "Presença de barro"],
-  ["presenca_contaminacao", "Contaminação"],
-  ["necessita_limpeza", "Necessita limpeza"],
-  ["necessita_tratamento", "Necessita tratamento"]
-];
-
-const SANIDADE_TYPES = new Set(["Análise da água", "Contaminação", "Inspeção", "Tratamento da água"]);
+const AVALIACAO_AGUA_TYPES = new Set(["Análise da água", "Contaminação", "Inspeção", "Tratamento da água"]);
 const PRODUTO_TYPES = new Set(["Tratamento da água", "Aplicação de produto", "Limpeza", "Abastecimento"]);
 const MANUTENCAO_TYPES = new Set(["Manutenção", "Vazamento", "Troca de boia", "Troca de encanamento"]);
 
@@ -47,18 +38,11 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
     produto_utilizado: "",
     quantidade_utilizada: "",
     custo: "",
-    cor_agua: "",
-    odor: "",
-    turbidez: "",
-    nivel_risco: "Baixo",
-    presenca_algas: false,
-    presenca_barro: false,
-    presenca_contaminacao: false,
-    necessita_limpeza: false,
-    necessita_tratamento: false
+    escore_agua: "",
+    qualidade_agua: "Boa"
   });
 
-  const showSanidade = useMemo(() => SANIDADE_TYPES.has(form.tipo_lancamento), [form.tipo_lancamento]);
+  const showAvaliacaoAgua = useMemo(() => AVALIACAO_AGUA_TYPES.has(form.tipo_lancamento), [form.tipo_lancamento]);
   const showProduto = useMemo(() => PRODUTO_TYPES.has(form.tipo_lancamento), [form.tipo_lancamento]);
   const showCusto = useMemo(() => PRODUTO_TYPES.has(form.tipo_lancamento) || MANUTENCAO_TYPES.has(form.tipo_lancamento) || form.tipo_lancamento === "Outro", [form.tipo_lancamento]);
 
@@ -86,16 +70,9 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
         payload.custo = form.custo ? Number(form.custo) : null;
       }
 
-      if (showSanidade) {
-        payload.cor_agua = form.cor_agua?.toUpperCase();
-        payload.odor = form.odor?.toUpperCase();
-        payload.turbidez = form.turbidez?.toUpperCase();
-        payload.nivel_risco = form.nivel_risco;
-        payload.presenca_algas = form.presenca_algas;
-        payload.presenca_barro = form.presenca_barro;
-        payload.presenca_contaminacao = form.presenca_contaminacao;
-        payload.necessita_limpeza = form.necessita_limpeza;
-        payload.necessita_tratamento = form.necessita_tratamento;
+      if (showAvaliacaoAgua) {
+        payload.escore_agua = form.escore_agua ? Number(form.escore_agua) : null;
+        payload.qualidade_agua = form.qualidade_agua;
       }
 
       return bebedouroRepository.createHistorico(payload);
@@ -128,22 +105,17 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
             <FL label="Quantidade"><Input type="number" step="0.01" value={form.quantidade_utilizada} onChange={(e) => setForm({ ...form, quantidade_utilizada: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
           </div>}
 
-          {showSanidade && <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-1 space-y-1">
-            <div className="text-[11px] font-bold text-blue-900 px-1">Sanidade da água</div>
+          {showAvaliacaoAgua && <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-1 space-y-1">
+            <div className="text-[11px] font-bold text-blue-900 px-1">Qualidade da água</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <FL label="Cor da água"><Input value={form.cor_agua} onChange={(e) => setForm({ ...form, cor_agua: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-              <FL label="Odor"><Input value={form.odor} onChange={(e) => setForm({ ...form, odor: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-              <FL label="Turbidez"><Input value={form.turbidez} onChange={(e) => setForm({ ...form, turbidez: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-              <FL label="Nível de risco"><Select value={form.nivel_risco} onValueChange={(value) => setForm({ ...form, nivel_risco: value })}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{["Baixo", "Médio", "Alto"].map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent></Select></FL>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              {CHECK_FIELDS.map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"><Checkbox checked={form[key]} onCheckedChange={(checked) => setForm({ ...form, [key]: Boolean(checked) })} />{label}</label>)}
+              <FL label="Escore"><Input type="number" step="0.1" value={form.escore_agua} onChange={(e) => setForm({ ...form, escore_agua: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
+              <FL label="Qualidade"><Select value={form.qualidade_agua} onValueChange={(value) => setForm({ ...form, qualidade_agua: value })}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{["Boa", "Média", "Ruim"].map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent></Select></FL>
             </div>
           </div>}
 
           {showCusto && <FL label="Custo"><Input type="number" step="0.01" value={form.custo} onChange={(e) => setForm({ ...form, custo: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>}
 
-          <FL label="Descrição detalhada"><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
+          <FL label="Observação"><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
           <div className="flex justify-end gap-1 pt-1 border-t">
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel}>Cancelar</Button>
             <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={mutation.isPending}>Salvar</Button>

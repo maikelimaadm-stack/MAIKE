@@ -5,7 +5,6 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
-import { useBebedouroSanidade } from "@/hooks/useBebedouroSanidade";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
 
@@ -59,8 +58,7 @@ export default function DetalhesBebedouro({ bebedouro }) {
     staleTime: 60 * 1000
   });
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
-  const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
-  const ultimoSanitario = historico.find((item) => item.nivel_risco || item.cor_agua || item.presenca_contaminacao) || sanidade[0];
+  const ultimaAvaliacaoAgua = historico.find((item) => item.qualidade_agua || item.escore_agua);
   const ultimoLancamento = historico[0];
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
   const iconePonto = useMemo(() => {
@@ -82,7 +80,7 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const lotesAtendidos = lotes.filter((lote) => areaIdsBebedouro.includes(lote.area_atual_id));
   const totalAnimaisAgua = lotesAtendidos.reduce((total, lote) => total + Number(lote.quantidade_cabecas || 0), 0);
   const ultimoLancamentoLimpeza = historico.find((item) => item.tipo_lancamento === "Limpeza");
-  const ultimaInspecao = historico.find((item) => item.tipo_lancamento === "Inspeção") || ultimoSanitario;
+  const ultimaInspecao = historico.find((item) => item.tipo_lancamento === "Inspeção") || ultimaAvaliacaoAgua;
   const diasLimpeza = getPeriodDays(bebedouro.periodicidade_limpeza, bebedouro.dias_limpeza_personalizado);
   const diasInspecao = getPeriodDays(bebedouro.periodicidade_inspecao, bebedouro.dias_inspecao_personalizado);
   const proximaLimpeza = addDaysToDate(ultimoLancamentoLimpeza?.data_lancamento, diasLimpeza);
