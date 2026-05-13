@@ -7,7 +7,6 @@ import { useBebedouroSanidade } from "@/hooks/useBebedouroSanidade";
 import BebedouroStatusBadge from "./BebedouroStatusBadge";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
-import FormularioSanidadeBebedouro from "./FormularioSanidadeBebedouro";
 import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebedouroService";
 
 const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -16,14 +15,13 @@ const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}
 export default function DetalhesBebedouro({ bebedouro }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const [showLancamento, setShowLancamento] = useState(false);
-  const [showSanidade, setShowSanidade] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const registroReal = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
   const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
   const visual = useMemo(() => getBebedouroStatusVisual({ bebedouro, historico, sanidade }), [bebedouro, historico, sanidade]);
   const alertas = useMemo(() => buildBebedouroAlertas(bebedouro, historico, sanidade), [bebedouro, historico, sanidade]);
-  const ultimoSanitario = sanidade[0];
+  const ultimoSanitario = historico.find((item) => item.nivel_risco || item.cor_agua || item.presenca_contaminacao) || sanidade[0];
   const ultimoLancamento = historico[0];
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
@@ -41,7 +39,6 @@ export default function DetalhesBebedouro({ bebedouro }) {
       <div className="grid grid-cols-2 gap-1">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)} disabled={!registroReal}>Lançar</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs col-span-2" onClick={() => setShowSanidade(true)} disabled={!registroReal}>Sanidade da água</Button>
       </div>
 
       {!registroReal && <CardSection title="Atenção"><div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 font-medium">Este ponto ainda não possui cadastro técnico completo de bebedouro. Edite o ponto no cadastro do mapa e salve para liberar lançamentos e sanidade.</div></CardSection>}
@@ -84,7 +81,6 @@ export default function DetalhesBebedouro({ bebedouro }) {
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}><DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoBebedouro bebedouro={bebedouro} onCancel={() => setShowLancamento(false)} onSaved={() => setShowLancamento(false)} /></DialogContent></Dialog>
-      <Dialog open={showSanidade} onOpenChange={setShowSanidade}><DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioSanidadeBebedouro bebedouro={bebedouro} onCancel={() => setShowSanidade(false)} onSaved={() => setShowSanidade(false)} /></DialogContent></Dialog>
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}><DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto"><CardSection title="Histórico do Bebedouro"><BebedouroTimeline historico={historico} /></CardSection></DialogContent></Dialog>
     </div>
   );

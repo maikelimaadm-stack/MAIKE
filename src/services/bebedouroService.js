@@ -26,7 +26,7 @@ export const getDiasDesde = (dateValue) => {
 export const getBebedouroStatusVisual = ({ bebedouro, historico = [], sanidade = [] }) => {
   const pendente = historico.some((item) => item.status === "Pendente" && ["Manutenção", "Vazamento", "Troca de boia", "Troca de encanamento"].includes(item.tipo_lancamento));
   const emergencial = historico.some((item) => item.status === "Emergencial");
-  const riscoAlto = sanidade.some((item) => item.nivel_risco === "Alto" || item.presenca_contaminacao);
+  const riscoAlto = [...sanidade, ...historico].some((item) => item.nivel_risco === "Alto" || item.presenca_contaminacao);
   if (bebedouro?.status === "Inativo" || emergencial || riscoAlto) return { cor: "#ef4444", label: "Problema", nivel: "alto" };
   if (bebedouro?.status === "Em manutenção" || pendente) return { cor: "#f59e0b", label: "Atenção", nivel: "medio" };
   return { cor: "#22c55e", label: "OK", nivel: "baixo" };
@@ -45,7 +45,7 @@ export const buildBebedouroAlertas = (bebedouro, historico = [], sanidade = []) 
   if (diasInspecao && (diasDesdeInspecao === null || diasDesdeInspecao > diasInspecao)) alertas.push({ tipo: "Inspeção vencida", nivel: "Médio", descricao: "Inspeção do bebedouro está vencida." });
   if (historico.some((item) => item.status === "Pendente" && item.tipo_lancamento === "Manutenção")) alertas.push({ tipo: "Manutenção pendente", nivel: "Médio", descricao: "Existe manutenção pendente." });
   if (historico.some((item) => item.status !== "Concluído" && item.tipo_lancamento === "Vazamento")) alertas.push({ tipo: "Vazamento em aberto", nivel: "Alto", descricao: "Existe vazamento em aberto." });
-  if (sanidade.some((item) => item.nivel_risco === "Alto" || item.presenca_contaminacao)) alertas.push({ tipo: "Água contaminada", nivel: "Alto", descricao: "A água apresenta risco alto ou contaminação." });
+  if ([...sanidade, ...historico].some((item) => item.nivel_risco === "Alto" || item.presenca_contaminacao)) alertas.push({ tipo: "Água contaminada", nivel: "Alto", descricao: "A água apresenta risco alto ou contaminação." });
   if (historico.some((item) => item.status === "Emergencial")) alertas.push({ tipo: "Ocorrência emergencial", nivel: "Alto", descricao: "Existe lançamento emergencial no histórico." });
 
   return alertas;
