@@ -289,7 +289,7 @@ export default function TabelaLotes({
   };
   const getComparableValue = (lote, coluna) => {
     if (coluna.id === "codigo") return Number(lote.numero_lote || 0);
-    if (coluna.id === "cabecas") return Number(lote.quantidade_entrada || lote.quantidade_cabecas || 0);
+    if (coluna.id === "cabecas") return Math.trunc(Number(lote.quantidade_entrada || lote.quantidade_cabecas || 0));
     if (coluna.id === "peso") return Number(lote.peso_entrada_kg || lote.peso_medio_kg || 0);
     if (coluna.id === "valor") return Number(lote.valor_total_compra || 0);
     if (coluna.id === "data") return String(lote.data_entrada || "").split("T")[0];
@@ -423,6 +423,10 @@ export default function TabelaLotes({
   };
 
   const renderCell = (lote, colunaId) => {
+    if (colunaId === "cabecas") {
+      return Number(lote.quantidade_entrada || lote.quantidade_cabecas || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+    }
+
     const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
     return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, relatedOptions);
   };
@@ -433,8 +437,10 @@ export default function TabelaLotes({
 
   const formatTotalValue = (valor, coluna) => {
     const tipo = String(coluna.tipo || coluna.field_type || "").toLowerCase();
+    const integerColumns = ["cabecas", "quantidade_cabecas", "quantidade_entrada"];
+    const isInteger = integerColumns.includes(coluna.id) || integerColumns.includes(coluna.field_name);
     const decimalPlaces = Math.min(6, Math.max(0, Number(coluna.decimal_places ?? coluna.casas_decimais ?? 2)));
-    const isDecimal = coluna.usar_decimal === true || tipo.includes("decimal") || tipo.includes("moeda") || tipo.includes("currency") || ["peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna.id);
+    const isDecimal = !isInteger && (coluna.usar_decimal === true || tipo.includes("decimal") || tipo.includes("moeda") || tipo.includes("currency") || ["peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna.id));
 
     return Number(valor).toLocaleString("pt-BR", isDecimal ? {
       minimumFractionDigits: decimalPlaces,
