@@ -432,8 +432,9 @@ export default function TabelaLotes({
   }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
 
   const formatTotalValue = (valor, coluna) => {
-    const decimalPlaces = Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2)));
-    const isDecimal = coluna.usar_decimal || coluna.tipo === "decimal" || Number(coluna.decimal_places ?? 0) > 0 || ["peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna.id);
+    const tipo = String(coluna.tipo || coluna.field_type || "").toLowerCase();
+    const decimalPlaces = Math.min(6, Math.max(0, Number(coluna.decimal_places ?? coluna.casas_decimais ?? 2)));
+    const isDecimal = coluna.usar_decimal === true || tipo.includes("decimal") || tipo.includes("moeda") || tipo.includes("currency") || ["peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna.id);
 
     return Number(valor).toLocaleString("pt-BR", isDecimal ? {
       minimumFractionDigits: decimalPlaces,
@@ -674,7 +675,7 @@ export default function TabelaLotes({
                   <TableRow className="sticky bottom-0 z-30 bg-slate-100 font-semibold shadow-[0_-1px_0_0_#d1d5db]">
                       {colunasOrdenadas.map((coluna) =>
                     <TableCell key={`total-${coluna.id}`} className="h-5 px-2 py-0 text-[11px] leading-5 border-r border-t border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-900">
-                          {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : coluna.id === "nome" ? "Total" : ""}
+                          {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
                         </TableCell>
                     )}
                     </TableRow>
