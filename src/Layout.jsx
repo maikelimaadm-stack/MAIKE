@@ -530,8 +530,10 @@ export default function Layout({ children, currentPageName }) {
   const isFolha = (currentPageName || '').toLowerCase().startsWith('folha');
   const isRoot = location.pathname === createPageUrl("Home");
 
+  const appContentOffset = isFolha ? "0px" : menuOculto ? "51px" : "91px";
+
   return (
-    <div className="min-h-screen bg-slate-50 safe-area-top" translate="no">
+    <div className="min-h-screen bg-slate-50 safe-area-top" translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }

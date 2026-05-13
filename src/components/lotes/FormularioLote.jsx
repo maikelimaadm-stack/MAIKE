@@ -523,7 +523,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   if (layoutConfigOpen) {
     return (
-      <section className="w-[calc(100vw-1px)] max-w-full bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+      <section className="w-full h-full max-w-full bg-white overflow-hidden">
         <LayoutConfiguratorDialog
           open={layoutConfigOpen}
           onOpenChange={setLayoutConfigOpen}
@@ -543,8 +543,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   }
 
   return (
-    <div>
-      <form onSubmit={handleSubmit} className="bg-white min-h-[calc(100dvh-150px)]">
+    <div className="h-full min-h-0 overflow-hidden bg-white">
+      <form onSubmit={handleSubmit} className="bg-white h-full min-h-0 overflow-hidden flex flex-col">
         <LegacyRecordToolbar
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
           badgeLabel="LOTE"
@@ -571,6 +571,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
             <FL label="Descrição" required error={errors.nome} dataField="nome">
@@ -617,6 +618,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
 
         
+        </div>
       </form>
     </div>);
 
