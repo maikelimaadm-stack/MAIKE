@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import bebedouroRepository from "@/repositories/bebedouroRepository";
+import { BEBEDOURO_ORIGENS_AGUA, BEBEDOURO_TIPOS } from "@/services/bebedouroService";
 
 const FL = ({ label, required, error, children }) =>
 <div>
@@ -274,13 +275,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setFormData((prev) => {
         const proximasMudancas = {};
         const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
-        const isCocho = normalizeText(prev.tipo || tipoAtual).includes("COCHO");
+        const isCochoOuBebedouro = normalizeText(prev.tipo || tipoAtual).includes("COCHO") || normalizeText(prev.tipo || tipoAtual).includes("BEBEDOURO");
 
         if (detectada.setor_id && (!prev.setor_id || !selecionouSetorManualmente) && prev.setor_id !== detectada.setor_id) {
           proximasMudancas.setor_id = detectada.setor_id;
         }
 
-        if (isCocho && !selecionouAreasManualmente) {
+        if (isCochoOuBebedouro && !selecionouAreasManualmente) {
           const mesmaAreaUnica = areaIds.length === 1 && areaIds[0] === detectada.id;
           if (!mesmaAreaUnica || prev.area_vinculada_id !== detectada.id) {
             proximasMudancas.area_vinculada_id = detectada.id;
