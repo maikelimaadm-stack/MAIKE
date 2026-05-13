@@ -347,14 +347,14 @@ export default function CadastroLotes() {
 
 
   return (
-    <div className="cadastro-lotes-rounded-scope -mt-px p-0 md:p-0 bg-white">
+    <div className="cadastro-lotes-rounded-scope -mt-px p-0 md:p-0 bg-white h-[calc(100dvh-91px)] overflow-hidden">
       <style>{`
         .cadastro-lotes-rounded-scope :where(.border, input, textarea, button, [role="button"], [data-radix-select-trigger]) {
           border-radius: 1.5px !important;
         }
       `}</style>
       {showConfigCampos && (
-        <section className="w-[calc(100vw-1px)] max-w-full bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+        <section className="w-full h-full bg-white overflow-hidden">
           <ConfiguracaoCamposLoteDialog
             open={showConfigCampos}
             onOpenChange={setShowConfigCampos}
@@ -412,7 +412,7 @@ export default function CadastroLotes() {
         onRefresh={handleRefresh} />
       }
 
-      <div className={showForm || showConfigCampos ? "hidden" : "flex items-start min-h-0 w-full overflow-hidden"}>
+      <div className={showForm || showConfigCampos ? "hidden" : "flex min-h-0 h-full w-full overflow-hidden"}>
         <SankhyaFilterPanel
           open={filterPanelOpen}
           filters={filters}
@@ -425,7 +425,7 @@ export default function CadastroLotes() {
           onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
           lotes={lotes}
           areas={areas} />
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="min-w-0 flex-1 h-full overflow-hidden flex flex-col">
           <SankhyaListToolbar
             viewMode={viewMode}
             total={lotesFiltradosPainel.length}

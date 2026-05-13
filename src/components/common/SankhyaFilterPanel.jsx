@@ -265,7 +265,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
 
   if (configOpen) {
     return (
-      <section className="w-[calc(100vw-1px)] max-w-full shrink-0 border-r border-slate-300 bg-white h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden">
+      <section className="w-full h-full min-h-0 shrink-0 border-r border-slate-300 bg-white overflow-hidden">
         <SankhyaFilterConfigDialog
           inline
           open={configOpen}
@@ -296,7 +296,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   }
 
   return (
-    <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
+    <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-full min-h-0 overflow-hidden flex flex-col">
       <div className="border-slate-300 p-1 space-y-1 bg-white shrink-0 border">
         <div className="flex items-center gap-2 h-6">
           <Checkbox checked={!!filters.esconderAoAtualizar} onCheckedChange={(checked) => update("esconderAoAtualizar", !!checked)} className="h-3.5 w-3.5 rounded-none" />

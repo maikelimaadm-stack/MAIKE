@@ -424,7 +424,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
         recordLabel=""
         showUtilityActions={false}
         showSearch={false} />
-            <div className="overflow-auto flex-1">
+            <div className="overflow-auto flex-1 min-h-0">
               <Table className="w-full min-w-[760px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">

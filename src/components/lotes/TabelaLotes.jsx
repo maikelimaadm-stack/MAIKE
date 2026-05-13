@@ -566,11 +566,11 @@ export default function TabelaLotes({
   };
 
   return (
-    <div className="space-y-1 overflow-hidden bg-white">
-      <Card className="overflow-hidden rounded-none border-0 shadow-none">
-        <CardContent className="p-0 overflow-hidden rounded-none">
-          <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)] outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+    <div className="flex-1 min-h-0 overflow-hidden bg-white">
+      <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
+        <CardContent className="h-full p-0 overflow-hidden rounded-none">
+          <div className="relative h-full overflow-hidden">
+            <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative h-full w-full overflow-auto outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">

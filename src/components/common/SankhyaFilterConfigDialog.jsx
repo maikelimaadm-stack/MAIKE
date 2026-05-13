@@ -245,7 +245,7 @@ export default function SankhyaFilterConfigDialog({
   if (!open) return null;
 
   const content =
-  <div className={inline ? "w-full h-full overflow-hidden flex flex-col bg-white" : "w-full overflow-hidden flex flex-col"}>
+  <div className={inline ? "w-full h-full min-h-0 overflow-hidden flex flex-col bg-white" : "w-full overflow-hidden flex flex-col"}>
       {!inline &&
     <DialogHeader className="sr-only">
           <DialogTitle>Configuração de filtros personalizados</DialogTitle>
@@ -423,7 +423,7 @@ export default function SankhyaFilterConfigDialog({
         showUtilityActions={false}
         showSearch={false} />
           
-            <div className="overflow-auto flex-1">
+            <div className="overflow-auto flex-1 min-h-0">
               <Table className="w-full min-w-[640px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
