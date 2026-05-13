@@ -177,7 +177,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
   const getFieldValue = (item, colunaId) => {
     const detalhe = item.detalhe_suplementacao || {};
     const bebedouro = item.detalhe_bebedouro || {};
-    const isBebedouro = normalizeText(item.tipo).includes("BEBEDOURO") || !!item.detalhe_bebedouro;
+    const isBebedouro = String(item.tipo || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim().includes("BEBEDOURO") || !!item.detalhe_bebedouro;
     if (colunaId === "codigo") return item.numero_ponto || detalhe.numero_ponto || bebedouro.codigo_interno || "";
     if (colunaId === "nome") return item.nome || detalhe.nome_ponto || bebedouro.nome || "";
     if (colunaId === "sigla") return item.sigla || detalhe.sigla || bebedouro.codigo_interno || "";
