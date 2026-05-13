@@ -625,9 +625,21 @@ export default function MapaGeral() {
 
   const handleClickPontoReferencia = useCallback((ponto) => {
     if (!normalizeText(ponto?.tipo).includes("BEBEDOURO")) return;
-    const bebedouro = bebedouros.find((item) => item.ponto_referencia_id === ponto.id || normalizeText(item.nome) === normalizeText(ponto.nome));
-    if (!bebedouro) return;
-    setSelectedBebedouro(bebedouro);
+    const bebedouro = bebedouros.find((item) => item.ponto_referencia_id === ponto.id || normalizeText(item.nome) === normalizeText(ponto.nome) || normalizeText(item.codigo_interno) === normalizeText(ponto.sigla));
+    setSelectedBebedouro(bebedouro || {
+      id: `ponto-${ponto.id}`,
+      empresa_id: ponto.empresa_id,
+      ponto_referencia_id: ponto.id,
+      nome: ponto.nome,
+      codigo_interno: ponto.sigla,
+      tipo: ponto.tipo,
+      coordenadas: ponto.coordenadas,
+      origem_agua: ponto.origem_agua || "-",
+      status: ponto.status || "Ativo",
+      observacoes: ponto.observacoes || "",
+      pasto_nome: ponto.area_vinculada_nome || "",
+      area_vinculada_nomes: ponto.area_vinculada_nomes || []
+    });
     setShowDetalhesBebedouro(true);
   }, [bebedouros]);
 

@@ -18,8 +18,9 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const [showLancamento, setShowLancamento] = useState(false);
   const [showSanidade, setShowSanidade] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
-  const { data: historico = [] } = useBebedouroHistorico(empresaId, bebedouro?.id);
-  const { data: sanidade = [] } = useBebedouroSanidade(empresaId, bebedouro?.id);
+  const registroReal = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
+  const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
+  const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
   const visual = useMemo(() => getBebedouroStatusVisual({ bebedouro, historico, sanidade }), [bebedouro, historico, sanidade]);
   const alertas = useMemo(() => buildBebedouroAlertas(bebedouro, historico, sanidade), [bebedouro, historico, sanidade]);
   const ultimoSanitario = sanidade[0];
@@ -38,10 +39,12 @@ export default function DetalhesBebedouro({ bebedouro }) {
       </div>
 
       <div className="grid grid-cols-2 gap-1">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)} disabled={!registroReal}>Lançar</Button>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs col-span-2" onClick={() => setShowSanidade(true)}>Sanidade da água</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs col-span-2" onClick={() => setShowSanidade(true)} disabled={!registroReal}>Sanidade da água</Button>
       </div>
+
+      {!registroReal && <CardSection title="Atenção"><div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 font-medium">Este ponto ainda não possui cadastro técnico completo de bebedouro. Edite o ponto no cadastro do mapa e salve para liberar lançamentos e sanidade.</div></CardSection>}
 
       {alertas.length > 0 && <CardSection title="Alertas"><div className="space-y-1">{alertas.map((alerta, idx) => <div key={idx} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 font-medium">• {alerta.descricao}</div>)}</div></CardSection>}
 

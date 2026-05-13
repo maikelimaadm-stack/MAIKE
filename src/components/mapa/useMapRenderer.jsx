@@ -286,7 +286,7 @@ export default function useMapRenderer(mapInstanceRef) {
       if (markersRef.current.has(key)) {
         const marker = markersRef.current.get(key);
         const nextState = JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome, iconUrl: cfg?.icone_url || '', color: cfg?.cor_padrao || ponto.cor || '#0066ff' });
-        if (markerStateCache.get(key) === nextState) { marker._ponto = ponto; return; }
+        if (markerStateCache.get(key) === nextState) { marker._ponto = ponto; marker.setClickable(true); return; }
         marker._ponto = ponto;
         marker.setPosition({ lat: coords.lat, lng: coords.lng });
         marker.setTitle(ponto.nome);
@@ -297,7 +297,7 @@ export default function useMapRenderer(mapInstanceRef) {
         return;
       }
 
-      const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome });
+      const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome, clickable: true, zIndex: 800 });
       marker._ponto = ponto;
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
       marker.addListener('click', () => {
