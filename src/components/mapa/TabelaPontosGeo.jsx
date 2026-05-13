@@ -35,6 +35,7 @@ const COLUNAS_DISPONIVEIS = [
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 const COLUMN_WIDTHS_KEY = "colunas_largura_pontos_geo";
 const MIN_COLUMN_WIDTH = 80;
+const normalizeText = (value = "") => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
 export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, onDelete, showConfigColunas, setShowConfigColunas }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -74,6 +75,16 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
     queryFn: async () => {
       const all = await base44.entities.PontoSuplementacao.list();
       return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.status === "Ativo");
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: []
+  });
+
+  const { data: bebedouros = [] } = useQuery({
+    queryKey: ["tabela-bebedouros", empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Bebedouro.list();
+      return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
     initialData: []
@@ -149,9 +160,15 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
         const mesmoIdSuplementacao = item.ponto_suplementacao_id && pontoSup.id === item.ponto_suplementacao_id;
         return mesmoIdSuplementacao || mesmoNomeReferencia || mesmaSiglaReferencia || mesmoNomeSuplementacao || mesmaSiglaSuplementacao;
       });
-      return { ...item, detalhe_suplementacao: detalhe || null };
+      const bebedouro = bebedouros.find((beb) => {
+        const mesmoId = beb.ponto_referencia_id && beb.ponto_referencia_id === item.id;
+        const mesmoNome = normalizar(beb.nome) === normalizar(item.nome);
+        const mesmaSigla = item.sigla && normalizar(beb.codigo_interno) === normalizar(item.sigla);
+        return mesmoId || mesmoNome || mesmaSigla;
+      });
+      return { ...item, detalhe_suplementacao: detalhe || null, detalhe_bebedouro: bebedouro || null };
     });
-  }, [pontos, pontosSuplementacao]);
+  }, [pontos, pontosSuplementacao, bebedouros]);
 
   useEffect(() => {
     setSelectedItems((prev) => prev.filter((id) => pontosComDetalhes.some((p) => p.id === id)));
@@ -159,22 +176,24 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
 
   const getFieldValue = (item, colunaId) => {
     const detalhe = item.detalhe_suplementacao || {};
-    if (colunaId === "codigo") return item.numero_ponto || detalhe.numero_ponto || "";
-    if (colunaId === "nome") return item.nome || detalhe.nome_ponto || "";
-    if (colunaId === "sigla") return item.sigla || detalhe.sigla || "";
-    if (colunaId === "tipo") return item.tipo || detalhe.tipo || "";
-    if (colunaId === "categoria") return detalhe.categoria_ponto || "";
-    if (colunaId === "setor") return detalhe.setor_nome || "";
-    if (colunaId === "areas") return Array.isArray(detalhe.area_vinculada_nomes) && detalhe.area_vinculada_nomes.length ? detalhe.area_vinculada_nomes.join(", ") : detalhe.area_vinculada_nome || "";
+    const bebedouro = item.detalhe_bebedouro || {};
+    const isBebedouro = normalizeText(item.tipo).includes("BEBEDOURO") || !!item.detalhe_bebedouro;
+    if (colunaId === "codigo") return item.numero_ponto || detalhe.numero_ponto || bebedouro.codigo_interno || "";
+    if (colunaId === "nome") return item.nome || detalhe.nome_ponto || bebedouro.nome || "";
+    if (colunaId === "sigla") return item.sigla || detalhe.sigla || bebedouro.codigo_interno || "";
+    if (colunaId === "tipo") return isBebedouro ? bebedouro.tipo || item.tipo || "" : item.tipo || detalhe.tipo || "";
+    if (colunaId === "categoria") return isBebedouro ? "BEBEDOURO" : detalhe.categoria_ponto || "";
+    if (colunaId === "setor") return isBebedouro ? bebedouro.setor_nome || "" : detalhe.setor_nome || "";
+    if (colunaId === "areas") return isBebedouro ? (Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes.join(", ") : bebedouro.pasto_nome || "") : Array.isArray(detalhe.area_vinculada_nomes) && detalhe.area_vinculada_nomes.length ? detalhe.area_vinculada_nomes.join(", ") : detalhe.area_vinculada_nome || "";
     if (colunaId === "deposito") return detalhe.deposito_origem_nome || "";
     if (colunaId === "produto_padrao") return detalhe.produto_padrao || "";
-    if (colunaId === "capacidade") return detalhe.capacidade_cocho_kg != null ? String(detalhe.capacidade_cocho_kg) : "";
+    if (colunaId === "capacidade") return isBebedouro ? (bebedouro.capacidade_litros != null ? String(bebedouro.capacidade_litros) : "") : detalhe.capacidade_cocho_kg != null ? String(detalhe.capacidade_cocho_kg) : "";
     if (colunaId === "metragem") return detalhe.metragem_cocho_m != null ? String(detalhe.metragem_cocho_m) : "";
     if (colunaId === "cobertura") return detalhe.cobertura_cocho || "";
     if (colunaId === "estoque_minimo") return detalhe.estoque_minimo_kg != null ? String(detalhe.estoque_minimo_kg) : "";
-    if (colunaId === "status") return detalhe.status || "";
+    if (colunaId === "status") return isBebedouro ? bebedouro.status || "" : detalhe.status || "";
     if (colunaId === "coordenadas") return item.coordenadas?.lat && item.coordenadas?.lng ? `${item.coordenadas.lat.toFixed(6)}, ${item.coordenadas.lng.toFixed(6)}` : "";
-    if (colunaId === "observacoes") return detalhe.observacoes || item.observacoes || "";
+    if (colunaId === "observacoes") return isBebedouro ? bebedouro.observacoes || item.observacoes || "" : detalhe.observacoes || item.observacoes || "";
     return "";
   };
 

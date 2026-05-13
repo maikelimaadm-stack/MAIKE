@@ -18,7 +18,8 @@ export default function Bebedouros() {
   const { data: historico = [] } = useQuery({ queryKey: ["bebedouro-historico-all", empresaId], queryFn: () => bebedouroRepository.listHistorico(empresaId), enabled: !!empresaId, initialData: [] });
   const { data: sanidade = [] } = useQuery({ queryKey: ["bebedouro-sanidade-all", empresaId], queryFn: () => bebedouroRepository.listSanidade(empresaId), enabled: !!empresaId, initialData: [] });
 
-  const rows = useMemo(() => bebedouros.filter((item) => `${item.nome} ${item.codigo_interno} ${item.pasto_nome}`.toLowerCase().includes(busca.toLowerCase())), [bebedouros, busca]);
+  const getPastosAtendidos = (item) => Array.isArray(item.area_vinculada_nomes) && item.area_vinculada_nomes.length ? item.area_vinculada_nomes.join(", ") : item.pasto_nome || "-";
+  const rows = useMemo(() => bebedouros.filter((item) => `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`.toLowerCase().includes(busca.toLowerCase())), [bebedouros, busca]);
   const alertas = useMemo(() => bebedouros.flatMap((b) => buildBebedouroAlertas(b, historico.filter((h) => h.bebedouro_id === b.id), sanidade.filter((s) => s.bebedouro_id === b.id))), [bebedouros, historico, sanidade]);
 
   return (
@@ -32,12 +33,12 @@ export default function Bebedouros() {
         <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar bebedouro..." className="h-8 text-xs" />
         <div className="overflow-auto border rounded-lg">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50"><tr><th className="p-2 text-left">Nome</th><th className="p-2 text-left">Pasto</th><th className="p-2 text-left">Tipo</th><th className="p-2 text-right">Capacidade</th><th className="p-2 text-center">Status</th></tr></thead>
+            <thead className="bg-slate-50"><tr><th className="p-2 text-left">Nome</th><th className="p-2 text-left">Pastos atendidos</th><th className="p-2 text-left">Tipo</th><th className="p-2 text-left">Origem da água</th><th className="p-2 text-right">Capacidade</th><th className="p-2 text-center">Status</th></tr></thead>
             <tbody>{rows.map((item) => {
               const h = historico.filter((x) => x.bebedouro_id === item.id);
               const s = sanidade.filter((x) => x.bebedouro_id === item.id);
               const visual = getBebedouroStatusVisual({ bebedouro: item, historico: h, sanidade: s });
-              return <tr key={item.id} className="border-t hover:bg-slate-50 cursor-pointer" onClick={() => setSelected(item)}><td className="p-2 font-medium">{item.nome}</td><td className="p-2">{item.pasto_nome || "-"}</td><td className="p-2">{item.tipo}</td><td className="p-2 text-right">{item.capacidade_litros ? `${Number(item.capacidade_litros).toLocaleString("pt-BR")} L` : "-"}</td><td className="p-2 text-center"><BebedouroStatusBadge visual={visual} /></td></tr>;
+              return <tr key={item.id} className="border-t hover:bg-slate-50 cursor-pointer" onClick={() => setSelected(item)}><td className="p-2 font-medium">{item.nome}</td><td className="p-2">{getPastosAtendidos(item)}</td><td className="p-2">{item.tipo}</td><td className="p-2">{item.origem_agua || "-"}</td><td className="p-2 text-right">{item.capacidade_litros ? `${Number(item.capacidade_litros).toLocaleString("pt-BR")} L` : "-"}</td><td className="p-2 text-center"><BebedouroStatusBadge visual={visual} /></td></tr>;
             })}</tbody>
           </table>
         </div>
