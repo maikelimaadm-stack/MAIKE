@@ -661,10 +661,10 @@ export default function TabelaLotes({
                   )
                   }
                   {Object.keys(agregacoes).length > 0 &&
-                  <TableRow className="bg-slate-50 font-semibold">
+                  <TableRow className="sticky bottom-0 z-30 bg-slate-100 font-semibold shadow-[0_-1px_0_0_#d1d5db]">
                       {colunasOrdenadas.map((coluna) =>
-                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1 text-xs border-r border-b border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis">
-                          {agregacoes[coluna.id] !== undefined ? `${getAgregacaoLabel(coluna.agregacao_tipo || coluna.agregacao)}: ${Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 })}` : coluna.id === "nome" ? "Totais" : ""}
+                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1.5 text-xs border-r border-t border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-900">
+                          {agregacoes[coluna.id] !== undefined ? Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 }) : coluna.id === "nome" ? "Total" : ""}
                         </TableCell>
                     )}
                     </TableRow>
