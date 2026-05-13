@@ -594,7 +594,7 @@ export default function TabelaLotes({
           <div className="relative h-full overflow-hidden flex flex-col">
             <button
               type="button"
-              className="absolute right-0 top-0 z-[60] flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-[17px] h-7"
+              className="absolute right-0 top-0 z-40 flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-[17px] h-7"
               onClick={() => setShowConfigColunas(true)}
               title="Configurar colunas">
               <Menu className="w-3.5 h-3.5" />
@@ -662,7 +662,7 @@ export default function TabelaLotes({
                   lotesOrdenados.map((lote, index) =>
                   <TableRow
                     key={lote.id}
-                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-white hover:bg-gray-100" : "bg-gray-100 hover:bg-gray-200"} transition-colors border-b cursor-pointer select-none`}
+                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-gray-100 hover:bg-gray-200" : "bg-white hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
                     onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => selectedItems.length <= 1 && onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>

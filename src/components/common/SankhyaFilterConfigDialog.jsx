@@ -351,12 +351,12 @@ export default function SankhyaFilterConfigDialog({
                   <div className="h-7 px-2 leading-7 text-center">Ações</div>
                 </div>
                 {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
-                {selectedFields.map((field) => {
+                {selectedFields.map((field, index) => {
             const position = visibleFields.indexOf(field.id);
             const operatorOptions = getOperatorOptions(field);
 
             return (
-              <div key={field.id} className="items-center border-b border-gray-300 text-xs hover:bg-gray-100 last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px]">
+              <div key={field.id} className={`items-center border-b border-gray-300 text-xs last:border-b-0 grid min-w-[960px] grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] ${index % 2 === 0 ? "bg-gray-100 hover:bg-gray-200" : "bg-white hover:bg-gray-100"}`}>
                       <div className="min-w-0 whitespace-normal break-words px-2 py-1 font-semibold text-gray-700 border-r border-gray-300">{field.label}</div>
                       <div className="px-1 py-1 border-r border-gray-300">
                         <AutocompleteGenerico
@@ -433,8 +433,8 @@ export default function SankhyaFilterConfigDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filterConfigs.map((config) =>
-            <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
+                  {filterConfigs.map((config, index) =>
+            <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-gray-100 hover:bg-gray-200" : "bg-white hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b font-medium ${config.id === activeConfigId ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>{config.name}</TableCell>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b ${config.id === activeConfigId ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>
                         {config.visibleFields?.length || 0} campos · {Object.keys(config.fieldValues || {}).filter((key) => Object.values(config.fieldValues?.[key] || {}).some(Boolean)).length} pré-configurados

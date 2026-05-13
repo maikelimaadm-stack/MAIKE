@@ -438,10 +438,10 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
             <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Carregando...</TableCell></TableRow> :
             campos.length === 0 ?
             <TableRow><TableCell colSpan={3} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum campo criado.</TableCell></TableRow> :
-            campos.map((campo) =>
+            campos.map((campo, index) =>
             <TableRow
               key={campo.id || campo.field_id}
-              className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
+              className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-gray-100 hover:bg-gray-200" : "bg-white hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
               onClick={(event) => handleRowSelect(campo, event)}
               onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
                       <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words font-medium ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>{campo.label}</TableCell>
