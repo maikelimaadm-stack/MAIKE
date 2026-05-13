@@ -347,7 +347,7 @@ export default function CadastroLotes() {
 
 
   return (
-    <div className="cadastro-lotes-rounded-scope p-0 md:p-0 bg-white">
+    <div className="cadastro-lotes-rounded-scope -mt-px p-0 md:p-0 bg-white">
       <style>{`
         .cadastro-lotes-rounded-scope :where(.border, input, textarea, button, [role="button"], [data-radix-select-trigger]) {
           border-radius: 1.5px !important;
