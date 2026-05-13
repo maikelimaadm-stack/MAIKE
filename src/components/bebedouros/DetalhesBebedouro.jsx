@@ -2,7 +2,9 @@ import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Droplet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import PontoPercentIcon from "@/components/mapa/PontoPercentIcon";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import { useBebedouroSanidade } from "@/hooks/useBebedouroSanidade";
 import BebedouroTimeline from "./BebedouroTimeline";
@@ -11,12 +13,22 @@ import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebe
 
 const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
+const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
 export default function DetalhesBebedouro({ bebedouro }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const registroReal = Boolean(bebedouro?.id);
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+    },
+    enabled: !!empresaId,
+    staleTime: 10 * 60 * 1000
+  });
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
   const { data: sanidade = [] } = useBebedouroSanidade(empresaId, registroReal ? bebedouro?.id : null);
   const visual = useMemo(() => getBebedouroStatusVisual({ bebedouro, historico, sanidade }), [bebedouro, historico, sanidade]);
@@ -25,6 +37,19 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const ultimoLancamento = historico[0];
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
+  const iconePonto = useMemo(() => {
+    const tipoBebedouro = normalizeText(bebedouro?.tipo || "");
+    const nomeBebedouro = normalizeText(bebedouro?.nome || "");
+    return iconesConfig.find((item) => {
+      const categoriaIcone = normalizeText(item.categoria || "");
+      if (categoriaIcone === "BEBEDOURO") return true;
+      if (tipoBebedouro.includes(categoriaIcone) && categoriaIcone) return true;
+      if (nomeBebedouro.includes(categoriaIcone) && categoriaIcone) return true;
+      return false;
+    });
+  }, [iconesConfig, bebedouro?.tipo, bebedouro?.nome]);
+  const subIconePonto = bebedouro?.sub_icone_url || bebedouro?.icone_url || iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
+  const percentCondicao = visual.nivel === "critico" ? 0.05 : visual.nivel === "alerta" ? 0.35 : 1;
 
   const resumoProdutos = useMemo(() => {
     const mapa = new Map();
@@ -40,8 +65,6 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
   return (
     <div className="space-y-1" translate="no">
-      <h2 className="text-2xl font-bold leading-tight text-slate-950">Bebedouro</h2>
-
       <div className="pb-1 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {bebedouro.nome}</Badge>
@@ -55,11 +78,20 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
       <CardSection title="Condição do Bebedouro">
         <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
-          <div className="flex flex-col items-center justify-center gap-1 min-w-[130px] py-2">
-            <div className="h-14 w-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
-              <Droplet className="h-8 w-8" style={{ color: visual.cor }} />
+          <div className="pb-1 flex flex-col gap-1">
+            <div className="flex items-end gap-3">
+              <div className="flex flex-col items-center gap-0.5" title="Condição do bebedouro">
+                <PontoPercentIcon
+                  imageUrl={subIconePonto}
+                  label={bebedouro.tipo || "Bebedouro"}
+                  percent={percentCondicao}
+                  fillClassName={visual.nivel === "critico" ? "bg-red-500" : visual.nivel === "alerta" ? "bg-yellow-400" : "bg-lime-400"} />
+              </div>
             </div>
-            <div className="text-[10px] font-semibold text-slate-700">{visual.label}</div>
+            <div className="flex items-center gap-1 pl-1">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${visual.nivel === "critico" ? "bg-red-500" : visual.nivel === "alerta" ? "bg-yellow-400" : "bg-lime-400"}`} />
+              <span className="text-[8px] text-slate-500">{visual.label}</span>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
             <MetricBox label="Capacidade" value={bebedouro.capacidade_litros ? `${Number(bebedouro.capacidade_litros).toLocaleString("pt-BR")} L` : "-"} />
