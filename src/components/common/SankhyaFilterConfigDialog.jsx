@@ -343,11 +343,11 @@ export default function SankhyaFilterConfigDialog({
                 <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{selectedFields.length} campo(s)</span>
               </div>
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1 overflow-x-auto">
-                <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-white border-t border-b border-gray-200 text-xs font-medium text-gray-900">
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Campo</div>
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Pasta</div>
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Operador</div>
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-200">Valor padrão</div>
+                <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-white border-b border-gray-300 text-xs font-medium text-gray-900">
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Campo</div>
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Pasta</div>
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Operador</div>
+                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Valor padrão</div>
                   <div className="h-7 px-2 leading-7 text-center">Ações</div>
                 </div>
                 {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
@@ -426,10 +426,10 @@ export default function SankhyaFilterConfigDialog({
             <div className="overflow-auto flex-1">
               <Table className="w-full min-w-[640px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
-                  <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
-                    <TableHead className="h-7 w-[260px] text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Filtro</TableHead>
-                    <TableHead className="h-7 text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Campos</TableHead>
-                    <TableHead className="h-7 w-[120px] text-xs font-medium text-gray-900 text-center border-r border-t border-b border-gray-200 bg-white">Status</TableHead>
+                  <TableRow className="sticky top-0 z-40 bg-white">
+                    <TableHead className="h-7 w-[260px] text-xs font-medium text-gray-900 text-center border-r border-b border-gray-300 bg-white">Filtro</TableHead>
+                    <TableHead className="h-7 text-xs font-medium text-gray-900 text-center border-r border-b border-gray-300 bg-white">Campos</TableHead>
+                    <TableHead className="h-7 w-[120px] text-xs font-medium text-gray-900 text-center border-r border-b border-gray-300 bg-white">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

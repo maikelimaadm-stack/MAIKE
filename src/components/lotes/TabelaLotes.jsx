@@ -573,7 +573,7 @@ export default function TabelaLotes({
             <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)] outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
-                  <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
+                  <TableRow className="sticky top-0 z-40 bg-white">
                     {colunasOrdenadas.map((coluna) => {
                       const width = Math.max(getColumnMinWidth(coluna), columnWidths[coluna.id] || coluna.width || 160);
                       const isResizing = resizeColumnId === coluna.id;
@@ -584,7 +584,7 @@ export default function TabelaLotes({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7">
+                          className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-b border-gray-300 bg-white whitespace-nowrap h-7">
 
                           <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis text-center">
                            {coluna.label}

@@ -427,10 +427,10 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
             <div className="overflow-auto flex-1">
               <Table className="w-full min-w-[760px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
-                  <TableRow className="sticky top-0 z-40 bg-white border-t border-gray-200">
-                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7 w-[260px]">Campo</TableHead>
-                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7 w-[150px]">Tipo</TableHead>
-                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-t border-b border-gray-200 bg-white whitespace-nowrap h-7">Uso</TableHead>
+                  <TableRow className="sticky top-0 z-40 bg-white">
+                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 w-[260px]">Campo</TableHead>
+                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 w-[150px]">Tipo</TableHead>
+                    <TableHead className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 text-xs font-medium text-center border-r border-b border-gray-300 bg-white whitespace-nowrap h-7">Uso</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
