@@ -487,7 +487,7 @@ export default function TabelaLotes({
   }, [colunasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange]);
 
   const renderFilterControl = (colunaId) => {
-    const buttonClass = `h-3 w-3 min-w-3 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-600" : "text-slate-300 hover:text-slate-400"}`;
+    const buttonClass = `h-4 w-4 min-w-4 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`;
     const coluna = colunasDisponiveis.find((c) => c.id === colunaId);
     const columnLabel = coluna?.label || colunaId;
     const options = columnOptions[colunaId] || [];
@@ -508,7 +508,7 @@ export default function TabelaLotes({
         
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className={buttonClass}>
-            <Filter className="w-2 h-2" />
+            <Filter className="w-3.5 h-3.5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999] rounded-none">
@@ -626,21 +626,22 @@ export default function TabelaLotes({
                           </div>
 
                           {filterControl &&
-                          <div className={`absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 transition-opacity ${hasActiveFilter(coluna.id) || isResizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} onClick={(e) => e.stopPropagation()}>
+                          <div className={`absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 bg-white/95 pl-1 transition-opacity ${hasActiveFilter(coluna.id) || isResizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} onClick={(e) => e.stopPropagation()}>
                               {filterControl}
                               <button
                               type="button"
-                              className={`h-4 w-4 flex items-center justify-center rounded ${isResizing ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`}
+                              className={`h-5 w-4 flex items-center justify-center rounded cursor-col-resize ${isResizing ? 'text-emerald-700 bg-emerald-100' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'}`}
+                              onMouseDown={(e) => startDragResize(e, coluna)}
+                              onTouchStart={(e) => startDragResize(e, coluna)}
                               onClick={(e) => {e.stopPropagation();toggleResizeMode(coluna.id);}}
-                              onTouchEnd={(e) => {e.stopPropagation();e.preventDefault();toggleResizeMode(coluna.id);}}
-                              title="Redimensionar coluna">
-                                <GripVertical className="w-2.5 h-2.5" />
+                              title="Arrastar para redimensionar coluna">
+                                <GripVertical className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           }
 
                           {isResizing &&
-                          <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
+                          <div className="absolute top-0 right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
                           onMouseDown={(e) => startDragResize(e, coluna)}
                           onTouchStart={(e) => startDragResize(e, coluna)}
                           onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}
