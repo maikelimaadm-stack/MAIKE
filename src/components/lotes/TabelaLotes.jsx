@@ -431,7 +431,17 @@ export default function TabelaLotes({
     return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, relatedOptions);
   }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
 
-  const getAgregacaoLabel = (tipo) => ({ sum: "Soma", avg: "Média", min: "Menor", max: "Maior", count: "Contagem" })[tipo] || "Total";
+  const formatTotalValue = (valor, coluna) => {
+    const decimalPlaces = Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2)));
+    const isDecimal = coluna.usar_decimal || coluna.tipo === "decimal" || Number(coluna.decimal_places ?? 0) > 0 || ["peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna.id);
+
+    return Number(valor).toLocaleString("pt-BR", isDecimal ? {
+      minimumFractionDigits: decimalPlaces,
+      maximumFractionDigits: decimalPlaces
+    } : {
+      maximumFractionDigits: 0
+    });
+  };
 
   const exportarTabela = (apenasSelecionados = false) => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
@@ -663,8 +673,8 @@ export default function TabelaLotes({
                   {Object.keys(agregacoes).length > 0 &&
                   <TableRow className="sticky bottom-0 z-30 bg-slate-100 font-semibold shadow-[0_-1px_0_0_#d1d5db]">
                       {colunasOrdenadas.map((coluna) =>
-                    <TableCell key={`total-${coluna.id}`} className="px-2 py-1.5 text-xs border-r border-t border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-900">
-                          {agregacoes[coluna.id] !== undefined ? Number(agregacoes[coluna.id]).toLocaleString("pt-BR", coluna.usar_decimal ? { minimumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))), maximumFractionDigits: Math.min(6, Math.max(0, Number(coluna.decimal_places ?? 2))) } : { maximumFractionDigits: 2 }) : coluna.id === "nome" ? "Total" : ""}
+                    <TableCell key={`total-${coluna.id}`} className="h-5 px-2 py-0 text-[11px] leading-5 border-r border-t border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-900">
+                          {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : coluna.id === "nome" ? "Total" : ""}
                         </TableCell>
                     )}
                     </TableRow>
