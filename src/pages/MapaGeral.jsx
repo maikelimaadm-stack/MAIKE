@@ -625,20 +625,36 @@ export default function MapaGeral() {
 
   const handleClickPontoReferencia = useCallback((ponto) => {
     if (!normalizeText(ponto?.tipo).includes("BEBEDOURO")) return;
-    const bebedouro = bebedouros.find((item) => item.ponto_referencia_id === ponto.id || normalizeText(item.nome) === normalizeText(ponto.nome) || normalizeText(item.codigo_interno) === normalizeText(ponto.sigla));
-    setSelectedBebedouro(bebedouro || {
+
+    const numeroPonto = String(ponto.numero_ponto || "").trim();
+    const siglaPonto = String(ponto.sigla || "").trim();
+    const nomePonto = normalizeText(ponto.nome);
+
+    const bebedouro = bebedouros.find((item) => {
+      const codigo = String(item.codigo_interno || item.numero_ponto || "").trim();
+      return item.ponto_referencia_id === ponto.id ||
+        normalizeText(item.nome) === nomePonto ||
+        normalizeText(item.codigo_interno) === normalizeText(siglaPonto) ||
+        (numeroPonto && codigo === numeroPonto) ||
+        (numeroPonto && normalizeText(item.nome).includes(normalizeText(numeroPonto)));
+    });
+
+    setSelectedBebedouro(bebedouro ? { ...bebedouro, numero_ponto: ponto.numero_ponto, icone_url: ponto.icone_url, sub_icone_url: ponto.sub_icone_url } : {
       id: `ponto-${ponto.id}`,
       empresa_id: ponto.empresa_id,
       ponto_referencia_id: ponto.id,
+      numero_ponto: ponto.numero_ponto,
       nome: ponto.nome,
-      codigo_interno: ponto.sigla,
+      codigo_interno: ponto.sigla || ponto.numero_ponto,
       tipo: ponto.tipo,
       coordenadas: ponto.coordenadas,
       origem_agua: ponto.origem_agua || "-",
       status: ponto.status || "Ativo",
       observacoes: ponto.observacoes || "",
       pasto_nome: ponto.area_vinculada_nome || "",
-      area_vinculada_nomes: ponto.area_vinculada_nomes || []
+      area_vinculada_nomes: ponto.area_vinculada_nomes || [],
+      icone_url: ponto.icone_url,
+      sub_icone_url: ponto.sub_icone_url
     });
     setShowDetalhesBebedouro(true);
   }, [bebedouros]);
