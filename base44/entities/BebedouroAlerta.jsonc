@@ -1,0 +1,65 @@
+{
+  "name": "BebedouroAlerta",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa/fazenda"
+    },
+    "bebedouro_id": {
+      "type": "string",
+      "description": "ID do bebedouro"
+    },
+    "tipo_alerta": {
+      "type": "string",
+      "enum": [
+        "Limpeza vencida",
+        "Inspe\u00e7\u00e3o vencida",
+        "Manuten\u00e7\u00e3o pendente",
+        "Vazamento em aberto",
+        "\u00c1gua contaminada"
+      ],
+      "description": "Tipo de alerta"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do alerta"
+    },
+    "nivel": {
+      "type": "string",
+      "enum": [
+        "Baixo",
+        "M\u00e9dio",
+        "Alto"
+      ],
+      "default": "M\u00e9dio",
+      "description": "N\u00edvel do alerta"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Aberto",
+        "Resolvido"
+      ],
+      "default": "Aberto",
+      "description": "Status do alerta"
+    },
+    "data_alerta": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do alerta"
+    },
+    "data_resolucao": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de resolu\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "bebedouro_id",
+    "tipo_alerta",
+    "status",
+    "data_alerta"
+  ]
+}

@@ -1,0 +1,20 @@
+export const BebedouroDTO = {
+  empresa_id: "",
+  ponto_referencia_id: "",
+  nome: "",
+  codigo_interno: "",
+  pasto_id: "",
+  pasto_nome: "",
+  setor_id: "",
+  setor_nome: "",
+  tipo: "Bebedouro australiano",
+  capacidade_litros: 0,
+  origem_agua: "Poço",
+  coordenadas: null,
+  status: "Ativo",
+  periodicidade_limpeza: "Mensal",
+  periodicidade_inspecao: "Semanal",
+  observacoes: "",
+  fotos: [],
+  ativo: true
+};

@@ -266,7 +266,7 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Pontos de Referência ───
-  const syncPontos = useCallback((pontos, show, iconesConfig) => {
+  const syncPontos = useCallback((pontos, show, iconesConfig, onClickPonto) => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const prefix = 'ponto_';
@@ -286,9 +286,11 @@ export default function useMapRenderer(mapInstanceRef) {
       if (markersRef.current.has(key)) {
         const marker = markersRef.current.get(key);
         const nextState = JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome, iconUrl: cfg?.icone_url || '', color: cfg?.cor_padrao || ponto.cor || '#0066ff' });
-        if (markerStateCache.get(key) === nextState) return;
+        if (markerStateCache.get(key) === nextState) { marker._ponto = ponto; return; }
+        marker._ponto = ponto;
         marker.setPosition({ lat: coords.lat, lng: coords.lng });
         marker.setTitle(ponto.nome);
+        marker._ponto = ponto;
         marker.setIcon(icon);
         if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
         markerStateCache.set(key, nextState);
@@ -296,8 +298,15 @@ export default function useMapRenderer(mapInstanceRef) {
       }
 
       const marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map, icon, title: ponto.nome });
+      marker._ponto = ponto;
       if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(marker, cfg.icone_url, 40);
-      marker.addListener('click', () => { new google.maps.InfoWindow({ content: `<div style="padding:10px;"><strong>${ponto.nome}</strong><br/><span style="color:#666;">${ponto.tipo}</span></div>` }).open(map, marker); });
+      marker.addListener('click', () => {
+        if (typeof onClickPonto === 'function') {
+          onClickPonto(marker._ponto || ponto);
+          return;
+        }
+        new google.maps.InfoWindow({ content: `<div style="padding:10px;"><strong>${ponto.nome}</strong><br/><span style="color:#666;">${ponto.tipo}</span></div>` }).open(map, marker);
+      });
       markerStateCache.set(key, JSON.stringify({ lat: coords.lat, lng: coords.lng, title: ponto.nome, iconUrl: cfg?.icone_url || '', color: cfg?.cor_padrao || ponto.cor || '#0066ff' }));
       markersRef.current.set(key, marker);
     });

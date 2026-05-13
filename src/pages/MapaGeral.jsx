@@ -17,6 +17,7 @@ import {
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesArea from "../components/mapa/DetalhesArea";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
+import DetalhesBebedouro from "../components/bebedouros/DetalhesBebedouro";
 import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
 import DetalhesTarefaMapa from "../components/mapa/DetalhesTarefaMapa";
 import MapaInsights from "../components/mapa/MapaInsights";
@@ -28,6 +29,7 @@ import MapaFiltrosAvancados, {
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
 import useSetorAreas from "@/hooks/useSetorAreas";
+import { useBebedouros } from "@/hooks/useBebedouros";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
@@ -87,6 +89,8 @@ export default function MapaGeral() {
   const [selectedArea, setSelectedArea] = useState(null);
   const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
   const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
+  const [showDetalhesBebedouro, setShowDetalhesBebedouro] = useState(false);
+  const [selectedBebedouro, setSelectedBebedouro] = useState(null);
   const [showTarefas, setShowTarefas] = useState(false);
   const [tarefasContext, setTarefasContext] = useState({});
   const [selectedTarefa, setSelectedTarefa] = useState(null);
@@ -252,6 +256,7 @@ export default function MapaGeral() {
 
   const { data: areasBase = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
   const { data: pontos = [], refetch: refetchPontosRef } = useQuery(createMapaQuery('pontos'));
+  const { data: bebedouros = [] } = useBebedouros(empresaSelecionadaId);
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
   const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
   const { data: lotesBase = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
@@ -618,6 +623,14 @@ export default function MapaGeral() {
     setShowDetalhesPontoSupl(true);
   }, [mapaGeralPermissions.visualizar_detalhes_cochos]);
 
+  const handleClickPontoReferencia = useCallback((ponto) => {
+    if (!normalizeText(ponto?.tipo).includes("BEBEDOURO")) return;
+    const bebedouro = bebedouros.find((item) => item.ponto_referencia_id === ponto.id || normalizeText(item.nome) === normalizeText(ponto.nome));
+    if (!bebedouro) return;
+    setSelectedBebedouro(bebedouro);
+    setShowDetalhesBebedouro(true);
+  }, [bebedouros]);
+
   const handleClickLotes = useCallback((l) => {
     if (!mapaGeralPermissions.visualizar_detalhes_lotes) return;
     setSelectedLote(l);
@@ -832,7 +845,7 @@ export default function MapaGeral() {
     });
   }, [pontos]);
 
-  useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_pontos_referencia]);
+  useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig, handleClickPontoReferencia);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_pontos_referencia, handleClickPontoReferencia]);
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
   useEffect(() => {
     if (!mapReady) return;
@@ -1003,6 +1016,13 @@ export default function MapaGeral() {
         <DialogContent className="bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader></DialogHeader>
           {selectedArea && <DetalhesArea area={selectedArea} onClose={() => setShowDetalhesArea(false)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro}>
+        <DialogContent className="bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-sm">Detalhes do Bebedouro</DialogTitle></DialogHeader>
+          {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} />}
         </DialogContent>
       </Dialog>
 

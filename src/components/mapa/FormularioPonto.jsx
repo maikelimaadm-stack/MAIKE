@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import useSetorAreas from "@/hooks/useSetorAreas";
+import bebedouroRepository from "@/repositories/bebedouroRepository";
 
 const FL = ({ label, required, error, children }) =>
 <div>
@@ -281,6 +282,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
+  const ehBebedouro = normalizeText(formData.tipo).includes("BEBEDOURO");
   const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
   const createPontoMutation = useMutation({
@@ -310,6 +312,30 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       const pontoReferencia = item ?
       await base44.entities.PontoReferencia.update(item.id, payloadPonto) :
       await base44.entities.PontoReferencia.create(payloadPonto);
+
+      if (normalizeText(data.tipo).includes("BEBEDOURO")) {
+        const areaSelecionada = areas.find((area) => area.id === data.area_vinculada_id || (data.area_vinculada_ids || []).includes(area.id));
+        const bebedouros = await base44.entities.Bebedouro.list();
+        const bebedouroExistente = bebedouros.find((bebedouro) => bebedouro.ponto_referencia_id === pontoReferencia.id);
+        const payloadBebedouro = {
+          empresa_id: empresaSelecionadaId,
+          ponto_referencia_id: pontoReferencia.id,
+          nome: data.nome,
+          codigo_interno: data.sigla,
+          pasto_id: areaSelecionada?.id || null,
+          pasto_nome: areaSelecionada?.nome || null,
+          setor_id: data.setor_id || areaSelecionada?.setor_id || null,
+          setor_nome: areaSelecionada?.setor_nome || null,
+          tipo: "Bebedouro australiano",
+          origem_agua: "Poço",
+          coordenadas: coordenadasGPS || coordenadas,
+          status: "Ativo",
+          ativo: true,
+          observacoes: data.observacoes || null
+        };
+        if (bebedouroExistente) await bebedouroRepository.updateBebedouro(bebedouroExistente.id, payloadBebedouro);
+        else await bebedouroRepository.createBebedouro(payloadBebedouro);
+      }
 
       if (!data.tipo_categoria && pontoSuplementacaoExistente) {
         setProgresso({ show: true, atual: 2, total: 3, mensagem: "Inativando vínculo de suplementação..." });
@@ -426,7 +452,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     },
     onSuccess: () => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"].includes(query.queryKey[0]) });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "bebedouros", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"].includes(query.queryKey[0]) });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success(item ? "Ponto atualizado com sucesso." : "Ponto cadastrado com sucesso.");
       onSave();
@@ -511,8 +537,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setor_id: formData.setor_id,
       produto_padrao: ehCocho ? formData.produto_padrao : null,
       capacidade_cocho_kg: formData.capacidade_cocho_kg,
-      area_vinculada_id: ehCocho ? formData.area_vinculada_ids?.[0] || "" : null,
-      area_vinculada_ids: ehCocho ? formData.area_vinculada_ids : [],
+      area_vinculada_id: ehCocho ? formData.area_vinculada_ids?.[0] || "" : ehBebedouro ? formData.area_vinculada_id || "" : null,
+      area_vinculada_ids: ehCocho ? formData.area_vinculada_ids : ehBebedouro && formData.area_vinculada_id ? [formData.area_vinculada_id] : [],
       deposito_origem_id: ehCocho ? formData.deposito_origem_id : null,
       metragem_cocho_m: ehCocho ? formData.metragem_cocho_m : null,
       cobertura_cocho: ehCocho ? formData.cobertura_cocho : null,
@@ -679,6 +705,33 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
             </div>
 
             {depositosDisponiveis.length === 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Cadastre primeiro um ponto do tipo depósito para vincular este cocho.</div>}
+          </div>
+            }
+
+        {ehBebedouro &&
+            <div className="space-y-1 border-t pt-1">
+            <div className="text-xs font-semibold text-slate-700">Dados do Bebedouro</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+              <FL label="Setor">
+                <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value, area_vinculada_id: '', area_vinculada_ids: [] }))}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
+                    {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </FL>
+              <FL label="Pasto vinculado">
+                <Select value={formData.area_vinculada_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, area_vinculada_id: value === '__none__' ? '' : value, area_vinculada_ids: value === '__none__' ? [] : [value] }))}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o pasto" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">Sem pasto</SelectItem>
+                    {areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </FL>
+            </div>
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">Ao salvar, este ponto será criado também no módulo de Gestão de Bebedouros.</div>
           </div>
             }
 

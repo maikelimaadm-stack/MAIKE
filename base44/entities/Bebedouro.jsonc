@@ -1,0 +1,133 @@
+{
+  "name": "Bebedouro",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa/fazenda"
+    },
+    "ponto_referencia_id": {
+      "type": "string",
+      "description": "ID do ponto de refer\u00eancia no mapa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do bebedouro"
+    },
+    "codigo_interno": {
+      "type": "string",
+      "description": "C\u00f3digo interno do bebedouro"
+    },
+    "pasto_id": {
+      "type": "string",
+      "description": "ID do pasto/\u00e1rea vinculada"
+    },
+    "pasto_nome": {
+      "type": "string",
+      "description": "Nome do pasto/\u00e1rea vinculada"
+    },
+    "setor_id": {
+      "type": "string",
+      "description": "ID do setor vinculado"
+    },
+    "setor_nome": {
+      "type": "string",
+      "description": "Nome do setor vinculado"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Caixa d\u2019\u00e1gua",
+        "Bebedouro australiano",
+        "Concreto",
+        "Tambor",
+        "Natural",
+        "Outro"
+      ],
+      "description": "Tipo do bebedouro"
+    },
+    "capacidade_litros": {
+      "type": "number",
+      "description": "Capacidade em litros"
+    },
+    "origem_agua": {
+      "type": "string",
+      "enum": [
+        "Po\u00e7o",
+        "Mina",
+        "Rio",
+        "Represa",
+        "Rede",
+        "Outro"
+      ],
+      "description": "Origem da \u00e1gua"
+    },
+    "coordenadas": {
+      "type": "object",
+      "description": "Coordenadas do ponto no mapa"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Ativo",
+        "Em manuten\u00e7\u00e3o",
+        "Inativo"
+      ],
+      "default": "Ativo",
+      "description": "Status operacional"
+    },
+    "periodicidade_limpeza": {
+      "type": "string",
+      "enum": [
+        "Semanal",
+        "Quinzenal",
+        "Mensal",
+        "Personalizado"
+      ],
+      "default": "Mensal",
+      "description": "Periodicidade de limpeza"
+    },
+    "periodicidade_inspecao": {
+      "type": "string",
+      "enum": [
+        "Semanal",
+        "Quinzenal",
+        "Mensal",
+        "Personalizado"
+      ],
+      "default": "Semanal",
+      "description": "Periodicidade de inspe\u00e7\u00e3o"
+    },
+    "dias_limpeza_personalizado": {
+      "type": "number",
+      "description": "Dias para limpeza quando periodicidade personalizada"
+    },
+    "dias_inspecao_personalizado": {
+      "type": "number",
+      "description": "Dias para inspe\u00e7\u00e3o quando periodicidade personalizada"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    },
+    "fotos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "URLs de fotos do bebedouro"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Registro ativo"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "tipo",
+    "status"
+  ]
+}
