@@ -9,7 +9,7 @@ import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunas
 import { useQuery } from "@tanstack/react-query";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
-import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Check } from "lucide-react";
+import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Check, Menu } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
 { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
@@ -592,7 +592,16 @@ export default function TabelaLotes({
       <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="h-full p-0 overflow-hidden rounded-none">
           <div className="relative h-full overflow-hidden flex flex-col">
-            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 z-[60] h-7 w-7 rounded-none border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100"
+              onClick={() => setShowConfigColunas(true)}
+              title="Configurar colunas">
+              <Menu className="w-4 h-4" />
+            </Button>
+            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white pr-7">
               <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
@@ -652,10 +661,10 @@ export default function TabelaLotes({
                       </TableCell>
                     </TableRow> :
 
-                  lotesOrdenados.map((lote) =>
+                  lotesOrdenados.map((lote, index) =>
                   <TableRow
                     key={lote.id}
-                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
+                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-white hover:bg-gray-100" : "bg-gray-100 hover:bg-gray-200"} transition-colors border-b cursor-pointer select-none`}
                     onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => selectedItems.length <= 1 && onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
