@@ -93,6 +93,7 @@ export default function TabelaLotes({
   const lastTapRef = useRef({ id: null, time: 0 });
   const lastSelectedIdRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const headerScrollRef = useRef(null);
   const tableRef = useRef(null);
   const [resizeColumnId, setResizeColumnId] = useState(null);
   const dragRef = useRef(null);
@@ -565,19 +566,22 @@ export default function TabelaLotes({
 
   };
 
+  const handleBodyScroll = (event) => {
+    if (headerScrollRef.current) headerScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-hidden bg-white">
       <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="h-full p-0 overflow-hidden rounded-none">
-          <div className="relative h-full overflow-hidden">
-            <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} className="relative h-full w-full overflow-auto outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed [thead]:sticky [thead]:top-0 [thead]:z-40 [thead]:bg-white`}>
-                <TableHeader className="sticky top-0 z-40 bg-white shadow-[0_1px_0_0_#d1d5db]">
+          <div className="relative h-full overflow-hidden flex flex-col">
+            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white">
+              <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+                <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
                     {colunasOrdenadas.map((coluna) => {
                       const width = Math.max(getColumnMinWidth(coluna), columnWidths[coluna.id] || coluna.width || 160);
                       const isResizing = resizeColumnId === coluna.id;
-
                       const filterControl = renderFilterControl(coluna.id);
 
                       return (
@@ -599,7 +603,6 @@ export default function TabelaLotes({
                               onClick={(e) => {e.stopPropagation();toggleResizeMode(coluna.id);}}
                               onTouchEnd={(e) => {e.stopPropagation();e.preventDefault();toggleResizeMode(coluna.id);}}
                               title="Redimensionar coluna">
-                              
                                 <GripVertical className="w-2.5 h-2.5" />
                               </button>
                             </div>
@@ -607,22 +610,23 @@ export default function TabelaLotes({
 
                           {isResizing &&
                           <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
-
                           onMouseDown={(e) => startDragResize(e, coluna)}
                           onTouchStart={(e) => startDragResize(e, coluna)}
                           onClick={(e) => {e.stopPropagation();setResizeColumnId(null);}}
                           onDoubleClick={(e) => e.stopPropagation()}
                           onTouchEnd={(e) => e.stopPropagation()}>
-                            
                               <GripVertical className="w-3.5 h-3.5 text-white" />
                             </div>
                           }
                         </TableHead>);
-
                     })}
                   </TableRow>
                 </TableHeader>
+              </Table>
+            </div>
 
+            <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} onScroll={handleBodyScroll} className="relative flex-1 min-h-0 w-full overflow-auto outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableBody>
                   {lotesOrdenados.length === 0 ?
                   <TableRow>
