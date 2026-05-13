@@ -113,13 +113,13 @@ export default function TabelaLotes({
   const [layoutAggregationConfig, setLayoutAggregationConfig] = useState(() => {
     const saved = localStorage.getItem("cadastro_lotes_table_aggregation_config");
     if (!saved) return {};
-    try { return JSON.parse(saved); } catch { return {}; }
+    try {return JSON.parse(saved);} catch {return {};}
   });
 
   useEffect(() => {
     const handleStorage = () => {
       const saved = localStorage.getItem("cadastro_lotes_table_aggregation_config");
-      try { setLayoutAggregationConfig(saved ? JSON.parse(saved) : {}); } catch { setLayoutAggregationConfig({}); }
+      try {setLayoutAggregationConfig(saved ? JSON.parse(saved) : {});} catch {setLayoutAggregationConfig({});}
     };
     window.addEventListener("storage", handleStorage);
     window.addEventListener("cadastro-lotes-layout-updated", handleStorage);
@@ -473,9 +473,9 @@ export default function TabelaLotes({
     onVisibleDataChange?.({
       columns: colunasExportaveis.map((coluna) => ({ id: coluna.id, label: coluna.label })),
       rows: lotesOrdenados.map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id))),
-      selectedRows: lotesOrdenados
-        .filter((lote) => selectedItems.includes(lote.id))
-        .map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id)))
+      selectedRows: lotesOrdenados.
+      filter((lote) => selectedItems.includes(lote.id)).
+      map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id)))
     });
   }, [colunasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange]);
 
@@ -594,7 +594,7 @@ export default function TabelaLotes({
           <div className="relative h-full overflow-hidden flex flex-col">
             <button
               type="button"
-              className="absolute right-0 top-0 z-[60] h-7 w-[17px] flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100"
+              className="absolute right-0 top-0 z-[60] h-7 flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-[16px]"
               onClick={() => setShowConfigColunas(true)}
               title="Configurar colunas">
               <Menu className="w-3.5 h-3.5" />
