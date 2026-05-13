@@ -444,9 +444,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
               className={`${selectedCampoIds.includes(campo.id || campo.field_id) ? "bg-green-500 hover:bg-green-600 text-white" : "hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
               onClick={(event) => handleRowSelect(campo, event)}
               onDoubleClick={() => selectedCampoIds.length <= 1 && handleEdit(campo)}>
-                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words font-medium ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{campo.label}</TableCell>
-                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
-                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-white" : "text-gray-700 border-gray-300"}`}>
+                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words font-medium ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>{campo.label}</TableCell>
+                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
+                      <TableCell className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-normal break-words ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>
                         <div className="flex flex-wrap gap-1">
                           {campo.visivel_form && <Badge variant="outline" className="text-[10px] bg-white/90 text-slate-700">Form</Badge>}
                           {campo.visivel_tabela && <Badge variant="outline" className="text-[10px] bg-white/90 text-slate-700">Tabela</Badge>}

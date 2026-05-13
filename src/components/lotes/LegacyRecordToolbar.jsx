@@ -10,7 +10,7 @@ import {
 
 const toolbarLineClass = "border-slate-300";
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
-const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
+const fileButtonClass = iconButtonClass;
 
 export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel = "LOTE", showSaveActions = false, showEditAction = false, showDeleteDuplicateActions = true, showUtilityActions = true, onCancel, onSave, onEditRecord, onSettingsClick, onLayoutConfigClick, onAttachClick, attachDisabled = false, onToggleView, onBack, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh }) {
   const canNavigate = total > 0;
@@ -69,7 +69,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
             </DropdownMenuContent>
           </DropdownMenu>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>}
-          <div className={`h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-slate-300 bg-white flex items-center justify-center text-xs text-slate-600 ${showUtilityActions ? '' : 'border-l-[0.5px]'}`}>
+          <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-l-0 border-slate-300 bg-white flex items-center justify-center text-xs text-slate-600">
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
         </div>
