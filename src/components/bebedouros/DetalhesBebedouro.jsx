@@ -91,7 +91,7 @@ export default function DetalhesBebedouro({ bebedouro }) {
         <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setShowHistorico(true)}>Histórico</Button>
       </div>
 
-      <CardSection title="Informações de Bebedouro">
+      <CardSection title="Resumo Operacional">
         <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
           <div className="flex items-center justify-center min-w-[120px] py-2">
             {subIconePonto ? (
@@ -129,7 +129,6 @@ export default function DetalhesBebedouro({ bebedouro }) {
           <InfoLine label="Origem da água" value={bebedouro.origem_agua || "-"} />
           <InfoLine label="Pastos atendidos" value={nomesPastos.join(", ") || "-"} />
           <InfoLine label="Status" value={bebedouro.status || "-"} />
-          <InfoLine label="Áreas vinculadas" value={nomesPastos.join(", ") || "-"} />
           <InfoLine label="Rotina limpeza" value={bebedouro.dias_limpeza_personalizado ? `${bebedouro.dias_limpeza_personalizado} dia(s)` : bebedouro.periodicidade_limpeza || "-"} />
           <InfoLine label="Rotina inspeção" value={bebedouro.dias_inspecao_personalizado ? `${bebedouro.dias_inspecao_personalizado} dia(s)` : bebedouro.periodicidade_inspecao || "-"} />
           <InfoLine label="Custo acumulado" value={`R$ ${formatDecimal(custoTotal)}`} />
