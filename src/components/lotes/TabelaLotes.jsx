@@ -44,7 +44,7 @@ const COLUNAS_DISPONIVEIS = [
 const DEFAULT_VISIBLE_COLUMNS = COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
 const COLUMN_WIDTHS_KEY = "colunas_largura_cadastro_lotes";
 const MIN_COLUMN_WIDTH = 80;
-const HEADER_ACTIONS_WIDTH = 42;
+const HEADER_ACTIONS_WIDTH = 0;
 const getColumnMinWidth = (coluna) => Math.max(MIN_COLUMN_WIDTH, String(coluna?.label || "").length * 7 + HEADER_ACTIONS_WIDTH + 18);
 
 const formatarData = (data) => {
@@ -284,8 +284,15 @@ export default function TabelaLotes({
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
   const getColumnFilterType = (coluna) => {
     if (coluna?.tipo === "date" || coluna?.id === "data") return "date";
-    if (["number", "calculado"].includes(coluna?.tipo) || ["codigo", "cabecas", "peso", "valor"].includes(coluna?.id)) return "number";
+    if (["number", "calculado"].includes(coluna?.tipo) || ["codigo", "cabecas", "peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna?.id)) return "number";
     return "list";
+  };
+
+  const getColumnAlignClass = (coluna) => {
+    const type = getColumnFilterType(coluna);
+    if (type === "date") return "text-center";
+    if (type === "number") return "text-right";
+    return "text-left";
   };
   const getComparableValue = (lote, coluna) => {
     if (coluna.id === "codigo") return Number(lote.numero_lote || 0);
@@ -612,14 +619,14 @@ export default function TabelaLotes({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className="relative align-middle text-gray-900 px-2 pr-10 text-xs font-medium text-center border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0">
+                          className={`group relative align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 ${getColumnAlignClass(coluna)}`}>
 
-                          <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis text-center">
+                          <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis">
                            {coluna.label}
                           </div>
 
                           {filterControl &&
-                          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div className={`absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 transition-opacity ${hasActiveFilter(coluna.id) || isResizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} onClick={(e) => e.stopPropagation()}>
                               {filterControl}
                               <button
                               type="button"
@@ -674,7 +681,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis ${selectedItems.includes(lote.id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}
+                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}
                           title={String(renderCell(lote, coluna.id) ?? "")}>
                           
                               {renderCell(lote, coluna.id)}

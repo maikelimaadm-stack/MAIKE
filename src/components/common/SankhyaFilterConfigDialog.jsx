@@ -344,10 +344,10 @@ export default function SankhyaFilterConfigDialog({
               </div>
               <div className="border border-slate-300 bg-slate-50 p-1 space-y-1 overflow-x-auto">
                 <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(170px,1fr)_minmax(320px,2fr)_96px] bg-white border-b border-gray-300 text-xs font-medium text-gray-900">
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Campo</div>
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Pasta</div>
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Operador</div>
-                  <div className="h-7 px-2 leading-7 text-center border-r border-gray-300">Valor padrão</div>
+                  <div className="h-7 px-2 leading-7 text-left border-r border-gray-300">Campo</div>
+                  <div className="h-7 px-2 leading-7 text-left border-r border-gray-300">Pasta</div>
+                  <div className="h-7 px-2 leading-7 text-left border-r border-gray-300">Operador</div>
+                  <div className="h-7 px-2 leading-7 text-left border-r border-gray-300">Valor padrão</div>
                   <div className="h-7 px-2 leading-7 text-center">Ações</div>
                 </div>
                 {selectedFields.length === 0 && <div className="border-b border-slate-200 bg-white p-3 text-xs text-slate-500">Nenhum campo adicionado. Crie ou escolha uma pasta, selecione um campo e clique em Adic.</div>}
@@ -427,16 +427,16 @@ export default function SankhyaFilterConfigDialog({
               <Table className="w-full min-w-[640px] border-separate border-spacing-0 table-fixed">
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
-                    <TableHead className="h-7 w-[260px] text-xs font-medium text-gray-900 text-center border-r border-b border-gray-300 bg-white">Filtro</TableHead>
-                    <TableHead className="h-7 text-xs font-medium text-gray-900 text-center border-r border-b border-gray-300 bg-white">Campos</TableHead>
-                    <TableHead className="h-7 w-[120px] text-xs font-medium text-gray-900 text-center border-r border-b border-gray-300 bg-white">Status</TableHead>
+                    <TableHead className="h-7 w-[260px] text-xs font-medium text-gray-900 text-left border-r border-b border-gray-300 bg-white">Filtro</TableHead>
+                    <TableHead className="h-7 text-xs font-medium text-gray-900 text-right border-r border-b border-gray-300 bg-white">Campos</TableHead>
+                    <TableHead className="h-7 w-[120px] text-xs font-medium text-gray-900 text-left border-r border-b border-gray-300 bg-white">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filterConfigs.map((config, index) =>
             <TableRow key={config.id} onClick={() => onSelectConfig(config.id)} onDoubleClick={() => openConfig(config)} className={`${config.id === activeConfigId ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-gray-100 hover:bg-gray-200" : "bg-white hover:bg-gray-100"} transition-colors cursor-pointer select-none`}>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b font-medium ${config.id === activeConfigId ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>{config.name}</TableCell>
-                      <TableCell className={`px-2 py-1 text-xs border-r border-b ${config.id === activeConfigId ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>
+                      <TableCell className={`px-2 py-1 text-xs border-r border-b text-right ${config.id === activeConfigId ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>
                         {config.visibleFields?.length || 0} campos · {Object.keys(config.fieldValues || {}).filter((key) => Object.values(config.fieldValues?.[key] || {}).some(Boolean)).length} pré-configurados
                       </TableCell>
                       <TableCell className={`px-2 py-1 text-xs border-r border-b text-center ${config.id === activeConfigId ? "border-green-600" : "border-gray-300"}`}><Badge variant="outline" className="bg-white/90 text-slate-700 text-[10px]">{config.id === activeConfigId ? "Ativo" : "Salvo"}</Badge></TableCell>
