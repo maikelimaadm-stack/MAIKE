@@ -626,21 +626,20 @@ export default function MapaGeral() {
   const handleClickPontoReferencia = useCallback((ponto) => {
     if (!normalizeText(ponto?.tipo).includes("BEBEDOURO")) return;
 
-    const numeroPonto = String(ponto.numero_ponto || "").trim();
-    const siglaPonto = String(ponto.sigla || "").trim();
-    const nomePonto = normalizeText(ponto.nome);
-
+    const pontoNumero = normalizeText(ponto.numero_ponto);
+    const pontoNome = normalizeText(ponto.nome);
+    const pontoSigla = normalizeText(ponto.sigla);
     const bebedouro = bebedouros.find((item) => {
-      const codigo = String(item.codigo_interno || item.numero_ponto || "").trim();
+      const itemNome = normalizeText(item.nome);
+      const itemCodigo = normalizeText(item.codigo_interno);
       return item.ponto_referencia_id === ponto.id ||
-        normalizeText(item.nome) === nomePonto ||
-        normalizeText(item.codigo_interno) === normalizeText(siglaPonto) ||
-        (numeroPonto && codigo === numeroPonto) ||
-        (numeroPonto && normalizeText(item.nome).includes(normalizeText(numeroPonto)));
+        itemNome === pontoNome ||
+        itemCodigo === pontoSigla ||
+        itemCodigo === pontoNumero ||
+        (pontoNumero && itemNome.includes(pontoNumero));
     });
 
-    setSelectedBebedouro(bebedouro ? { ...bebedouro, numero_ponto: ponto.numero_ponto, icone_url: ponto.icone_url, sub_icone_url: ponto.sub_icone_url } : {
-      id: `ponto-${ponto.id}`,
+    setSelectedBebedouro(bebedouro || {
       empresa_id: ponto.empresa_id,
       ponto_referencia_id: ponto.id,
       numero_ponto: ponto.numero_ponto,
@@ -652,9 +651,7 @@ export default function MapaGeral() {
       status: ponto.status || "Ativo",
       observacoes: ponto.observacoes || "",
       pasto_nome: ponto.area_vinculada_nome || "",
-      area_vinculada_nomes: ponto.area_vinculada_nomes || [],
-      icone_url: ponto.icone_url,
-      sub_icone_url: ponto.sub_icone_url
+      area_vinculada_nomes: ponto.area_vinculada_nomes || []
     });
     setShowDetalhesBebedouro(true);
   }, [bebedouros]);
