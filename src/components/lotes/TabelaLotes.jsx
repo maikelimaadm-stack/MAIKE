@@ -592,16 +592,14 @@ export default function TabelaLotes({
       <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="h-full p-0 overflow-hidden rounded-none">
           <div className="relative h-full overflow-hidden flex flex-col">
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-0 z-[60] h-7 w-7 rounded-none border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100"
+              className="absolute right-0 top-0 z-[60] h-7 w-[17px] flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100"
               onClick={() => setShowConfigColunas(true)}
               title="Configurar colunas">
-              <Menu className="w-4 h-4" />
-            </Button>
-            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white pr-7">
+              <Menu className="w-3.5 h-3.5" />
+            </button>
+            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white pr-[17px]">
               <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
