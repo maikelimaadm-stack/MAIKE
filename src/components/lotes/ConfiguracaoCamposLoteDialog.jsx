@@ -341,7 +341,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     }
 
         {showForm ?
-    <form onSubmit={handleSubmit} className="border border-slate-300 bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
+    <form onSubmit={handleSubmit} className="bg-white flex-1 min-h-0 flex flex-col overflow-hidden">
             <LegacyRecordToolbar
         title={form.label || (editingId ? "EDITAR CAMPO" : "NOVO CAMPO")}
         badgeLabel="CAMPO PERSONALIZADO"
@@ -406,7 +406,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       }
           </form> :
 
-    <div className="flex-1 min-h-0 overflow-hidden border bg-white flex flex-col">
+    <div className="flex-1 min-h-0 overflow-hidden bg-white flex flex-col">
             <SankhyaListToolbar
         viewMode="table"
         total={campos.length}

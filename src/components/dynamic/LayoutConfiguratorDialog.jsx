@@ -13,7 +13,7 @@ const AGGREGATION_OPTIONS = [
 { value: "min", label: "Menor" }];
 
 
-const iconButtonClass = "h-7 w-8 rounded-none border border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-40 disabled:bg-white";
+const iconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-40 disabled:bg-white";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
 const isCustomPanel = (panel) => panel && !SYSTEM_PANEL_IDS.includes(panel.id);
@@ -370,7 +370,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
 
       <div className="border-slate-300 bg-white min-h-0 flex flex-col overflow-hidden flex-1 border-b">
-        <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-y border-slate-200/60 overflow-hidden">
+        <div className="h-7 flex items-center gap-0 whitespace-nowrap bg-white border-y border-slate-300 overflow-hidden">
           <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Voltar"><ChevronLeft className="w-3.5 h-3.5" /></Button>
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className={iconButtonClass} title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className={greenButtonClass} title="Novo painel"><Plus className="w-4 h-4" /></Button>}

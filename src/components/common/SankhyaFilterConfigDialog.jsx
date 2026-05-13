@@ -253,7 +253,7 @@ export default function SankhyaFilterConfigDialog({
     }
 
       {showForm ?
-    <div className={`border border-slate-300 bg-white min-h-[420px] flex flex-col overflow-hidden ${inline ? "h-full border-0" : "h-[calc(90vh-90px)]"}`}>
+    <div className={`bg-white min-h-[420px] flex flex-col overflow-hidden ${inline ? "h-full" : "h-[calc(90vh-90px)]"}`}>
             <LegacyRecordToolbar
         title={configName || selectedConfig?.name || "FILTRO PERSONALIZADO"}
         badgeLabel="FILTRO"
@@ -405,7 +405,7 @@ export default function SankhyaFilterConfigDialog({
             </div>
           </div> :
 
-    <div className="flex-1 overflow-hidden border border-slate-300 bg-white flex flex-col">
+    <div className="flex-1 overflow-hidden bg-white flex flex-col">
             <SankhyaListToolbar
         viewMode="table"
         total={filterConfigs.length}

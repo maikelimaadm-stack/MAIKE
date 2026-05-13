@@ -296,8 +296,8 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   }
 
   return (
-    <aside className="w-[310px] shrink-0 border-r border-slate-200/60 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
-      <div className="border-slate-200/60 p-1 space-y-1 bg-white shrink-0 border">
+    <aside className="w-[310px] shrink-0 border-r border-slate-300 bg-white text-xs h-[calc(100dvh-150px)] max-h-[calc(100dvh-150px)] overflow-hidden flex flex-col">
+      <div className="border-slate-300 p-1 space-y-1 bg-white shrink-0 border">
         <div className="flex items-center gap-2 h-6">
           <Checkbox checked={!!filters.esconderAoAtualizar} onCheckedChange={(checked) => update("esconderAoAtualizar", !!checked)} className="h-3.5 w-3.5 rounded-none" />
           <span className="font-semibold text-slate-700">Esconder ao atualizar</span>
@@ -322,7 +322,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
         </div>
       </div>
 
-      <div className="h-8 px-1.5 flex items-center justify-between border-b border-slate-200/60 bg-slate-50 font-semibold text-slate-700 shrink-0">
+      <div className="h-8 px-1.5 flex items-center justify-between border-b border-slate-300 bg-slate-50 font-semibold text-slate-700 shrink-0">
         <span>Filtros rápidos</span>
         <button type="button" onClick={clearAll} className="relative"><Filter className="w-4 h-4" /><span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-slate-700 text-white text-[9px] leading-3">×</span></button>
       </div>
