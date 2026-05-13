@@ -533,7 +533,7 @@ export default function Layout({ children, currentPageName }) {
   const appContentOffset = isFolha ? "0px" : menuOculto ? "51px" : "91px";
 
   return (
-    <div className="min-h-screen bg-slate-50 safe-area-top" translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className="h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col" translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -542,7 +542,7 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
       <SplashScreen visible={showSplash} logoUrl="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/9d03282ce_IMG_8919.png" />
       {!isFolha &&
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-white border-b border-slate-200 flex-none">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -799,7 +799,7 @@ export default function Layout({ children, currentPageName }) {
       }
 
       {!isFolha &&
-      <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
+      <nav className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
@@ -985,14 +985,15 @@ export default function Layout({ children, currentPageName }) {
       </Dialog>
 
 
-      <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " pb-16 md:pb-0"}>
+      <main className={(isFolha ? "max-w-none" : "max-w-[1600px] mx-auto") + " flex-1 min-h-0 w-full overflow-hidden pb-16 md:pb-0"}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
             initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -20, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}>
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="h-full min-h-0 overflow-hidden">
             
             {children}
           </motion.div>
