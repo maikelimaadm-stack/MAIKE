@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
 
+const toolbarLineClass = "border-slate-200/60";
 const iconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-200/60 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const fileButtonClass = `${iconButtonClass} border-l-[0.5px]`;
 
@@ -69,8 +70,8 @@ export default function SankhyaListToolbar({
   const showDuplicateSelectionAction = viewMode === "table" && selectedCount === 1 && !!onDuplicate;
 
   return (
-    <div className="border-t">
-      <div className="flex items-center gap-0 overflow-x-auto whitespace-nowrap border-">
+    <div className="bg-white">
+      <div className={`flex items-center gap-0 overflow-x-auto whitespace-nowrap border-y ${toolbarLineClass}`}>
 
         
         {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
@@ -142,7 +143,7 @@ export default function SankhyaListToolbar({
         </div>
       </div>
       {viewMode === "record" &&
-      <div className="mt-1 h-8 flex items-center gap-2 bg-white border-t border-b-[0.5px] border-slate-200/60 px-2">
+      <div className={`h-8 flex items-center gap-2 bg-white border-b-[0.5px] ${toolbarLineClass} px-2`}>
           {recordLabel && <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">{recordLabel}</span>}
           <span className="text-xs font-semibold text-slate-700 truncate min-w-0 flex-1">{title}</span>
           <span className="ml-auto text-[11px] font-bold text-emerald-700 uppercase whitespace-nowrap">
