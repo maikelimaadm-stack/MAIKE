@@ -571,7 +571,6 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           attachDisabled={attachDisabled} />
         
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
             <FL label="Descrição" required error={errors.nome} dataField="nome">
@@ -589,6 +588,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         </fieldset>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="min-h-[360px] px-4 md:px-8 py-1">
             <div className="max-w-[780px] space-y-1">
