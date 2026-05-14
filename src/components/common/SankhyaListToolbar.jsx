@@ -17,8 +17,7 @@ import {
   FileSpreadsheet,
   Paperclip,
   MoreHorizontal,
-  Settings,
-  ArrowLeft } from
+  Settings } from
 "lucide-react";
 import {
   DropdownMenu,
@@ -74,7 +73,7 @@ export default function SankhyaListToolbar({
       <div className={`flex items-center gap-0 overflow-x-auto whitespace-nowrap border-y ${toolbarLineClass} [&>*:first-child]:border-l-[0.5px]`}>
 
         
-        {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ArrowLeft className="w-3.5 h-3.5" /></Button>}
+        {onBack && <Button type="button" variant="outline" size="icon" onClick={onBack} className={iconButtonClass} title="Voltar"><ChevronLeft className="w-3.5 h-3.5" /></Button>}
         <Button type="button" variant="outline" size="icon" onClick={onToggleView} disabled={toggleViewDisabled} className={iconButtonClass} title={toggleViewDisabled ? "Selecione apenas um registro" : viewMode === "table" ? "Visualizar registro" : "Visualizar tabela"}>
           {viewMode === "table" ? <List className="w-3.5 h-3.5" /> : <Table className="w-3.5 h-3.5" />}
         </Button>
