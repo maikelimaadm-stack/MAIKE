@@ -364,52 +364,72 @@ export default function CadastroLotes() {
       )}
 
       {!showConfigCampos && showForm &&
-      <FormularioLote
-        key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
-        initialData={editingLote}
-        isEditing={!!editingLote}
-        onSubmit={handleSubmit}
-        onCancel={() => {
-          if (editingLote && !editingLote._isDuplicate) {
-            setFormVersion((prev) => prev + 1);
-            setViewMode("record");
-            return;
-          }
-          if (editingLote?._isDuplicate && returnRecordAfterNew) {
-            setEditingLote(returnRecordAfterNew);
-            setShowForm(true);
-            setViewMode("record");
-            setReturnRecordAfterNew(null);
-            return;
-          }
-          if (!editingLote && returnRecordAfterNew) {
-            setEditingLote(returnRecordAfterNew);
-            setShowForm(true);
-            setViewMode("record");
-            setReturnRecordAfterNew(null);
-            return;
-          }
-          setShowForm(false);
-          setEditingLote(null);
-          setViewMode("table");
-          setReturnRecordAfterNew(null);
-          setPendingAttachments([]);
-          setNewRecordAttachmentsOpen(false);
-        }}
-        onSettingsClick={handleOpenConfigCampos}
-        onToggleView={handleToggleView}
-        total={lotesFiltradosPainel.length}
-        currentIndex={selectedIndex}
-        onNew={handleNew}
-        onFirst={() => navigateRecord(0)}
-        onPrevious={() => navigateRecord(selectedIndex - 1)}
-        onNext={() => navigateRecord(selectedIndex + 1)}
-        onLast={() => navigateRecord(lotesFiltradosPainel.length - 1)}
-        onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
-        onDuplicate={() => editingLote && handleDuplicate(editingLote)}
-        onAttachClick={() => editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)}
-        attachDisabled={false}
-        onRefresh={handleRefresh} />
+      <div className="flex min-h-0 h-full w-full overflow-hidden">
+        <SankhyaFilterPanel
+          open={filterPanelOpen}
+          filters={filters}
+          onChange={setFilters}
+          onApply={(nextFilters) => {
+            const applied = nextFilters || filters;
+            setAppliedFilters(applied);
+            if (applied.esconderAoAtualizar) setFilterPanelOpen(false);
+          }}
+          onClear={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
+          lotes={lotes}
+          areas={areas} />
+        <div className="min-w-0 flex-1 h-full overflow-hidden">
+          <FormularioLote
+            key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
+            initialData={editingLote}
+            isEditing={!!editingLote}
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              if (editingLote && !editingLote._isDuplicate) {
+                setFormVersion((prev) => prev + 1);
+                setViewMode("record");
+                return;
+              }
+              if (editingLote?._isDuplicate && returnRecordAfterNew) {
+                setEditingLote(returnRecordAfterNew);
+                setShowForm(true);
+                setViewMode("record");
+                setReturnRecordAfterNew(null);
+                return;
+              }
+              if (!editingLote && returnRecordAfterNew) {
+                setEditingLote(returnRecordAfterNew);
+                setShowForm(true);
+                setViewMode("record");
+                setReturnRecordAfterNew(null);
+                return;
+              }
+              setShowForm(false);
+              setEditingLote(null);
+              setViewMode("table");
+              setReturnRecordAfterNew(null);
+              setPendingAttachments([]);
+              setNewRecordAttachmentsOpen(false);
+            }}
+            onSettingsClick={handleOpenConfigCampos}
+            onToggleView={handleToggleView}
+            total={lotesFiltradosPainel.length}
+            currentIndex={selectedIndex}
+            onNew={handleNew}
+            onFirst={() => navigateRecord(0)}
+            onPrevious={() => navigateRecord(selectedIndex - 1)}
+            onNext={() => navigateRecord(selectedIndex + 1)}
+            onLast={() => navigateRecord(lotesFiltradosPainel.length - 1)}
+            onDelete={() => editingLote?.id && handleRequestDelete(editingLote.id)}
+            onDuplicate={() => editingLote && handleDuplicate(editingLote)}
+            filterOpen={filterPanelOpen}
+            filterActive={hasActiveFilters}
+            onToggleFilter={() => setFilterPanelOpen((open) => !open)}
+            onClearFilter={() => { setFilters({ status: "todos" }); setAppliedFilters({ status: "todos" }); }}
+            onAttachClick={() => editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)}
+            attachDisabled={false}
+            onRefresh={handleRefresh} />
+        </div>
+      </div>
       }
 
       <div className={showForm || showConfigCampos ? "hidden" : "flex min-h-0 h-full w-full overflow-hidden"}>

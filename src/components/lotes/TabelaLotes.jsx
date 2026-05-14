@@ -693,12 +693,18 @@ export default function TabelaLotes({
                   )
                   }
                   {Object.keys(agregacoes).length > 0 &&
-                  <TableRow className="sticky bottom-0 z-30 bg-slate-100 font-semibold shadow-[0_-1px_0_0_#d1d5db]">
-                      {colunasOrdenadas.map((coluna) =>
-                    <TableCell key={`total-${coluna.id}`} className="h-5 px-2 py-0 text-[11px] leading-5 border-r border-t border-gray-300 text-right whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-900">
-                          {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
-                        </TableCell>
-                    )}
+                  <TableRow className="sticky bottom-0 z-30 bg-slate-200 font-medium shadow-[0_-1px_0_0_#d1d5db]">
+                      {colunasOrdenadas.map((coluna) => {
+                        const width = Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna));
+
+                        return (
+                          <TableCell
+                            key={`total-${coluna.id}`}
+                            style={{ width, minWidth: width, maxWidth: width }}
+                            className={`h-7 px-2 py-0 text-xs leading-7 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis bg-slate-200 text-slate-900 ${getColumnAlignClass(coluna)}`}>
+                            {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
+                          </TableCell>);
+                      })}
                     </TableRow>
                   }
                 </TableBody>

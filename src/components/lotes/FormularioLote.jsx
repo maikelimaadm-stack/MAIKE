@@ -78,7 +78,7 @@ const parseSistemasProdutivos = (valor) => {
 };
 
 
-export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh, initialData, isEditing }) {
+export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh, filterOpen = false, filterActive = false, onToggleFilter, onClearFilter, initialData, isEditing }) {
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -567,6 +567,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onDelete={onDelete}
           onDuplicate={onDuplicate}
           onRefresh={onRefresh}
+          filterOpen={filterOpen}
+          filterActive={filterActive}
+          onToggleFilter={onToggleFilter}
+          onClearFilter={onClearFilter}
           onAttachClick={onAttachClick}
           attachDisabled={attachDisabled} />
         
