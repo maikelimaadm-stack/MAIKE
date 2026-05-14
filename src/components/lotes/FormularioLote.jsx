@@ -229,6 +229,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return value === undefined || value === null || value === "";
   };
 
+  const isMotivoEntrada = (motivo) => String(formData.motivo_entrada || "").trim().toUpperCase() === motivo;
+
   const handleChange = (field, value) => {
     if (isReadOnly) return;
     setIsDirty(true);
@@ -282,7 +284,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
       });
     }
 
-    if (formData.motivo_entrada === "Compra") {
+    if (isMotivoEntrada("COMPRA")) {
       [
       "fornecedor_id",
       "cidade_origem",
@@ -300,11 +302,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
       });
     }
 
-    if (formData.motivo_entrada === "Ajuste" && isEmptyValue(formData?.motivo_ajuste)) {
+    if (isMotivoEntrada("AJUSTE") && isEmptyValue(formData?.motivo_ajuste)) {
       nextErrors.motivo_ajuste = true;
     }
 
-    if (formData.motivo_entrada === "Outros" && isEmptyValue(formData?.motivo_outros)) {
+    if (isMotivoEntrada("OUTROS") && isEmptyValue(formData?.motivo_outros)) {
       nextErrors.motivo_outros = true;
     }
 
@@ -489,17 +491,17 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
   { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="px-1 py-1 space-y-1 bg-transparent"><div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div><div className="border border-slate-300 bg-white rounded-[1.5px] p-1 space-y-1">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer"><input type="checkbox" checked={checked} onChange={() => toggleSistemaProdutivo(item)} disabled={isReadOnly} className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0" /><span>{item}</span></label>;})}</div></div> },
   { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
-  { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: formData.motivo_entrada === "Compra", errorKey: "fornecedor_id", options: fornecedores, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "cidade_origem", name: "cidade_origem", label: "Cidade Origem", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "cidade_origem", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "estado_origem", name: "estado_origem", label: "Estado Origem", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "estado_origem", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "nota_fiscal", name: "nota_fiscal", label: "Nota Fiscal", type: "text", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "nota_fiscal", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "chave_nfe", name: "chave_nfe", label: "Chave NF-e", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "chave_nfe", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "numero_gta", name: "numero_gta", label: "Nº GTA", type: "text", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "numero_gta", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "valor_total_compra", name: "valor_total_compra", label: "Valor Total (R$)", type: "number", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "valor_total_compra", totalizable: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "valor_por_cabeca", name: "valor_por_cabeca", label: "Valor p/ Cabeça (R$)", type: "number", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "valor_por_cabeca", readOnly: true, totalizable: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "valor_frete", name: "valor_frete", label: "Valor Frete", type: "number", required: formData.motivo_entrada === "Compra", compact: true, errorKey: "valor_frete", totalizable: true, showWhen: (values) => values.motivo_entrada === "Compra" },
-  { id: "motivo_ajuste", name: "motivo_ajuste", label: "Motivo do Ajuste", type: "textarea", required: formData.motivo_entrada === "Ajuste", wide: true, errorKey: "motivo_ajuste", showWhen: (values) => values.motivo_entrada === "Ajuste" },
-  { id: "motivo_outros", name: "motivo_outros", label: "Motivo", type: "textarea", required: formData.motivo_entrada === "Outros", wide: true, errorKey: "motivo_outros", showWhen: (values) => values.motivo_entrada === "Outros" },
+  { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedores, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "cidade_origem", name: "cidade_origem", label: "Cidade Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "cidade_origem", uppercase: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "estado_origem", name: "estado_origem", label: "Estado Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "estado_origem", uppercase: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "nota_fiscal", name: "nota_fiscal", label: "Nota Fiscal", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "nota_fiscal", uppercase: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "chave_nfe", name: "chave_nfe", label: "Chave NF-e", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "chave_nfe", uppercase: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "numero_gta", name: "numero_gta", label: "Nº GTA", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "numero_gta", uppercase: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "valor_total_compra", name: "valor_total_compra", label: "Valor Total (R$)", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_total_compra", totalizable: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "valor_por_cabeca", name: "valor_por_cabeca", label: "Valor p/ Cabeça (R$)", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_por_cabeca", readOnly: true, totalizable: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "valor_frete", name: "valor_frete", label: "Valor Frete", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_frete", totalizable: true, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "motivo_ajuste", name: "motivo_ajuste", label: "Motivo do Ajuste", type: "textarea", required: isMotivoEntrada("AJUSTE"), wide: true, errorKey: "motivo_ajuste", showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "AJUSTE" },
+  { id: "motivo_outros", name: "motivo_outros", label: "Motivo", type: "textarea", required: isMotivoEntrada("OUTROS"), wide: true, errorKey: "motivo_outros", showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "OUTROS" },
   { id: "identificador_nome", name: "identificador_nome", label: "Identificador (Nome)", type: "text", uppercase: true, placeholder: "EX: CONFINAMENTO" },
   { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },

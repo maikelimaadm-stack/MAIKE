@@ -71,7 +71,7 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
       const sourceField = fields.find((item) => item.id === rule.sourceFieldId);
       if (sourceField?.type !== "select" || !["manual", "native"].includes(sourceField?.optionsMode)) return true;
       const current = values[rule.sourceFieldName] ?? values.campos_personalizados?.[rule.sourceFieldName];
-      return String(current || "") === String(rule.value || "");
+      return String(current || "").trim().toUpperCase() === String(rule.value || "").trim().toUpperCase();
     });
 
   if (!activePanel) return null;
