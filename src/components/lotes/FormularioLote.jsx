@@ -14,6 +14,7 @@ import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
+import ToggleSwitch from "@/components/common/ToggleSwitch";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
@@ -76,6 +77,8 @@ const parseSistemasProdutivos = (valor) => {
   map((item) => item.trim()).
   filter(Boolean);
 };
+
+const isToggleChecked = (value) => value === true || value === "true" || value === "Sim" || value === "SIM" || value === "1" || value === 1;
 
 
 export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh, filterOpen = false, filterActive = false, onToggleFilter, onClearFilter, initialData, isEditing }) {
@@ -393,6 +396,14 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
     }
 
+    if (["checkbox", "boolean", "bool"].includes(campo.tipo)) {
+      return (
+        <div className="h-[22px] flex items-center px-1">
+          <ToggleSwitch checked={isToggleChecked(value)} onChange={(checked) => handleCustomChange(campo.field_name, checked)} disabled={campo.read_only || isReadOnly} />
+        </div>
+      );
+    }
+
     if (campo.tipo === "time") {
       return <Input type="time" value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />;
     }
@@ -478,7 +489,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
   { id: "peso_medio_kg", name: "peso_medio_kg", label: "Peso Médio (kg)", type: "number", required: true, compact: true, errorKey: "peso_medio_kg", totalizable: true },
   { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
-  { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="px-1 py-1 space-y-1 bg-transparent"><div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div><div className="border border-slate-300 bg-white rounded-[1.5px] p-1 space-y-1">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer"><input type="checkbox" checked={checked} onChange={() => toggleSistemaProdutivo(item)} disabled={isReadOnly} className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0" /><span>{item}</span></label>;})}</div></div> },
+  { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="px-1 py-1 space-y-1 bg-transparent"><div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div><div className="border border-slate-300 bg-white rounded-[1.5px] p-1 space-y-1">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <div key={item} className="flex h-[22px] w-full items-center gap-2 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1"><ToggleSwitch checked={checked} onChange={() => toggleSistemaProdutivo(item)} disabled={isReadOnly} /><span>{item}</span></div>;})}</div></div> },
   { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "autocomplete", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
   { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: formData.motivo_entrada === "Compra", errorKey: "fornecedor_id", options: fornecedores, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], showWhen: (values) => values.motivo_entrada === "Compra" },
   { id: "cidade_origem", name: "cidade_origem", label: "Cidade Origem", type: "text", required: formData.motivo_entrada === "Compra", errorKey: "cidade_origem", uppercase: true, showWhen: (values) => values.motivo_entrada === "Compra" },
@@ -582,7 +593,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             </FL>
             <FL label="Ativo" compact>
               <div className="h-[22px] flex items-center px-1">
-                <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
+                <ToggleSwitch checked disabled />
               </div>
             </FL>
             <FL label="Código" compact>
