@@ -595,7 +595,7 @@ export default function TabelaLotes({
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-hidden bg-white">
+    <div className="flex-1 min-h-0 overflow-hidden bg-white select-none">
       <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="h-full p-0 overflow-hidden rounded-none">
           <div className="relative h-full overflow-hidden flex flex-col">
@@ -607,7 +607,7 @@ export default function TabelaLotes({
               <Menu className="w-3.5 h-3.5" />
             </button>
             <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white pr-[17px]">
-              <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+              <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed select-none`}>
                 <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
                     {colunasOrdenadas.map((coluna) => {
@@ -619,7 +619,7 @@ export default function TabelaLotes({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`group relative align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 ${getColumnAlignClass(coluna)}`}>
+                          className={`group relative align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 select-none ${getColumnAlignClass(coluna)}`}>
 
                           <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis">
                            {coluna.label}
@@ -633,7 +633,7 @@ export default function TabelaLotes({
                               className={`h-5 w-4 flex items-center justify-center rounded cursor-col-resize ${isResizing ? 'text-emerald-700 bg-emerald-100' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'}`}
                               onMouseDown={(e) => startDragResize(e, coluna)}
                               onTouchStart={(e) => startDragResize(e, coluna)}
-                              onClick={(e) => {e.stopPropagation();toggleResizeMode(coluna.id);}}
+                              onClick={(e) => e.stopPropagation()}
                               title="Arrastar para redimensionar coluna">
                                 <GripVertical className="w-3.5 h-3.5" />
                               </button>
@@ -682,7 +682,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width }}
-                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}
+                          className={`px-2 py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis select-none ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}
                           title={String(renderCell(lote, coluna.id) ?? "")}>
                           
                               {renderCell(lote, coluna.id)}
@@ -701,7 +701,7 @@ export default function TabelaLotes({
                           <TableCell
                             key={`total-${coluna.id}`}
                             style={{ width, minWidth: width, maxWidth: width }}
-                            className={`h-5 px-2 py-0 text-[11px] leading-5 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis bg-slate-200 text-slate-900 ${getColumnAlignClass(coluna)}`}>
+                            className={`h-5 px-2 py-0 text-[11px] leading-5 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis select-none bg-slate-200 text-slate-900 ${getColumnAlignClass(coluna)}`}>
                             {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
                           </TableCell>);
                       })}
