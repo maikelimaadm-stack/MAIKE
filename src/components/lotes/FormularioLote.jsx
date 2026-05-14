@@ -557,7 +557,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           onCancel={onCancel}
           onEditRecord={() => setEditMode(true)}
           onSettingsClick={onSettingsClick}
-          onLayoutConfigClick={() => setLayoutConfigOpen(true)}
+          onLayoutConfigClick={() => { if (filterOpen) onToggleFilter?.(); setLayoutConfigOpen(true); }}
           onToggleView={onToggleView}
           total={total}
           currentIndex={currentIndex}

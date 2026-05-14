@@ -274,6 +274,7 @@ export default function CadastroLotes() {
   };
 
   const handleOpenConfigCampos = () => {
+    setFilterPanelOpen(false);
     setShowConfigCampos(true);
   };
 

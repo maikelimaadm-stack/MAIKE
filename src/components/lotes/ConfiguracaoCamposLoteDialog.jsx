@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import ToggleSwitch from "@/components/common/ToggleSwitch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -388,11 +388,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
                 <span className="text-[12px] text-slate-600 text-right leading-none">Exibir em:</span>
                 <div className="flex items-center gap-4">
                   {[["obrigatorio", "Obrigatório"], ["visivel_tabela", "Tabela"], ["visivel_relatorio", "Relatório"]].map(([field, label]) =>
-              <button key={field} type="button" onClick={() => updateForm(field, !form[field])} className="flex items-center gap-1.5 bg-transparent">
-                      <span className="text-[12px] text-slate-600">{label}</span>
-                      <span className={`w-8 h-4 rounded-full relative inline-block transition-colors ${form[field] ? 'bg-green-500' : 'bg-slate-300'}`}>
-                        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form[field] ? 'right-0.5' : 'left-0.5'}`} />
-                      </span>
+              <button key={field} type="button" onClick={() => updateForm(field, !form[field])} className="h-[22px] flex items-center gap-1.5 bg-transparent">
+                      <span className="text-[12px] text-slate-600">{label}:</span>
+                      <ToggleSwitch checked={!!form[field]} onChange={(checked) => updateForm(field, checked)} disabled={isReadOnly} />
                     </button>
               )}
                 </div>
