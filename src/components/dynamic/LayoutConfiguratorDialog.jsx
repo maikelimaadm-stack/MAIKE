@@ -488,12 +488,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               </div>
             </div>
 
-            <div className="border-t flex items-center h-10 border-slate-300 bg-slate-50 gap-3 py-2">
-              <div className="w-64">
-                
-                
-              </div>
-
+            <div className="border-t flex items-center h-10 border-slate-300 bg-slate-50 gap-3 py-2 px-2">
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Oculto:</span>
                 <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing || selectedField.required || draftRequiredFieldIds.includes(selectedField.id)} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />
