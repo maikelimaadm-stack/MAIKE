@@ -268,8 +268,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     if (!fieldId) return;
     setDraftVisibilityRules((prev) => {
       const next = { ...prev };
-      if (!rule) delete next[fieldId];
-      else next[fieldId] = rule;
+      if (!rule) delete next[fieldId];else
+      next[fieldId] = rule;
       return next;
     });
   };
@@ -488,10 +488,10 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               </div>
             </div>
 
-            <div className="border-t px-3 py-2 flex items-center gap-5 h-10 border-slate-300 bg-slate-50">
+            <div className="border-t px-3 py-2 flex items-center h-10 border-slate-300 bg-slate-50 gap-">
               <div className="w-64">
-                <div className="text-xs font-semibold text-slate-700">Campo selecionado</div>
-                <div className="text-xs text-slate-500 truncate">{selectedField ? `Movendo/configurando: ${selectedField.label}` : "Selecione um campo do painel"}</div>
+                <div className="text-xs font-semibold text-slate-700 hidden">Campo selecionado</div>
+                <div className="text-xs text-slate-500 truncate hidden">{selectedField ? `Movendo/configurando: ${selectedField.label}` : "Selecione um campo do painel"}</div>
               </div>
 
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
@@ -532,7 +532,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       </div>
 
       {requiredPopup.open &&
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
         <div className="w-[360px] max-w-[90vw] rounded-md border border-red-200 bg-white shadow-xl">
           <div className="border-b border-red-100 px-4 py-3 text-sm font-semibold text-red-700">Atenção</div>
           <div className="px-4 py-3 text-sm text-slate-700">{requiredPopup.message}</div>
@@ -541,7 +541,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </div>
         </div>
       </div>
-      }
+    }
     </div>;
 
 
