@@ -701,7 +701,7 @@ export default function TabelaLotes({
                           <TableCell
                             key={`total-${coluna.id}`}
                             style={{ width, minWidth: width, maxWidth: width }}
-                            className={`h-7 px-2 py-0 text-xs leading-7 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis bg-slate-200 text-slate-900 ${getColumnAlignClass(coluna)}`}>
+                            className={`h-6 px-2 py-0 text-xs leading-6 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis bg-slate-200 text-slate-900 ${getColumnAlignClass(coluna)}`}>
                             {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
                           </TableCell>);
                       })}

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
@@ -280,6 +280,25 @@ export default function CadastroLotes() {
   const currentLote = lotesFiltradosPainel[selectedIndex] || lotesFiltradosPainel[0] || null;
   const selectedTableLote = selectedTableItems.length === 1 ? lotesFiltradosPainel.find((item) => item.id === selectedTableItems[0]) : null;
   const recordForAttachments = showForm ? editingLote : selectedTableLote;
+
+  useEffect(() => {
+    if (!showForm || viewMode !== "record" || editingLote?._isDuplicate) return;
+    if (lotesFiltradosPainel.length === 0) {
+      setSelectedIndex(0);
+      return;
+    }
+
+    const currentFilteredIndex = editingLote?.id ? lotesFiltradosPainel.findIndex((item) => item.id === editingLote.id) : -1;
+    if (currentFilteredIndex >= 0) {
+      if (selectedIndex !== currentFilteredIndex) setSelectedIndex(currentFilteredIndex);
+      return;
+    }
+
+    const nextIndex = Math.min(selectedIndex, lotesFiltradosPainel.length - 1);
+    setSelectedIndex(nextIndex);
+    setEditingLote(lotesFiltradosPainel[nextIndex]);
+    setSelectedTableItems([lotesFiltradosPainel[nextIndex].id]);
+  }, [showForm, viewMode, appliedFilters, lotesFiltradosPainel, editingLote?.id, editingLote?._isDuplicate, selectedIndex]);
 
   const handleTableSelectionChange = useCallback((ids) => {
     setSelectedTableItems((prev) => {
