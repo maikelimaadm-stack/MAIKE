@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -252,6 +253,13 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   };
 
   const handleSave = () => {
+    const usedIds = new Set(Object.values(draftLayout || {}).flat());
+    const missingRequiredFields = fields.filter((field) => field.required && !usedIds.has(field.id));
+    if (missingRequiredFields.length > 0) {
+      toast.error(`Campo obrigatório fora do layout: ${missingRequiredFields.map((field) => field.label).join(", ")}`);
+      return;
+    }
+
     const finalPanels = draftPanels.map((panel) => {
       const isSystem = SYSTEM_PANEL_IDS.includes(panel.id);
       const isEmpty = (draftLayout[panel.id] || []).length === 0;
