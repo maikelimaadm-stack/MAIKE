@@ -68,8 +68,9 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
     .filter((field) => {
       const rule = visibilityRules[field.id];
       if (!rule?.sourceFieldName) return true;
-      const current = values[rule.sourceFieldName];
-      if (typeof current === "boolean") return String(current) === String(rule.value);
+      const sourceField = fields.find((item) => item.id === rule.sourceFieldId);
+      if (sourceField?.type !== "select" || sourceField?.optionsMode !== "manual") return true;
+      const current = values[rule.sourceFieldName] ?? values.campos_personalizados?.[rule.sourceFieldName];
       return String(current || "") === String(rule.value || "");
     });
 

@@ -15,16 +15,13 @@ export default function ConditionalVisibilityEditor({ selectedField, fields = []
   const conditionFields = useMemo(() => {
     return fields.filter((field) => {
       if (!field || field.id === selectedId) return false;
-      if (field.type === "checkbox") return true;
-      return ["select", "autocomplete", "relation"].includes(field.type) && Array.isArray(field.options) && field.options.length > 0;
+      return field.type === "select" && field.optionsMode === "manual" && Array.isArray(field.options) && field.options.length > 0;
     });
   }, [fields, selectedId]);
 
   const sourceField = conditionFields.find((field) => getFieldValueKey(field) === rule?.sourceFieldId) || null;
   const sourceValue = sourceField ? getFieldValueKey(sourceField) : ALWAYS;
-  const valueOptions = sourceField?.type === "checkbox"
-    ? [{ value: "true", label: "Marcado" }, { value: "false", label: "Desmarcado" }]
-    : (sourceField?.options || []).map((option) => ({ value: getOptionValue(option), label: getOptionLabel(option) })).filter((option) => option.value);
+  const valueOptions = (sourceField?.options || []).map((option) => ({ value: getOptionValue(option), label: getOptionLabel(option) })).filter((option) => option.value);
 
   const setSource = (nextSource) => {
     if (!selectedId) return;
@@ -33,9 +30,7 @@ export default function ConditionalVisibilityEditor({ selectedField, fields = []
       return;
     }
     const nextField = conditionFields.find((field) => getFieldValueKey(field) === nextSource);
-    const nextOptions = nextField?.type === "checkbox"
-      ? [{ value: "true", label: "Marcado" }]
-      : (nextField?.options || []).map((option) => ({ value: getOptionValue(option), label: getOptionLabel(option) })).filter((option) => option.value);
+    const nextOptions = (nextField?.options || []).map((option) => ({ value: getOptionValue(option), label: getOptionLabel(option) })).filter((option) => option.value);
     onChange?.(selectedId, {
       sourceFieldId: getFieldValueKey(nextField),
       sourceFieldName: nextField?.name,
