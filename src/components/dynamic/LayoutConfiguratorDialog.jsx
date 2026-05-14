@@ -413,9 +413,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="rounded-none text-xs pr-3 pl-3 h-7" />
               <Search className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-1.5" />
             </div>
-            {missingRequiredAvailableFields.length > 0 &&
+            {requiredAvailableFields.length > 0 &&
             <div className="mb-2 rounded-sm border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-700">
-              Existem campos obrigatórios nos disponíveis. Volte eles para o layout antes de salvar.
+              Atenção: campos com * são obrigatórios e precisam voltar para o layout antes de salvar.
             </div>
             }
             <div className="flex-1 overflow-auto space-y-1 pr-1" onDragOver={(event) => event.preventDefault()} onDrop={dropFieldToAvailable}>
