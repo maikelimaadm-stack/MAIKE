@@ -282,7 +282,7 @@ export default function CadastroLotes() {
   const recordForAttachments = showForm ? editingLote : selectedTableLote;
 
   useEffect(() => {
-    if (!showForm || viewMode !== "record" || editingLote?._isDuplicate) return;
+    if (!showForm || viewMode !== "record" || !editingLote || editingLote?._isDuplicate) return;
     if (lotesFiltradosPainel.length === 0) {
       setSelectedIndex(0);
       return;
