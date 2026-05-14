@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
-import { toast } from "sonner";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -65,6 +64,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const [draggedFieldId, setDraggedFieldId] = useState(null);
   const [draggedPanelId, setDraggedPanelId] = useState(null);
   const [editingPanelId, setEditingPanelId] = useState(null);
+  const [requiredPopup, setRequiredPopup] = useState({ open: false, message: "" });
+
+  const showRequiredPopup = (message) => {
+    setRequiredPopup({ open: true, message });
+  };
 
   React.useEffect(() => {
     if (!open) return;
@@ -123,7 +127,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     const ids = selectedPanelFieldIds.length ? selectedPanelFieldIds : selectedPanelField ? [selectedPanelField] : [];
     if (!ids.length || !activePanel) return;
     const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
-    if (requiredMoved) toast.warning("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
+    if (requiredMoved) showRequiredPopup("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
@@ -135,7 +139,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     if (!activePanel || panelFieldIds.length === 0) return;
     const ids = [...panelFieldIds];
     const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
-    if (requiredMoved) toast.warning("Campos obrigatórios movidos para disponíveis. Eles precisam voltar para o layout antes de salvar.");
+    if (requiredMoved) showRequiredPopup("Campos obrigatórios movidos para disponíveis. Eles precisam voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [] }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
@@ -164,7 +168,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       return next;
     });
     const requiredMoved = fields.some((field) => fieldIds.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
-    if (requiredMoved) toast.warning("Campos obrigatórios ficaram disponíveis. Eles precisam voltar para o layout antes de salvar.");
+    if (requiredMoved) showRequiredPopup("Campos obrigatórios ficaram disponíveis. Eles precisam voltar para o layout antes de salvar.");
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
     setActivePanelId(draftPanels.find((panel) => panel.id !== activePanel.id)?.id || "");
@@ -208,7 +212,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     if (!draggedFieldId || !activePanel) return;
     const ids = selectedPanelFieldIds.includes(draggedFieldId) ? selectedPanelFieldIds : [draggedFieldId];
     const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
-    if (requiredMoved) toast.warning("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
+    if (requiredMoved) showRequiredPopup("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
@@ -261,7 +265,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     const usedIds = new Set(Object.values(draftLayout || {}).flat());
     const missingRequiredFields = fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedIds.has(field.id));
     if (missingRequiredFields.length > 0) {
-      toast.error(`Existem campos obrigatórios nos disponíveis: ${missingRequiredFields.map((field) => field.label).join(", ")}. Volte eles para o layout antes de salvar.`);
+      showRequiredPopup(`Existem campos obrigatórios nos disponíveis: ${missingRequiredFields.map((field) => field.label).join(", ")}. Volte eles para o layout antes de salvar.`);
       return;
     }
 
@@ -509,6 +513,18 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </main>
         </div>
       </div>
+
+      {requiredPopup.open &&
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
+        <div className="w-[360px] max-w-[90vw] rounded-md border border-red-200 bg-white shadow-xl">
+          <div className="border-b border-red-100 px-4 py-3 text-sm font-semibold text-red-700">Atenção</div>
+          <div className="px-4 py-3 text-sm text-slate-700">{requiredPopup.message}</div>
+          <div className="flex justify-end px-4 py-3 border-t bg-slate-50">
+            <Button type="button" size="sm" onClick={() => setRequiredPopup({ open: false, message: "" })} className="h-8 bg-red-600 hover:bg-red-700 text-white">OK</Button>
+          </div>
+        </div>
+      </div>
+      }
     </div>;
 
 
