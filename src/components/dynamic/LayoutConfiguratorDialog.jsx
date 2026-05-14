@@ -98,6 +98,14 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     filter((field) => !term || String(field.label || "").toLowerCase().includes(term));
   }, [fields, usedFieldIds, search]);
 
+  const requiredAvailableFields = useMemo(() => {
+    return fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedFieldIds.has(field.id));
+  }, [fields, draftRequiredFieldIds, usedFieldIds]);
+
+  const missingRequiredAvailableFields = useMemo(() => {
+    return fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedFieldIds.has(field.id));
+  }, [fields, draftRequiredFieldIds, usedFieldIds]);
+
   const addField = () => {
     const ids = selectedAvailableIds.length ? selectedAvailableIds : selectedAvailable ? [selectedAvailable] : [];
     if (!ids.length || !activePanel) return;
@@ -334,13 +342,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       onDragEnd={() => setDraggedFieldId(null)}
       className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
       {isCustomField(field) && <CustomMarker />}
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold truncate">{field.label}</div>
-        {required && <span className="text-[10px] font-bold text-red-600">*</span>}
-      </div>
-      <div className={`text-[10px] truncate ${required ? "text-red-600 font-medium" : "text-slate-500"}`}>
-        {required ? "Disponível • obrigatório" : "Disponível"}
-      </div>
+      {required && <span className="absolute bottom-1 right-2 text-[10px] font-bold text-red-600">*</span>}
+      <div className="text-xs font-semibold truncate pr-4">{field.label}</div>
+      <div className="text-[10px] text-slate-500 truncate pr-4">Disponível</div>
     </button>;
   };
 
@@ -409,6 +413,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="rounded-none text-xs pr-3 pl-3 h-7" />
               <Search className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-1.5" />
             </div>
+            {missingRequiredAvailableFields.length > 0 &&
+            <div className="mb-2 rounded-sm border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-700">
+              Existem campos obrigatórios nos disponíveis. Volte eles para o layout antes de salvar.
+            </div>
+            }
             <div className="flex-1 overflow-auto space-y-1 pr-1" onDragOver={(event) => event.preventDefault()} onDrop={dropFieldToAvailable}>
               {availableFields.length === 0 ? <div className="text-xs text-slate-400 py-4 text-center">Solte aqui para remover do painel.</div> : availableFields.map(renderAvailableField)}
             </div>
