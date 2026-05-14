@@ -334,13 +334,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       onDragEnd={() => setDraggedFieldId(null)}
       className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
       {isCustomField(field) && <CustomMarker />}
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold truncate">{field.label}</div>
-        {required && <span className="text-[10px] font-bold text-red-600">*</span>}
-      </div>
-      <div className={`text-[10px] truncate ${required ? "text-red-600 font-medium" : "text-slate-500"}`}>
-        {required ? "Disponível • obrigatório" : "Disponível"}
-      </div>
+      <div className="text-xs font-semibold truncate pr-4">{field.label}</div>
+      {required && <span className="absolute bottom-1 right-2 text-[10px] font-bold text-red-600">*</span>}
+      <div className="text-[10px] text-slate-500 truncate">Disponível</div>
     </button>;
   };
 
@@ -422,7 +418,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
-            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
+            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto border-b border-slate-300">
               {draftPanels.map((panel) => {
               const isActive = activePanel?.id === panel.id;
               const isEmpty = (draftLayout[panel.id] || []).length === 0;
@@ -443,9 +439,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                     setSelectedPanelField(null);
                     setSelectedPanelFieldIds([]);
                   }}
-                  className={`relative z-10 h-8 px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                  className={`relative z-10 h-8 px-4 mx-0.5 border text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-emerald-800 border-emerald-500" : "bg-slate-50 text-slate-700 border-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
                   
-                    {isCustomPanel(panel) && <CustomMarker />}
+                    {isCustomPanel(panel) && !isActive && <CustomMarker />}
                     {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
                   <Input
                     value={panel.label || ""}
