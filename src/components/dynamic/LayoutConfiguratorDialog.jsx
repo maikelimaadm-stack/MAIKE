@@ -121,10 +121,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const removeField = () => {
     const ids = selectedPanelFieldIds.length ? selectedPanelFieldIds : selectedPanelField ? [selectedPanelField] : [];
     if (!ids.length || !activePanel) return;
+    const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
+    if (requiredMoved) toast.warning("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
-    setDraftRequiredFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setSelectedPanelField(null);
     setSelectedPanelFieldIds([]);
   };
@@ -132,10 +133,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const removeAllFields = () => {
     if (!activePanel || panelFieldIds.length === 0) return;
     const ids = [...panelFieldIds];
+    const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
+    if (requiredMoved) toast.warning("Campos obrigatórios movidos para disponíveis. Eles precisam voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [] }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
-    setDraftRequiredFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setSelectedPanelField(null);
     setSelectedPanelFieldIds([]);
   };
@@ -160,9 +162,10 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       delete next[activePanel.id];
       return next;
     });
+    const requiredMoved = fields.some((field) => fieldIds.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
+    if (requiredMoved) toast.warning("Campos obrigatórios ficaram disponíveis. Eles precisam voltar para o layout antes de salvar.");
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
-    setDraftRequiredFieldIds((prev) => prev.filter((id) => !fieldIds.includes(id)));
     setActivePanelId(draftPanels.find((panel) => panel.id !== activePanel.id)?.id || "");
     setSelectedPanelField(null);
     setSelectedPanelFieldIds([]);
@@ -203,10 +206,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const dropFieldToAvailable = () => {
     if (!draggedFieldId || !activePanel) return;
     const ids = selectedPanelFieldIds.includes(draggedFieldId) ? selectedPanelFieldIds : [draggedFieldId];
+    const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
+    if (requiredMoved) toast.warning("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
-    setDraftRequiredFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setSelectedPanelField(null);
     setSelectedPanelFieldIds([]);
     setDraggedFieldId(null);
@@ -254,7 +258,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const handleSave = () => {
     const usedIds = new Set(Object.values(draftLayout || {}).flat());
-    const missingRequiredFields = fields.filter((field) => field.required && !usedIds.has(field.id));
+    const missingRequiredFields = fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedIds.has(field.id));
     if (missingRequiredFields.length > 0) {
       toast.error(`Campo obrigatório fora do layout: ${missingRequiredFields.map((field) => field.label).join(", ")}`);
       return;
@@ -309,6 +313,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const renderAvailableField = (field) => {
     const selected = selectedAvailableIds.includes(field.id);
+    const required = field.required || draftRequiredFieldIds.includes(field.id);
     return <button
       key={field.id}
       type="button"
@@ -328,10 +333,14 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       }}
       onDragEnd={() => setDraggedFieldId(null)}
       className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
-    
       {isCustomField(field) && <CustomMarker />}
-      <div className="text-xs font-semibold truncate">{field.label}</div>
-      <div className="text-[10px] text-slate-500 truncate">Disponível</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold truncate">{field.label}</div>
+        {required && <span className="text-[10px] font-bold text-red-600">*</span>}
+      </div>
+      <div className={`text-[10px] truncate ${required ? "text-red-600 font-medium" : "text-slate-500"}`}>
+        {required ? "Disponível • obrigatório" : "Disponível"}
+      </div>
     </button>;
   };
 
