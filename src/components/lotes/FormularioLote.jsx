@@ -14,6 +14,7 @@ import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
+import ToggleSwitch from "@/components/common/ToggleSwitch";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
@@ -135,7 +136,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     observacoes: "",
     identificador_nome: "",
     identificador_sigla: "",
-    identificador_cor: ""
+    identificador_cor: "",
+    status: "Ativo"
   };
 
   const [formData, setFormData] = useState(() => buildFormData(initialData));
@@ -582,7 +584,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
             </FL>
             <FL label="Ativo" compact>
               <div className="h-[22px] flex items-center px-1">
-                <span className="w-8 h-4 rounded-full bg-green-500 relative inline-block"><span className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" /></span>
+                <ToggleSwitch checked={formData.status !== "Inativo"} onChange={(checked) => handleChange("status", checked ? "Ativo" : "Inativo")} disabled={isReadOnly} />
               </div>
             </FL>
             <FL label="Código" compact>
