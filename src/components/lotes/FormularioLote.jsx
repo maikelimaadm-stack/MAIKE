@@ -170,7 +170,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   });
 
   const camposPersonalizadosForm = useMemo(() => {
-    return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_form !== false);
+    return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_form !== false && !campo.metadata?.native_select);
+  }, [camposPersonalizados]);
+
+  const motivoEntradaConfig = useMemo(() => {
+    return camposPersonalizados.find((campo) => campo.metadata?.native_select && campo.field_name === "motivo_entrada") || null;
   }, [camposPersonalizados]);
 
   const relatedSources = useMemo(() => camposPersonalizadosForm.
@@ -205,7 +209,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   { id: "Misto", nome: "MISTO" }],
   []);
 
-  const opcoesMotivoEntrada = useMemo(() => MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() })), []);
+  const opcoesMotivoEntrada = useMemo(() => {
+    const options = motivoEntradaConfig?.options?.length ? motivoEntradaConfig.options : MOTIVOS_ENTRADA.map((item) => ({ value: item, label: item.toUpperCase() }));
+    return options.map((item) => ({ id: String(item.value || item.label || item).toUpperCase(), nome: String(item.label || item.value || item).toUpperCase() })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
+  }, [motivoEntradaConfig]);
 
   const opcoesCores = useMemo(() => CORES_DISPONIVEIS.map((item) => ({ id: item.cor, nome: item.nome.toUpperCase(), cor: item.cor })), []);
 

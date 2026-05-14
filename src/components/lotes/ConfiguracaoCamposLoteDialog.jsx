@@ -90,6 +90,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   const calculationFields = calculationItems.map((item) => item.field).filter(Boolean);
   const hasInvalidCalculation = form.tipo === "calculado" && (calculationItems.length < 2 || calculationItems.some((item) => !item.field) || new Set(calculationFields).size !== calculationFields.length);
   const isReadOnly = !!editingId && !isDuplicating && !editMode;
+  const isNativeSelect = !!form.metadata?.native_select;
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -120,11 +121,13 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     const calculationItems = form.calculation_builder?.items || [];
     const formula = form.tipo === "calculado" ? montarFormulaVisual(calculationItems) : "";
     const deps = calculationItems.map((item) => item.field).filter(Boolean);
-    const manualOptions = form.tipo === "select" ? String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean).filter((item, index, array) => array.indexOf(item) === index).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).map((item) => ({ value: item, label: item })) : [];
+    const protectedOptions = form.metadata?.protected_options || [];
+    const manualOptions = form.tipo === "select" ? [...new Set([...protectedOptions, ...String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).map((item) => ({ value: item, label: item, protected: protectedOptions.includes(item) })) : [];
 
     return {
       ...form,
       field_name: editingId ? form.field_name : toSnakeCase(form.label),
+      metadata: form.metadata || {},
       col_span: 12,
       largura_coluna: 160,
       ordem_tabela: 999,
@@ -201,6 +204,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     const labelTrim = form.label.trim().toUpperCase();
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
     if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
+    if (isNativeSelect) {
+      const protectedOptions = form.metadata?.protected_options || [];
+      const currentOptions = String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean);
+      const missing = protectedOptions.find((option) => !currentOptions.includes(option));
+      if (missing) return toast.error(`A opção padrão "${missing}" não pode ser removida.`);
+    }
     const duplicate = campos.find((c) => c.id !== editingId && (
     String(c.label || "").trim().toUpperCase() === labelTrim ||
     String(c.field_name || "").toLowerCase() === fieldName.toLowerCase())
@@ -292,6 +301,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   };
 
   const handleDelete = (campo) => {
+    if (campo?.metadata?.native_select) return toast.error("Esta lista é nativa do sistema e não pode ser excluída.");
     if (!window.confirm(`Excluir o campo "${campo.label}"? Esta ação não poderá ser desfeita.`)) return;
     deleteMutation.mutate(campo);
   };
@@ -312,6 +322,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const handleDuplicateCurrent = () => {
     if (!selectedCampo) return;
+    if (selectedCampo?.metadata?.native_select) return toast.error("Esta lista é nativa do sistema e não pode ser duplicada.");
     const { id, field_id, created_date, updated_date, created_by, ...copy } = selectedCampo;
     setForm({
       ...initialForm,
@@ -349,7 +360,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
         operationLabel={operationLabel}
         showSaveActions={editMode}
         showEditAction={isReadOnly}
-        showDeleteDuplicateActions={!!editingId && !editMode && !isDuplicating}
+        showDeleteDuplicateActions={!!editingId && !editMode && !isDuplicating && !isNativeSelect}
         onSave={() => handleSubmit({ preventDefault: () => {} })}
         onCancel={handleDiscard}
         onEditRecord={() => setEditMode(true)}
@@ -370,8 +381,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
             <fieldset className={`flex-1 overflow-y-auto ${isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}`}>
               <div className="px-4 md:px-8 py-2 space-y-1 max-w-[780px]">
-              <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
-              <Field label="Tipo"><AutocompleteGenerico items={TIPOS_CAMPO.map((tipo) => ({ ...tipo, id: tipo.value }))} value={form.tipo} onChange={(value) => updateForm("tipo", value)} placeholder="BUSCAR TIPO..." displayField="label" searchFields={["label", "value"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1 uppercase" /></Field>
+              <Field label="Nome do campo" required><Input value={form.label} onChange={(e) => updateForm("label", e.target.value)} readOnly={isNativeSelect} placeholder="EX: PESO TOTAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
+              <Field label="Tipo"><AutocompleteGenerico items={TIPOS_CAMPO.map((tipo) => ({ ...tipo, id: tipo.value }))} value={form.tipo} onChange={(value) => updateForm("tipo", value)} placeholder="BUSCAR TIPO..." displayField="label" searchFields={["label", "value"]} disabled={isNativeSelect} readOnly={isNativeSelect} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1 uppercase" /></Field>
               <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Descrição"><Input value={form.descricao} onChange={(e) => updateForm("descricao", e.target.value)} placeholder="EXPLICAÇÃO OPCIONAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
 
@@ -448,6 +459,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
                       <TableCell className={`h-7 px-2 py-0 text-xs leading-7 align-middle border-r border-b whitespace-nowrap overflow-hidden text-ellipsis ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>{TIPOS_CAMPO.find((tipo) => tipo.value === campo.tipo)?.label || campo.tipo}</TableCell>
                       <TableCell className={`h-7 px-2 py-0 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden ${selectedCampoIds.includes(campo.id || campo.field_id) ? "text-white border-green-600" : "text-gray-700 border-gray-300"}`}>
                         <div className="h-full flex items-center gap-1 overflow-hidden">
+                          {campo.metadata?.native_select && <Badge variant="secondary" className="text-[10px]">Nativa</Badge>}
                           {campo.visivel_form && <Badge variant="outline" className="text-[10px] bg-white/90 text-slate-700">Form</Badge>}
                           {campo.visivel_tabela && <Badge variant="outline" className="text-[10px] bg-white/90 text-slate-700">Tabela</Badge>}
                           {(campo.options_source_entity || campo.relation_entity) && <Badge variant="secondary" className="text-[10px]">Vínculo</Badge>}

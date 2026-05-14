@@ -10,6 +10,21 @@ const ORIGENS_SISTEMA = [
   "MUDANÇA DE CATEGORIA"
 ];
 
+const NATIVE_SELECT_FIELDS = [
+  {
+    field_id: "lote_native_motivo_entrada",
+    field_name: "motivo_entrada",
+    label: "Motivo da Entrada",
+    options: ["COMPRA", "AJUSTE", "INVENTÁRIO", "OUTROS"]
+  }
+];
+
+const normalizeOption = (option) => String(option?.label || option?.value || option || "").trim().toUpperCase();
+const buildProtectedOptions = (protectedOptions = [], options = []) => {
+  const merged = [...protectedOptions, ...options.map(normalizeOption)].filter(Boolean);
+  return [...new Set(merged)].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).map((item) => ({ value: item, label: item, protected: protectedOptions.includes(item) }));
+};
+
 const filterByEmpresa = (items, empresaId) => {
   if (!empresaId) return items;
   return items.filter((item) => item.empresa_id === empresaId);
@@ -138,6 +153,29 @@ export const loteRepository = {
       });
     }
 
+    const camposLayout = await base44.entities.LayoutCampo.list();
+    await Promise.all(NATIVE_SELECT_FIELDS.map(async (nativeField) => {
+      const existing = camposLayout.find((campo) => campo.layout_id === layout.id && campo.field_name === nativeField.field_name);
+      const payload = {
+        layout_id: layout.id,
+        section_id: secao.section_id,
+        field_id: nativeField.field_id,
+        entity_name: "Lote",
+        field_name: nativeField.field_name,
+        origem: "sistema",
+        label: nativeField.label,
+        tipo: "select",
+        ativo: true,
+        visivel_form: false,
+        visivel_tabela: false,
+        visivel_relatorio: false,
+        options: buildProtectedOptions(nativeField.options, existing?.options || []),
+        options_text: buildProtectedOptions(nativeField.options, existing?.options || []).map((option) => option.label).join("\n"),
+        metadata: { ...(existing?.metadata || {}), native_select: true, protected_options: nativeField.options }
+      };
+      if (existing) await base44.entities.LayoutCampo.update(existing.id, payload);else await base44.entities.LayoutCampo.create(payload);
+    }));
+
     return { layout, secao };
   },
 
@@ -145,8 +183,8 @@ export const loteRepository = {
     const { layout } = await this.ensureLoteLayoutBase();
     const campos = await base44.entities.LayoutCampo.list();
     return campos
-      .filter((campo) => campo.layout_id === layout.id && campo.entity_name === "Lote" && campo.origem === "customizado")
-      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+      .filter((campo) => campo.layout_id === layout.id && campo.entity_name === "Lote" && (campo.origem === "customizado" || campo.metadata?.native_select))
+      .sort((a, b) => Number(!!b.metadata?.native_select) - Number(!!a.metadata?.native_select) || (a.ordem || 0) - (b.ordem || 0));
   },
 
   async createCampoPersonalizado(data) {
@@ -199,6 +237,18 @@ export const loteRepository = {
   },
 
   async updateCampoPersonalizado(id, data) {
+    const campos = await base44.entities.LayoutCampo.list();
+    const current = campos.find((campo) => campo.id === id);
+    if (current?.metadata?.native_select) {
+      const protectedOptions = current.metadata.protected_options || [];
+      const options = buildProtectedOptions(protectedOptions, data.options || []);
+      return base44.entities.LayoutCampo.update(id, {
+        options,
+        options_text: options.map((option) => option.label).join("\n"),
+        metadata: current.metadata
+      });
+    }
+
     return base44.entities.LayoutCampo.update(id, {
       ...data,
       read_only: data.tipo === "calculado",
@@ -211,6 +261,9 @@ export const loteRepository = {
   },
 
   async deleteCampoPersonalizado(campo) {
+    if (campo?.metadata?.native_select) {
+      throw new Error("Esta lista é nativa do sistema e não pode ser excluída.");
+    }
     const fieldName = campo.field_name;
     const lotes = await base44.entities.Lote.list();
     const possuiDados = lotes.some((lote) => {

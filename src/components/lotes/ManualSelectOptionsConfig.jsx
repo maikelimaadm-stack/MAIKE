@@ -12,19 +12,26 @@ function Field({ label, children }) {
 }
 
 export default function ManualSelectOptionsConfig({ form, updateForm }) {
+  const protectedOptions = form.metadata?.protected_options || [];
+  const handleChange = (event) => {
+    const typedOptions = String(event.target.value || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean);
+    const merged = [...new Set([...protectedOptions, ...typedOptions])].join("\n");
+    updateForm("options_text", merged);
+  };
+
   return (
     <>
       <Field label="Opções da lista">
         <textarea
           value={form.options_text || ""}
-          onChange={(event) => updateForm("options_text", event.target.value)}
+          onChange={handleChange}
           placeholder="DIGITE UMA OPÇÃO POR LINHA"
           className="w-full min-h-[90px] resize-none bg-transparent px-2 py-1 text-xs uppercase outline-none"
           style={{ textTransform: "uppercase" }}
         />
       </Field>
       <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-        Cadastre as opções manualmente, uma por linha. No lote, elas aparecerão como seleção pesquisável em ordem alfabética.
+        Cadastre as opções manualmente, uma por linha. Opções nativas/pré-cadastradas são protegidas e não podem ser removidas.
       </div>
     </>
   );
