@@ -98,13 +98,6 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     filter((field) => !term || String(field.label || "").toLowerCase().includes(term));
   }, [fields, usedFieldIds, search]);
 
-  const requiredAvailableFields = useMemo(() => {
-    return fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedFieldIds.has(field.id));
-  }, [fields, draftRequiredFieldIds, usedFieldIds]);
-
-  const missingRequiredAvailableFields = useMemo(() => {
-    return fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedFieldIds.has(field.id));
-  }, [fields, draftRequiredFieldIds, usedFieldIds]);
 
   const addField = () => {
     const ids = selectedAvailableIds.length ? selectedAvailableIds : selectedAvailable ? [selectedAvailable] : [];
@@ -268,7 +261,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     const usedIds = new Set(Object.values(draftLayout || {}).flat());
     const missingRequiredFields = fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedIds.has(field.id));
     if (missingRequiredFields.length > 0) {
-      toast.error(`Campo obrigatório fora do layout: ${missingRequiredFields.map((field) => field.label).join(", ")}`);
+      toast.error(`Existem campos obrigatórios nos disponíveis: ${missingRequiredFields.map((field) => field.label).join(", ")}. Volte eles para o layout antes de salvar.`);
       return;
     }
 
@@ -340,11 +333,13 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         setSelectedAvailableIds((prev) => prev.includes(field.id) ? prev : [field.id]);
       }}
       onDragEnd={() => setDraggedFieldId(null)}
-      className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
+      className={`relative w-full rounded-sm border px-2 py-1.5 text-left overflow-hidden transition-all focus-visible:outline-none flex items-center justify-between gap-2 ${selected ? "bg-gray-100 border-slate-400 text-slate-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}>
       {isCustomField(field) && <CustomMarker />}
-      {required && <span className="absolute bottom-1 right-2 text-[10px] font-bold text-red-600">*</span>}
-      <div className="text-xs font-semibold truncate pr-4">{field.label}</div>
-      <div className="text-[10px] text-slate-500 truncate pr-4">Disponível</div>
+      <div className="min-w-0">
+        <div className="text-xs font-semibold truncate">{field.label}</div>
+        <div className="text-[10px] text-slate-500 truncate">Disponível</div>
+      </div>
+      {required && <span className="text-[10px] font-bold text-red-600 leading-none">*</span>}
     </button>;
   };
 
@@ -413,11 +408,6 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar campo" className="rounded-none text-xs pr-3 pl-3 h-7" />
               <Search className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-1.5" />
             </div>
-            {requiredAvailableFields.length > 0 &&
-            <div className="mb-2 rounded-sm border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-700">
-              Atenção: campos com * são obrigatórios e precisam voltar para o layout antes de salvar.
-            </div>
-            }
             <div className="flex-1 overflow-auto space-y-1 pr-1" onDragOver={(event) => event.preventDefault()} onDrop={dropFieldToAvailable}>
               {availableFields.length === 0 ? <div className="text-xs text-slate-400 py-4 text-center">Solte aqui para remover do painel.</div> : availableFields.map(renderAvailableField)}
             </div>
