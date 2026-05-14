@@ -350,6 +350,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
         showSaveActions={editMode}
         showEditAction={isReadOnly}
         showDeleteDuplicateActions={!!editingId && !editMode && !isDuplicating}
+        onSave={() => handleSubmit({ preventDefault: () => {} })}
         onCancel={handleDiscard}
         onEditRecord={() => setEditMode(true)}
         onToggleView={handleToggleView}
