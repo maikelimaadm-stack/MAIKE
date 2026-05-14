@@ -31,6 +31,7 @@ const TIPOS_CAMPO = [
 
 
 const toSnakeCase = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
+const toTitleCase = (value) => String(value || "").toLowerCase().replace(/(^|\s)([a-záàâãéèêíïóôõöúçñ])/g, (match) => match.toUpperCase());
 
 const initialForm = {
   label: "",
@@ -143,7 +144,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       decimal_places: Math.min(6, Math.max(0, Number(form.decimal_places) || 0)),
       usar_decimal: !!form.usar_decimal,
       visivel_form: true,
-      label: String(form.label || "").toUpperCase(),
+      label: toTitleCase(form.label),
       placeholder: String(form.placeholder || "").toUpperCase(),
       descricao: String(form.descricao || "").toUpperCase()
     };
@@ -214,7 +215,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   const updateForm = (field, value) => {
     if (isReadOnly) return;
     setIsDirty(true);
-    const upperFields = ["label", "placeholder", "descricao"];
+    const upperFields = ["placeholder", "descricao"];
     const finalValue = upperFields.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     setForm((prev) => {
       const next = { ...prev, [field]: finalValue, ...(field === "label" && !editingId ? { field_name: toSnakeCase(finalValue) } : {}) };
