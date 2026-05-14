@@ -40,7 +40,7 @@ function GreenCheck({ checked, disabled = false, onChange }) {
       type="button"
       disabled={disabled}
       onClick={() => !disabled && onChange?.(!checked)}
-      className={`w-8 h-4 rounded-full relative inline-block transition-colors ${checked ? "bg-green-500" : "bg-slate-300"} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+      className={`!h-4 !w-8 rounded-full relative inline-flex items-center transition-colors border-0 shadow-none ${checked ? "bg-green-500 hover:bg-green-600" : "bg-slate-300 hover:bg-slate-400"} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
       
       <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${checked ? "right-0.5" : "left-0.5"}`} />
     </button>);
@@ -479,15 +479,15 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               </div>
 
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
-                <span>Oculto</span>
+                <span>Oculto:</span>
                 <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing || selectedField.required || draftRequiredFieldIds.includes(selectedField.id)} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
-                <span>Bloqueado</span>
+                <span>Bloqueado:</span>
                 <GreenCheck checked={!!selectedField && draftLockedFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing || selectedField.required || draftRequiredFieldIds.includes(selectedField.id)} onChange={(checked) => toggleListValue(setDraftLockedFieldIds, selectedField?.id, checked)} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
-                <span>Obrigatório</span>
+                <span>Obrigatório:</span>
                 <GreenCheck checked={!!selectedField && (selectedField.required || draftRequiredFieldIds.includes(selectedField.id))} disabled={!selectedField || selectedField?.required || !isEditing} onChange={(checked) => {
                 if (checked) {
                   setDraftHiddenFieldIds((prev) => prev.filter((id) => id !== selectedField?.id));
@@ -497,7 +497,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               }} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
-                <span>Totalizar</span>
+                <span>Totalizar:</span>
                 <GreenCheck checked={!!selectedField && !!draftAggregationConfig[selectedField.id]?.enabled} disabled={!selectedField || !selectedField?.totalizable || !isEditing} onChange={(checked) => setAggregationEnabled(selectedField?.id, checked)} />
               </label>
               <Select value={selectedField ? draftAggregationConfig[selectedField.id]?.type || "sum" : "sum"} onValueChange={(value) => selectedField && setAggregationType(selectedField.id, value)} disabled={!selectedField || !draftAggregationConfig[selectedField.id]?.enabled || !isEditing}>
