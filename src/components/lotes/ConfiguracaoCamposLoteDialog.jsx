@@ -223,6 +223,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const updateForm = (field, value) => {
     if (isReadOnly) return;
+    if (isNativeSelect && field !== "options_text") return;
     setIsDirty(true);
     const upperFields = ["placeholder", "descricao"];
     const finalValue = upperFields.includes(field) && typeof value === "string" ? value.toUpperCase() : value;

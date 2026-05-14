@@ -15,7 +15,7 @@ export default function ManualSelectOptionsConfig({ form, updateForm }) {
   const protectedOptions = form.metadata?.protected_options || [];
   const handleChange = (event) => {
     const typedOptions = String(event.target.value || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean);
-    const merged = [...new Set([...protectedOptions, ...typedOptions])].join("\n");
+    const merged = [...new Set([...protectedOptions, ...typedOptions])].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).join("\n");
     updateForm("options_text", merged);
   };
 

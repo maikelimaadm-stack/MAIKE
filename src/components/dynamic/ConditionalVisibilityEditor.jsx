@@ -15,7 +15,7 @@ export default function ConditionalVisibilityEditor({ selectedField, fields = []
   const conditionFields = useMemo(() => {
     return fields.filter((field) => {
       if (!field || field.id === selectedId) return false;
-      return field.type === "select" && field.optionsMode === "manual" && Array.isArray(field.options) && field.options.length > 0;
+      return field.type === "select" && ["manual", "native"].includes(field.optionsMode) && Array.isArray(field.options) && field.options.length > 0;
     });
   }, [fields, selectedId]);
 
