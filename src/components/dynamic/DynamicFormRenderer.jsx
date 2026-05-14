@@ -2,7 +2,6 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
-import ToggleSwitch from "@/components/common/ToggleSwitch";
 
 function DefaultControl({ field, value, onChange, readOnly }) {
   const inputClass = "h-[22px] text-xs border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1";
@@ -31,7 +30,7 @@ function DefaultControl({ field, value, onChange, readOnly }) {
   if (field.type === "checkbox") {
     return (
       <div className="h-[22px] flex items-center px-1">
-        <ToggleSwitch checked={!!value} onChange={(checked) => onChange(field.name, checked)} disabled={readOnly || field.readOnly} />
+        <input type="checkbox" checked={!!value} onChange={(e) => onChange(field.name, e.target.checked)} disabled={readOnly || field.readOnly} className="h-3.5 w-3.5 accent-green-500" />
       </div>
     );
   }
