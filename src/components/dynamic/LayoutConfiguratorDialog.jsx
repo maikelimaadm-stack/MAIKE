@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import ConditionalVisibilityEditor from "./ConditionalVisibilityEditor.jsx";
 
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const AGGREGATION_OPTIONS = [
@@ -47,13 +48,14 @@ function GreenCheck({ checked, disabled = false, onChange }) {
 
 }
 
-export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, defaultConfig = null, onSave, inline = false }) {
+export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], aggregationConfig = {}, visibilityRules = {}, defaultConfig = null, onSave, inline = false }) {
   const [draftPanels, setDraftPanels] = useState(panels);
   const [draftLayout, setDraftLayout] = useState(layout);
   const [draftHiddenFieldIds, setDraftHiddenFieldIds] = useState(hiddenFieldIds);
   const [draftLockedFieldIds, setDraftLockedFieldIds] = useState(lockedFieldIds);
   const [draftRequiredFieldIds, setDraftRequiredFieldIds] = useState(requiredFieldIds);
   const [draftAggregationConfig, setDraftAggregationConfig] = useState(aggregationConfig);
+  const [draftVisibilityRules, setDraftVisibilityRules] = useState(visibilityRules);
   const [activePanelId, setActivePanelId] = useState(panels[0]?.id || "");
   const [selectedAvailable, setSelectedAvailable] = useState(null);
   const [selectedAvailableIds, setSelectedAvailableIds] = useState([]);
@@ -78,6 +80,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftLockedFieldIds(lockedFieldIds);
     setDraftRequiredFieldIds(requiredFieldIds);
     setDraftAggregationConfig(aggregationConfig);
+    setDraftVisibilityRules(visibilityRules);
     setActivePanelId(panels[0]?.id || "");
     setSelectedAvailable(null);
     setSelectedAvailableIds([]);
@@ -86,7 +89,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setSearch("");
     setIsEditing(false);
     setEditingPanelId(null);
-  }, [open, panels, layout, hiddenFieldIds, lockedFieldIds, requiredFieldIds, aggregationConfig]);
+  }, [open, panels, layout, hiddenFieldIds, lockedFieldIds, requiredFieldIds, aggregationConfig, visibilityRules]);
 
   const activePanel = draftPanels.find((panel) => panel.id === activePanelId) || draftPanels[0];
   const usedFieldIds = useMemo(() => new Set(Object.values(draftLayout || {}).flat()), [draftLayout]);
@@ -261,6 +264,16 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftAggregationConfig((prev) => ({ ...prev, [fieldId]: { enabled: true, type } }));
   };
 
+  const setVisibilityRule = (fieldId, rule) => {
+    if (!fieldId) return;
+    setDraftVisibilityRules((prev) => {
+      const next = { ...prev };
+      if (!rule) delete next[fieldId];
+      else next[fieldId] = rule;
+      return next;
+    });
+  };
+
   const handleSave = () => {
     const usedIds = new Set(Object.values(draftLayout || {}).flat());
     const missingRequiredFields = fields.filter((field) => (field.required || draftRequiredFieldIds.includes(field.id)) && !usedIds.has(field.id));
@@ -280,7 +293,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       hiddenFieldIds: draftHiddenFieldIds,
       lockedFieldIds: draftLockedFieldIds,
       requiredFieldIds: draftRequiredFieldIds,
-      aggregationConfig: draftAggregationConfig
+      aggregationConfig: draftAggregationConfig,
+      visibilityRules: draftVisibilityRules
     });
     onOpenChange(false);
   };
@@ -293,6 +307,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftLockedFieldIds(defaultConfig.lockedFieldIds || []);
     setDraftRequiredFieldIds(defaultConfig.requiredFieldIds || []);
     setDraftAggregationConfig(defaultConfig.aggregationConfig || {});
+    setDraftVisibilityRules(defaultConfig.visibilityRules || {});
     setActivePanelId(defaultConfig.panels?.[0]?.id || "");
     setSelectedAvailable(null);
     setSelectedAvailableIds([]);
@@ -307,6 +322,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     setDraftLockedFieldIds(lockedFieldIds);
     setDraftRequiredFieldIds(requiredFieldIds);
     setDraftAggregationConfig(aggregationConfig);
+    setDraftVisibilityRules(visibilityRules);
     setActivePanelId(panels[0]?.id || "");
     setSelectedAvailable(null);
     setSelectedAvailableIds([]);
@@ -500,6 +516,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                 <span>Totalizar:</span>
                 <GreenCheck checked={!!selectedField && !!draftAggregationConfig[selectedField.id]?.enabled} disabled={!selectedField || !selectedField?.totalizable || !isEditing} onChange={(checked) => setAggregationEnabled(selectedField?.id, checked)} />
               </label>
+              <ConditionalVisibilityEditor selectedField={selectedField} fields={fields} visibilityRules={draftVisibilityRules} onChange={setVisibilityRule} disabled={!isEditing} />
               <Select value={selectedField ? draftAggregationConfig[selectedField.id]?.type || "sum" : "sum"} onValueChange={(value) => selectedField && setAggregationType(selectedField.id, value)} disabled={!selectedField || !draftAggregationConfig[selectedField.id]?.enabled || !isEditing}>
                 <SelectTrigger className="h-7 w-28 rounded-none text-xs bg-white">
                   <SelectValue />

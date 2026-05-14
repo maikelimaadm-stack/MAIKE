@@ -508,11 +508,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     campos_personalizados: camposPersonalizadosForm.map((campo) => `custom:${campo.field_name}`)
   };
 
-  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {} };
+  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} };
   const tabs = activeLayoutConfig.panels.filter((panel) => !panel.hidden && (panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0));
 
   const saveLayoutConfig = (nextConfig) => {
-    const normalized = { ...nextConfig, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
+    const normalized = { ...nextConfig, visibilityRules: nextConfig.visibilityRules || {}, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
     setFormLayoutConfig(normalized);
     localStorage.setItem("cadastro_lotes_form_layout_config", JSON.stringify(normalized));
     localStorage.setItem("cadastro_lotes_table_aggregation_config", JSON.stringify(normalized.aggregationConfig || {}));
@@ -537,7 +537,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
           requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
           aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
-          defaultConfig={{ panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {} }}
+          visibilityRules={activeLayoutConfig.visibilityRules || {}}
+          defaultConfig={{ panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} }}
           onSave={saveLayoutConfig} />
         
       </section>);
@@ -605,6 +606,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
                 hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
                 lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
                 requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+                visibilityRules={activeLayoutConfig.visibilityRules || {}}
                 activePanelId={activeTab}
                 values={formData}
                 errors={errors}

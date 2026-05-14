@@ -56,7 +56,7 @@ function FieldFrame({ field, error, children, className = "" }) {
   );
 }
 
-export default function DynamicFormRenderer({ panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], activePanelId, values = {}, errors = {}, onChange, readOnly = false, context = {}, fieldClassName = "" }) {
+export default function DynamicFormRenderer({ panels = [], fields = [], layout = {}, hiddenFieldIds = [], lockedFieldIds = [], requiredFieldIds = [], visibilityRules = {}, activePanelId, values = {}, errors = {}, onChange, readOnly = false, context = {}, fieldClassName = "" }) {
   const activePanel = panels.find((panel) => panel.id === activePanelId) || panels[0];
   const activeFieldIds = layout?.[activePanel?.id] || [];
 
@@ -64,7 +64,14 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
     .map((fieldId) => fields.find((field) => field.id === fieldId))
     .filter(Boolean)
     .filter((field) => field.visible !== false && !hiddenFieldIds.includes(field.id))
-    .filter((field) => typeof field.showWhen === "function" ? field.showWhen(values, context) : true);
+    .filter((field) => typeof field.showWhen === "function" ? field.showWhen(values, context) : true)
+    .filter((field) => {
+      const rule = visibilityRules[field.id];
+      if (!rule?.sourceFieldName) return true;
+      const current = values[rule.sourceFieldName];
+      if (typeof current === "boolean") return String(current) === String(rule.value);
+      return String(current || "") === String(rule.value || "");
+    });
 
   if (!activePanel) return null;
 
