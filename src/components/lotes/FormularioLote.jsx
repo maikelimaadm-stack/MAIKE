@@ -199,13 +199,22 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     return [...lista].sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR", { sensitivity: "base" }));
   }, [formData.setor_id, getAreasBySetor]);
 
-  const opcoesSexo = useMemo(() => [
+  const listOptionsConfig = formLayoutConfig?.listOptionsConfig || {};
+
+  const mergeLayoutOptions = (fieldId, baseOptions = []) => {
+    const customOptions = (listOptionsConfig[fieldId]?.customOptions || []).map((item) => String(item || "").trim().toUpperCase()).filter(Boolean);
+    const nativeLabels = new Set(baseOptions.map((option) => String(option?.nome || option?.label || option?.value || option?.id || option || "").trim().toUpperCase()).filter(Boolean));
+    const extraOptions = customOptions.filter((option) => !nativeLabels.has(option)).map((option) => ({ id: option, nome: option }));
+    return [...baseOptions, ...extraOptions].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR", { sensitivity: "base" }));
+  };
+
+  const opcoesSexo = useMemo(() => mergeLayoutOptions("sexo", [
   { id: "Macho", nome: "MACHO" },
   { id: "Fêmea", nome: "FÊMEA" },
-  { id: "Misto", nome: "MISTO" }],
-  []);
+  { id: "Misto", nome: "MISTO" }]),
+  [listOptionsConfig]);
 
-  const opcoesMotivoEntrada = useMemo(() => MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() })), []);
+  const opcoesMotivoEntrada = useMemo(() => mergeLayoutOptions("motivo_entrada", MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() }))), [listOptionsConfig]);
 
   const opcoesCores = useMemo(() => CORES_DISPONIVEIS.map((item) => ({ id: item.cor, nome: item.nome.toUpperCase(), cor: item.cor })), []);
 
@@ -371,13 +380,13 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     }
 
     if (campo.tipo === "select" || campo.tipo === "relation") {
-      const opcoesCampoPersonalizado = campoOptions.map((option) => {
+      const opcoesCampoPersonalizado = mergeLayoutOptions(`custom:${campo.field_name}`, campoOptions.map((option) => {
         const optionValue = String(option.value || option.label || "");
         return {
           id: optionValue,
           nome: String(option.label || option.value || "").toUpperCase()
         };
-      }).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
+      }));
 
       return (
         <AutocompleteGenerico
@@ -497,8 +506,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
   { id: "observacoes", name: "observacoes", label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." },
-  ...camposPersonalizadosForm.map((campo) => ({ id: `custom:${campo.field_name}`, name: campo.field_name, label: campo.label, type: campo.tipo, required: campo.obrigatorio, errorKey: `campos_personalizados.${campo.field_name}`, wide: campo.tipo === "textarea", medium: ["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo), compact: ["number", "date", "time", "calculado"].includes(campo.tipo), totalizable: ["number", "calculado"].includes(campo.tipo), render: () => renderCampoPersonalizado(campo) }))],
-  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, camposPersonalizadosForm, errors, isReadOnly, relatedOptions]);
+  ...camposPersonalizadosForm.map((campo) => ({ id: `custom:${campo.field_name}`, name: campo.field_name, label: campo.label, type: campo.tipo, required: campo.obrigatorio, errorKey: `campos_personalizados.${campo.field_name}`, wide: campo.tipo === "textarea", medium: ["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo), compact: ["number", "date", "time", "calculado"].includes(campo.tipo), totalizable: ["number", "calculado"].includes(campo.tipo), options: campo.tipo === "select" ? mergeLayoutOptions(`custom:${campo.field_name}`, campoEngine.getOptionsCampo(campo, relatedOptions).map((option) => ({ id: String(option.value || option.label || ""), nome: String(option.label || option.value || "").toUpperCase() }))) : [], displayField: "nome", searchFields: ["nome"], render: () => renderCampoPersonalizado(campo) }))],
+  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, camposPersonalizadosForm, errors, isReadOnly, relatedOptions, listOptionsConfig]);
 
   const defaultLayout = {
     geral: ["data_entrada", "setor_id", "area_entrada_id", "quantidade_cabecas", "categoria_manejo_id", "sexo", "raca_predominante", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
@@ -508,11 +517,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     campos_personalizados: camposPersonalizadosForm.map((campo) => `custom:${campo.field_name}`)
   };
 
-  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} };
+  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {}, listOptionsConfig: {} };
   const tabs = activeLayoutConfig.panels.filter((panel) => !panel.hidden && (panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0));
 
   const saveLayoutConfig = (nextConfig) => {
-    const normalized = { ...nextConfig, visibilityRules: nextConfig.visibilityRules || {}, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
+    const normalized = { ...nextConfig, visibilityRules: nextConfig.visibilityRules || {}, listOptionsConfig: nextConfig.listOptionsConfig || {}, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
     setFormLayoutConfig(normalized);
     localStorage.setItem("cadastro_lotes_form_layout_config", JSON.stringify(normalized));
     localStorage.setItem("cadastro_lotes_table_aggregation_config", JSON.stringify(normalized.aggregationConfig || {}));
@@ -538,7 +547,8 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
           aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
           visibilityRules={activeLayoutConfig.visibilityRules || {}}
-          defaultConfig={{ panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} }}
+          listOptionsConfig={activeLayoutConfig.listOptionsConfig || {}}
+          defaultConfig={{ panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {}, listOptionsConfig: {} }}
           onSave={saveLayoutConfig} />
         
       </section>);
