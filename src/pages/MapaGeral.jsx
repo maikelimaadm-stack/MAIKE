@@ -629,14 +629,24 @@ export default function MapaGeral() {
     const pontoNumero = normalizeText(ponto.numero_ponto);
     const pontoNome = normalizeText(ponto.nome);
     const pontoSigla = normalizeText(ponto.sigla);
+    const pontoCoords = ponto.coordenadas || {};
+
+    const sameCoords = (coords = {}) => {
+      if (!pontoCoords.lat || !pontoCoords.lng || !coords.lat || !coords.lng) return false;
+      return Math.abs(Number(coords.lat) - Number(pontoCoords.lat)) < 0.00001 && Math.abs(Number(coords.lng) - Number(pontoCoords.lng)) < 0.00001;
+    };
+
     const bebedouro = bebedouros.find((item) => {
       const itemNome = normalizeText(item.nome);
       const itemCodigo = normalizeText(item.codigo_interno);
-      return item.ponto_referencia_id === ponto.id ||
+      return item.id === ponto.bebedouro_id ||
+        item.ponto_referencia_id === ponto.id ||
         itemNome === pontoNome ||
         itemCodigo === pontoSigla ||
         itemCodigo === pontoNumero ||
-        (pontoNumero && itemNome.includes(pontoNumero));
+        (pontoSigla && itemNome.includes(pontoSigla)) ||
+        (pontoNumero && itemNome.includes(pontoNumero)) ||
+        sameCoords(item.coordenadas);
     });
 
     setSelectedBebedouro(bebedouro || {
