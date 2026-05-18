@@ -73,7 +73,14 @@ export default function DetalhesBebedouro({ bebedouro }) {
     });
   }, [iconesConfig, bebedouro?.tipo, bebedouro?.nome]);
   const subIconePonto = bebedouro?.sub_icone_url || bebedouro?.icone_url || iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
-  const pontoReferencia = pontosReferencia.find((ponto) => ponto.id === bebedouro?.ponto_referencia_id || normalizeText(ponto.nome) === normalizeText(bebedouro?.nome) || normalizeText(ponto.sigla) === normalizeText(bebedouro?.codigo_interno) || normalizeText(ponto.numero_ponto) === normalizeText(bebedouro?.codigo_interno));
+  const pontoReferencia = pontosReferencia.find((ponto) => {
+    const codigo = normalizeText(bebedouro?.codigo_interno);
+    const nome = normalizeText(bebedouro?.nome);
+    return ponto.id === bebedouro?.ponto_referencia_id ||
+      (nome && normalizeText(ponto.nome) === nome) ||
+      (codigo && normalizeText(ponto.sigla) === codigo) ||
+      (codigo && normalizeText(ponto.numero_ponto) === codigo);
+  });
   const numeroBebedouro = pontoReferencia?.numero_ponto || bebedouro?.numero_ponto || bebedouro?.codigo_interno || "-";
   const areaIdsBebedouro = Array.isArray(bebedouro.area_vinculada_ids) && bebedouro.area_vinculada_ids.length ? bebedouro.area_vinculada_ids : bebedouro.pasto_id ? [bebedouro.pasto_id] : [];
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];

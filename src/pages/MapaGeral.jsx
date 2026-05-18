@@ -643,13 +643,13 @@ export default function MapaGeral() {
       const itemCodigo = normalizeText(item.codigo_interno);
       return item.id === ponto.bebedouro_id ||
         item.ponto_referencia_id === ponto.id ||
-        itemNome === pontoNome ||
-        itemCodigo === pontoSigla ||
-        itemCodigo === pontoNumero ||
+        sameCoords(item.coordenadas) ||
+        (pontoNome && itemNome === pontoNome) ||
+        (itemCodigo && pontoSigla && itemCodigo === pontoSigla) ||
+        (itemCodigo && pontoNumero && itemCodigo === pontoNumero) ||
         (itemCodigo && pontoNome.includes(itemCodigo)) ||
         (pontoSigla && itemNome.includes(pontoSigla)) ||
-        (pontoNumero && itemNome.includes(pontoNumero)) ||
-        sameCoords(item.coordenadas);
+        (pontoNumero && itemNome.includes(pontoNumero));
     });
 
     setSelectedBebedouro(bebedouro || {
