@@ -20,9 +20,11 @@ import { getLocalEstoque, getLabelOperacao, toValue } from "../components/movime
 const MODELOS_RELATORIO = [
   { value: 'saldo_atual', label: 'Saldo Atual de Estoque', grupo: 'Estoque' },
   { value: 'estoque_local', label: 'Estoque por Local', grupo: 'Estoque' },
+  { value: 'saldo_simples', label: 'Saldo Simples por Produto', grupo: 'Estoque' },
   { value: 'estoque_lote', label: 'Estoque por Lote/Nota (FIFO)', grupo: 'Estoque' },
   { value: 'valorizacao', label: 'Valorização de Estoque', grupo: 'Estoque' },
   { value: 'extrato_movimentacoes', label: 'Extrato de Movimentações', grupo: 'Movimentações' },
+  { value: 'resumo_movimentacoes', label: 'Resumo de Movimentações por Produto', grupo: 'Movimentações' },
   { value: 'movimentacoes_produto', label: 'Movimentações por Produto', grupo: 'Movimentações' },
   { value: 'movimentacoes_local', label: 'Movimentações por Local', grupo: 'Movimentações' },
   { value: 'transferencias', label: 'Transferências', grupo: 'Movimentações' },
@@ -162,6 +164,13 @@ export default function RelatoriosEstoque() {
       });
     };
 
+    const isEntradaMov = (mov) => mov.tipo_movimentacao === 'Entrada' || (mov.tipo_movimentacao === 'Ajuste' && toValue(mov.tipo_detalhado || '').includes('ajuste_positivo'));
+    const isSaidaMov = (mov) => mov.tipo_movimentacao === 'Saída' || (mov.tipo_movimentacao === 'Ajuste' && !toValue(mov.tipo_detalhado || '').includes('ajuste_positivo'));
+    const filtrarMovimentacaoPorLocal = (mov) => {
+      if (!localEstoqueId) return true;
+      return mov.local_estoque_origem === localEstoqueId || mov.local_estoque_destino === localEstoqueId;
+    };
+
     switch (modeloRelatorio) {
       case 'saldo_atual': {
         // Agrupar lotes por produto+local
@@ -195,6 +204,110 @@ export default function RelatoriosEstoque() {
           ...r,
           custo_medio: r.quantidade > 0 ? r.valor_total / r.quantidade : 0
         })).sort((a, b) => (a.produto_nome || '').localeCompare(b.produto_nome || ''));
+      }
+
+      case 'saldo_simples': {
+        const saldosAtuais = {};
+        lotesNota
+          .filter(l => l.status === 'Disponivel')
+          .filter(l => !produtoId || l.produto_id === produtoId)
+          .filter(l => !localEstoqueId || l.local_estoque_id === localEstoqueId)
+          .forEach(l => {
+            if (!saldosAtuais[l.produto_id]) saldosAtuais[l.produto_id] = { quantidade: 0, valor: 0 };
+            saldosAtuais[l.produto_id].quantidade += l.quantidade_disponivel || 0;
+            saldosAtuais[l.produto_id].valor += (l.quantidade_disponivel || 0) * (l.custo_unitario || 0);
+          });
+
+        const resumo = {};
+        const movs = movimentacoes
+          .filter(m => !produtoId || m.produto_id === produtoId)
+          .filter(filtrarMovimentacaoPorLocal);
+
+        const produtosBase = produtos.filter(p => !produtoId || p.id === produtoId);
+        produtosBase.forEach(prod => {
+          resumo[prod.id] = {
+            produto_id: prod.id,
+            produto_nome: prod.nome_produto,
+            produto_codigo: prod.codigo_interno || prod.numero_produto,
+            categoria: prod.categoria,
+            unidade: prod.unidade_medida || 'UN',
+            qtd_entradas: 0,
+            valor_entradas: 0,
+            qtd_saidas: 0,
+            valor_saidas: 0,
+            saldo_atual: saldosAtuais[prod.id]?.quantidade || 0,
+            valor_saldo: saldosAtuais[prod.id]?.valor || 0,
+          };
+        });
+
+        movs.forEach(m => {
+          if (!resumo[m.produto_id]) {
+            const prod = produtos.find(p => p.id === m.produto_id);
+            resumo[m.produto_id] = {
+              produto_id: m.produto_id,
+              produto_nome: m.produto_nome || prod?.nome_produto,
+              produto_codigo: m.produto_codigo || prod?.codigo_interno || prod?.numero_produto,
+              categoria: m.produto_categoria || prod?.categoria,
+              unidade: m.unidade_medida || prod?.unidade_medida || 'UN',
+              qtd_entradas: 0,
+              valor_entradas: 0,
+              qtd_saidas: 0,
+              valor_saidas: 0,
+              saldo_atual: saldosAtuais[m.produto_id]?.quantidade || 0,
+              valor_saldo: saldosAtuais[m.produto_id]?.valor || 0,
+            };
+          }
+          if (isEntradaMov(m)) {
+            resumo[m.produto_id].qtd_entradas += m.quantidade || 0;
+            resumo[m.produto_id].valor_entradas += m.valor_total || 0;
+          }
+          if (isSaidaMov(m)) {
+            resumo[m.produto_id].qtd_saidas += m.quantidade || 0;
+            resumo[m.produto_id].valor_saidas += m.valor_total || 0;
+          }
+        });
+
+        let resultado = Object.values(resumo);
+        if (apenasComSaldo) resultado = resultado.filter(r => r.saldo_atual > 0);
+        return resultado.sort((a, b) => (a.produto_nome || '').localeCompare(b.produto_nome || ''));
+      }
+
+      case 'resumo_movimentacoes': {
+        let movs = filtrarPorData(movimentacoes).filter(filtrarMovimentacaoPorLocal);
+        if (produtoId) movs = movs.filter(m => m.produto_id === produtoId);
+        if (fornecedorId) movs = movs.filter(m => m.fornecedor_id === fornecedorId);
+
+        const resumo = {};
+        movs.forEach(m => {
+          const prod = produtos.find(p => p.id === m.produto_id);
+          if (!resumo[m.produto_id]) {
+            resumo[m.produto_id] = {
+              produto_id: m.produto_id,
+              produto_nome: m.produto_nome || prod?.nome_produto,
+              produto_codigo: m.produto_codigo || prod?.codigo_interno || prod?.numero_produto,
+              categoria: m.produto_categoria || prod?.categoria,
+              unidade: m.unidade_medida || prod?.unidade_medida || 'UN',
+              qtd_entradas: 0,
+              valor_entradas: 0,
+              qtd_saidas: 0,
+              valor_saidas: 0,
+              saldo_atual: 0,
+              valor_saldo: 0,
+            };
+          }
+          if (isEntradaMov(m)) {
+            resumo[m.produto_id].qtd_entradas += m.quantidade || 0;
+            resumo[m.produto_id].valor_entradas += m.valor_total || 0;
+          }
+          if (isSaidaMov(m)) {
+            resumo[m.produto_id].qtd_saidas += m.quantidade || 0;
+            resumo[m.produto_id].valor_saidas += m.valor_total || 0;
+          }
+          resumo[m.produto_id].saldo_atual = resumo[m.produto_id].qtd_entradas - resumo[m.produto_id].qtd_saidas;
+          resumo[m.produto_id].valor_saldo = resumo[m.produto_id].valor_entradas - resumo[m.produto_id].valor_saidas;
+        });
+
+        return Object.values(resumo).sort((a, b) => (a.produto_nome || '').localeCompare(b.produto_nome || ''));
       }
 
       case 'estoque_lote': {
@@ -338,6 +451,16 @@ export default function RelatoriosEstoque() {
           quantidade: dadosRelatorio.reduce((s, d) => s + (d.quantidade || d.quantidade_disponivel || 0), 0),
           valor: dadosRelatorio.reduce((s, d) => s + (d.valor_total || 0), 0)
         };
+      case 'saldo_simples':
+      case 'resumo_movimentacoes':
+        return {
+          quantidade: dadosRelatorio.reduce((s, d) => s + (d.saldo_atual || 0), 0),
+          valor: dadosRelatorio.reduce((s, d) => s + (d.valor_saldo || 0), 0),
+          qtdEntradas: dadosRelatorio.reduce((s, d) => s + (d.qtd_entradas || 0), 0),
+          valorEntradas: dadosRelatorio.reduce((s, d) => s + (d.valor_entradas || 0), 0),
+          qtdSaidas: dadosRelatorio.reduce((s, d) => s + (d.qtd_saidas || 0), 0),
+          valorSaidas: dadosRelatorio.reduce((s, d) => s + (d.valor_saidas || 0), 0)
+        };
       case 'consumo_periodo':
       case 'entradas_fornecedor':
         return {
@@ -373,7 +496,7 @@ export default function RelatoriosEstoque() {
   const modeloAtual = MODELOS_RELATORIO.find(m => m.value === modeloRelatorio);
 
   // ========== VERIFICAR SE PRECISA DE FILTROS ESPECÍFICOS ==========
-  const precisaData = ['extrato_movimentacoes', 'consumo_periodo', 'perdas_quebras', 'entradas_fornecedor', 'kardex', 'transferencias', 'ajustes'].includes(modeloRelatorio);
+  const precisaData = ['extrato_movimentacoes', 'resumo_movimentacoes', 'consumo_periodo', 'perdas_quebras', 'entradas_fornecedor', 'kardex', 'transferencias', 'ajustes'].includes(modeloRelatorio);
   const precisaProduto = ['kardex'].includes(modeloRelatorio);
   const precisaFornecedor = ['entradas_fornecedor'].includes(modeloRelatorio);
   const precisaCentroCusto = ['consumo_periodo', 'consumo_centro'].includes(modeloRelatorio);
@@ -459,7 +582,7 @@ export default function RelatoriosEstoque() {
               />
             </div>
 
-            {(precisaProduto || ['saldo_atual', 'estoque_lote', 'extrato_movimentacoes', 'perdas_quebras'].includes(modeloRelatorio)) && (
+            {(precisaProduto || ['saldo_atual', 'saldo_simples', 'estoque_lote', 'extrato_movimentacoes', 'resumo_movimentacoes', 'perdas_quebras'].includes(modeloRelatorio)) && (
               <div className="space-y-1">
                 <Label className="text-xs">Produto {precisaProduto ? '*' : ''}</Label>
                 <AutocompleteGenerico
@@ -474,7 +597,7 @@ export default function RelatoriosEstoque() {
               </div>
             )}
 
-            {(precisaFornecedor || modeloRelatorio === 'extrato_movimentacoes') && (
+            {(precisaFornecedor || modeloRelatorio === 'extrato_movimentacoes' || modeloRelatorio === 'resumo_movimentacoes') && (
               <div className="space-y-1">
                 <Label className="text-xs">Fornecedor</Label>
                 <AutocompleteGenerico
@@ -504,7 +627,7 @@ export default function RelatoriosEstoque() {
               </div>
             )}
 
-            {['saldo_atual', 'estoque_lote'].includes(modeloRelatorio) && (
+            {['saldo_atual', 'saldo_simples', 'estoque_lote'].includes(modeloRelatorio) && (
               <div className="space-y-1 flex items-end">
                 <div className="flex items-center space-x-2">
                   <Checkbox id="apenasComSaldo" checked={apenasComSaldo} onCheckedChange={setApenasComSaldo} />
@@ -554,8 +677,9 @@ export default function RelatoriosEstoque() {
               <h2 className="text-sm font-bold">{modeloAtual?.label}</h2>
               <p className="text-xs text-gray-600">
                 {dadosRelatorio.length} registro(s) | 
-                {totais.quantidade > 0 && ` Qtd: ${formatarNumero(totais.quantidade)} |`}
-                {totais.valor > 0 && ` Valor: ${formatarMoeda(totais.valor)}`}
+                {['saldo_simples', 'resumo_movimentacoes'].includes(modeloRelatorio) ? ` Entradas: ${formatarNumero(totais.qtdEntradas || 0)} (${formatarMoeda(totais.valorEntradas || 0)}) | Saídas: ${formatarNumero(totais.qtdSaidas || 0)} (${formatarMoeda(totais.valorSaidas || 0)}) | Saldo: ${formatarNumero(totais.quantidade || 0)} (${formatarMoeda(totais.valor || 0)})` : ''}
+                {!['saldo_simples', 'resumo_movimentacoes'].includes(modeloRelatorio) && totais.quantidade > 0 && ` Qtd: ${formatarNumero(totais.quantidade)} |`}
+                {!['saldo_simples', 'resumo_movimentacoes'].includes(modeloRelatorio) && totais.valor > 0 && ` Valor: ${formatarMoeda(totais.valor)}`}
                 {dataInicio && ` | De: ${formatarData(dataInicio)}`}
                 {dataFim && ` até ${formatarData(dataFim)}`}
               </p>
@@ -586,6 +710,20 @@ export default function RelatoriosEstoque() {
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Médio</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor Total</TableHead>
+                    </>
+                  )}
+                  {(modeloRelatorio === 'saldo_simples' || modeloRelatorio === 'resumo_movimentacoes') && (
+                    <>
+                      <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black">Categoria</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor Entradas</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor Saídas</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black text-right bg-blue-50">Saldo Atual</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black text-right bg-blue-50">Valor Saldo</TableHead>
                     </>
                   )}
                   {modeloRelatorio === 'estoque_lote' && (
@@ -670,6 +808,20 @@ export default function RelatoriosEstoque() {
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(d.quantidade)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(d.custo_medio)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoeda(d.valor_total)}</TableCell>
+                      </>
+                    )}
+                    {(modeloRelatorio === 'saldo_simples' || modeloRelatorio === 'resumo_movimentacoes') && (
+                      <>
+                        <TableCell className="text-xs py-1 border border-gray-300">{d.produto_nome}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{d.produto_codigo || '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{d.categoria || '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{d.unidade || 'UN'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">{formatarNumero(d.qtd_entradas)}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">{formatarMoeda(d.valor_entradas)}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-700">{formatarNumero(d.qtd_saidas)}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-700">{formatarMoeda(d.valor_saidas)}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold bg-blue-50">{formatarNumero(d.saldo_atual)}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold bg-blue-50">{formatarMoeda(d.valor_saldo)}</TableCell>
                       </>
                     )}
                     {modeloRelatorio === 'estoque_lote' && (
@@ -764,6 +916,17 @@ export default function RelatoriosEstoque() {
                       <TableCell className="text-xs py-1 border border-black text-right">{formatarNumero(totais.quantidade)}</TableCell>
                       <TableCell className="text-xs py-1 border border-black">-</TableCell>
                       <TableCell className="text-xs py-1 border border-black text-right">{formatarMoeda(totais.valor)}</TableCell>
+                    </>
+                  )}
+                  {(modeloRelatorio === 'saldo_simples' || modeloRelatorio === 'resumo_movimentacoes') && (
+                    <>
+                      <TableCell colSpan={4} className="text-xs py-1 border border-black">TOTAL</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right">{formatarNumero(totais.qtdEntradas)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right">{formatarMoeda(totais.valorEntradas)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right">{formatarNumero(totais.qtdSaidas)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right">{formatarMoeda(totais.valorSaidas)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right bg-blue-50">{formatarNumero(totais.quantidade)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right bg-blue-50">{formatarMoeda(totais.valor)}</TableCell>
                     </>
                   )}
                   {(modeloRelatorio === 'extrato_movimentacoes' || modeloRelatorio === 'transferencias' || modeloRelatorio === 'ajustes') && (
