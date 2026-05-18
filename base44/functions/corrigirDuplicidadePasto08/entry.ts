@@ -84,16 +84,20 @@ Deno.serve(async (req) => {
     const totalKm08Antes = lotesKm08.reduce((sum, lote) => sum + num(lote.quantidade_cabecas), 0);
     const actions = [];
 
-    if (loteAtivo253 && lotesDuplicados.length > 0) {
+    if (loteAtivo253) {
+      actions.push({ type: 'zerar_saldo_indevido_km_08', id: loteAtivo253.id, nome: loteAtivo253.nome, quantidade: loteAtivo253.quantidade_cabecas, status_atual: loteAtivo253.status });
+      if (apply) {
+        await base44.asServiceRole.entities.Lote.update(loteAtivo253.id, {
+          quantidade_cabecas: 0,
+          status: 'Inativo',
+          observacoes: `${loteAtivo253.observacoes || ''}\nZerado automaticamente para remover saldo indevido de 253 cabeças no KM - 08 em 2026-05-18.`.trim(),
+        });
+      }
+    }
+
+    if (lotesDuplicados.length > 0) {
       for (const lote of lotesDuplicados) {
-        actions.push({ type: 'inativar_lote_duplicado', id: lote.id, nome: lote.nome, quantidade: lote.quantidade_cabecas, status_atual: lote.status });
-        if (apply) {
-          await base44.asServiceRole.entities.Lote.update(lote.id, {
-            quantidade_cabecas: 0,
-            status: 'Inativo',
-            observacoes: `${lote.observacoes || ''}\nInativado automaticamente para remover duplicidade do KM - 08 em 2026-05-18.`.trim(),
-          });
-        }
+        actions.push({ type: 'manter_lote_duplicado_ja_zerado', id: lote.id, nome: lote.nome, quantidade: lote.quantidade_cabecas, status_atual: lote.status });
       }
     }
 
