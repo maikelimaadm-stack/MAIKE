@@ -623,9 +623,11 @@ export default function MapaGeral() {
     setShowDetalhesPontoSupl(true);
   }, [mapaGeralPermissions.visualizar_detalhes_cochos]);
 
-  const handleClickPontoReferencia = useCallback((ponto) => {
+  const handleClickPontoReferencia = useCallback(async (ponto) => {
     if (!normalizeText(ponto?.tipo).includes("BEBEDOURO")) return;
 
+    const listaBebedouros = navigator.onLine ? await base44.entities.Bebedouro.list("-updated_date") : bebedouros;
+    const bebedourosEmpresa = listaBebedouros.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
     const pontoNumero = normalizeText(ponto.numero_ponto);
     const pontoNome = normalizeText(ponto.nome);
     const pontoSigla = normalizeText(ponto.sigla);
@@ -633,10 +635,10 @@ export default function MapaGeral() {
 
     const sameCoords = (coords = {}) => {
       if (!pontoCoords.lat || !pontoCoords.lng || !coords.lat || !coords.lng) return false;
-      return Math.abs(Number(coords.lat) - Number(pontoCoords.lat)) < 0.00001 && Math.abs(Number(coords.lng) - Number(pontoCoords.lng)) < 0.00001;
+      return Math.abs(Number(coords.lat) - Number(pontoCoords.lat)) < 0.00002 && Math.abs(Number(coords.lng) - Number(pontoCoords.lng)) < 0.00002;
     };
 
-    const bebedouro = bebedouros.find((item) => {
+    const bebedouro = bebedourosEmpresa.find((item) => {
       const itemNome = normalizeText(item.nome);
       const itemCodigo = normalizeText(item.codigo_interno);
       return item.id === ponto.bebedouro_id ||
@@ -644,6 +646,7 @@ export default function MapaGeral() {
         itemNome === pontoNome ||
         itemCodigo === pontoSigla ||
         itemCodigo === pontoNumero ||
+        (itemCodigo && pontoNome.includes(itemCodigo)) ||
         (pontoSigla && itemNome.includes(pontoSigla)) ||
         (pontoNumero && itemNome.includes(pontoNumero)) ||
         sameCoords(item.coordenadas);
@@ -664,7 +667,7 @@ export default function MapaGeral() {
       area_vinculada_nomes: ponto.area_vinculada_nomes || []
     });
     setShowDetalhesBebedouro(true);
-  }, [bebedouros]);
+  }, [bebedouros, empresaSelecionadaId]);
 
   const handleClickLotes = useCallback((l) => {
     if (!mapaGeralPermissions.visualizar_detalhes_lotes) return;
