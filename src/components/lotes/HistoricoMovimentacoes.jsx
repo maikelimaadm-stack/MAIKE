@@ -15,6 +15,7 @@ import {
   getSexoAnteriorFromObs,
 } from "../utils/pecuariaUtils";
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
+import { reverseMovementOnDelete } from "./movimentacaoReconciliation";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 
 const CORES_TIPO = {
@@ -658,78 +659,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       }
 
       if (mov.tipo === 'Transferência de Área') {
-        // REGRA: Quando temos categoriaMovimento, NÃO usar fallback por nome-apenas.
-        // Isso evita que a reversão unifique lotes de categorias diferentes
-        // (ex: lote que mudou de "Garrote" para "Boi" e foi transferido — na reversão,
-        //  NÃO deve voltar para o lote "Garrote" remanescente na origem).
-        let origemFinal, destinoFinal;
-        if (categoriaMovimento) {
-          // Busca ESTRITA por nome+área+categoria — se não encontrar, NÃO faz fallback
-          origemFinal = findLoteByNomeAreaCategoria(mov.lote, mov.area_origem_id, categoriaMovimento);
-          destinoFinal = findLoteByNomeAreaCategoria(mov.lote, mov.area_destino_id, categoriaMovimento);
-          // Fallback para lote pelo ID original SOMENTE se ele tem a mesma categoria
-          if (!destinoFinal) {
-            const lotePorIdCheck = findLoteById(mov.lote_id);
-            if (lotePorIdCheck && lotePorIdCheck.area_atual_id === mov.area_destino_id &&
-                (lotePorIdCheck.categoria || '').toUpperCase() === categoriaMovimento.toUpperCase()) {
-              destinoFinal = lotePorIdCheck;
-            }
-          }
-          if (!origemFinal) {
-            const lotePorIdCheck = findLoteById(mov.lote_id);
-            if (lotePorIdCheck && lotePorIdCheck.area_atual_id === mov.area_origem_id &&
-                (lotePorIdCheck.categoria || '').toUpperCase() === categoriaMovimento.toUpperCase()) {
-              origemFinal = lotePorIdCheck;
-            }
-          }
-        } else {
-          origemFinal = findLoteByNomeArea(mov.lote, mov.area_origem_id, true) || findLoteByNomeArea(mov.lote, mov.area_origem_id, false);
-          destinoFinal = findLoteByNomeArea(mov.lote, mov.area_destino_id, true) || findLoteByNomeArea(mov.lote, mov.area_destino_id, false);
-        }
-        const lotePorId = findLoteById(mov.lote_id);
-
-        if (origemFinal && destinoFinal && origemFinal.id !== destinoFinal.id) {
-          // Caso padrão: existem lotes distintos na origem e no destino com a mesma categoria
-          await base44.entities.Lote.update(origemFinal.id, {
-            quantidade_cabecas: (origemFinal.quantidade_cabecas || 0) + qtd, status: 'Ativo'
-          });
-          const novaQtdDestino = (destinoFinal.quantidade_cabecas || 0) - qtd;
-          await base44.entities.Lote.update(destinoFinal.id, {
-            quantidade_cabecas: Math.max(0, novaQtdDestino),
-            status: novaQtdDestino > 0 ? 'Ativo' : 'Inativo'
-          });
-        } else if (destinoFinal && !origemFinal) {
-          // Não existe lote com a mesma categoria na origem — criar um novo ou mover de volta
-          if ((destinoFinal.quantidade_cabecas || 0) > qtd) {
-            // Transferência parcial: criar lote na origem com a categoria CORRETA
-            await base44.entities.Lote.create({
-              empresa_id: destinoFinal.empresa_id, nome: destinoFinal.nome,
-              quantidade_cabecas: qtd, categoria: categoriaMovimento || destinoFinal.categoria,
-              sexo: destinoFinal.sexo, peso_medio_kg: destinoFinal.peso_medio_kg,
-              idade_media_meses: destinoFinal.idade_media_meses,
-              area_atual_id: mov.area_origem_id, area_atual_nome: mov.area_origem_nome || '',
-              raca_predominante: destinoFinal.raca_predominante,
-              sistema_produtivo: destinoFinal.sistema_produtivo,
-              categoria_manejo_id: destinoFinal.categoria_manejo_id,
-              categoria_manejo_nome: destinoFinal.categoria_manejo_nome,
-              data_entrada: mov.data_movimentacao, motivo_entrada: 'Outros',
-              motivo_outros: 'Reversão de movimentação', origem: 'REVERSÃO MOVIMENTAÇÃO', status: 'Ativo'
-            });
-            await base44.entities.Lote.update(destinoFinal.id, {
-              quantidade_cabecas: (destinoFinal.quantidade_cabecas || 0) - qtd
-            });
-          } else {
-            // Transferência completa: mover lote inteiro de volta
-            await base44.entities.Lote.update(destinoFinal.id, {
-              area_atual_id: mov.area_origem_id, area_atual_nome: mov.area_origem_nome || '', status: 'Ativo'
-            });
-          }
-        } else if (lotePorId) {
-          // Fallback final: usar o lote do registro original
-          await base44.entities.Lote.update(lotePorId.id, {
-            area_atual_id: mov.area_origem_id, area_atual_nome: mov.area_origem_nome || '', status: 'Ativo'
-          });
-        }
+        await reverseMovementOnDelete({
+          empresaSelecionadaId,
+          movement: movimentoAtual,
+        });
       }
 
       await base44.entities.MovimentacaoMapa.delete(mov.id);
