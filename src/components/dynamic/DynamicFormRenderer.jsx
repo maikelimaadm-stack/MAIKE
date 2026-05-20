@@ -41,6 +41,22 @@ function DefaultControl({ field, value, onChange, readOnly }) {
 
 const isCustomField = (field) => field?.origem === "customizado" || String(field?.id || "").startsWith("custom:");
 const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[7px] border-l-transparent border-b-[7px] border-b-green-500" />;
+const normalizeConditionText = (value) => String(value ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+const getOptionValue = (option) => String(option?.id ?? option?.value ?? option?.label ?? option?.nome ?? "");
+const getOptionLabel = (option) => String(option?.nome ?? option?.label ?? option?.value ?? option?.id ?? "");
+const conditionMatches = (current, expected, sourceField) => {
+  const expectedText = normalizeConditionText(expected);
+  const currentValues = new Set([normalizeConditionText(current)]);
+  (sourceField?.options || []).forEach((option) => {
+    const optionValue = getOptionValue(option);
+    const optionLabel = getOptionLabel(option);
+    if (normalizeConditionText(optionValue) === normalizeConditionText(current) || normalizeConditionText(optionLabel) === normalizeConditionText(current)) {
+      currentValues.add(normalizeConditionText(optionValue));
+      currentValues.add(normalizeConditionText(optionLabel));
+    }
+  });
+  return currentValues.has(expectedText);
+};
 
 function FieldFrame({ field, error, children, className = "" }) {
   return (
@@ -71,7 +87,7 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
         const sourceField = fields.find((item) => item.id === rule.sourceFieldId);
         if (sourceField?.type !== "select" || !["manual", "native"].includes(sourceField?.optionsMode)) return true;
         const current = values[rule.sourceFieldName] ?? values.campos_personalizados?.[rule.sourceFieldName];
-        return String(current || "").trim().toUpperCase() === String(rule.value || "").trim().toUpperCase();
+        return conditionMatches(current, rule.value, sourceField);
       }
       return typeof field.showWhen === "function" ? field.showWhen(values, context) : true;
     });
