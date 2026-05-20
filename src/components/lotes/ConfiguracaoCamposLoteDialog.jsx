@@ -27,6 +27,7 @@ const TIPOS_CAMPO = [
 { value: "datetime", label: "Data e Hora" },
 { value: "time", label: "Hora" },
 { value: "select", label: "Lista de seleção" },
+{ value: "option_list", label: "Lista de opções" },
 { value: "relation", label: "Relação com cadastro" },
 { value: "calculado", label: "Calculado" }];
 
@@ -126,7 +127,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     const formula = form.tipo === "calculado" ? montarFormulaVisual(calculationItems) : "";
     const deps = calculationItems.map((item) => item.field).filter(Boolean);
     const protectedOptions = form.metadata?.protected_options || [];
-    const manualOptions = form.tipo === "select" ? [...new Set([...protectedOptions, ...String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).map((item) => ({ value: item, label: item, protected: protectedOptions.includes(item) })) : [];
+    const hasManualOptions = ["select", "option_list"].includes(form.tipo);
+    const manualOptions = hasManualOptions ? [...new Set([...protectedOptions, ...String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).map((item) => ({ value: item, label: item, protected: protectedOptions.includes(item) })) : [];
 
     return {
       ...form,
@@ -138,19 +140,19 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       read_only: form.tipo === "calculado",
       ordenavel: true,
       filtravel: !["textarea"].includes(form.tipo),
-      alinhamento: ["number", "calculado"].includes(form.tipo) ? "right" : "left",
+      alinhamento: form.tipo === "number" && form.usar_mascara ? "left" : ["number", "calculado"].includes(form.tipo) ? "right" : "left",
       options: manualOptions,
-      options_text: form.tipo === "select" ? manualOptions.map((option) => option.label).join("\n") : "",
+      options_text: hasManualOptions ? manualOptions.map((option) => option.label).join("\n") : "",
       options_source: "",
-      agregacao_tipo: form.agregacao_tipo === "none" ? undefined : form.agregacao_tipo,
+      agregacao_tipo: form.tipo === "number" && form.usar_mascara ? undefined : form.agregacao_tipo === "none" ? undefined : form.agregacao_tipo,
       agregacao_campo_base: "",
       formula,
       calculation_builder: { items: calculationItems },
       campos_dependentes: deps,
       dependencias: deps,
       decimal_places: Math.min(6, Math.max(0, Number(form.decimal_places) || 0)),
-      usar_decimal: !!form.usar_decimal,
-      usar_mascara: form.tipo === "number" && !!form.usar_mascara,
+      usar_decimal: ["number", "calculado"].includes(form.tipo) && !form.usar_mascara && !!form.usar_decimal,
+      usar_mascara: form.tipo === "number" && !form.usar_decimal && !!form.usar_mascara,
       mascaras_text: form.tipo === "number" && form.usar_mascara ? String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).join("\n") : "",
       visivel_form: true,
       label: toTitleCase(form.label),
@@ -217,11 +219,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
-    if (form.tipo === "select") {
+    if (["select", "option_list"].includes(form.tipo)) {
       const optionNames = [...(form.metadata?.protected_options || []), ...String(form.options_text || "").split("\n")].map((item) => item.trim().toUpperCase()).filter(Boolean);
       if (optionNames.length === 0) return toast.error("Informe pelo menos uma opção da lista.");
       if (new Set(optionNames).size !== optionNames.length) return toast.error("Remova opções repetidas da lista.");
     }
+    if (form.tipo === "number" && form.usar_mascara && form.usar_decimal) return toast.error("Escolha máscara ou casas decimais, não os dois.");
     if (form.tipo === "number" && form.usar_mascara && String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return toast.error("Informe pelo menos uma máscara.");
     saveMutation.mutate();
   };
@@ -234,12 +237,22 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     const finalValue = upperFields.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     setForm((prev) => {
       const next = { ...prev, [field]: finalValue, ...(field === "label" && !editingId ? { field_name: toSnakeCase(finalValue) } : {}) };
+      if (field === "usar_decimal" && value) {
+        next.usar_mascara = false;
+        next.mascaras_text = "";
+      }
+      if (field === "usar_mascara" && value) {
+        next.usar_decimal = false;
+        next.agregacao_tipo = "none";
+      }
       if (field === "tipo") {
         next.agregacao_tipo = "none";
         next.usar_decimal = ["number", "calculado"].includes(value);
+        next.usar_mascara = false;
+        next.mascaras_text = "";
         next.read_only = value === "calculado";
         next.visivel_form = value !== "calculado";
-        if (value !== "select") {
+        if (!["select", "option_list"].includes(value)) {
           next.options = [];
           next.options_text = "";
         }
@@ -396,7 +409,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
               <Field label="Texto de ajuda"><Input value={form.placeholder} onChange={(e) => updateForm("placeholder", e.target.value)} placeholder="TEXTO MOSTRADO NO CAMPO" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
               <Field label="Descrição"><Input value={form.descricao} onChange={(e) => updateForm("descricao", e.target.value)} placeholder="EXPLICAÇÃO OPCIONAL" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" /></Field>
 
-              {form.tipo === "select" && <ManualSelectOptionsConfig form={form} updateForm={updateForm} />}
+              {["select", "option_list"].includes(form.tipo) && <ManualSelectOptionsConfig form={form} updateForm={updateForm} />}
               {form.tipo === "relation" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="relation" />}
               {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
               <DecimalConfig form={form} updateForm={updateForm} />
@@ -476,6 +489,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
                           {(campo.options_source_entity || campo.relation_entity) && <Badge variant="secondary" className="text-[10px]">Vínculo</Badge>}
                           {(campo.agregacao_tipo || campo.agregacao) && <Badge variant="secondary" className="text-[10px]">Total</Badge>}
                           {campo.usar_decimal && <Badge variant="secondary" className="text-[10px]">{campo.decimal_places ?? 2} dec.</Badge>}
+                          {campo.usar_mascara && <Badge variant="secondary" className="text-[10px]">Máscara</Badge>}
                         </div>
                       </TableCell>
                     </TableRow>

@@ -147,6 +147,8 @@ const formatValue = (value, campo, relatedOptions = {}) => {
   if (campo?.tipo === "date" || campo?.id === "data") return formatDate(value);
   if (campo?.id === "valor") return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   if (campo?.id === "peso") return `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: campo?.usar_decimal ? campo.decimal_places ?? 2 : 2 })} kg`;
+  if (campo?.tipo === "option_list") return Array.isArray(value) ? value.join(", ") : value;
+  if (campo?.tipo === "number" && campo?.usar_mascara) return value;
   if (campo?.tipo === "calculado" || campo?.tipo === "number") {
     const places = Math.min(6, Math.max(0, Number(campo?.decimal_places ?? 2)));
     return Number(value).toLocaleString("pt-BR", campo?.usar_decimal ? { minimumFractionDigits: places, maximumFractionDigits: places } : { maximumFractionDigits: 2 });
@@ -208,7 +210,7 @@ export const campoEngine = {
   buildValidationSchema(campos) {
     const shape = {};
     campos.filter((campo) => campo.obrigatorio && campo.tipo !== "calculado").forEach((campo) => {
-      shape[campo.field_name] = z.union([z.string().min(1), z.number(), z.boolean()]);
+      shape[campo.field_name] = campo.tipo === "option_list" ? z.array(z.string()).min(1) : z.union([z.string().min(1), z.number(), z.boolean()]);
     });
     return z.object(shape);
   },
@@ -221,6 +223,7 @@ export const campoEngine = {
         result[campo.id] = registros.filter((registro) => getRawValue(registro, campo) !== "").length;
         return;
       }
+      if (campo.tipo === "number" && campo.usar_mascara) return;
       const valores = registros.map((registro) => Number(getRawValue(registro, campo))).filter((value) => !Number.isNaN(value));
       if (valores.length === 0) return;
       if (tipo === "sum") result[campo.id] = valores.reduce((acc, value) => acc + value, 0);

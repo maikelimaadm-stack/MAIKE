@@ -15,6 +15,7 @@ import LegacyTabs from "./LegacyTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 import ToggleSwitch from "@/components/common/ToggleSwitch";
+import CustomOptionListControl from "./CustomOptionListControl.jsx";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
@@ -397,6 +398,15 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
       return <Input value={Number(calculatedValue || 0).toLocaleString("pt-BR", campo.usar_decimal ? { minimumFractionDigits: places, maximumFractionDigits: places } : { maximumFractionDigits: 2 })} readOnly placeholder="CALCULADO" className={`${inputClass} bg-slate-50`} />;
     }
 
+    if (campo.tipo === "option_list") {
+      const opcoesCampoPersonalizado = campoOptions.map((option) => ({
+        value: String(option.value || option.label || "").toUpperCase(),
+        label: String(option.label || option.value || "").toUpperCase()
+      }));
+
+      return <CustomOptionListControl options={opcoesCampoPersonalizado} value={value} onChange={(nextValue) => handleCustomChange(campo.field_name, nextValue)} disabled={campo.read_only || isReadOnly} placeholder={(campo.placeholder || "SELECIONE UMA OU MAIS OPÇÕES").toUpperCase()} />;
+    }
+
     if (campo.tipo === "select" || campo.tipo === "relation") {
       const opcoesCampoPersonalizado = campoOptions.map((option) => {
         const optionValue = String(option.value || option.label || "");
@@ -528,7 +538,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
   { id: "observacoes", name: "observacoes", label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." },
-  ...camposPersonalizadosForm.map((campo) => ({ id: `custom:${campo.field_name}`, name: campo.field_name, label: campo.label, type: campo.tipo, optionsMode: campo.tipo === "select" && !(campo.options_source_entity || campo.relation_entity) ? "manual" : "", required: campo.obrigatorio, errorKey: `campos_personalizados.${campo.field_name}`, wide: campo.tipo === "textarea", medium: ["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo), compact: ["number", "date", "time", "calculado"].includes(campo.tipo), totalizable: ["number", "calculado"].includes(campo.tipo), options: campo.tipo === "select" ? campoEngine.getOptionsCampo(campo, relatedOptions).map((option) => ({ id: String(option.value || option.label || ""), nome: String(option.label || option.value || "").toUpperCase() })) : [], displayField: "nome", searchFields: ["nome"], render: () => renderCampoPersonalizado(campo) }))],
+  ...camposPersonalizadosForm.map((campo) => ({ id: `custom:${campo.field_name}`, name: campo.field_name, label: campo.label, type: campo.tipo, optionsMode: ["select", "option_list"].includes(campo.tipo) && !(campo.options_source_entity || campo.relation_entity) ? "manual" : "", required: campo.obrigatorio, errorKey: `campos_personalizados.${campo.field_name}`, wide: ["textarea", "option_list"].includes(campo.tipo), medium: ["datetime", "datetime-local", "data_hora", "datahora"].includes(campo.tipo), compact: ["number", "date", "time", "calculado"].includes(campo.tipo) && !campo.usar_mascara, totalizable: ["number", "calculado"].includes(campo.tipo) && !campo.usar_mascara, options: ["select", "option_list"].includes(campo.tipo) ? campoEngine.getOptionsCampo(campo, relatedOptions).map((option) => ({ id: String(option.value || option.label || ""), nome: String(option.label || option.value || "").toUpperCase() })) : [], displayField: "nome", searchFields: ["nome"], render: () => renderCampoPersonalizado(campo) }))],
   [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, camposPersonalizadosForm, errors, isReadOnly, relatedOptions]);
 
   const defaultLayout = {

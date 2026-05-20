@@ -229,9 +229,9 @@ export const loteRepository = {
       regras: data.regras || {},
       formula: data.formula || "",
       calculation_builder: data.calculation_builder || { items: [] },
-      usar_decimal: !!data.usar_decimal,
+      usar_decimal: !!data.usar_decimal && !data.usar_mascara,
       decimal_places: data.decimal_places ?? 2,
-      usar_mascara: !!data.usar_mascara,
+      usar_mascara: !!data.usar_mascara && !data.usar_decimal,
       mascaras_text: data.mascaras_text || "",
       dependencias: data.dependencias || data.campos_dependentes || [],
       campos_dependentes: data.campos_dependentes || data.dependencias || []

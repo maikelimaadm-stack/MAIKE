@@ -165,6 +165,7 @@ export default function TabelaLotes({
 
     return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))].map((coluna) => {
       const config = aggregationByColumn[coluna.id];
+      if (coluna.tipo === "number" && coluna.usar_mascara) return { ...coluna, agregacao_tipo: "", agregacao: "", align: "left" };
       return config?.enabled ? { ...coluna, agregacao_tipo: config.type, agregacao: config.type, usar_decimal: true } : { ...coluna, agregacao_tipo: "", agregacao: "" };
     });
   }, [camposPersonalizados, layoutAggregationConfig]);
@@ -284,6 +285,7 @@ export default function TabelaLotes({
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
   const getColumnFilterType = (coluna) => {
     if (coluna?.tipo === "date" || coluna?.id === "data") return "date";
+    if (coluna?.tipo === "number" && coluna?.usar_mascara) return "list";
     if (["number", "calculado"].includes(coluna?.tipo) || ["codigo", "cabecas", "peso", "valor", "valor_por_cabeca", "valor_frete"].includes(coluna?.id)) return "number";
     return "list";
   };
