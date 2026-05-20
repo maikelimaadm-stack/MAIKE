@@ -483,7 +483,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
             </div>
 
 
-            <div className="flex-1 overflow-auto p-3 border-t border-slate-300">
+            <div className="flex-1 overflow-auto p-3 border-slate-300 border-">
               <div className="flex flex-wrap content-start gap-2 min-h-[160px]" onDragOver={(event) => event.preventDefault()} onDrop={dropAvailableFieldToPanel}>
                 {panelFields.length === 0 ? <div className="text-xs text-slate-400 p-4">Painel vazio. Se for painel do sistema, ele será ocultado ao salvar.</div> : panelFields.map(renderPanelField)}
               </div>
