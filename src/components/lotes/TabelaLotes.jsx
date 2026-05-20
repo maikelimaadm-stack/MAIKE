@@ -479,14 +479,20 @@ export default function TabelaLotes({
 
   useEffect(() => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
+    const totalRow = Object.keys(agregacoes).length > 0 ? colunasExportaveis.map((coluna, index) => {
+      if (index === 0) return "Totais";
+      return agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : "";
+    }) : null;
+
     onVisibleDataChange?.({
       columns: colunasExportaveis.map((coluna) => ({ id: coluna.id, label: coluna.label })),
       rows: lotesOrdenados.map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id))),
       selectedRows: lotesOrdenados.
       filter((lote) => selectedItems.includes(lote.id)).
-      map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id)))
+      map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id))),
+      totalRows: totalRow ? [totalRow] : []
     });
-  }, [colunasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange]);
+  }, [colunasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange, agregacoes]);
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-4 w-4 min-w-4 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`;
