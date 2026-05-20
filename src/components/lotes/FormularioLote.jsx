@@ -550,7 +550,11 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} };
-  const tabs = activeLayoutConfig.panels.filter((panel) => !panel.hidden && (panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0));
+  const tabs = activeLayoutConfig.panels.filter((panel) => {
+    if (panel.hidden) return false;
+    if (panel.id === "campos_personalizados" && camposPersonalizadosForm.length === 0) return false;
+    return (activeLayoutConfig.layout?.[panel.id] || []).length > 0;
+  });
 
   const saveLayoutConfig = (nextConfig) => {
     const normalized = { ...nextConfig, visibilityRules: nextConfig.visibilityRules || {}, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
