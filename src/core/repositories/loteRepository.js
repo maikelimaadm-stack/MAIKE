@@ -231,6 +231,8 @@ export const loteRepository = {
       calculation_builder: data.calculation_builder || { items: [] },
       usar_decimal: !!data.usar_decimal,
       decimal_places: data.decimal_places ?? 2,
+      usar_mascara: !!data.usar_mascara,
+      mascaras_text: data.mascaras_text || "",
       dependencias: data.dependencias || data.campos_dependentes || [],
       campos_dependentes: data.campos_dependentes || data.dependencias || []
     });

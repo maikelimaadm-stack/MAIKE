@@ -14,6 +14,7 @@ import GuidedRelationConfig from "./GuidedRelationConfig";
 import ManualSelectOptionsConfig from "./ManualSelectOptionsConfig";
 import VisualCalculationBuilder from "./VisualCalculationBuilder";
 import DecimalConfig from "./DecimalConfig";
+import MaskConfig from "./MaskConfig";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import { montarCamposDisponiveis, montarFormulaVisual } from "./camposConfigOptions";
@@ -62,7 +63,9 @@ const initialForm = {
   calculation_builder: { items: [{ field: "", operator: "*" }, { field: "", operator: "*" }] },
   campos_dependentes: [],
   usar_decimal: false,
-  decimal_places: 2
+  decimal_places: 2,
+  usar_mascara: false,
+  mascaras_text: ""
 };
 
 export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inline = false }) {
@@ -147,6 +150,8 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       dependencias: deps,
       decimal_places: Math.min(6, Math.max(0, Number(form.decimal_places) || 0)),
       usar_decimal: !!form.usar_decimal,
+      usar_mascara: form.tipo === "number" && !!form.usar_mascara,
+      mascaras_text: form.tipo === "number" && form.usar_mascara ? String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).join("\n") : "",
       visivel_form: true,
       label: toTitleCase(form.label),
       placeholder: String(form.placeholder || "").toUpperCase(),
@@ -212,7 +217,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
-    if (form.tipo === "select" && [...(form.metadata?.protected_options || []), ...String(form.options_text || "").split("\n").map((item) => item.trim()).filter(Boolean)].length === 0) return toast.error("Informe pelo menos uma opção da lista.");
+    if (form.tipo === "select") {
+      const optionNames = [...(form.metadata?.protected_options || []), ...String(form.options_text || "").split("\n")].map((item) => item.trim().toUpperCase()).filter(Boolean);
+      if (optionNames.length === 0) return toast.error("Informe pelo menos uma opção da lista.");
+      if (new Set(optionNames).size !== optionNames.length) return toast.error("Remova opções repetidas da lista.");
+    }
+    if (form.tipo === "number" && form.usar_mascara && String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return toast.error("Informe pelo menos uma máscara.");
     saveMutation.mutate();
   };
 
@@ -265,7 +275,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "none",
       calculation_builder: { items: items.length ? items : initialForm.calculation_builder.items },
       usar_decimal: !!campo.usar_decimal,
-      decimal_places: campo.decimal_places ?? 2
+      decimal_places: campo.decimal_places ?? 2,
+      usar_mascara: !!campo.usar_mascara,
+      mascaras_text: campo.mascaras_text || ""
     });
   };
 
@@ -328,7 +340,9 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       field_name: "",
       agregacao_tipo: selectedCampo.agregacao_tipo || selectedCampo.agregacao || "none",
       usar_decimal: !!selectedCampo.usar_decimal,
-      decimal_places: selectedCampo.decimal_places ?? 2
+      decimal_places: selectedCampo.decimal_places ?? 2,
+      usar_mascara: !!selectedCampo.usar_mascara,
+      mascaras_text: selectedCampo.mascaras_text || ""
     });
     setEditingId(null);
     setSelectedCampoIds([]);
@@ -386,6 +400,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
               {form.tipo === "relation" && <GuidedRelationConfig form={form} updateForm={updateForm} mode="relation" />}
               {form.tipo === "calculado" && <VisualCalculationBuilder value={form.calculation_builder?.items || []} fields={camposCalculo} onChange={(items) => updateForm("calculation_builder", { items })} />}
               <DecimalConfig form={form} updateForm={updateForm} />
+              <MaskConfig form={form} updateForm={updateForm} />
               <Field label="Prévia" wide>
                 <div className="px-2 py-1 text-xs text-slate-700 uppercase bg-slate-50 min-h-[48px]">
                   {form.label || "Nome do campo"}: {form.tipo === "calculado" ? montarFormulaVisual(form.calculation_builder?.items || []) || "Calculado automaticamente" : form.placeholder || "Valor do campo"}

@@ -168,6 +168,8 @@ export const campoEngine = {
       agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "",
       usar_decimal: !!campo.usar_decimal,
       decimal_places: campo.decimal_places ?? 2,
+      usar_mascara: !!campo.usar_mascara,
+      mascaras_text: campo.mascaras_text || "",
       calculation_builder: campo.calculation_builder || { items: [] }
     };
   },

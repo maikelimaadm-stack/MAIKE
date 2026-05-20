@@ -12,9 +12,7 @@ export default function DecimalConfig({ form, updateForm }) {
       <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">
         <label className="text-[12px] text-slate-600 text-right leading-none">Usar casas decimais:</label>
         <div className="h-6 flex items-center px-1">
-          <button type="button" onClick={() => updateForm("usar_decimal", !form.usar_decimal)} className="h-[22px] flex items-center bg-transparent">
-            <ToggleSwitch checked={!!form.usar_decimal} onChange={(checked) => updateForm("usar_decimal", checked)} />
-          </button>
+          <ToggleSwitch checked={!!form.usar_decimal} onChange={(checked) => updateForm("usar_decimal", checked)} />
         </div>
       </div>
       <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1">

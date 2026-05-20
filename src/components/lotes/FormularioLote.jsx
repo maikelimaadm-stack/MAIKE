@@ -363,6 +363,24 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     handleCustomChange(fieldName, next.date ? `${next.date}T${next.time || "00:00"}` : "");
   };
 
+  const onlyDigits = (value) => String(value || "").replace(/\D/g, "");
+
+  const applyNumberMask = (digits, mask) => {
+    let index = 0;
+    return String(mask || "").replace(/#/g, () => digits[index++] || "").replace(/[^0-9]+$/g, "");
+  };
+
+  const getBestMask = (digits, masks) => {
+    return masks.find((mask) => (mask.match(/#/g) || []).length >= digits.length) || masks[masks.length - 1] || "";
+  };
+
+  const formatMaskedNumber = (value, campo) => {
+    const masks = String(campo.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).sort((a, b) => (a.match(/#/g) || []).length - (b.match(/#/g) || []).length);
+    const maxDigits = Math.max(...masks.map((mask) => (mask.match(/#/g) || []).length), 0);
+    const digits = onlyDigits(value).slice(0, maxDigits || undefined);
+    return applyNumberMask(digits, getBestMask(digits, masks));
+  };
+
   const renderCampoPersonalizado = (campo) => {
     const fieldKey = `campos_personalizados.${campo.field_name}`;
     const value = formData.campos_personalizados?.[campo.field_name] || "";
@@ -415,6 +433,10 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           <Input type="date" value={dateTimeValue.date} onChange={(e) => handleCustomDateTimeChange(campo.field_name, "date", e.target.value)} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />
           <Input type="time" value={dateTimeValue.time} onChange={(e) => handleCustomDateTimeChange(campo.field_name, "time", e.target.value)} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />
         </div>);
+    }
+
+    if (campo.tipo === "number" && campo.usar_mascara) {
+      return <Input type="text" inputMode="numeric" value={formatMaskedNumber(value, campo)} onChange={(e) => handleCustomChange(campo.field_name, formatMaskedNumber(e.target.value, campo))} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${readOnlyClass}`} />;
     }
 
     return <Input type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"} value={value} onChange={(e) => handleCustomChange(campo.field_name, e.target.value)} placeholder={(campo.placeholder || campo.label || "").toUpperCase()} readOnly={campo.read_only || isReadOnly} className={`${inputClass} ${campo.uppercase ? "uppercase" : ""} ${readOnlyClass}`} />;
