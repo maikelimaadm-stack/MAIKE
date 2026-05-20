@@ -283,10 +283,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
       return;
     }
 
-    const finalPanels = draftPanels.map((panel) => {
-      const isEmpty = (draftLayout[panel.id] || []).length === 0;
-      return { ...panel, hidden: isEmpty };
-    });
+    const finalPanels = draftPanels;
     onSave?.({
       panels: finalPanels,
       layout: draftLayout,
@@ -441,7 +438,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
-            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto overflow-y-hidden before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
+            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto overflow-y-hidden before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-100">
               {draftPanels.map((panel) => {
               const isActive = activePanel?.id === panel.id;
               const isEmpty = (draftLayout[panel.id] || []).length === 0;
@@ -462,7 +459,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                     setSelectedPanelField(null);
                     setSelectedPanelFieldIds([]);
                   }}
-                  className={`relative z-10 flex-none h-8 min-w-[86px] max-w-[180px] px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden text-ellipsis ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty ? "opacity-60" : ""}`}>
+                  className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
                   
                     {isCustomPanel(panel) && <CustomMarker />}
                     {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
