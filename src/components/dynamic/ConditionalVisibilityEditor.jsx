@@ -10,7 +10,9 @@ const getOptionLabel = (option) => String(option?.nome ?? option?.label ?? optio
 
 export default function ConditionalVisibilityEditor({ selectedField, fields = [], visibilityRules = {}, onChange, disabled = false }) {
   const selectedId = selectedField?.id;
-  const rule = selectedId ? visibilityRules[selectedId] : null;
+  const savedRule = selectedId ? visibilityRules[selectedId] : null;
+  const defaultRule = selectedField?.defaultVisibilityRule || null;
+  const rule = savedRule || defaultRule;
 
   const conditionFields = useMemo(() => {
     return fields.filter((field) => {
@@ -19,14 +21,14 @@ export default function ConditionalVisibilityEditor({ selectedField, fields = []
     });
   }, [fields, selectedId]);
 
-  const sourceField = conditionFields.find((field) => getFieldValueKey(field) === rule?.sourceFieldId) || null;
+  const sourceField = !rule?.always ? conditionFields.find((field) => getFieldValueKey(field) === rule?.sourceFieldId) || null : null;
   const sourceValue = sourceField ? getFieldValueKey(sourceField) : ALWAYS;
   const valueOptions = (sourceField?.options || []).map((option) => ({ value: getOptionValue(option), label: getOptionLabel(option) })).filter((option) => option.value);
 
   const setSource = (nextSource) => {
     if (!selectedId) return;
     if (nextSource === ALWAYS) {
-      onChange?.(selectedId, null);
+      onChange?.(selectedId, defaultRule ? { always: true } : null);
       return;
     }
     const nextField = conditionFields.find((field) => getFieldValueKey(field) === nextSource);

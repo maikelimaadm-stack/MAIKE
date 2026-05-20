@@ -64,14 +64,16 @@ export default function DynamicFormRenderer({ panels = [], fields = [], layout =
     .map((fieldId) => fields.find((field) => field.id === fieldId))
     .filter(Boolean)
     .filter((field) => field.visible !== false && !hiddenFieldIds.includes(field.id))
-    .filter((field) => typeof field.showWhen === "function" ? field.showWhen(values, context) : true)
     .filter((field) => {
-      const rule = visibilityRules[field.id];
-      if (!rule?.sourceFieldName) return true;
-      const sourceField = fields.find((item) => item.id === rule.sourceFieldId);
-      if (sourceField?.type !== "select" || !["manual", "native"].includes(sourceField?.optionsMode)) return true;
-      const current = values[rule.sourceFieldName] ?? values.campos_personalizados?.[rule.sourceFieldName];
-      return String(current || "").trim().toUpperCase() === String(rule.value || "").trim().toUpperCase();
+      const rule = visibilityRules[field.id] || field.defaultVisibilityRule;
+      if (rule?.always) return true;
+      if (rule?.sourceFieldName) {
+        const sourceField = fields.find((item) => item.id === rule.sourceFieldId);
+        if (sourceField?.type !== "select" || !["manual", "native"].includes(sourceField?.optionsMode)) return true;
+        const current = values[rule.sourceFieldName] ?? values.campos_personalizados?.[rule.sourceFieldName];
+        return String(current || "").trim().toUpperCase() === String(rule.value || "").trim().toUpperCase();
+      }
+      return typeof field.showWhen === "function" ? field.showWhen(values, context) : true;
     });
 
   if (!activePanel) return null;
