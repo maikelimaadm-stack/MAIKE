@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const [draggedPanelId, setDraggedPanelId] = useState(null);
   const [editingPanelId, setEditingPanelId] = useState(null);
   const [requiredPopup, setRequiredPopup] = useState({ open: false, message: "" });
+  const panelsScrollRef = useRef(null);
 
   const showRequiredPopup = (message) => {
     setRequiredPopup({ open: true, message });
@@ -398,6 +399,10 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   };
 
+  const scrollPanels = (direction) => {
+    panelsScrollRef.current?.scrollBy({ left: direction * 260, behavior: "smooth" });
+  };
+
   const content =
   <div className="w-full h-full overflow-hidden flex flex-col bg-white">
       {!inline && <DialogHeader className="sr-only"><DialogTitle>Configuração de layout do formulário</DialogTitle></DialogHeader>}
@@ -438,44 +443,47 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
-            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto overflow-y-hidden pr-3 before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-100">
-              {draftPanels.map((panel) => {
-              const isActive = activePanel?.id === panel.id;
-              const isEmpty = (draftLayout[panel.id] || []).length === 0;
-              const panelLabel = formatPanelLabel(panel.label);
-              return (
-                <button
-                  key={panel.id}
-                  type="button"
-                  draggable={isEditing}
-                  onDragStart={() => {setDraggedPanelId(panel.id);setActivePanelId(panel.id);}}
-                  onDragOver={(event) => {event.preventDefault();reorderPanel(panel.id);}}
-                  onDrop={() => setDraggedPanelId(null)}
-                  onDragEnd={() => setDraggedPanelId(null)}
-                  onClick={() => {
-                    if (isActive && isEditing && !SYSTEM_PANEL_IDS.includes(panel.id)) setEditingPanelId(panel.id);else
-                    setEditingPanelId(null);
-                    setActivePanelId(panel.id);
-                    setSelectedPanelField(null);
-                    setSelectedPanelFieldIds([]);
-                  }}
-                  className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
-                  
-                    {isCustomPanel(panel) && <CustomMarker />}
-                    {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
-                  <Input
-                    value={panel.label || ""}
-                    autoFocus
-                    onClick={(event) => event.stopPropagation()}
-                    onBlur={() => setEditingPanelId(null)}
-                    onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: formatPanelLabel(event.target.value) } : item))}
-                    className="h-6 w-40 border-0 bg-transparent p-0 text-xs font-semibold normal-case shadow-none focus-visible:ring-0" /> :
+            <div className="relative h-9 bg-white flex items-end gap-0 before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
+              <button type="button" onClick={() => scrollPanels(-1)} className={iconButtonClass} title="Painéis anteriores"><ChevronLeft className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => scrollPanels(1)} className={iconButtonClass} title="Próximos painéis"><ChevronRight className="w-3.5 h-3.5" /></button>
+              <div ref={panelsScrollRef} className="flex min-w-0 flex-1 items-end gap-0 overflow-x-auto overflow-y-hidden px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {draftPanels.map((panel) => {
+                const isActive = activePanel?.id === panel.id;
+                const isEmpty = (draftLayout[panel.id] || []).length === 0;
+                const panelLabel = formatPanelLabel(panel.label);
+                return (
+                  <button
+                    key={panel.id}
+                    type="button"
+                    draggable={isEditing}
+                    onDragStart={() => {setDraggedPanelId(panel.id);setActivePanelId(panel.id);}}
+                    onDragOver={(event) => {event.preventDefault();reorderPanel(panel.id);}}
+                    onDrop={() => setDraggedPanelId(null)}
+                    onDragEnd={() => setDraggedPanelId(null)}
+                    onClick={() => {
+                      if (isActive && isEditing && !SYSTEM_PANEL_IDS.includes(panel.id)) setEditingPanelId(panel.id);else
+                      setEditingPanelId(null);
+                      setActivePanelId(panel.id);
+                      setSelectedPanelField(null);
+                      setSelectedPanelFieldIds([]);
+                    }}
+                    className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                    
+                      {isCustomPanel(panel) && <CustomMarker />}
+                      {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
+                    <Input
+                      value={panel.label || ""}
+                      autoFocus
+                      onClick={(event) => event.stopPropagation()}
+                      onBlur={() => setEditingPanelId(null)}
+                      onChange={(event) => setDraftPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, label: formatPanelLabel(event.target.value) } : item))}
+                      className="h-6 w-40 border-0 bg-transparent p-0 text-xs font-semibold normal-case shadow-none focus-visible:ring-0" /> :
 
-                  panelLabel}
-                  </button>);
+                    panelLabel}
+                    </button>);
 
-            })}
-
+              })}
+              </div>
             </div>
 
 
