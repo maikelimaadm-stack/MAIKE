@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const isCustomPanel = (tab) => tab && !SYSTEM_PANEL_IDS.includes(tab.id);
 const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[7px] border-l-transparent border-b-[7px] border-b-green-500" />;
-const navButtonClass = "relative z-20 h-7 w-7 flex-none self-center bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center";
+const navButtonClass = "relative z-20 h-7 flex-none self-center bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center w-8";
 
 export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
   const tabsScrollRef = useRef(null);
