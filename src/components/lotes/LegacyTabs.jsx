@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const isCustomPanel = (tab) => tab && !SYSTEM_PANEL_IDS.includes(tab.id);
 const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[7px] border-l-transparent border-b-[7px] border-b-green-500" />;
-const navButtonClass = "relative z-20 h-9 w-10 flex-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center";
+const navButtonClass = "relative z-20 h-8 w-7 flex-none bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center";
 
 export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
   const tabsScrollRef = useRef(null);
@@ -12,7 +12,7 @@ export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
 
   return (
     <div className="relative flex items-end gap-0 bg-white before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
-      <button type="button" onClick={() => scrollTabs(-1)} className={navButtonClass} title="Painéis anteriores">
+      <button type="button" onClick={() => scrollTabs(-1)} className={`${navButtonClass} border-r border-slate-300`} title="Painéis anteriores">
         <ChevronLeft className="w-4 h-4" />
       </button>
       <button type="button" onClick={() => scrollTabs(1)} className={navButtonClass} title="Próximos painéis">

@@ -15,6 +15,7 @@ const AGGREGATION_OPTIONS = [
 
 
 const iconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-40 disabled:bg-white";
+const tabNavButtonClass = "relative z-20 h-8 w-7 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
 const isCustomPanel = (panel) => panel && !SYSTEM_PANEL_IDS.includes(panel.id);
@@ -444,8 +445,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
             <div className="relative h-9 bg-white flex items-end gap-0 before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
-              <button type="button" onClick={() => scrollPanels(-1)} className={iconButtonClass} title="Painéis anteriores"><ChevronLeft className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => scrollPanels(1)} className={iconButtonClass} title="Próximos painéis"><ChevronRight className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => scrollPanels(-1)} className={`${tabNavButtonClass} border-r border-slate-300`} title="Painéis anteriores"><ChevronLeft className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => scrollPanels(1)} className={tabNavButtonClass} title="Próximos painéis"><ChevronRight className="w-3.5 h-3.5" /></button>
               <div ref={panelsScrollRef} className="flex min-w-0 flex-1 items-end gap-0 overflow-x-auto overflow-y-hidden px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {draftPanels.map((panel) => {
                 const isActive = activePanel?.id === panel.id;
