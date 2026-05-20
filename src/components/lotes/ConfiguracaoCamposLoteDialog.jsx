@@ -204,12 +204,6 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     const labelTrim = form.label.trim().toUpperCase();
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
     if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
-    if (isNativeSelect) {
-      const protectedOptions = form.metadata?.protected_options || [];
-      const currentOptions = String(form.options_text || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean);
-      const missing = protectedOptions.find((option) => !currentOptions.includes(option));
-      if (missing) return toast.error(`A opção padrão "${missing}" não pode ser removida.`);
-    }
     const duplicate = campos.find((c) => c.id !== editingId && (
     String(c.label || "").trim().toUpperCase() === labelTrim ||
     String(c.field_name || "").toLowerCase() === fieldName.toLowerCase())

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
 
 function Field({ label, children }) {
   return (
@@ -11,19 +12,36 @@ function Field({ label, children }) {
   );
 }
 
+const normalizeOption = (value) => String(value || "").trim().toUpperCase();
+
 export default function ManualSelectOptionsConfig({ form, updateForm }) {
   const protectedOptions = form.metadata?.protected_options || [];
+  const protectedSet = useMemo(() => new Set(protectedOptions.map(normalizeOption)), [protectedOptions]);
+  const editableOptionsText = useMemo(() => {
+    return String(form.options_text || "")
+      .split("\n")
+      .map(normalizeOption)
+      .filter((item) => item && !protectedSet.has(item))
+      .join("\n");
+  }, [form.options_text, protectedSet]);
+
   const handleChange = (event) => {
-    const typedOptions = String(event.target.value || "").split("\n").map((item) => item.trim().toUpperCase()).filter(Boolean);
-    const merged = [...new Set([...protectedOptions, ...typedOptions])].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })).join("\n");
-    updateForm("options_text", merged);
+    updateForm("options_text", event.target.value.toUpperCase());
   };
 
   return (
     <>
-      <Field label="Opções da lista">
+      {protectedOptions.length > 0 && (
+        <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
+          <div className="mb-1 font-medium text-slate-700">Opções nativas protegidas:</div>
+          <div className="flex flex-wrap gap-1">
+            {protectedOptions.map((option) => <Badge key={option} variant="secondary" className="text-[10px]">{option}</Badge>)}
+          </div>
+        </div>
+      )}
+      <Field label="Novas opções">
         <textarea
-          value={form.options_text || ""}
+          value={editableOptionsText}
           onChange={handleChange}
           placeholder="DIGITE UMA OPÇÃO POR LINHA"
           className="w-full min-h-[90px] resize-none bg-transparent px-2 py-1 text-xs uppercase outline-none"
@@ -31,7 +49,7 @@ export default function ManualSelectOptionsConfig({ form, updateForm }) {
         />
       </Field>
       <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-        Cadastre as opções manualmente, uma por linha. Opções nativas/pré-cadastradas são protegidas e não podem ser removidas.
+        Digite uma opção por linha. As opções nativas ficam protegidas acima e serão mantidas automaticamente ao salvar.
       </div>
     </>
   );
