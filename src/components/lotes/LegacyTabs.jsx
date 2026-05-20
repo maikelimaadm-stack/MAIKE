@@ -6,7 +6,7 @@ const CustomMarker = () => <span className="pointer-events-none absolute bottom-
 
 export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
   return (
-    <div className="relative flex items-end gap-0 overflow-x-auto overflow-y-hidden bg-white md:px-12 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-100 before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
+    <div className="relative flex items-end gap-0 overflow-x-auto overflow-y-hidden bg-white md:px-12 pr-3 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-100 before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300">
       {tabs.map((tab) => {
         const active = activeTab === tab.id;
         return (

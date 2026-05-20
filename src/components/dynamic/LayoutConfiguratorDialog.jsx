@@ -438,7 +438,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           </section>
 
           <main className="min-w-0 overflow-hidden flex flex-col bg-white">
-            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto overflow-y-hidden before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-100">
+            <div className="relative h-9 bg-white flex items-end px-1 gap-0 overflow-x-auto overflow-y-hidden pr-3 before:absolute before:left-0 before:right-0 before:bottom-0 before:h-px before:bg-slate-300 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-100">
               {draftPanels.map((panel) => {
               const isActive = activePanel?.id === panel.id;
               const isEmpty = (draftLayout[panel.id] || []).length === 0;
