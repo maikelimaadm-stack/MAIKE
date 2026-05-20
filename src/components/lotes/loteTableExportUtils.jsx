@@ -1,3 +1,5 @@
+import { exportRowsToXlsx } from "@/components/common/xlsxExportUtils";
+
 const escapeHtml = (value) => String(value ?? "")
   .replaceAll("&", "&amp;")
   .replaceAll("<", "&lt;")
@@ -72,12 +74,11 @@ export function printVisibleLotesTable(data) {
 }
 
 export function exportVisibleLotesTableToExcel({ columns = [], rows = [], totalRows = [], title = "Cadastro de Lotes" }) {
-  const xml = buildExcelXml({ columns, rows, totalRows, title });
-  const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.href = url;
-  link.download = `cadastro_lotes_${new Date().toISOString().split("T")[0]}.xls`;
-  link.click();
-  URL.revokeObjectURL(url);
+  exportRowsToXlsx({
+    columns,
+    rows,
+    totalRows,
+    title,
+    fileName: "cadastro_lotes"
+  });
 }
