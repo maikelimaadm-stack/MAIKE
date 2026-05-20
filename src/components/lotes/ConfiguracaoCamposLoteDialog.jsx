@@ -86,6 +86,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   const selectedCampoId = selectedCampoIds[0] || null;
   const selectedCampo = campos.find((campo) => (campo.id || campo.field_id) === selectedCampoId) || campos[0] || null;
   const selectedIndex = Math.max(0, campos.findIndex((campo) => (campo.id || campo.field_id) === (selectedCampo?.id || selectedCampo?.field_id)));
+  const selectedHasNativeField = selectedCampoIds.some((id) => campos.find((campo) => (campo.id || campo.field_id) === id)?.metadata?.native_select);
   const calculationItems = form.calculation_builder?.items || [];
   const calculationFields = calculationItems.map((item) => item.field).filter(Boolean);
   const hasInvalidCalculation = form.tipo === "calculado" && (calculationItems.length < 2 || calculationItems.some((item) => !item.field) || new Set(calculationFields).size !== calculationFields.length);
@@ -211,7 +212,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
     if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
     if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
-    if (form.tipo === "select" && String(form.options_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return toast.error("Informe pelo menos uma opção da lista.");
+    if (form.tipo === "select" && [...(form.metadata?.protected_options || []), ...String(form.options_text || "").split("\n").map((item) => item.trim()).filter(Boolean)].length === 0) return toast.error("Informe pelo menos uma opção da lista.");
     saveMutation.mutate();
   };
 
@@ -421,7 +422,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
         onToggleView={handleToggleView}
         onBack={() => onOpenChange(false)}
         toggleViewDisabled={!selectedCampo || selectedCampoIds.length > 1}
-        onDelete={handleDeleteSelected}
+        onDelete={selectedHasNativeField ? undefined : handleDeleteSelected}
         onSettingsClick={() => {}}
         onAttachClick={() => {}}
         attachDisabled

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
 function Field({ label, children }) {
@@ -24,9 +24,16 @@ export default function ManualSelectOptionsConfig({ form, updateForm }) {
       .filter((item) => item && !protectedSet.has(item))
       .join("\n");
   }, [form.options_text, protectedSet]);
+  const [localOptionsText, setLocalOptionsText] = useState(editableOptionsText);
+
+  useEffect(() => {
+    setLocalOptionsText(editableOptionsText);
+  }, [form.field_name, form.label]);
 
   const handleChange = (event) => {
-    updateForm("options_text", event.target.value.toUpperCase());
+    const value = event.target.value.toUpperCase();
+    setLocalOptionsText(value);
+    updateForm("options_text", value);
   };
 
   return (
@@ -41,16 +48,18 @@ export default function ManualSelectOptionsConfig({ form, updateForm }) {
       )}
       <Field label="Novas opções">
         <textarea
-          value={editableOptionsText}
+          value={localOptionsText}
           onChange={handleChange}
           placeholder="DIGITE UMA OPÇÃO POR LINHA"
           className="w-full min-h-[90px] resize-none bg-transparent px-2 py-1 text-xs uppercase outline-none"
           style={{ textTransform: "uppercase" }}
         />
       </Field>
-      <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-        Digite uma opção por linha. As opções nativas ficam protegidas acima e serão mantidas automaticamente ao salvar.
-      </div>
+      {protectedOptions.length > 0 && (
+        <div className="ml-[191px] border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-600">
+          Digite uma opção por linha. As opções nativas ficam protegidas acima e serão mantidas automaticamente ao salvar.
+        </div>
+      )}
     </>
   );
 }
