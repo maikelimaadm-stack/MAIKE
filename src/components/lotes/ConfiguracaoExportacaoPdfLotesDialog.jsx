@@ -38,26 +38,26 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
         </DialogHeader>
 
         <div className="space-y-2 p-2">
-          <label className="flex items-center gap-2 text-xs text-slate-700">
+          <label className="flex items-center gap-2 text-xs text-slate-700 rounded-[1.5px]">
             <ToggleSwitch checked={useConfiguredColumns} onChange={setUseConfiguredColumns} />
             <span className="truncate">Sempre exportar as colunas selecionadas abaixo</span>
           </label>
 
-          <div className="border border-slate-200 rounded-[1.5px] max-h-72 overflow-auto rounded-[1.5px]">
+          <div className="border border-slate-200 rounded-[1.5px] max-h-72 overflow-auto">
             {columns.map((column) =>
-            <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50">
+            <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50 rounded-none">
               <ToggleSwitch checked={columnIds.includes(column.id)} onChange={() => toggleColumn(column.id)} />
               <span className="truncate text-slate-700">{column.label}</span>
             </label>
             )}
           </div>
 
-          <div className="flex justify-end border-t border-slate-200 py-1">
-            <div className="inline-grid grid-cols-2 border border-slate-200 rounded-[1.5px] overflow-hidden">
-              <Button type="button" onClick={handleSave} title="Salvar" className="h-8 w-12 rounded-none border-0 border-r border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-none p-0">
+          <div className="flex justify-end border-t border-slate-200 py-1 rounded-[1.5px]">
+            <div className="inline-grid grid-cols-2 border border-slate-200 rounded-[1.5px]">
+              <Button type="button" onClick={handleSave} title="Salvar" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
                 <Check className="w-4 h-4" />
               </Button>
-              <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="h-8 w-12 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-800 shadow-none p-0">
+              <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-7 w-8 rounded-none border-y-0 border-l-0 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
                 <X className="w-4 h-4" />
               </Button>
             </div>
