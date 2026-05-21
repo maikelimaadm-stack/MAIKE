@@ -38,20 +38,16 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
         </DialogHeader>
 
         <div className="space-y-2 p-2">
-          <label className="grid grid-cols-[minmax(0,1fr)_110px] items-center gap-1 text-xs text-slate-700">
-            <span className="truncate text-right">Sempre exportar selecionadas:</span>
-            <span className="h-6 border border-slate-300 bg-white rounded-[1.5px] flex items-center px-1">
-              <ToggleSwitch checked={useConfiguredColumns} onChange={setUseConfiguredColumns} />
-            </span>
+          <label className="flex items-center gap-2 text-xs text-slate-700">
+            <ToggleSwitch checked={useConfiguredColumns} onChange={setUseConfiguredColumns} />
+            <span className="truncate">Sempre exportar as colunas selecionadas abaixo</span>
           </label>
 
           <div className="border border-slate-200 rounded-[1.5px] max-h-72 overflow-auto">
             {columns.map((column) =>
-            <label key={column.id} className="grid grid-cols-[minmax(0,1fr)_110px] items-center gap-1 px-2 py-1 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50">
-              <span className="truncate text-right text-slate-700">{column.label}:</span>
-              <span className="h-6 border border-slate-300 bg-white rounded-[1.5px] flex items-center px-1">
-                <ToggleSwitch checked={columnIds.includes(column.id)} onChange={() => toggleColumn(column.id)} />
-              </span>
+            <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50">
+              <ToggleSwitch checked={columnIds.includes(column.id)} onChange={() => toggleColumn(column.id)} />
+              <span className="truncate text-slate-700">{column.label}</span>
             </label>
             )}
           </div>
