@@ -24,7 +24,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-none pt-1 pr-1 pb-1 pl-1 gap-1 sm:p-">
+      <DialogContent className="max-w-lg rounded-none pt-1 pr-1 pb-1 pl-1 gap-1 sm:p-1">
         <DialogHeader>
           <DialogTitle className="text-sm">Configuração da exportação PDF</DialogTitle>
         </DialogHeader>
