@@ -33,7 +33,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg rounded-[1.5px] border border-slate-200 p-0 gap-0 sm:p-0 shadow-none overflow-hidden">
-        <DialogHeader className="px-2 py-1 border-b border-slate-200">
+        <DialogHeader className="px-2 py-1 border-b border-slate-200 rounded-t-[1.5px]">
           <DialogTitle className="text-sm">{titulo}</DialogTitle>
         </DialogHeader>
 
@@ -43,7 +43,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
             <span className="truncate">Sempre exportar as colunas selecionadas abaixo</span>
           </label>
 
-          <div className="border border-slate-200 rounded-[1.5px] max-h-72 overflow-auto">
+          <div className="border border-slate-200 rounded-[1.5px] max-h-72 overflow-auto rounded-[1.5px]">
             {columns.map((column) =>
             <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50">
               <ToggleSwitch checked={columnIds.includes(column.id)} onChange={() => toggleColumn(column.id)} />
