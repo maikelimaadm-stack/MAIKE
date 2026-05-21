@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
-import { toNoonUtcISOString } from "../utils/pecuariaUtils";
+import { normalizeText, toNoonUtcISOString } from "../utils/pecuariaUtils";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -637,101 +637,110 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   };
 
   const handleMudancaCategoria = async (formData) => {
-    const areaAtualId = lotes[0]?.area_atual_id;
-    const areaMudanca = areas.find((a) => a.id === areaAtualId);
+    try {
+      const areaAtualId = lotes[0]?.area_atual_id;
+      const areaMudanca = areas.find((a) => a.id === areaAtualId);
 
-    for (const mudanca of formData.mudancas) {
-      const lotesCategoria = lotes.filter((l) => l.categoria === mudanca.categoria_atual);
-      let quantidadeRestante = mudanca.quantidade;
+      for (const mudanca of formData.mudancas) {
+        const lotesCategoria = lotes.filter((l) => normalizeText(l.categoria) === normalizeText(mudanca.categoria_atual));
+        let quantidadeRestante = Number(mudanca.quantidade || 0);
 
-      for (const lote of lotesCategoria) {
-        if (quantidadeRestante <= 0) break;
+        for (const lote of lotesCategoria) {
+          if (quantidadeRestante <= 0) break;
 
-        await validarOrdemTemporalLote({
-          empresaId: empresaSelecionadaId,
-          loteId: lote.id,
-          dataReferencia: formData.data_mudanca
-        });
-
-        const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
-        const sexoNovo = mudanca.sexo_novo || lote.sexo;
-        const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
-        const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
-        let loteDestinoId = lote.id;
-        let modoMudanca = 'total';
-
-        if (qtdMudar === lote.quantidade_cabecas) {
-          await base44.entities.Lote.update(lote.id, {
-            categoria: mudanca.categoria_nova,
-            sexo: sexoNovo,
-            categoria_manejo_id: catManejoIdNovo,
-            categoria_manejo_nome: catManejoNomeNovo
+          await validarOrdemTemporalLote({
+            empresaId: empresaSelecionadaId,
+            loteId: lote.id,
+            dataReferencia: formData.data_mudanca
           });
-        } else {
-          modoMudanca = 'parcial';
-          const loteNovoCategoria = await base44.entities.Lote.create({
+
+          const qtdMudar = Math.min(quantidadeRestante, Number(lote.quantidade_cabecas || 0));
+          const sexoNovo = mudanca.sexo_novo || lote.sexo;
+          const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
+          const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
+          let loteDestinoId = lote.id;
+          let modoMudanca = 'total';
+
+          if (qtdMudar === Number(lote.quantidade_cabecas || 0)) {
+            await base44.entities.Lote.update(lote.id, {
+              categoria: mudanca.categoria_nova,
+              sexo: sexoNovo,
+              categoria_manejo_id: catManejoIdNovo,
+              categoria_manejo_nome: catManejoNomeNovo
+            });
+          } else {
+            modoMudanca = 'parcial';
+            const loteNovoCategoria = await base44.entities.Lote.create({
+              empresa_id: empresaSelecionadaId,
+              nome: lote.nome,
+              identificador_nome: lote.identificador_nome,
+              identificador_sigla: lote.identificador_sigla,
+              identificador_cor: lote.identificador_cor,
+              quantidade_cabecas: qtdMudar,
+              quantidade_entrada: qtdMudar,
+              categoria: mudanca.categoria_nova,
+              categoria_entrada: lote.categoria_entrada || mudanca.categoria_nova,
+              sexo: sexoNovo,
+              categoria_manejo_id: catManejoIdNovo,
+              categoria_manejo_nome: catManejoNomeNovo,
+              categoria_manejo_entrada_id: lote.categoria_manejo_entrada_id || catManejoIdNovo,
+              categoria_manejo_entrada_nome: lote.categoria_manejo_entrada_nome || catManejoNomeNovo,
+              peso_medio_kg: mudanca.peso_medio || lote.peso_medio_kg,
+              peso_entrada_kg: lote.peso_entrada_kg || lote.peso_medio_kg,
+              idade_media_meses: lote.idade_media_meses,
+              area_atual_id: areaAtualId,
+              area_atual_nome: areaMudanca?.nome || '',
+              raca_predominante: lote.raca_predominante,
+              sistema_produtivo: lote.sistema_produtivo,
+              data_entrada: formData.data_mudanca,
+              motivo_entrada: 'Outros',
+              motivo_outros: 'Mudança de Categoria',
+              origem: 'Mudança de Categoria',
+              status: 'Ativo'
+            });
+            loteDestinoId = loteNovoCategoria.id;
+
+            await base44.entities.Lote.update(lote.id, {
+              quantidade_cabecas: Number(lote.quantidade_cabecas || 0) - qtdMudar
+            });
+          }
+
+          const snapshotMudanca = {
+            modo: modoMudanca,
+            origem_lote_id: lote.id,
+            destino_lote_id: loteDestinoId,
+            categoria_anterior: lote.categoria,
+            categoria_nova: mudanca.categoria_nova
+          };
+
+          await base44.entities.MovimentacaoMapa.create({
             empresa_id: empresaSelecionadaId,
-            nome: lote.nome,
-            identificador_nome: lote.identificador_nome,
-            identificador_sigla: lote.identificador_sigla,
-            identificador_cor: lote.identificador_cor,
-            quantidade_cabecas: qtdMudar,
-            quantidade_entrada: qtdMudar,
-            categoria: mudanca.categoria_nova,
-            categoria_entrada: lote.categoria_entrada || mudanca.categoria_nova,
-            sexo: sexoNovo,
-            categoria_manejo_id: catManejoIdNovo,
-            categoria_manejo_nome: catManejoNomeNovo,
-            categoria_manejo_entrada_id: lote.categoria_manejo_entrada_id || catManejoIdNovo,
-            categoria_manejo_entrada_nome: lote.categoria_manejo_entrada_nome || catManejoNomeNovo,
-            peso_medio_kg: lote.peso_medio_kg,
-            peso_entrada_kg: lote.peso_entrada_kg || lote.peso_medio_kg,
-            idade_media_meses: lote.idade_media_meses,
-            area_atual_id: areaAtualId,
-            area_atual_nome: areaMudanca?.nome || '',
-            raca_predominante: lote.raca_predominante,
-            sistema_produtivo: lote.sistema_produtivo,
-            data_entrada: formData.data_mudanca,
-            motivo_entrada: 'Outros',
-            motivo_outros: 'Mudança de Categoria',
-            origem: 'Mudança de Categoria',
-            status: 'Ativo'
+            data_movimentacao: toNoonUtcISOString(formData.data_mudanca),
+            tipo: 'Mudança de Categoria',
+            lote: lote.nome,
+            lote_id: lote.id,
+            quantidade_animais: qtdMudar,
+            area_origem_id: areaAtualId,
+            area_origem_nome: areaMudanca?.nome || '',
+            peso_medio: mudanca.peso_medio || null,
+            observacoes: `[MUDANCA_CATEGORIA]${JSON.stringify(snapshotMudanca)}\nDe ${lote.categoria} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
           });
-          loteDestinoId = loteNovoCategoria.id;
 
-          await base44.entities.Lote.update(lote.id, {
-            quantidade_cabecas: lote.quantidade_cabecas - qtdMudar
-          });
+          quantidadeRestante -= qtdMudar;
         }
 
-        const snapshotMudanca = {
-          modo: modoMudanca,
-          origem_lote_id: lote.id,
-          destino_lote_id: loteDestinoId,
-          categoria_anterior: mudanca.categoria_atual,
-          categoria_nova: mudanca.categoria_nova
-        };
-
-        await base44.entities.MovimentacaoMapa.create({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: toNoonUtcISOString(formData.data_mudanca),
-          tipo: 'Mudança de Categoria',
-          lote: lote.nome,
-          lote_id: lote.id,
-          quantidade_animais: qtdMudar,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaMudanca?.nome || '',
-          observacoes: `[MUDANCA_CATEGORIA]${JSON.stringify(snapshotMudanca)}\nDe ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
-        });
-
-        quantidadeRestante -= qtdMudar;
+        if (quantidadeRestante > 0) {
+          throw new Error(`Saldo insuficiente para mudar ${mudanca.quantidade} cabeças da categoria ${mudanca.categoria_atual}.`);
+        }
       }
-    }
 
-    toast.success('Categorias atualizadas');
-    setShowMudancaCategoria(false);
-    onClose();
-    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+      toast.success('Categorias atualizadas');
+      setShowMudancaCategoria(false);
+      onClose();
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } }));
+    } catch (error) {
+      toast.error(error?.message || 'Erro ao salvar mudança de categoria');
+    }
   };
 
   const handlePesagem = async (formData) => {
