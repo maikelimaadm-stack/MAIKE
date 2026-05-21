@@ -265,6 +265,10 @@ export default function TabelaLotes({
     return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
 
+  const colunasTodasOrdenadas = useMemo(() => {
+    return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && !c.fixo);
+  }, [colunasOrdem, colunasDisponiveis]);
+
   // Field value extraction for filters
   const getFieldValue = (lote, colunaId) => {
     const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
@@ -444,6 +448,10 @@ export default function TabelaLotes({
     return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, relatedOptions);
   }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
 
+  const agregacoesTodas = useMemo(() => {
+    return campoEngine.calcularAgregacoes(lotesOrdenados, colunasTodasOrdenadas, relatedOptions);
+  }, [lotesOrdenados, colunasTodasOrdenadas, relatedOptions]);
+
   const formatTotalValue = (valor, coluna) => {
     const tipo = String(coluna.tipo || coluna.field_type || "").toLowerCase();
     const integerColumns = ["cabecas", "quantidade_cabecas", "quantidade_entrada"];
@@ -479,20 +487,31 @@ export default function TabelaLotes({
 
   useEffect(() => {
     const colunasExportaveis = colunasOrdenadas.filter((coluna) => !coluna.fixo);
-    const totalRow = Object.keys(agregacoes).length > 0 ? colunasExportaveis.map((coluna, index) => {
+    const buildColumns = (cols) => cols.map((coluna) => ({
+      id: coluna.id,
+      label: coluna.label,
+      width: Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna))
+    }));
+    const buildRows = (items, cols) => items.map((lote) => cols.map((coluna) => getFieldValue(lote, coluna.id)));
+    const buildTotalRow = (cols, totals) => Object.keys(totals).length > 0 ? cols.map((coluna, index) => {
       if (index === 0) return "Totais";
-      return agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : "";
+      return totals[coluna.id] !== undefined ? formatTotalValue(totals[coluna.id], coluna) : "";
     }) : null;
+    const totalRow = buildTotalRow(colunasExportaveis, agregacoes);
+    const allTotalRow = buildTotalRow(colunasTodasOrdenadas, agregacoesTodas);
+    const selectedLotes = lotesOrdenados.filter((lote) => selectedItems.includes(lote.id));
 
     onVisibleDataChange?.({
-      columns: colunasExportaveis.map((coluna) => ({ id: coluna.id, label: coluna.label })),
-      rows: lotesOrdenados.map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id))),
-      selectedRows: lotesOrdenados.
-      filter((lote) => selectedItems.includes(lote.id)).
-      map((lote) => colunasExportaveis.map((coluna) => getFieldValue(lote, coluna.id))),
-      totalRows: totalRow ? [totalRow] : []
+      columns: buildColumns(colunasExportaveis),
+      rows: buildRows(lotesOrdenados, colunasExportaveis),
+      selectedRows: buildRows(selectedLotes, colunasExportaveis),
+      totalRows: totalRow ? [totalRow] : [],
+      allColumns: buildColumns(colunasTodasOrdenadas),
+      allRows: buildRows(lotesOrdenados, colunasTodasOrdenadas),
+      allSelectedRows: buildRows(selectedLotes, colunasTodasOrdenadas),
+      allTotalRows: allTotalRow ? [allTotalRow] : []
     });
-  }, [colunasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange, agregacoes]);
+  }, [colunasOrdenadas, colunasTodasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange, agregacoes, agregacoesTodas, columnWidths]);
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-4 w-4 min-w-4 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`;

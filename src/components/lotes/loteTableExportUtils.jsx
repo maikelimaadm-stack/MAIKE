@@ -6,7 +6,12 @@ const escapeHtml = (value) => String(value ?? "")
   .replaceAll(">", "&gt;")
   .replaceAll('"', "&quot;");
 
-const buildTableHtml = ({ columns = [], rows = [], totalRows = [], title = "Cadastro de Lotes" }) => `
+const buildTableHtml = ({ columns = [], rows = [], totalRows = [], title = "Cadastro de Lotes" }) => {
+  const totalWidth = columns.reduce((sum, column) => sum + Number(column.width || 120), 0);
+  const pageWidthMm = 281;
+  const pxToMmRatio = pageWidthMm / Math.max(totalWidth, 1);
+
+  return `
 <!doctype html>
 <html>
 <head>
@@ -16,8 +21,8 @@ const buildTableHtml = ({ columns = [], rows = [], totalRows = [], title = "Cada
     @page { size: A4 landscape; margin: 8mm; }
     body { font-family: Calibri, Arial, sans-serif; color: #111827; margin: 0; }
     h1 { font-size: 14px; margin: 0 0 8px; }
-    table { width: 100%; border-collapse: collapse; table-layout: auto; }
-    th, td { border: 1px solid #d1d5db; padding: 3px 4px; font-size: 10px; white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { border: 1px solid #d1d5db; padding: 3px 4px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     th { background: #f3f4f6; font-weight: 700; }
     .total-row td { background: #e5e7eb; font-weight: 700; }
   </style>
@@ -25,11 +30,13 @@ const buildTableHtml = ({ columns = [], rows = [], totalRows = [], title = "Cada
 <body>
   <h1>${escapeHtml(title)}</h1>
   <table>
+    <colgroup>${columns.map((column) => `<col style="width:${Math.max(8, Number(column.width || 120) * pxToMmRatio).toFixed(2)}mm" />`).join("")}</colgroup>
     <thead><tr>${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}${totalRows.map((row) => `<tr class="total-row">${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
   </table>
 </body>
 </html>`;
+};
 
 const getColumnWidth = (columns, rows, totalRows, index) => {
   const values = [columns[index]?.label, ...rows.map((row) => row[index]), ...totalRows.map((row) => row[index])];

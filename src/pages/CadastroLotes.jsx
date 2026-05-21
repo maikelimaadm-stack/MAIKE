@@ -7,12 +7,14 @@ import { toast } from "sonner";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposLoteDialog";
+import ConfiguracaoExportacaoPdfLotesDialog from "@/components/lotes/ConfiguracaoExportacaoPdfLotesDialog";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
 import { exportVisibleLotesTableToExcel, printVisibleLotesTable } from "@/components/lotes/loteTableExportUtils";
+import { getLotesPdfExportConfig } from "@/components/lotes/pdfExportConfig";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -20,6 +22,7 @@ export default function CadastroLotes() {
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [showConfigCampos, setShowConfigCampos] = useState(false);
+  const [showConfigPdf, setShowConfigPdf] = useState(false);
   const [viewMode, setViewMode] = useState("table");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -489,11 +492,24 @@ export default function CadastroLotes() {
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
             onSettingsClick={() => setShowConfigColunas(true)}
-            onExportPdf={() => printVisibleLotesTable({
-              ...visibleTableData,
-              rows: selectedTableItems.length > 0 ? visibleTableData.selectedRows || [] : visibleTableData.rows,
-              title: "Cadastro de Lotes"
-            })}
+            onExportPdf={() => {
+              const config = getLotesPdfExportConfig();
+              const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
+              const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
+              const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
+              const sourceTotalRows = config.useConfiguredColumns ? visibleTableData.allTotalRows || visibleTableData.totalRows : visibleTableData.totalRows;
+              const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
+              const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
+              const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
+
+              printVisibleLotesTable({
+                columns: selectedColumns,
+                rows: filterRows(selectedTableItems.length > 0 ? sourceSelectedRows || [] : sourceRows || []),
+                totalRows: filterRows(sourceTotalRows || []),
+                title: "Cadastro de Lotes"
+              });
+            }}
+            onConfigExportPdf={() => setShowConfigPdf(true)}
             onExportExcel={() => exportVisibleLotesTableToExcel({
               ...visibleTableData,
               rows: selectedTableItems.length > 0 ? visibleTableData.selectedRows || [] : visibleTableData.rows,
@@ -518,6 +534,12 @@ export default function CadastroLotes() {
             onVisibleDataChange={setVisibleTableData} />
         </div>
       </div>
+
+      <ConfiguracaoExportacaoPdfLotesDialog
+        open={showConfigPdf}
+        onOpenChange={setShowConfigPdf}
+        columns={visibleTableData.allColumns || visibleTableData.columns || []}
+        initialConfig={getLotesPdfExportConfig()} />
 
       <RegistroAnexosDialog
         open={!!attachmentsRecord?.id || newRecordAttachmentsOpen}

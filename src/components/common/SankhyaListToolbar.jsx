@@ -55,6 +55,7 @@ export default function SankhyaListToolbar({
   attachDisabled = false,
   onSettingsClick,
   onExportPdf,
+  onConfigExportPdf,
   onExportExcel,
   selectedCount = 0,
   title = "REGISTROS",
@@ -124,11 +125,16 @@ export default function SankhyaListToolbar({
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36 rounded-none p-1">
-              <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 cursor-pointer gap-2 text-xs">
-                <FileText className="w-3.5 h-3.5 text-red-600" />
-                PDF
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-44 rounded-none p-1">
+              <div className="flex items-center">
+                <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
+                  <FileText className="w-3.5 h-3.5 text-red-600" />
+                  PDF
+                </DropdownMenuItem>
+                <button type="button" onClick={onConfigExportPdf} disabled={!onConfigExportPdf} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar PDF">
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 cursor-pointer gap-2 text-xs">
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                 Excel
