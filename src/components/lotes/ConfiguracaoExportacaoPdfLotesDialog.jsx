@@ -24,7 +24,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-none">
+      <DialogContent className="max-w-lg rounded-none pt-1 pr-1 pb-1 pl-1 gap-1 sm:p-">
         <DialogHeader>
           <DialogTitle className="text-sm">Configuração da exportação PDF</DialogTitle>
         </DialogHeader>
@@ -36,12 +36,12 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
           </label>
 
           <div className="border border-slate-200 max-h-72 overflow-auto">
-            {columns.map((column) => (
-              <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
+            {columns.map((column) =>
+            <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
                 <Checkbox checked={columnIds.includes(column.id)} onCheckedChange={() => toggleColumn(column.id)} />
                 <span className="truncate">{column.label}</span>
               </label>
-            ))}
+            )}
           </div>
 
           <div className="flex justify-end gap-2">
@@ -50,6 +50,6 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
           </div>
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
