@@ -57,6 +57,7 @@ export default function SankhyaListToolbar({
   onExportPdf,
   onConfigExportPdf,
   onExportExcel,
+  onConfigExportExcel,
   selectedCount = 0,
   title = "REGISTROS",
   recordLabel = "LOTE",
@@ -135,10 +136,15 @@ export default function SankhyaListToolbar({
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 cursor-pointer gap-2 text-xs">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                Excel
-              </DropdownMenuItem>
+              <div className="flex items-center">
+                <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Excel
+                </DropdownMenuItem>
+                <button type="button" onClick={onConfigExportExcel} disabled={!onConfigExportExcel} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar Excel">
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>}

@@ -26,7 +26,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg rounded-none pt-1 pr-1 pb-1 pl-1 gap-1 sm:p-1">
         <DialogHeader>
-          <DialogTitle className="text-sm">Configuração da exportação PDF</DialogTitle>
+          <DialogTitle className="text-sm">Configuração da exportação PDF/Excel</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

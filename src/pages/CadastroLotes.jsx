@@ -510,11 +510,24 @@ export default function CadastroLotes() {
               });
             }}
             onConfigExportPdf={() => setShowConfigPdf(true)}
-            onExportExcel={() => exportVisibleLotesTableToExcel({
-              ...visibleTableData,
-              rows: selectedTableItems.length > 0 ? visibleTableData.selectedRows || [] : visibleTableData.rows,
-              title: "Cadastro de Lotes"
-            })}
+            onExportExcel={() => {
+              const config = getLotesPdfExportConfig();
+              const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
+              const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
+              const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
+              const sourceTotalRows = config.useConfiguredColumns ? visibleTableData.allTotalRows || visibleTableData.totalRows : visibleTableData.totalRows;
+              const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
+              const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
+              const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
+
+              exportVisibleLotesTableToExcel({
+                columns: selectedColumns,
+                rows: filterRows(selectedTableItems.length > 0 ? sourceSelectedRows || [] : sourceRows || []),
+                totalRows: filterRows(sourceTotalRows || []),
+                title: "Cadastro de Lotes"
+              });
+            }}
+            onConfigExportExcel={() => setShowConfigPdf(true)}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
