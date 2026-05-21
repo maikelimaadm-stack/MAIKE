@@ -32,7 +32,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-[1px] border border-slate-200 p-0 gap-0 sm:p-0 shadow-none">
+      <DialogContent className="max-w-lg rounded-[1px] border-[1px] border-slate-200 p-0 gap-0 sm:p-0 shadow-none">
         <DialogHeader className="px-2 py-1 border-b border-slate-200 rounded-t-[1.5px]">
           <DialogTitle className="text-sm">{titulo}</DialogTitle>
         </DialogHeader>
