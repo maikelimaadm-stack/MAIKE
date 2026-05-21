@@ -56,12 +56,12 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
             )}
           </div>
 
-          <div className="flex justify-end border-t border-slate-200 pt-2">
+          <div className="flex justify-end border-t border-slate-200 py-1">
             <div className="inline-grid grid-cols-2 border border-slate-200 rounded-[1.5px] overflow-hidden">
-              <Button type="button" onClick={handleSave} title="Salvar" className="h-8 w-12 rounded-none border-0 border-r border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-none p-0">
+              <Button type="button" onClick={handleSave} title="Salvar" className="rounded-none bg-white hover:bg-slate-50 shadow-none border hover:text-accent-foreground h-7 w-8 border-y-0 border-l-0 border-r-[0.5px] border-slate-300 text-slate-700">
                 <Check className="w-4 h-4" />
               </Button>
-              <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="h-8 w-12 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-800 shadow-none p-0">
+              <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="rounded-none bg-white hover:bg-slate-50 shadow-none border hover:text-accent-foreground h-7 w-8 border-y-0 border-l-0 border-r-[0.5px] border-slate-300 text-slate-700">
                 <X className="w-4 h-4" />
               </Button>
             </div>
