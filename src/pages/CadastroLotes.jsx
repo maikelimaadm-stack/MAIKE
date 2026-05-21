@@ -14,7 +14,7 @@ import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
 import { exportVisibleLotesTableToExcel, printVisibleLotesTable } from "@/components/lotes/loteTableExportUtils";
-import { getLotesPdfExportConfig } from "@/components/lotes/pdfExportConfig";
+import { getLotesExcelExportConfig, getLotesPdfExportConfig } from "@/components/lotes/pdfExportConfig";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -23,6 +23,7 @@ export default function CadastroLotes() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [showConfigCampos, setShowConfigCampos] = useState(false);
   const [showConfigPdf, setShowConfigPdf] = useState(false);
+  const [showConfigExcel, setShowConfigExcel] = useState(false);
   const [viewMode, setViewMode] = useState("table");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -511,7 +512,7 @@ export default function CadastroLotes() {
             }}
             onConfigExportPdf={() => setShowConfigPdf(true)}
             onExportExcel={() => {
-              const config = getLotesPdfExportConfig();
+              const config = getLotesExcelExportConfig();
               const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
               const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
               const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
@@ -527,7 +528,7 @@ export default function CadastroLotes() {
                 title: "Cadastro de Lotes"
               });
             }}
-            onConfigExportExcel={() => setShowConfigPdf(true)}
+            onConfigExportExcel={() => setShowConfigExcel(true)}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
@@ -552,7 +553,15 @@ export default function CadastroLotes() {
         open={showConfigPdf}
         onOpenChange={setShowConfigPdf}
         columns={visibleTableData.allColumns || visibleTableData.columns || []}
-        initialConfig={getLotesPdfExportConfig()} />
+        initialConfig={getLotesPdfExportConfig()}
+        tipo="pdf" />
+
+      <ConfiguracaoExportacaoPdfLotesDialog
+        open={showConfigExcel}
+        onOpenChange={setShowConfigExcel}
+        columns={visibleTableData.allColumns || visibleTableData.columns || []}
+        initialConfig={getLotesExcelExportConfig()}
+        tipo="excel" />
 
       <RegistroAnexosDialog
         open={!!attachmentsRecord?.id || newRecordAttachmentsOpen}

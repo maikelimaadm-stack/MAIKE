@@ -1,8 +1,11 @@
 export const PDF_EXPORT_CONFIG_KEY = "cadastro_lotes_pdf_export_config";
+export const EXCEL_EXPORT_CONFIG_KEY = "cadastro_lotes_excel_export_config";
 
-export function getLotesPdfExportConfig() {
-  const saved = localStorage.getItem(PDF_EXPORT_CONFIG_KEY);
-  if (!saved) return { useConfiguredColumns: false, columnIds: [] };
+const DEFAULT_EXPORT_CONFIG = { useConfiguredColumns: false, columnIds: [] };
+
+function readExportConfig(key) {
+  const saved = localStorage.getItem(key);
+  if (!saved) return DEFAULT_EXPORT_CONFIG;
   try {
     const parsed = JSON.parse(saved);
     return {
@@ -10,13 +13,29 @@ export function getLotesPdfExportConfig() {
       columnIds: Array.isArray(parsed.columnIds) ? parsed.columnIds : []
     };
   } catch {
-    return { useConfiguredColumns: false, columnIds: [] };
+    return DEFAULT_EXPORT_CONFIG;
   }
 }
 
-export function saveLotesPdfExportConfig(config) {
-  localStorage.setItem(PDF_EXPORT_CONFIG_KEY, JSON.stringify({
+function saveExportConfig(key, config) {
+  localStorage.setItem(key, JSON.stringify({
     useConfiguredColumns: Boolean(config.useConfiguredColumns),
     columnIds: Array.isArray(config.columnIds) ? config.columnIds : []
   }));
+}
+
+export function getLotesPdfExportConfig() {
+  return readExportConfig(PDF_EXPORT_CONFIG_KEY);
+}
+
+export function saveLotesPdfExportConfig(config) {
+  saveExportConfig(PDF_EXPORT_CONFIG_KEY, config);
+}
+
+export function getLotesExcelExportConfig() {
+  return readExportConfig(EXCEL_EXPORT_CONFIG_KEY);
+}
+
+export function saveLotesExcelExportConfig(config) {
+  saveExportConfig(EXCEL_EXPORT_CONFIG_KEY, config);
 }
