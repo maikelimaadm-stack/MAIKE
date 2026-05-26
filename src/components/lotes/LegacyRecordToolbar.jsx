@@ -72,13 +72,16 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
               <Button type="button" variant="outline" size="icon" className={iconButtonClass} title="Mais opções"><MoreHorizontal className="w-3.5 h-3.5" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
-              <DropdownMenuItem onClick={onLayoutConfigClick} disabled={!onLayoutConfigClick} className="h-8 cursor-pointer gap-2 text-xs px-1">
-                
+              <DropdownMenuItem onClick={onLayoutConfigClick} disabled={!onLayoutConfigClick} className="h-8 cursor-pointer gap-2 text-xs">
+                <Settings className="w-3.5 h-3.5 text-slate-600" />
                 Layout do formulário
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onSettingsClick} disabled={!onSettingsClick} className="h-8 cursor-pointer gap-2 text-xs">
+                <Settings className="w-3.5 h-3.5 text-slate-600" />
+                Campos personalizados
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>}
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" className={iconButtonClass} onClick={onSettingsClick}><Settings className="w-3.5 h-3.5" /></Button>}
           <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-l-0 border-slate-300 bg-white flex items-center justify-center text-xs text-slate-600">
             {total > 0 ? `${currentIndex + 1}/${total}` : total}
           </div>
