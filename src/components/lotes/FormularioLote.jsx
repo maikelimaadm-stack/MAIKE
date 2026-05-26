@@ -504,6 +504,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   };
 
   const basePanels = [
+  { id: "principal", label: "Principal" },
   { id: "geral", label: "Geral" },
   { id: "compra", label: "Motivo" },
   { id: "identificacao", label: "Identificação" },
@@ -512,6 +513,9 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
 
   const dynamicFields = useMemo(() => [
+  { id: "nome", name: "nome", label: "Descrição", type: "text", required: true, errorKey: "nome", wide: true, render: () => <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /> },
+  { id: "status", name: "status", label: "Ativo", type: "switch", compact: true, render: () => <div className="h-[22px] flex items-center px-1"><ToggleSwitch checked={formData.status !== "Inativo"} onChange={(checked) => handleChange("status", checked ? "Ativo" : "Inativo")} disabled={isReadOnly} /></div> },
+  { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /> },
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} onChange={(nextValue) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
   { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
@@ -542,6 +546,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, camposPersonalizadosForm, errors, isReadOnly, relatedOptions]);
 
   const defaultLayout = {
+    principal: ["nome", "status", "numero_lote"],
     geral: ["data_entrada", "setor_id", "area_entrada_id", "quantidade_cabecas", "categoria_manejo_id", "sexo", "raca_predominante", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
     compra: ["motivo_entrada", "fornecedor_id", "cidade_origem", "estado_origem", "nota_fiscal", "chave_nfe", "numero_gta", "valor_total_compra", "valor_por_cabeca", "valor_frete", "motivo_ajuste", "motivo_outros"],
     identificacao: ["identificador_nome", "identificador_sigla", "identificador_cor"],
@@ -549,20 +554,37 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
     campos_personalizados: camposPersonalizadosForm.map((campo) => `custom:${campo.field_name}`)
   };
 
-  const activeLayoutConfig = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} };
+  const activeLayoutConfig = (() => {
+    const source = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} };
+    const panels = source.panels?.some((panel) => panel.id === "principal") ? source.panels : [basePanels[0], ...(source.panels || basePanels)];
+    const principalFields = source.layout?.principal?.length ? source.layout.principal : defaultLayout.principal;
+    return {
+      ...source,
+      panels,
+      layout: { ...source.layout, principal: principalFields },
+      hiddenFieldIds: (source.hiddenFieldIds || []).filter((id) => !["status", "numero_lote"].includes(id))
+    };
+  })();
   const tabs = activeLayoutConfig.panels.filter((panel) => {
+    if (panel.id === "principal") return false;
     if (panel.hidden) return false;
     if (panel.id === "campos_personalizados" && camposPersonalizadosForm.length === 0) return false;
     return (activeLayoutConfig.layout?.[panel.id] || []).length > 0;
   });
 
   const saveLayoutConfig = (nextConfig) => {
-    const normalized = { ...nextConfig, visibilityRules: nextConfig.visibilityRules || {}, panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0) };
+    const normalized = {
+      ...nextConfig,
+      visibilityRules: nextConfig.visibilityRules || {},
+      panels: nextConfig.panels.filter((panel) => panel.id !== "campos_personalizados" || camposPersonalizadosForm.length > 0),
+      layout: { ...nextConfig.layout, principal: nextConfig.layout?.principal?.length ? nextConfig.layout.principal : defaultLayout.principal },
+      hiddenFieldIds: (nextConfig.hiddenFieldIds || []).filter((id) => !["status", "numero_lote"].includes(id))
+    };
     setFormLayoutConfig(normalized);
     localStorage.setItem("cadastro_lotes_form_layout_config", JSON.stringify(normalized));
     localStorage.setItem("cadastro_lotes_table_aggregation_config", JSON.stringify(normalized.aggregationConfig || {}));
     window.dispatchEvent(new Event("cadastro-lotes-layout-updated"));
-    const visiblePanels = normalized.panels.filter((panel) => !panel.hidden);
+    const visiblePanels = normalized.panels.filter((panel) => !panel.hidden && panel.id !== "principal");
     if (!visiblePanels.some((panel) => panel.id === activeTab)) setActiveTab(visiblePanels[0]?.id || "geral");
   };
 
@@ -575,7 +597,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
           open={layoutConfigOpen}
           onOpenChange={setLayoutConfigOpen}
           inline
-          panels={tabs}
+          panels={activeLayoutConfig.panels}
           fields={dynamicFields}
           layout={activeLayoutConfig.layout}
           hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
@@ -624,18 +646,21 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         
 
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-          <div className="px-4 md:px-8 py-1 space-y-1 max-w-[760px]">
-            <FL label="Descrição" required error={errors.nome} dataField="nome">
-              <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} />
-            </FL>
-            <FL label="Ativo" compact>
-              <div className="h-[22px] flex items-center px-1">
-                <ToggleSwitch checked={formData.status !== "Inativo"} onChange={(checked) => handleChange("status", checked ? "Ativo" : "Inativo")} disabled={isReadOnly} />
-              </div>
-            </FL>
-            <FL label="Código" compact>
-              <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" />
-            </FL>
+          <div className="px-4 md:px-8 py-1 max-w-[780px]">
+            <DynamicFormRenderer
+              panels={activeLayoutConfig.panels}
+              fields={dynamicFields}
+              layout={activeLayoutConfig.layout}
+              hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+              lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+              requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+              visibilityRules={activeLayoutConfig.visibilityRules || {}}
+              activePanelId="principal"
+              values={formData}
+              errors={errors}
+              onChange={handleChange}
+              readOnly={isReadOnly}
+              fieldClassName="rounded-[1.5px]" />
           </div>
         </fieldset>
 

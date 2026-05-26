@@ -6,7 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import ConditionalVisibilityEditor from "./ConditionalVisibilityEditor.jsx";
 
-const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
+const SYSTEM_PANEL_IDS = ["principal", "geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
+const FIXED_PANEL_IDS = ["principal"];
+const FIXED_VISIBLE_FIELD_IDS = ["status", "numero_lote"];
 const AGGREGATION_OPTIONS = [
 { value: "sum", label: "Soma" },
 { value: "avg", label: "Média" },
@@ -99,6 +101,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const panelFields = panelFieldIds.map((id) => fields.find((field) => field.id === id)).filter(Boolean);
   const selectedField = fields.find((field) => field.id === selectedPanelField) || null;
   const activePanelIsSystem = SYSTEM_PANEL_IDS.includes(activePanel?.id);
+  const activePanelIsFixed = FIXED_PANEL_IDS.includes(activePanel?.id);
 
   const availableFields = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -131,6 +134,10 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const removeField = () => {
     const ids = selectedPanelFieldIds.length ? selectedPanelFieldIds : selectedPanelField ? [selectedPanelField] : [];
     if (!ids.length || !activePanel) return;
+    if (ids.some((id) => FIXED_VISIBLE_FIELD_IDS.includes(id))) {
+      showRequiredPopup("Código e Ativo não podem ser removidos do layout.");
+      return;
+    }
     const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
     if (requiredMoved) showRequiredPopup("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
@@ -142,10 +149,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const removeAllFields = () => {
     if (!activePanel || panelFieldIds.length === 0) return;
-    const ids = [...panelFieldIds];
+    const ids = [...panelFieldIds].filter((id) => !FIXED_VISIBLE_FIELD_IDS.includes(id));
+    if (ids.length !== panelFieldIds.length) showRequiredPopup("Código e Ativo permaneceram no layout porque são fixos.");
     const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
     if (requiredMoved) showRequiredPopup("Campos obrigatórios movidos para disponíveis. Eles precisam voltar para o layout antes de salvar.");
-    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: [] }));
+    setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => FIXED_VISIBLE_FIELD_IDS.includes(id)) }));
     setDraftHiddenFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setDraftLockedFieldIds((prev) => prev.filter((id) => !ids.includes(id)));
     setSelectedPanelField(null);
@@ -216,6 +224,11 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
   const dropFieldToAvailable = () => {
     if (!draggedFieldId || !activePanel) return;
     const ids = selectedPanelFieldIds.includes(draggedFieldId) ? selectedPanelFieldIds : [draggedFieldId];
+    if (ids.some((id) => FIXED_VISIBLE_FIELD_IDS.includes(id))) {
+      showRequiredPopup("Código e Ativo não podem ser removidos do layout.");
+      setDraggedFieldId(null);
+      return;
+    }
     const requiredMoved = fields.some((field) => ids.includes(field.id) && (field.required || draftRequiredFieldIds.includes(field.id)));
     if (requiredMoved) showRequiredPopup("Campo obrigatório movido para disponíveis. Ele precisa voltar para o layout antes de salvar.");
     setDraftLayout((prev) => ({ ...prev, [activePanel.id]: (prev[activePanel.id] || []).filter((id) => !ids.includes(id)) }));
@@ -239,6 +252,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
 
   const reorderPanel = (targetPanelId) => {
     if (!draggedPanelId || !targetPanelId || draggedPanelId === targetPanelId) return;
+    if (FIXED_PANEL_IDS.includes(draggedPanelId) || FIXED_PANEL_IDS.includes(targetPanelId)) return;
     const next = [...draftPanels];
     const from = next.findIndex((panel) => panel.id === draggedPanelId);
     const to = next.findIndex((panel) => panel.id === targetPanelId);
@@ -368,6 +382,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
     const hidden = draftHiddenFieldIds.includes(field.id);
     const locked = draftLockedFieldIds.includes(field.id);
     const required = field.required || draftRequiredFieldIds.includes(field.id);
+    const fixedVisible = FIXED_VISIBLE_FIELD_IDS.includes(field.id);
     return (
       <button
         key={field.id}
@@ -380,8 +395,9 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           setSelectedAvailable(null);
           setSelectedAvailableIds([]);
         }}
-        draggable={isEditing}
+        draggable={isEditing && !fixedVisible}
         onDragStart={() => {
+          if (fixedVisible) return;
           setDraggedFieldId(field.id);
           setSelectedPanelField(field.id);
           setSelectedPanelFieldIds((prev) => prev.includes(field.id) ? prev : [field.id]);
@@ -395,7 +411,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         <span className="flex items-center gap-1 min-w-0">
           <span className="text-xs font-semibold truncate">{field.label}</span>
         </span>
-        <span className="flex items-center gap-1 ml-2 opacity-90">{hidden && <EyeOff className="w-3 h-3" />}{locked && <span className="text-[10px]">B</span>}{required && <span className="text-[10px]">*</span>}</span>
+        <span className="flex items-center gap-1 ml-2 opacity-90">{hidden && <EyeOff className="w-3 h-3" />}{locked && <span className="text-[10px]">B</span>}{required && <span className="text-[10px]">*</span>}{fixedVisible && <span className="text-[10px]">F</span>}</span>
       </button>);
 
   };
@@ -413,7 +429,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           <Button type="button" variant="outline" size="icon" onClick={() => onOpenChange(false)} className={iconButtonClass} title="Voltar"><ChevronLeft className="w-3.5 h-3.5" /></Button>
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className={iconButtonClass} title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className={greenButtonClass} title="Novo painel"><Plus className="w-4 h-4" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem} onClick={deletePanel} className={iconButtonClass} title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem || activePanelIsFixed} onClick={deletePanel} className={iconButtonClass} title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={discardChanges} className={iconButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
           <div className="ml-auto flex items-center gap-0">
@@ -456,8 +472,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                   <button
                     key={panel.id}
                     type="button"
-                    draggable={isEditing}
-                    onDragStart={() => {setDraggedPanelId(panel.id);setActivePanelId(panel.id);}}
+                    draggable={isEditing && !FIXED_PANEL_IDS.includes(panel.id)}
+                    onDragStart={() => {if (FIXED_PANEL_IDS.includes(panel.id)) return; setDraggedPanelId(panel.id);setActivePanelId(panel.id);}}
                     onDragOver={(event) => {event.preventDefault();reorderPanel(panel.id);}}
                     onDrop={() => setDraggedPanelId(null)}
                     onDragEnd={() => setDraggedPanelId(null)}
@@ -497,7 +513,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
             <div className="border-t flex items-center h-10 border-slate-300 bg-slate-50 gap-3 py-2 px-2">
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Oculto:</span>
-                <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing || selectedField.required || draftRequiredFieldIds.includes(selectedField.id)} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />
+                <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing || selectedField.required || draftRequiredFieldIds.includes(selectedField.id) || FIXED_VISIBLE_FIELD_IDS.includes(selectedField.id)} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />
               </label>
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Bloqueado:</span>
