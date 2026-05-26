@@ -528,6 +528,7 @@ export default function CadastroLotes() {
               });
             }}
             onConfigExportExcel={() => setShowConfigExcel(true)}
+            onConfigColumns={() => setShowConfigColunas(true)}
             selectedCount={selectedTableItems.length}
             title="Cadastro de Lotes"
             recordLabel="" />
