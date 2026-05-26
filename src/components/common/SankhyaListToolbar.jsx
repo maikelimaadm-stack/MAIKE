@@ -123,9 +123,8 @@ export default function SankhyaListToolbar({
           {showUtilityActions &&
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" className="h-7 px-3 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none text-xs" title="Mais opções">
+              <Button type="button" variant="outline" size="icon" className={iconButtonClass} title="Configurar colunas, exportar e mais opções">
                 <MoreHorizontal className="w-3.5 h-3.5" />
-                Mais opções
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
@@ -133,14 +132,24 @@ export default function SankhyaListToolbar({
                 <Table className="w-3.5 h-3.5 text-slate-600" />
                 Configurar colunas
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 cursor-pointer gap-2 text-xs">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                Exportar Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 cursor-pointer gap-2 text-xs">
-                <FileText className="w-3.5 h-3.5 text-red-600" />
-                Exportar PDF
-              </DropdownMenuItem>
+              <div className="flex items-center">
+                <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Excel
+                </DropdownMenuItem>
+                <button type="button" onClick={onConfigExportExcel} disabled={!onConfigExportExcel} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar Excel">
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex items-center">
+                <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
+                  <FileText className="w-3.5 h-3.5 text-red-600" />
+                  PDF
+                </DropdownMenuItem>
+                <button type="button" onClick={onConfigExportPdf} disabled={!onConfigExportPdf} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar PDF">
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>}
