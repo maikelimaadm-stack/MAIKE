@@ -295,16 +295,31 @@ export default function TabelaLotes({
     return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && !c.fixo);
   }, [colunasOrdem, colunasDisponiveis]);
 
+  const columnPixelWidths = useMemo(() => {
+    return Object.fromEntries(
+      colunasOrdenadas.map((coluna) => [
+        coluna.id,
+        Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna))
+      ])
+    );
+  }, [colunasOrdenadas, columnWidths]);
+
+  const totalTableWidth = useMemo(() => {
+    const minWidth = isMobile ? 720 : 900;
+    const columnsWidth = colunasOrdenadas.reduce((total, coluna) => total + (columnPixelWidths[coluna.id] || 160), 0);
+    return Math.max(minWidth, columnsWidth);
+  }, [colunasOrdenadas, columnPixelWidths, isMobile]);
+
   const frozenOffsets = useMemo(() => {
     let left = 0;
     return colunasOrdenadas.reduce((acc, coluna, index) => {
       if (index < frozenColumnCount) {
         acc[coluna.id] = left;
-        left += Math.max(columnWidths[coluna.id] || coluna.width || 160, getColumnMinWidth(coluna));
+        left += columnPixelWidths[coluna.id] || 160;
       }
       return acc;
     }, {});
-  }, [colunasOrdenadas, columnWidths, frozenColumnCount]);
+  }, [colunasOrdenadas, columnPixelWidths, frozenColumnCount]);
 
   // Field value extraction for filters
   const getFieldValue = (lote, colunaId) => {
@@ -674,12 +689,12 @@ export default function TabelaLotes({
       <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="h-full p-0 overflow-hidden rounded-none">
           <div className="relative h-full overflow-hidden flex flex-col">
-            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white" style={{ marginRight: scrollbarWidth }}>
-              <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed select-none`}>
+            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white" style={{ paddingRight: scrollbarWidth }}>
+              <Table style={{ width: totalTableWidth, minWidth: totalTableWidth }} className="border-separate border-spacing-0 table-fixed select-none">
                 <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
                     {colunasOrdenadas.map((coluna, columnIndex) => {
-                      const width = Math.max(getColumnMinWidth(coluna), columnWidths[coluna.id] || coluna.width || 160);
+                      const width = columnPixelWidths[coluna.id] || 160;
                       const isFrozen = columnIndex < frozenColumnCount;
                       const isResizing = resizeColumnId === coluna.id;
                       const filterControl = renderFilterControl(coluna.id);
@@ -688,7 +703,7 @@ export default function TabelaLotes({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`group ${isFrozen ? "sticky z-40 shadow-[1px_0_0_0_#d1d5db] bg-emerald-50" : "relative"} align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 select-none cursor-pointer ${getColumnAlignClass(coluna)}`}
+                          className={`group ${isFrozen ? "sticky z-40" : "relative"} align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 select-none cursor-pointer ${getColumnAlignClass(coluna)}`}
                           onDoubleClick={() => handleSort(coluna.id)}>
 
                           <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis">
@@ -728,7 +743,7 @@ export default function TabelaLotes({
             </div>
 
             <div ref={scrollContainerRef} tabIndex={0} onKeyDown={handleTableKeyDown} onScroll={handleBodyScroll} className="relative flex-1 min-h-0 w-full overflow-auto outline-none" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
-              <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
+              <Table ref={tableRef} style={{ width: totalTableWidth, minWidth: totalTableWidth }} className="border-separate border-spacing-0 table-fixed">
                 <TableBody>
                   {lotesOrdenados.length === 0 ?
                   <TableRow>
@@ -753,7 +768,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden select-none px-2 ${isFrozen ? "sticky z-20 shadow-[1px_0_0_0_#d1d5db] bg-emerald-50" : ""} ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "bg-green-500 text-white border-green-600" : index % 2 === 0 ? "bg-gray-100 text-gray-700 border-gray-300" : "bg-white text-gray-700 border-gray-300"}`}
+                          className={`py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden select-none px-2 ${isFrozen ? "sticky z-20" : ""} ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "bg-green-500 text-white border-green-600" : index % 2 === 0 ? "bg-gray-100 text-gray-700 border-gray-300" : "bg-white text-gray-700 border-gray-300"}`}
                           title={String(renderCell(lote, coluna.id) ?? "")}>
                           
                               {renderCell(lote, coluna.id)}
@@ -773,7 +788,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`total-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`h-5 px-2 py-0 text-[11px] leading-5 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis select-none bg-slate-200 text-slate-900 ${isFrozen ? "sticky z-40 shadow-[1px_0_0_0_#d1d5db] bg-emerald-100" : ""} ${getColumnAlignClass(coluna)}`}>
+                          className={`h-5 px-2 py-0 text-[11px] leading-5 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis select-none bg-slate-200 text-slate-900 ${isFrozen ? "sticky z-40" : ""} ${getColumnAlignClass(coluna)}`}>
                             {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
                           </TableCell>);
                     })}
