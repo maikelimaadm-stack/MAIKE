@@ -49,12 +49,12 @@ export default function TopNoticeDialog({
           {(confirmText || cancelText) && (
             <div className="flex justify-end gap-0 border-t border-slate-200 bg-slate-50 p-0">
               {confirmText && (
-                <Button type="button" onClick={handleConfirm} className="h-8 w-8 rounded-none border border-r-0 border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 hover:text-emerald-700 shadow-none p-0 flex items-center justify-center">
+                <Button type="button" onClick={handleConfirm} className="h-7 w-7 rounded-none border border-r-0 border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 hover:text-emerald-700 shadow-none p-0 flex items-center justify-center flex-none">
                   <Check className="w-4 h-4" />
                 </Button>
               )}
               {cancelText && (
-                <Button type="button" onClick={() => onOpenChange?.(false)} className="h-8 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-700 shadow-none p-0 flex items-center justify-center">
+                <Button type="button" onClick={() => onOpenChange?.(false)} className="h-7 w-7 rounded-none border-0 border-l border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-700 shadow-none p-0 flex items-center justify-center flex-none">
                   <X className="w-4 h-4" />
                 </Button>
               )}
