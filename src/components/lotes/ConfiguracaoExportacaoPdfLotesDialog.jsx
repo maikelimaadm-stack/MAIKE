@@ -40,8 +40,8 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
             <span className="text-xs font-semibold text-slate-700 truncate">{titulo}</span>
           </div>
 
-          <div className="px-4 md:px-8 py-1 w-full space-y-1">
-            <label className="flex items-center gap-2 text-xs text-slate-700 px-3">
+          <div className="md:px-8 py-1 w-full space-y-1">
+            <label className="flex items-center gap-2 text-xs text-slate-700">
               <ToggleSwitch checked={useConfiguredColumns} onChange={setUseConfiguredColumns} />
               <span className="truncate">Sempre exportar as colunas selecionadas abaixo</span>
             </label>
@@ -49,11 +49,11 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
 
           <div className="border border-slate-200 rounded-none max-h-72 overflow-auto">
             {columns.map((column) =>
-            <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50 rounded-none">
+              <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50 rounded-none">
               <ToggleSwitch checked={columnIds.includes(column.id)} onChange={() => toggleColumn(column.id)} />
               <span className="truncate text-slate-700">{column.label}</span>
             </label>
-            )}
+              )}
           </div>
 
         </div>
