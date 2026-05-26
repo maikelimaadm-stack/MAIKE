@@ -268,6 +268,12 @@ export default function TabelaLotes({
     localStorage.setItem("colunas_ordem_cadastro_lotes", JSON.stringify(ordem));
   };
 
+  const handleResetColumnLayout = () => {
+    const defaultOrder = colunasDisponiveis.filter((coluna) => !coluna.fixo).map((coluna) => coluna.id);
+    const defaultVisible = colunasDisponiveis.filter((coluna) => !coluna.fixo && coluna.default).map((coluna) => coluna.id);
+    handleColumnLayoutChange({ visiveis: defaultVisible, ordem: defaultOrder });
+  };
+
   const colunasOrdenadas = useMemo(() => {
     return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
@@ -755,7 +761,8 @@ export default function TabelaLotes({
         colunasDisponiveis={colunasDisponiveis}
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
-        onChange={handleColumnLayoutChange} />
+        onChange={handleColumnLayoutChange}
+        onResetDefault={handleResetColumnLayout} />
       
     </div>);
 
