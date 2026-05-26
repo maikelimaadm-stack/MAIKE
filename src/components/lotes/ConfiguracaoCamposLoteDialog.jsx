@@ -217,21 +217,21 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     if (isReadOnly) return;
     const labelTrim = form.label.trim().toUpperCase();
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
-    if (!labelTrim || !fieldName) return showNotice({ title: "Campo obrigatório", description: "Informe o nome do campo." });
+    if (!labelTrim || !fieldName) return showNotice({ title: "Campo obrigatório", description: "Informe o nome do campo.", confirmText: null });
     const duplicate = campos.find((c) => c.id !== editingId && (
     String(c.label || "").trim().toUpperCase() === labelTrim ||
     String(c.field_name || "").toLowerCase() === fieldName.toLowerCase())
     );
-    if (duplicate) return showNotice({ title: "Campo duplicado", description: `Já existe um campo com o nome "${duplicate.label}".` });
-    if (form.tipo === "calculado" && hasInvalidCalculation) return showNotice({ title: "Cálculo incompleto", description: "Complete o cálculo com campos diferentes." });
-    if (form.tipo === "relation" && !form.relation_entity) return showNotice({ title: "Cadastro relacionado", description: "Selecione o cadastro relacionado." });
+    if (duplicate) return showNotice({ title: "Campo duplicado", description: `Já existe um campo com o nome "${duplicate.label}".`, confirmText: null });
+    if (form.tipo === "calculado" && hasInvalidCalculation) return showNotice({ title: "Cálculo incompleto", description: "Complete o cálculo com campos diferentes.", confirmText: null });
+    if (form.tipo === "relation" && !form.relation_entity) return showNotice({ title: "Cadastro relacionado", description: "Selecione o cadastro relacionado.", confirmText: null });
     if (["select", "option_list"].includes(form.tipo)) {
       const optionNames = [...(form.metadata?.protected_options || []), ...String(form.options_text || "").split("\n")].map((item) => item.trim().toUpperCase()).filter(Boolean);
-      if (optionNames.length === 0) return showNotice({ title: "Opções obrigatórias", description: "Informe pelo menos uma opção da lista." });
-      if (new Set(optionNames).size !== optionNames.length) return showNotice({ title: "Opções repetidas", description: "Remova opções repetidas da lista." });
+      if (optionNames.length === 0) return showNotice({ title: "Opções obrigatórias", description: "Informe pelo menos uma opção da lista.", confirmText: null });
+      if (new Set(optionNames).size !== optionNames.length) return showNotice({ title: "Opções repetidas", description: "Remova opções repetidas da lista.", confirmText: null });
     }
-    if (form.tipo === "number" && form.usar_mascara && form.usar_decimal) return showNotice({ title: "Configuração inválida", description: "Escolha máscara ou casas decimais, não os dois." });
-    if (form.tipo === "number" && form.usar_mascara && String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return showNotice({ title: "Máscara obrigatória", description: "Informe pelo menos uma máscara." });
+    if (form.tipo === "number" && form.usar_mascara && form.usar_decimal) return showNotice({ title: "Configuração inválida", description: "Escolha máscara ou casas decimais, não os dois.", confirmText: null });
+    if (form.tipo === "number" && form.usar_mascara && String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return showNotice({ title: "Máscara obrigatória", description: "Informe pelo menos uma máscara.", confirmText: null });
     saveMutation.mutate();
   };
 
@@ -328,7 +328,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   };
 
   const handleDelete = (campo) => {
-    if (campo?.metadata?.native_select) return showNotice({ title: "Lista nativa", description: "Esta lista é nativa do sistema e não pode ser excluída." });
+    if (campo?.metadata?.native_select) return showNotice({ title: "Lista nativa", description: "Esta lista é nativa do sistema e não pode ser excluída.", confirmText: null });
     showNotice({
       title: "Confirmar exclusão",
       description: `Excluir o campo "${campo.label}"? Esta ação não poderá ser desfeita.`,
@@ -363,7 +363,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const handleDuplicateCurrent = () => {
     if (!selectedCampo) return;
-    if (selectedCampo?.metadata?.native_select) return showNotice({ title: "Lista nativa", description: "Esta lista é nativa do sistema e não pode ser duplicada." });
+    if (selectedCampo?.metadata?.native_select) return showNotice({ title: "Lista nativa", description: "Esta lista é nativa do sistema e não pode ser duplicada.", confirmText: null });
     const { id, field_id, created_date, updated_date, created_by, ...copy } = selectedCampo;
     setForm({
       ...initialForm,

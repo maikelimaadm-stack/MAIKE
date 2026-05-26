@@ -29,7 +29,7 @@ export default function GlobalDeleteBlockDialog() {
       title={dialog.title}
       description={dialog.description}
       type="danger"
-      confirmText="Entendi"
+      confirmText={null}
     />
   );
 }

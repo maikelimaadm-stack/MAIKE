@@ -558,7 +558,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         title="Atenção"
         description={requiredPopup.message}
         type="warning"
-        confirmText="Entendi"
+        confirmText={null}
       />
     </div>;
 

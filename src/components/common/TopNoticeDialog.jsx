@@ -12,7 +12,7 @@ export default function TopNoticeDialog({
   title = "Aviso",
   description = "",
   type = "warning",
-  confirmText = "Entendi",
+  confirmText,
   cancelText,
   onConfirm,
 }) {
@@ -47,14 +47,14 @@ export default function TopNoticeDialog({
             <p>{description}</p>
           </div>
           {(confirmText || cancelText) && (
-            <div className="flex justify-end gap-1 border-t border-slate-200 bg-slate-50 p-2">
+            <div className="flex justify-end gap-0 border-t border-slate-200 bg-slate-50 p-0">
               {cancelText && (
-                <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)} className="h-8 text-xs rounded-none border-slate-200">
+                <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)} className="h-8 text-xs rounded-none border-0 border-r-[0.5px] border-slate-300 bg-white hover:bg-slate-50 text-slate-700">
                   {cancelText}
                 </Button>
               )}
               {confirmText && (
-                <Button type="button" onClick={handleConfirm} className={`h-8 text-xs rounded-none text-white ${isDanger ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>
+                <Button type="button" onClick={handleConfirm} className={`h-8 text-xs rounded-none border-0 text-white ${isDanger ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>
                   {confirmText}
                 </Button>
               )}
