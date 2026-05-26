@@ -58,11 +58,11 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
         </div>
 
         <div>
-          <div className="flex justify-end gap-0 bg-white">
-            <Button type="button" onClick={handleSave} title="Salvar" className="h-8 w-8 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
+          <div className="flex justify-end gap-1 bg-white pt-1">
+            <Button type="button" onClick={handleSave} title="Salvar" className="h-8 w-8 rounded-none border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
               <Check className="w-4 h-4" />
             </Button>
-            <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="h-8 w-8 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
+            <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="h-8 w-8 rounded-none border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
               <X className="w-4 h-4" />
             </Button>
           </div>
