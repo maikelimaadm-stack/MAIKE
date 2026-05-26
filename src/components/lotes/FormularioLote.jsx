@@ -9,7 +9,7 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
-import { toast } from "sonner";
+import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
@@ -87,6 +87,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
   const [layoutConfigOpen, setLayoutConfigOpen] = useState(false);
+  const [noticeDialog, setNoticeDialog] = useState({ open: false, title: "", description: "" });
   const [formLayoutConfig, setFormLayoutConfig] = useState(() => {
     const saved = localStorage.getItem("cadastro_lotes_form_layout_config");
     if (!saved) return null;
@@ -315,7 +316,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
     if (Object.keys(nextErrors).length === 0) return true;
 
-    toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
+    setNoticeDialog({ open: true, title: "Campos obrigatórios", description: "Preencha os campos obrigatórios antes de salvar o lote." });
     const firstField = Object.keys(nextErrors)[0];
     const element = document.querySelector(`[data-field="${firstField}"]`);
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -614,6 +615,15 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   return (
     <div className="h-full min-h-0 overflow-hidden bg-white">
+      <TopNoticeDialog
+        open={noticeDialog.open}
+        onOpenChange={(open) => setNoticeDialog((prev) => ({ ...prev, open }))}
+        badge="AVISO"
+        title={noticeDialog.title}
+        description={noticeDialog.description}
+        type="warning"
+        confirmText="Entendi"
+      />
       <form onSubmit={handleSubmit} className="bg-white h-full min-h-0 overflow-hidden flex flex-col">
         <LegacyRecordToolbar
           title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}

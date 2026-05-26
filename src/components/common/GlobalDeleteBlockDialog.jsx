@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 
 export default function GlobalDeleteBlockDialog() {
   const [dialog, setDialog] = React.useState({
@@ -30,16 +22,14 @@ export default function GlobalDeleteBlockDialog() {
   }, []);
 
   return (
-    <AlertDialog open={dialog.open} onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}>
-      <AlertDialogContent className="[&>button]:hidden">
-        <AlertDialogHeader>
-          <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
-          <AlertDialogDescription>{dialog.description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction className="bg-red-600 hover:bg-red-700">Entendi</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <TopNoticeDialog
+      open={dialog.open}
+      onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}
+      badge="AVISO"
+      title={dialog.title}
+      description={dialog.description}
+      type="danger"
+      confirmText="Entendi"
+    />
   );
 }

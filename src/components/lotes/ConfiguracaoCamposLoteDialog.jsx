@@ -17,6 +17,7 @@ import DecimalConfig from "./DecimalConfig";
 import MaskConfig from "./MaskConfig";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
+import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 import { montarCamposDisponiveis, montarFormulaVisual } from "./camposConfigOptions";
 
 const TIPOS_CAMPO = [
@@ -78,6 +79,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   const [isDirty, setIsDirty] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [noticeDialog, setNoticeDialog] = useState({ open: false, title: "", description: "", type: "warning", onConfirm: null, confirmText: "Entendi", cancelText: "" });
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
@@ -119,8 +121,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
       await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
       toast.success("Campo excluído.");
     },
-    onError: (error) => toast.error(error.message || "Não foi possível excluir o campo.")
+    onError: (error) => showNotice({ title: "Não foi possível excluir", description: error.message || "Não foi possível excluir o campo.", type: "danger" })
   });
+
+  const showNotice = ({ title, description, type = "warning", onConfirm = null, confirmText = "Entendi", cancelText = "" }) => {
+    setNoticeDialog({ open: true, title, description, type, onConfirm, confirmText, cancelText });
+  };
 
   const buildPayload = () => {
     const calculationItems = form.calculation_builder?.items || [];
@@ -211,21 +217,21 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
     if (isReadOnly) return;
     const labelTrim = form.label.trim().toUpperCase();
     const fieldName = editingId ? form.field_name : toSnakeCase(labelTrim);
-    if (!labelTrim || !fieldName) return toast.error("Informe o nome do campo.");
+    if (!labelTrim || !fieldName) return showNotice({ title: "Campo obrigatório", description: "Informe o nome do campo." });
     const duplicate = campos.find((c) => c.id !== editingId && (
     String(c.label || "").trim().toUpperCase() === labelTrim ||
     String(c.field_name || "").toLowerCase() === fieldName.toLowerCase())
     );
-    if (duplicate) return toast.error(`Já existe um campo com o nome "${duplicate.label}".`);
-    if (form.tipo === "calculado" && hasInvalidCalculation) return toast.error("Complete o cálculo com campos diferentes.");
-    if (form.tipo === "relation" && !form.relation_entity) return toast.error("Selecione o cadastro relacionado.");
+    if (duplicate) return showNotice({ title: "Campo duplicado", description: `Já existe um campo com o nome "${duplicate.label}".` });
+    if (form.tipo === "calculado" && hasInvalidCalculation) return showNotice({ title: "Cálculo incompleto", description: "Complete o cálculo com campos diferentes." });
+    if (form.tipo === "relation" && !form.relation_entity) return showNotice({ title: "Cadastro relacionado", description: "Selecione o cadastro relacionado." });
     if (["select", "option_list"].includes(form.tipo)) {
       const optionNames = [...(form.metadata?.protected_options || []), ...String(form.options_text || "").split("\n")].map((item) => item.trim().toUpperCase()).filter(Boolean);
-      if (optionNames.length === 0) return toast.error("Informe pelo menos uma opção da lista.");
-      if (new Set(optionNames).size !== optionNames.length) return toast.error("Remova opções repetidas da lista.");
+      if (optionNames.length === 0) return showNotice({ title: "Opções obrigatórias", description: "Informe pelo menos uma opção da lista." });
+      if (new Set(optionNames).size !== optionNames.length) return showNotice({ title: "Opções repetidas", description: "Remova opções repetidas da lista." });
     }
-    if (form.tipo === "number" && form.usar_mascara && form.usar_decimal) return toast.error("Escolha máscara ou casas decimais, não os dois.");
-    if (form.tipo === "number" && form.usar_mascara && String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return toast.error("Informe pelo menos uma máscara.");
+    if (form.tipo === "number" && form.usar_mascara && form.usar_decimal) return showNotice({ title: "Configuração inválida", description: "Escolha máscara ou casas decimais, não os dois." });
+    if (form.tipo === "number" && form.usar_mascara && String(form.mascaras_text || "").split("\n").map((item) => item.trim()).filter(Boolean).length === 0) return showNotice({ title: "Máscara obrigatória", description: "Informe pelo menos uma máscara." });
     saveMutation.mutate();
   };
 
@@ -322,17 +328,31 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   };
 
   const handleDelete = (campo) => {
-    if (campo?.metadata?.native_select) return toast.error("Esta lista é nativa do sistema e não pode ser excluída.");
-    if (!window.confirm(`Excluir o campo "${campo.label}"? Esta ação não poderá ser desfeita.`)) return;
-    deleteMutation.mutate(campo);
+    if (campo?.metadata?.native_select) return showNotice({ title: "Lista nativa", description: "Esta lista é nativa do sistema e não pode ser excluída." });
+    showNotice({
+      title: "Confirmar exclusão",
+      description: `Excluir o campo "${campo.label}"? Esta ação não poderá ser desfeita.`,
+      type: "danger",
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
+      onConfirm: () => deleteMutation.mutate(campo)
+    });
   };
 
   const handleDeleteSelected = () => {
     const selecionados = campos.filter((campo) => selectedCampoIds.includes(campo.id || campo.field_id));
     if (selecionados.length === 0) return;
-    if (!window.confirm(selecionados.length === 1 ? `Excluir o campo "${selecionados[0].label}"?` : `Excluir ${selecionados.length} campos selecionados?`)) return;
-    selecionados.forEach((campo) => deleteMutation.mutate(campo));
-    setSelectedCampoIds([]);
+    showNotice({
+      title: "Confirmar exclusão",
+      description: selecionados.length === 1 ? `Excluir o campo "${selecionados[0].label}"?` : `Excluir ${selecionados.length} campos selecionados?`,
+      type: "danger",
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
+      onConfirm: () => {
+        selecionados.forEach((campo) => deleteMutation.mutate(campo));
+        setSelectedCampoIds([]);
+      }
+    });
   };
 
   const handleDeleteCurrent = () => {
@@ -343,7 +363,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const handleDuplicateCurrent = () => {
     if (!selectedCampo) return;
-    if (selectedCampo?.metadata?.native_select) return toast.error("Esta lista é nativa do sistema e não pode ser duplicada.");
+    if (selectedCampo?.metadata?.native_select) return showNotice({ title: "Lista nativa", description: "Esta lista é nativa do sistema e não pode ser duplicada." });
     const { id, field_id, created_date, updated_date, created_by, ...copy } = selectedCampo;
     setForm({
       ...initialForm,
@@ -369,6 +389,17 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const content =
   <div className="w-full h-full overflow-hidden flex flex-col bg-white">
+      <TopNoticeDialog
+        open={noticeDialog.open}
+        onOpenChange={(open) => setNoticeDialog((prev) => ({ ...prev, open }))}
+        badge={noticeDialog.type === "danger" ? "EXCLUIR" : "AVISO"}
+        title={noticeDialog.title}
+        description={noticeDialog.description}
+        type={noticeDialog.type}
+        confirmText={noticeDialog.confirmText}
+        cancelText={noticeDialog.cancelText}
+        onConfirm={noticeDialog.onConfirm}
+      />
       {!inline &&
     <DialogHeader className="sr-only">
           <DialogTitle>Configuração de campos personalizados</DialogTitle>

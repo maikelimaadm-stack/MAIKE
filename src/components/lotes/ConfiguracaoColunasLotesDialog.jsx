@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, RotateCcw, Search, X } from "lucide-react";
+import TopNoticeDialog from "@/components/common/TopNoticeDialog";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, RotateCcw, Search, X } from "lucide-react";
 
 const iconButtonClass = "rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7";
 const moveButtonClass = "h-7 w-7 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none disabled:opacity-40";
@@ -227,24 +228,15 @@ export default function ConfiguracaoColunasLotesDialog({
           </div>
         </div>
 
-        <Dialog open={warningOpen} onOpenChange={(nextOpen) => nextOpen && setWarningOpen(nextOpen)}>
-          <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-transparent fixed left-[50%] top-4 z-[60] w-[calc(100%-1rem)] max-w-[900px] translate-x-[-50%] translate-y-0 gap-0 overflow-hidden border-0 shadow-lg rounded-none p-0">
-            <DialogTitle className="sr-only">Aviso de colunas obrigatórias</DialogTitle>
-            <div className="bg-white overflow-hidden">
-              <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
-                <span className="px-1.5 py-0.5 rounded-sm bg-amber-500 text-white text-[11px] font-bold">AVISO</span>
-                <span className="text-xs font-semibold text-slate-700 truncate flex-1">Colunas obrigatórias</span>
-                <Button type="button" onClick={() => setWarningOpen(false)} title="Fechar" className={iconButtonClass}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="p-4 flex gap-3 text-xs text-slate-700">
-                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-                <p>É necessário manter pelo menos uma coluna em uso para fechar a configuração.</p>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <TopNoticeDialog
+          open={warningOpen}
+          onOpenChange={setWarningOpen}
+          badge="AVISO"
+          title="Colunas obrigatórias"
+          description="É necessário manter pelo menos uma coluna em uso para fechar a configuração."
+          type="warning"
+          confirmText="Entendi"
+        />
       </DialogContent>
     </Dialog>);
 
