@@ -127,7 +127,7 @@ export default function SankhyaListToolbar({
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
+            <DropdownMenuContent align="end" className="w-48 rounded-none pt-1 pr-1 pb-1 pl-1">
               <DropdownMenuItem onClick={onConfigColumns} disabled={!onConfigColumns} className="h-8 cursor-pointer gap-2 text-xs px-1">
                 <Table className="w-3.5 h-3.5 text-slate-600 hidden" />
                 Configurar colunas
