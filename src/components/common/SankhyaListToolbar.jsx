@@ -142,7 +142,7 @@ export default function SankhyaListToolbar({
                 </button>
               </div>
               <div className="flex items-center">
-                <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
+                <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 flex-1 cursor-pointer gap-2 text-xs px-1">
                   <FileText className="w-3.5 h-3.5 text-red-600 hidden" />
                   PDF
                 </DropdownMenuItem>
