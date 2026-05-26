@@ -641,12 +641,12 @@ export default function TabelaLotes({
           <div className="relative h-full overflow-hidden flex flex-col">
             <button
               type="button"
-              className="absolute right-0 top-0 z-40 flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-[17px] h-7"
+              className="absolute right-0 top-0 z-[80] flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-6 h-7"
               onClick={() => setShowConfigColunas(true)}
               title="Configurar colunas">
               <Menu className="w-3.5 h-3.5" />
             </button>
-            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white pr-[17px]">
+            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white pr-6">
               <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed select-none`}>
                 <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
@@ -667,7 +667,7 @@ export default function TabelaLotes({
                           </div>
 
                           {filterControl &&
-                          <div className={`absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 bg-white/95 pl-1 transition-opacity ${hasActiveFilter(coluna.id) || isResizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} onClick={(e) => e.stopPropagation()}>
+                          <div className={`absolute right-2 top-1/2 -translate-y-1/2 z-50 flex items-center gap-0.5 bg-white/95 pl-1 transition-opacity ${hasActiveFilter(coluna.id) || isResizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} onClick={(e) => e.stopPropagation()}>
                               {filterControl}
                               <button
                               type="button"

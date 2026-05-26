@@ -228,18 +228,20 @@ export default function ConfiguracaoColunasLotesDialog({
         </div>
 
         <Dialog open={warningOpen} onOpenChange={(nextOpen) => nextOpen && setWarningOpen(nextOpen)}>
-          <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-white fixed left-[50%] top-[50%] z-[60] w-[calc(100%-2rem)] max-w-[380px] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border border-slate-200 shadow-lg rounded-none p-0 sm:p-1">
+          <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-transparent fixed left-[50%] top-4 z-[60] w-[calc(100%-1rem)] max-w-[900px] translate-x-[-50%] translate-y-0 gap-0 overflow-hidden border-0 shadow-lg rounded-none p-0">
             <DialogTitle className="sr-only">Aviso de colunas obrigatórias</DialogTitle>
-            <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
-              <span className="px-1.5 py-0.5 rounded-sm bg-amber-500 text-white text-[11px] font-bold">AVISO</span>
-              <span className="text-xs font-semibold text-slate-700 truncate flex-1">Colunas obrigatórias</span>
-              <Button type="button" onClick={() => setWarningOpen(false)} title="Fechar" className={iconButtonClass}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="p-4 flex gap-3 text-xs text-slate-700">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-              <p>É necessário manter pelo menos uma coluna em uso para fechar a configuração.</p>
+            <div className="bg-white overflow-hidden">
+              <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
+                <span className="px-1.5 py-0.5 rounded-sm bg-amber-500 text-white text-[11px] font-bold">AVISO</span>
+                <span className="text-xs font-semibold text-slate-700 truncate flex-1">Colunas obrigatórias</span>
+                <Button type="button" onClick={() => setWarningOpen(false)} title="Fechar" className={iconButtonClass}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="p-4 flex gap-3 text-xs text-slate-700">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                <p>É necessário manter pelo menos uma coluna em uso para fechar a configuração.</p>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

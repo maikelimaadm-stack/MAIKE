@@ -492,7 +492,6 @@ export default function CadastroLotes() {
             onRefresh={handleRefresh}
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
-            onSettingsClick={() => setShowConfigColunas(true)}
             onExportPdf={() => {
               const config = getLotesPdfExportConfig();
               const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
