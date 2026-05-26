@@ -59,7 +59,7 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
         </div>
 
         <div className="border border-slate-200 rounded-none bg-white">
-          <div className="flex justify-end gap-0 bor">
+          <div className="flex justify-end gap-0">
             <Button type="button" onClick={handleSave} title="Salvar" className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-8 w-8 rounded-none border-y-0 border-l-0 border-r border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
               <Check className="w-4 h-4" />
             </Button>
