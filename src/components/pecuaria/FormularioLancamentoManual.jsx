@@ -262,7 +262,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           {item ? 'Editar Movimentação' : 'Novo Lançamento Manual'}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-1">
+      <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 170px)', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
         <form onSubmit={handleSubmit} className="space-y-0.5">
 
           {/* Setor */}

@@ -97,7 +97,7 @@ export default function LancamentoTarefaForm() {
   });
 
   return (
-    <div className="p-1 md:p-1 space-y-1 overflow-x-hidden" style={{ overscrollBehavior: 'none' }}>
+    <div className="p-1 md:p-1 space-y-1 overflow-y-auto overflow-x-hidden h-full" style={{ overscrollBehavior: 'none', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
 
       {isLoading ?
       <div className="text-xs text-slate-500 p-4">Carregando...</div> :

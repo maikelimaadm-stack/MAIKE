@@ -311,7 +311,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             {tarefa ? "Editar Tarefa" : "Lançar Nova Tarefa"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-1">
+        <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <div className="space-y-0.5">
             <FL label="Título da tarefa" required error={errors.titulo} dataField="titulo">
               <Input value={formData.titulo} onChange={(e) => { setErrors((prev) => ({ ...prev, titulo: false })); setFormData((prev) => ({ ...prev, titulo: e.target.value })); }} placeholder="EX: CERCA QUEBRADA NA DIVISA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />

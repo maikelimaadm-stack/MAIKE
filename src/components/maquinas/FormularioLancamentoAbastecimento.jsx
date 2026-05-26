@@ -499,7 +499,7 @@ export default function FormularioLancamentoAbastecimento({ abastecimento, onSav
               {abastecimento ? "Editar Lançamento de Abastecimento" : "Lançamento de Abastecimento"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-1 space-y-1">
+          <CardContent className="p-1 space-y-1" style={{ maxHeight: 'calc(100vh - 170px)', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
 
             {/* Linha 1: Data | Ativo | Grupo | Tipo Serviço */}
             <div className="grid grid-cols-2 lg:grid-cols-12 gap-1">

@@ -20,7 +20,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
             {isEditing ? 'Editar Lançamento' : 'Novo Lançamento Financeiro'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-1">
+        <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <form onSubmit={handleSubmit} className="space-y-0.5">
 
             {/* === CAMPOS SERÃO ADICIONADOS AQUI === */}

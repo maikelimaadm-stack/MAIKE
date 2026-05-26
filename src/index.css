@@ -198,7 +198,7 @@ input[type="number"] {
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: #cbd5e1 !important;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;

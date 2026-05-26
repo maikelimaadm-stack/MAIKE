@@ -390,7 +390,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         <CardHeader className="bg-amber-50 border-b py-3 border-amber-200">
           <CardTitle className="text-sm font-semibold text-amber-900">⚠️ Fechamento de Consumo Necessário</CardTitle>
         </CardHeader>
-        <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <div className="space-y-4">
             {progresso.show &&
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -513,7 +513,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Movimentação de Lotes</CardTitle>
       </CardHeader>
-      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
         <form onSubmit={handleSubmit} className="space-y-1">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
             <FL label="Data da Movimentação" required>
@@ -595,7 +595,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
 
           {formData.mover_todos === 'nao' &&
-          <div className="space-y-2 max-h-[42vh] overflow-y-auto">
+          <div className="space-y-2 max-h-[42vh] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
               {Object.entries(totaisSolicitadosPorCategoria).some(([categoria, total]) => total > (categoriasPorLote[categoria]?.quantidade_total || 0)) && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                   A soma solicitada por categoria ultrapassa o total disponível em pelo menos um grupo.

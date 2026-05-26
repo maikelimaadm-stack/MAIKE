@@ -84,7 +84,7 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
             {isEditing ? "Editar Pesagem" : "Nova Pesagem"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-4" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <ConfigurableForm
               config={formConfig}
