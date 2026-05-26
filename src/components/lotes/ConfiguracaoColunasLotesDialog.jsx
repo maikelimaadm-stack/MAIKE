@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, RotateCcw, Search, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, RotateCcw, Search, X } from "lucide-react";
 
 const iconButtonClass = "rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7";
 const moveButtonClass = "h-7 w-7 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none disabled:opacity-40";
@@ -22,6 +22,7 @@ export default function ConfiguracaoColunasLotesDialog({
   const [searchUsed, setSearchUsed] = useState("");
   const [draggedColumnId, setDraggedColumnId] = useState(null);
   const [draggedFrom, setDraggedFrom] = useState(null);
+  const [warningOpen, setWarningOpen] = useState(false);
 
   const orderedColumns = useMemo(() => {
     const byId = new Map(colunasDisponiveis.filter((c) => !c.fixo).map((coluna) => [coluna.id, coluna]));
@@ -138,6 +139,14 @@ export default function ConfiguracaoColunasLotesDialog({
     commitLayout(currentOrder, currentOrder);
   };
 
+  const requestClose = () => {
+    if (usedColumns.length === 0) {
+      setWarningOpen(true);
+      return;
+    }
+    onOpenChange(false);
+  };
+
   const renderColumnButton = ({ coluna, selected, onClick, subtitle, index, origem }) => (
     <button
       key={coluna.id}
@@ -160,8 +169,9 @@ export default function ConfiguracaoColunasLotesDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border border-slate-200 shadow-lg sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-[900px]">
+    <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && onOpenChange(nextOpen)}>
+      <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-transparent fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border-0 shadow-lg sm:w-full rounded-none sm:rounded-none sm:p-0 max-w-[900px]">
+        <DialogTitle className="sr-only">Configuração das colunas do cadastro de lotes</DialogTitle>
         <div className="bg-white border border-slate-200 overflow-hidden">
           <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
             <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">COLUNAS</span>
@@ -169,12 +179,12 @@ export default function ConfiguracaoColunasLotesDialog({
             <Button type="button" onClick={onResetDefault} title="Restaurar padrão" className={iconButtonClass}>
               <RotateCcw className="w-4 h-4" />
             </Button>
-            <Button type="button" onClick={() => onOpenChange(false)} title="Fechar" className={iconButtonClass}>
+            <Button type="button" onClick={requestClose} title="Fechar" className={iconButtonClass}>
               <X className="w-4 h-4" />
             </Button>
           </div>
 
-          <div className="grid grid-cols-[1fr_44px_1.15fr_36px] h-[430px] min-h-0">
+          <div className="grid grid-cols-[1fr_44px_1.15fr_36px] h-[430px] min-h-0 border-t-0">
             <aside className="border-r border-slate-200 overflow-hidden flex flex-col" onDragOver={(event) => event.preventDefault()} onDrop={dropToAvailable}>
               <div className="h-8 px-3 border-b border-slate-200 flex items-center text-xs font-semibold text-slate-700">Colunas disponíveis</div>
               <div className="relative p-2 border-b border-slate-200">
@@ -186,7 +196,7 @@ export default function ConfiguracaoColunasLotesDialog({
               </div>
             </aside>
 
-            <section className="border-r border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-0 divide-y divide-slate-200 border-y-0">
+            <section className="border-r border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-0 divide-y divide-slate-200">
               <Button type="button" variant="outline" size="icon" disabled={usedColumns.length === 0} onClick={removeAll} className={moveButtonClass} title="Remover todas"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={selectedUsedIds.length === 0} onClick={removeSelected} className={moveButtonClass} title="Remover selecionadas"><ChevronLeft className="w-3.5 h-3.5" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={selectedAvailableIds.length === 0} onClick={addSelected} className={moveButtonClass} title="Adicionar selecionadas"><ChevronRight className="w-3.5 h-3.5" /></Button>
@@ -217,6 +227,22 @@ export default function ConfiguracaoColunasLotesDialog({
           </div>
         </div>
 
+        <Dialog open={warningOpen} onOpenChange={(nextOpen) => nextOpen && setWarningOpen(nextOpen)}>
+          <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-white fixed left-[50%] top-[50%] z-[60] w-[calc(100%-2rem)] max-w-[380px] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border border-slate-200 shadow-lg rounded-none p-0">
+            <DialogTitle className="sr-only">Aviso de colunas obrigatórias</DialogTitle>
+            <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
+              <span className="px-1.5 py-0.5 rounded-sm bg-amber-500 text-white text-[11px] font-bold">AVISO</span>
+              <span className="text-xs font-semibold text-slate-700 truncate flex-1">Colunas obrigatórias</span>
+              <Button type="button" onClick={() => setWarningOpen(false)} title="Fechar" className={iconButtonClass}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4 flex gap-3 text-xs text-slate-700">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+              <p>É necessário manter pelo menos uma coluna em uso para fechar a configuração.</p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

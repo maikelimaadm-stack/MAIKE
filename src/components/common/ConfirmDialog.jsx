@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { X } from "lucide-react";
 
 export default function ConfirmDialog({ 
   open, 
@@ -22,7 +23,10 @@ export default function ConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-md rounded-none border border-slate-200">
+        <AlertDialogCancel className="absolute right-2 top-2 h-7 w-7 rounded-none border-0 bg-white p-0 text-slate-700 shadow-none hover:bg-slate-50">
+          <X className="w-4 h-4" />
+        </AlertDialogCancel>
         <AlertDialogHeader>
           <AlertDialogTitle className="text-base">
             {title}
@@ -32,12 +36,12 @@ export default function ConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">
-          <AlertDialogCancel className="h-8 text-xs">
+          <AlertDialogCancel className="h-8 text-xs rounded-none border-slate-200">
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className={`h-8 text-xs ${
+            className={`h-8 text-xs rounded-none ${
               variant === "destructive" 
                 ? "bg-red-600 hover:bg-red-700" 
                 : variant === "warning"

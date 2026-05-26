@@ -76,14 +76,17 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border-[1px] border-slate-200 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-[760px]">
+    <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && onOpenChange(nextOpen)}>
+      <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border-[1px] border-slate-200 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-[760px]">
         <div className="space-y-1">
           <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
           <div className="border border-slate-200 bg-white">
             <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
               <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">ANEXOS</span>
-              <span className="text-xs font-semibold text-slate-700 truncate">{title || "Lote"}</span>
+              <span className="text-xs font-semibold text-slate-700 truncate flex-1">{title || "Lote"}</span>
+              <Button type="button" onClick={() => onOpenChange(false)} title="Fechar" className="rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7">
+                <X className="w-4 h-4" />
+              </Button>
             </div>
             <div className="px-4 md:px-8 py-1 w-full space-y-1">
               <div className="grid items-center gap-1 grid-cols-[210px_minmax(0,1fr)]">
