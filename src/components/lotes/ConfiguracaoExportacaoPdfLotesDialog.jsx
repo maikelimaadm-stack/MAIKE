@@ -40,8 +40,8 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
             <span className="text-xs font-semibold text-slate-700 truncate">{titulo}</span>
           </div>
 
-          <div className="md:px-8 py-1 w-full space-y-1">
-            <label className="flex items-center gap-2 text-xs text-slate-700">
+          <div className="md:px-8 w-full space-y-1 py-1">
+            <label className="items-center gap-2 text-xs text-slate-700 fleX">
               <ToggleSwitch checked={useConfiguredColumns} onChange={setUseConfiguredColumns} />
               <span className="truncate">Sempre exportar as colunas selecionadas abaixo</span>
             </label>
