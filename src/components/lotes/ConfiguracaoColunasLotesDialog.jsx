@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, GripVertical, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, Search, X } from "lucide-react";
 
-const actionButtonClass = "h-8 w-9 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none disabled:opacity-40";
+const iconButtonClass = "rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7";
+const moveButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none disabled:opacity-40";
 
 export default function ConfiguracaoColunasLotesDialog({
   open,
@@ -29,7 +29,7 @@ export default function ConfiguracaoColunasLotesDialog({
   const availableColumns = orderedColumns.filter((coluna) => !colunasVisiveis.includes(coluna.id));
   const filteredAvailable = availableColumns.filter((coluna) => String(coluna.label || "").toLowerCase().includes(search.toLowerCase()));
 
-  const commitLayout = (nextVisible, nextUsedOrder = usedColumns.map((coluna) => coluna.id)) => {
+  const commitLayout = (nextVisible, nextUsedOrder) => {
     const remainingIds = orderedColumns.map((coluna) => coluna.id).filter((id) => !nextUsedOrder.includes(id));
     onChange?.({ visiveis: nextVisible, ordem: [...nextUsedOrder, ...remainingIds] });
   };
@@ -46,8 +46,9 @@ export default function ConfiguracaoColunasLotesDialog({
 
   const addSelected = () => {
     if (!selectedAvailableIds.length) return;
+    const nextVisible = Array.from(new Set([...colunasVisiveis, ...selectedAvailableIds]));
     const nextUsedOrder = [...usedColumns.map((coluna) => coluna.id), ...selectedAvailableIds];
-    commitLayout(Array.from(new Set([...colunasVisiveis, ...selectedAvailableIds])), nextUsedOrder);
+    commitLayout(nextVisible, nextUsedOrder);
     setSelectedAvailableIds([]);
   };
 
@@ -70,90 +71,83 @@ export default function ConfiguracaoColunasLotesDialog({
     setSelectedUsedIds([]);
   };
 
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    const ids = usedColumns.map((coluna) => coluna.id);
-    const [moved] = ids.splice(result.source.index, 1);
-    ids.splice(result.destination.index, 0, moved);
-    commitLayout(ids, ids);
+  const moveSelected = (direction) => {
+    if (selectedUsedIds.length !== 1) return;
+    const currentOrder = usedColumns.map((coluna) => coluna.id);
+    const index = currentOrder.indexOf(selectedUsedIds[0]);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= currentOrder.length) return;
+    [currentOrder[index], currentOrder[nextIndex]] = [currentOrder[nextIndex], currentOrder[index]];
+    commitLayout(currentOrder, currentOrder);
   };
 
-  const renderColumnButton = (coluna, selected, onClick, subtitle) => (
+  const renderColumnButton = (coluna, selected, onClick, subtitle, index) => (
     <button
       key={coluna.id}
       type="button"
       onClick={onClick}
-      className={`w-full rounded-sm border px-2 py-1.5 text-left transition-colors ${selected ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-gray-50 border-slate-200 text-slate-900 hover:bg-gray-100"}`}
+      className={`relative flex w-full items-center gap-2 border-b border-slate-200 px-3 py-2 text-left text-xs last:border-b-0 hover:bg-slate-50 ${selected ? "bg-emerald-50 text-emerald-800" : "bg-white text-slate-700"}`}
     >
-      <div className="text-xs font-semibold truncate">{coluna.label}</div>
-      <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>
+      {index !== undefined && <span className="flex h-5 w-6 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] text-slate-600">{index + 1}</span>}
+      <span className="min-w-0 flex-1 truncate">{coluna.label}</span>
+      <span className="shrink-0 text-[10px] text-slate-400">{subtitle}</span>
     </button>
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[78vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="px-4 py-3 border-b">
-          <DialogTitle className="text-sm">Configurar colunas da tabela</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border border-slate-200 shadow-lg sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-[860px]">
+        <div className="bg-white border border-slate-200 overflow-hidden">
+          <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
+            <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">COLUNAS</span>
+            <span className="text-xs font-semibold text-slate-700 truncate">Configuração das colunas do cadastro de lotes</span>
+          </div>
 
-        <div className="grid grid-cols-[1fr_52px_1.2fr] flex-1 min-h-0 bg-white">
-          <aside className="border-r border-slate-300 p-3 overflow-hidden flex flex-col">
-            <div className="text-sm font-semibold text-slate-800 mb-2">Colunas disponíveis</div>
-            <div className="relative mb-3">
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar coluna" className="h-8 text-xs pr-8" />
-              <Search className="w-3.5 h-3.5 text-slate-500 absolute right-2 top-2" />
-            </div>
-            <div className="flex-1 overflow-auto space-y-1 pr-1">
-              {filteredAvailable.length === 0 ? <div className="text-xs text-slate-400 py-6 text-center">Nenhuma coluna disponível.</div> : filteredAvailable.map((coluna) => renderColumnButton(coluna, selectedAvailableIds.includes(coluna.id), (event) => selectAvailable(coluna.id, event), "Disponível"))}
-            </div>
-          </aside>
-
-          <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-0">
-            <Button type="button" variant="outline" size="icon" disabled={usedColumns.length === 0} onClick={removeAll} className={actionButtonClass} title="Remover todas"><ChevronsLeft className="w-4 h-4" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={selectedUsedIds.length === 0} onClick={removeSelected} className={actionButtonClass} title="Remover selecionadas"><ChevronLeft className="w-4 h-4" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={selectedAvailableIds.length === 0} onClick={addSelected} className={actionButtonClass} title="Adicionar selecionadas"><ChevronRight className="w-4 h-4" /></Button>
-            <Button type="button" variant="outline" size="icon" disabled={availableColumns.length === 0} onClick={addAll} className={actionButtonClass} title="Adicionar todas"><ChevronsRight className="w-4 h-4" /></Button>
-          </section>
-
-          <main className="p-3 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <div className="text-sm font-semibold text-slate-800">Colunas em uso</div>
-                <div className="text-[11px] text-slate-500">Arraste para definir a posição na tabela.</div>
+          <div className="grid grid-cols-[1fr_52px_1.15fr_40px] h-[430px] min-h-0">
+            <aside className="border-r border-slate-200 overflow-hidden flex flex-col">
+              <div className="h-8 px-3 border-b border-slate-200 flex items-center text-xs font-semibold text-slate-700">Colunas disponíveis</div>
+              <div className="relative p-2 border-b border-slate-200">
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar coluna" className="h-7 text-xs pr-8 rounded-none shadow-none focus-visible:ring-0" />
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-3.5" />
               </div>
-              <div className="text-xs text-slate-500">{usedColumns.length} em uso</div>
-            </div>
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="colunas-lotes-em-uso">
-                {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 overflow-auto space-y-1 pr-1 rounded-sm border border-slate-200 bg-slate-50 p-2">
-                    {usedColumns.length === 0 && <div className="text-xs text-slate-400 py-6 text-center">Envie colunas para cá para aparecerem na tabela.</div>}
-                    {usedColumns.map((coluna, index) => (
-                      <Draggable key={coluna.id} draggableId={coluna.id} index={index}>
-                        {(dragProvided, snapshot) => (
-                          <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
-                            <div className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 ${snapshot.isDragging ? "bg-emerald-50 border-emerald-300" : selectedUsedIds.includes(coluna.id) ? "bg-emerald-50 border-emerald-300" : "bg-white border-slate-200 hover:bg-gray-50"}`} onClick={(event) => selectUsed(coluna.id, event)}>
-                              <GripVertical className="w-4 h-4 text-slate-400" />
-                              <span className="flex h-5 w-6 items-center justify-center rounded bg-slate-100 text-[10px] text-slate-600">{index + 1}</span>
-                              <span className="flex-1 truncate text-xs font-semibold text-slate-800">{coluna.label}</span>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-          </main>
+              <div className="flex-1 overflow-auto">
+                {filteredAvailable.length === 0 ? <div className="text-xs text-slate-400 py-6 text-center">Nenhuma coluna disponível.</div> : filteredAvailable.map((coluna) => renderColumnButton(coluna, selectedAvailableIds.includes(coluna.id), (event) => selectAvailable(coluna.id, event), "Disponível"))}
+              </div>
+            </aside>
+
+            <section className="border-r border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-0">
+              <Button type="button" variant="outline" size="icon" disabled={usedColumns.length === 0} onClick={removeAll} className={moveButtonClass} title="Remover todas"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={selectedUsedIds.length === 0} onClick={removeSelected} className={moveButtonClass} title="Remover selecionadas"><ChevronLeft className="w-3.5 h-3.5" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={selectedAvailableIds.length === 0} onClick={addSelected} className={moveButtonClass} title="Adicionar selecionadas"><ChevronRight className="w-3.5 h-3.5" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={availableColumns.length === 0} onClick={addAll} className={moveButtonClass} title="Adicionar todas"><ChevronsRight className="w-3.5 h-3.5" /></Button>
+            </section>
+
+            <main className="border-r border-slate-200 overflow-hidden flex flex-col">
+              <div className="h-8 px-3 border-b border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700">
+                <span>Colunas em uso</span>
+                <span className="font-normal text-slate-400">{usedColumns.length} colunas</span>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {usedColumns.length === 0 ? <div className="text-xs text-slate-400 py-6 text-center">Envie colunas para cá para aparecerem na tabela.</div> : usedColumns.map((coluna, index) => renderColumnButton(coluna, selectedUsedIds.includes(coluna.id), (event) => selectUsed(coluna.id, event), "Em uso", index))}
+              </div>
+            </main>
+
+            <section className="bg-slate-50 flex flex-col items-center justify-center gap-0">
+              <Button type="button" variant="outline" size="icon" disabled={selectedUsedIds.length !== 1} onClick={() => moveSelected(-1)} className={moveButtonClass} title="Subir coluna"><ChevronUp className="w-3.5 h-3.5" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={selectedUsedIds.length !== 1} onClick={() => moveSelected(1)} className={moveButtonClass} title="Descer coluna"><ChevronDown className="w-3.5 h-3.5" /></Button>
+            </section>
+          </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t bg-slate-50">
-          <Button variant="outline" onClick={() => onOpenChange(false)} size="sm" className="h-8 text-xs">
-            Fechar
-          </Button>
+        <div className="flex justify-end bg-white pt-1">
+          <div className="flex divide-x divide-slate-200 border border-slate-200">
+            <Button type="button" onClick={() => onOpenChange(false)} title="Salvar" className={iconButtonClass}>
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button type="button" onClick={() => onOpenChange(false)} title="Fechar" className={iconButtonClass}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
