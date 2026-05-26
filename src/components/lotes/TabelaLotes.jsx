@@ -95,6 +95,7 @@ export default function TabelaLotes({
   const scrollContainerRef = useRef(null);
   const headerScrollRef = useRef(null);
   const tableRef = useRef(null);
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
   const [resizeColumnId, setResizeColumnId] = useState(null);
   const dragRef = useRef(null);
 
@@ -630,6 +631,17 @@ export default function TabelaLotes({
 
   };
 
+  useEffect(() => {
+    const updateScrollbarWidth = () => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      setScrollbarWidth(Math.max(0, el.offsetWidth - el.clientWidth));
+    };
+    updateScrollbarWidth();
+    window.addEventListener("resize", updateScrollbarWidth);
+    return () => window.removeEventListener("resize", updateScrollbarWidth);
+  }, [lotesOrdenados.length, colunasOrdenadas.length]);
+
   const handleBodyScroll = (event) => {
     if (headerScrollRef.current) headerScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
   };
@@ -639,7 +651,7 @@ export default function TabelaLotes({
       <Card className="h-full overflow-hidden rounded-none border-0 shadow-none">
         <CardContent className="h-full p-0 overflow-hidden rounded-none">
           <div className="relative h-full overflow-hidden flex flex-col">
-            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white">
+            <div ref={headerScrollRef} className="flex-none w-full overflow-hidden bg-white" style={{ paddingRight: scrollbarWidth }}>
               <Table className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed select-none`}>
                 <TableHeader className="bg-white shadow-[0_1px_0_0_#d1d5db]">
                   <TableRow className="bg-white">
