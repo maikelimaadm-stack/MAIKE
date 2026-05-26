@@ -493,40 +493,41 @@ export default function CadastroLotes() {
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
             onExportPdf={() => {
-              const config = getLotesPdfExportConfig();
-              const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
-              const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
-              const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
-              const sourceTotalRows = config.useConfiguredColumns ? visibleTableData.allTotalRows || visibleTableData.totalRows : visibleTableData.totalRows;
-              const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
-              const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
-              const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
+               const config = getLotesPdfExportConfig();
+               const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
+               const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
+               const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
+               const sourceTotalRows = config.useConfiguredColumns ? visibleTableData.allTotalRows || visibleTableData.totalRows : visibleTableData.totalRows;
+               const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
+               const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
+               const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
+               const empresaName = lotes[0]?.empresa_id ? "Lotes" : "Cadastro de Lotes";
 
-              printVisibleLotesTable({
-                columns: selectedColumns,
-                rows: filterRows(selectedTableItems.length > 0 ? sourceSelectedRows || [] : sourceRows || []),
-                totalRows: filterRows(sourceTotalRows || []),
-                title: "Cadastro de Lotes"
-              });
-            }}
-            onConfigExportPdf={() => setShowConfigPdf(true)}
-            onExportExcel={() => {
-              const config = getLotesExcelExportConfig();
-              const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
-              const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
-              const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
-              const sourceTotalRows = config.useConfiguredColumns ? visibleTableData.allTotalRows || visibleTableData.totalRows : visibleTableData.totalRows;
-              const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
-              const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
-              const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
+               printVisibleLotesTable({
+                 columns: selectedColumns,
+                 rows: filterRows(selectedTableItems.length > 0 ? sourceSelectedRows || [] : sourceRows || []),
+                 totalRows: filterRows(sourceTotalRows || []),
+                 title: `Exportar PDF - ${new Date().toLocaleDateString('pt-BR')}`
+               });
+             }}
+             onConfigExportPdf={() => setShowConfigPdf(true)}
+             onExportExcel={() => {
+               const config = getLotesExcelExportConfig();
+               const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
+               const sourceRows = config.useConfiguredColumns ? visibleTableData.allRows || visibleTableData.rows : visibleTableData.rows;
+               const sourceSelectedRows = config.useConfiguredColumns ? visibleTableData.allSelectedRows || visibleTableData.selectedRows : visibleTableData.selectedRows;
+               const sourceTotalRows = config.useConfiguredColumns ? visibleTableData.allTotalRows || visibleTableData.totalRows : visibleTableData.totalRows;
+               const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
+               const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
+               const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
 
-              exportVisibleLotesTableToExcel({
-                columns: selectedColumns,
-                rows: filterRows(selectedTableItems.length > 0 ? sourceSelectedRows || [] : sourceRows || []),
-                totalRows: filterRows(sourceTotalRows || []),
-                title: "Cadastro de Lotes"
-              });
-            }}
+               exportVisibleLotesTableToExcel({
+                 columns: selectedColumns,
+                 rows: filterRows(selectedTableItems.length > 0 ? sourceSelectedRows || [] : sourceRows || []),
+                 totalRows: filterRows(sourceTotalRows || []),
+                 title: `Exportar Excel - ${new Date().toLocaleDateString('pt-BR')}`
+               });
+             }}
             onConfigExportExcel={() => setShowConfigExcel(true)}
             onConfigColumns={() => setShowConfigColunas(true)}
             selectedCount={selectedTableItems.length}
