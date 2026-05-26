@@ -1,0 +1,10 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "nome": {
+      "type": "string",
+      "description": "Nome exibido do usu\u00e1rio no sistema"
+    }
+  }
+}
