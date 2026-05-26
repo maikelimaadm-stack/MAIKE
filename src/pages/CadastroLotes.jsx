@@ -492,7 +492,7 @@ export default function CadastroLotes() {
             onRefresh={handleRefresh}
             onAttachClick={() => selectedTableLote && setAttachmentsRecord(selectedTableLote)}
             attachDisabled={selectedTableItems.length !== 1}
-            empresaNome={lotes[0] ? (Array.from(new Set(lotes.map(l => l.empresa_id))).length === 1 ? lotes[0].empresa_id : "Lotes") : ""}
+
             onExportPdf={() => {
                const config = getLotesPdfExportConfig();
                const sourceColumns = config.useConfiguredColumns ? visibleTableData.allColumns || visibleTableData.columns : visibleTableData.columns;
@@ -502,7 +502,6 @@ export default function CadastroLotes() {
                const selectedColumns = config.useConfiguredColumns && config.columnIds.length ? sourceColumns.filter((column) => config.columnIds.includes(column.id)) : sourceColumns;
                const selectedIndexes = selectedColumns.map((column) => sourceColumns.findIndex((item) => item.id === column.id));
                const filterRows = (rows = []) => rows.map((row) => selectedIndexes.map((index) => row[index]));
-               const empresaName = lotes[0]?.empresa_id ? "Lotes" : "Cadastro de Lotes";
 
                printVisibleLotesTable({
                  columns: selectedColumns,
