@@ -172,7 +172,7 @@ export default function ConfiguracaoColunasLotesDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && onOpenChange(nextOpen)}>
       <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-transparent fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border-0 shadow-lg sm:w-full rounded-none sm:rounded-none sm:p-0 max-w-[900px]">
         <DialogTitle className="sr-only">Configuração das colunas do cadastro de lotes</DialogTitle>
-        <div className="bg-white border border-slate-200 overflow-hidden">
+        <div className="bg-white overflow-hidden">
           <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
             <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">COLUNAS</span>
             <span className="text-xs font-semibold text-slate-700 truncate flex-1">Configuração das colunas do cadastro de lotes</span>
@@ -184,8 +184,8 @@ export default function ConfiguracaoColunasLotesDialog({
             </Button>
           </div>
 
-          <div className="grid grid-cols-[1fr_44px_1.15fr_36px] h-[430px] min-h-0 border-t-0">
-            <aside className="border-r border-slate-200 overflow-hidden flex flex-col" onDragOver={(event) => event.preventDefault()} onDrop={dropToAvailable}>
+          <div className="grid grid-cols-[1fr_44px_1.15fr_36px] h-[430px] min-h-0">
+            <aside className="overflow-hidden flex flex-col" onDragOver={(event) => event.preventDefault()} onDrop={dropToAvailable}>
               <div className="h-8 px-3 border-b border-slate-200 flex items-center text-xs font-semibold text-slate-700">Colunas disponíveis</div>
               <div className="relative p-2 border-b border-slate-200">
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar coluna" className="h-7 text-xs pr-8 rounded-none border-slate-200 shadow-none focus-visible:ring-0" />
@@ -196,14 +196,14 @@ export default function ConfiguracaoColunasLotesDialog({
               </div>
             </aside>
 
-            <section className="border-r border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-0 divide-y divide-slate-200">
+            <section className="bg-slate-50 flex flex-col items-center justify-center gap-0 divide-y divide-slate-200">
               <Button type="button" variant="outline" size="icon" disabled={usedColumns.length === 0} onClick={removeAll} className={moveButtonClass} title="Remover todas"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={selectedUsedIds.length === 0} onClick={removeSelected} className={moveButtonClass} title="Remover selecionadas"><ChevronLeft className="w-3.5 h-3.5" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={selectedAvailableIds.length === 0} onClick={addSelected} className={moveButtonClass} title="Adicionar selecionadas"><ChevronRight className="w-3.5 h-3.5" /></Button>
               <Button type="button" variant="outline" size="icon" disabled={availableColumns.length === 0} onClick={addAll} className={moveButtonClass} title="Adicionar todas"><ChevronsRight className="w-3.5 h-3.5" /></Button>
             </section>
 
-            <main className="border-r border-slate-200 overflow-hidden flex flex-col" onDragOver={(event) => event.preventDefault()} onDrop={dropToUsed}>
+            <main className="overflow-hidden flex flex-col border-r border-slate-200" onDragOver={(event) => event.preventDefault()} onDrop={dropToUsed}>
               <div className="h-8 px-3 border-b border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700">
                 <span>Colunas em uso</span>
                 <span className="font-normal text-slate-400">{usedColumns.length} colunas</span>
