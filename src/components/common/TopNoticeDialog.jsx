@@ -39,11 +39,11 @@ export default function TopNoticeDialog({
             <span className={`px-1.5 py-0.5 rounded-sm text-white text-[11px] font-bold ${badgeClass}`}>{badge}</span>
             <span className="text-xs font-semibold text-slate-700 truncate flex-1">{title}</span>
             {confirmText && (
-              <Button type="button" onClick={handleConfirm} title="Confirmar" className={iconButtonClass + " text-emerald-600 hover:text-emerald-700 border-l border-slate-200"}>
+              <Button type="button" onClick={handleConfirm} title="Confirmar" className={iconButtonClass}>
                 <Check className="w-4 h-4" />
               </Button>
             )}
-            <Button type="button" onClick={() => onOpenChange?.(false)} title="Fechar" className={iconButtonClass + " border-l border-slate-200"}>
+            <Button type="button" onClick={() => onOpenChange?.(false)} title="Fechar" className={iconButtonClass}>
               <X className="w-4 h-4" />
             </Button>
           </div>
