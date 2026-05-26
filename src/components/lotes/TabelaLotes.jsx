@@ -207,9 +207,6 @@ export default function TabelaLotes({
 
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
   useEffect(() => {localStorage.setItem(FROZEN_COLUMNS_KEY, String(frozenColumnCount));}, [frozenColumnCount]);
-  useEffect(() => {
-    setFrozenColumnCount((current) => Math.min(current, colunasOrdenadas.length));
-  }, [colunasOrdenadas.length]);
 
   const toggleResizeMode = (colunaId) => {
     setResizeColumnId((prev) => prev === colunaId ? null : colunaId);
@@ -289,6 +286,10 @@ export default function TabelaLotes({
   const colunasOrdenadas = useMemo(() => {
     return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && colunasVisiveis.includes(c.id));
   }, [colunasOrdem, colunasVisiveis, colunasDisponiveis]);
+
+  useEffect(() => {
+    setFrozenColumnCount((current) => Math.min(current, colunasOrdenadas.length));
+  }, [colunasOrdenadas.length]);
 
   const colunasTodasOrdenadas = useMemo(() => {
     return colunasOrdem.map((id) => colunasDisponiveis.find((c) => c.id === id)).filter((c) => c && !c.fixo);
