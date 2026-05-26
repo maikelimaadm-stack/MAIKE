@@ -73,7 +73,7 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
               <DropdownMenuItem onClick={onLayoutConfigClick} disabled={!onLayoutConfigClick} className="h-8 cursor-pointer gap-2 text-xs px-1">
-                <Settings className="w-3.5 h-3.5 text-slate-600 hidden" />
+                
                 Layout do formulário
               </DropdownMenuItem>
             </DropdownMenuContent>
