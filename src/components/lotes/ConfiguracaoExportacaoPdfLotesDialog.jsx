@@ -48,11 +48,11 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
 
           <div className="border-t border-slate-200 rounded-none max-h-72 overflow-auto">
             {columns.map((column) =>
-              <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50 rounded-none">
+            <label key={column.id} className="flex items-center gap-2 px-3 py-2 text-xs border-b border-slate-200 last:border-b-0 hover:bg-slate-50 rounded-none">
               <ToggleSwitch checked={columnIds.includes(column.id)} onChange={() => toggleColumn(column.id)} />
               <span className="truncate text-slate-700">{column.label}</span>
             </label>
-              )}
+            )}
           </div>
 
         </div>
@@ -60,10 +60,10 @@ export default function ConfiguracaoExportacaoPdfLotesDialog({ open, onOpenChang
         <div>
           <div className="flex justify-end bg-white pt-1">
             <div className="flex divide-x divide-slate-200 border border-slate-200">
-              <Button type="button" onClick={handleSave} title="Salvar" className="h-8 w-8 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
+              <Button type="button" onClick={handleSave} title="Salvar" className="rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7">
                 <Check className="w-4 h-4" />
               </Button>
-              <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="h-8 w-8 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none">
+              <Button type="button" onClick={() => onOpenChange(false)} title="Descartar" className="rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none w-7 h-7">
                 <X className="w-4 h-4" />
               </Button>
             </div>
