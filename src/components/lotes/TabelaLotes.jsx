@@ -688,7 +688,7 @@ export default function TabelaLotes({
                         <TableHead
                           key={coluna.id}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`group ${isFrozen ? "sticky z-40 shadow-[1px_0_0_0_#d1d5db]" : "relative"} align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 select-none cursor-pointer ${getColumnAlignClass(coluna)}`}
+                          className={`group ${isFrozen ? "sticky z-40 shadow-[1px_0_0_0_#d1d5db] bg-emerald-50" : "relative"} align-middle text-gray-900 px-2 text-xs font-medium border-r border-b border-gray-300 bg-white whitespace-nowrap h-7 py-0 select-none cursor-pointer ${getColumnAlignClass(coluna)}`}
                           onDoubleClick={() => handleSort(coluna.id)}>
 
                           <div className="block w-full h-full leading-7 whitespace-nowrap overflow-hidden text-ellipsis">
@@ -753,7 +753,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden select-none px-2 ${isFrozen ? "sticky z-20 shadow-[1px_0_0_0_#d1d5db]" : ""} ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "bg-green-500 text-white border-green-600" : index % 2 === 0 ? "bg-gray-100 text-gray-700 border-gray-300" : "bg-white text-gray-700 border-gray-300"}`}
+                          className={`py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden select-none px-2 ${isFrozen ? "sticky z-20 shadow-[1px_0_0_0_#d1d5db] bg-emerald-50" : ""} ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "bg-green-500 text-white border-green-600" : index % 2 === 0 ? "bg-gray-100 text-gray-700 border-gray-300" : "bg-white text-gray-700 border-gray-300"}`}
                           title={String(renderCell(lote, coluna.id) ?? "")}>
                           
                               {renderCell(lote, coluna.id)}
@@ -773,7 +773,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`total-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`h-5 px-2 py-0 text-[11px] leading-5 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis select-none bg-slate-200 text-slate-900 ${isFrozen ? "sticky z-40 shadow-[1px_0_0_0_#d1d5db]" : ""} ${getColumnAlignClass(coluna)}`}>
+                          className={`h-5 px-2 py-0 text-[11px] leading-5 align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden text-ellipsis select-none bg-slate-200 text-slate-900 ${isFrozen ? "sticky z-40 shadow-[1px_0_0_0_#d1d5db] bg-emerald-100" : ""} ${getColumnAlignClass(coluna)}`}>
                             {agregacoes[coluna.id] !== undefined ? formatTotalValue(agregacoes[coluna.id], coluna) : ""}
                           </TableCell>);
                     })}
