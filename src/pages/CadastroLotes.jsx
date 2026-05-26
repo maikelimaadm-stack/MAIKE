@@ -403,7 +403,7 @@ export default function CadastroLotes() {
           areas={areas} />
         <div className="min-w-0 flex-1 h-full overflow-hidden">
           <FormularioLote
-            key={`form-${formVersion}-${editingLote?.id || editingLote?._isDuplicate || 'new'}`}
+            key={`form-${formVersion}-${editingLote?._isDuplicate ? 'duplicate' : editingLote ? 'record' : 'new'}`}
             initialData={editingLote}
             isEditing={!!editingLote}
             onSubmit={handleSubmit}
