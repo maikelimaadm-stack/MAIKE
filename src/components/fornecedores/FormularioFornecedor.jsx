@@ -133,7 +133,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
             {isEditing ? 'Editar Fornecedor/Cliente' : 'Novo Fornecedor/Cliente'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-1">
+        <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <form onSubmit={handleSubmit} className="space-y-0.5">
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">

@@ -103,7 +103,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
             {isEditing ? 'Editar Empresa' : 'Nova Empresa'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-4" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label className="text-xs">Logotipo</Label>

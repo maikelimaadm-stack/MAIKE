@@ -201,7 +201,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
             {isEditing ? 'Editar Produto' : 'Novo Produto'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-1">
+        <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <form onSubmit={handleSubmit} className="space-y-0.5">
             {/* LINHA 1: Nome | Tipo de Uso | Código | Cód Barras */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
