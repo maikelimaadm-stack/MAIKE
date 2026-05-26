@@ -128,13 +128,13 @@ export default function SankhyaListToolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
-              <DropdownMenuItem onClick={onConfigColumns} disabled={!onConfigColumns} className="h-8 cursor-pointer gap-2 text-xs">
-                <Table className="w-3.5 h-3.5 text-slate-600" />
+              <DropdownMenuItem onClick={onConfigColumns} disabled={!onConfigColumns} className="h-8 cursor-pointer gap-2 text-xs px-1">
+                <Table className="w-3.5 h-3.5 text-slate-600 hidden" />
                 Configurar colunas
               </DropdownMenuItem>
               <div className="flex items-center">
-                <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 flex-1 cursor-pointer gap-2 text-xs px-1">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 hidden" />
                   Excel
                 </DropdownMenuItem>
                 <button type="button" onClick={onConfigExportExcel} disabled={!onConfigExportExcel} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar Excel">
@@ -143,7 +143,7 @@ export default function SankhyaListToolbar({
               </div>
               <div className="flex items-center">
                 <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 flex-1 cursor-pointer gap-2 text-xs">
-                  <FileText className="w-3.5 h-3.5 text-red-600" />
+                  <FileText className="w-3.5 h-3.5 text-red-600 hidden" />
                   PDF
                 </DropdownMenuItem>
                 <button type="button" onClick={onConfigExportPdf} disabled={!onConfigExportPdf} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar PDF">
