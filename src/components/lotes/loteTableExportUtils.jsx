@@ -22,7 +22,7 @@ const buildTableHtml = ({ columns = [], rows = [], totalRows = [], title = "Cada
     body { font-family: Calibri, Arial, sans-serif; color: #111827; margin: 0; }
     h1 { font-size: 14px; margin: 0 0 8px; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    th, td { border: 1px solid #d1d5db; padding: 3px 4px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    th, td { border: 1px solid #d1d5db; padding: 3px 4px; font-size: 10px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; vertical-align: top; }
     th { background: #f3f4f6; font-weight: 700; }
     .total-row td { background: #e5e7eb; font-weight: 700; }
   </style>
