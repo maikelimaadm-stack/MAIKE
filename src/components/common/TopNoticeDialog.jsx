@@ -14,7 +14,7 @@ export default function TopNoticeDialog({
   type = "warning",
   confirmText,
   cancelText,
-  onConfirm,
+  onConfirm
 }) {
   const isDanger = type === "danger" || type === "destructive";
   const badgeClass = isDanger ? "bg-red-600" : type === "info" ? "bg-slate-500" : "bg-amber-500";
@@ -31,8 +31,8 @@ export default function TopNoticeDialog({
       <DialogContent
         onInteractOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
-        className="bg-transparent fixed left-[50%] top-4 z-[70] w-[calc(100%-1rem)] max-w-[900px] translate-x-[-50%] translate-y-0 gap-0 overflow-hidden border-0 shadow-lg rounded-none p-0"
-      >
+        className="bg-transparent fixed left-[50%] top-4 z-[70] w-[calc(100%-1rem)] max-w-[900px] translate-x-[-50%] translate-y-0 gap-0 overflow-hidden border-0 shadow-lg rounded-none p-0">
+        
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div className="bg-white overflow-hidden">
           <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
@@ -46,22 +46,22 @@ export default function TopNoticeDialog({
             <Icon className={`w-5 h-5 shrink-0 ${iconClass}`} />
             <p>{description}</p>
           </div>
-          {(confirmText || cancelText) && (
-            <div className="flex justify-end gap-0 border-t border-slate-200 bg-slate-50 p-0">
-              {confirmText && (
-                <Button type="button" onClick={handleConfirm} className="h-7 w-7 rounded-none border border-r-0 border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 hover:text-emerald-700 shadow-none p-0 flex items-center justify-center flex-none">
+          {(confirmText || cancelText) &&
+          <div className="flex justify-end gap-0 border-t border-slate-200 bg-slate-50 my-1">
+              {confirmText &&
+            <Button type="button" onClick={handleConfirm} className="h-8 w-8 rounded-none border border-r-0 border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 hover:text-emerald-700 shadow-none p-0 flex items-center justify-center">
                   <Check className="w-4 h-4" />
                 </Button>
-              )}
-              {cancelText && (
-                <Button type="button" onClick={() => onOpenChange?.(false)} className="h-7 w-7 rounded-none border-0 border-l border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-700 shadow-none p-0 flex items-center justify-center flex-none">
+            }
+              {cancelText &&
+            <Button type="button" onClick={() => onOpenChange?.(false)} className="h-8 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-700 shadow-none p-0 flex items-center justify-center">
                   <X className="w-4 h-4" />
                 </Button>
-              )}
+            }
             </div>
-          )}
+          }
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
