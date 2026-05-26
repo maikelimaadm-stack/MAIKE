@@ -38,7 +38,12 @@ export default function TopNoticeDialog({
           <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
             <span className={`px-1.5 py-0.5 rounded-sm text-white text-[11px] font-bold ${badgeClass}`}>{badge}</span>
             <span className="text-xs font-semibold text-slate-700 truncate flex-1">{title}</span>
-            <Button type="button" onClick={() => onOpenChange?.(false)} title="Fechar" className={iconButtonClass}>
+            {confirmText && (
+              <Button type="button" onClick={handleConfirm} title="Confirmar" className={iconButtonClass + " text-emerald-600 hover:text-emerald-700 border-l border-slate-200"}>
+                <Check className="w-4 h-4" />
+              </Button>
+            )}
+            <Button type="button" onClick={() => onOpenChange?.(false)} title="Fechar" className={iconButtonClass + " border-l border-slate-200"}>
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -46,20 +51,7 @@ export default function TopNoticeDialog({
             <Icon className={`w-5 h-5 shrink-0 ${iconClass}`} />
             <p>{description}</p>
           </div>
-          {(confirmText || cancelText) &&
-          <div className="flex justify-end gap-0 border-t border-slate-200 bg-slate-50 my-1">
-              {confirmText &&
-            <Button type="button" onClick={handleConfirm} className="h-8 w-8 rounded-none border border-r-0 border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 hover:text-emerald-700 shadow-none p-0 flex items-center justify-center">
-                  <Check className="w-4 h-4" />
-                </Button>
-            }
-              {cancelText &&
-            <Button type="button" onClick={() => onOpenChange?.(false)} className="h-8 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-700 shadow-none p-0 flex items-center justify-center">
-                  <X className="w-4 h-4" />
-                </Button>
-            }
-            </div>
-          }
+
         </div>
       </DialogContent>
     </Dialog>);
