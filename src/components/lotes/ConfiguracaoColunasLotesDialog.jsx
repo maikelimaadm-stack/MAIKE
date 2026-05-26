@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import TopNoticeDialog from "@/components/common/TopNoticeDialog";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, RotateCcw, Search, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, PanelLeft, RotateCcw, Search, X } from "lucide-react";
 
 const iconButtonClass = "rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7";
 const moveButtonClass = "h-7 w-7 rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none disabled:opacity-40";
@@ -14,6 +14,7 @@ export default function ConfiguracaoColunasLotesDialog({
   colunasDisponiveis = [],
   colunasVisiveis = [],
   colunasOrdem = [],
+  frozenColumnCount = 0,
   onChange,
   onResetDefault
 }) {
@@ -36,9 +37,9 @@ export default function ConfiguracaoColunasLotesDialog({
   const filteredAvailable = availableColumns.filter((coluna) => String(coluna.label || "").toLowerCase().includes(search.toLowerCase()));
   const filteredUsed = usedColumns.filter((coluna) => String(coluna.label || "").toLowerCase().includes(searchUsed.toLowerCase()));
 
-  const commitLayout = (nextVisible, nextUsedOrder) => {
+  const commitLayout = (nextVisible, nextUsedOrder, nextFrozenCount = frozenColumnCount) => {
     const remainingIds = orderedColumns.map((coluna) => coluna.id).filter((id) => !nextUsedOrder.includes(id));
-    onChange?.({ visiveis: nextVisible, ordem: [...nextUsedOrder, ...remainingIds] });
+    onChange?.({ visiveis: nextVisible, ordem: [...nextUsedOrder, ...remainingIds], frozenColumnCount: Math.min(nextFrozenCount, nextUsedOrder.length) });
   };
 
   const selectAvailable = (colunaId, event) => {
@@ -148,6 +149,16 @@ export default function ConfiguracaoColunasLotesDialog({
     onOpenChange(false);
   };
 
+  const toggleFreezeColumn = (index, event) => {
+    event.stopPropagation();
+    if (index === frozenColumnCount) {
+      commitLayout(colunasVisiveis, usedColumns.map((coluna) => coluna.id), frozenColumnCount + 1);
+    }
+    if (index === frozenColumnCount - 1) {
+      commitLayout(colunasVisiveis, usedColumns.map((coluna) => coluna.id), frozenColumnCount - 1);
+    }
+  };
+
   const renderColumnButton = ({ coluna, selected, onClick, subtitle, index, origem }) =>
   <button
     key={coluna.id}
@@ -164,6 +175,13 @@ export default function ConfiguracaoColunasLotesDialog({
     className={`relative flex w-full items-center gap-2 border-b border-slate-200 px-3 py-2 text-left text-xs last:border-b-0 hover:bg-slate-50 ${selected ? "bg-emerald-50 text-emerald-800" : "bg-white text-slate-700"} ${draggedColumnId === coluna.id ? "opacity-50" : ""}`}>
     
       {index !== undefined && <span className="flex h-5 w-6 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] text-slate-600">{index + 1}</span>}
+      {index !== undefined && <span
+        role="button"
+        title={index < frozenColumnCount ? "Coluna congelada" : index === frozenColumnCount ? "Congelar coluna" : "Congele as colunas anteriores primeiro"}
+        onClick={(event) => toggleFreezeColumn(index, event)}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center border border-slate-300 ${index < frozenColumnCount ? "bg-green-500 text-white border-green-500" : index === frozenColumnCount ? "bg-white text-slate-700 hover:bg-green-50" : "bg-white text-slate-300 cursor-not-allowed"}`}>
+        <PanelLeft className="w-3.5 h-3.5" />
+      </span>}
       <span className="min-w-0 flex-1 truncate">{coluna.label}</span>
       <span className="shrink-0 text-[10px] text-slate-400">{subtitle}</span>
     </button>;

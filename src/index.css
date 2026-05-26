@@ -193,7 +193,7 @@ input[type="number"] {
 .overflow-scroll,
 [class*="overflow-auto"],
 [class*="overflow-y-auto"] {
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
 }
 
 *::-webkit-scrollbar {
