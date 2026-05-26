@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import ConfiguracaoColunasLotesDialog from "@/components/lotes/ConfiguracaoColunasLotesDialog";
 import { useQuery } from "@tanstack/react-query";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
@@ -259,6 +259,13 @@ export default function TabelaLotes({
     items.splice(result.destination.index, 0, reordered);
     setColunasOrdem(items);
     localStorage.setItem("colunas_ordem_cadastro_lotes", JSON.stringify(items));
+  };
+
+  const handleColumnLayoutChange = ({ visiveis, ordem }) => {
+    setColunasVisiveis(visiveis);
+    setColunasOrdem(ordem);
+    localStorage.setItem("colunas_visiveis_cadastro_lotes", JSON.stringify(visiveis));
+    localStorage.setItem("colunas_ordem_cadastro_lotes", JSON.stringify(ordem));
   };
 
   const colunasOrdenadas = useMemo(() => {
@@ -742,15 +749,13 @@ export default function TabelaLotes({
         </CardContent>
       </Card>
 
-      <ConfiguracaoColunasMapaDialog
+      <ConfiguracaoColunasLotesDialog
         open={showConfigColunas}
         onOpenChange={setShowConfigColunas}
         colunasDisponiveis={colunasDisponiveis}
         colunasVisiveis={colunasVisiveis}
         colunasOrdem={colunasOrdem}
-        toggleColuna={toggleColuna}
-        handleDragEnd={handleDragEnd}
-        droppableId="colunas-cadastro-lotes" />
+        onChange={handleColumnLayoutChange} />
       
     </div>);
 
