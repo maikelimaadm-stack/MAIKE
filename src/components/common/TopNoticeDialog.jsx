@@ -1,7 +1,7 @@
 import React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Info, X } from "lucide-react";
+import { AlertTriangle, Info, X, Check } from "lucide-react";
 
 const iconButtonClass = "rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7";
 
@@ -48,14 +48,14 @@ export default function TopNoticeDialog({
           </div>
           {(confirmText || cancelText) && (
             <div className="flex justify-end gap-0 border-t border-slate-200 bg-slate-50 p-0">
-              {cancelText && (
-                <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)} className="h-8 text-xs rounded-none border-0 border-r-[0.5px] border-slate-300 bg-white hover:bg-slate-50 text-slate-700">
-                  {cancelText}
+              {confirmText && (
+                <Button type="button" onClick={handleConfirm} className="h-8 w-8 rounded-none border border-r-0 border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 hover:text-emerald-700 shadow-none p-0 flex items-center justify-center">
+                  <Check className="w-4 h-4" />
                 </Button>
               )}
-              {confirmText && (
-                <Button type="button" onClick={handleConfirm} className={`h-8 text-xs rounded-none border-0 text-white ${isDanger ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>
-                  {confirmText}
+              {cancelText && (
+                <Button type="button" onClick={() => onOpenChange?.(false)} className="h-8 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-700 shadow-none p-0 flex items-center justify-center">
+                  <X className="w-4 h-4" />
                 </Button>
               )}
             </div>
