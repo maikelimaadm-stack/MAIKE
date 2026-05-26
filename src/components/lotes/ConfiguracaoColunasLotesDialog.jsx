@@ -14,7 +14,7 @@ export default function ConfiguracaoColunasLotesDialog({
   colunasVisiveis = [],
   colunasOrdem = [],
   onChange,
-  onResetDefault,
+  onResetDefault
 }) {
   const [selectedAvailableIds, setSelectedAvailableIds] = useState([]);
   const [selectedUsedIds, setSelectedUsedIds] = useState([]);
@@ -147,26 +147,26 @@ export default function ConfiguracaoColunasLotesDialog({
     onOpenChange(false);
   };
 
-  const renderColumnButton = ({ coluna, selected, onClick, subtitle, index, origem }) => (
-    <button
-      key={coluna.id}
-      type="button"
-      draggable
-      onClick={onClick}
-      onDragStart={() => startDrag(coluna.id, origem)}
-      onDragOver={(event) => {
-        event.preventDefault();
-        if (origem === "used") reorderUsedByDrop(coluna.id);
-      }}
-      onDrop={finishDrag}
-      onDragEnd={finishDrag}
-      className={`relative flex w-full items-center gap-2 border-b border-slate-200 px-3 py-2 text-left text-xs last:border-b-0 hover:bg-slate-50 ${selected ? "bg-emerald-50 text-emerald-800" : "bg-white text-slate-700"} ${draggedColumnId === coluna.id ? "opacity-50" : ""}`}
-    >
+  const renderColumnButton = ({ coluna, selected, onClick, subtitle, index, origem }) =>
+  <button
+    key={coluna.id}
+    type="button"
+    draggable
+    onClick={onClick}
+    onDragStart={() => startDrag(coluna.id, origem)}
+    onDragOver={(event) => {
+      event.preventDefault();
+      if (origem === "used") reorderUsedByDrop(coluna.id);
+    }}
+    onDrop={finishDrag}
+    onDragEnd={finishDrag}
+    className={`relative flex w-full items-center gap-2 border-b border-slate-200 px-3 py-2 text-left text-xs last:border-b-0 hover:bg-slate-50 ${selected ? "bg-emerald-50 text-emerald-800" : "bg-white text-slate-700"} ${draggedColumnId === coluna.id ? "opacity-50" : ""}`}>
+    
       {index !== undefined && <span className="flex h-5 w-6 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] text-slate-600">{index + 1}</span>}
       <span className="min-w-0 flex-1 truncate">{coluna.label}</span>
       <span className="shrink-0 text-[10px] text-slate-400">{subtitle}</span>
-    </button>
-  );
+    </button>;
+
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && onOpenChange(nextOpen)}>
@@ -228,7 +228,7 @@ export default function ConfiguracaoColunasLotesDialog({
         </div>
 
         <Dialog open={warningOpen} onOpenChange={(nextOpen) => nextOpen && setWarningOpen(nextOpen)}>
-          <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-white fixed left-[50%] top-[50%] z-[60] w-[calc(100%-2rem)] max-w-[380px] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border border-slate-200 shadow-lg rounded-none p-0">
+          <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-white fixed left-[50%] top-[50%] z-[60] w-[calc(100%-2rem)] max-w-[380px] translate-x-[-50%] translate-y-[-50%] gap-0 overflow-hidden border border-slate-200 shadow-lg rounded-none p-0 sm:p-1">
             <DialogTitle className="sr-only">Aviso de colunas obrigatórias</DialogTitle>
             <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
               <span className="px-1.5 py-0.5 rounded-sm bg-amber-500 text-white text-[11px] font-bold">AVISO</span>
@@ -244,6 +244,6 @@ export default function ConfiguracaoColunasLotesDialog({
           </DialogContent>
         </Dialog>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
