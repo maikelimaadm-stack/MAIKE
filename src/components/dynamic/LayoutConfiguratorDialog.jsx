@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, EyeOff, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import ConditionalVisibilityEditor from "./ConditionalVisibilityEditor.jsx";
+import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 
 const SYSTEM_PANEL_IDS = ["principal", "geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const FIXED_PANEL_IDS = ["principal"];
@@ -17,6 +18,8 @@ const AGGREGATION_OPTIONS = [
 
 
 const iconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-40 disabled:bg-white";
+const confirmIconButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
+const cancelIconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
 const tabNavButtonClass = "relative z-20 h-7 w-7 self-center rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 flex items-center justify-center";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
@@ -430,8 +433,8 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
           {!isEditing && <Button type="button" variant="outline" size="icon" onClick={() => setIsEditing(true)} className={iconButtonClass} title="Editar layout"><Pencil className="w-3.5 h-3.5" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" onClick={createPanel} className={greenButtonClass} title="Novo painel"><Plus className="w-4 h-4" /></Button>}
           {isEditing && <Button type="button" variant="outline" size="icon" disabled={!activePanel || activePanelIsSystem || activePanelIsFixed} onClick={deletePanel} className={iconButtonClass} title="Excluir painel"><Trash2 className="w-3.5 h-3.5" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className={iconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
-          {isEditing && <Button type="button" variant="outline" size="icon" onClick={discardChanges} className={iconButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={handleSave} className={confirmIconButtonClass} title="Salvar alterações"><Check className="w-4 h-4" /></Button>}
+          {isEditing && <Button type="button" variant="outline" size="icon" onClick={discardChanges} className={cancelIconButtonClass} title="Descartar"><X className="w-3.5 h-3.5" /></Button>}
           <div className="ml-auto flex items-center gap-0">
             {isEditing && <Button type="button" variant="outline" size="icon" onClick={restoreDefault} className={iconButtonClass} title="Restaurar padrão"><RotateCcw className="w-3.5 h-3.5" /></Button>}
           </div>
@@ -548,17 +551,15 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
         </div>
       </div>
 
-      {requiredPopup.open &&
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
-        <div className="w-[360px] max-w-[90vw] rounded-md border border-red-200 bg-white shadow-xl">
-          <div className="border-b border-red-100 px-4 py-3 text-sm font-semibold text-red-700">Atenção</div>
-          <div className="px-4 py-3 text-sm text-slate-700">{requiredPopup.message}</div>
-          <div className="flex justify-end px-4 py-3 border-t bg-slate-50">
-            <Button type="button" size="sm" onClick={() => setRequiredPopup({ open: false, message: "" })} className="h-8 bg-red-600 hover:bg-red-700 text-white">OK</Button>
-          </div>
-        </div>
-      </div>
-    }
+      <TopNoticeDialog
+        open={requiredPopup.open}
+        onOpenChange={(nextOpen) => setRequiredPopup((prev) => ({ ...prev, open: nextOpen }))}
+        badge="AVISO"
+        title="Atenção"
+        description={requiredPopup.message}
+        type="warning"
+        confirmText="Entendi"
+      />
     </div>;
 
 

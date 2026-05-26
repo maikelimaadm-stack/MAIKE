@@ -641,7 +641,7 @@ export default function TabelaLotes({
           <div className="relative h-full overflow-hidden flex flex-col">
             <button
               type="button"
-              className="absolute right-0 top-0 z-[80] flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-6 h-7"
+              className="absolute right-0 top-0 z-30 flex items-center justify-center border-l border-b border-gray-300 bg-white text-slate-700 hover:bg-slate-100 w-6 h-7"
               onClick={() => setShowConfigColunas(true)}
               title="Configurar colunas">
               <Menu className="w-3.5 h-3.5" />
