@@ -665,7 +665,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
         </fieldset>
 
         <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
         <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
           <div className="min-h-[360px] px-4 md:px-8 py-1">
             <div className="max-w-[780px] space-y-1">
