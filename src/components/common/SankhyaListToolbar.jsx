@@ -64,7 +64,8 @@ export default function SankhyaListToolbar({
   recordLabel = "LOTE",
   operationLabel,
   showUtilityActions = true,
-  showSearch = true
+  showSearch = true,
+  empresaNome = ""
 }) {
   const canNavigate = viewMode === "record" && total > 0;
   const showRecordNavigation = viewMode === "record";
@@ -135,7 +136,7 @@ export default function SankhyaListToolbar({
               <div className="flex items-center">
                 <DropdownMenuItem onClick={onExportExcel} disabled={!onExportExcel} className="h-8 flex-1 cursor-pointer gap-2 text-xs px-1">
                   
-                  Excel
+                  Exportar Excel {empresaNome && `- ${empresaNome}`}
                 </DropdownMenuItem>
                 <button type="button" onClick={onConfigExportExcel} disabled={!onConfigExportExcel} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar Excel">
                   <MoreHorizontal className="w-3.5 h-3.5" />
@@ -144,7 +145,7 @@ export default function SankhyaListToolbar({
               <div className="flex items-center">
                 <DropdownMenuItem onClick={onExportPdf} disabled={!onExportPdf} className="h-8 flex-1 cursor-pointer gap-2 text-xs px-1">
                   
-                  PDF
+                  Exportar PDF {empresaNome && `- ${empresaNome}`}
                 </DropdownMenuItem>
                 <button type="button" onClick={onConfigExportPdf} disabled={!onConfigExportPdf} className="h-8 w-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-50" title="Configurar PDF">
                   <MoreHorizontal className="w-3.5 h-3.5" />
