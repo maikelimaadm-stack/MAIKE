@@ -262,7 +262,7 @@ export default function RelatorioHistoricoEntregas() {
   const desmarcarTodosProdutos = () => setProdutosSelecionados([]);
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
+    <div className="h-full overflow-y-auto p-4 md:p-6 space-y-2">
       {/* Controles */}
       <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>

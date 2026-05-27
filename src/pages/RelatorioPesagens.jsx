@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -321,7 +320,7 @@ export default function RelatorioPesagens() {
   const totalPesoLiquido = pesagensFiltradas.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
+    <div className="h-full overflow-y-auto p-4 md:p-6 space-y-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Relatório de Pesagens</h1>
