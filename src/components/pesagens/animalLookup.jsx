@@ -32,12 +32,15 @@ export const avaliarIdentificacaoAnimal = ({ valor, marca, pesagens, pesagensDia
     .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
   const marcasMesmoNumero = [...new Set(registrosMesmoNumero.map((p) => normalizarTexto(p.marca)).filter(Boolean))];
   const marcaAtualExisteNoNumero = marcaNorm && marcasMesmoNumero.includes(marcaNorm);
+  const temUmaMarca = marcasMesmoNumero.length === 1;
   const precisaEscolherMarca = registrosMesmoNumero.length > 0 && marcasMesmoNumero.length > 1 && !marcaAtualExisteNoNumero;
-  const historicoAnimal = marcasMesmoNumero.length === 1
-    ? registrosMesmoNumero
+  const historicoAnimal = temUmaMarca
+    ? registrosMesmoNumero.filter((p) => normalizarTexto(p.marca) === marcasMesmoNumero[0])
     : marcaAtualExisteNoNumero
       ? registrosMesmoNumero.filter((p) => normalizarTexto(p.marca) === marcaNorm)
-      : [];
+      : registrosMesmoNumero.length > 0 && marcasMesmoNumero.length === 0
+        ? registrosMesmoNumero
+        : [];
   const marcaComparacao = historicoAnimal[0]?.marca || marca || '';
   const pesadoHoje = pesagensDia.find((p) => normalizarTexto(p.numero_animal) === numeroNorm && normalizarTexto(p.marca) === normalizarTexto(marcaComparacao) && p.id !== editingId && p._offlineId !== editingOfflineId);
 
