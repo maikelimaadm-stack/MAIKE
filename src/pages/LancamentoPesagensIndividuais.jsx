@@ -2047,7 +2047,7 @@ export default function LancamentoPesagensIndividuais() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
-              <div className="overflow-auto h-full">
+              <div className="overflow-auto max-h-[620px]">
                 <Table>
                   <TableHeader className="sticky top-0 bg-slate-100">
                     <TableRow>
