@@ -31,13 +31,19 @@ export const avaliarIdentificacaoAnimal = ({ valor, marca, pesagens, pesagensDia
     .filter((p) => normalizarTexto(p.numero_animal) === numeroNorm)
     .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
   const marcasMesmoNumero = [...new Set(registrosMesmoNumero.map((p) => normalizarTexto(p.marca)).filter(Boolean))];
-  const historicoAnimal = marcaNorm ? registrosMesmoNumero.filter((p) => normalizarTexto(p.marca) === marcaNorm) : (marcasMesmoNumero.length === 1 ? registrosMesmoNumero : []);
-  const marcaComparacao = marca || historicoAnimal[0]?.marca || '';
+  const marcaAtualExisteNoNumero = marcaNorm && marcasMesmoNumero.includes(marcaNorm);
+  const precisaEscolherMarca = registrosMesmoNumero.length > 0 && marcasMesmoNumero.length > 1 && !marcaAtualExisteNoNumero;
+  const historicoAnimal = marcasMesmoNumero.length === 1
+    ? registrosMesmoNumero
+    : marcaAtualExisteNoNumero
+      ? registrosMesmoNumero.filter((p) => normalizarTexto(p.marca) === marcaNorm)
+      : [];
+  const marcaComparacao = historicoAnimal[0]?.marca || marca || '';
   const pesadoHoje = pesagensDia.find((p) => normalizarTexto(p.numero_animal) === numeroNorm && normalizarTexto(p.marca) === normalizarTexto(marcaComparacao) && p.id !== editingId && p._offlineId !== editingOfflineId);
 
   if (pesadoHoje) return { aviso: { tipo: 'erro', mensagem: `⚠️ Animal ${numero}${marcaComparacao ? ` / Marca ${marcaComparacao}` : ''} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg` } };
 
-  if (registrosMesmoNumero.length > 0 && marcasMesmoNumero.length > 1 && !marcaNorm) {
+  if (precisaEscolherMarca) {
     return { aviso: { tipo: 'alerta', mensagem: `ℹ️ O número ${numero} existe em mais de uma marca. Selecione a marca correta:`, opcoes: marcasMesmoNumero.map((m) => montarOpcaoMarca(m, registrosMesmoNumero)) } };
   }
 
