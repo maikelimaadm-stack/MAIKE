@@ -56,6 +56,7 @@ import SequenciaBrincos from "../components/pesagens/SequenciaBrincos";
 import GerenciarApartacoesDialog from "../components/pesagens/GerenciarApartacoesDialog";
 import ResumoLotes from "../components/pesagens/ResumoLotes";
 import PesagensResumoRodape from "../components/pesagens/PesagensResumoRodape";
+import { avaliarIdentificacaoAnimal, criarMensagemAnimal } from "../components/pesagens/animalLookup";
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
@@ -1437,6 +1438,7 @@ export default function LancamentoPesagensIndividuais() {
             'bg-blue-100 text-blue-700'}`
             }>
                 <span>{avisoTela.mensagem}</span>
+                {avisoTela.opcoes?.map((opcao) => <button key={opcao.marca} type="button" onClick={() => { const d = opcao.dados; setSexo(d?.sexo || "M"); setRaca(d?.raca || "Nelore"); setEra(d?.era || ""); setMarca(d?.marca || opcao.marca); setAvisoTela(criarMensagemAnimal({ numero: numeroAnimal.trim(), dadosCadastro: d, ultimo: opcao.ultimo, tipoManejo, editingId, editingOfflineId, formatarData })); setTimeout(() => pesoInputRef.current?.focus(), 0); }} className="px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-800 hover:bg-amber-50 font-semibold">{opcao.marca}</button>)}
                 <button onClick={() => setAvisoTela(null)} className="hover:opacity-70">
                   <X className="w-3 h-3" />
                 </button>
@@ -1463,38 +1465,15 @@ export default function LancamentoPesagensIndividuais() {
                   setAvisoTela(null); // Limpar aviso anterior
 
                   if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
-                    const numeroNorm = valor.trim().toUpperCase();
-                    const marcaNorm = marca.trim().toUpperCase();
-                    const registrosMesmoNumero = pesagens.filter((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm).sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-                    const marcasMesmoNumero = [...new Set(registrosMesmoNumero.map((p) => String(p.marca || '').trim().toUpperCase()).filter(Boolean))];
-                    const historicoAnimal = marcaNorm ? registrosMesmoNumero.filter((p) => String(p.marca || '').trim().toUpperCase() === marcaNorm) : (marcasMesmoNumero.length === 1 ? registrosMesmoNumero : []);
-                    const marcaComparacao = marca.trim() || (historicoAnimal[0]?.marca || '');
-                    const pesadoHoje = pesagensDia.find((p) => String(p.numero_animal || '').trim().toUpperCase() === numeroNorm && String(p.marca || '').trim().toUpperCase() === String(marcaComparacao || '').trim().toUpperCase() && p.id !== editingId && p._offlineId !== editingOfflineId);
-                    if (pesadoHoje) {
-                      setAvisoTela({ tipo: 'erro', mensagem: `⚠️ Animal ${valor.trim()}${marcaComparacao ? ` / Marca ${marcaComparacao}` : ''} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg` });
-                      return;
+                    const resultado = avaliarIdentificacaoAnimal({ valor, marca, pesagens, pesagensDia, editingId, editingOfflineId, tipoManejo, formatarData });
+                    if (!resultado) return;
+                    if (resultado.dadosCadastro) {
+                      setSexo(resultado.dadosCadastro.sexo || "M");
+                      setRaca(resultado.dadosCadastro.raca || "Nelore");
+                      setEra(resultado.dadosCadastro.era || "");
+                      setMarca(resultado.dadosCadastro.marca || "");
                     }
-                    if (registrosMesmoNumero.length > 0 && marcasMesmoNumero.length > 1 && !marca.trim()) {
-                      setAvisoTela({ tipo: 'alerta', mensagem: `ℹ️ O número ${valor.trim()} existe em mais de uma marca. Informe a marca para continuar.` });
-                      return;
-                    }
-                    if (historicoAnimal.length > 0) {
-                      const cadastroOriginal = historicoAnimal.find((p) => p.tipo_manejo === 'Cadastro');
-                      const ultimo = historicoAnimal[0];
-                      const dadosCadastro = cadastroOriginal || ultimo;
-                      setSexo(dadosCadastro.sexo || "M");
-                      setRaca(dadosCadastro.raca || "Nelore");
-                      setEra(dadosCadastro.era || "");
-                      setMarca(dadosCadastro.marca || "");
-                      if (tipoManejo === 'Cadastro' && !editingId && !editingOfflineId) {
-                        setAvisoTela({ tipo: 'alerta', mensagem: `⚠️ Animal ${valor.trim()} / Marca ${dadosCadastro.marca || '-'} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.` });
-                      } else {
-                        const statusAtual = ultimo.status_animal || 'Ativo';
-                        setAvisoTela({ tipo: statusAtual === 'Inativo' ? 'erro' : 'info', mensagem: statusAtual === 'Inativo' ? `❌ Animal ${valor.trim()} / Marca ${dadosCadastro.marca || '-'} está INATIVO (já teve saída registrada)` : `✓ ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg` });
-                      }
-                    } else if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
-                      setAvisoTela({ tipo: registrosMesmoNumero.length > 0 ? 'alerta' : 'erro', mensagem: registrosMesmoNumero.length > 0 ? `ℹ️ O número ${valor.trim()} existe, mas em outra marca. Informe a marca correta.` : `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.` });
-                    }
+                    if (resultado.aviso) setAvisoTela(resultado.aviso);
                   }
                 }}
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)} className="h-9 w-36 text-amber-500 font-bold" style={{ fontSize: '18px' }} autoFocus placeholder="Ex: 1234" />
