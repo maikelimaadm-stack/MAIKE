@@ -2,464 +2,304 @@ import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import RelatorioBase from "@/components/relatorios/RelatorioBase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Download, Printer } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings2 } from "lucide-react";
+
+const fmt = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const fmtInt = (value) => Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+const today = new Date();
+
+const diffDays = (dateValue) => {
+  if (!dateValue) return 0;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return 0;
+  return Math.max(0, Math.floor((today - date) / 86400000));
+};
 
 export default function RelatorioPecuariaLotacao() {
-  const empresaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
+  const empresaId = typeof window !== "undefined" ? localStorage.getItem("empresa_selecionada_id") : null;
+  const [orientacao, setOrientacao] = useState("paisagem");
+  const [setorFiltro, setSetorFiltro] = useState("todos");
+  const [areaFiltro, setAreaFiltro] = useState("todas");
 
-  // Orientação conforme padrão dos outros relatórios ("paisagem" | "retrato")
-  const [orientacao, setOrientacao] = useState('retrato');
-
-  // Filtros
-  const [apenasAtivos, setApenasAtivos] = useState(true);
-  const [apenasComSaldo, setApenasComSaldo] = useState(false);
-
-  // Seções (tipos de relatório) – usuário escolhe o que quer ver
-  const [showPastos, setShowPastos] = useState(true);
-  const [showLotes, setShowLotes] = useState(true);
-  const [showDistrib, setShowDistrib] = useState(true);
-  const [showAnalise, setShowAnalise] = useState(true);
-  const [showResumo, setShowResumo] = useState(true);
-
-  // Colunas visíveis (padrões seguindo o estilo dos relatórios existentes)
-  const [colsPastos, setColsPastos] = useState({ nome: true, area: true, ua_ha: true, ua_total: true });
-  const [colsLotes, setColsLotes] = useState({ ident: true, categoria: true, cabecas: true, pesoMedio: true, pesoTotal: true, uaCabeca: true, uaTotal: true, diasPastejo: true });
-  const [colsDistrib, setColsDistrib] = useState({ pasto: true, lotes: true, cabecas: true, uaTotal: true, uaHaReal: true, ocupacao: true });
-
-  // Empresa atual (para cabeçalho igual aos demais relatórios)
   const { data: empresas = [] } = useQuery({
-    queryKey: ['empresas-relatorio'],
+    queryKey: ["empresas-relatorio-gado"],
     queryFn: () => base44.entities.Empresa.list(),
   });
-  const empresaAtual = useMemo(() => empresas.find((e) => e.id === empresaId), [empresas, empresaId]);
 
-  // Áreas, lotes e movimentações (para dias de pastejo)
+  const { data: setores = [] } = useQuery({
+    queryKey: ["setores-relatorio-gado", empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter((item) => item.empresa_id === empresaId);
+    },
+    enabled: !!empresaId,
+  });
+
   const { data: areas = [] } = useQuery({
-    queryKey: ['areas-rel-lot', empresaId],
+    queryKey: ["areas-relatorio-gado", empresaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaId && a.ativo !== false);
+      return all.filter((item) => item.empresa_id === empresaId && item.ativo !== false);
     },
     enabled: !!empresaId,
-    staleTime: 0
   });
 
-  const { data: lotesRaw = [] } = useQuery({
-    queryKey: ['lotes-rel-lot', empresaId, apenasAtivos],
+  const { data: lotes = [] } = useQuery({
+    queryKey: ["lotes-relatorio-gado", empresaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter((l) => l.empresa_id === empresaId && (apenasAtivos ? l.status === 'Ativo' : true));
+      return all.filter((item) => item.empresa_id === empresaId && item.status === "Ativo");
     },
     enabled: !!empresaId,
-    staleTime: 0
   });
 
-  const { data: movs = [] } = useQuery({
-    queryKey: ['movpecuaria-rel-lot', empresaId],
+  const { data: eventosSuplementacao = [] } = useQuery({
+    queryKey: ["suplementacao-relatorio-gado", empresaId],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
-      return all.filter((m) => m.empresa_id === empresaId);
+      const all = await base44.entities.SuplementacaoEvento.list("-data_lancamento");
+      return all.filter((item) => item.empresa_id === empresaId);
     },
     enabled: !!empresaId,
-    staleTime: 0
   });
 
-  // Aplicar filtro de saldo (>0 cabeças)
-  const lotes = useMemo(() => {
-    const arr = lotesRaw || [];
-    if (!apenasComSaldo) return arr;
-    return arr.filter(l => Number(l.quantidade_cabecas || 0) > 0);
-  }, [lotesRaw, apenasComSaldo]);
+  const empresaAtual = useMemo(() => empresas.find((item) => item.id === empresaId), [empresas, empresaId]);
+  const setorMap = useMemo(() => new Map(setores.map((item) => [item.id, item])), [setores]);
+  const areaMap = useMemo(() => new Map(areas.map((item) => [item.id, item])), [areas]);
 
-  // Map de áreas por id
-  const areaMap = useMemo(() => {
-    const m = new Map();
-    (areas || []).forEach(a => m.set(a.id, a));
-    return m;
-  }, [areas]);
-
-  // Função util para dias de pastejo do lote na área atual
-  const getDiasPastejo = (lote) => {
-    try {
-      const historico = (movs || []).filter(m => (lote.id ? m.lote_id === lote.id : (m.lote && (m.lote === lote.nome || m.lote === lote.identificacao))));
-      if (historico.length === 0) return null;
-      // último registro que posicionou o lote na área atual
-      const ultimoNaArea = historico.find(m => m.area_destino_id && m.area_destino_id === lote.area_atual_id);
-      const refData = ultimoNaArea ? new Date(ultimoNaArea.data_movimentacao) : null;
-      if (!refData) return null;
-      const hoje = new Date();
-      const diff = Math.floor((+hoje - +refData) / (1000 * 60 * 60 * 24));
-      return diff >= 0 ? diff : 0;
-    } catch {
-      return null;
-    }
-  };
-
-  // 2. Relação de Pastos
-  const relPastos = useMemo(() => {
-    return (areas || []).map(a => {
-      const areaHa = Number(a.tamanho_hectares || 0);
-      const uaTotalCap = Number(a.capacidade_maxima || 0); // UA totais informadas
-      const uaHaCap = areaHa > 0 ? (uaTotalCap / areaHa) : 0; // UA/ha = capacidade_total ÷ área
-      return { id: a.id, nome: a.nome || '-', area: areaHa, ua_ha: uaHaCap, ua_total: uaTotalCap };
+  const eventosPorArea = useMemo(() => {
+    const map = new Map();
+    eventosSuplementacao.forEach((evento) => {
+      const ids = evento.area_ids?.length ? evento.area_ids : [evento.area_id].filter(Boolean);
+      ids.forEach((areaId) => {
+        if (!map.has(areaId)) map.set(areaId, []);
+        map.get(areaId).push(evento);
+      });
     });
-  }, [areas]);
+    return map;
+  }, [eventosSuplementacao]);
 
-  // 3. Relação de Lotes (com fórmulas UA)
-  const relLotes = useMemo(() => {
-    return (lotes || []).map(l => {
-      const cabecas = Number(l.quantidade_cabecas || 0);
-      const pesoMedio = Number(l.peso_medio_kg || 0);
-      const pesoTotal = cabecas * pesoMedio;
-      const uaCabeca = pesoMedio > 0 ? (pesoMedio / 450) : 0;
-      const uaTotal = uaCabeca * cabecas;
-      const diasPastejo = getDiasPastejo(l);
-      return {
-        id: l.id,
-        ident: l.nome || l.identificacao || '-',
-        categoria: l.categoria || '-',
+  const lotesAtuais = useMemo(() => {
+    return lotes
+      .filter((lote) => lote.area_atual_id)
+      .filter((lote) => setorFiltro === "todos" || lote.setor_id === setorFiltro || areaMap.get(lote.area_atual_id)?.setor_id === setorFiltro)
+      .filter((lote) => areaFiltro === "todas" || lote.area_atual_id === areaFiltro)
+      .sort((a, b) => (a.setor_nome || "").localeCompare(b.setor_nome || "") || (a.area_atual_nome || "").localeCompare(b.area_atual_nome || "") || (a.nome || "").localeCompare(b.nome || ""));
+  }, [lotes, setorFiltro, areaFiltro, areaMap]);
+
+  const grupos = useMemo(() => {
+    const grouped = new Map();
+
+    lotesAtuais.forEach((lote) => {
+      const area = areaMap.get(lote.area_atual_id) || {};
+      const setorId = area.setor_id || lote.setor_id || "sem_setor";
+      const setorNome = area.setor_nome || lote.setor_nome || setorMap.get(setorId)?.nome || "Sem setor";
+      const areaId = lote.area_atual_id || "sem_area";
+      const key = `${setorId}__${areaId}`;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          setorId,
+          setorNome,
+          areaId,
+          areaNome: area.nome || lote.area_atual_nome || "Sem área",
+          hectares: Number(area.area_pastejada || area.tamanho_hectares || 0),
+          pastagem: area.tipo_pastagem || area.tipo_cultura || "-",
+          lotes: [],
+        });
+      }
+
+      const cabecas = Number(lote.quantidade_cabecas || 0);
+      const pesoMedio = Number(lote.peso_medio_kg || 0);
+      grouped.get(key).lotes.push({
+        ...lote,
         cabecas,
         pesoMedio,
-        pesoTotal,
-        uaCabeca,
+        uaTotal: cabecas * pesoMedio / 450,
+        diasPastejo: diffDays(lote.data_entrada),
+      });
+    });
+
+    return Array.from(grouped.values()).map((grupo) => {
+      const cabecas = grupo.lotes.reduce((sum, lote) => sum + lote.cabecas, 0);
+      const pesoTotal = grupo.lotes.reduce((sum, lote) => sum + lote.cabecas * lote.pesoMedio, 0);
+      const uaTotal = grupo.lotes.reduce((sum, lote) => sum + lote.uaTotal, 0);
+      const eventos = eventosPorArea.get(grupo.areaId) || [];
+      const ultimoEvento = eventos[0] || null;
+
+      return {
+        ...grupo,
+        cabecas,
         uaTotal,
-        diasPastejo,
-        areaId: l.area_atual_id || null,
+        uaHa: grupo.hectares > 0 ? uaTotal / grupo.hectares : 0,
+        qtdLotes: grupo.lotes.length,
+        mediaGeral: cabecas > 0 ? pesoTotal / cabecas : 0,
+        diasPastejo: grupo.lotes.length > 0 ? Math.max(...grupo.lotes.map((lote) => lote.diasPastejo || 0)) : 0,
+        ultimoConsumo: ultimoEvento ? `${ultimoEvento.produto || "-"} em ${new Date(ultimoEvento.data_lancamento).toLocaleDateString("pt-BR")}` : "-",
       };
-    });
-  }, [lotes, movs]);
+    }).sort((a, b) => a.setorNome.localeCompare(b.setorNome) || a.areaNome.localeCompare(b.areaNome));
+  }, [lotesAtuais, areaMap, setorMap, eventosPorArea]);
 
-  // 4. Distribuição dos Lotes nos Pastos
-  const relDistrib = useMemo(() => {
-    const byArea = new Map();
-    (relLotes || []).forEach(l => {
-      const key = l.areaId || 'sem_area';
-      if (!byArea.has(key)) byArea.set(key, []);
-      byArea.get(key).push(l);
-    });
+  const totalGeral = useMemo(() => {
+    const cabecas = grupos.reduce((sum, grupo) => sum + grupo.cabecas, 0);
+    const uaTotal = grupos.reduce((sum, grupo) => sum + grupo.uaTotal, 0);
+    const hectares = grupos.reduce((sum, grupo) => sum + grupo.hectares, 0);
+    const pesoTotal = grupos.reduce((sum, grupo) => sum + grupo.lotes.reduce((sub, lote) => sub + lote.cabecas * lote.pesoMedio, 0), 0);
 
-    const rows = [];
-    byArea.forEach((lotesArea, key) => {
-      const area = areaMap.get(key);
-      const nome = area?.nome || 'Sem área';
-      const areaHa = Number(area?.tamanho_hectares || 0);
-      const uaTotalArea = lotesArea.reduce((s, it) => s + it.uaTotal, 0);
-      const cabecasTot = lotesArea.reduce((s, it) => s + it.cabecas, 0);
-      const uaHaReal = areaHa > 0 ? (uaTotalArea / areaHa) : 0;
-      const capUaTotal = Number(area?.capacidade_maxima || 0);
-      const ocupacao = capUaTotal > 0 ? (uaTotalArea / capUaTotal) * 100 : 0;
-      rows.push({ key, pasto: nome, lotes: lotesArea.length, cabecas: cabecasTot, uaTotal: uaTotalArea, uaHaReal, ocupacao, areaHa, capUaTotal });
-    });
-    return rows.sort((a, b) => a.pasto.localeCompare(b.pasto));
-  }, [relLotes, areaMap]);
+    return {
+      setores: new Set(grupos.map((grupo) => grupo.setorId)).size,
+      areas: grupos.length,
+      lotes: grupos.reduce((sum, grupo) => sum + grupo.qtdLotes, 0),
+      cabecas,
+      hectares,
+      uaTotal,
+      uaHa: hectares > 0 ? uaTotal / hectares : 0,
+      mediaGeral: cabecas > 0 ? pesoTotal / cabecas : 0,
+    };
+  }, [grupos]);
 
-  // 5. Análise técnica
-  const analise = useMemo(() => {
-    return (relDistrib || []).map(r => {
-      let status = 'Equilibrado';
-      if (r.capUaTotal > 0) {
-        const p = (r.uaTotal / r.capUaTotal) * 100;
-        if (p < 80) status = 'Sublotado';
-        else if (p > 100) status = 'Superlotado';
-        else status = 'Equilibrado';
-      }
-      const risco = status === 'Superlotado' ? 'Alto' : 'Baixo';
-      const sugestao = status === 'Superlotado'
-        ? 'Reduzir cabeças / remanejar lotes / intensificar suplementação.'
-        : status === 'Sublotado'
-        ? 'Possível incremento de lotação conforme meta produtiva.'
-        : 'Manter manejo atual e monitorar UA/ha.';
-      const uaCap = (r.capUaTotal > 0 && r.areaHa > 0) ? (r.capUaTotal / r.areaHa) : 0;
-      return { pasto: r.pasto, status, risco, sugestao, uaHaReal: r.uaHaReal, uaCap };
-    });
-  }, [relDistrib]);
+  const areasFiltradas = useMemo(() => {
+    return areas.filter((area) => setorFiltro === "todos" || area.setor_id === setorFiltro);
+  }, [areas, setorFiltro]);
 
-  // 6. Resumo final
-  const resumo = useMemo(() => {
-    const totalCab = (relLotes || []).reduce((s, l) => s + l.cabecas, 0);
-    const totalUa = (relLotes || []).reduce((s, l) => s + l.uaTotal, 0);
-    const totPeso = (relLotes || []).reduce((s, l) => s + l.pesoTotal, 0);
-    const mediaPeso = totalCab > 0 ? (totPeso / totalCab) : 0;
-    const totalArea = (areas || []).reduce((s, a) => s + Number(a.tamanho_hectares || 0), 0);
-    const capTotalUa = (areas || []).reduce((s, a) => s + Number(a.capacidade_maxima || 0), 0);
-    const uaHaFazenda = totalArea > 0 ? (totalUa / totalArea) : 0;
-    const diferencaCap = capTotalUa - totalUa;
-    return { totalCab, totalUa, mediaPeso, uaHaFazenda, capTotalUa, totalArea, diferencaCap };
-  }, [relLotes, areas]);
-
-  // JSX de filtros (padrão centralizado dos relatórios)
   const filtros = (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
       <div>
         <Label className="text-xs mb-1 block">Orientação</Label>
-        <Select value={orientacao} onValueChange={(v) => setOrientacao(v)}>
+        <Select value={orientacao} onValueChange={setOrientacao}>
           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="retrato" className="text-xs">Retrato</SelectItem>
             <SelectItem value="paisagem" className="text-xs">Paisagem</SelectItem>
+            <SelectItem value="retrato" className="text-xs">Retrato</SelectItem>
           </SelectContent>
         </Select>
       </div>
-
-      <div className="flex items-end gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Settings2 className="w-3.5 h-3.5"/> Seções</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuCheckboxItem checked={showPastos} onCheckedChange={(v)=>setShowPastos(!!v)}>Relação de Pastos</DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={showLotes} onCheckedChange={(v)=>setShowLotes(!!v)}>Relação de Lotes</DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={showDistrib} onCheckedChange={(v)=>setShowDistrib(!!v)}>Distribuição nos Pastos</DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={showAnalise} onCheckedChange={(v)=>setShowAnalise(!!v)}>Análise Técnica</DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={showResumo} onCheckedChange={(v)=>setShowResumo(!!v)}>Resumo Geral</DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div>
+        <Label className="text-xs mb-1 block">Setor</Label>
+        <Select value={setorFiltro} onValueChange={(value) => { setSetorFiltro(value); setAreaFiltro("todas"); }}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+            {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
-
-      <div className="col-span-2 md:col-span-3 flex items-end gap-2">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setApenasAtivos(v => !v)}>
-          {apenasAtivos ? 'Filtrando: Lotes Ativos' : 'Todos os Lotes'}
-        </Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setApenasComSaldo(v => !v)}>
-          {apenasComSaldo ? 'Filtrando: Com Saldo (>0)' : 'Com ou Sem Saldo'}
-        </Button>
+      <div>
+        <Label className="text-xs mb-1 block">Área</Label>
+        <Select value={areaFiltro} onValueChange={setAreaFiltro}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas" className="text-xs">Todas</SelectItem>
+            {areasFiltradas.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
-
-      <div className="col-span-2 md:col-span-6 flex flex-wrap gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Settings2 className="w-3.5 h-3.5"/> Colunas: Pastos</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {Object.keys(colsPastos).map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={colsPastos[k]} onCheckedChange={(v)=>setColsPastos({ ...colsPastos, [k]: !!v })}>
-                {({ nome: 'Nome', area: 'Área (ha)', ua_ha: 'Capacidade (UA/ha)', ua_total: 'Capacidade total (UA)' })[k]}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Settings2 className="w-3.5 h-3.5"/> Colunas: Lotes</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {Object.keys(colsLotes).map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={colsLotes[k]} onCheckedChange={(v)=>setColsLotes({ ...colsLotes, [k]: !!v })}>
-                {({ ident: 'Identificação', categoria: 'Categoria', cabecas: 'Cabeças', pesoMedio: 'Peso médio (kg)', pesoTotal: 'Peso vivo total (kg)', uaCabeca: 'UA/cabeça', uaTotal: 'UA total', diasPastejo: 'Dias de pastejo' })[k]}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Settings2 className="w-3.5 h-3.5"/> Colunas: Distribuição</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {Object.keys(colsDistrib).map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={colsDistrib[k]} onCheckedChange={(v)=>setColsDistrib({ ...colsDistrib, [k]: !!v })}>
-                {({ pasto: 'Pasto', lotes: 'Qtde de lotes', cabecas: 'Cabeças', uaTotal: 'UA total', uaHaReal: 'UA/ha (real)', ocupacao: '% Ocupação' })[k]}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="md:col-span-2 flex items-end gap-2">
+        <Button type="button" size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => window.print()}>
+          <Download className="w-3.5 h-3.5" /> Exportar PDF
+        </Button>
+        <Button type="button" size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => window.print()}>
+          <Printer className="w-3.5 h-3.5" /> Imprimir
+        </Button>
       </div>
     </div>
   );
 
   return (
-    <RelatorioBase titulo="Relatório Técnico de Lotação" subtitulo="Capacidade, distribuição e análise de lotação" empresaAtual={empresaAtual} filtros={filtros} orientacao={orientacao}>
+    <RelatorioBase
+      titulo="Relatório Atual de Gado por Área"
+      subtitulo="Lotes atuais do mapa geral, lotação, pastejo e suplementação"
+      empresaAtual={empresaAtual}
+      filtros={filtros}
+      orientacao={orientacao}
+      resumoTotais={`Setores: ${totalGeral.setores} | Áreas: ${totalGeral.areas} | Lotes: ${totalGeral.lotes} | Cabeças: ${fmtInt(totalGeral.cabecas)} | Média geral: ${fmt(totalGeral.mediaGeral, 1)} kg | UA/ha: ${fmt(totalGeral.uaHa, 2)}`}
+    >
       <div className="space-y-4">
-        {/* 2. Relação de Pastos */}
-        {showPastos && (
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm">2. Relação de Pastos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      {colsPastos.nome && <TableHead className="text-xs font-bold py-1 border border-black">Nome do pasto</TableHead>}
-                      {colsPastos.area && <TableHead className="text-xs font-bold py-1 border border-black">Área total (ha)</TableHead>}
-                      {colsPastos.ua_ha && <TableHead className="text-xs font-bold py-1 border border-black">Capacidade (UA/ha)</TableHead>}
-                      {colsPastos.ua_total && <TableHead className="text-xs font-bold py-1 border border-black">Capacidade total (UA)</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {relPastos.map((p) => (
-                      <TableRow key={p.id} className="hover:bg-gray-50">
-                        {colsPastos.nome && <TableCell className="text-xs py-1 border border-gray-300">{p.nome}</TableCell>}
-                        {colsPastos.area && <TableCell className="text-xs py-1 border border-gray-300">{p.area.toFixed(2)}</TableCell>}
-                        {colsPastos.ua_ha && <TableCell className="text-xs py-1 border border-gray-300">{p.ua_ha.toFixed(2)}</TableCell>}
-                        {colsPastos.ua_total && <TableCell className="text-xs py-1 border border-gray-300">{p.ua_total.toFixed(2)}</TableCell>}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardContent className="p-3">
+            <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-xs">
+              <div><strong>Setores:</strong> {totalGeral.setores}</div>
+              <div><strong>Áreas:</strong> {totalGeral.areas}</div>
+              <div><strong>Hectares:</strong> {fmt(totalGeral.hectares, 2)}</div>
+              <div><strong>UA total:</strong> {fmt(totalGeral.uaTotal, 2)}</div>
+              <div><strong>UA/ha:</strong> {fmt(totalGeral.uaHa, 2)}</div>
+              <div><strong>Cabeças:</strong> {fmtInt(totalGeral.cabecas)}</div>
+              <div><strong>Média geral:</strong> {fmt(totalGeral.mediaGeral, 1)} kg</div>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* 3. Relação de Lotes */}
-        {showLotes && (
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm">3. Relação de Lotes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      {colsLotes.ident && <TableHead className="text-xs font-bold py-1 border border-black">Identificação</TableHead>}
-                      {colsLotes.categoria && <TableHead className="text-xs font-bold py-1 border border-black">Categoria animal</TableHead>}
-                      {colsLotes.cabecas && <TableHead className="text-xs font-bold py-1 border border-black">Cabeças</TableHead>}
-                      {colsLotes.pesoMedio && <TableHead className="text-xs font-bold py-1 border border-black">Peso médio (kg)</TableHead>}
-                      {colsLotes.pesoTotal && <TableHead className="text-xs font-bold py-1 border border-black">Peso vivo total (kg)</TableHead>}
-                      {colsLotes.uaCabeca && <TableHead className="text-xs font-bold py-1 border border-black">UA por cabeça</TableHead>}
-                      {colsLotes.uaTotal && <TableHead className="text-xs font-bold py-1 border border-black">UA total do lote</TableHead>}
-                      {colsLotes.diasPastejo && <TableHead className="text-xs font-bold py-1 border border-black">Dias de pastejo</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {relLotes.map((l) => (
-                      <TableRow key={l.id} className="hover:bg-gray-50">
-                        {colsLotes.ident && <TableCell className="text-xs py-1 border border-gray-300">{l.ident}</TableCell>}
-                        {colsLotes.categoria && <TableCell className="text-xs py-1 border border-gray-300">{l.categoria}</TableCell>}
-                        {colsLotes.cabecas && <TableCell className="text-xs py-1 border border-gray-300">{l.cabecas}</TableCell>}
-                        {colsLotes.pesoMedio && <TableCell className="text-xs py-1 border border-gray-300">{l.pesoMedio.toFixed(1)}</TableCell>}
-                        {colsLotes.pesoTotal && <TableCell className="text-xs py-1 border border-gray-300">{l.pesoTotal.toFixed(1)}</TableCell>}
-                        {colsLotes.uaCabeca && <TableCell className="text-xs py-1 border border-gray-300">{l.uaCabeca.toFixed(3)}</TableCell>}
-                        {colsLotes.uaTotal && <TableCell className="text-xs py-1 border border-gray-300">{l.uaTotal.toFixed(2)}</TableCell>}
-                        {colsLotes.diasPastejo && <TableCell className="text-xs py-1 border border-gray-300">{l.diasPastejo ?? '-'}</TableCell>}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        {grupos.map((grupo) => (
+          <div key={grupo.key} className="break-inside-avoid border border-slate-300 rounded-md overflow-hidden">
+            <div className="bg-slate-100 px-3 py-2 border-b border-slate-300">
+              <div className="text-xs font-bold text-slate-900 uppercase">Setor: {grupo.setorNome} | Área: {grupo.areaNome}</div>
+              <div className="grid grid-cols-2 md:grid-cols-9 gap-2 mt-1 text-[11px] text-slate-700">
+                <div><strong>Área:</strong> {grupo.areaNome}</div>
+                <div><strong>Hectares:</strong> {fmt(grupo.hectares, 2)}</div>
+                <div><strong>UA/ha:</strong> {fmt(grupo.uaHa, 2)}</div>
+                <div><strong>UA total:</strong> {fmt(grupo.uaTotal, 2)}</div>
+                <div><strong>Pastagem:</strong> {grupo.pastagem}</div>
+                <div><strong>Qtd. Cabeças:</strong> {fmtInt(grupo.cabecas)}</div>
+                <div><strong>Qtd. Lotes:</strong> {grupo.qtdLotes}</div>
+                <div><strong>Média geral:</strong> {fmt(grupo.mediaGeral, 1)} kg</div>
+                <div><strong>Dias pastejo:</strong> {fmtInt(grupo.diasPastejo)}</div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="mt-1 text-[11px] text-slate-600"><strong>Último consumo/suplementação:</strong> {grupo.ultimoConsumo}</div>
+            </div>
 
-        {/* 4. Distribuição dos Lotes nos Pastos */}
-        {showDistrib && (
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm">4. Distribuição dos Lotes nos Pastos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      {colsDistrib.pasto && <TableHead className="text-xs font-bold py-1 border border-black">Pasto</TableHead>}
-                      {colsDistrib.lotes && <TableHead className="text-xs font-bold py-1 border border-black">Lotes</TableHead>}
-                      {colsDistrib.cabecas && <TableHead className="text-xs font-bold py-1 border border-black">Cabeças</TableHead>}
-                      {colsDistrib.uaTotal && <TableHead className="text-xs font-bold py-1 border border-black">UA total</TableHead>}
-                      {colsDistrib.uaHaReal && <TableHead className="text-xs font-bold py-1 border border-black">UA/ha (real)</TableHead>}
-                      {colsDistrib.ocupacao && <TableHead className="text-xs font-bold py-1 border border-black">% Ocupação</TableHead>}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-white">
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Identificador</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Sigla</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1 text-right">Qtd. Cabeças</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1 text-right">Peso Médio</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1 text-right">Dias de pastejo</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Sist. Rep.</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Raça Predominante</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Sexo</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Categoria de Manejo</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Categoria Oficial</TableHead>
+                    <TableHead className="text-[11px] font-bold border border-black py-1">Nome do lote</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {grupo.lotes.map((lote) => (
+                    <TableRow key={lote.id}>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.identificador_nome || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.identificador_sigla || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1 text-right font-mono">{fmtInt(lote.cabecas)}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1 text-right font-mono">{fmt(lote.pesoMedio, 1)} kg</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1 text-right font-mono">{fmtInt(lote.diasPastejo)}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.sistema_produtivo || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.raca_predominante || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.sexo || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.categoria_manejo_nome || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1">{lote.categoria || "-"}</TableCell>
+                      <TableCell className="text-[11px] border border-gray-300 py-1 font-medium">{lote.nome || "-"}</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {relDistrib.map((r) => (
-                      <TableRow key={r.key} className="hover:bg-gray-50">
-                        {colsDistrib.pasto && <TableCell className="text-xs py-1 border border-gray-300">{r.pasto}</TableCell>}
-                        {colsDistrib.lotes && <TableCell className="text-xs py-1 border border-gray-300">{r.lotes}</TableCell>}
-                        {colsDistrib.cabecas && <TableCell className="text-xs py-1 border border-gray-300">{r.cabecas}</TableCell>}
-                        {colsDistrib.uaTotal && <TableCell className="text-xs py-1 border border-gray-300">{r.uaTotal.toFixed(2)}</TableCell>}
-                        {colsDistrib.uaHaReal && <TableCell className="text-xs py-1 border border-gray-300">{r.uaHaReal.toFixed(2)}</TableCell>}
-                        {colsDistrib.ocupacao && <TableCell className="text-xs py-1 border border-gray-300">{r.ocupacao.toFixed(0)}%</TableCell>}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                  ))}
+                  <TableRow className="bg-slate-50 font-bold">
+                    <TableCell colSpan={2} className="text-[11px] border border-black py-1">Subtotal da área</TableCell>
+                    <TableCell className="text-[11px] border border-black py-1 text-right">{fmtInt(grupo.cabecas)}</TableCell>
+                    <TableCell className="text-[11px] border border-black py-1 text-right">{fmt(grupo.mediaGeral, 1)} kg</TableCell>
+                    <TableCell className="text-[11px] border border-black py-1 text-right">{fmtInt(grupo.diasPastejo)}</TableCell>
+                    <TableCell colSpan={6} className="text-[11px] border border-black py-1">UA total: {fmt(grupo.uaTotal, 2)} | UA/ha: {fmt(grupo.uaHa, 2)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ))}
 
-        {/* 5. Análise Técnica Automática */}
-        {showAnalise && (
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm">5. Análise Técnica Automática</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="text-xs font-bold py-1 border border-black">Pasto</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Status</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Risco</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">UA/ha (real)</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">UA/ha (capacidade)</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Sugestão técnica</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analise.map((a, idx) => (
-                      <TableRow key={idx} className="hover:bg-gray-50">
-                        <TableCell className="text-xs py-1 border border-gray-300">{a.pasto}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{a.status}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{a.risco}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{a.uaHaReal.toFixed(2)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{a.uaCap.toFixed(2)}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{a.sugestao}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 6. Resumo Final Geral */}
-        {showResumo && (
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm">6. Resumo Final Geral</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="text-xs font-bold py-1 border border-black">Total de cabeças</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Total de UA</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Média peso/cabeça (kg)</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Média UA/ha (fazenda)</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Capacidade total (UA)</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Área total (ha)</TableHead>
-                      <TableHead className="text-xs font-bold py-1 border border-black">Diferença (cap - ocupação)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.totalCab}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.totalUa.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.mediaPeso.toFixed(1)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.uaHaFazenda.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.capTotalUa.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.totalArea.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{resumo.diferencaCap.toFixed(2)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+        {grupos.length === 0 && (
+          <div className="text-center text-sm text-slate-500 py-8 border rounded-md">Nenhum lote atual encontrado nos filtros selecionados.</div>
         )}
       </div>
     </RelatorioBase>
