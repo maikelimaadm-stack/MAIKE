@@ -188,6 +188,7 @@ const DEFAULT_MENU = [
   { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
   { id: "rel-mapa-pastos", title: "Mapa de Pastos", url: "RelatorioMapaPastos" },
   { id: "rel-pecuaria-lotacao", title: "Lotação Pecuária", url: "RelatorioPecuariaLotacao" },
+  { id: "rel-gado-mapa-geral", title: "Gado Atual por Área", url: "RelatorioGadoMapaGeral" },
   { id: "rel-gestao-tarefas", title: "Gestão de Tarefas", url: "RelatorioGestaoTarefas" }]
 
 },
@@ -254,7 +255,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2026-05-13-bebedouros-v1'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2026-05-28-relatorio-gado-v1'; // Atualizar esta versão quando adicionar novos menus
 
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {

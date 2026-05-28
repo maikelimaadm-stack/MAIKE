@@ -17,6 +17,7 @@ import Marcas from './pages/Marcas';
 import LancamentosAbastecimento from './pages/LancamentosAbastecimento';
 import ConfiguracaoPesagens from './pages/ConfiguracaoPesagens';
 import Bebedouros from './pages/Bebedouros';
+import RelatorioGadoMapaGeral from './pages/RelatorioGadoMapaGeral';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -111,6 +112,11 @@ const AuthenticatedApp = () => {
       <Route path="/Bebedouros" element={
         <LayoutWrapper currentPageName="Bebedouros">
           <Bebedouros />
+        </LayoutWrapper>
+      } />
+      <Route path="/RelatorioGadoMapaGeral" element={
+        <LayoutWrapper currentPageName="RelatorioGadoMapaGeral">
+          <RelatorioGadoMapaGeral />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />
