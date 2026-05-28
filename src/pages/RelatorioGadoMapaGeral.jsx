@@ -214,6 +214,25 @@ export default function RelatorioGadoMapaGeral() {
     });
   }, [lotesAtuais, areasById, areas, agruparPor, eventosPorArea]);
 
+  const setoresRelatorio = useMemo(() => {
+    const map = new Map();
+    grupos.forEach((grupo) => {
+      if (!map.has(grupo.setorNome)) {
+        map.set(grupo.setorNome, {
+          setorNome: grupo.setorNome,
+          grupos: [],
+          lotes: [],
+          totalAnimais: 0,
+        });
+      }
+      const setor = map.get(grupo.setorNome);
+      setor.grupos.push(grupo);
+      setor.lotes.push(...grupo.lotes);
+      setor.totalAnimais += grupo.cabecas;
+    });
+    return Array.from(map.values()).sort((a, b) => a.setorNome.localeCompare(b.setorNome));
+  }, [grupos]);
+
   const totalGeral = useMemo(() => {
     const cabecas = lotesAtuais.reduce((sum, lote) => sum + lote.cabecas, 0);
     const pesoTotal = lotesAtuais.reduce((sum, lote) => sum + lote.pesoTotal, 0);
@@ -380,11 +399,16 @@ export default function RelatorioGadoMapaGeral() {
           </CardContent>
         </Card>
 
-        {grupos.map((grupo) => (
-          <div key={grupo.key} className="break-inside-avoid border border-slate-300 rounded-md overflow-hidden">
-            <div className="bg-slate-100 px-3 py-2 border-b border-slate-300">
-              <div className="text-xs font-bold text-slate-900 uppercase">Setor: {grupo.setorNome} | Área: {grupo.areaNome}</div>
-              <div className="overflow-x-auto mt-2">
+        {setoresRelatorio.map((setor) => (
+          <div key={setor.setorNome} className="break-inside-avoid border border-slate-300 rounded-md overflow-hidden">
+            <div className="bg-slate-200 px-3 py-2 border-b border-slate-300">
+              <div className="text-sm font-bold text-slate-900 uppercase">Setor: {setor.setorNome}</div>
+              <div className="text-xs text-slate-700 mt-1"><strong>Total de animais:</strong> {fmtInt(setor.totalAnimais)}</div>
+            </div>
+
+            <div className="bg-slate-50 px-3 py-2 border-b border-slate-300">
+              <div className="text-xs font-bold text-slate-800 mb-2 uppercase">Áreas do setor</div>
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-white">
@@ -394,40 +418,45 @@ export default function RelatorioGadoMapaGeral() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      {AREA_COLUMNS.filter((column) => areaCols.includes(column.id)).map((column) => (
-                        <TableCell key={column.id} className="text-[11px] border border-gray-300 py-1 whitespace-nowrap">{renderAreaValue(grupo, column.id)}</TableCell>
-                      ))}
-                    </TableRow>
+                    {setor.grupos.map((grupo) => (
+                      <TableRow key={grupo.key}>
+                        {AREA_COLUMNS.filter((column) => areaCols.includes(column.id)).map((column) => (
+                          <TableCell key={column.id} className="text-[11px] border border-gray-300 py-1 whitespace-nowrap">{renderAreaValue(grupo, column.id)}</TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-white">
-                    {LOTE_COLUMNS.filter((column) => loteCols.includes(column.id)).map((column) => (
-                      <TableHead key={column.id} className="text-[11px] font-bold border border-black py-1 whitespace-nowrap">{column.label}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {grupo.lotes.map((lote) => (
-                    <TableRow key={lote.id}>
+            <div className="px-3 py-2">
+              <div className="text-xs font-bold text-slate-800 mb-2 uppercase">Lotes do setor</div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-white">
                       {LOTE_COLUMNS.filter((column) => loteCols.includes(column.id)).map((column) => (
-                        <TableCell key={column.id} className="text-[11px] border border-gray-300 py-1 whitespace-nowrap">{renderLoteValue(lote, column.id)}</TableCell>
+                        <TableHead key={column.id} className="text-[11px] font-bold border border-black py-1 whitespace-nowrap">{column.label}</TableHead>
                       ))}
                     </TableRow>
-                  ))}
-                  <TableRow className="bg-slate-50 font-bold">
-                    <TableCell colSpan={Math.max(1, loteCols.length)} className="text-[11px] border border-black py-1">
-                      Subtotal: {fmtInt(grupo.cabecas)} cabeças | {fmtInt(grupo.qtdLotes)} lotes | Média {fmt(grupo.mediaGeral, 1)} kg | UA total {fmt(grupo.uaTotal, 2)} | UA/ha {fmt(grupo.uaHa, 2)} | Consumo {fmt(grupo.consumoTotalKg, 1)} kg
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {setor.lotes.map((lote) => (
+                      <TableRow key={lote.id}>
+                        {LOTE_COLUMNS.filter((column) => loteCols.includes(column.id)).map((column) => (
+                          <TableCell key={column.id} className="text-[11px] border border-gray-300 py-1 whitespace-nowrap">{renderLoteValue(lote, column.id)}</TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-slate-50 font-bold">
+                      <TableCell colSpan={Math.max(1, loteCols.length)} className="text-[11px] border border-black py-1">
+                        Subtotal do setor: {fmtInt(setor.totalAnimais)} cabeças | {fmtInt(setor.lotes.length)} lotes
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
         ))}
@@ -450,7 +479,7 @@ export default function RelatorioGadoMapaGeral() {
           </Table>
         </div>
 
-        {grupos.length === 0 && (
+        {setoresRelatorio.length === 0 && (
           <div className="text-center text-sm text-slate-500 py-8 border rounded-md">Nenhum lote atual encontrado nos filtros selecionados.</div>
         )}
       </div>
