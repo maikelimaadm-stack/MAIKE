@@ -13,11 +13,8 @@ import {
   Trash2,
   Copy,
   Search,
-  FileText,
-  FileSpreadsheet,
   Paperclip,
-  MoreHorizontal,
-  Settings } from
+  MoreHorizontal } from
 "lucide-react";
 import {
   DropdownMenu,
@@ -53,7 +50,6 @@ export default function SankhyaListToolbar({
   onRefresh,
   onAttachClick,
   attachDisabled = false,
-  onSettingsClick,
   onExportPdf,
   onConfigExportPdf,
   onExportExcel,
@@ -118,7 +114,6 @@ export default function SankhyaListToolbar({
               <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
             </div>
           }
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" className={fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Selecione apenas um registro" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions &&
           <DropdownMenu>
@@ -152,7 +147,6 @@ export default function SankhyaListToolbar({
               </div>
             </DropdownMenuContent>
           </DropdownMenu>}
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onSettingsClick} className={iconButtonClass}><Settings className="w-3.5 h-3.5" /></Button>}
           <div className="h-7 min-w-16 px-3 border-y-0 border-r-[0.5px] border-l-0 bg-white flex items-center justify-center text-xs text-slate-600 border-slate-300">
             {viewMode === "record" && total > 0 ? `${currentIndex + 1}/${total}` : selectedCount > 0 ? `${selectedCount}/${total}` : total}
           </div>
