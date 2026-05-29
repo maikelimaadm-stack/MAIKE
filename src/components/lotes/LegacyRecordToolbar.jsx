@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Filter, List, Check, X, FileText, Paperclip, MoreHorizontal, Settings, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, Pencil } from "lucide-react";
+import { Filter, List, Check, X, Paperclip, MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Trash2, Copy, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +64,6 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
 
         <div className="ml-auto flex items-center gap-0 [&>*:first-child]:border-l-[0.5px]">
 
-          {showUtilityActions && <Button type="button" variant="outline" size="icon" className={showDeleteDuplicateActions ? iconButtonClass : fileButtonClass}><FileText className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions && <Button type="button" variant="outline" size="icon" onClick={onAttachClick} disabled={attachDisabled} className={iconButtonClass} title={attachDisabled ? "Salve o registro antes de anexar" : "Anexos"}><Paperclip className="w-3.5 h-3.5" /></Button>}
           {showUtilityActions &&
           <DropdownMenu>
@@ -73,11 +72,9 @@ export default function LegacyRecordToolbar({ title, operationLabel, badgeLabel 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-none p-1">
               <DropdownMenuItem onClick={onLayoutConfigClick} disabled={!onLayoutConfigClick} className="h-8 cursor-pointer gap-2 text-xs">
-                <Settings className="w-3.5 h-3.5 text-slate-600" />
                 Layout do formulário
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onSettingsClick} disabled={!onSettingsClick} className="h-8 cursor-pointer gap-2 text-xs">
-                <Settings className="w-3.5 h-3.5 text-slate-600" />
                 Campos personalizados
               </DropdownMenuItem>
             </DropdownMenuContent>
