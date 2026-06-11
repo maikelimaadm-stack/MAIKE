@@ -1,0 +1,81 @@
+{
+  "name": "ConfiguracaoIcone",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "tipo_entidade": {
+      "type": "string",
+      "enum": [
+        "Ponto",
+        "Area",
+        "Lote",
+        "Linha",
+        "Prioridade Tarefa",
+        "Icone Menu Mobile"
+      ],
+      "description": "Tipo de entidade (Ponto, \u00c1rea, Lote, Linha, Prioridade Tarefa, \u00cdcone Menu Mobile)"
+    },
+    "categoria": {
+      "type": "string",
+      "description": "Nome da categoria (ex: Cocho, Aguada, Pasto, Lavoura, Baixa, Alta, Dashboard, etc)"
+    },
+    "icone_url": {
+      "type": "string",
+      "description": "URL do \u00edcone customizado (usado no mapa, tarefas e menu mobile)"
+    },
+    "sub_icone_url": {
+      "type": "string",
+      "description": "URL do sub \u00edcone (usado nas informa\u00e7\u00f5es/detalhes)"
+    },
+    "cor_padrao": {
+      "type": "string",
+      "description": "Cor padr\u00e3o em hexadecimal"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o da categoria"
+    },
+    "categorias_misto": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Categorias que formam o MISTO (somente para tipo MISTO)"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a configura\u00e7\u00e3o est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "tipo_entidade",
+    "categoria"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": true,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

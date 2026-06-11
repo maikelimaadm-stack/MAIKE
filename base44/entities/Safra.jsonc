@@ -1,0 +1,41 @@
+{
+  "name": "Safra",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa (vincula a safra a uma empresa)"
+    },
+    "ano_inicio": {
+      "type": "string",
+      "description": "Ano de in\u00edcio da safra"
+    },
+    "ano_fim": {
+      "type": "string",
+      "description": "Ano de fim da safra"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o da safra"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Planejamento",
+        "Em Andamento",
+        "Finalizada"
+      ],
+      "default": "Planejamento",
+      "description": "Status da safra"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a safra"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "ano_inicio",
+    "ano_fim"
+  ]
+}

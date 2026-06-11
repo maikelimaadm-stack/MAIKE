@@ -1,0 +1,103 @@
+{
+  "name": "FichaPersonalizada",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome da ficha"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o da ficha"
+    },
+    "orientacao": {
+      "type": "string",
+      "enum": [
+        "retrato",
+        "paisagem"
+      ],
+      "default": "retrato",
+      "description": "Orienta\u00e7\u00e3o da p\u00e1gina"
+    },
+    "mostrar_logo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Mostrar logo da empresa"
+    },
+    "mostrar_cabecalho": {
+      "type": "boolean",
+      "default": true,
+      "description": "Mostrar cabe\u00e7alho com dados da empresa"
+    },
+    "titulo_ficha": {
+      "type": "string",
+      "description": "T\u00edtulo que aparece na ficha"
+    },
+    "subtitulo_ficha": {
+      "type": "string",
+      "description": "Subt\u00edtulo opcional"
+    },
+    "campos": {
+      "type": "array",
+      "description": "Campos da ficha",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "largura": {
+            "type": "string"
+          },
+          "altura": {
+            "type": "number"
+          },
+          "obrigatorio": {
+            "type": "boolean"
+          },
+          "opcoes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "colunas": {
+            "type": "number"
+          },
+          "linhas": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "rodape": {
+      "type": "string",
+      "description": "Texto do rodap\u00e9"
+    },
+    "mostrar_data_impressao": {
+      "type": "boolean",
+      "default": true,
+      "description": "Mostrar data de impress\u00e3o"
+    },
+    "ativa": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a ficha est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "titulo_ficha"
+  ]
+}

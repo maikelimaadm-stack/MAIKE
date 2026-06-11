@@ -1,0 +1,45 @@
+{
+  "name": "TipoTarefa",
+  "type": "object",
+  "properties": {
+    "nome_tipo": {
+      "type": "string",
+      "description": "Nome do tipo de tarefa"
+    },
+    "grupo_atividade_id": {
+      "type": "string",
+      "description": "ID do grupo de atividades"
+    },
+    "grupo_atividade_nome": {
+      "type": "string",
+      "description": "Nome do grupo (cache)"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true
+    },
+    "descricao": {
+      "type": "string"
+    },
+    "exige_area": {
+      "type": "boolean",
+      "default": false
+    },
+    "pode_ter_produto": {
+      "type": "boolean",
+      "default": false
+    },
+    "pode_ter_maquina": {
+      "type": "boolean",
+      "default": false
+    },
+    "pode_ter_implemento": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "nome_tipo",
+    "grupo_atividade_id"
+  ]
+}

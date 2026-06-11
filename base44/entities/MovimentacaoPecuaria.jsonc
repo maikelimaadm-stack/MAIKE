@@ -1,0 +1,169 @@
+{
+  "name": "MovimentacaoPecuaria",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa/fazenda"
+    },
+    "numero_movimentacao": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da movimenta\u00e7\u00e3o"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Entrada",
+        "Sa\u00edda"
+      ],
+      "description": "Tipo de movimenta\u00e7\u00e3o"
+    },
+    "motivo": {
+      "type": "string",
+      "description": "Motivo da movimenta\u00e7\u00e3o (Compra, Venda, Nascimento, Morte, etc.)"
+    },
+    "data_movimentacao": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data e hora da movimenta\u00e7\u00e3o"
+    },
+    "setor_id": {
+      "type": "string",
+      "description": "ID do setor/fazenda principal da movimenta\u00e7\u00e3o"
+    },
+    "setor_nome": {
+      "type": "string",
+      "description": "Nome do setor/fazenda (cache)"
+    },
+    "setor_origem_id": {
+      "type": "string",
+      "description": "ID do setor de origem (para transfer\u00eancias)"
+    },
+    "setor_origem_nome": {
+      "type": "string",
+      "description": "Nome do setor de origem"
+    },
+    "setor_destino_id": {
+      "type": "string",
+      "description": "ID do setor de destino (para transfer\u00eancias)"
+    },
+    "setor_destino_nome": {
+      "type": "string",
+      "description": "Nome do setor de destino"
+    },
+    "lote_id": {
+      "type": "string",
+      "description": "ID do lote"
+    },
+    "lote": {
+      "type": "string",
+      "description": "Nome do lote"
+    },
+    "quantidade_animais": {
+      "type": "number",
+      "description": "Quantidade de animais movimentados"
+    },
+    "categoria_animal": {
+      "type": "string",
+      "description": "Categoria do animal"
+    },
+    "categoria_nova": {
+      "type": "string",
+      "description": "Nova categoria (para mudan\u00e7a de categoria)"
+    },
+    "marca": {
+      "type": "string",
+      "description": "Marca do animal"
+    },
+    "sexo": {
+      "type": "string",
+      "enum": [
+        "Macho",
+        "F\u00eamea"
+      ],
+      "description": "Sexo do animal"
+    },
+    "peso_medio": {
+      "type": "number",
+      "description": "Peso m\u00e9dio em kg"
+    },
+    "peso_total": {
+      "type": "number",
+      "description": "Peso total em kg"
+    },
+    "valor_unitario": {
+      "type": "number",
+      "description": "Valor unit\u00e1rio por animal"
+    },
+    "valor_total": {
+      "type": "number",
+      "description": "Valor total da movimenta\u00e7\u00e3o"
+    },
+    "area_origem_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea de origem"
+    },
+    "area_origem_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea de origem"
+    },
+    "area_destino_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea de destino"
+    },
+    "area_destino_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea de destino"
+    },
+    "fornecedor_origem": {
+      "type": "string",
+      "description": "Fornecedor de origem (para compras)"
+    },
+    "destino_venda": {
+      "type": "string",
+      "description": "Destino da venda (para vendas e abates)"
+    },
+    "nota_fiscal": {
+      "type": "string",
+      "description": "N\u00famero da nota fiscal"
+    },
+    "gta": {
+      "type": "string",
+      "description": "N\u00famero da GTA"
+    },
+    "causa_morte": {
+      "type": "string",
+      "description": "Causa da morte (para mortes)"
+    },
+    "transferencia_origem": {
+      "type": "string",
+      "description": "Origem da transfer\u00eancia (fazenda/local ou categoria origem)"
+    },
+    "transferencia_destino": {
+      "type": "string",
+      "description": "Destino da transfer\u00eancia (fazenda/local ou categoria destino)"
+    },
+    "vinculo_mudanca_categoria": {
+      "type": "string",
+      "description": "ID de v\u00ednculo para mudan\u00e7a de categoria (interliga sa\u00edda e entrada)"
+    },
+    "vinculo_transferencia_setor": {
+      "type": "string",
+      "description": "ID de v\u00ednculo para transfer\u00eancia entre setores (interliga sa\u00edda e entrada)"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    },
+    "usuario_responsavel": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio respons\u00e1vel"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "tipo",
+    "data_movimentacao",
+    "quantidade_animais"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "PontoReferencia",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa/fazenda"
+    },
+    "numero_ponto": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico do ponto"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do ponto de refer\u00eancia"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla do ponto (ex: CO1, BEB01)"
+    },
+    "tipo": {
+      "type": "string",
+      "description": "Tipo do ponto (Cocho, Bebedouro, Armaz\u00e9m, etc)"
+    },
+    "configuracao_icone_id": {
+      "type": "string",
+      "description": "ID da configura\u00e7\u00e3o visual do ponto"
+    },
+    "icone_url": {
+      "type": "string",
+      "description": "\u00cdcone principal do ponto"
+    },
+    "sub_icone_url": {
+      "type": "string",
+      "description": "Sub \u00edcone usado em detalhes"
+    },
+    "coordenadas": {
+      "type": "object",
+      "description": "Coordenadas do ponto (lat, lng)"
+    },
+    "cor": {
+      "type": "string",
+      "description": "Cor do marcador no mapa"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre o ponto"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o ponto est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "tipo"
+  ]
+}

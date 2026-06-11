@@ -503,7 +503,7 @@ export default function RelatoriosEstoque() {
 
   // ========== RENDER ==========
   return (
-    <div className="h-full overflow-y-auto p-4 md:p-6 space-y-2">
+    <div className="absolute inset-0 overflow-y-auto p-4 md:p-6 space-y-2">
       {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 print:hidden">
         <div>

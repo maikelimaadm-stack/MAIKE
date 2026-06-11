@@ -1,0 +1,60 @@
+{
+  "name": "LinhaGeografica",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "numero_linha": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da linha"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome da linha/estrada"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla da linha (ex: E1, CE01)"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Estrada",
+        "Cerca",
+        "Cerca El\u00e9trica",
+        "Rio",
+        "C\u00f3rrego",
+        "Outro"
+      ],
+      "description": "Tipo da linha"
+    },
+    "coordenadas": {
+      "type": "object",
+      "description": "Coordenadas da linha (array de pontos lat/lng e cor)"
+    },
+    "comprimento_metros": {
+      "type": "number",
+      "description": "Comprimento da linha em metros (calculado automaticamente)"
+    },
+    "cor": {
+      "type": "string",
+      "description": "Cor da linha no mapa"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a linha"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a linha est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome",
+    "tipo"
+  ]
+}

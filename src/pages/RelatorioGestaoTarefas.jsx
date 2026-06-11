@@ -117,7 +117,7 @@ export default function RelatorioGestaoTarefas() {
   }, [filtradas]);
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4" translate="no">
+    <div className="absolute inset-0 overflow-y-auto p-4 space-y-4" translate="no">
       <Card>
         <CardHeader className="py-3 bg-slate-50 border-b">
           <CardTitle className="text-sm font-semibold">Relatório de Gestão de Tarefas</CardTitle>

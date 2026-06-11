@@ -1,0 +1,110 @@
+{
+  "name": "FolhaFicha",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "funcionario_id": {
+      "type": "string",
+      "description": "ID do funcion\u00e1rio (FolhaFuncionario)"
+    },
+    "mes": {
+      "type": "string",
+      "description": "M\u00eas (MM)"
+    },
+    "ano": {
+      "type": "string",
+      "description": "Ano (YYYY)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Aberta",
+        "Fechada"
+      ],
+      "default": "Aberta"
+    },
+    "proventos": {
+      "type": "object",
+      "properties": {
+        "salario_base": {
+          "type": "number"
+        },
+        "he50_horas": {
+          "type": "number"
+        },
+        "he100_horas": {
+          "type": "number"
+        },
+        "horas_noturnas": {
+          "type": "number"
+        },
+        "comissao": {
+          "type": "number"
+        },
+        "bonificacao": {
+          "type": "number"
+        },
+        "valor_hora": {
+          "type": "number"
+        },
+        "total_proventos": {
+          "type": "number"
+        }
+      }
+    },
+    "descontos_personalizados": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "descricao": {
+            "type": "string"
+          },
+          "valor": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "descricao",
+          "valor"
+        ]
+      },
+      "default": []
+    },
+    "inss": {
+      "type": "number",
+      "description": "Valor calculado do INSS"
+    },
+    "irrf": {
+      "type": "number",
+      "description": "Valor calculado do IRRF"
+    },
+    "fgts": {
+      "type": "number",
+      "description": "FGTS informativo (custo empresa)"
+    },
+    "totais": {
+      "type": "object",
+      "properties": {
+        "total_descontos": {
+          "type": "number"
+        },
+        "liquido": {
+          "type": "number"
+        }
+      }
+    },
+    "observacoes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "funcionario_id",
+    "mes",
+    "ano"
+  ]
+}

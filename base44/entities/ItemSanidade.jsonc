@@ -1,0 +1,43 @@
+{
+  "name": "ItemSanidade",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "configuracao_sanidade_id": {
+      "type": "string",
+      "description": "ID da configura\u00e7\u00e3o de sanidade"
+    },
+    "nome_sanidade": {
+      "type": "string",
+      "description": "Nome da sanidade (cache)"
+    },
+    "medicamento": {
+      "type": "string",
+      "description": "Nome do medicamento"
+    },
+    "finalidade": {
+      "type": "string",
+      "description": "Para que serve"
+    },
+    "quantidade_padrao": {
+      "type": "number",
+      "description": "Quantidade padr\u00e3o por animal"
+    },
+    "unidade_medida": {
+      "type": "string",
+      "description": "Unidade (ml, mg, etc)"
+    },
+    "custo_unitario": {
+      "type": "number",
+      "description": "Custo unit\u00e1rio"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "configuracao_sanidade_id",
+    "medicamento"
+  ]
+}

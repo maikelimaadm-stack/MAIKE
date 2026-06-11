@@ -1,0 +1,79 @@
+{
+  "name": "LoteAnimaisCotacao",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome_lote": {
+      "type": "string",
+      "description": "Nome/identifica\u00e7\u00e3o do lote"
+    },
+    "data_registro": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do registro"
+    },
+    "quantidade_animais": {
+      "type": "number",
+      "description": "Quantidade de animais no lote"
+    },
+    "peso_medio_atual": {
+      "type": "number",
+      "description": "Peso m\u00e9dio atual em kg"
+    },
+    "categoria_animal": {
+      "type": "string",
+      "enum": [
+        "Bezerro",
+        "Recria",
+        "Engorda",
+        "Boi Gordo",
+        "Reprodutor",
+        "Outros"
+      ],
+      "description": "Categoria dos animais"
+    },
+    "tipo_pasto": {
+      "type": "string",
+      "enum": [
+        "Bom",
+        "M\u00e9dio",
+        "Fraco"
+      ],
+      "description": "Qualidade do pasto"
+    },
+    "sal_mineral": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se usa sal mineral"
+    },
+    "data_aplicacao_medicamentos": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da aplica\u00e7\u00e3o dos medicamentos"
+    },
+    "gmd_esperado": {
+      "type": "number",
+      "description": "Ganho m\u00e9dio di\u00e1rio esperado (kg/dia)"
+    },
+    "preco_arroba_atual": {
+      "type": "number",
+      "description": "Pre\u00e7o da arroba atual para c\u00e1lculos"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es do lote"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome_lote",
+    "data_registro",
+    "quantidade_animais",
+    "peso_medio_atual",
+    "categoria_animal",
+    "gmd_esperado"
+  ]
+}

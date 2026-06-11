@@ -1,0 +1,23 @@
+{
+  "name": "Apartacao",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome_apartacao": {
+      "type": "string",
+      "description": "Nome da aparta\u00e7\u00e3o"
+    },
+    "fixa_apartacao": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica se a aparta\u00e7\u00e3o \u00e9 fixa para o animal"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome_apartacao"
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "name": "ContaBancaria",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "numero_conta": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da conta (gerado automaticamente)"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Conta Corrente",
+        "Poupan\u00e7a",
+        "Caixa",
+        "Aplica\u00e7\u00e3o",
+        "Cart\u00e3o de Cr\u00e9dito"
+      ],
+      "description": "Tipo da conta"
+    },
+    "banco": {
+      "type": "string",
+      "description": "Nome do banco"
+    },
+    "agencia": {
+      "type": "string",
+      "description": "N\u00famero da ag\u00eancia"
+    },
+    "numero": {
+      "type": "string",
+      "description": "N\u00famero da conta"
+    },
+    "titular": {
+      "type": "string",
+      "description": "Titular da conta"
+    },
+    "documento_titular": {
+      "type": "string",
+      "description": "CPF/CNPJ do titular"
+    },
+    "saldo_inicial": {
+      "type": "number",
+      "default": 0,
+      "description": "Saldo inicial da conta"
+    },
+    "saldo_atual": {
+      "type": "number",
+      "default": 0,
+      "description": "Saldo atual da conta"
+    },
+    "data_abertura": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de abertura da conta"
+    },
+    "limite_credito": {
+      "type": "number",
+      "default": 0,
+      "description": "Limite de cr\u00e9dito (para cart\u00e3o)"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a conta est\u00e1 ativa"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a conta"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "tipo",
+    "titular"
+  ]
+}

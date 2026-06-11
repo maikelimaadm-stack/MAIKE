@@ -1,0 +1,194 @@
+{
+  "name": "PesagemIndividual",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "id_externo": {
+      "type": "string",
+      "description": "ID original do sistema externo (Access)"
+    },
+    "tipo_manejo": {
+      "type": "string",
+      "enum": [
+        "Cadastro",
+        "Manejo",
+        "Sa\u00edda"
+      ],
+      "default": "Manejo",
+      "description": "Tipo de manejo"
+    },
+    "motivo_saida": {
+      "type": "string",
+      "enum": [
+        "Venda",
+        "Morte",
+        "Doa\u00e7\u00e3o",
+        "Abate",
+        "Transfer\u00eancia",
+        "Outros"
+      ],
+      "description": "Motivo da sa\u00edda"
+    },
+    "destino_venda": {
+      "type": "string",
+      "description": "Destino da venda (quando motivo_saida = Venda)"
+    },
+    "comprador": {
+      "type": "string",
+      "description": "Nome do comprador (quando motivo_saida = Venda)"
+    },
+    "valor_venda_total": {
+      "type": "number",
+      "description": "Valor total da venda"
+    },
+    "valor_arroba": {
+      "type": "number",
+      "description": "Valor da arroba combinada"
+    },
+    "quantidade_arrobas": {
+      "type": "number",
+      "description": "Quantidade de arrobas (calculado)"
+    },
+    "frigorifico": {
+      "type": "string",
+      "description": "Nome do frigor\u00edfico (quando motivo_saida = Abate)"
+    },
+    "valor_pago_cabeca": {
+      "type": "number",
+      "description": "Valor pago por cabe\u00e7a na compra (Cadastro)"
+    },
+    "origem_animal": {
+      "type": "string",
+      "description": "De onde veio o animal (Cadastro)"
+    },
+    "documentacao": {
+      "type": "string",
+      "description": "Documenta\u00e7\u00e3o do animal (GTA, etc)"
+    },
+    "status_animal": {
+      "type": "string",
+      "enum": [
+        "Ativo",
+        "Inativo"
+      ],
+      "default": "Ativo",
+      "description": "Status do animal"
+    },
+    "data_pesagem": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da pesagem"
+    },
+    "numero_animal": {
+      "type": "string",
+      "description": "N\u00famero/Identifica\u00e7\u00e3o \u00fanica do animal"
+    },
+    "sexo": {
+      "type": "string",
+      "enum": [
+        "M",
+        "F"
+      ],
+      "description": "Sexo do animal"
+    },
+    "raca": {
+      "type": "string",
+      "description": "Ra\u00e7a do animal"
+    },
+    "era": {
+      "type": "string",
+      "description": "Era/Idade do animal"
+    },
+    "marca": {
+      "type": "string",
+      "description": "Marca do animal"
+    },
+    "peso": {
+      "type": "number",
+      "description": "Peso em kg"
+    },
+    "apartacao_id": {
+      "type": "string",
+      "description": "ID da aparta\u00e7\u00e3o vinculada"
+    },
+    "nome_apartacao": {
+      "type": "string",
+      "description": "Nome da aparta\u00e7\u00e3o"
+    },
+    "lote_id": {
+      "type": "string",
+      "description": "ID do lote vinculado"
+    },
+    "nome_lote": {
+      "type": "string",
+      "description": "Nome do lote"
+    },
+    "fixa_apartacao": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se a aparta\u00e7\u00e3o estava marcada como fixa"
+    },
+    "observacao": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    },
+    "data_anterior": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da pesagem anterior"
+    },
+    "peso_anterior": {
+      "type": "number",
+      "description": "Peso na pesagem anterior"
+    },
+    "dias": {
+      "type": "number",
+      "description": "Dias entre pesagens"
+    },
+    "ganho": {
+      "type": "number",
+      "description": "Ganho de peso (kg)"
+    },
+    "gmd": {
+      "type": "number",
+      "description": "Ganho m\u00e9dio di\u00e1rio (kg/dia)"
+    },
+    "embarque_id": {
+      "type": "string",
+      "description": "ID do embarque (quando Sa\u00edda=Abate)"
+    },
+    "embarque_nome": {
+      "type": "string",
+      "description": "Nome do embarque (cache)"
+    },
+    "documento_embarque_id": {
+      "type": "string",
+      "description": "ID do DocumentoEmbarque (GTA/NF-e)"
+    },
+    "documento_tipo": {
+      "type": "string",
+      "description": "Tipo do documento (GTA/NF-e)"
+    },
+    "documento_numero": {
+      "type": "string",
+      "description": "N\u00famero do documento (GTA ou NF-e)"
+    },
+    "motorista_nome": {
+      "type": "string",
+      "description": "Motorista do documento de embarque"
+    },
+    "placa_carreta": {
+      "type": "string",
+      "description": "Placa da carreta do documento de embarque"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "data_pesagem",
+    "numero_animal",
+    "peso"
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "name": "HistoricoEntrega",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "custo_safra_id": {
+      "type": "string",
+      "description": "ID do custo de safra relacionado"
+    },
+    "safra_id": {
+      "type": "string",
+      "description": "ID da safra"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor (cache)"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto"
+    },
+    "produto_nome": {
+      "type": "string",
+      "description": "Nome do produto (cache)"
+    },
+    "quantidade_entregue": {
+      "type": "number",
+      "description": "Quantidade entregue nesta parcial"
+    },
+    "unidade_medida": {
+      "type": "string",
+      "description": "Unidade de medida"
+    },
+    "data_entrega": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da entrega"
+    },
+    "numero_nfe": {
+      "type": "string",
+      "description": "N\u00famero da Nota Fiscal Eletr\u00f4nica"
+    },
+    "chave_nfe": {
+      "type": "string",
+      "description": "Chave de acesso da NF-e"
+    },
+    "observacoes_nfe": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a NF-e"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais da entrega"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "custo_safra_id",
+    "safra_id",
+    "fornecedor_id",
+    "produto_id",
+    "quantidade_entregue",
+    "data_entrega"
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "name": "BaixaFinanceira",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "numero_baixa": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da baixa (gerado automaticamente)"
+    },
+    "lancamento_id": {
+      "type": "string",
+      "description": "ID do lan\u00e7amento financeiro"
+    },
+    "data_baixa": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da baixa/pagamento"
+    },
+    "valor_baixa": {
+      "type": "number",
+      "description": "Valor da baixa (pode ser parcial)"
+    },
+    "valor_juros": {
+      "type": "number",
+      "default": 0,
+      "description": "Juros pagos nesta baixa"
+    },
+    "valor_multa": {
+      "type": "number",
+      "default": 0,
+      "description": "Multa paga nesta baixa"
+    },
+    "valor_desconto": {
+      "type": "number",
+      "default": 0,
+      "description": "Desconto aplicado nesta baixa"
+    },
+    "forma_pagamento_id": {
+      "type": "string",
+      "description": "ID da forma de pagamento utilizada"
+    },
+    "forma_pagamento_nome": {
+      "type": "string",
+      "description": "Nome da forma de pagamento (cache)"
+    },
+    "numero_comprovante": {
+      "type": "string",
+      "description": "N\u00famero do comprovante de pagamento"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a baixa"
+    },
+    "usuario_responsavel": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio que registrou a baixa"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "lancamento_id",
+    "data_baixa",
+    "valor_baixa"
+  ]
+}

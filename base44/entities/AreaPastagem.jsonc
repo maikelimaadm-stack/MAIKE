@@ -1,0 +1,129 @@
+{
+  "name": "AreaPastagem",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa/fazenda"
+    },
+    "setor_id": {
+      "type": "string",
+      "description": "ID do setor vinculado"
+    },
+    "setor_nome": {
+      "type": "string",
+      "description": "Nome do setor vinculado"
+    },
+    "numero_area": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico da \u00e1rea (gerado automaticamente ou definido manualmente)"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea/piquete"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla da \u00e1rea (ex: A1, PQ01)"
+    },
+    "tamanho_hectares": {
+      "type": "number",
+      "description": "Tamanho total em hectares"
+    },
+    "area_pastejada": {
+      "type": "number",
+      "description": "\u00c1rea efetiva/produtiva em hectares (pastej\u00e1vel ou ar\u00e1vel). Usada para c\u00e1lculos de lota\u00e7\u00e3o UA/ha."
+    },
+    "capacidade_maxima": {
+      "type": "number",
+      "description": "Capacidade m\u00e1xima de animais (UA)"
+    },
+    "tipo_pastagem": {
+      "type": "string",
+      "description": "Tipo de pastagem (Brachiaria, Tifton, etc)"
+    },
+    "aproveitamento_classificacao": {
+      "type": "string",
+      "enum": [
+        "Alta",
+        "M\u00e9dia",
+        "Baixa"
+      ],
+      "default": "M\u00e9dia",
+      "description": "Classifica\u00e7\u00e3o de aproveitamento da \u00e1rea"
+    },
+    "tipo_cultura": {
+      "type": "string",
+      "enum": [
+        "Pastagem",
+        "Agricultura",
+        "Reserva",
+        "APP",
+        "Infraestrutura"
+      ],
+      "default": "Pastagem",
+      "description": "Tipo de cultura/uso da \u00e1rea"
+    },
+    "cor": {
+      "type": "string",
+      "description": "Cor preferida para exibi\u00e7\u00e3o no mapa (hex)"
+    },
+    "quantidade_atual": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade atual de animais"
+    },
+    "status_ocupacao": {
+      "type": "string",
+      "enum": [
+        "Dispon\u00edvel",
+        "M\u00e9dio",
+        "Alto",
+        "Sobrepastoreado"
+      ],
+      "default": "Dispon\u00edvel",
+      "description": "Status de ocupa\u00e7\u00e3o"
+    },
+    "forragem_kg_ha": {
+      "type": "number",
+      "description": "Forragem dispon\u00edvel estimada (kg MS/ha). Se n\u00e3o informado, usa estimativa pelo tipo de pastagem."
+    },
+    "taxa_crescimento_kg_ha_dia": {
+      "type": "number",
+      "description": "Taxa de crescimento do capim (kg MS/ha/dia). Se n\u00e3o informado, usa estimativa pelo per\u00edodo."
+    },
+    "taxa_aproveitamento": {
+      "type": "number",
+      "description": "Taxa de aproveitamento da pastagem (0 a 100%). Padr\u00e3o: 50%."
+    },
+    "periodo_estacao": {
+      "type": "string",
+      "enum": [
+        "Seco",
+        "Intermedi\u00e1rio",
+        "Chuvoso"
+      ],
+      "description": "Per\u00edodo/esta\u00e7\u00e3o atual do pasto (afeta taxa de crescimento estimada)"
+    },
+    "coordenadas": {
+      "type": "object",
+      "description": "Coordenadas do pol\u00edgono no mapa (coords: [[lat,lng],...], cor: hex)"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a \u00e1rea"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a \u00e1rea est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "setor_id",
+    "setor_nome",
+    "nome",
+    "tamanho_hectares"
+  ]
+}

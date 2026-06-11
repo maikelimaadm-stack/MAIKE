@@ -1,0 +1,70 @@
+{
+  "name": "AplicacaoMedicamento",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "lote_id": {
+      "type": "string",
+      "description": "ID do lote de animais"
+    },
+    "lote_nome": {
+      "type": "string",
+      "description": "Nome do lote (cache)"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto da cota\u00e7\u00e3o"
+    },
+    "produto_nome": {
+      "type": "string",
+      "description": "Nome do produto (cache)"
+    },
+    "categoria_produto": {
+      "type": "string",
+      "description": "Categoria do produto (cache)"
+    },
+    "quantidade_aplicada": {
+      "type": "number",
+      "description": "Quantidade aplicada por animal"
+    },
+    "unidade_medida": {
+      "type": "string",
+      "description": "Unidade de medida"
+    },
+    "valor_unitario": {
+      "type": "number",
+      "description": "Valor unit\u00e1rio do produto (cache)"
+    },
+    "custo_por_animal": {
+      "type": "number",
+      "description": "Custo por animal (c\u00e1lculo autom\u00e1tico)"
+    },
+    "quantidade_animais": {
+      "type": "number",
+      "description": "Quantidade de animais do lote (cache)"
+    },
+    "custo_total": {
+      "type": "number",
+      "description": "Custo total da aplica\u00e7\u00e3o (autom\u00e1tico)"
+    },
+    "data_aplicacao": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da aplica\u00e7\u00e3o"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es da aplica\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "lote_id",
+    "produto_id",
+    "quantidade_aplicada",
+    "data_aplicacao"
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "name": "ManejoTecnicoRebanho",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "data_evento": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do evento t\u00e9cnico"
+    },
+    "tipo_evento": {
+      "type": "string",
+      "enum": [
+        "SANITARIO",
+        "PESAGEM",
+        "REPRODUCAO",
+        "NUTRICIONAL",
+        "AVALIACAO"
+      ],
+      "description": "Categoria t\u00e9cnica do evento"
+    },
+    "subtipo_manejo": {
+      "type": "string",
+      "description": "Subtipo do manejo realizado"
+    },
+    "lote_id": {
+      "type": "string",
+      "description": "ID do lote"
+    },
+    "nome_lote": {
+      "type": "string",
+      "description": "Nome do lote"
+    },
+    "categoria": {
+      "type": "string",
+      "description": "Categoria do lote"
+    },
+    "sexo": {
+      "type": "string",
+      "description": "Sexo do lote"
+    },
+    "quantidade_animais": {
+      "type": "number",
+      "description": "Quantidade de animais envolvidos"
+    },
+    "area_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea atual do lote"
+    },
+    "nome_area": {
+      "type": "string",
+      "description": "Nome da \u00e1rea atual do lote"
+    },
+    "responsavel": {
+      "type": "string",
+      "description": "Respons\u00e1vel pelo manejo"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    },
+    "produto_utilizado": {
+      "type": "string",
+      "description": "Produto usado no manejo sanit\u00e1rio"
+    },
+    "dose": {
+      "type": "string",
+      "description": "Dose aplicada"
+    },
+    "via_aplicacao": {
+      "type": "string",
+      "description": "Via de aplica\u00e7\u00e3o"
+    },
+    "duracao_tratamento": {
+      "type": "string",
+      "description": "Dura\u00e7\u00e3o do tratamento"
+    },
+    "lote_tratado": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do lote tratado"
+    },
+    "quantidade_tratada": {
+      "type": "number",
+      "description": "Quantidade de animais tratados"
+    },
+    "peso_medio_anterior": {
+      "type": "number",
+      "description": "Peso m\u00e9dio anterior do lote"
+    },
+    "peso_medio_atual": {
+      "type": "number",
+      "description": "Peso m\u00e9dio atual do lote"
+    },
+    "ganho_peso": {
+      "type": "number",
+      "description": "Ganho de peso do lote"
+    },
+    "gmd_calculado": {
+      "type": "number",
+      "description": "Ganho m\u00e9dio di\u00e1rio calculado"
+    },
+    "produto": {
+      "type": "string",
+      "description": "Produto nutricional utilizado"
+    },
+    "quantidade_fornecida": {
+      "type": "number",
+      "description": "Quantidade fornecida"
+    },
+    "unidade": {
+      "type": "string",
+      "description": "Unidade de medida"
+    },
+    "frequencia": {
+      "type": "string",
+      "description": "Frequ\u00eancia do fornecimento"
+    },
+    "matriz": {
+      "type": "string",
+      "description": "Matriz do manejo reprodutivo"
+    },
+    "reprodutor": {
+      "type": "string",
+      "description": "Reprodutor do manejo reprodutivo"
+    },
+    "resultado_diagnostico": {
+      "type": "string",
+      "description": "Resultado do diagn\u00f3stico reprodutivo"
+    },
+    "escala_avaliacao": {
+      "type": "string",
+      "description": "Escala usada na avalia\u00e7\u00e3o"
+    },
+    "resultado": {
+      "type": "string",
+      "description": "Resultado final da avalia\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "data_evento",
+    "tipo_evento",
+    "subtipo_manejo",
+    "lote_id",
+    "nome_lote",
+    "quantidade_animais",
+    "area_id",
+    "nome_area"
+  ]
+}

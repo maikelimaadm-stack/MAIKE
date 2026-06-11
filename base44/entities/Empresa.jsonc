@@ -1,0 +1,76 @@
+{
+  "name": "Empresa",
+  "type": "object",
+  "properties": {
+    "apelido": {
+      "type": "string",
+      "description": "Apelido ou nome fantasia da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome completo ou raz\u00e3o social"
+    },
+    "tipo_pessoa": {
+      "type": "string",
+      "enum": [
+        "F\u00edsica",
+        "Jur\u00eddica"
+      ],
+      "default": "Jur\u00eddica",
+      "description": "Tipo de pessoa"
+    },
+    "cpf": {
+      "type": "string",
+      "description": "CPF (apenas para pessoa f\u00edsica)"
+    },
+    "rg": {
+      "type": "string",
+      "description": "RG (apenas para pessoa f\u00edsica)"
+    },
+    "cnpj": {
+      "type": "string",
+      "description": "CNPJ (apenas para pessoa jur\u00eddica)"
+    },
+    "inscricao_estadual": {
+      "type": "string",
+      "description": "Inscri\u00e7\u00e3o estadual"
+    },
+    "telefone": {
+      "type": "string",
+      "description": "Telefone de contato"
+    },
+    "email": {
+      "type": "string",
+      "description": "E-mail de contato"
+    },
+    "endereco": {
+      "type": "string",
+      "description": "Endere\u00e7o completo"
+    },
+    "cidade": {
+      "type": "string",
+      "description": "Cidade"
+    },
+    "estado": {
+      "type": "string",
+      "description": "Estado (UF)"
+    },
+    "cep": {
+      "type": "string",
+      "description": "CEP"
+    },
+    "logotipo_url": {
+      "type": "string",
+      "description": "URL do logotipo da empresa"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es gerais"
+    }
+  },
+  "required": [
+    "apelido",
+    "nome",
+    "tipo_pessoa"
+  ]
+}

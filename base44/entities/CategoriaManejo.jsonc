@@ -1,0 +1,107 @@
+{
+  "name": "CategoriaManejo",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome da categoria de manejo (ex: Bezerro, Novilha)"
+    },
+    "sigla": {
+      "type": "string",
+      "description": "Sigla da categoria (ex: BEZ, NOV)"
+    },
+    "especie": {
+      "type": "string",
+      "description": "Esp\u00e9cie dos animais (ex: Bovinos)"
+    },
+    "sexo": {
+      "type": "string",
+      "enum": [
+        "Macho",
+        "F\u00eamea"
+      ],
+      "description": "Sexo da categoria"
+    },
+    "raca": {
+      "type": "string",
+      "description": "Ra\u00e7a da categoria (ex: Nelore, Angus)"
+    },
+    "idade_minima_meses": {
+      "type": "number",
+      "description": "Idade m\u00ednima em meses para esta categoria"
+    },
+    "idade_maxima_meses": {
+      "type": "number",
+      "description": "Idade m\u00e1xima em meses para esta categoria"
+    },
+    "categoria_oficial": {
+      "type": "string",
+      "description": "Categoria oficial vinculada (para \u00edcones e fatores)"
+    },
+    "ganho_peso_anual_kg": {
+      "type": "number",
+      "description": "Ganho de peso anual esperado (kg)"
+    },
+    "gmd_janeiro": {
+      "type": "number",
+      "description": "GMD esperado em Janeiro (kg)"
+    },
+    "gmd_fevereiro": {
+      "type": "number",
+      "description": "GMD esperado em Fevereiro (kg)"
+    },
+    "gmd_marco": {
+      "type": "number",
+      "description": "GMD esperado em Mar\u00e7o (kg)"
+    },
+    "gmd_abril": {
+      "type": "number",
+      "description": "GMD esperado em Abril (kg)"
+    },
+    "gmd_maio": {
+      "type": "number",
+      "description": "GMD esperado em Maio (kg)"
+    },
+    "gmd_junho": {
+      "type": "number",
+      "description": "GMD esperado em Junho (kg)"
+    },
+    "gmd_julho": {
+      "type": "number",
+      "description": "GMD esperado em Julho (kg)"
+    },
+    "gmd_agosto": {
+      "type": "number",
+      "description": "GMD esperado em Agosto (kg)"
+    },
+    "gmd_setembro": {
+      "type": "number",
+      "description": "GMD esperado em Setembro (kg)"
+    },
+    "gmd_outubro": {
+      "type": "number",
+      "description": "GMD esperado em Outubro (kg)"
+    },
+    "gmd_novembro": {
+      "type": "number",
+      "description": "GMD esperado em Novembro (kg)"
+    },
+    "gmd_dezembro": {
+      "type": "number",
+      "description": "GMD esperado em Dezembro (kg)"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a categoria est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome"
+  ]
+}

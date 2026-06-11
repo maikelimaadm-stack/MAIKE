@@ -1,0 +1,197 @@
+{
+  "name": "Permissao",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio"
+    },
+    "user_nome": {
+      "type": "string",
+      "description": "Nome exibido do usu\u00e1rio"
+    },
+    "modulos_permitidos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs dos menus que o usu\u00e1rio pode acessar"
+    },
+    "permissoes_telas": {
+      "type": "array",
+      "description": "Permiss\u00f5es por tela e a\u00e7\u00e3o",
+      "items": {
+        "type": "object",
+        "properties": {
+          "modulo_id": {
+            "type": "string"
+          },
+          "modulo_nome": {
+            "type": "string"
+          },
+          "tela_id": {
+            "type": "string"
+          },
+          "tela_nome": {
+            "type": "string"
+          },
+          "visualizar": {
+            "type": "boolean",
+            "default": true
+          },
+          "novo": {
+            "type": "boolean",
+            "default": true
+          },
+          "salvar": {
+            "type": "boolean",
+            "default": true
+          },
+          "editar": {
+            "type": "boolean",
+            "default": true
+          },
+          "excluir": {
+            "type": "boolean",
+            "default": true
+          },
+          "importar": {
+            "type": "boolean",
+            "default": true
+          },
+          "exportar": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    },
+    "mobile_menu_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs das telas exibidas no menu inferior mobile"
+    },
+    "is_admin": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o usu\u00e1rio \u00e9 administrador (acesso total)"
+    },
+    "mapa_geral_permissoes": {
+      "type": "object",
+      "description": "Permiss\u00f5es internas da tela Mapa Geral - Manejo",
+      "properties": {
+        "visualizar_areas": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_nomes_areas": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_pontos_referencia": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_linhas": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_cochos_suplementacao": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_alertas": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_localizacao": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_filtros_camadas": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_insights": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_tarefas": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_detalhes_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "mover_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "pesar_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "mudar_categoria_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "registrar_nascimento": {
+          "type": "boolean",
+          "default": true
+        },
+        "registrar_morte": {
+          "type": "boolean",
+          "default": true
+        },
+        "registrar_abate": {
+          "type": "boolean",
+          "default": true
+        },
+        "renomear_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "juntar_lotes": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_historico_movimentacoes_lote": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_historico_suplementacao_lote": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_detalhes_cochos": {
+          "type": "boolean",
+          "default": true
+        },
+        "lancar_suplementacao": {
+          "type": "boolean",
+          "default": true
+        },
+        "movimentar_depositos": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualizar_historico_cocho": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": [
+    "user_email"
+  ]
+}

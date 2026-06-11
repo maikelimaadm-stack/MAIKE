@@ -173,7 +173,7 @@ export default function RelatorioSuplementacao() {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6 space-y-6">
+    <div className="absolute inset-0 overflow-y-auto p-6 space-y-6">
       <div className="print:hidden flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Relatório de Suplementação</h1>

@@ -1,0 +1,92 @@
+{
+  "name": "CustoSafra",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "numero_lancamento": {
+      "type": "string",
+      "description": "N\u00famero \u00fanico do lan\u00e7amento (gerado automaticamente)"
+    },
+    "safra_id": {
+      "type": "string",
+      "description": "ID da safra"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor (cache)"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto"
+    },
+    "produto_nome": {
+      "type": "string",
+      "description": "Nome do produto (cache)"
+    },
+    "quantidade": {
+      "type": "number",
+      "description": "Quantidade comprada"
+    },
+    "quantidade_entregue": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade j\u00e1 entregue"
+    },
+    "unidade_medida": {
+      "type": "string",
+      "description": "Unidade de medida"
+    },
+    "valor_unitario": {
+      "type": "number",
+      "description": "Valor unit\u00e1rio"
+    },
+    "valor_total": {
+      "type": "number",
+      "description": "Valor total (calculado)"
+    },
+    "prazo_entrega": {
+      "type": "string",
+      "format": "date",
+      "description": "Prazo de entrega"
+    },
+    "data_entrega": {
+      "type": "string",
+      "format": "date",
+      "description": "Data real da entrega"
+    },
+    "status_entrega": {
+      "type": "string",
+      "enum": [
+        "Pendente",
+        "Em Tr\u00e2nsito",
+        "Entregue",
+        "Cancelado"
+      ],
+      "default": "Pendente",
+      "description": "Status da entrega"
+    },
+    "forma_pagamento": {
+      "type": "string",
+      "description": "Forma de pagamento"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "safra_id",
+    "fornecedor_id",
+    "produto_id",
+    "quantidade",
+    "valor_unitario"
+  ]
+}

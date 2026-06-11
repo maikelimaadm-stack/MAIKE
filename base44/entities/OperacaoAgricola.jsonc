@@ -1,0 +1,170 @@
+{
+  "name": "OperacaoAgricola",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "setor_id": {
+      "type": "string",
+      "description": "ID do setor vinculado"
+    },
+    "setor_nome": {
+      "type": "string",
+      "description": "Nome do setor vinculado"
+    },
+    "area_id": {
+      "type": "string",
+      "description": "ID da \u00e1rea"
+    },
+    "area_nome": {
+      "type": "string",
+      "description": "Nome da \u00e1rea (cache)"
+    },
+    "maquina_id": {
+      "type": "string",
+      "description": "ID da m\u00e1quina utilizada"
+    },
+    "maquina_nome": {
+      "type": "string",
+      "description": "Nome da m\u00e1quina (cache)"
+    },
+    "implemento_id": {
+      "type": "string",
+      "description": "ID do implemento utilizado"
+    },
+    "implemento_nome": {
+      "type": "string",
+      "description": "Nome do implemento (cache)"
+    },
+    "tipo_operacao": {
+      "type": "string",
+      "enum": [
+        "Gradagem",
+        "Ara\u00e7\u00e3o",
+        "Plantio",
+        "Pulveriza\u00e7\u00e3o",
+        "Aduba\u00e7\u00e3o",
+        "Colheita",
+        "Ro\u00e7agem",
+        "Calagem",
+        "Desseca\u00e7\u00e3o",
+        "Subsolagem",
+        "Outro"
+      ],
+      "description": "Tipo de opera\u00e7\u00e3o"
+    },
+    "data_inicio": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de in\u00edcio"
+    },
+    "data_fim": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de t\u00e9rmino"
+    },
+    "hectares_trabalhados": {
+      "type": "number",
+      "description": "Hectares trabalhados"
+    },
+    "horas_trabalhadas": {
+      "type": "number",
+      "description": "Horas trabalhadas"
+    },
+    "horimetro_inicio": {
+      "type": "number",
+      "description": "Hor\u00edmetro inicial"
+    },
+    "horimetro_fim": {
+      "type": "number",
+      "description": "Hor\u00edmetro final"
+    },
+    "combustivel_consumido": {
+      "type": "number",
+      "description": "Combust\u00edvel consumido (litros)"
+    },
+    "valor_combustivel": {
+      "type": "number",
+      "description": "Valor do combust\u00edvel consumido"
+    },
+    "custo_maquina_hora": {
+      "type": "number",
+      "description": "Custo por hora da m\u00e1quina"
+    },
+    "custo_maquina_total": {
+      "type": "number",
+      "description": "Custo total da m\u00e1quina"
+    },
+    "custo_mao_obra": {
+      "type": "number",
+      "description": "Custo de m\u00e3o de obra"
+    },
+    "produto_aplicado": {
+      "type": "string",
+      "description": "Produto aplicado (se aplic\u00e1vel)"
+    },
+    "quantidade_produto": {
+      "type": "number",
+      "description": "Quantidade do produto"
+    },
+    "unidade_produto": {
+      "type": "string",
+      "description": "Unidade do produto"
+    },
+    "valor_unitario_produto": {
+      "type": "number",
+      "description": "Valor unit\u00e1rio do produto"
+    },
+    "custo_produto": {
+      "type": "number",
+      "description": "Custo total do produto"
+    },
+    "dose_por_hectare": {
+      "type": "number",
+      "description": "Dose por hectare"
+    },
+    "operador": {
+      "type": "string",
+      "description": "Nome do operador"
+    },
+    "safra_id": {
+      "type": "string",
+      "description": "ID da safra"
+    },
+    "safra_nome": {
+      "type": "string",
+      "description": "Nome da safra (cache)"
+    },
+    "custo_total": {
+      "type": "number",
+      "description": "Custo total da opera\u00e7\u00e3o"
+    },
+    "custo_por_hectare": {
+      "type": "number",
+      "description": "Custo por hectare"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Planejada",
+        "Em Andamento",
+        "Conclu\u00edda",
+        "Cancelada"
+      ],
+      "default": "Conclu\u00edda",
+      "description": "Status da opera\u00e7\u00e3o"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "area_id",
+    "tipo_operacao",
+    "data_inicio"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "Embarque",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do embarque (ex.: Embarque JBS 04/01/2026)"
+    },
+    "data": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do embarque"
+    },
+    "frigorifico": {
+      "type": "string",
+      "description": "Destino/Frigor\u00edfico"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Planejado",
+        "Em andamento",
+        "Concluido",
+        "Cancelado"
+      ],
+      "default": "Planejado",
+      "description": "Status do embarque"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "nome"
+  ]
+}

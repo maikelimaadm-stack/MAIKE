@@ -1,0 +1,80 @@
+{
+  "name": "EstoqueLoteNota",
+  "type": "object",
+  "properties": {
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "produto_id": {
+      "type": "string",
+      "description": "ID do produto"
+    },
+    "produto_nome": {
+      "type": "string",
+      "description": "Nome do produto (cache)"
+    },
+    "local_estoque_id": {
+      "type": "string",
+      "description": "ID do local de estoque"
+    },
+    "local_estoque_nome": {
+      "type": "string",
+      "description": "Nome do local (cache)"
+    },
+    "numero_documento": {
+      "type": "string",
+      "description": "N\u00famero da nota/documento de entrada"
+    },
+    "serie_documento": {
+      "type": "string",
+      "description": "S\u00e9rie do documento"
+    },
+    "data_documento": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do documento de entrada"
+    },
+    "fornecedor_id": {
+      "type": "string",
+      "description": "ID do fornecedor"
+    },
+    "fornecedor_nome": {
+      "type": "string",
+      "description": "Nome do fornecedor (cache)"
+    },
+    "custo_unitario": {
+      "type": "number",
+      "description": "Custo unit\u00e1rio de entrada"
+    },
+    "quantidade_entrada": {
+      "type": "number",
+      "description": "Quantidade total que entrou neste lote"
+    },
+    "quantidade_disponivel": {
+      "type": "number",
+      "description": "Saldo dispon\u00edvel para baixa"
+    },
+    "movimentacao_entrada_id": {
+      "type": "string",
+      "description": "ID da movimenta\u00e7\u00e3o de entrada que gerou este lote"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Disponivel",
+        "Esgotado"
+      ],
+      "default": "Disponivel",
+      "description": "Status do lote"
+    }
+  },
+  "required": [
+    "empresa_id",
+    "produto_id",
+    "local_estoque_id",
+    "custo_unitario",
+    "quantidade_entrada",
+    "quantidade_disponivel"
+  ]
+}
