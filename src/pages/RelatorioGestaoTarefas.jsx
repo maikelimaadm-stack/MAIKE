@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { buildByIdMap } from "@/lib/reportNameResolvers";
+import FotosTarefaGaleria from "@/components/tarefas/FotosTarefaGaleria";
 
 const STATUS = ["Pendente", "Em Andamento", "Concluída", "Cancelada"]; 
 const PRIORIDADES = ["Baixa", "Normal", "Alta", "Urgente"];
@@ -81,7 +82,7 @@ export default function RelatorioGestaoTarefas() {
       responsavel: t.responsavel || '',
       area: areasById.get(t.area_id)?.nome || t.area_nome || '',
       lote: lotesById.get(t.lote_id)?.nome || t.lote_nome || '',
-      fotos: t.fotos || []
+      fotos: [...(t.fotos || []), ...(t.anexos_urls || [])]
     }));
   }, [tarefas, areasById, lotesById, tiposById]);
 
@@ -248,17 +249,10 @@ export default function RelatorioGestaoTarefas() {
                   <TableCell className="text-xs py-1 border border-gray-300">{t.responsavel || '—'}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{t.area || '—'}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{t.lote || '—'}</TableCell>
-                  <TableCell className="text-xs py-1 border border-gray-300">
+                  <TableCell className="text-xs py-1 border border-gray-300 min-w-[120px]">
                     {t.fotos.length > 0 ? (
-                      <div className="flex gap-1 flex-wrap">
-                        {t.fotos.slice(0, 3).map((url, idx) => (
-                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
-                            <img src={url} alt="" className="w-8 h-8 object-cover rounded border border-slate-300 hover:opacity-80" />
-                          </a>
-                        ))}
-                        {t.fotos.length > 3 && <span className="text-[10px] text-slate-500 self-center">+{t.fotos.length - 3}</span>}
-                      </div>
-                    ) : '—'}
+                      <FotosTarefaGaleria tarefa={{ fotos: t.fotos }} compact />
+                    ) : <span className="text-slate-400">—</span>}
                   </TableCell>
                   </TableRow>
               ))}

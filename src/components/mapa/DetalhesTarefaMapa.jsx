@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
 import TarefaResumoVisual from "./TarefaResumoVisual";
+import FotosTarefaGaleria from "@/components/tarefas/FotosTarefaGaleria";
 
 const PRIORIDADE_CORES = {
   Baixa: "!bg-blue-300 !text-black hover:!bg-blue-300",
@@ -285,18 +286,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
         </div>
       </CardSection>
 
-      {(currentTarefa.fotos || []).length > 0 && (
-        <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-2 space-y-2">
-          <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Fotos ({currentTarefa.fotos.length})</p>
-          <div className="flex flex-wrap gap-2">
-            {currentTarefa.fotos.map((url, idx) => (
-              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block w-20 h-20 rounded-md overflow-hidden border border-slate-300 hover:opacity-80 transition-opacity">
-                <img src={url} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+      <FotosTarefaGaleria tarefa={currentTarefa} />
 
       <CardSection title="Últimos eventos">
         <div className="space-y-2 text-[10px]">

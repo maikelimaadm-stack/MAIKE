@@ -135,12 +135,21 @@
       "type": "string",
       "description": "Observa\u00e7\u00f5es finais"
     },
+    "fotos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "URLs das fotos/imagens da tarefa"
+    },
     "anexos_urls": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "URLs de anexos/fotos"
+      "default": [],
+      "description": "URLs de anexos/fotos (legado)"
     }
   },
   "required": [
