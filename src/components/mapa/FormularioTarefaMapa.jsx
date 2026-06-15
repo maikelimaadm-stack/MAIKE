@@ -112,6 +112,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const [pendingImageFiles, setPendingImageFiles] = useState([]); // File[] aguardando upload
   const [previewUrls, setPreviewUrls] = useState([]); // URLs de preview local
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const onOnline = () => setIsOffline(false);
@@ -321,17 +322,24 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!validateForm()) return;
 
-    onSubmit({
-      ...formData,
-      titulo: formData.titulo.trim(),
-      prioridade: normalizeTaskPriority(formData.prioridade),
-      solicitante: formData.solicitante || "",
-      responsavel_geral: formData.solicitante || "",
-      responsavel_id: formData.responsavel_id || "",
-      responsavel: formData.responsavel || ""
-    }, pendingImageFiles);
+    setIsSubmitting(true);
+    try {
+      onSubmit({
+        ...formData,
+        titulo: formData.titulo.trim(),
+        prioridade: normalizeTaskPriority(formData.prioridade),
+        solicitante: formData.solicitante || "",
+        responsavel_geral: formData.solicitante || "",
+        responsavel_id: formData.responsavel_id || "",
+        responsavel: formData.responsavel || ""
+      }, pendingImageFiles);
+    } finally {
+      // Resetar após 2s para evitar que o botão fique bloqueado se o parent não fechar o form
+      setTimeout(() => setIsSubmitting(false), 2000);
+    }
   };
 
   return (
@@ -496,8 +504,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Cancelar</Button>
-          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{tarefa ? "Atualizar" : "Salvar"}</Button>
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3" disabled={isSubmitting}>Cancelar</Button>
+          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" disabled={isSubmitting}>
+            {isSubmitting ? "Salvando..." : tarefa ? "Atualizar" : "Salvar"}
+          </Button>
         </div>
       </div>
         </CardContent>

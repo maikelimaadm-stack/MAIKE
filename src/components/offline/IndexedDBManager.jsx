@@ -443,13 +443,15 @@ export const deleteEntitySyncQueueItem = async (id) => {
 };
 
 // Funções para Tarefas offline
+// Retorna o _offlineId gerado (chave autoIncrement) para vinculação de imagens
 export const saveTarefaOffline = async (action, data) => {
   const item = {
     _action: action, // 'create' | 'update'
     ...data,
     _offlineTimestamp: new Date().toISOString(),
   };
-  return addItem(STORES.PENDING_TAREFAS, item);
+  const generatedKey = await addItem(STORES.PENDING_TAREFAS, item);
+  return generatedKey; // É o _offlineId (número autoIncrement)
 };
 
 export const getPendingTarefas = async (empresaId) => {

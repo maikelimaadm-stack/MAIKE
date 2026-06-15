@@ -59,9 +59,22 @@ export default function LancamentosTarefas() {
     });
   };
 
+  const uploadImages = async (pendingImageFiles = []) => {
+    const uploadedUrls = [];
+    for (const file of pendingImageFiles) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      uploadedUrls.push(file_url);
+    }
+    return uploadedUrls;
+  };
+
   const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      const created = await base44.entities.LancamentoTarefa.create({ ...payload, empresa_id: empresaSelecionadaId });
+    mutationFn: async ({ payload, pendingImageFiles = [] }) => {
+      const uploadedUrls = await uploadImages(pendingImageFiles);
+      const finalPayload = uploadedUrls.length > 0
+        ? { ...payload, fotos: [...(payload.fotos || []), ...uploadedUrls] }
+        : payload;
+      const created = await base44.entities.LancamentoTarefa.create({ ...finalPayload, empresa_id: empresaSelecionadaId });
       await registrarHistorico(created, "Criação", "Tarefa criada pela gestão de tarefas.");
       return created;
     },
@@ -77,9 +90,13 @@ export default function LancamentosTarefas() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (payload) => {
+    mutationFn: async ({ payload, pendingImageFiles = [] }) => {
       const tarefa = editingTarefa;
-      const updated = await base44.entities.LancamentoTarefa.update(tarefa.id, payload);
+      const uploadedUrls = await uploadImages(pendingImageFiles);
+      const finalPayload = uploadedUrls.length > 0
+        ? { ...payload, fotos: [...(payload.fotos || []), ...uploadedUrls] }
+        : payload;
+      const updated = await base44.entities.LancamentoTarefa.update(tarefa.id, finalPayload);
       const mudouLocal = payload.coordenadas?.lat !== tarefa?.coordenadas?.lat || payload.coordenadas?.lng !== tarefa?.coordenadas?.lng;
       const mudouStatus = payload.status && payload.status !== tarefa?.status;
       const evento = mudouLocal ? "Mudança de Local" : updated.status === "Concluída" && mudouStatus ? "Conclusão" : updated.status === "Cancelada" && mudouStatus ? "Cancelamento" : mudouStatus ? "Mudança de Status" : "Edição";
@@ -117,7 +134,7 @@ export default function LancamentosTarefas() {
     setShowForm(true);
   };
 
-  const handleSubmit = (data) => {
+  const handleSubmit = (data, pendingImageFiles = []) => {
     const payload = {
       ...data,
       prioridade: data.prioridade,
@@ -127,9 +144,9 @@ export default function LancamentosTarefas() {
       observacoes: data.observacoes || ""
     };
     if (editingTarefa) {
-      updateMutation.mutate(payload);
+      updateMutation.mutate({ payload, pendingImageFiles });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate({ payload, pendingImageFiles });
     }
   };
 
