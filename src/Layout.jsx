@@ -995,7 +995,7 @@ export default function Layout({ children, currentPageName }) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -20, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="h-full min-h-0 overflow-hidden">
+            className="relative h-full min-h-0 overflow-hidden">
             
             {children}
           </motion.div>
