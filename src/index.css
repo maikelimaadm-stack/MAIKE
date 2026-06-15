@@ -180,8 +180,7 @@ button:focus-visible {
   color: #1e293b !important;
   font-weight: 600 !important;
   border-radius: 8px 8px 0 0 !important;
-  border: 1px solid #cbd5e1 !important;
-  border-bottom: 2px solid #f1f5f9 !important;
+  border: none !important;
   margin-bottom: -1px !important;
   z-index: 10 !important;
   overflow: visible !important;
@@ -191,23 +190,23 @@ button:focus-visible {
 .menu-tab-active::after {
   content: '' !important;
   position: absolute !important;
-  bottom: -1px !important;
-  width: 10px !important;
-  height: 10px !important;
+  bottom: 0px !important;
+  width: 18px !important;
+  height: 18px !important;
   background: transparent !important;
   pointer-events: none !important;
 }
 
 .menu-tab-active::before {
-  left: -10px !important;
-  border-bottom-right-radius: 10px !important;
-  box-shadow: 4px 1px 0 0 #f1f5f9, 4px 1px 0 1px #cbd5e1 !important;
+  left: -18px !important;
+  border-bottom-right-radius: 18px !important;
+  box-shadow: 8px 0px 0 0 #f1f5f9 !important;
 }
 
 .menu-tab-active::after {
-  right: -10px !important;
-  border-bottom-left-radius: 10px !important;
-  box-shadow: -4px 1px 0 0 #f1f5f9, -4px 1px 0 1px #cbd5e1 !important;
+  right: -18px !important;
+  border-bottom-left-radius: 18px !important;
+  box-shadow: -8px 0px 0 0 #f1f5f9 !important;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
