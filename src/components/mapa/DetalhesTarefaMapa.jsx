@@ -133,8 +133,17 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   };
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      const updated = await base44.entities.LancamentoTarefa.update(id, data);
+    mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
+      // Upload de novas imagens antes de salvar
+      const uploadedUrls = [];
+      for (const file of pendingImageFiles) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        uploadedUrls.push(file_url);
+      }
+      const finalData = uploadedUrls.length > 0
+        ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] }
+        : data;
+      const updated = await base44.entities.LancamentoTarefa.update(id, finalData);
       const mudouLocal = data.coordenadas?.lat !== currentTarefa?.coordenadas?.lat || data.coordenadas?.lng !== currentTarefa?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== currentTarefa?.status;
       const evento = mudouLocal ?
@@ -173,6 +182,9 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       toast.success("Tarefa atualizada.");
       setShowEdit(false);
       onSaved?.(updated);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao salvar: ${err?.message || 'Tente novamente'}`);
     }
   });
 
@@ -321,7 +333,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
             <FormularioTarefaMapa
               key={`${currentTarefa.id}-${currentTarefa.coordenadas?.lat || 'sem-lat'}-${currentTarefa.coordenadas?.lng || 'sem-lng'}`}
               tarefa={currentTarefa}
-              onSubmit={(data) => {
+              onSubmit={(data, pendingImageFiles = []) => {
                 const payload = {
                   ...data,
                   prioridade: normalizeTaskPriority(data.prioridade),
@@ -330,10 +342,11 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
                   observacoes: data.observacoes || "",
                   coordenadas: data.coordenadas,
                 };
-                updateMutation.mutate({ id: data.id || currentTarefa.id, data: payload });
+                updateMutation.mutate({ id: data.id || currentTarefa.id, data: payload, pendingImageFiles });
               }}
               onCancel={() => setShowEdit(false)}
               onRequestSelectLocation={onRequestSelectLocation}
+              externalSubmitting={updateMutation.isPending}
             />
           </div>
         </DialogContent>

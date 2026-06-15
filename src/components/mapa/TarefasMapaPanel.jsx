@@ -68,14 +68,18 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     setEditingTarefa(null);
   };
 
+  const uploadImages = async (pendingImageFiles = []) => {
+    const uploadedUrls = [];
+    for (const file of pendingImageFiles) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      uploadedUrls.push(file_url);
+    }
+    return uploadedUrls;
+  };
+
   const createMutation = useMutation({
     mutationFn: async ({ data, pendingImageFiles = [] }) => {
-      // Upload imagens online antes de criar
-      const uploadedUrls = [];
-      for (const file of pendingImageFiles) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        uploadedUrls.push(file_url);
-      }
+      const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
       const created = await base44.entities.LancamentoTarefa.create(payload);
       await base44.entities.HistoricoLancamentoTarefa.create({
@@ -98,17 +102,15 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       toast.success('Tarefa criada!');
       setShowForm(false);
       setEditingTarefa(null);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao salvar tarefa: ${err?.message || 'Tente novamente'}`);
     }
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data, previous, pendingImageFiles = [] }) => {
-      // Upload imagens online antes de atualizar
-      const uploadedUrls = [];
-      for (const file of pendingImageFiles) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        uploadedUrls.push(file_url);
-      }
+      const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
       const updated = await base44.entities.LancamentoTarefa.update(id, payload);
       const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
@@ -135,6 +137,9 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       toast.success('Tarefa atualizada!');
       setShowForm(false);
       setEditingTarefa(null);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao atualizar tarefa: ${err?.message || 'Tente novamente'}`);
     }
   });
 
@@ -204,7 +209,11 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             initialCoordinates={initialCoordinates}
             initialDraft={initialDraft}
             onRequestSelectLocation={onRequestSelectLocation}
+            externalSubmitting={createMutation.isPending || updateMutation.isPending}
             onSubmit={(data, pendingImageFiles = []) => {
+              // Evitar dupla submissão se mutation já está em andamento
+              if (createMutation.isPending || updateMutation.isPending) return;
+
               const payload = {
                 ...data,
                 prioridade: normalizeTaskPriority(data.prioridade),
@@ -216,7 +225,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 coordenadas: data.coordenadas,
               };
               if (!navigator.onLine) {
-                // Offline: salva no IndexedDB
                 const action = (editingTarefa || data.id) ? 'update' : 'create';
                 const offlinePayload = action === 'create' ? { ...payload, empresa_id: empresaSelecionadaId } : payload;
                 salvarTarefaOffline(action, offlinePayload, pendingImageFiles);

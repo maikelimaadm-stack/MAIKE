@@ -55,7 +55,7 @@ const getAreaCenter = (area) => {
   };
 };
 
-export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, initialDraft, onSubmit, onCancel, onRequestSelectLocation }) {
+export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, initialDraft, onSubmit, onCancel, onRequestSelectLocation, externalSubmitting = false }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [setorSelecionadoId, setSetorSelecionadoId] = useState("");
@@ -504,9 +504,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         </div>
 
         <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3" disabled={isSubmitting}>Cancelar</Button>
-          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" disabled={isSubmitting}>
-            {isSubmitting ? "Salvando..." : tarefa ? "Atualizar" : "Salvar"}
+          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3" disabled={isSubmitting || externalSubmitting}>Cancelar</Button>
+          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" disabled={isSubmitting || externalSubmitting}>
+            {(isSubmitting || externalSubmitting) ? "Salvando..." : tarefa ? "Atualizar" : "Salvar"}
           </Button>
         </div>
       </div>
