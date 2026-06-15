@@ -190,9 +190,9 @@ button:focus-visible {
 .menu-tab-active::after {
   content: '' !important;
   position: absolute !important;
-  bottom: 0px !important;
+  bottom: -1px !important;
   width: 24px !important;
-  height: 24px !important;
+  height: 26px !important;
   background: white !important;
   pointer-events: none !important;
 }
@@ -200,13 +200,13 @@ button:focus-visible {
 .menu-tab-active::before {
   left: -24px !important;
   border-bottom-right-radius: 24px !important;
-  box-shadow: 10px 0px 0 0 #f1f5f9 !important;
+  box-shadow: 10px 2px 0 0 #f1f5f9 !important;
 }
 
 .menu-tab-active::after {
   right: -24px !important;
   border-bottom-left-radius: 24px !important;
-  box-shadow: -10px 0px 0 0 #f1f5f9 !important;
+  box-shadow: -10px 2px 0 0 #f1f5f9 !important;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
