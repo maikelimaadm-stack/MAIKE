@@ -173,6 +173,41 @@ button:focus-visible {
   }
 }
 
+/* Efeito de aba de navegador no menu ativo */
+.menu-tab-active {
+  position: relative;
+  background: white;
+  color: #047857;
+  font-weight: 600;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  margin-bottom: -1px;
+  z-index: 10;
+}
+
+.menu-tab-active::before,
+.menu-tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+.menu-tab-active::before {
+  left: -8px;
+  border-bottom-right-radius: 8px;
+  box-shadow: 3px 0 0 0 white, 3px 0 0 1px #e2e8f0;
+}
+
+.menu-tab-active::after {
+  right: -8px;
+  border-bottom-left-radius: 8px;
+  box-shadow: -3px 0 0 0 white, -3px 0 0 1px #e2e8f0;
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;

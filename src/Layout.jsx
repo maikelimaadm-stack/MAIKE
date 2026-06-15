@@ -817,7 +817,7 @@ export default function Layout({ children, currentPageName }) {
                         size="sm"
                         className={`h-8 px-2.5 gap-1 text-xs font-medium transition-colors ${
                         active ?
-                        'bg-white text-emerald-700 font-semibold rounded-t-md rounded-b-none border border-b-0 border-slate-200 shadow-[0_2px_0_0_white] relative -mb-px z-10' :
+                        'menu-tab-active' :
                         'rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
                         }>
                         
@@ -892,7 +892,7 @@ export default function Layout({ children, currentPageName }) {
                       size="sm"
                       className={`h-8 px-2.5 gap-1 text-xs font-medium transition-colors ${
                       active ?
-                      'bg-white text-emerald-700 font-semibold rounded-t-md rounded-b-none border border-b-0 border-slate-200 shadow-[0_2px_0_0_white] relative -mb-px z-10' :
+                      'menu-tab-active' :
                       'rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
                       }>
                       
