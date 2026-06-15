@@ -181,7 +181,7 @@ button:focus-visible {
   font-weight: 600 !important;
   border-radius: 8px 8px 0 0 !important;
   border: none !important;
-  margin-bottom: -1px !important;
+  margin-bottom: -2px !important;
   z-index: 10 !important;
   overflow: visible !important;
 }
@@ -190,23 +190,24 @@ button:focus-visible {
 .menu-tab-active::after {
   content: '' !important;
   position: absolute !important;
-  bottom: -1px !important;
-  width: 24px !important;
-  height: 26px !important;
+  bottom: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
   background: white !important;
   pointer-events: none !important;
+  z-index: 10 !important;
 }
 
 .menu-tab-active::before {
-  left: -24px !important;
-  border-bottom-right-radius: 24px !important;
-  box-shadow: 10px 2px 0 0 #f1f5f9 !important;
+  left: -20px !important;
+  border-bottom-right-radius: 20px !important;
+  box-shadow: 10px 0 0 0 #f1f5f9 !important;
 }
 
 .menu-tab-active::after {
-  right: -24px !important;
-  border-bottom-left-radius: 24px !important;
-  box-shadow: -10px 2px 0 0 #f1f5f9 !important;
+  right: -20px !important;
+  border-bottom-left-radius: 20px !important;
+  box-shadow: -10px 0 0 0 #f1f5f9 !important;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
