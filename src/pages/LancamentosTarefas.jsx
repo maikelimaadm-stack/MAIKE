@@ -156,7 +156,7 @@ export default function LancamentosTarefas() {
   };
 
   return (
-    <div className="p-1 md:p-1 space-y-1" style={{ overscrollBehavior: 'none' }}>
+    <div className="absolute inset-0 flex flex-col overflow-hidden p-1 gap-1" style={{ overscrollBehavior: 'none' }}>
       {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
         <div>
           <h1 className="font-bold text-slate-900">Gestão de Tarefas</h1>
@@ -171,24 +171,26 @@ export default function LancamentosTarefas() {
         </div>
       </div>}
 
-      <AnimatePresence mode="wait">
-        {showForm ?
-        <FormularioTarefaMapa
-          key="form"
-          tarefa={editingTarefa}
-          onSubmit={handleSubmit}
-          onCancel={() => { setShowForm(false); setEditingTarefa(null); }} /> :
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <AnimatePresence mode="wait">
+          {showForm ?
+          <FormularioTarefaMapa
+            key="form"
+            tarefa={editingTarefa}
+            onSubmit={handleSubmit}
+            onCancel={() => { setShowForm(false); setEditingTarefa(null); }} /> :
 
-        <TabelaLancamentosTarefas
-          key="table"
-          tarefas={tarefas}
-          onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
-          onEdit={handleEdit}
-          normalizeTaskPriority={normalizeTaskPriority}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas} />
-        }
-      </AnimatePresence>
+          <TabelaLancamentosTarefas
+            key="table"
+            tarefas={tarefas}
+            onDelete={(ids) => setDeleteIds(Array.isArray(ids) ? ids : [ids])}
+            onEdit={handleEdit}
+            normalizeTaskPriority={normalizeTaskPriority}
+            showConfigColunas={showConfigColunas}
+            setShowConfigColunas={setShowConfigColunas} />
+          }
+        </AnimatePresence>
+      </div>
 
       <ConfirmDialog
         open={deleteIds.length > 0}

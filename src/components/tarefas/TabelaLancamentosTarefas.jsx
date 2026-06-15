@@ -527,7 +527,7 @@ export default function TabelaLancamentosTarefas({
   };
 
   return (
-    <div className="space-y-1 w-full min-w-0 overflow-x-auto">
+    <div className="flex flex-col h-full w-full min-w-0 space-y-1">
       {showHeaderActions &&
       <div className="bg-white px-1 py-1 rounded flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shadow-sm border-b border-slate-200">
   
@@ -586,7 +586,7 @@ export default function TabelaLancamentosTarefas({
       <Card className="overflow-hidden">
         <CardContent className="p-0 overflow-hidden">
           <div className="relative w-full overflow-x-auto">
-            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-200px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`${isMobile ? "min-w-[1280px]" : "min-w-[1600px]"} border-separate border-spacing-0 table-fixed`}>
               <TableHeader className="bg-white">
                 <TableRow className="sticky top-0 z-40 bg-white">
