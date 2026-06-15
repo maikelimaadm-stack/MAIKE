@@ -175,37 +175,39 @@ button:focus-visible {
 
 /* Efeito de aba de navegador no menu ativo */
 .menu-tab-active {
-  position: relative;
-  background: white;
-  color: #047857;
-  font-weight: 600;
-  border-radius: 6px 6px 0 0;
-  border: 1px solid #e2e8f0;
-  border-bottom: none;
-  margin-bottom: -1px;
-  z-index: 10;
+  position: relative !important;
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  border-radius: 8px 8px 0 0 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-bottom: 2px solid #f1f5f9 !important;
+  margin-bottom: -1px !important;
+  z-index: 10 !important;
+  overflow: visible !important;
 }
 
 .menu-tab-active::before,
 .menu-tab-active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: transparent;
+  content: '' !important;
+  position: absolute !important;
+  bottom: -1px !important;
+  width: 10px !important;
+  height: 10px !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }
 
 .menu-tab-active::before {
-  left: -8px;
-  border-bottom-right-radius: 8px;
-  box-shadow: 3px 0 0 0 white, 3px 0 0 1px #e2e8f0;
+  left: -10px !important;
+  border-bottom-right-radius: 10px !important;
+  box-shadow: 4px 1px 0 0 #f1f5f9, 4px 1px 0 1px #cbd5e1 !important;
 }
 
 .menu-tab-active::after {
-  right: -8px;
-  border-bottom-left-radius: 8px;
-  box-shadow: -3px 0 0 0 white, -3px 0 0 1px #e2e8f0;
+  right: -10px !important;
+  border-bottom-left-radius: 10px !important;
+  box-shadow: -4px 1px 0 0 #f1f5f9, -4px 1px 0 1px #cbd5e1 !important;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
