@@ -80,7 +80,8 @@ export default function RelatorioGestaoTarefas() {
       data_conclusao: t.data_conclusao || null,
       responsavel: t.responsavel || '',
       area: areasById.get(t.area_id)?.nome || t.area_nome || '',
-      lote: lotesById.get(t.lote_id)?.nome || t.lote_nome || ''
+      lote: lotesById.get(t.lote_id)?.nome || t.lote_nome || '',
+      fotos: t.fotos || []
     }));
   }, [tarefas, areasById, lotesById, tiposById]);
 
@@ -231,6 +232,7 @@ export default function RelatorioGestaoTarefas() {
                 <TableHead className="text-xs font-bold py-1 border border-black">Responsável</TableHead>
                 <TableHead className="text-xs font-bold py-1 border border-black">Área</TableHead>
                 <TableHead className="text-xs font-bold py-1 border border-black">Lote</TableHead>
+                <TableHead className="text-xs font-bold py-1 border border-black">Fotos</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -246,7 +248,19 @@ export default function RelatorioGestaoTarefas() {
                   <TableCell className="text-xs py-1 border border-gray-300">{t.responsavel || '—'}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{t.area || '—'}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{t.lote || '—'}</TableCell>
-                </TableRow>
+                  <TableCell className="text-xs py-1 border border-gray-300">
+                    {t.fotos.length > 0 ? (
+                      <div className="flex gap-1 flex-wrap">
+                        {t.fotos.slice(0, 3).map((url, idx) => (
+                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                            <img src={url} alt="" className="w-8 h-8 object-cover rounded border border-slate-300 hover:opacity-80" />
+                          </a>
+                        ))}
+                        {t.fotos.length > 3 && <span className="text-[10px] text-slate-500 self-center">+{t.fotos.length - 3}</span>}
+                      </div>
+                    ) : '—'}
+                  </TableCell>
+                  </TableRow>
               ))}
             </TableBody>
           </Table>
