@@ -17,6 +17,10 @@ import {
   clearStore,
   STORES_NAMES,
   bulkPut,
+  getPendingTarefas,
+  deletePendingTarefa,
+  getAllPendingTarefaImages,
+  deleteTarefaImageOffline,
 } from './IndexedDBManager';
 
 let syncInProgress = false;
@@ -45,6 +49,7 @@ const PHASE_LABELS = {
   updates: 'Atualizações pendentes',
   pesagens: 'Pesagens individuais',
   sanidade: 'Sanidade',
+  tarefas: 'Tarefas do mapa',
   cache: 'Atualização do cache',
   duplicados: 'Verificação de duplicados',
 };
@@ -441,7 +446,17 @@ export const syncAll = async (empresaId, onProgress) => {
     });
     allItems.push(...(sanidadeResult.items || []));
 
-    // 6. Atualizar cache com dados do servidor
+    // 6. Sincronizar tarefas do mapa
+    notifyListeners({ type: 'progress', entity: 'tarefas', phaseLabel: PHASE_LABELS.tarefas });
+    const tarefasResult = await syncTarefas(empresaId, (progress) => {
+      if (onProgress) {
+        onProgress({ phase: 'tarefas', phaseLabel: PHASE_LABELS.tarefas, ...progress });
+      }
+      if (progress?.item) notifyListeners({ type: 'progress', entity: 'tarefas', phaseLabel: PHASE_LABELS.tarefas, currentItem: progress.currentItem, item: progress.item });
+    });
+    allItems.push(...(tarefasResult.items || []));
+
+    // 7. Atualizar cache com dados do servidor
     notifyListeners({ type: 'progress', entity: 'cache', phaseLabel: PHASE_LABELS.cache });
     if (onProgress) {
       onProgress({ phase: 'cache', phaseLabel: PHASE_LABELS.cache, current: 1, total: 1, currentItem: 'Atualizando cache...' });
@@ -458,7 +473,7 @@ export const syncAll = async (empresaId, onProgress) => {
       allItems.push({ name: `${duplicadosRemovidos} duplicados removidos`, status: 'success' });
     }
 
-    const totalSuccess = (pesagensResult.successCount || 0) + (entitiesResult.successCount || 0) + (sanidadeResult.successCount || 0) + (updatesResult.successCount || 0) + (embDocsResult.successCount || 0);
+    const totalSuccess = (pesagensResult.successCount || 0) + (entitiesResult.successCount || 0) + (sanidadeResult.successCount || 0) + (updatesResult.successCount || 0) + (embDocsResult.successCount || 0) + (tarefasResult.successCount || 0);
     const totalErrors = allItems.filter((item) => item.status === 'error').length;
 
     notifyListeners({ 
@@ -664,6 +679,94 @@ const removerDuplicados = async (empresaId) => {
     console.error('Erro ao remover duplicados:', error);
     return 0;
   }
+};
+
+// Sincronizar tarefas do mapa criadas/editadas offline (com upload de imagens)
+export const syncTarefas = async (empresaId, onProgress) => {
+  const pending = await getPendingTarefas(empresaId);
+  if (pending.length === 0) return { successCount: 0, errors: [], total: 0, items: [] };
+
+  // Buscar todas imagens offline de uma vez
+  const allImages = await getAllPendingTarefaImages();
+
+  let successCount = 0;
+  const errors = [];
+  const items = [];
+
+  for (let i = 0; i < pending.length; i++) {
+    const tarefa = pending[i];
+    const offlineId = tarefa._offlineId;
+    const itemName = `Tarefa: ${tarefa.titulo || offlineId}`;
+
+    onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName });
+
+    try {
+      const { _offlineId, _action, _offlineTimestamp, _pendingImages, ...data } = tarefa;
+
+      // 1. Upload das imagens vinculadas a esta tarefa offline
+      const tarefaImages = allImages.filter((img) => img.tarefa_offline_id === offlineId);
+      const uploadedUrls = [];
+
+      for (const img of tarefaImages) {
+        try {
+          const blob = new Blob([img.buffer], { type: img.type });
+          const file = new File([blob], img.name, { type: img.type });
+          const { file_url } = await base44.integrations.Core.UploadFile({ file });
+          uploadedUrls.push(file_url);
+          await deleteTarefaImageOffline(img._imgId);
+        } catch (imgErr) {
+          console.error('Erro upload imagem tarefa:', imgErr);
+        }
+      }
+
+      // Mesclar URLs já existentes com as novas
+      const fotos = [...(data.fotos || []), ...uploadedUrls];
+      const payload = fotos.length > 0 ? { ...data, fotos } : data;
+
+      // 2. Criar ou atualizar tarefa no servidor
+      if (_action === 'update' && data.id && !String(data.id).startsWith('offline_')) {
+        const { id, ...updateData } = payload;
+        await base44.entities.LancamentoTarefa.update(id, updateData);
+        // Histórico de edição
+        await base44.entities.HistoricoLancamentoTarefa.create({
+          empresa_id: data.empresa_id,
+          tarefa_id: id,
+          titulo_tarefa: data.titulo,
+          evento: 'Edição',
+          data_evento: new Date().toISOString(),
+          status: data.status,
+          responsavel: data.responsavel,
+          descricao: 'Tarefa atualizada (sincronizado do offline).',
+        });
+      } else {
+        const { id, ...createData } = payload;
+        const created = await base44.entities.LancamentoTarefa.create(createData);
+        // Histórico de criação
+        await base44.entities.HistoricoLancamentoTarefa.create({
+          empresa_id: created.empresa_id,
+          tarefa_id: created.id,
+          titulo_tarefa: created.titulo,
+          evento: 'Criação',
+          data_evento: new Date().toISOString(),
+          status: created.status,
+          responsavel: created.responsavel,
+          descricao: 'Tarefa criada pelo mapa (sincronizado do offline).',
+        });
+      }
+
+      successCount++;
+      items.push({ name: itemName, status: 'success', message: 'Sincronizado' });
+      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'success', message: 'Sincronizado' } });
+      await deletePendingTarefa(offlineId);
+    } catch (error) {
+      console.error('Erro sync tarefa:', error);
+      errors.push({ error: error.message });
+      items.push({ name: itemName, status: 'error', message: getErrorMessage(error) });
+      onProgress?.({ current: i + 1, total: pending.length, currentItem: itemName, item: { name: itemName, status: 'error', message: getErrorMessage(error) } });
+    }
+  }
+
+  return { successCount, errors, total: pending.length, items };
 };
 
 export const refreshCache = async (empresaId) => {

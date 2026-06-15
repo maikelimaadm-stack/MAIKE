@@ -1,6 +1,6 @@
 // IndexedDB Manager para persistência offline
 const DB_NAME = 'pesagens_offline_db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 const STORES = {
   PESAGENS: 'pesagens_individuais',
@@ -16,6 +16,8 @@ const STORES = {
   SYNC_QUEUE: 'sync_queue',
   ENTITY_CACHE: 'entity_cache',
   ENTITY_QUEUE: 'entity_queue',
+  PENDING_TAREFAS: 'pending_tarefas',
+  PENDING_TAREFA_IMAGES: 'pending_tarefa_images',
 };
 
 let db = null;
@@ -132,6 +134,19 @@ export const initDB = () => {
         entityQueueStore.createIndex('empresa_id', 'empresa_id', { unique: false });
         entityQueueStore.createIndex('operation', 'operation', { unique: false });
         entityQueueStore.createIndex('created_at', 'created_at', { unique: false });
+      }
+
+      // Store para tarefas pendentes (offline)
+      if (!database.objectStoreNames.contains(STORES.PENDING_TAREFAS)) {
+        const tarefasStore = database.createObjectStore(STORES.PENDING_TAREFAS, { keyPath: '_offlineId', autoIncrement: true });
+        tarefasStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+        tarefasStore.createIndex('_action', '_action', { unique: false });
+      }
+
+      // Store para imagens de tarefas pendentes de upload (armazena Blob)
+      if (!database.objectStoreNames.contains(STORES.PENDING_TAREFA_IMAGES)) {
+        const imgStore = database.createObjectStore(STORES.PENDING_TAREFA_IMAGES, { keyPath: '_imgId', autoIncrement: true });
+        imgStore.createIndex('tarefa_offline_id', 'tarefa_offline_id', { unique: false });
       }
     };
   });
@@ -427,9 +442,52 @@ export const deleteEntitySyncQueueItem = async (id) => {
   return deleteItem(STORES.ENTITY_QUEUE, id);
 };
 
+// Funções para Tarefas offline
+export const saveTarefaOffline = async (action, data) => {
+  const item = {
+    _action: action, // 'create' | 'update'
+    ...data,
+    _offlineTimestamp: new Date().toISOString(),
+  };
+  return addItem(STORES.PENDING_TAREFAS, item);
+};
+
+export const getPendingTarefas = async (empresaId) => {
+  const all = await getAllItems(STORES.PENDING_TAREFAS);
+  return empresaId ? all.filter((t) => t.empresa_id === empresaId) : all;
+};
+
+export const deletePendingTarefa = async (offlineId) => {
+  return deleteItem(STORES.PENDING_TAREFAS, offlineId);
+};
+
+// Salva blob de imagem vinculado a uma tarefa offline
+export const saveTarefaImageOffline = async (tarefaOfflineId, file) => {
+  const buffer = await file.arrayBuffer();
+  return addItem(STORES.PENDING_TAREFA_IMAGES, {
+    tarefa_offline_id: tarefaOfflineId,
+    name: file.name,
+    type: file.type,
+    buffer,
+    _offlineTimestamp: new Date().toISOString(),
+  });
+};
+
+export const getTarefaImagesOffline = async (tarefaOfflineId) => {
+  return getItemsByIndex(STORES.PENDING_TAREFA_IMAGES, 'tarefa_offline_id', tarefaOfflineId);
+};
+
+export const deleteTarefaImageOffline = async (imgId) => {
+  return deleteItem(STORES.PENDING_TAREFA_IMAGES, imgId);
+};
+
+export const getAllPendingTarefaImages = async () => {
+  return getAllItems(STORES.PENDING_TAREFA_IMAGES);
+};
+
 // Função para obter contagem de pendentes
 export const getPendingCounts = async () => {
-  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes, cachedEmb, cachedDocs, entityQueue] = await Promise.all([
+  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes, cachedEmb, cachedDocs, entityQueue, tarefas] = await Promise.all([
     getAllItems(STORES.PENDING_PESAGENS),
     getAllItems(STORES.PENDING_APARTACOES),
     getAllItems(STORES.PENDING_LOTES),
@@ -440,6 +498,7 @@ export const getPendingCounts = async () => {
     getAllItems(STORES.EMBARQUES),
     getAllItems(STORES.DOCUMENTOS_EMBARQUE),
     getAllItems(STORES.ENTITY_QUEUE),
+    getAllItems(STORES.PENDING_TAREFAS),
   ]);
 
   // Contar também entidades offline no cache
@@ -457,7 +516,8 @@ export const getPendingCounts = async () => {
     sanidade: sanidade.length,
     updates: updates.length,
     entity_queue: entityQueue.length,
-    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length + offlineEmb.length + offlineDocs.length + entityQueue.length,
+    tarefas: tarefas.length,
+    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length + offlineEmb.length + offlineDocs.length + entityQueue.length + tarefas.length,
   };
 };
 

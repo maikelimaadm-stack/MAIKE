@@ -3,10 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Settings } from "lucide-react";
+import { Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
+import { saveTarefaOffline, saveTarefaImageOffline } from "@/components/offline/IndexedDBManager";
 
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
   const [showForm, setShowForm] = useState(false);
@@ -56,9 +57,27 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     return iconesPrioridade.find((icone) => normalize(icone.categoria) === prioridadeNormalizada);
   };
 
+  // Salva tarefa offline no IndexedDB com imagens (Blobs)
+  const salvarTarefaOffline = async (action, data, pendingImageFiles = []) => {
+    const offlineKey = await saveTarefaOffline(action, data);
+    for (const file of pendingImageFiles) {
+      await saveTarefaImageOffline(offlineKey, file);
+    }
+    toast.success('💾 Tarefa salva offline — sincronizará ao conectar', { duration: 4000 });
+    setShowForm(false);
+    setEditingTarefa(null);
+  };
+
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const created = await base44.entities.LancamentoTarefa.create(data);
+    mutationFn: async ({ data, pendingImageFiles = [] }) => {
+      // Upload imagens online antes de criar
+      const uploadedUrls = [];
+      for (const file of pendingImageFiles) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        uploadedUrls.push(file_url);
+      }
+      const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
+      const created = await base44.entities.LancamentoTarefa.create(payload);
       await base44.entities.HistoricoLancamentoTarefa.create({
         empresa_id: created.empresa_id,
         tarefa_id: created.id,
@@ -83,29 +102,19 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data, previous }) => {
-      const updated = await base44.entities.LancamentoTarefa.update(id, data);
+    mutationFn: async ({ id, data, previous, pendingImageFiles = [] }) => {
+      // Upload imagens online antes de atualizar
+      const uploadedUrls = [];
+      for (const file of pendingImageFiles) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        uploadedUrls.push(file_url);
+      }
+      const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
+      const updated = await base44.entities.LancamentoTarefa.update(id, payload);
       const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== previous?.status;
-      const evento = mudouLocal
-        ? 'Mudança de Local'
-        : updated.status === 'Concluída' && mudouStatus
-          ? 'Conclusão'
-          : updated.status === 'Cancelada' && mudouStatus
-            ? 'Cancelamento'
-            : mudouStatus
-              ? 'Mudança de Status'
-              : 'Edição';
-      const descricao = mudouLocal
-        ? 'Local da tarefa alterado pelo mapa.'
-        : updated.status === 'Concluída' && mudouStatus
-          ? 'Tarefa concluída pelo mapa.'
-          : updated.status === 'Cancelada' && mudouStatus
-            ? 'Tarefa cancelada pelo mapa.'
-            : mudouStatus
-              ? `Status alterado para ${updated.status}.`
-              : 'Tarefa atualizada pelo mapa.';
-
+      const evento = mudouLocal ? 'Mudança de Local' : updated.status === 'Concluída' && mudouStatus ? 'Conclusão' : updated.status === 'Cancelada' && mudouStatus ? 'Cancelamento' : mudouStatus ? 'Mudança de Status' : 'Edição';
+      const descricao = mudouLocal ? 'Local da tarefa alterado pelo mapa.' : updated.status === 'Concluída' && mudouStatus ? 'Tarefa concluída pelo mapa.' : updated.status === 'Cancelada' && mudouStatus ? 'Tarefa cancelada pelo mapa.' : mudouStatus ? `Status alterado para ${updated.status}.` : 'Tarefa atualizada pelo mapa.';
       await base44.entities.HistoricoLancamentoTarefa.create({
         empresa_id: updated.empresa_id,
         tarefa_id: updated.id,
@@ -195,7 +204,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             initialCoordinates={initialCoordinates}
             initialDraft={initialDraft}
             onRequestSelectLocation={onRequestSelectLocation}
-            onSubmit={(data) => {
+            onSubmit={(data, pendingImageFiles = []) => {
               const payload = {
                 ...data,
                 prioridade: normalizeTaskPriority(data.prioridade),
@@ -206,13 +215,15 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
                 coordenadas: data.coordenadas,
               };
-              if (editingTarefa || data.id) {
-                updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data });
+              if (!navigator.onLine) {
+                // Offline: salva no IndexedDB
+                const action = (editingTarefa || data.id) ? 'update' : 'create';
+                const offlinePayload = action === 'create' ? { ...payload, empresa_id: empresaSelecionadaId } : payload;
+                salvarTarefaOffline(action, offlinePayload, pendingImageFiles);
+              } else if (editingTarefa || data.id) {
+                updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data, pendingImageFiles });
               } else {
-                createMutation.mutate({
-                  ...payload,
-                  empresa_id: empresaSelecionadaId,
-                });
+                createMutation.mutate({ data: { ...payload, empresa_id: empresaSelecionadaId }, pendingImageFiles });
               }
             }}
             onCancel={() => { setShowForm(false); setEditingTarefa(null); }}

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Crosshair, MapPin } from "lucide-react";
+import { Crosshair, MapPin, ImagePlus, X, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
 import useSetorAreas from "@/hooks/useSetorAreas";
@@ -109,6 +109,37 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     });
   }, [nomeUsuarioAtual]);
 
+  const [pendingImageFiles, setPendingImageFiles] = useState([]); // File[] aguardando upload
+  const [previewUrls, setPreviewUrls] = useState([]); // URLs de preview local
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const onOnline = () => setIsOffline(false);
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+  }, []);
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setPendingImageFiles((prev) => [...prev, ...files]);
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewUrls((prev) => [...prev, ...urls]);
+    e.target.value = '';
+  };
+
+  const removeNewImage = (index) => {
+    URL.revokeObjectURL(previewUrls[index]);
+    setPendingImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeSavedImage = (url) => {
+    setFormData((prev) => ({ ...prev, fotos: (prev.fotos || []).filter((f) => f !== url) }));
+  };
+
   const [formData, setFormData] = useState(() => {
     const source = tarefa?.data ? { ...tarefa.data, id: tarefa.id } : initialDraft?.data ? { ...initialDraft.data, id: initialDraft.id } : tarefa || initialDraft || {};
     return {
@@ -136,7 +167,8 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       lote_id: source.lote_id || loteId || "",
       lote_nome: source.lote_nome || loteNome || "",
       ponto_suplementacao_id: source.ponto_suplementacao_id || pontoSuplId || "",
-      coordenadas: source.coordenadas || initialCoordinates || null
+      coordenadas: source.coordenadas || initialCoordinates || null,
+      fotos: source.fotos || []
     };
   });
   const [errors, setErrors] = useState({});
@@ -299,7 +331,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       responsavel_geral: formData.solicitante || "",
       responsavel_id: formData.responsavel_id || "",
       responsavel: formData.responsavel || ""
-    });
+    }, pendingImageFiles);
   };
 
   return (
@@ -423,6 +455,44 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               {formData.coordenadas ? "Alterar ponto no mapa" : "Marcar ponto no mapa"}
             </Button>
           </div>
+        </div>
+
+        {/* Seção de fotos */}
+        <div className="space-y-1 pt-0.5 border-t">
+          <div className="flex items-center justify-between">
+            <label className="text-[12px] text-slate-500 pl-1 leading-none">Fotos da tarefa</label>
+            {isOffline && <span className="flex items-center gap-1 text-[10px] text-amber-600"><WifiOff className="w-3 h-3" />Offline — fotos salvas localmente</span>}
+          </div>
+          <div className="flex flex-wrap gap-2 p-2 rounded-md border border-slate-200 bg-slate-50 min-h-[60px]">
+            {/* Fotos já salvas */}
+            {(formData.fotos || []).map((url, idx) => (
+              <div key={`saved-${idx}`} className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-300 group">
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => removeSavedImage(url)} className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+            {/* Novos previews */}
+            {previewUrls.map((url, idx) => (
+              <div key={`new-${idx}`} className="relative w-16 h-16 rounded-md overflow-hidden border-2 border-emerald-400 group">
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => removeNewImage(idx)} className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+                <div className="absolute bottom-0 left-0 right-0 bg-emerald-500/80 text-white text-[8px] text-center leading-tight py-0.5">NOVA</div>
+              </div>
+            ))}
+            {/* Botão adicionar */}
+            <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors">
+              <ImagePlus className="w-5 h-5 text-slate-400" />
+              <span className="text-[9px] text-slate-400 mt-0.5">Adicionar</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
+            </label>
+          </div>
+          {pendingImageFiles.length > 0 && (
+            <p className="text-[10px] text-emerald-700 pl-1">{pendingImageFiles.length} foto(s) nova(s) {isOffline ? '— serão enviadas ao sincronizar' : '— serão enviadas ao salvar'}</p>
+          )}
         </div>
 
         <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
