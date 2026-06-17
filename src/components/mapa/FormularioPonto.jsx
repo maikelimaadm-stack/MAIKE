@@ -153,27 +153,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "") === "DEPOSITO");
   }, [pontosSuplementacao]);
 
-  const depositoMaisProximo = useMemo(() => {
-    const pontoCoords = coordenadasGPS || coordenadas || item?.coordenadas || null;
-    if (!window.google?.maps?.geometry?.spherical || !pontoCoords?.lat || !pontoCoords?.lng || !depositosDisponiveis.length) return null;
 
-    let nearest = null;
-    let minDistance = Infinity;
-
-    depositosDisponiveis.forEach((deposito) => {
-      if (!deposito?.coordenadas?.lat || !deposito?.coordenadas?.lng) return;
-      const distance = google.maps.geometry.spherical.computeDistanceBetween(
-        new google.maps.LatLng(pontoCoords.lat, pontoCoords.lng),
-        new google.maps.LatLng(deposito.coordenadas.lat, deposito.coordenadas.lng)
-      );
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearest = { ...deposito, distance };
-      }
-    });
-
-    return nearest;
-  }, [depositosDisponiveis, coordenadasGPS, coordenadas, item]);
 
   useEffect(() => {
     if (!item) {
@@ -296,16 +276,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     }
   }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual]);
 
-  useEffect(() => {
-    const suggestedId = suggestedDepositoId || depositoMaisProximo?.id || null;
-    if (!suggestedId || !depositosDisponiveis.some((deposito) => deposito.id === suggestedId)) return;
-    setFormData((prev) => {
-      if (!normalizeText(prev.tipo || tipoAtual).includes("COCHO")) return prev;
-      if (prev.deposito_origem_id && prev.deposito_origem_id === suggestedId) return prev;
-      if (prev.deposito_origem_id && prev.deposito_origem_id !== suggestedId) return { ...prev, deposito_origem_id: suggestedId };
-      return { ...prev, deposito_origem_id: suggestedId };
-    });
-  }, [suggestedDepositoId, depositoMaisProximo?.id, depositosDisponiveis, tipoAtual]);
+
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
@@ -722,11 +693,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                     </SelectContent>
                   </Select>
                 </div>
-                {depositoMaisProximo && (
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-                    Depósito mais próximo: <span className="font-semibold">{depositoMaisProximo.nome_ponto}</span> · {depositoMaisProximo.distance.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} m
-                  </div>
-                )}
+
               </div>
               <FL label="Produto padrão">
                 <ProdutoSuplementacaoSelect value={formData.produto_padrao} onChange={(value) => setFormData((prev) => ({ ...prev, produto_padrao: value }))} />
