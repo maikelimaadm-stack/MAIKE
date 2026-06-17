@@ -61,17 +61,20 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => base44.auth.me() });
 
-  // Busca o ponto atualizado do banco para garantir deposito_origem_id e area_vinculada_ids corretos
-  const { data: pontoFresh = null } = useQuery({
+  // Busca o ponto SEMPRE do banco para garantir deposito_origem_id e area_vinculada_ids corretos (ignora cache)
+  const { data: pontoFresh = null, isLoading: loadingPontoFresh } = useQuery({
     queryKey: ["ponto-fresh-lancamento", ponto?.id],
     queryFn: async () => {
+      if (!ponto?.id) return null;
       const all = await base44.entities.PontoSuplementacao.list();
-      return all.find((item) => item.id === ponto?.id) || ponto;
+      return all.find((item) => item.id === ponto.id) || ponto;
     },
     enabled: !!ponto?.id,
     staleTime: 0,
+    gcTime: 30 * 1000, // limpa cache após 30s para não reter dados antigos entre aberturas
   });
-  const pontoAtivo = pontoFresh || ponto;
+  // pontoAtivo: prioriza sempre os dados frescos do banco
+  const pontoAtivo = pontoFresh ?? ponto;
 
   const areaIdsVinculados = useMemo(() => {
     const ids = Array.isArray(pontoAtivo?.area_vinculada_ids) ? pontoAtivo.area_vinculada_ids.filter(Boolean) : [];
@@ -136,15 +139,20 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId,
   });
 
+  // Usa sempre o pontoFresh (banco) para resolver o depósito, não o cache
+  const depositoOrigemId = pontoFresh?.deposito_origem_id || ponto?.deposito_origem_id;
+  const depositoOrigemNome = pontoFresh?.deposito_origem_nome || ponto?.deposito_origem_nome;
+
   const { data: depositoVinculado = null } = useQuery({
-    queryKey: ["deposito-vinculado-cocho", pontoAtivo?.deposito_origem_id, pontoAtivo?.deposito_origem_nome],
+    queryKey: ["deposito-vinculado-cocho", ponto?.id, depositoOrigemId, depositoOrigemNome],
     queryFn: async () => {
       const all = await base44.entities.PontoSuplementacao.list();
-      return all.find((item) => item.id === pontoAtivo?.deposito_origem_id)
-        || all.find((item) => normalizeText(item.nome_ponto) === normalizeText(pontoAtivo?.deposito_origem_nome) && normalizeText(item.categoria_ponto) === "DEPOSITO")
+      return all.find((item) => item.id === depositoOrigemId)
+        || all.find((item) => normalizeText(item.nome_ponto) === normalizeText(depositoOrigemNome) && normalizeText(item.categoria_ponto) === "DEPOSITO")
         || null;
     },
-    enabled: !!(pontoAtivo?.deposito_origem_id || pontoAtivo?.deposito_origem_nome),
+    // Só habilita quando pontoFresh já chegou (garante que os dados são do banco)
+    enabled: !!(pontoFresh && (depositoOrigemId || depositoOrigemNome)),
   });
 
   const { data: lotesNota = [] } = useQuery({
@@ -544,7 +552,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2 text-[11px] space-y-1">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Áreas: <span className="font-semibold text-slate-900">{areaNomesResolvidos.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Depósito: <span className="font-semibold text-slate-900">{depositoVinculado?.nome_ponto || "Não vinculado"}</span></div>
+                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Depósito: <span className="font-semibold text-slate-900">{loadingPontoFresh ? "..." : (depositoVinculado?.nome_ponto || depositoOrigemNome || "Não vinculado")}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Lotes: <span className="font-semibold text-slate-900">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</span></div>
               </div>
