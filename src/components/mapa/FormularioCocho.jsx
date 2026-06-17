@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -28,15 +27,6 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
-  const { data: depositos = [] } = useQuery({
-    queryKey: ["depositos-form-cocho", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.categoria_ponto === "DEPOSITO" && p.status === "Ativo");
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const [formData, setFormData] = useState({
     nome_ponto: "",
     tipo: "Sal Mineral",
@@ -44,7 +34,6 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     capacidade_cocho_kg: "",
     setor_id: "",
     area_vinculada_id: "",
-    deposito_origem_id: "",
     consumo_ideal_por_cabeca_kg: "",
     limite_minimo_consumo: "",
     limite_maximo_consumo: "",
@@ -55,17 +44,12 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
 
   useEffect(() => {
     if (item) {
-      // Recupera a área principal: prioriza o primeiro do array, fallback para campo único
-      const areaIdPrincipal = (Array.isArray(item.area_vinculada_ids) && item.area_vinculada_ids.length > 0)
-        ? item.area_vinculada_ids[0]
-        : (item.area_vinculada_id || "");
       setFormData({
         nome_ponto: item.nome_ponto || "",
         tipo: item.tipo || "Sal Mineral",
         produto_padrao: item.produto_padrao || "",
         capacidade_cocho_kg: item.capacidade_cocho_kg || "",
-        area_vinculada_id: areaIdPrincipal,
-        deposito_origem_id: item.deposito_origem_id || "",
+        area_vinculada_id: item.area_vinculada_id || "",
         consumo_ideal_por_cabeca_kg: item.consumo_ideal_por_cabeca_kg || "",
         limite_minimo_consumo: item.limite_minimo_consumo || "",
         limite_maximo_consumo: item.limite_maximo_consumo || "",
@@ -128,7 +112,6 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     }
 
     const areaVinculada = areas.find(a => a.id === formData.area_vinculada_id);
-    const depositoSelecionado = depositos.find(d => d.id === formData.deposito_origem_id);
 
     const data = {
     empresa_id: empresaSelecionadaId,
@@ -138,15 +121,8 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
     tipo: formData.tipo,
     produto_padrao: formData.produto_padrao || null,
     capacidade_cocho_kg: formData.capacidade_cocho_kg ? parseFloat(formData.capacidade_cocho_kg) : null,
-    // Campo único (legado)
     area_vinculada_id: formData.area_vinculada_id,
     area_vinculada_nome: areaVinculada?.nome || '',
-    // Array (usado pelo sistema para buscar lotes e lançamentos)
-    area_vinculada_ids: formData.area_vinculada_id ? [formData.area_vinculada_id] : [],
-    area_vinculada_nomes: areaVinculada ? [areaVinculada.nome] : [],
-    // Depósito vinculado
-    deposito_origem_id: depositoSelecionado?.id || null,
-    deposito_origem_nome: depositoSelecionado?.nome_ponto || null,
     consumo_ideal_por_cabeca_kg: formData.consumo_ideal_por_cabeca_kg ? parseFloat(formData.consumo_ideal_por_cabeca_kg) : null,
     limite_minimo_consumo: formData.limite_minimo_consumo ? parseFloat(formData.limite_minimo_consumo) : null,
     limite_maximo_consumo: formData.limite_maximo_consumo ? parseFloat(formData.limite_maximo_consumo) : null,
@@ -185,15 +161,6 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
         <Select value={formData.area_vinculada_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, area_vinculada_id: v === '__none__' ? '' : v })} disabled={!formData.setor_id}>
           <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder={formData.setor_id ? 'Selecione a área' : 'Selecione o setor primeiro'} /></SelectTrigger>
           <SelectContent><SelectItem value="__none__" className="text-xs">Selecione</SelectItem>{areasDoSetor.map(area => <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>)}</SelectContent>
-        </Select>
-      </FL>
-      <FL label="Depósito Vinculado">
-        <Select value={formData.deposito_origem_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, deposito_origem_id: v === '__none__' ? '' : v })}>
-          <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o depósito (opcional)" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__" className="text-xs">Nenhum</SelectItem>
-            {depositos.map(dep => <SelectItem key={dep.id} value={dep.id} className="text-xs">{dep.nome_ponto}{dep.local_estoque_nome ? ` (${dep.local_estoque_nome})` : ''}</SelectItem>)}
-          </SelectContent>
         </Select>
       </FL>
       <FL label="Produto Padrão"><Input value={formData.produto_padrao} onChange={(e) => setFormData({ ...formData, produto_padrao: e.target.value })} placeholder="Ex: Sal Mineral Completo" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
