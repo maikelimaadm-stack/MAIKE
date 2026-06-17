@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, X } from "lucide-react";
+import { Printer, X, ToggleLeft, ToggleRight } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -28,6 +28,8 @@ export default function RelatorioEstoqueDepositos() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [orientacao, setOrientacao] = useState("paisagem");
+  const [apenasComSaldo, setApenasComSaldo] = useState(true);
+  const [modoSomentesSaldo, setModoSomentesSaldo] = useState(false);
 
   const { data: empresaAtual } = useQuery({
     queryKey: ["empresa-depositos-rel", empresaSelecionadaId],
@@ -176,10 +178,16 @@ export default function RelatorioEstoqueDepositos() {
       if (isSaida) { linha.saidas_kg += qtd; linha.saidas_sacos += sacos; }
     });
 
-    return Array.from(chaves.values()).sort((a, b) =>
+    let resultado = Array.from(chaves.values()).sort((a, b) =>
       a.deposito_nome.localeCompare(b.deposito_nome) || a.produto_nome.localeCompare(b.produto_nome)
     );
-  }, [lotesNota, movsFiltradasPorData, depositoByLocalEstoque, localEstoqueIds, produtoById, filtroDeposito, filtroProduto]);
+
+    if (apenasComSaldo) {
+      resultado = resultado.filter((l) => l.saldo_kg > 0);
+    }
+
+    return resultado;
+  }, [lotesNota, movsFiltradasPorData, depositoByLocalEstoque, localEstoqueIds, produtoById, filtroDeposito, filtroProduto, apenasComSaldo]);
 
   const totais = useMemo(() => ({
     entradas_kg: linhas.reduce((s, l) => s + l.entradas_kg, 0),
@@ -256,11 +264,29 @@ export default function RelatorioEstoqueDepositos() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
               <X className="w-3.5 h-3.5 mr-1" />
               Limpar Filtros
             </Button>
+
+            <button
+              type="button"
+              onClick={() => setApenasComSaldo((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-xs font-medium transition-colors ${apenasComSaldo ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}
+            >
+              {apenasComSaldo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+              Apenas saldo &gt; 0
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setModoSomentesSaldo((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-xs font-medium transition-colors ${modoSomentesSaldo ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}
+            >
+              {modoSomentesSaldo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+              Exibir só saldo (sem entradas/saídas)
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -315,24 +341,28 @@ export default function RelatorioEstoqueDepositos() {
                   <TableHead className="text-xs font-bold py-1 border border-black">Depósito</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas (kg)</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas (sacos)</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas (kg)</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas (sacos)</TableHead>
+                  {!modoSomentesSaldo && <>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas (kg)</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas (sacos)</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas (kg)</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas (sacos)</TableHead>
+                  </>}
                   <TableHead className="text-xs font-bold py-1 border border-black text-right bg-blue-50">Saldo (kg)</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black text-right bg-blue-50">Saldo (sacos)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {linhas.map((l, i) => (
+                {linhas.map((l) => (
                   <TableRow key={`${l.deposito_id}_${l.produto_id}`} className="hover:bg-gray-50">
                     <TableCell className="text-xs py-1 border border-gray-300 font-medium">{l.deposito_nome}</TableCell>
                     <TableCell className="text-xs py-1 border border-gray-300">{l.produto_nome}</TableCell>
                     <TableCell className="text-xs py-1 border border-gray-300">{l.unidade}</TableCell>
-                    <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">{formatarNumero(l.entradas_kg)}</TableCell>
-                    <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">{l.pesoPorSaco > 0 ? formatarNumero(l.entradas_sacos) : "-"}</TableCell>
-                    <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-700">{formatarNumero(l.saidas_kg)}</TableCell>
-                    <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-700">{l.pesoPorSaco > 0 ? formatarNumero(l.saidas_sacos) : "-"}</TableCell>
+                    {!modoSomentesSaldo && <>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">{formatarNumero(l.entradas_kg)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">{l.pesoPorSaco > 0 ? formatarNumero(l.entradas_sacos) : "-"}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-700">{formatarNumero(l.saidas_kg)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-700">{l.pesoPorSaco > 0 ? formatarNumero(l.saidas_sacos) : "-"}</TableCell>
+                    </>}
                     <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold bg-blue-50">{formatarNumero(l.saldo_kg)}</TableCell>
                     <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold bg-blue-50">{l.pesoPorSaco > 0 ? formatarNumero(l.saldo_sacos) : "-"}</TableCell>
                   </TableRow>
@@ -341,10 +371,12 @@ export default function RelatorioEstoqueDepositos() {
                 {/* Totais */}
                 <TableRow className="bg-gray-100 font-bold">
                   <TableCell colSpan={3} className="text-xs py-1 border border-black">TOTAL</TableCell>
-                  <TableCell className="text-xs py-1 border border-black text-right font-mono text-green-700">{formatarNumero(totais.entradas_kg)}</TableCell>
-                  <TableCell className="text-xs py-1 border border-black text-right font-mono text-green-700">{formatarNumero(totais.entradas_sacos)}</TableCell>
-                  <TableCell className="text-xs py-1 border border-black text-right font-mono text-red-700">{formatarNumero(totais.saidas_kg)}</TableCell>
-                  <TableCell className="text-xs py-1 border border-black text-right font-mono text-red-700">{formatarNumero(totais.saidas_sacos)}</TableCell>
+                  {!modoSomentesSaldo && <>
+                    <TableCell className="text-xs py-1 border border-black text-right font-mono text-green-700">{formatarNumero(totais.entradas_kg)}</TableCell>
+                    <TableCell className="text-xs py-1 border border-black text-right font-mono text-green-700">{formatarNumero(totais.entradas_sacos)}</TableCell>
+                    <TableCell className="text-xs py-1 border border-black text-right font-mono text-red-700">{formatarNumero(totais.saidas_kg)}</TableCell>
+                    <TableCell className="text-xs py-1 border border-black text-right font-mono text-red-700">{formatarNumero(totais.saidas_sacos)}</TableCell>
+                  </>}
                   <TableCell className="text-xs py-1 border border-black text-right font-mono bg-blue-50">{formatarNumero(totais.saldo_kg)}</TableCell>
                   <TableCell className="text-xs py-1 border border-black text-right font-mono bg-blue-50">{formatarNumero(totais.saldo_sacos)}</TableCell>
                 </TableRow>
