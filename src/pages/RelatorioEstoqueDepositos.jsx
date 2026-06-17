@@ -264,28 +264,26 @@ export default function RelatorioEstoqueDepositos() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-wrap gap-3 items-center">
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
               <X className="w-3.5 h-3.5 mr-1" />
               Limpar Filtros
             </Button>
-
             <button
               type="button"
               onClick={() => setApenasComSaldo((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-xs font-medium transition-colors ${apenasComSaldo ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}
+              className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs font-medium transition-colors ${apenasComSaldo ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700 border-slate-300"}`}
             >
               {apenasComSaldo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
               Apenas saldo &gt; 0
             </button>
-
             <button
               type="button"
               onClick={() => setModoSomentesSaldo((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-xs font-medium transition-colors ${modoSomentesSaldo ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}
+              className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs font-medium transition-colors ${modoSomentesSaldo ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-300"}`}
             >
               {modoSomentesSaldo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-              Exibir só saldo (sem entradas/saídas)
+              Ocultar entradas/saídas
             </button>
           </div>
         </CardContent>
