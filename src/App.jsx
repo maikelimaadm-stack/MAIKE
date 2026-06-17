@@ -18,6 +18,7 @@ import LancamentosAbastecimento from './pages/LancamentosAbastecimento';
 import ConfiguracaoPesagens from './pages/ConfiguracaoPesagens';
 import Bebedouros from './pages/Bebedouros';
 import RelatorioGadoMapaGeral from './pages/RelatorioGadoMapaGeral';
+import RelatorioEstoqueDepositos from './pages/RelatorioEstoqueDepositos';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -117,6 +118,11 @@ const AuthenticatedApp = () => {
       <Route path="/RelatorioGadoMapaGeral" element={
         <LayoutWrapper currentPageName="RelatorioGadoMapaGeral">
           <RelatorioGadoMapaGeral />
+        </LayoutWrapper>
+      } />
+      <Route path="/RelatorioEstoqueDepositos" element={
+        <LayoutWrapper currentPageName="RelatorioEstoqueDepositos">
+          <RelatorioEstoqueDepositos />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />
