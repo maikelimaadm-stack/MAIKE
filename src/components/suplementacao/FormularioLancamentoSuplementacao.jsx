@@ -61,15 +61,27 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => base44.auth.me() });
 
+  // Busca o ponto atualizado do banco para garantir deposito_origem_id e area_vinculada_ids corretos
+  const { data: pontoFresh = null } = useQuery({
+    queryKey: ["ponto-fresh-lancamento", ponto?.id],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.find((item) => item.id === ponto?.id) || ponto;
+    },
+    enabled: !!ponto?.id,
+    staleTime: 0,
+  });
+  const pontoAtivo = pontoFresh || ponto;
+
   const areaIdsVinculados = useMemo(() => {
-    const ids = Array.isArray(ponto?.area_vinculada_ids) ? ponto.area_vinculada_ids.filter(Boolean) : [];
-    return ids.length ? ids : (ponto?.area_vinculada_id ? [ponto.area_vinculada_id] : []);
-  }, [ponto]);
+    const ids = Array.isArray(pontoAtivo?.area_vinculada_ids) ? pontoAtivo.area_vinculada_ids.filter(Boolean) : [];
+    return ids.length ? ids : (pontoAtivo?.area_vinculada_id ? [pontoAtivo.area_vinculada_id] : []);
+  }, [pontoAtivo]);
 
   const areaNomesVinculados = useMemo(() => {
-    const nomes = Array.isArray(ponto?.area_vinculada_nomes) ? ponto.area_vinculada_nomes.filter(Boolean) : [];
-    return nomes.length ? nomes : (ponto?.area_vinculada_nome ? [ponto.area_vinculada_nome] : []);
-  }, [ponto]);
+    const nomes = Array.isArray(pontoAtivo?.area_vinculada_nomes) ? pontoAtivo.area_vinculada_nomes.filter(Boolean) : [];
+    return nomes.length ? nomes : (pontoAtivo?.area_vinculada_nome ? [pontoAtivo.area_vinculada_nome] : []);
+  }, [pontoAtivo]);
 
   const { data: areas = [] } = useQuery({
     queryKey: ["areas-vinculadas-suplementacao", empresaSelecionadaId],
@@ -125,14 +137,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   const { data: depositoVinculado = null } = useQuery({
-    queryKey: ["deposito-vinculado-cocho", ponto?.deposito_origem_id, ponto?.deposito_origem_nome],
+    queryKey: ["deposito-vinculado-cocho", pontoAtivo?.deposito_origem_id, pontoAtivo?.deposito_origem_nome],
     queryFn: async () => {
       const all = await base44.entities.PontoSuplementacao.list();
-      return all.find((item) => item.id === ponto?.deposito_origem_id)
-        || all.find((item) => normalizeText(item.nome_ponto) === normalizeText(ponto?.deposito_origem_nome) && normalizeText(item.categoria_ponto) === "DEPOSITO")
+      return all.find((item) => item.id === pontoAtivo?.deposito_origem_id)
+        || all.find((item) => normalizeText(item.nome_ponto) === normalizeText(pontoAtivo?.deposito_origem_nome) && normalizeText(item.categoria_ponto) === "DEPOSITO")
         || null;
     },
-    enabled: !!ponto,
+    enabled: !!(pontoAtivo?.deposito_origem_id || pontoAtivo?.deposito_origem_nome),
   });
 
   const { data: lotesNota = [] } = useQuery({
