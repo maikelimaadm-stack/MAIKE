@@ -49,6 +49,18 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const [showHistorico, setShowHistorico] = useState(false);
   const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
 
+  // Busca o ponto atualizado do banco para garantir area_vinculada_ids e deposito_origem_id corretos
+  const { data: pontoAtualizado } = useQuery({
+    queryKey: ["ponto-supl-atualizado", ponto?.id],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.find((p) => p.id === ponto.id) || ponto;
+    },
+    enabled: !!ponto?.id && showLancamento,
+    staleTime: 0,
+  });
+  const pontoParaLancamento = pontoAtualizado || ponto;
+
   const { data: eventos = [], isLoading: loadingEventos } = useQuery({
     queryKey: ["mapa-eventosSuplementacao", empresaSelecionadaId],
     queryFn: async () => {
@@ -432,7 +444,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
+        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={pontoParaLancamento} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
