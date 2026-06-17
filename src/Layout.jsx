@@ -801,9 +801,9 @@ export default function Layout({ children, currentPageName }) {
       }
 
       {!isFolha &&
-      <nav className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block overflow-visible ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
+      <nav className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
-          <div className="flex items-center gap-0.5 h-10 overflow-visible">
+          <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
               {menuItemsFiltered.map((item) => {
                 const Icon = iconsMap[item.icon] || Home;
@@ -815,10 +815,10 @@ export default function Layout({ children, currentPageName }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-8 px-2.5 gap-1 text-xs font-medium transition-colors ${
+                        className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                         active ?
-                        'menu-tab-active' :
-                        'rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
+                        'bg-emerald-600 text-white hover:bg-emerald-700' :
+                        'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
                         }>
                         
                         
@@ -890,10 +890,10 @@ export default function Layout({ children, currentPageName }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-8 px-2.5 gap-1 text-xs font-medium transition-colors ${
+                      className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                       active ?
-                      'menu-tab-active' :
-                      'rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
+                      'bg-emerald-600 text-white hover:bg-emerald-700' :
+                      'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
                       }>
                       
                       

@@ -173,44 +173,6 @@ button:focus-visible {
   }
 }
 
-/* Efeito de aba de navegador no menu ativo */
-.menu-tab-active {
-  position: relative !important;
-  background: #f1f5f9 !important;
-  color: #1e293b !important;
-  font-weight: 600 !important;
-  border-radius: 8px 8px 0 0 !important;
-  border: none !important;
-  padding-bottom: 4px !important;
-  margin-bottom: -5px !important;
-  z-index: 10 !important;
-  overflow: visible !important;
-}
-
-.menu-tab-active::before,
-.menu-tab-active::after {
-  content: '' !important;
-  position: absolute !important;
-  bottom: 0 !important;
-  width: 16px !important;
-  height: 16px !important;
-  background: white !important;
-  pointer-events: none !important;
-  z-index: 10 !important;
-}
-
-.menu-tab-active::before {
-  left: -16px !important;
-  border-bottom-right-radius: 16px !important;
-  box-shadow: 8px 0 0 0 #f1f5f9 !important;
-}
-
-.menu-tab-active::after {
-  right: -16px !important;
-  border-bottom-left-radius: 16px !important;
-  box-shadow: -8px 0 0 0 #f1f5f9 !important;
-}
-
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
