@@ -110,7 +110,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
-  const { data: pontosSuplementacao = [] } = useQuery({
+  const { data: pontosSuplementacao = [], isSuccess: pontosSuplementacaoLoaded } = useQuery({
     queryKey: ["pontos-suplementacao-form", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.PontoSuplementacao.list();
@@ -130,16 +130,17 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const pontoSuplementacaoExistente = useMemo(() => {
     if (!item) return null;
+    // Prioridade 1: detalhe já enriquecido pela TabelaPontosGeo
     if (item.detalhe_suplementacao?.id) return item.detalhe_suplementacao;
+    // Prioridade 2: por ID explícito
     if (item.ponto_suplementacao_id) {
       const porId = pontosSuplementacao.find((ponto) => ponto.id === item.ponto_suplementacao_id);
       if (porId) return porId;
     }
-
+    // Prioridade 3: busca pelo nome (fallback)
     const nomeAtual = normalizeText(item.nome);
     const siglaAtual = normalizeText(item.sigla);
-
-    return pontosSuplementacao.find((ponto) => normalizeText(ponto.nome_ponto) === nomeAtual || siglaAtual && normalizeText(ponto.sigla) === siglaAtual) || null;
+    return pontosSuplementacao.find((ponto) => normalizeText(ponto.nome_ponto) === nomeAtual || (siglaAtual && normalizeText(ponto.sigla) === siglaAtual)) || null;
   }, [item, pontosSuplementacao]);
 
   const bebedouroExistente = useMemo(() => {
@@ -160,6 +161,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       setFormData(createEmptyForm());
       return;
     }
+
+    // Para itens existentes que são cochosD depósitos, aguardar a query carregar antes de popular
+    const tipoNorm = normalizeText(item.tipo || "");
+    const precisaSupl = tipoNorm.includes("COCHO") || tipoNorm.includes("DEPOSITO");
+    if (precisaSupl && !pontosSuplementacaoLoaded) return;
 
     const isBatchItem = Boolean(onBatchUpdate);
     setFormData({
@@ -188,7 +194,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       dias_limpeza_personalizado: (!isBatchItem ? bebedouroExistente?.dias_limpeza_personalizado : "") || "30",
       dias_inspecao_personalizado: (!isBatchItem ? bebedouroExistente?.dias_inspecao_personalizado : "") || "7"
     });
-  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas]);
+  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas, pontosSuplementacaoLoaded]);
 
   const handleCapturaGPS = (localizacao) => {
     setCoordenadasGPS(localizacao);
@@ -210,11 +216,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   };
 
   useEffect(() => {
+    // Só sincroniza setor com área quando não está editando um item existente
+    if (item) return;
     const areaPrincipal = areas.find((area) => area.id === formData.area_vinculada_id);
     if (areaPrincipal && formData.setor_id !== areaPrincipal.setor_id) {
       setFormData((prev) => ({ ...prev, setor_id: areaPrincipal.setor_id || "" }));
     }
-  }, [areas, formData.area_vinculada_id, formData.setor_id]);
+  }, [areas, formData.area_vinculada_id, formData.setor_id, item]);
 
   useEffect(() => {
     if (!item && !onBatchUpdate) {
@@ -224,6 +232,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   }, [item, onBatchUpdate, coordenadasGPS, coordenadas]);
 
   useEffect(() => {
+    // Detecção automática de área só para pontos NOVOS (sem item existente)
+    if (item) return;
     const pontoCoords = coordenadasGPS || coordenadas;
     if (!pontoCoords || !areas.length) return;
 
@@ -274,7 +284,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     } else {
       setAreaDetectada(null);
     }
-  }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual]);
+  }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual, item]);
 
 
 
