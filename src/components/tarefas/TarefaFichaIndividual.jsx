@@ -1,7 +1,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import FotosTarefaGaleria from "@/components/tarefas/FotosTarefaGaleria";
 
 const STATUS_CORES = {
@@ -52,18 +52,33 @@ export default function TarefaFichaIndividual({ tarefas, indice, onAnterior, onP
   const total = tarefas.length;
   const fotos = [...(tarefa.fotos || []), ...(tarefa.anexos_urls || [])];
 
+  const handlePrint = () => window.print();
+
   return (
-    <div className="space-y-3">
+    <>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          .ficha-impressao, .ficha-impressao * { visibility: visible !important; }
+          .ficha-impressao { position: fixed !important; inset: 0 !important; overflow: auto !important; background: white !important; padding: 24px !important; z-index: 99999 !important; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
+    <div className="space-y-3 ficha-impressao">
       {/* Navegação */}
-      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm">
+      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm no-print">
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onAnterior} disabled={indice === 0}>
           <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
         </Button>
-        <div className="flex flex-col items-center">
-          <span className="text-xs font-bold text-slate-700">
-            {indice + 1} de {total}
-          </span>
-          <span className="text-[10px] text-slate-500">tarefas encontradas</span>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-bold text-slate-700">{indice + 1} de {total}</span>
+            <span className="text-[10px] text-slate-500">tarefas encontradas</span>
+          </div>
+          <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800 text-white" onClick={handlePrint}>
+            <Printer className="w-3.5 h-3.5 mr-1" /> Imprimir
+          </Button>
         </div>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onProximo} disabled={indice === total - 1}>
           Próxima <ChevronRight className="w-4 h-4 ml-1" />
@@ -152,5 +167,6 @@ export default function TarefaFichaIndividual({ tarefas, indice, onAnterior, onP
         </div>
       )}
     </div>
+    </>
   );
 }
