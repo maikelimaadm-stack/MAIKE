@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Printer, Filter, X } from "lucide-react";
+import { Printer, Filter, X, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AutocompleteGenerico from "../components/financeiro/AutocompleteGenerico";
@@ -557,11 +557,17 @@ export default function RelatoriosEstoque() {
               <>
                 <div className="space-y-1">
                   <Label className="text-xs">Data Início</Label>
-                  <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-8 text-xs" />
+                  <div className="relative flex items-center">
+                    <CalendarDays className="absolute left-3 w-4 h-4 text-emerald-500 pointer-events-none z-10" />
+                    <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-8 text-xs rounded-full pl-9 border-slate-300 hover:border-emerald-400 focus:border-emerald-500 shadow-sm" />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Data Fim</Label>
-                  <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-8 text-xs" />
+                  <div className="relative flex items-center">
+                    <CalendarDays className="absolute left-3 w-4 h-4 text-emerald-500 pointer-events-none z-10" />
+                    <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-8 text-xs rounded-full pl-9 border-slate-300 hover:border-emerald-400 focus:border-emerald-500 shadow-sm" />
+                  </div>
                 </div>
               </>
             )}
