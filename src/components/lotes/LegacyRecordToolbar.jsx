@@ -19,7 +19,7 @@ const TipBtn = ({ title, children }) => (
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent
         side="bottom"
-        className="rounded-[8px] bg-white text-gray-700 border border-[#e5e5e5] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] px-2 py-1 text-xs font-medium"
+        className="rounded-md bg-slate-900 text-white border-0 shadow-md px-2.5 py-1 text-xs font-medium"
       >
         {title}
       </TooltipContent>
