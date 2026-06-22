@@ -559,14 +559,14 @@ export default function RelatoriosEstoque() {
                   <Label className="text-xs">Data Início</Label>
                   <div className="relative flex items-center">
                     <CalendarDays className="absolute left-3 w-4 h-4 text-emerald-500 pointer-events-none z-10" />
-                    <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-8 text-xs rounded-full pl-9 border-slate-300 hover:border-emerald-400 focus:border-emerald-500 shadow-sm" />
+                    <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-8 text-xs rounded-full pl-9 border-slate-300 hover:border-emerald-400 focus:border-emerald-500 shadow-sm [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0" />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Data Fim</Label>
                   <div className="relative flex items-center">
                     <CalendarDays className="absolute left-3 w-4 h-4 text-emerald-500 pointer-events-none z-10" />
-                    <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-8 text-xs rounded-full pl-9 border-slate-300 hover:border-emerald-400 focus:border-emerald-500 shadow-sm" />
+                    <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-8 text-xs rounded-full pl-9 border-slate-300 hover:border-emerald-400 focus:border-emerald-500 shadow-sm [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0" />
                   </div>
                 </div>
               </>
