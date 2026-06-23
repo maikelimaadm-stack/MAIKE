@@ -97,6 +97,17 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [mostrarEntradasSaidasSintetico, setMostrarEntradasSaidasSintetico] = useState(true);
   const [mostrarMarcaHistorico, setMostrarMarcaHistorico] = useState(false);
   const [mostrarSetorHistorico, setMostrarSetorHistorico] = useState(false);
+  const [colunasHistorico, setColunasHistorico] = useState({
+    motivo: true,
+    tipo: false,
+    categoria: false,
+    categoria_nova: false,
+    causa_morte: false,
+    fornecedor: false,
+    comprador: false,
+    responsavel: false,
+    observacoes: false,
+  });
 
   // Opções de linha para o eixo Y do relatório sintético (matriz)
   const EIXO_Y_OPCOES = [
@@ -358,30 +369,54 @@ export default function RelatorioMovimentacoesPecuaria() {
     sorted.forEach((m) => {
       const qtd = m.quantidade_animais || 0;
       if (m.tipo === 'Entrada') saldo += qtd; else saldo -= qtd;
-      let transfInfo = '';
-      if (m.motivo === 'Transferência entre Setores') {
-        const origem = m.setor_origem_nome || m.transferencia_origem || m.area_origem_nome || 'Origem não informada';
-        const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
-        transfInfo = `de ${origem} → ${destino}`;
-      }
-      const hist = [m.motivo, transfInfo,
-        m.motivo === 'Compra' ? `Fornecedor: ${m.fornecedor_origem}` : '',
-        m.motivo === 'Venda' || m.motivo === 'Abate' ? `Destino: ${m.destino_venda}` : '',
-        m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
-        m.observacoes].filter(Boolean).join(' - ');
-      linhas.push({ data: formatarData(m.data_movimentacao), marca: m.marca || '', setor: m.setor_nome || '', entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+      if (m.motivo === 'Mudança de Categoria') return;
+      linhas.push({
+        data: formatarData(m.data_movimentacao),
+        marca: m.marca || '',
+        setor: m.setor_nome || '',
+        tipo: m.tipo || '',
+        motivo: m.motivo || '',
+        categoria: m.categoria_animal || '',
+        categoria_nova: m.categoria_nova || '',
+        causa_morte: m.causa_morte || '',
+        fornecedor: m.fornecedor_origem || '',
+        comprador: m.destino_venda || '',
+        responsavel: m.responsavel || '',
+        observacoes: m.observacoes || '',
+        entradas: m.tipo === 'Entrada' ? qtd : '',
+        saidas: m.tipo === 'Saída' ? qtd : '',
+        saldo,
+      });
     });
 
     const headerCols = ['Data'];
     if (mostrarMarcaHistorico) headerCols.push('Marca');
     if (mostrarSetorHistorico) headerCols.push('Setor');
-    headerCols.push('Entradas', 'Saídas', 'Saldo', 'Histórico');
+    if (colunasHistorico.tipo) headerCols.push('Tipo');
+    if (colunasHistorico.motivo) headerCols.push('Motivo');
+    if (colunasHistorico.categoria) headerCols.push('Categoria');
+    if (colunasHistorico.categoria_nova) headerCols.push('Categoria Nova');
+    if (colunasHistorico.causa_morte) headerCols.push('Causa Morte');
+    if (colunasHistorico.fornecedor) headerCols.push('Fornecedor');
+    if (colunasHistorico.comprador) headerCols.push('Comprador');
+    if (colunasHistorico.responsavel) headerCols.push('Responsável');
+    if (colunasHistorico.observacoes) headerCols.push('Observações');
+    headerCols.push('Entradas', 'Saídas', 'Saldo');
     const header = headerCols;
     const rows = linhas.map((l) => {
       const row = [l.data];
       if (mostrarMarcaHistorico) row.push(l.marca ?? '');
       if (mostrarSetorHistorico) row.push(l.setor ?? '');
-      row.push(l.entradas, l.saidas, l.saldo, l.historico);
+      if (colunasHistorico.tipo) row.push(l.tipo);
+      if (colunasHistorico.motivo) row.push(l.motivo);
+      if (colunasHistorico.categoria) row.push(l.categoria);
+      if (colunasHistorico.categoria_nova) row.push(l.categoria_nova);
+      if (colunasHistorico.causa_morte) row.push(l.causa_morte);
+      if (colunasHistorico.fornecedor) row.push(l.fornecedor);
+      if (colunasHistorico.comprador) row.push(l.comprador);
+      if (colunasHistorico.responsavel) row.push(l.responsavel);
+      if (colunasHistorico.observacoes) row.push(l.observacoes);
+      row.push(l.entradas, l.saidas, l.saldo);
       return row;
     });
     const csvContent = [header, ...rows].map((row) =>
@@ -672,16 +707,50 @@ export default function RelatorioMovimentacoesPecuaria() {
             }
 
             {tipoRelatorio === 'historico' && (
-              <>
-                <div className="flex items-center space-x-2 h-8">
-                  <Checkbox id="mostrarMarcaHistorico" checked={mostrarMarcaHistorico} onCheckedChange={setMostrarMarcaHistorico} />
-                  <label htmlFor="mostrarMarcaHistorico" className="text-xs cursor-pointer">Exibir Marca</label>
-                </div>
-                <div className="flex items-center space-x-2 h-8">
-                  <Checkbox id="mostrarSetorHistorico" checked={mostrarSetorHistorico} onCheckedChange={setMostrarSetorHistorico} />
-                  <label htmlFor="mostrarSetorHistorico" className="text-xs cursor-pointer">Exibir Setor</label>
-                </div>
-              </>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Settings className="w-3.5 h-3.5" />
+                    Colunas Extras
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-96 overflow-auto">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm mb-2">Colunas Visíveis</h4>
+                    {[
+                      { key: 'marca', label: 'Marca', state: mostrarMarcaHistorico, setter: setMostrarMarcaHistorico, isSimple: true },
+                      { key: 'setor', label: 'Setor', state: mostrarSetorHistorico, setter: setMostrarSetorHistorico, isSimple: true },
+                    ].map(({ key, label, state, setter }) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Checkbox id={`hist-${key}`} checked={state} onCheckedChange={setter} />
+                        <label htmlFor={`hist-${key}`} className="text-sm cursor-pointer">{label}</label>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2 space-y-2">
+                      {[
+                        { key: 'tipo', label: 'Tipo (Entrada/Saída)' },
+                        { key: 'motivo', label: 'Motivo' },
+                        { key: 'categoria', label: 'Categoria' },
+                        { key: 'categoria_nova', label: 'Categoria Nova' },
+                        { key: 'causa_morte', label: 'Causa Morte' },
+                        { key: 'fornecedor', label: 'Fornecedor' },
+                        { key: 'comprador', label: 'Comprador/Destino' },
+                        { key: 'responsavel', label: 'Responsável' },
+                        { key: 'observacoes', label: 'Observações' },
+                      ].map(({ key, label }) => (
+                        <div key={key} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`hist-col-${key}`}
+                            checked={colunasHistorico[key]}
+                            onCheckedChange={(v) => setColunasHistorico((prev) => ({ ...prev, [key]: !!v }))}
+                          />
+                          <label htmlFor={`hist-col-${key}`} className="text-sm cursor-pointer">{label}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar Filtros</Button>
           </div>
@@ -994,22 +1063,32 @@ export default function RelatorioMovimentacoesPecuaria() {
             }
             sorted.forEach((m) => {
               const qtd = m.quantidade_animais || 0;
-              if (m.tipo === 'Entrada') saldo += qtd;else saldo -= qtd;
+              if (m.tipo === 'Entrada') saldo += qtd; else saldo -= qtd;
+              // Mudança de Categoria não aparece como linha, mas o saldo já foi atualizado acima
+              if (m.motivo === 'Mudança de Categoria') return;
               let transfInfo = '';
               if (m.motivo === 'Transferência entre Setores') {
                 const origem = m.setor_origem_nome || m.transferencia_origem || m.area_origem_nome || 'Origem não informada';
                 const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
                 transfInfo = `de ${origem} → ${destino}`;
               }
-              const hist = [
-              m.motivo,
-              transfInfo,
-              m.motivo === 'Compra' ? `Fornecedor: ${m.fornecedor_origem}` : '',
-              m.motivo === 'Venda' || m.motivo === 'Abate' ? `Destino: ${m.destino_venda}` : '',
-              m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
-              m.observacoes].
-              filter(Boolean).join(' - ');
-              linhas.push({ data: formatarData(m.data_movimentacao), marca: m.marca || '', setor: m.setor_nome || '', entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+              linhas.push({
+                data: formatarData(m.data_movimentacao),
+                marca: m.marca || '',
+                setor: m.setor_nome || '',
+                tipo: m.tipo || '',
+                motivo: m.motivo || '',
+                categoria: m.categoria_animal || '',
+                categoria_nova: m.categoria_nova || '',
+                causa_morte: m.causa_morte || '',
+                fornecedor: m.fornecedor_origem || '',
+                comprador: m.destino_venda || '',
+                responsavel: m.responsavel || '',
+                observacoes: m.observacoes || '',
+                entradas: m.tipo === 'Entrada' ? qtd : '',
+                saidas: m.tipo === 'Saída' ? qtd : '',
+                saldo,
+              });
             });
             return (
               <>
@@ -1023,10 +1102,18 @@ export default function RelatorioMovimentacoesPecuaria() {
                         <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
                         {mostrarMarcaHistorico && <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>}
                         {mostrarSetorHistorico && <TableHead className="border border-black text-xs font-bold py-1">Setor</TableHead>}
+                        {colunasHistorico.tipo && <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>}
+                        {colunasHistorico.motivo && <TableHead className="border border-black text-xs font-bold py-1">Motivo</TableHead>}
+                        {colunasHistorico.categoria && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
+                        {colunasHistorico.categoria_nova && <TableHead className="border border-black text-xs font-bold py-1">Cat. Nova</TableHead>}
+                        {colunasHistorico.causa_morte && <TableHead className="border border-black text-xs font-bold py-1">Causa Morte</TableHead>}
+                        {colunasHistorico.fornecedor && <TableHead className="border border-black text-xs font-bold py-1">Fornecedor</TableHead>}
+                        {colunasHistorico.comprador && <TableHead className="border border-black text-xs font-bold py-1">Comprador</TableHead>}
+                        {colunasHistorico.responsavel && <TableHead className="border border-black text-xs font-bold py-1">Responsável</TableHead>}
+                        {colunasHistorico.observacoes && <TableHead className="border border-black text-xs font-bold py-1">Observações</TableHead>}
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
-                        <TableHead className="border border-black text-xs font-bold py-1">Histórico</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1035,10 +1122,18 @@ export default function RelatorioMovimentacoesPecuaria() {
                           <TableCell className="border border-gray-300 text-xs py-1">{l.data}</TableCell>
                           {mostrarMarcaHistorico && <TableCell className="border border-gray-300 text-xs py-1">{l.marca}</TableCell>}
                           {mostrarSetorHistorico && <TableCell className="border border-gray-300 text-xs py-1">{l.setor}</TableCell>}
+                          {colunasHistorico.tipo && <TableCell className="border border-gray-300 text-xs py-1">{l.tipo}</TableCell>}
+                          {colunasHistorico.motivo && <TableCell className="border border-gray-300 text-xs py-1">{l.motivo}</TableCell>}
+                          {colunasHistorico.categoria && <TableCell className="border border-gray-300 text-xs py-1">{l.categoria}</TableCell>}
+                          {colunasHistorico.categoria_nova && <TableCell className="border border-gray-300 text-xs py-1">{l.categoria_nova}</TableCell>}
+                          {colunasHistorico.causa_morte && <TableCell className="border border-gray-300 text-xs py-1">{l.causa_morte}</TableCell>}
+                          {colunasHistorico.fornecedor && <TableCell className="border border-gray-300 text-xs py-1">{l.fornecedor}</TableCell>}
+                          {colunasHistorico.comprador && <TableCell className="border border-gray-300 text-xs py-1">{l.comprador}</TableCell>}
+                          {colunasHistorico.responsavel && <TableCell className="border border-gray-300 text-xs py-1">{l.responsavel}</TableCell>}
+                          {colunasHistorico.observacoes && <TableCell className="border border-gray-300 text-xs py-1">{l.observacoes}</TableCell>}
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
-                          <TableCell className="border border-gray-300 text-xs py-1">{l.historico}</TableCell>
                         </TableRow>
                     )}
                     </TableBody>
