@@ -96,6 +96,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false); // Mostrar Entradas/Saídas/Saldo nas células
   const [mostrarEntradasSaidasSintetico, setMostrarEntradasSaidasSintetico] = useState(true);
   const [mostrarMarcaHistorico, setMostrarMarcaHistorico] = useState(false);
+  const [mostrarSetorHistorico, setMostrarSetorHistorico] = useState(false);
 
   // Opções de linha para o eixo Y do relatório sintético (matriz)
   const EIXO_Y_OPCOES = [
@@ -352,7 +353,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     const linhas = [];
     let saldo = saldoInicial;
     if (inicio) {
-      linhas.push({ data: formatarData(dataInicio), marca: '', entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
+      linhas.push({ data: formatarData(dataInicio), marca: '', setor: '', entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
     }
     sorted.forEach((m) => {
       const qtd = m.quantidade_animais || 0;
@@ -368,11 +369,21 @@ export default function RelatorioMovimentacoesPecuaria() {
         m.motivo === 'Venda' || m.motivo === 'Abate' ? `Destino: ${m.destino_venda}` : '',
         m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
         m.observacoes].filter(Boolean).join(' - ');
-      linhas.push({ data: formatarData(m.data_movimentacao), marca: m.marca || '', entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+      linhas.push({ data: formatarData(m.data_movimentacao), marca: m.marca || '', setor: m.setor_nome || '', entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
     });
 
-    const header = mostrarMarcaHistorico ? ['Data', 'Marca', 'Entradas', 'Saídas', 'Saldo', 'Histórico'] : ['Data', 'Entradas', 'Saídas', 'Saldo', 'Histórico'];
-    const rows = linhas.map((l) => mostrarMarcaHistorico ? [l.data, l.marca ?? '', l.entradas, l.saidas, l.saldo, l.historico] : [l.data, l.entradas, l.saidas, l.saldo, l.historico]);
+    const headerCols = ['Data'];
+    if (mostrarMarcaHistorico) headerCols.push('Marca');
+    if (mostrarSetorHistorico) headerCols.push('Setor');
+    headerCols.push('Entradas', 'Saídas', 'Saldo', 'Histórico');
+    const header = headerCols;
+    const rows = linhas.map((l) => {
+      const row = [l.data];
+      if (mostrarMarcaHistorico) row.push(l.marca ?? '');
+      if (mostrarSetorHistorico) row.push(l.setor ?? '');
+      row.push(l.entradas, l.saidas, l.saldo, l.historico);
+      return row;
+    });
     const csvContent = [header, ...rows].map((row) =>
       row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(';')
     ).join('\n');
@@ -661,10 +672,16 @@ export default function RelatorioMovimentacoesPecuaria() {
             }
 
             {tipoRelatorio === 'historico' && (
-              <div className="flex items-center space-x-2 h-8">
-                <Checkbox id="mostrarMarcaHistorico" checked={mostrarMarcaHistorico} onCheckedChange={setMostrarMarcaHistorico} />
-                <label htmlFor="mostrarMarcaHistorico" className="text-xs cursor-pointer">Exibir Marca</label>
-              </div>
+              <>
+                <div className="flex items-center space-x-2 h-8">
+                  <Checkbox id="mostrarMarcaHistorico" checked={mostrarMarcaHistorico} onCheckedChange={setMostrarMarcaHistorico} />
+                  <label htmlFor="mostrarMarcaHistorico" className="text-xs cursor-pointer">Exibir Marca</label>
+                </div>
+                <div className="flex items-center space-x-2 h-8">
+                  <Checkbox id="mostrarSetorHistorico" checked={mostrarSetorHistorico} onCheckedChange={setMostrarSetorHistorico} />
+                  <label htmlFor="mostrarSetorHistorico" className="text-xs cursor-pointer">Exibir Setor</label>
+                </div>
+              </>
             )}
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar Filtros</Button>
           </div>
@@ -973,7 +990,7 @@ export default function RelatorioMovimentacoesPecuaria() {
             const linhas = [];
             let saldo = saldoInicial;
             if (inicio) {
-              linhas.push({ data: formatarData(dataInicio), marca: '', entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
+              linhas.push({ data: formatarData(dataInicio), marca: '', setor: '', entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
             }
             sorted.forEach((m) => {
               const qtd = m.quantidade_animais || 0;
@@ -992,7 +1009,7 @@ export default function RelatorioMovimentacoesPecuaria() {
               m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
               m.observacoes].
               filter(Boolean).join(' - ');
-              linhas.push({ data: formatarData(m.data_movimentacao), marca: m.marca || '', entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+              linhas.push({ data: formatarData(m.data_movimentacao), marca: m.marca || '', setor: m.setor_nome || '', entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
             });
             return (
               <>
@@ -1005,6 +1022,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                       <TableRow className="border-black">
                         <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
                         {mostrarMarcaHistorico && <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>}
+                        {mostrarSetorHistorico && <TableHead className="border border-black text-xs font-bold py-1">Setor</TableHead>}
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
@@ -1016,6 +1034,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                     <TableRow key={i} className="hover:bg-gray-50">
                           <TableCell className="border border-gray-300 text-xs py-1">{l.data}</TableCell>
                           {mostrarMarcaHistorico && <TableCell className="border border-gray-300 text-xs py-1">{l.marca}</TableCell>}
+                          {mostrarSetorHistorico && <TableCell className="border border-gray-300 text-xs py-1">{l.setor}</TableCell>}
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
