@@ -401,7 +401,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     if (colunasHistorico.comprador) headerCols.push('Comprador');
     if (colunasHistorico.responsavel) headerCols.push('Responsável');
     if (colunasHistorico.observacoes) headerCols.push('Observações');
-    headerCols.push('Entradas', 'Saídas', 'Saldo');
+    headerCols.push('Entradas', 'Saídas', 'Saldo', 'Histórico');
     const header = headerCols;
     const rows = linhas.map((l) => {
       const row = [l.data];
@@ -416,7 +416,7 @@ export default function RelatorioMovimentacoesPecuaria() {
       if (colunasHistorico.comprador) row.push(l.comprador);
       if (colunasHistorico.responsavel) row.push(l.responsavel);
       if (colunasHistorico.observacoes) row.push(l.observacoes);
-      row.push(l.entradas, l.saidas, l.saldo);
+      row.push(l.entradas, l.saidas, l.saldo, l.historico ?? '');
       return row;
     });
     const csvContent = [header, ...rows].map((row) =>
