@@ -154,7 +154,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     queryKey: ['movimentacoes-pecuaria-relatorio', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
-      return all.filter((m) => m.empresa_id === empresaSelecionadaId && !m.lote_id);
+      return all.filter((m) => m.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
