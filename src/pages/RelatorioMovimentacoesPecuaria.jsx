@@ -1072,6 +1072,14 @@ export default function RelatorioMovimentacoesPecuaria() {
                 const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
                 transfInfo = `de ${origem} → ${destino}`;
               }
+              const hist = [
+                m.motivo,
+                transfInfo,
+                m.motivo === 'Compra' ? `Fornecedor: ${m.fornecedor_origem}` : '',
+                m.motivo === 'Venda' || m.motivo === 'Abate' ? `Destino: ${m.destino_venda}` : '',
+                m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
+                m.observacoes,
+              ].filter(Boolean).join(' - ');
               linhas.push({
                 data: formatarData(m.data_movimentacao),
                 marca: m.marca || '',
@@ -1088,6 +1096,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                 entradas: m.tipo === 'Entrada' ? qtd : '',
                 saidas: m.tipo === 'Saída' ? qtd : '',
                 saldo,
+                historico: hist,
               });
             });
             return (
@@ -1114,6 +1123,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
                         <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                        <TableHead className="border border-black text-xs font-bold py-1">Histórico</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1134,6 +1144,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.entradas !== '' ? formatarNumero(l.entradas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1">{l.saidas !== '' ? formatarNumero(l.saidas) : ''}</TableCell>
                           <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(l.saldo)}</TableCell>
+                          <TableCell className="border border-gray-300 text-xs py-1">{l.historico}</TableCell>
                         </TableRow>
                     )}
                     </TableBody>
