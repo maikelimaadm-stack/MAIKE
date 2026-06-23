@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings } from "lucide-react";
+import { Printer, Settings, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -335,6 +335,57 @@ export default function RelatorioMovimentacoesPecuaria() {
   const totalSaidas = movimentacoesFiltradas.filter((m) => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
   const saldoPeriodo = totalEntradas - totalSaidas;
 
+  const exportarHistoricoExcel = () => {
+    const sorted = [...movimentacoesFiltradas].sort((a, b) => new Date(a.data_movimentacao || 0) - new Date(b.data_movimentacao || 0));
+    const inicio = dataInicio ? new Date(dataInicio) : null;
+    const matchesCommon = (m) => {
+      if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(m.tipo)) return false;
+      if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(m.categoria_animal)) return false;
+      if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(m.marca)) return false;
+      if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(m.motivo)) return false;
+      if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
+      return true;
+    };
+    const anteriores = inicio ? movimentacoesNormalizadas.filter((m) => matchesCommon(m) && new Date(m.data_movimentacao || 0) < new Date(dataInicio)) : [];
+    const saldoInicial = anteriores.reduce((s, m) => s + (m.tipo === 'Entrada' ? 1 : -1) * (m.quantidade_animais || 0), 0);
+    const linhas = [];
+    let saldo = saldoInicial;
+    if (inicio) {
+      linhas.push({ data: formatarData(dataInicio), entradas: '', saidas: '', saldo, historico: 'Saldo Anterior' });
+    }
+    sorted.forEach((m) => {
+      const qtd = m.quantidade_animais || 0;
+      if (m.tipo === 'Entrada') saldo += qtd; else saldo -= qtd;
+      let transfInfo = '';
+      if (m.motivo === 'Transferência entre Setores') {
+        const origem = m.setor_origem_nome || m.transferencia_origem || m.area_origem_nome || 'Origem não informada';
+        const destino = m.setor_destino_nome || m.transferencia_destino || m.area_destino_nome || 'Destino não informado';
+        transfInfo = `de ${origem} → ${destino}`;
+      }
+      const hist = [m.motivo, transfInfo,
+        m.motivo === 'Compra' ? `Fornecedor: ${m.fornecedor_origem}` : '',
+        m.motivo === 'Venda' || m.motivo === 'Abate' ? `Destino: ${m.destino_venda}` : '',
+        m.motivo === 'Morte' ? `Causa: ${m.causa_morte || 'Não informada'}` : '',
+        m.observacoes].filter(Boolean).join(' - ');
+      linhas.push({ data: formatarData(m.data_movimentacao), entradas: m.tipo === 'Entrada' ? qtd : '', saidas: m.tipo === 'Saída' ? qtd : '', saldo, historico: hist });
+    });
+
+    const header = ['Data', 'Entradas', 'Saídas', 'Saldo', 'Histórico'];
+    const rows = linhas.map((l) => [l.data, l.entradas, l.saidas, l.saldo, l.historico]);
+    const csvContent = [header, ...rows].map((row) =>
+      row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(';')
+    ).join('\n');
+
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `historico_movimentacoes_pecuarias_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="absolute inset-0 overflow-y-auto p-4 md:p-6 space-y-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 print:hidden">
@@ -342,10 +393,18 @@ export default function RelatorioMovimentacoesPecuaria() {
           <h1 className="text-xl font-bold text-slate-900">Relatório de Movimentações Pecuárias</h1>
           <p className="text-xs text-slate-600">Análise e impressão</p>
         </div>
-        <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-          <Printer className="w-3.5 h-3.5" />
-          Imprimir
-        </Button>
+        <div className="flex gap-2">
+          {tipoRelatorio === 'historico' && (
+            <Button onClick={exportarHistoricoExcel} size="sm" variant="outline" className="h-8 gap-1 text-xs border-emerald-600 text-emerald-700 hover:bg-emerald-50">
+              <Download className="w-3.5 h-3.5" />
+              Exportar Excel
+            </Button>
+          )}
+          <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Printer className="w-3.5 h-3.5" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
       {/* Filtros na Tela */}
