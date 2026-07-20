@@ -8,6 +8,7 @@ import { FiltroData, BotaoLimparFiltros } from "../components/relatorios/Filtros
 import { format } from "date-fns";
 import AutocompleteGenerico from "../components/financeiro/AutocompleteGenerico";
 import { getLocalEstoque, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
+import { impactoSaldo } from "@/services/estoqueService";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return "0,00";
@@ -77,8 +78,24 @@ export default function RelatorioKardex() {
   const produtoSelecionado = produtos.find(p => p.id === produtoId);
   const localSelecionado = locais.find(l => l.id === localEstoqueId);
 
+  const movimentacoesOrdenadas = useMemo(
+    () => [...movimentacoes].sort((a, b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao)),
+    [movimentacoes],
+  );
+
+  // Saldo de ABERTURA: soma de tudo que ocorreu ANTES da data inicial do filtro.
+  // (Antes o saldo progressivo começava em 0, ignorando o histórico anterior.)
+  const saldoAbertura = useMemo(() => {
+    if (!dataInicio) return 0;
+    const iDate = new Date(dataInicio);
+    iDate.setHours(0, 0, 0, 0);
+    return movimentacoesOrdenadas
+      .filter((m) => new Date(m.data_movimentacao) < iDate)
+      .reduce((saldo, m) => saldo + impactoSaldo(m, localEstoqueId || null), 0);
+  }, [movimentacoesOrdenadas, dataInicio, localEstoqueId]);
+
   const movimentacoesFiltradas = useMemo(() => {
-    return movimentacoes.filter(m => {
+    return movimentacoesOrdenadas.filter(m => {
       if (dataInicio) {
         const mDate = new Date(m.data_movimentacao);
         const iDate = new Date(dataInicio);
@@ -92,35 +109,18 @@ export default function RelatorioKardex() {
         if (mDate > fDate) return false;
       }
       return true;
-    }).sort((a, b) => new Date(a.data_movimentacao) - new Date(b.data_movimentacao));
-  }, [movimentacoes, dataInicio, dataFim]);
-
-  // Calcular saldo progressivo
-  const movimentacoesComSaldo = useMemo(() => {
-    let saldo = 0;
-    return movimentacoesFiltradas.map(m => {
-      const qtd = m.quantidade || 0;
-      if (m.tipo_movimentacao === 'Entrada') {
-        saldo += qtd;
-      } else if (m.tipo_movimentacao === 'Saída') {
-        saldo -= qtd;
-      } else if (m.tipo_movimentacao === 'Transferência') {
-        if (m.local_estoque_origem === localEstoqueId) {
-          saldo -= qtd;
-        } else if (m.local_estoque_destino === localEstoqueId) {
-          saldo += qtd;
-        }
-      } else if (m.tipo_movimentacao === 'Ajuste') {
-        const tipoSlug = String(m.tipo_detalhado || '').toLowerCase();
-        if (tipoSlug.includes('ajuste_positivo')) {
-          saldo += qtd;
-        } else {
-          saldo -= qtd;
-        }
-      }
-      return { ...m, saldo_apos: saldo };
     });
-  }, [movimentacoesFiltradas, localEstoqueId]);
+  }, [movimentacoesOrdenadas, dataInicio, dataFim]);
+
+  // Calcular saldo progressivo (partindo do saldo de abertura)
+  const movimentacoesComSaldo = useMemo(() => {
+    let saldo = saldoAbertura;
+    return movimentacoesFiltradas.map(m => {
+      const delta = impactoSaldo(m, localEstoqueId || null);
+      saldo += delta;
+      return { ...m, delta_saldo: delta, saldo_apos: saldo };
+    });
+  }, [movimentacoesFiltradas, localEstoqueId, saldoAbertura]);
 
   const limparFiltros = () => {
     setDataInicio("");
@@ -198,12 +198,10 @@ export default function RelatorioKardex() {
           </TableHeader>
           <TableBody>
             {movimentacoesComSaldo.map((m) => {
-              const tipoSlug = String(m.tipo_detalhado || '').toLowerCase();
-              const isEntrada = m.tipo_movimentacao === 'Entrada' || 
-                (m.tipo_movimentacao === 'Transferência' && m.local_estoque_destino === localEstoqueId) ||
-                (m.tipo_movimentacao === 'Ajuste' && tipoSlug.includes('ajuste_positivo'));
-              const qtdEntrada = isEntrada ? m.quantidade : 0;
-              const qtdSaida = !isEntrada ? m.quantidade : 0;
+              // delta_saldo já traz o sinal correto (entrada +, saída -, transferência por local)
+              const delta = m.delta_saldo || 0;
+              const qtdEntrada = delta > 0 ? delta : 0;
+              const qtdSaida = delta < 0 ? Math.abs(delta) : 0;
 
               return (
                 <TableRow key={m.id} className="hover:bg-gray-50">

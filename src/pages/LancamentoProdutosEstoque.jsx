@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
+import { registrarEntrada } from "@/services/estoqueService";
 
 export default function LancamentoProdutosEstoque() {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -13,7 +14,7 @@ export default function LancamentoProdutosEstoque() {
     queryKey: ["produtos_lanc_entrada", empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter((p) => !p.empresa_id || p.empresa_id === empresaSelecionadaId);
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -28,39 +29,68 @@ export default function LancamentoProdutosEstoque() {
   });
 
   const handleSubmit = async (dados) => {
+    const itens = dados.produtos || [];
+    if (itens.length === 0) {
+      toast.error("Adicione pelo menos um produto.");
+      return;
+    }
+
+    // Local de destino: o formulário emite os campos *_id/_nome
+    const localDestinoId = dados.local_estoque_destino_id || dados.local_estoque_destino || "";
+    const localDestinoNome = dados.local_estoque_destino_nome || dados.local_destino || "";
+    if (!localDestinoId) {
+      toast.error("Selecione o local de estoque de destino.");
+      return;
+    }
+
+    let usuario = null;
     try {
-      const produtos = dados.produtos || [];
-      if (!dados.tipo_movimentacao) dados.tipo_movimentacao = "Entrada";
+      usuario = await base44.auth.me();
+    } catch {
+      usuario = null;
+    }
 
-      // Cria uma movimentação por produto selecionado (mantendo padrão da entidade)
-      for (const p of produtos) {
-        await base44.entities.MovimentacaoEstoque.create({
-          empresa_id: empresaSelecionadaId,
-          tipo_movimentacao: "Entrada",
-          tipo_detalhado: dados.tipo_detalhado,
-          produto_id: p.produto_id,
-          produto_nome: p.produto_nome,
-          produto_codigo: p.produto_codigo,
-          unidade_medida: p.unidade_medida,
-          quantidade: p.quantidade,
-          valor_unitario: p.valor_unitario,
-          valor_total: p.valor_total,
-          local_estoque_destino: dados.local_estoque_destino || dados.local_estoque,
-          data_movimentacao: dados.data_movimentacao,
-          tipo_documento: dados.tipo_documento,
-          numero_documento: dados.numero_documento,
-          serie_documento: dados.serie_documento,
-          chave_documento: dados.chave_documento,
-          fornecedor_id: dados.fornecedor_id,
-          fornecedor_nome: dados.fornecedor_nome,
-          observacoes: dados.observacoes,
-          status: "Ativa",
-        });
+    let sucesso = 0;
+    const falhas = [];
+
+    // Registra cada entrada de forma COMPLETA (movimentação + lote FIFO + estoque_atual)
+    for (const p of itens) {
+      const produtoCompleto = produtos.find((prod) => prod.id === p.produto_id);
+      if (!produtoCompleto) {
+        falhas.push(`${p.produto_nome || "Produto"}: não encontrado`);
+        continue;
       }
+      try {
+        await registrarEntrada({
+          empresaId: empresaSelecionadaId,
+          userEmail: usuario?.email,
+          produto: produtoCompleto,
+          quantidade: p.quantidade,
+          custoUnitario: p.valor_unitario,
+          valorTotal: p.valor_total,
+          localDestinoId,
+          localDestinoNome,
+          tipoDetalhado: dados.tipo_detalhado,
+          tipoDocumento: dados.tipo_documento,
+          numeroDocumento: dados.numero_documento,
+          serieDocumento: dados.serie_documento,
+          chaveDocumento: dados.chave_documento,
+          dataDocumento: dados.data_documento,
+          dataMovimentacao: dados.data_movimentacao,
+          fornecedorId: dados.fornecedor_id,
+          fornecedorNome: dados.fornecedor_nome,
+          observacoes: dados.observacoes,
+        });
+        sucesso += 1;
+      } catch (e) {
+        falhas.push(`${p.produto_nome || produtoCompleto.nome_produto}: ${e.message}`);
+      }
+    }
 
-      toast.success(`${produtos.length} item(ns) lançados no estoque`);
-    } catch (e) {
-      toast.error(e.message);
+    if (sucesso > 0) toast.success(`${sucesso} item(ns) lançado(s) no estoque`);
+    if (falhas.length > 0) toast.error(`Falha em ${falhas.length} item(ns): ${falhas.join(" | ")}`);
+    if (sucesso > 0 && falhas.length === 0) {
+      setTimeout(() => window.history.back(), 600);
     }
   };
 

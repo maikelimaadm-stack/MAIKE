@@ -113,13 +113,16 @@ export default function LocaisEstoque() {
     mutationFn: async (ids) => {
       const prods = await base44.entities.Produto.list();
       const movs = await base44.entities.MovimentacaoEstoque.list();
+      const lotes = await base44.entities.EstoqueLoteNota.list();
       const pontosSupl = await base44.entities.PontoSuplementacao.list();
       for (const id of ids) {
         const l = locais.find(x => x.id === id);
         const depositoVinculado = pontosSupl.find((p) => p.local_estoque_id === id && p.categoria_ponto === "DEPOSITO");
         if (depositoVinculado) throw new Error(`❌ "${l?.nome}" pertence a um depósito do mapa. Exclua pelo mapa.`);
+        // Produto guarda o NOME do local; movimentações e lotes guardam o ID do local.
         if (prods.some(p => p.local_estoque === l?.nome)) throw new Error(`❌ "${l?.nome}" possui produtos vinculados!`);
-        if (movs.some(m => m.local_estoque_origem === l?.nome || m.local_estoque_destino === l?.nome)) throw new Error(`❌ "${l?.nome}" possui movimentações vinculadas!`);
+        if (movs.some(m => m.local_estoque_origem === id || m.local_estoque_destino === id)) throw new Error(`❌ "${l?.nome}" possui movimentações vinculadas!`);
+        if (lotes.some(le => le.local_estoque_id === id && (le.quantidade_disponivel || 0) > 0)) throw new Error(`❌ "${l?.nome}" possui saldo de estoque (lotes) vinculado!`);
         await base44.entities.LocalEstoque.delete(id);
       }
     },

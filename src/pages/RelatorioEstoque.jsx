@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getLocalEstoque as getLocalEstoqueUtil, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
+import { ehEntradaReal, ehSaidaReal } from "@/services/estoqueService";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "";
@@ -179,7 +180,7 @@ export default function RelatorioEstoque() {
   const categoriasUnicas = [...new Set(movimentacoes.map(m => m.produto_categoria))].filter(Boolean).sort();
   const locaisUnicos = [...new Set(movimentacoes.map(m => m.local_estoque_origem || m.local_estoque_destino))].filter(Boolean).sort();
   const fornecedoresUnicos = [...new Set(movimentacoes.map(m => m.fornecedor_nome))].filter(Boolean).sort();
-  const clientesUnicos = [...new Set(movimentacoes.map(m => m.cliente_nome || m.destino_responsavel))].filter(Boolean).sort();
+  const clientesUnicos = [...new Set(movimentacoes.map(m => m.cliente_nome))].filter(Boolean).sort();
   const centrosCustoUnicos = [...new Set(movimentacoes.map(m => m.centro_custo_nome))].filter(Boolean).sort();
   const tiposVinculoUnicos = [...new Set(movimentacoes.map(m => m.tipo_vinculo))].filter(Boolean).sort();
   
@@ -240,7 +241,7 @@ export default function RelatorioEstoque() {
       }
       if (fornecedoresSelecionados.length > 0 && !fornecedoresSelecionados.includes(m.fornecedor_nome)) return false;
       if (clientesSelecionados.length > 0) {
-        const cliente = m.cliente_nome || m.destino_responsavel;
+        const cliente = m.cliente_nome;
         if (!clientesSelecionados.includes(cliente)) return false;
       }
       if (centrosCustoSelecionados.length > 0 && !centrosCustoSelecionados.includes(m.centro_custo_nome)) return false;
@@ -288,7 +289,7 @@ export default function RelatorioEstoque() {
           case "categoria": valor = m.produto_categoria || "Sem categoria"; break;
           case "local": valor = getLocalEstoque(m) || "Sem local"; break;
           case "fornecedor": valor = m.fornecedor_nome || "Sem fornecedor"; break;
-          case "cliente": valor = m.cliente_nome || m.destino_responsavel || "Sem cliente"; break;
+          case "cliente": valor = m.cliente_nome || "Sem cliente"; break;
           case "centro_custo": valor = m.centro_custo_nome || "Sem centro de custo"; break;
           case "tipo_vinculo": valor = m.tipo_vinculo || "Sem vínculo"; break;
           case "vinculo": valor = getVinculo(m) || "Sem vínculo"; break;
@@ -341,9 +342,10 @@ export default function RelatorioEstoque() {
     setMostrarDetalhes(false);
   };
 
-  // Totais
-  const isEntrada = (m) => m.tipo_movimentacao === 'Entrada' || (m.tipo_movimentacao === 'Ajuste' && String(m.tipo_detalhado || '').toLowerCase().includes('ajuste_positivo'));
-  const isSaida = (m) => m.tipo_movimentacao === 'Saída' || (m.tipo_movimentacao === 'Ajuste' && !String(m.tipo_detalhado || '').toLowerCase().includes('ajuste_positivo'));
+  // Totais — usa a classificação central (corrige "Ajuste Positivo" contado como
+  // saída e evita contar em dobro as pernas de transferência interna).
+  const isEntrada = ehEntradaReal;
+  const isSaida = ehSaidaReal;
   const totalEntradas = movimentacoesFiltradas.filter(isEntrada).reduce((s, m) => s + (m.quantidade || 0), 0);
   const totalSaidas = movimentacoesFiltradas.filter(isSaida).reduce((s, m) => s + (m.quantidade || 0), 0);
   const valorTotalEntradas = movimentacoesFiltradas.filter(isEntrada).reduce((s, m) => s + (m.valor_total || 0), 0);
@@ -671,7 +673,7 @@ export default function RelatorioEstoque() {
                   case 'categoria': return m.produto_categoria || null;
                   case 'local_estoque': return getLocalEstoque(m) || null;
                   case 'fornecedor': return m.fornecedor_nome || null;
-                  case 'cliente': return m.cliente_nome || m.destino_responsavel || null;
+                  case 'cliente': return m.cliente_nome || null;
                   case 'tipo_vinculo': return m.tipo_vinculo || null;
                   case 'vinculo': return getVinculo(m) || null;
                   case 'centro_custo': return m.centro_custo_nome || null;
@@ -913,7 +915,7 @@ export default function RelatorioEstoque() {
                             {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarMoeda(m.valor_total)}</TableCell>}
                             {colunasVisiveis.includes('local_estoque') && <TableCell className="border border-gray-300 text-xs py-1">{getLocalEstoque(m)}</TableCell>}
                             {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_nome || ''}</TableCell>}
-                            {colunasVisiveis.includes('cliente') && <TableCell className="border border-gray-300 text-xs py-1">{m.cliente_nome || m.destino_responsavel || ''}</TableCell>}
+                            {colunasVisiveis.includes('cliente') && <TableCell className="border border-gray-300 text-xs py-1">{m.cliente_nome || ''}</TableCell>}
                             {colunasVisiveis.includes('documento') && <TableCell className="border border-gray-300 text-xs py-1">{m.numero_documento || ''}</TableCell>}
                             {colunasVisiveis.includes('centro_custo') && <TableCell className="border border-gray-300 text-xs py-1">{m.centro_custo_nome || ''}</TableCell>}
                             {colunasVisiveis.includes('tipo_vinculo') && <TableCell className="border border-gray-300 text-xs py-1">{m.tipo_vinculo || ''}</TableCell>}

@@ -1,5 +1,7 @@
 
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
@@ -11,14 +13,29 @@ const formatarNumero = (numero) => {
   return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-export default function FichaProduto({ produto, open, onClose }) {
+export default function FichaProduto({ produto, open, onClose, empresa: empresaProp = null }) {
+  const empresaSelecionadaId = typeof window !== "undefined" ? localStorage.getItem("empresa_selecionada_id") : null;
+
+  // Carrega a empresa selecionada para o cabeçalho (fallback quando não vem por prop)
+  const { data: empresaCarregada } = useQuery({
+    queryKey: ["empresa-ficha-produto", empresaSelecionadaId],
+    queryFn: async () => {
+      const empresas = await base44.entities.Empresa.list();
+      return empresas.find((e) => e.id === empresaSelecionadaId) || null;
+    },
+    enabled: !!empresaSelecionadaId && !empresaProp && open,
+  });
+
+  const empresa = empresaProp || empresaCarregada || null;
+
   if (!produto) return null;
 
   const handlePrint = () => {
     window.print();
   };
 
-  const estoqueAbaixoMinimo = (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
+  const estoqueAbaixoMinimo =
+    (produto.estoque_minimo || 0) > 0 && (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
   const margemLucro = produto.preco_custo > 0 
     ? (((produto.preco_venda - produto.preco_custo) / produto.preco_custo) * 100).toFixed(2) 
     : 0;
@@ -73,15 +90,26 @@ export default function FichaProduto({ produto, open, onClose }) {
           
           {/* Cabeçalho */}
           <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
-            <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-              alt="Fazenda Palmital"
-              className="h-16 print:h-20"
-            />
+            {empresa?.logotipo_url ? (
+              <img
+                src={empresa.logotipo_url}
+                alt={empresa.apelido || empresa.nome || "Logo"}
+                className="h-16 print:h-20 object-contain"
+              />
+            ) : (
+              <div />
+            )}
             <div className="text-right">
-              <h1 className="text-2xl font-bold">Fazenda Palmital</h1>
-              <p className="text-sm">Antonio Lemos Beraldo</p>
-              <p className="text-xs">Vila Bela da Ss. Trindade - MT</p>
+              <h1 className="text-2xl font-bold">{empresa?.nome || empresa?.apelido || "Empresa"}</h1>
+              {empresa?.apelido && empresa.apelido !== empresa.nome && (
+                <p className="text-sm">{empresa.apelido}</p>
+              )}
+              {empresa?.endereco && (
+                <p className="text-xs">
+                  {empresa.endereco}
+                  {empresa?.cidade && empresa?.estado ? `, ${empresa.cidade} - ${empresa.estado}` : ""}
+                </p>
+              )}
             </div>
           </div>
 
