@@ -10,6 +10,7 @@ import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatDatePtBr } from "../components/movimentacoes/utils/movimentacaoDisplayUtils";
+import { ehPernaTransferencia } from "@/services/estoqueService";
 
 const getNextNumeroLancamento = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
@@ -181,6 +182,22 @@ export default function MovimentacoesEstoque() {
     if (editingMovimentacao?.lancamento_origem_id && possuiBaixaFinanceira) {
       toast.error('Não é possível editar esta movimentação porque o financeiro já teve baixa.');
       return;
+    }
+
+    // Guarda: não permite editar uma ENTRADA cujo lote já foi parcialmente consumido
+    // por uma saída (a reversão zeraria o lote e perderia o saldo já consumido).
+    if (editingMovimentacao) {
+      for (const mov of movimentacoesEditadas) {
+        if (mov.tipo_movimentacao !== 'Entrada') continue;
+        const loteEntrada = estoqueLoteNota.find((lote) => lote.movimentacao_entrada_id === mov.id);
+        if (loteEntrada) {
+          const consumido = (loteEntrada.quantidade_entrada || 0) - (loteEntrada.quantidade_disponivel || 0);
+          if (consumido > 0.0001) {
+            toast.error('Não é possível editar: uma das entradas já teve parte do saldo consumida por uma saída. Estorne a saída antes de editar.');
+            return;
+          }
+        }
+      }
     }
 
     setShowSaveProgress(true);
@@ -428,8 +445,10 @@ export default function MovimentacoesEstoque() {
       }
 
       // ===== TRANSFERÊNCIA =====
+      // Transferência interna NÃO altera o estoque total do produto (Produto.estoque_atual),
+      // apenas move saldo de um local para outro. Registramos os lotes consumidos na origem
+      // para permitir estorno correto na exclusão.
       else if (tipo_detalhado === 'transferencia') {
-        estoqueDepois = estoqueAntes - item.quantidade;
         let lotesOrigem = await base44.entities.EstoqueLoteNota.filter({
           produto_id: item.produto_id,
           status: 'Disponivel',
@@ -440,15 +459,24 @@ export default function MovimentacoesEstoque() {
         let custoMedioTransf = item.valor_unitario || 0;
         let totalCusto = 0;
         let totalQtd = 0;
+        let lotesConsumidosTransf = [];
         for (const lote of lotesOrigem) {
           if (qtdRest <= 0) break;
           const consumir = Math.min(qtdRest, lote.quantidade_disponivel);
+          if (consumir <= 0) continue;
           totalCusto += consumir * (lote.custo_unitario || 0);
           totalQtd += consumir;
           const novoDisp = lote.quantidade_disponivel - consumir;
           await base44.entities.EstoqueLoteNota.update(lote.id, {
             quantidade_disponivel: novoDisp,
             status: novoDisp <= 0 ? 'Esgotado' : 'Disponivel'
+          });
+          lotesConsumidosTransf.push({
+            lote_id: lote.id,
+            numero_documento: lote.numero_documento || '',
+            fornecedor_nome: lote.fornecedor_nome || '',
+            quantidade_consumida: consumir,
+            custo_unitario: lote.custo_unitario || 0
           });
           qtdRest -= consumir;
         }
@@ -458,6 +486,7 @@ export default function MovimentacoesEstoque() {
           ...baseMov,
           lancamento_origem_id: lancamentosFinanceirosCriados[0]?.id || undefined,
           tipo_movimentacao: 'Saída',
+          lotes_consumidos: lotesConsumidosTransf,
           valor_unitario: custoMedioTransf,
           valor_total: item.quantidade * custoMedioTransf,
           local_estoque_origem: local_estoque_origem || '',
@@ -465,7 +494,7 @@ export default function MovimentacoesEstoque() {
           local_estoque_destino: local_estoque_destino || '',
           local_destino: local_destino || '',
           saldo_antes: estoqueAntes,
-          saldo_depois: estoqueDepois
+          saldo_depois: estoqueAntes
         });
         const loteTransferenciaExistente = editingMovimentacao ?
         lotesNotaRelacionadosEdicao.find((lote) => lote.produto_id === item.produto_id) :
@@ -645,22 +674,68 @@ export default function MovimentacoesEstoque() {
     movimentacoes.filter((m) => m.movimentacao_grupo_id === mov.movimentacao_grupo_id) :
     [mov];
 
-    for (const reg of registrosParaExcluir) {
-      const produto = produtos.find((p) => p.id === reg.produto_id);
-      if (produto) {
-        let novoEstoque = produto.estoque_atual || 0;
-        if (reg.tipo_movimentacao === 'Entrada') {
-          novoEstoque -= reg.quantidade;
-        } else if (reg.tipo_movimentacao === 'Saída') {
-          novoEstoque += reg.quantidade;
-        }
-        await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
+    // Estorna os lotes consumidos numa saída/transferência (restaura o saldo disponível)
+    const restaurarLotesConsumidos = async (reg) => {
+      if (!Array.isArray(reg.lotes_consumidos)) return;
+      for (const consumo of reg.lotes_consumidos) {
+        if (!consumo?.lote_id || !consumo?.quantidade_consumida) continue;
+        const loteArr = await base44.entities.EstoqueLoteNota.filter({ id: consumo.lote_id });
+        if (!loteArr?.length) continue;
+        const restaurado = (loteArr[0].quantidade_disponivel || 0) + consumo.quantidade_consumida;
+        await base44.entities.EstoqueLoteNota.update(consumo.lote_id, {
+          quantidade_disponivel: restaurado,
+          status: restaurado > 0 ? 'Disponivel' : 'Esgotado',
+        });
       }
-      await base44.entities.MovimentacaoEstoque.delete(reg.id);
+    };
+
+    // Ajusta Produto.estoque_atual buscando o valor FRESCO do banco (acumula em grupos)
+    const ajustarEstoqueAtual = async (produtoId, delta) => {
+      const prodArr = await base44.entities.Produto.filter({ id: produtoId });
+      if (!prodArr?.length) return;
+      const atual = prodArr[0].estoque_atual || 0;
+      await base44.entities.Produto.update(produtoId, { estoque_atual: Math.max(0, atual + delta) });
+    };
+
+    try {
+      for (const reg of registrosParaExcluir) {
+        if (ehPernaTransferencia(reg)) {
+          // Transferência interna: restaura lotes de origem, remove lote de destino,
+          // e NÃO mexe no estoque total (a transferência nunca alterou o total).
+          await restaurarLotesConsumidos(reg);
+          const lotesDestino = await base44.entities.EstoqueLoteNota.filter({ movimentacao_entrada_id: reg.id });
+          for (const ld of lotesDestino) {
+            await base44.entities.EstoqueLoteNota.delete(ld.id);
+          }
+        } else if (reg.tipo_movimentacao === 'Entrada') {
+          // Remove o lote de entrada, desde que ainda não tenha sido consumido
+          const lotesEntrada = await base44.entities.EstoqueLoteNota.filter({ movimentacao_entrada_id: reg.id });
+          for (const le of lotesEntrada) {
+            const consumido = (le.quantidade_entrada || 0) - (le.quantidade_disponivel || 0);
+            if (consumido > 0.0001) {
+              throw new Error('Não é possível excluir: esta entrada já teve parte do saldo consumida por uma saída. Estorne a saída primeiro.');
+            }
+            await base44.entities.EstoqueLoteNota.delete(le.id);
+          }
+          await ajustarEstoqueAtual(reg.produto_id, -(reg.quantidade || 0));
+        } else if (reg.tipo_movimentacao === 'Saída') {
+          await restaurarLotesConsumidos(reg);
+          await ajustarEstoqueAtual(reg.produto_id, reg.quantidade || 0);
+        }
+        await base44.entities.MovimentacaoEstoque.delete(reg.id);
+      }
+    } catch (e) {
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: ['estoque_lote_nota_movimentacao'] });
+      toast.error(e.message || 'Erro ao excluir.');
+      setDeleteConfirmId(null);
+      return;
     }
 
     queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
     queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    queryClient.invalidateQueries({ queryKey: ['estoque_lote_nota_movimentacao'] });
     toast.success('Registro excluído com sucesso!');
     setDeleteConfirmId(null);
   };
