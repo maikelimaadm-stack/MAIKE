@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck:raw": "tsc -p ./jsconfig.typecheck.json --pretty false",
     "typecheck": "npm run gate:types",
-    "test:gates": "node --test \"scripts/tests/gates/*.test.mjs\"",
+    "test:gates": "node scripts/tests/run-gate-tests.mjs",
     "test:smoke": "vitest run --config vitest.config.js",
     "gate:governance-paths": "node scripts/gates/gate-governance-paths.mjs",
     "gate:package-sync": "node scripts/gates/gate-package-sync.mjs",
