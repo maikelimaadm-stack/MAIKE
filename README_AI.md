@@ -22,7 +22,7 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missão atual** | **P0.1 — Product Scope Reset** (em correção final por P0.1-R2, após P0.1-R1) |
+| **Missão atual** | **P0.1 — Product Scope Reset** (entregue e certificada após P0.1-R2) |
 | **Próxima missão** | **P1 — Native Foundation Bootstrap** |
 | **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |

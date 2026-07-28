@@ -14,7 +14,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P0.1 — Product Scope Reset**, corrigida por **P0.1-R1** e **P0.1-R2** |
-| Estado da missão | **em correção final (P0.1-R2)** — certificada só depois da CI verde no HEAD final |
+| Estado da missão | **entregue e certificada após P0.1-R2** — `npm run verify:all` sai com 0, 12/12 etapas |
 | Próxima missão | P1 — Native Foundation Bootstrap |
 | Branch | `claude/maike-scope-reset-ona5vs` (PR #1, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
@@ -29,7 +29,7 @@ a rotação da chave do Google Maps** — ver OWNER-SECURITY-01 no relatório
 
 | Missão | Nome | Estado |
 |---|---|---|
-| P0 | Product Scope Reset | **em correção final (P0.1-R2)** |
+| P0 | Product Scope Reset | **entregue e certificada após P0.1-R2** |
 | P1 | Native Foundation Bootstrap | não iniciada |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
@@ -79,11 +79,17 @@ Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.
 
-CI em `.github/workflows/quality.yml`. O registro do HEAD final e da execução
-correspondente fica no corpo da PR #1 e em
-`docs/engineering/P0.1-R2-FINAL-CONTRACT-CLOSURE-REPORT.md` — um commit não pode
-conter o resultado da própria execução, então a referência é publicada depois
-que ela termina.
+CI em `.github/workflows/quality.yml`.
+
+| Commit | Conteúdo | Run | Resultado |
+|---|---|---|---|
+| `00faed0` | correção P0.1-R2 (código, gates, testes, documentação) | [30395240855](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30395240855) | **verde**, 12/12 |
+| HEAD atual | só esta atualização de estado | ver corpo da PR #1 | — |
+
+Um commit não pode conter o resultado da própria execução de CI. O commit
+funcional é `00faed0` e sua execução está registrada acima; a execução do commit
+de documentação que sucede a ele fica no corpo da PR #1, publicada depois de
+terminar.
 
 ## Débito conhecido
 
