@@ -33,29 +33,17 @@ import { useBebedouros } from "@/hooks/useBebedouros";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
+import { loadGoogleMaps, isGoogleMapsConfigured, GOOGLE_MAPS_MISSING_KEY_MESSAGE } from "@/lib/googleMaps";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
-let _gmapsPromise = null;
-const loadGoogleMapsScript = () => {
-  if (window.google?.maps?.Map) return Promise.resolve();
-  if (_gmapsPromise) return _gmapsPromise;
-  _gmapsPromise = new Promise((resolve, reject) => {
-    // Check if script tag already exists
-    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
-    if (existing) {existing.addEventListener('load', resolve);existing.addEventListener('error', reject);return;}
-    const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
-    s.async = true;s.defer = true;
-    s.onload = resolve;s.onerror = reject;
-    document.head.appendChild(s);
-  });
-  return _gmapsPromise;
-};
+const loadGoogleMapsScript = () => loadGoogleMaps('drawing,geometry');
 
 export default function MapaGeral() {
   const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
+  const [mapLoadError, setMapLoadError] = useState(
+    isGoogleMapsConfigured() ? null : GOOGLE_MAPS_MISSING_KEY_MESSAGE
+  );
   const [mapType, setMapType] = useState('satellite');
   const [showAreas, setShowAreas] = useState(true);
   const [showPontos, setShowPontos] = useState(true);
@@ -507,7 +495,10 @@ export default function MapaGeral() {
       mapInstanceRef.current = map;
       setMapType(initialMapType);
       google.maps.event.addListenerOnce(map, 'idle', () => setMapReady(true));
-    }).catch(() => toast.error('Erro ao carregar mapa.'));
+    }).catch((error) => {
+      setMapLoadError(error?.message || 'Erro ao carregar mapa.');
+      toast.error(error?.message || 'Erro ao carregar mapa.');
+    });
     return () => renderer.clearAll();
   }, []);
 
@@ -543,7 +534,7 @@ export default function MapaGeral() {
           mapViewRestoredRef.current = true;
           return;
         }
-      } catch {}
+      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     }
 
     const b = new google.maps.LatLngBounds();
@@ -991,7 +982,14 @@ export default function MapaGeral() {
           </div>
         </div>
 
-        {!mapReady &&
+        {!mapReady && mapLoadError &&
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 max-w-md bg-white px-6 py-4 rounded-lg shadow-2xl border border-amber-300">
+            <div className="font-semibold text-slate-800 text-sm mb-1">Mapa indisponível</div>
+            <p className="text-xs text-slate-600">{mapLoadError}</p>
+          </div>
+        }
+
+        {!mapReady && !mapLoadError &&
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full" />

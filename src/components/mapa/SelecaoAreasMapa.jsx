@@ -11,8 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-
-const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
 const CORES_DISPONIVEIS = [
 { nome: "Branco", cor: "#f8f9fa" },
@@ -106,13 +105,9 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
   });
 
   useEffect(() => {
-    const load = () => new Promise((resolve, reject) => {
-      if (window.google?.maps) return resolve();
-      const s = document.createElement('script');
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry`;
-      s.async = true;s.defer = true;s.onload = resolve;s.onerror = reject;document.head.appendChild(s);
-    });
-    load().then(() => setReady(true)).catch(() => toast.error('Erro ao carregar mapa'));
+    loadGoogleMaps('geometry').
+    then(() => setReady(true)).
+    catch((error) => toast.error(error?.message || 'Erro ao carregar mapa'));
   }, []);
 
   useEffect(() => {
