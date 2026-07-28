@@ -1,8 +1,8 @@
 # README — Ponto de Entrada para Agentes de IA
 
 **Status:** Oficial — pre-flight obrigatório antes de qualquer implementação
-**Versão:** 1.0.0
-**Repositório:** MAKGESTAO
+**Versão:** 2.0.0
+**Repositório:** MAIKE
 
 ---
 
@@ -20,27 +20,31 @@ e decisão vivem neste repositório.
 
 | Campo | Valor |
 |---|---|
-| **Programa ativo** | Independência da Base44 |
-| **Fase atual** | Fase 0 — Pré-requisitos |
-| **Próxima fase** | Fase 1 — Fundação do backend |
-| **Branch de trabalho** | `saas-migration` |
-| **Ponto de retorno** | tag `base44-freeze` |
-| **Tenancy** | Cliente único (D-01) |
-| **Molde arquitetural** | repositório PROJETOMG |
-| **Roadmap** | `docs/engineering/ROADMAP-SAAS.md` |
+| **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
+| **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
+| **Missão atual** | **P0.1 — Product Scope Reset** (entregue) |
+| **Próxima missão** | **P1 — Native Foundation Bootstrap** |
+| **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
+| **Escopo executável** | `config/mapa-manejo-scope.json` |
+| **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
+| **Roadmap** | `docs/engineering/ROADMAP.md` |
 
-### Inventário do legado
+O MAIKE **não é mais um ERP amplo**. Financeiro, fiscal, folha, máquinas,
+combustível, agrícola, safra, comercial, cotação, pesagens individuais,
+relatórios genéricos, dashboards paralelos, fichas personalizadas e editor visual
+**saíram do produto** e foram fisicamente excluídos (D-PROD-02).
+
+### Inventário atual
 
 | Métrica | Valor |
 |---|---|
-| Entidades Base44 | 87 |
-| Campos totais | 1.332 |
-| Entidades com `empresa_id` | 68 |
-| Páginas | 102 |
-| Funções de backend | 11 |
-| Chamadas ao SDK | 2.801 |
-| Repositórios existentes | 2 |
-| Linhas em `src/` | 116.217 |
+| Páginas | 16 |
+| Arquivos em `src/` | 231 |
+| Schemas Base44 | 38 |
+| Functions Base44 | 1 (`syncEntityReferences`) |
+| Arquivos em `src/` com SDK | 71 |
+
+Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
 ---
 
@@ -56,9 +60,10 @@ Antes de alterar **qualquer** arquivo, leia e verifique:
 | 3 | Regras de IA | `docs/constitution/08-REGRAS-DE-IA.md` |
 | 4 | Estado atual | `docs/engineering/CURRENT-STATE.md` |
 | 5 | Decisões | `docs/engineering/DECISIONS.md` |
-| 6 | Roadmap | `docs/engineering/ROADMAP-SAAS.md` |
+| 6 | Roadmap | `docs/engineering/ROADMAP.md` |
 | 7 | Registro de gates | `docs/engineering/GATE-REGISTRY.md` |
-| 8 | Comandos | `AGENTS.md` |
+| 8 | Escopo do produto | `config/mapa-manejo-scope.json` |
+| 9 | Comandos | `AGENTS.md` |
 
 **Se algum documento estiver desatualizado em relação ao código, atualize-o antes
 de prosseguir.**
@@ -67,11 +72,11 @@ de prosseguir.**
 
 ## Durante a implementação — três perspectivas
 
-Toda mudança deve ser analisada sob:
-
-### 1. Tenancy
-O dado é isolável por cliente? O índice suporta a consulta filtrada?
-Existe caminho em que `cliente_id` pode ser omitido?
+### 1. Escopo do produto
+A mudança serve ao Mapa Geral, ao manejo iniciado pelo Mapa Geral ou à
+configuração indispensável dessas capacidades? Se não, ela não entra
+(D-PROD-06). Em conflito entre preservar código antigo e cumprir o escopo,
+**o escopo do produto vence**.
 
 ### 2. Arquitetura
 Respeita o molde do PROJETOMG? Cria solução paralela a algo que já existe?
@@ -100,6 +105,7 @@ O agente **não deve**:
 - Afirmar que gate passou sem ter rodado
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
+- Ampliar `config/mapa-manejo-scope.json` sem aprovação humana
 
 ---
 
@@ -108,22 +114,33 @@ O agente **não deve**:
 | Tipo de missão | Comportamento |
 |---|---|
 | **Levantamento** | Somente leitura. Produz documento. Zero alteração de código |
-| **Fundação** | Só `backend/`. Não tocar em `src/` |
+| **Fundação** | Só a camada declarada na missão |
 | **Schema** | Só `backend/prisma/`. Um módulo por vez |
-| **Shim** | Só `src/api/`. Não alterar componentes |
-| **Migração de módulo** | Só o módulo declarado. Nunca dois ao mesmo tempo |
+| **Migração de capacidade** | Só a capacidade declarada. Nunca duas ao mesmo tempo |
 
 Quando a missão disser "não altere X", não altere X — **mesmo que encontre um bug**.
 Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ---
 
+## Etapa vermelha conhecida
+
+`npm run typecheck` **falha desde antes desta missão** e continua falhando. É
+`tsc -p ./jsconfig.json` com `checkJs: true` sobre código JavaScript sem tipos.
+Erros: 10.935 na `main`, 2.788 depois do P0.1 — a queda vem da exclusão de
+escopo, nenhum erro novo foi introduzido. Tratamento em P1 (DBT-03).
+**Não desabilite o gate nem edite `jsconfig.json` para esconder isso.**
+
+---
+
 ## Certificação de fim de missão
 
-Toda fase termina com relatório em `docs/FASE-N-RELATORIO.md` contendo:
+Toda missão termina com relatório em `docs/engineering/` contendo:
 
 1. Arquivos criados ou alterados
 2. Resultado de `npm run verify:all` (colado, não resumido)
 3. Divergências em relação ao molde do PROJETOMG, com justificativa
 4. Pendências e riscos identificados
 5. Decisões que precisam de aprovação humana
+
+Último relatório: `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md`.

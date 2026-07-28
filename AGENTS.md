@@ -7,45 +7,59 @@ npm install
 cp .env.example .env.local
 ```
 
-Backend:
+Preencha `VITE_GOOGLE_MAPS_API_KEY` em `.env.local`. Sem essa variável o Mapa
+Geral abre e mostra "Mapa indisponível" com a mensagem de configuração — não
+fica em branco.
 
-```bash
-cd backend
-npm install
-cp .env.example .env
-npx prisma generate
-```
+Não existe `backend/` ainda. Ele entra em **P3** — ver `docs/engineering/ROADMAP.md`.
 
 ## Desenvolvimento
 
 | Tarefa | Comando |
 |---|---|
 | Frontend | `npm run dev` |
-| Backend | `cd backend && npm run dev` |
 | Lint | `npm run lint` |
+| Typecheck | `npm run typecheck` |
 | Build | `npm run build` |
 
 ## Gates
 
+Todos os scripts vivem em `scripts/gates/`.
+
 | Gate | Comando | Verifica |
 |---|---|---|
-| Tenancy | `npm run gate:tenancy` | Todo model tem `cliente_id` |
-| Índices | `npm run gate:indices` | Índice composto e unique com `cliente_id` |
-| Base44 | `npm run gate:base44` | Referências só diminuem |
-| APIs | `npm run gate:apis` | Componente não acessa dado direto |
-| **Todos** | `npm run verify:all` | Roda os quatro |
+| Governança | `npm run gate:governance-paths` | Documentos, links e gates coerentes |
+| Escopo do produto | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro do manifesto |
+| Integridade de imports | `npm run gate:import-integrity` | Nenhum import quebrado em `src/` |
+| Segredos | `npm run gate:no-secrets` | Nenhuma chave literal; nenhum `.env` versionado |
+| Base44 | `npm run gate:base44` | Acoplamento só diminui |
+| **Todos** | `npm run verify:all` | Os 5 gates + lint + typecheck + build |
 
-## Prisma
+Baseline da catraca: `scripts/gates/base44-baseline.json`.
+Para regravá-lo depois de uma redução real:
 
-| Tarefa | Comando |
-|---|---|
-| Validar schema | `cd backend && npx prisma validate` |
-| Gerar client | `cd backend && npx prisma generate` |
-| Criar migration | `cd backend && npx prisma migrate dev --name <nome>` |
+```bash
+node scripts/gates/gate-base44-ratchet.mjs --update
+```
+
+## Escopo do produto
+
+O escopo executável é `config/mapa-manejo-scope.json`. Ele declara páginas,
+rotas manuais, schemas e functions permitidos, além dos domínios proibidos.
+
+Para adicionar uma página ou entidade:
+
+1. Provar a necessidade pelo fechamento de dependências
+2. Registrar a decisão em `docs/engineering/DECISIONS.md`
+3. Só então atualizar o manifesto
+4. Rodar `npm run verify:all`
 
 ## Armadilhas
 
-- **`base44/` é somente leitura.** É a especificação de origem das 87 entidades.
-- **Branch.** Todo trabalho em `saas-migration`. A `main` está congelada em `base44-freeze`.
-- **Baseline do gate de Base44.** Está em `scripts/gates/base44-baseline.json`.
-  Só pode ser atualizado para **baixo**. Aumentar é violação.
+- **`base44/` é a especificação de origem.** Não altere o desenho de um schema
+  preservado. Excluir schema fora do escopo é permitido por D-PROD-02.
+- **Nenhum schema ou function Base44 novo.** A Base44 só sai (D-PROD-04).
+- **`npm run typecheck` está vermelho desde antes do P0.1** (DBT-03). Não
+  desabilite o gate nem edite `jsconfig.json` para esconder isso.
+- **Branch.** Uma missão, uma branch, um PR. Não trabalhe na `main`.
+- **Menu e rotas têm SSOT único**: `src/lib/menuConfig.js` e `src/pages.config.js`.

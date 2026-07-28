@@ -1,5 +1,5 @@
 {
-  "name": "base44-app",
+  "name": "maike-mapa-manejo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc -p ./jsconfig.json",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gate:governance-paths": "node scripts/gates/gate-governance-paths.mjs",
+    "gate:product-scope": "node scripts/gates/gate-product-scope.mjs",
+    "gate:import-integrity": "node scripts/gates/gate-import-integrity.mjs",
+    "gate:no-secrets": "node scripts/gates/gate-no-hardcoded-secrets.mjs",
+    "gate:base44": "node scripts/gates/gate-base44-ratchet.mjs",
+    "verify:all": "node scripts/gates/verify-all.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.40",
