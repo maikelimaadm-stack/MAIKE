@@ -5,7 +5,7 @@ import { MapPin, Trash2, Check, X, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadGoogleMaps } from '@/lib/googleMaps';
 
-const loadGoogleMapsScript = () => loadGoogleMaps('geometry');
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar }) {
   const [pontos, setPontos] = useState([]);

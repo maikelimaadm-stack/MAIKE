@@ -20,7 +20,7 @@ import {
 import FormularioPonto from "./FormularioPonto";
 import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const loadGoogleMapsScript = () => loadGoogleMaps('drawing,geometry');
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) => {
   if (!marker || !iconUrl || !window.google?.maps) return;

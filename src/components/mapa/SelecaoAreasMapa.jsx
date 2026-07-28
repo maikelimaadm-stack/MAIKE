@@ -105,7 +105,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
   });
 
   useEffect(() => {
-    loadGoogleMaps('geometry').
+    loadGoogleMaps().
     then(() => setReady(true)).
     catch((error) => toast.error(error?.message || 'Erro ao carregar mapa'));
   }, []);

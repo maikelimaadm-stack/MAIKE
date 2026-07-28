@@ -35,7 +35,7 @@ import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSup
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 import { loadGoogleMaps, isGoogleMapsConfigured, GOOGLE_MAPS_MISSING_KEY_MESSAGE } from "@/lib/googleMaps";
 
-const loadGoogleMapsScript = () => loadGoogleMaps('drawing,geometry');
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 export default function MapaGeral() {
   const queryClient = useQueryClient();

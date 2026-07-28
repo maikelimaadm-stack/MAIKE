@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { MapPin } from "lucide-react";
 import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const loadGoogleMapsScript = () => loadGoogleMaps('geometry');
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 const calcCentroid = (paths) => {
   let cLat = 0, cLng = 0, sA = 0;

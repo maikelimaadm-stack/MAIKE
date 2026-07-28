@@ -7,7 +7,7 @@ import { X, MapPin, Check } from "lucide-react";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const loadGoogleMapsScript = () => loadGoogleMaps('geometry');
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 42) => {
   if (!marker || !iconUrl || !window.google?.maps) return;
