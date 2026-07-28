@@ -41,7 +41,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
       return;
     }
 
-    const text = geoJsonText.replace(/\u0000/g, '').replace(/\ufeff/g, '').trim();
+    const text = geoJsonText.split('\u0000').join('').replace(/\ufeff/g, '').trim();
     const isKml = text.startsWith('<') && text.toLowerCase().includes('<kml');
 
     setImporting(true);
@@ -119,7 +119,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
           const pm = placemarks[i];
           const nameNode = pm.getElementsByTagName('name')[0];
           const rawName = (nameNode?.textContent || `Item ${i + 1}`).trim();
-          const nome = rawName.replace(/\u0000/g, '').replace(/\ufeff/g, '').trim();
+          const nome = rawName.split('\u0000').join('').replace(/\ufeff/g, '').trim();
 
           const polygon = pm.getElementsByTagName('Polygon')[0];
           const line = pm.getElementsByTagName('LineString')[0];
@@ -128,7 +128,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
           try {
             if (polygon) {
               const coordsNode = polygon.getElementsByTagName('coordinates')[0];
-              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').replace(/\u0000/g, ''));
+              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').split('\u0000').join(''));
               if (coordsLL.length >= 3) {
                 const areaHa = Number(polygonAreaHa(coordsLL).toFixed(2));
                 await base44.entities.AreaPastagem.create({
@@ -150,7 +150,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               }
             } else if (line) {
               const coordsNode = line.getElementsByTagName('coordinates')[0];
-              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').replace(/\u0000/g, ''));
+              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').split('\u0000').join(''));
               if (coordsLL.length >= 2) {
                 await base44.entities.LinhaGeografica.create({
                   empresa_id: empresaSelecionadaId,
@@ -169,7 +169,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               }
             } else if (point) {
               const coordsNode = point.getElementsByTagName('coordinates')[0];
-              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').replace(/\u0000/g, ''));
+              const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').split('\u0000').join(''));
               if (coordsLL[0]) {
                 await base44.entities.PontoReferencia.create({
                   empresa_id: empresaSelecionadaId,

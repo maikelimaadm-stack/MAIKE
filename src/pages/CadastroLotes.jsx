@@ -356,8 +356,7 @@ export default function CadastroLotes() {
         await loteRepository.ensureDeleteAllowed(id);
         await deleteLoteMutation.mutateAsync(id);
         deletedCount += 1;
-      } catch {
-      }
+      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     }
 
     if (deletedCount > 0) {

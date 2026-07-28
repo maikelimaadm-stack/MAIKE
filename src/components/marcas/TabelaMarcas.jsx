@@ -54,12 +54,12 @@ export default function TabelaMarcas({ marcas = [], onEdit, onDelete, isLoading,
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem(`${STORAGE}_ordem`);
-    if (saved) try { return JSON.parse(saved); } catch {}
+    if (saved) try { return JSON.parse(saved); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     return COLUNAS.map(c => c.id);
   });
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem(`${STORAGE}_visiveis`);
-    if (saved) try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VIS.filter(id => COLUNAS.find(c => c.id === id)?.fixo)])); } catch {}
+    if (saved) try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VIS.filter(id => COLUNAS.find(c => c.id === id)?.fixo)])); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     return DEFAULT_VIS;
   });
 

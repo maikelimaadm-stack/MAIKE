@@ -83,8 +83,7 @@ export default function GruposAtividades() {
         await ensureDeleteAllowed(base44, "GrupoAtividade", id);
         await deleteGrupoMutation.mutateAsync(id);
         deletedCount += 1;
-      } catch {
-      }
+      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     }
 
     if (deletedCount > 0) {

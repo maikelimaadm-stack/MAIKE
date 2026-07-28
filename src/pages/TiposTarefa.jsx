@@ -80,8 +80,7 @@ export default function TiposTarefa() {
         await ensureDeleteAllowed(base44, "TipoTarefa", id);
         await deleteTipoMutation.mutateAsync(id);
         deletedCount += 1;
-      } catch {
-      }
+      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     }
     if (deletedCount > 0) {
       queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
