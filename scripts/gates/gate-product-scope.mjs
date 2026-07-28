@@ -4,6 +4,13 @@
 // Códigos: P01-SCOPE-ROUTE · P01-SCOPE-ENTITY · P01-SCOPE-FUNCTION
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import {
+  listFunctionNames,
+  readFunctionSource,
+  extractFunctionEntities,
+  findForbiddenEntityStrings,
+  findInvokedFunctions,
+} from './lib/base44-functions.mjs';
 
 const MANIFESTO = 'config/mapa-manejo-scope.json';
 const PAGES_CONFIG = 'src/pages.config.js';
@@ -26,6 +33,7 @@ const allowedPages = new Set(scope.allowedPages || []);
 const allowedManualRoutes = new Set(scope.allowedManualRoutes || []);
 const allowedEntities = new Set(scope.allowedBase44Entities || []);
 const allowedFunctions = new Set(scope.allowedBase44Functions || []);
+const forbiddenEntities = scope.forbiddenBase44Entities || [];
 const forbidden = scope.forbiddenDomains || [];
 
 const ler = (caminho) => existsSync(caminho) ? readFileSync(caminho, 'utf8') : null;
@@ -133,6 +141,44 @@ if (existsSync(FUNCTIONS_DIR)) {
   }
 } else if (allowedFunctions.size > 0) {
   registrar('P01-SCOPE-FUNCTION', `${FUNCTIONS_DIR} não encontrado, mas o manifesto exige functions`);
+}
+
+// 8. Fechamento de entidades DENTRO das functions permitidas.
+//    Não basta a pasta existir: o código não pode citar schema fora do manifesto.
+for (const nome of listFunctionNames(FUNCTIONS_DIR)) {
+  const source = readFunctionSource(nome, FUNCTIONS_DIR);
+  if (!source.trim()) {
+    registrar('P01-SCOPE-FUNCTION', `function ${nome} não tem código legível`);
+    continue;
+  }
+
+  const { sources, targets, dynamic } = extractFunctionEntities(source);
+
+  for (const entidade of sources) {
+    if (!allowedEntities.has(entidade)) {
+      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: chave-fonte de propagação fora do manifesto: ${entidade}`);
+    }
+  }
+  for (const entidade of targets) {
+    if (!allowedEntities.has(entidade)) {
+      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: destino de propagação fora do manifesto: ${entidade}`);
+    }
+  }
+  for (const entidade of dynamic) {
+    if (!allowedEntities.has(entidade)) {
+      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: acesso dinâmico a entidade fora do manifesto: ${entidade}`);
+    }
+  }
+
+  for (const entidade of findForbiddenEntityStrings(source, forbiddenEntities)) {
+    registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: cita entidade excluída em código executável: ${entidade}`);
+  }
+
+  for (const invocada of findInvokedFunctions(source)) {
+    if (!allowedFunctions.has(invocada)) {
+      registrar('P01-SCOPE-FUNCTION', `${nome}: invoca function fora do manifesto: ${invocada}`);
+    }
+  }
 }
 
 if (falhas.length) {
