@@ -73,7 +73,7 @@ Baselines mecânicos: `scripts/gates/base44-baseline.json` e
 
 12 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
 Todos os gates têm teste unitário com casos de falha em `scripts/tests/gates/`.
-CI em `.github/workflows/quality.yml`.
+CI em `.github/workflows/quality.yml` — run `30378291983` **verde**, 12/12 etapas.
 
 ## Débito conhecido
 
