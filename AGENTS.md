@@ -34,7 +34,7 @@ Todos os scripts vivem em `scripts/gates/`.
 | Testes dos gates | `npm run test:gates` | Os próprios gates, com casos de falha |
 | Governança | `npm run gate:governance-paths` | Documentos, links e gates coerentes |
 | Package/lock | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem |
-| Escopo do produto | `npm run gate:product-scope` | Rotas, menu, schemas, functions **e entidades dentro das functions** |
+| Escopo do produto | `npm run gate:product-scope` | Rotas, menu, schemas, functions **e entidades dentro das functions** (por AST) |
 | Fechamento de código | `npm run gate:source-closure` | Nenhum arquivo executável órfão em `src/` |
 | Integridade de imports | `npm run gate:import-integrity` | Nenhum import quebrado em `src/` |
 | Segredos | `npm run gate:no-secrets` | Nenhum segredo em arquivo versionado; nenhum `.env` |
@@ -51,9 +51,16 @@ sozinho. Execução normal nunca escreve arquivo.
 # só grava se não houver regressão E houver pelo menos uma redução
 node scripts/gates/gate-base44-ratchet.mjs --update
 node scripts/gates/gate-typecheck-ratchet.mjs --update
+
+# mudança consciente de jsconfig.typecheck.json ou de versão do TypeScript
+node scripts/gates/gate-typecheck-ratchet.mjs --rebase-contract
 ```
 
 `scripts/gates/base44-baseline.json` · `scripts/gates/typecheck-baseline.json`
+
+O baseline de tipos também grava o hash canônico da configuração, o comando e a
+versão do compilador (D-PROD-13). Reduzir a cobertura reprova com
+`P01-TYPE-CONTRACT` — nem `--rebase-contract` aceita.
 
 ## Escopo do produto
 
@@ -73,8 +80,12 @@ Para adicionar uma página ou entidade:
   preservado. Excluir schema fora do escopo é permitido por D-PROD-02.
 - **Nenhum schema ou function Base44 novo.** A Base44 só sai (D-PROD-04).
 - **`gate:types` verde significa "a dívida não cresceu", não "sem erros".**
-  São 2.803 diagnósticos versionados (DBT-03). Veja os reais com
-  `npm run typecheck:raw`. Não afrouxe `jsconfig.typecheck.json`.
+  São 2.808 diagnósticos versionados (DBT-03). Veja os reais com
+  `npm run typecheck:raw`. Afrouxar `jsconfig.typecheck.json` não passa:
+  a configuração está no baseline (D-PROD-13).
+- **Function Base44 não pode indexar `entities` com variável.** Use acesso
+  literal ou um registro literal local — senão `gate:product-scope` reprova com
+  `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` (D-PROD-15).
 - **Arquivo órfão reprova** (`gate:source-closure`). Remova-o ou justifique em
   `orphanAllowlist` com consumidor dinâmico real — "pode ser útil depois" não
   é justificativa.

@@ -1,8 +1,47 @@
 {
-  "version": 1,
-  "project": "./jsconfig.typecheck.json",
-  "command": "tsc -p ./jsconfig.typecheck.json --pretty false --noEmit",
-  "total": 2803,
+  "version": 2,
+  "projectPath": "jsconfig.typecheck.json",
+  "projectSha256": "480480455bfedb8482f32dff32c92b087d43af4f1f220b528ca4db7b67c449a0",
+  "effectiveCommand": "tsc -p ./jsconfig.typecheck.json --pretty false --noEmit",
+  "typescriptVersion": "5.9.3",
+  "coverageContract": {
+    "checkJs": true,
+    "include": [
+      "src/**/*.js",
+      "src/**/*.jsx",
+      "src/**/*.ts",
+      "src/**/*.tsx"
+    ],
+    "exclude": [
+      "coverage",
+      "dist",
+      "dist-ssr",
+      "node_modules"
+    ],
+    "files": null,
+    "requiredPatterns": [
+      "src/**/*.js",
+      "src/**/*.jsx",
+      "src/**/*.ts",
+      "src/**/*.tsx"
+    ],
+    "protectedDirs": [
+      "src/components/ui",
+      "src/api",
+      "src/lib",
+      "src/services"
+    ],
+    "allowedExcludeRoots": [
+      "node_modules",
+      "dist",
+      "dist-ssr",
+      "coverage"
+    ],
+    "configFiles": [
+      "jsconfig.typecheck.json"
+    ]
+  },
+  "total": 2808,
   "byFile": {
     "src/components/bebedouros/BebedouroTimeline.jsx": 5,
     "src/components/bebedouros/DetalhesBebedouro.jsx": 4,
@@ -133,7 +172,7 @@
     "src/Layout.jsx": 25,
     "src/lib/app-params.js": 3,
     "src/lib/AuthContext.jsx": 3,
-    "src/lib/googleMaps.js": 1,
+    "src/lib/googleMaps.js": 6,
     "src/lib/installDeleteDialogInterceptor.js": 4,
     "src/lib/menuConfig.js": 1,
     "src/lib/offlineEntitySync.js": 7,
@@ -1442,7 +1481,8 @@
     "src/lib/AuthContext.jsx|TS2339|Property 'data' does not exist on type 'Error'.": 1,
     "src/lib/AuthContext.jsx|TS2339|Property 'status' does not exist on type 'Error'.": 1,
     "src/lib/AuthContext.jsx|TS2554|Expected 1 arguments, but got 0.": 1,
-    "src/lib/googleMaps.js|TS2339|Property 'google' does not exist on type 'Window & typeof globalThis'.": 1,
+    "src/lib/googleMaps.js|TS2339|Property 'gm_authFailure' does not exist on type 'Window & typeof globalThis'.": 4,
+    "src/lib/googleMaps.js|TS2339|Property 'google' does not exist on type 'Window & typeof globalThis'.": 2,
     "src/lib/installDeleteDialogInterceptor.js|TS2339|Property '__deleteDialogInterceptorInstalled' does not exist on type 'Window & typeof globalThis'.": 2,
     "src/lib/installDeleteDialogInterceptor.js|TS2339|Property 'description' does not exist on type 'number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | (() => ReactNode)'. Property 'description' does not exist on type 'number'.": 1,
     "src/lib/installDeleteDialogInterceptor.js|TS2339|Property 'message' does not exist on type 'number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | (() => ReactNode)'. Property 'message' does not exist on type 'number'.": 1,

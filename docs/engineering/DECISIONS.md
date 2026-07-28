@@ -253,4 +253,108 @@ futuro" não é justificativa.
 existiam para eles. A decisão do P0.1 de preservar `src/components/ui/**`
 integralmente fica restrita ao que a cadeia preservada realmente importa.
 
-<!-- Próxima decisão: D-PROD-13 -->
+---
+
+## D-PROD-13 — Baseline protege a configuração, não só os resultados
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R2
+
+**Decisão:** o baseline da catraca de tipos passa a gravar e validar
+`projectPath`, `projectSha256` (hash canônico do arquivo de projeto e da cadeia
+local de `extends`, sem caminho absoluto), `effectiveCommand`,
+`typescriptVersion` e `coverageContract`. Além disso, a configuração **atual** é
+validada mecanicamente contra invariantes de cobertura: `checkJs: true`,
+`include` não vazio cobrindo `src/**/*.{js,jsx,ts,tsx}`, nenhuma exclusão que
+alcance `src/components/ui`, `src/api`, `src/lib` ou `src/services`, e exclusões
+restritas a `node_modules`, `dist`, `dist-ssr`, `coverage` e fixtures fora de
+`src/`.
+
+**Justificativa:** a auditoria de P0.1-R2 mostrou que o gate validava apenas o
+*caminho* do projeto. Mantendo o mesmo nome de arquivo e trocando o conteúdo por
+`{"compilerOptions":{"checkJs":false},"include":[]}`, os diagnósticos cairiam a
+zero e a catraca ficaria verde sem nenhuma melhora real. Um número de dívida só
+significa alguma coisa junto da cobertura que o produziu.
+
+**Consequência:** três códigos novos — `P01-TYPE-CONTRACT` (a configuração atual
+viola a cobertura obrigatória), `P01-TYPE-CONFIG-DRIFT` (divergência em relação
+ao baseline) e `P01-TYPE-VERSION-DRIFT` (mudança de versão do compilador).
+Mudança consciente usa a flag separada `--rebase-contract`; `--update` continua
+sendo só para diagnósticos, após redução e sem regressão. A cobertura
+obrigatória **não é rebaseável**. O schema do baseline vai para a versão 2, e os
+testes passam a executar o gate real em projetos temporários com `tsc` de
+verdade — 22 casos ponta a ponta.
+
+---
+
+## D-PROD-14 — O scanner de segredos avalia o valor, não a linha
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R2
+
+**Decisão:** `gate:no-secrets` deixa de descartar a linha inteira quando ela
+contém um marcador de máscara. Cada detector declara qual grupo do match é o
+valor do segredo, e a decisão de "mascarado" olha apenas para esse valor.
+
+**Justificativa:** o atalho `if (MASKED.test(linha)) return;` rodava antes das
+regras. Bastava citar `import.meta.env`, `process.env`, `EXAMPLE`,
+`PLACEHOLDER` ou `SUA_CHAVE` na mesma linha para esconder um segredo verdadeiro
+— exatamente o padrão `const key = import.meta.env.K || "AIza…";` que a missão
+P0.1 tinha acabado de remover do produto.
+
+**Consequência:** fallback literal, placeholder ao lado de segredo real e
+comentário `// EXAMPLE` deixam de isentar. Leitura de variável de ambiente sem
+fallback e placeholder puro continuam permitidos. O relato segue sendo
+`arquivo:linha + tipo`, sem nunca imprimir o valor. A primeira execução do gate
+endurecido reprovou uma fixture do próprio repositório de testes, escrita como
+literal em arquivo versionado — a fixture passou a ser construída em tempo de
+execução.
+
+---
+
+## D-PROD-15 — Fechamento de escopo por AST, não por formatação
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R2
+
+**Decisão:** a análise das functions Base44 passa a usar a AST do TypeScript.
+Acesso computado com valor não literal (`entities[nome]`,
+`functions.invoke(nome)`) reprova com
+`P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE`.
+
+**Justificativa:** a extração anterior dependia de
+`^ {2}([A-Za-z_]\w*)\s*:\s*\[` — quatro espaços, tabulação ou chave entre aspas
+escapavam do gate. Indentação não pode decidir se o escopo do produto está
+fechado. E um nome de entidade que só existe em tempo de execução não é
+verificável: afirmar fechamento sobre ele seria mentira.
+
+**Consequência:** `syncEntityReferences` deixou de indexar o SDK com nome
+dinâmico. As 14 entidades que a function pode tocar — exatamente a união das
+chaves-fonte e dos destinos de `PROPAGATION_RULES` — vivem num registro literal
+(`buildEntityRegistry`), e o nome dinâmico indexa esse mapa local, cujo domínio
+está visível no código. Comportamento preservado: nome desconhecido devolve
+nulo, como o `?.[]` fazia. O `typescript`, que já era dependência de
+desenvolvimento, passa a ser usado também pelos gates.
+
+---
+
+## D-PROD-16 — Google Maps só está carregado com as capacidades prontas
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R2
+
+**Decisão:** `loadGoogleMaps` só resolve quando `google.maps.Map`,
+`google.maps.geometry` e `google.maps.drawing` estão disponíveis. Depois do
+evento `load`, o loader observa as capacidades de forma limitada até o timeout
+total; se seguir incompleto, rejeita com o código novo `MAPS_SDK_INCOMPLETE`,
+remove o script e limpa a promise.
+
+**Justificativa:** `onLoad` chamava `succeed()` sem verificar nada, e
+`dataset.loaded === 'true'` resolvia sozinho. O produto declarava "mapa pronto"
+com `window.google` inexistente, e a promise resolvida ficava em cache — toda
+chamada seguinte herdava o mesmo falso sucesso, sem retentativa possível. Havia
+até um teste formalizando esse comportamento; ele foi corrigido.
+
+**Consequência:** `dataset.loaded` vira pista, nunca prova. Script com o ID
+correto e URL fora de `https://maps.googleapis.com/maps/api/js`, ou com
+libraries incompletas, é inválido. `window.gm_authFailure` derruba a carga em
+andamento, encadeando e restaurando o handler anterior. A chave continua fora de
+qualquer log ou mensagem de erro, com teste específico.
+
+<!-- Próxima decisão: D-PROD-17 -->

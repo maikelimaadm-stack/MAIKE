@@ -22,7 +22,7 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missão atual** | **P0.1 — Product Scope Reset** (entregue e certificada, corrigida por P0.1-R1) |
+| **Missão atual** | **P0.1 — Product Scope Reset** (em correção final por P0.1-R2, após P0.1-R1) |
 | **Próxima missão** | **P1 — Native Foundation Bootstrap** |
 | **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
@@ -44,7 +44,8 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Functions Base44 | 1 (`syncEntityReferences`) |
 | Arquivos em `src/` com SDK | 71 |
 | Dependências diretas | 49 |
-| Dívida de tipos versionada | 2.803 diagnósticos |
+| Dívida de tipos versionada | 2.808 diagnósticos |
+| Testes automatizados | 161 (131 de gate + 30 de smoke) |
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
@@ -135,13 +136,17 @@ significado delas é literal:
 | `gate:base44` | o acoplamento com a Base44 não cresceu | que a Base44 saiu |
 | `gate:types` | a dívida de tipos não cresceu | que o `tsc` está sem erros |
 
-O projeto **tem** 2.803 diagnósticos de tipo, versionados em
+O projeto **tem** 2.808 diagnósticos de tipo, versionados em
 `scripts/gates/typecheck-baseline.json` e sempre visíveis em
 `npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`, que inclui
 todo o `src/`. P1 deve reduzir a dívida monotonicamente (DBT-03).
 
-**Não desabilite o gate, não afrouxe o `jsconfig.typecheck.json` e não semeie
-baseline para cima.** `--update` só aceita redução.
+**Não adianta afrouxar o `jsconfig.typecheck.json`.** Desde o P0.1-R2
+(D-PROD-13) o baseline grava o hash canônico da configuração, o comando, a
+versão do TypeScript e o contrato de cobertura. `checkJs: false`, `include: []`
+ou excluir `src/lib` reprovam com `P01-TYPE-CONTRACT` — a cobertura não é
+rebaseável. `--update` só aceita redução de diagnósticos; mudança consciente de
+configuração exige `--rebase-contract`.
 
 ---
 
@@ -158,4 +163,5 @@ Toda missão termina com relatório em `docs/engineering/` contendo:
 Relatórios da P0.1:
 
 1. `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md` — a limpeza
-2. `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md` — a correção e a certificação
+2. `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md` — o endurecimento
+3. `docs/engineering/P0.1-R2-FINAL-CONTRACT-CLOSURE-REPORT.md` — o fechamento de contratos e a certificação

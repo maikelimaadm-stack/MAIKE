@@ -274,6 +274,52 @@ const PROPAGATION_RULES = {
   ],
 };
 
+// Registro literal das entidades que esta function pode tocar (P0.1-R2).
+//
+// Antes o código fazia `base44.asServiceRole.entities?.[nome]` com um nome vindo
+// de variável. Isso é indecidível estaticamente: `gate:product-scope` não tem
+// como provar que o conjunto acessado cabe no manifesto, e reprova com
+// P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE.
+//
+// Aqui cada entidade aparece como acesso literal. O nome dinâmico passa a
+// indexar este mapa local — cujo domínio é visível no código — e não o SDK.
+// A lista é exatamente a união das chaves-fonte e dos destinos de
+// PROPAGATION_RULES; entrada desconhecida devolve null, como antes.
+function buildEntityRegistry(base44) {
+  const entities = base44.asServiceRole.entities;
+  return {
+    AreaPastagem: entities?.AreaPastagem,
+    GrupoAtividade: entities?.GrupoAtividade,
+    LancamentoTarefa: entities?.LancamentoTarefa,
+    Lote: entities?.Lote,
+    ManejoTecnicoRebanho: entities?.ManejoTecnicoRebanho,
+    MovimentacaoEstoque: entities?.MovimentacaoEstoque,
+    MovimentacaoMapa: entities?.MovimentacaoMapa,
+    MovimentacaoPecuaria: entities?.MovimentacaoPecuaria,
+    PontoSuplementacao: entities?.PontoSuplementacao,
+    Produto: entities?.Produto,
+    Setor: entities?.Setor,
+    SuplementacaoEvento: entities?.SuplementacaoEvento,
+    SuplementacaoLote: entities?.SuplementacaoLote,
+    TipoTarefa: entities?.TipoTarefa,
+  };
+}
+
+const ENTITY_REGISTRY_CACHE = new WeakMap();
+
+function resolveEntityApi(base44, entityName) {
+  if (!base44 || typeof entityName !== 'string' || !entityName) return null;
+
+  let registry = ENTITY_REGISTRY_CACHE.get(base44);
+  if (!registry) {
+    registry = buildEntityRegistry(base44);
+    ENTITY_REGISTRY_CACHE.set(base44, registry);
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(registry, entityName)) return null;
+  return registry[entityName] || null;
+}
+
 function normalizeValue(value) {
   if (value === null || value === undefined) return '';
   return String(value).trim().toLowerCase();
@@ -343,7 +389,7 @@ async function getCachedEntityRecords(base44, entityName, empresaId, cache) {
     return cache.get(cacheKey);
   }
 
-  const entityApi = base44.asServiceRole.entities?.[entityName];
+  const entityApi = resolveEntityApi(base44, entityName);
   if (!entityApi) {
     cache.set(cacheKey, []);
     return [];
@@ -358,7 +404,7 @@ async function getCachedEntityRecords(base44, entityName, empresaId, cache) {
 }
 
 async function listRecordsForRule(base44, rule, sourceData, oldData, cache) {
-  const entityApi = base44.asServiceRole.entities?.[rule.entity];
+  const entityApi = resolveEntityApi(base44, rule.entity);
   if (!entityApi) return [];
 
   const empresaFilter = sourceData?.empresa_id ? { empresa_id: sourceData.empresa_id } : null;
@@ -407,7 +453,7 @@ function buildPatchForRecord(record, rule, sourceData, oldData) {
 }
 
 async function propagateRulesForEntity(base44, entityName, rules, sourceData, oldData, cache) {
-  const entityApi = base44.asServiceRole.entities?.[entityName];
+  const entityApi = resolveEntityApi(base44, entityName);
   if (!entityApi) {
     return { entity: entityName, updated_count: 0 };
   }

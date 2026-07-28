@@ -12,17 +12,39 @@
  * A dívida bruta continua visível em `npm run typecheck:raw`.
  * P1 deve reduzi-la monotonicamente até zero.
  *
+ * Contar diagnósticos só significa alguma coisa se a *configuração* também for
+ * versionada (P0.1-R2). O baseline grava `projectPath`, `projectSha256`,
+ * `effectiveCommand`, `typescriptVersion` e `coverageContract`; o gate reprova
+ * quando qualquer um deles diverge, e reprova de forma independente quando a
+ * configuração atual viola a cobertura obrigatória.
+ *
+ * Flags:
+ *   --seed            cria o baseline (só quando ele ainda não existe)
+ *   --update          regrava os diagnósticos após redução, sem regressão
+ *   --rebase-contract regrava contrato + diagnósticos após mudança consciente
+ *                     de configuração ou de versão do TypeScript
+ *
  * Códigos: P01-TYPE-REGRESSION · P01-TYPE-BASELINE · P01-TYPE-RUNNER
+ *          P01-TYPE-CONTRACT · P01-TYPE-CONFIG-DRIFT · P01-TYPE-VERSION-DRIFT
  */
 
 import { existsSync } from 'node:fs';
 import { readBaseline, writeJsonAtomic, isCount, compareMultisets } from './lib/ratchet.mjs';
-import { runTypecheck, toFingerprintCounts, toFileCounts } from './lib/tsc-diagnostics.mjs';
+import {
+  runTypecheck,
+  toFingerprintCounts,
+  toFileCounts,
+  getTypescriptVersion,
+  tscCommand,
+} from './lib/tsc-diagnostics.mjs';
+import { buildTypeContract, diffContract } from './lib/type-config.mjs';
 
-export const BASELINE_VERSION = 1;
+export const BASELINE_VERSION = 2;
 const BASELINE = process.env.TYPECHECK_BASELINE || 'scripts/gates/typecheck-baseline.json';
 const PROJECT = process.env.TYPECHECK_PROJECT || './jsconfig.typecheck.json';
+
 const atualizar = process.argv.includes('--update');
+const rebasearContrato = process.argv.includes('--rebase-contract');
 // Semeadura explícita: só funciona quando o baseline ainda NÃO existe.
 // Execução normal nunca cria baseline (P01-TYPE-BASELINE).
 const semear = process.argv.includes('--seed');
@@ -35,7 +57,41 @@ const falhar = (codigo, mensagem, extras = []) => {
   process.exit(1);
 };
 
-// ── 1. Rodar o compilador ─────────────────────────────────────────────────
+const falharMuitos = (problemas, rodape) => {
+  console.error('gate:types — FALHOU\n');
+  problemas.forEach((p) => console.error(`  - [${p.code}] ${p.message}`));
+  if (rodape) console.error(`\n${rodape}`);
+  console.error('');
+  process.exit(1);
+};
+
+// ── 1. Contrato de configuração ───────────────────────────────────────────
+const versao = getTypescriptVersion();
+if (!versao.ok) {
+  falhar('P01-TYPE-RUNNER', `não foi possível determinar a versão do TypeScript`, [versao.detail]);
+}
+
+const contrato = buildTypeContract({
+  project: PROJECT,
+  command: tscCommand(PROJECT),
+  typescriptVersion: versao.version,
+});
+if (!contrato.ok) {
+  falhar('P01-TYPE-CONTRACT', contrato.message);
+}
+
+if (contrato.violations.length) {
+  falharMuitos(
+    contrato.violations.map((v) => ({ code: 'P01-TYPE-CONTRACT', message: v })),
+    'A cobertura de tipos é parte do contrato: reduzi-la não é uma forma de passar no gate.\n' +
+      'Ver docs/engineering/GATE-REGISTRY.md.'
+  );
+}
+
+console.log(`gate:types — projeto: ${PROJECT} (TypeScript ${versao.version})`);
+console.log(`gate:types — sha256 da configuração: ${contrato.contract.projectSha256.slice(0, 16)}…`);
+
+// ── 2. Rodar o compilador ─────────────────────────────────────────────────
 const run = runTypecheck({ project: PROJECT });
 if (!run.ok) {
   falhar('P01-TYPE-RUNNER', `não foi possível obter diagnósticos do TypeScript (${run.reason})`, [run.detail]);
@@ -47,14 +103,12 @@ const atual = {
   fingerprints: toFingerprintCounts(run.diagnostics),
 };
 
-console.log(`gate:types — projeto: ${PROJECT}`);
 console.log(`gate:types — diagnósticos atuais: ${atual.total} em ${Object.keys(atual.byFile).length} arquivo(s)`);
 
-// ── 2. Ler e validar o baseline ───────────────────────────────────────────
+// ── 3. Ler e validar o baseline ───────────────────────────────────────────
 const buildPayload = () => ({
   version: BASELINE_VERSION,
-  project: PROJECT,
-  command: `tsc -p ${PROJECT} --pretty false --noEmit`,
+  ...contrato.contract,
   total: atual.total,
   byFile: atual.byFile,
   fingerprints: atual.fingerprints,
@@ -81,11 +135,13 @@ if (semear) {
 
 const base = lido.data;
 
-if (base.project !== PROJECT) {
-  falhar(
-    'P01-TYPE-BASELINE',
-    `configuração divergente: baseline gravado com "${base.project}", execução atual usa "${PROJECT}"`
-  );
+for (const campo of ['projectPath', 'projectSha256', 'effectiveCommand', 'typescriptVersion']) {
+  if (typeof base[campo] !== 'string' || !base[campo]) {
+    falhar('P01-TYPE-BASELINE', `campo "${campo}" ausente ou inválido no baseline`);
+  }
+}
+if (!base.coverageContract || typeof base.coverageContract !== 'object' || Array.isArray(base.coverageContract)) {
+  falhar('P01-TYPE-BASELINE', 'campo "coverageContract" ausente ou inválido no baseline');
 }
 if (!isCount(base.total)) {
   falhar('P01-TYPE-BASELINE', `campo "total" inválido no baseline: ${JSON.stringify(base.total)}`);
@@ -108,7 +164,18 @@ if (somaFingerprints !== base.total) {
   );
 }
 
-// ── 3. Comparar ───────────────────────────────────────────────────────────
+// ── 4. Contrato gravado × contrato atual ──────────────────────────────────
+const divergencias = diffContract(base, contrato.contract);
+if (divergencias.length && !rebasearContrato) {
+  falharMuitos(
+    divergencias,
+    'A configuração de tipos e a versão do compilador são parte do baseline.\n' +
+      'Mudança consciente: `node scripts/gates/gate-typecheck-ratchet.mjs --rebase-contract`.\n' +
+      'A cobertura obrigatória continua valendo — ela não é rebaseável.'
+  );
+}
+
+// ── 5. Comparar diagnósticos ──────────────────────────────────────────────
 const { novos, aumentos, reducoes } = compareMultisets(base.fingerprints, atual.fingerprints);
 
 const arquivosPiores = [];
@@ -117,7 +184,9 @@ for (const [arquivo, quantidade] of Object.entries(atual.byFile)) {
   if (quantidade > antes) arquivosPiores.push(`${arquivo}: ${antes} -> ${quantidade}`);
 }
 
-if (novos.length || aumentos.length || arquivosPiores.length) {
+const houveRegressao = Boolean(novos.length || aumentos.length || arquivosPiores.length);
+
+if (houveRegressao && !rebasearContrato) {
   console.error('gate:types — FALHOU: a dívida de tipos AUMENTOU\n');
   novos.slice(0, 40).forEach((n) => console.error(`  - [P01-TYPE-REGRESSION] diagnóstico novo: ${n}`));
   if (novos.length > 40) console.error(`  … e mais ${novos.length - 40} diagnóstico(s) novo(s)`);
@@ -133,7 +202,19 @@ if (reducoes.length) {
   if (reducoes.length > 10) console.log(`  … e mais ${reducoes.length - 10}`);
 }
 
-// ── 4. Atualização consciente do baseline ─────────────────────────────────
+// ── 6. Gravações conscientes ──────────────────────────────────────────────
+if (rebasearContrato) {
+  if (!divergencias.length) {
+    falhar('P01-TYPE-BASELINE', '--rebase-contract recusado: o contrato gravado já é igual ao atual.');
+  }
+  writeJsonAtomic(BASELINE, buildPayload());
+  console.log('\nContrato de tipos REBASEADO conscientemente:');
+  divergencias.forEach((d) => console.log(`  - ${d.message}`));
+  console.log(`  baseline: ${BASELINE} (${atual.total} diagnóstico(s))`);
+  console.log('  A cobertura obrigatória foi validada antes da gravação.');
+  process.exit(0);
+}
+
 if (atualizar) {
   if (!reducoes.length) {
     falhar('P01-TYPE-BASELINE', 'nada a gravar: --update exige pelo menos um diagnóstico removido.');

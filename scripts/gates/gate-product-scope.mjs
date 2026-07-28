@@ -2,14 +2,15 @@
 // Gate: escopo do produto — Pecuária Mapa Geral + Manejo.
 // SSOT: config/mapa-manejo-scope.json
 // Códigos: P01-SCOPE-ROUTE · P01-SCOPE-ENTITY · P01-SCOPE-FUNCTION
+//          P01-SCOPE-FUNCTION-ENTITY · P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import {
   listFunctionNames,
-  readFunctionSource,
+  readFunctionFiles,
   extractFunctionEntities,
   findForbiddenEntityStrings,
-  findInvokedFunctions,
+  findInvokedFunctionsDetailed,
 } from './lib/base44-functions.mjs';
 
 const MANIFESTO = 'config/mapa-manejo-scope.json';
@@ -146,37 +147,49 @@ if (existsSync(FUNCTIONS_DIR)) {
 // 8. Fechamento de entidades DENTRO das functions permitidas.
 //    Não basta a pasta existir: o código não pode citar schema fora do manifesto.
 for (const nome of listFunctionNames(FUNCTIONS_DIR)) {
-  const source = readFunctionSource(nome, FUNCTIONS_DIR);
-  if (!source.trim()) {
+  const arquivos = readFunctionFiles(nome, FUNCTIONS_DIR).filter((a) => a.source.trim());
+  if (!arquivos.length) {
     registrar('P01-SCOPE-FUNCTION', `function ${nome} não tem código legível`);
     continue;
   }
 
-  const { sources, targets, dynamic } = extractFunctionEntities(source);
+  for (const { path: caminho, source } of arquivos) {
+    const { sources, targets, dynamic, unverifiable } = extractFunctionEntities(source, caminho);
 
-  for (const entidade of sources) {
-    if (!allowedEntities.has(entidade)) {
-      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: chave-fonte de propagação fora do manifesto: ${entidade}`);
+    for (const entidade of sources) {
+      if (!allowedEntities.has(entidade)) {
+        registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: chave-fonte de propagação fora do manifesto: ${entidade}`);
+      }
     }
-  }
-  for (const entidade of targets) {
-    if (!allowedEntities.has(entidade)) {
-      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: destino de propagação fora do manifesto: ${entidade}`);
+    for (const entidade of targets) {
+      if (!allowedEntities.has(entidade)) {
+        registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: destino de propagação fora do manifesto: ${entidade}`);
+      }
     }
-  }
-  for (const entidade of dynamic) {
-    if (!allowedEntities.has(entidade)) {
-      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: acesso dinâmico a entidade fora do manifesto: ${entidade}`);
+    for (const entidade of dynamic) {
+      if (!allowedEntities.has(entidade)) {
+        registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: acesso dinâmico a entidade fora do manifesto: ${entidade}`);
+      }
     }
-  }
 
-  for (const entidade of findForbiddenEntityStrings(source, forbiddenEntities)) {
-    registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: cita entidade excluída em código executável: ${entidade}`);
-  }
+    // Nome que só existe em tempo de execução não pode ser declarado dentro do
+    // escopo — o gate reprova por não conseguir provar o fechamento.
+    for (const ocorrencia of unverifiable) {
+      registrar('P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE', `${nome}: ${ocorrencia}`);
+    }
 
-  for (const invocada of findInvokedFunctions(source)) {
-    if (!allowedFunctions.has(invocada)) {
-      registrar('P01-SCOPE-FUNCTION', `${nome}: invoca function fora do manifesto: ${invocada}`);
+    for (const entidade of findForbiddenEntityStrings(source, forbiddenEntities, caminho)) {
+      registrar('P01-SCOPE-FUNCTION-ENTITY', `${nome}: cita entidade excluída em código executável: ${entidade}`);
+    }
+
+    const invocacoes = findInvokedFunctionsDetailed(source, caminho);
+    for (const invocada of invocacoes.invoked) {
+      if (!allowedFunctions.has(invocada)) {
+        registrar('P01-SCOPE-FUNCTION', `${nome}: invoca function fora do manifesto: ${invocada}`);
+      }
+    }
+    for (const ocorrencia of invocacoes.unverifiable) {
+      registrar('P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE', `${nome}: ${ocorrencia}`);
     }
   }
 }

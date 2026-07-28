@@ -17,7 +17,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
-| **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **qualquer arquivo versionado**; nenhum `.env` versionado | D-PROD-07 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
+| **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **qualquer arquivo versionado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
 | **base44** | `npm run gate:base44` | Acoplamento com a Base44 só diminui (catraca, 10 eixos) | D-PROD-04 | `scripts/gates/gate-base44-ratchet.mjs` |
 | **types** | `npm run gate:types` | A dívida de tipos nunca cresce (catraca por fingerprint) | D-PROD-11 | `scripts/gates/gate-typecheck-ratchet.mjs` |
 | **verify:all** | `npm run verify:all` | Toda a cadeia, na ordem abaixo | — | `scripts/gates/verify-all.mjs` |
@@ -42,6 +42,7 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P01-SCOPE-ENTITY` | product-scope |
 | `P01-SCOPE-FUNCTION` | product-scope |
 | `P01-SCOPE-FUNCTION-ENTITY` | product-scope |
+| `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` | product-scope |
 | `P01-SCOPE-ORPHAN` | source-closure |
 | `P01-SCOPE-DYNAMIC-ALLOWLIST` | source-closure |
 | `P01-IMPORT-BROKEN` | import-integrity |
@@ -54,6 +55,9 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P01-TYPE-BASELINE` | types |
 | `P01-TYPE-REGRESSION` | types |
 | `P01-TYPE-RUNNER` | types |
+| `P01-TYPE-CONTRACT` | types |
+| `P01-TYPE-CONFIG-DRIFT` | types |
+| `P01-TYPE-VERSION-DRIFT` | types |
 | `P01-PACKAGE-DRIFT` | package-sync |
 | `P01-LOCKFILE-INVALID` | package-sync |
 | `P01-SMOKE-FAILURE` | test:smoke |
@@ -93,22 +97,61 @@ gate:types verde  ≠  typecheck sem erros
 Enquanto o baseline não chegar a zero, o projeto **tem** erros de tipo. A dívida
 bruta está sempre visível em `npm run typecheck:raw`.
 
-- Cobertura: `jsconfig.typecheck.json` inclui todo o `src/` (`.js`, `.jsx`,
-  `.ts`, `.tsx`), **sem** excluir `src/components/ui`, `src/api` ou `src/lib`.
-  As únicas exclusões são `node_modules`, `dist`, `dist-ssr` e `coverage`.
 - Fingerprint: `caminho relativo | código TS | mensagem normalizada`. Linha e
   coluna **não** entram na identidade — deslocar código não pode transformar
   dívida antiga em erro novo.
 - Multiplicidade preservada: três ocorrências do mesmo fingerprint comparam três.
 - Reprova em: fingerprint novo, multiplicidade aumentada, arquivo com mais erros
-  que o baseline, configuração divergente da registrada, ou falha do compilador
-  sem diagnóstico parseável (`P01-TYPE-RUNNER`).
+  que o baseline, ou falha do compilador sem diagnóstico parseável
+  (`P01-TYPE-RUNNER`).
 
-Baseline: `scripts/gates/typecheck-baseline.json` (schema versão 1), com
-`version`, `project`, `command`, `total`, `byFile` e `fingerprints`.
+#### A configuração faz parte do contrato (P0.1-R2, D-PROD-13)
 
-**Estado atual:** 2.803 diagnósticos de dívida legada. P1 deve reduzi-los
+Contar diagnósticos só significa alguma coisa se a **cobertura** também estiver
+versionada. Sem isso, `checkJs: false`, `include: []` ou excluir `src/lib`
+derrubariam os números e o gate ficaria verde sem nada ter melhorado.
+
+O baseline grava e o gate compara:
+
+| Campo | Papel |
+|---|---|
+| `projectPath` | qual arquivo de projeto foi usado |
+| `projectSha256` | hash canônico do conteúdo, com a cadeia local de `extends`, sem caminho absoluto |
+| `effectiveCommand` | argumentos exatos do compilador |
+| `typescriptVersion` | versão do `tsc` que produziu os números |
+| `coverageContract` | `checkJs`, `include`, `exclude`, arquivos da cadeia e os invariantes exigidos |
+
+Independentemente do baseline, a configuração **atual** precisa cumprir:
+
+- `checkJs: true`;
+- `include` presente e não vazio, cobrindo `src/**/*.{js,jsx,ts,tsx}` na raiz e
+  em profundidade;
+- nenhuma exclusão que alcance `src/components/ui`, `src/api`, `src/lib` ou
+  `src/services`;
+- exclusões apenas em `node_modules`, `dist`, `dist-ssr`, `coverage` e fixtures
+  fora de `src/`.
+
+A verificação é mecânica: cada invariante é testado com caminhos-sonda contra o
+glob real do `include`/`exclude`, não por comparação de texto.
+
+| Situação | Código |
+|---|---|
+| a configuração atual viola a cobertura obrigatória | `P01-TYPE-CONTRACT` |
+| a configuração mudou em relação ao baseline (caminho, hash, comando, cobertura) | `P01-TYPE-CONFIG-DRIFT` |
+| a versão do TypeScript mudou | `P01-TYPE-VERSION-DRIFT` |
+
+Mudança consciente de configuração ou de versão do compilador usa
+`--rebase-contract`, uma flag separada de `--update`. **A cobertura obrigatória
+não é rebaseável**: ela é validada antes de qualquer gravação.
+
+Baseline: `scripts/gates/typecheck-baseline.json` (schema versão 2).
+
+**Estado atual:** 2.808 diagnósticos de dívida legada. P1 deve reduzi-los
 monotonicamente (DBT-03).
+
+Os testes de `scripts/tests/gates/typecheck-ratchet.test.mjs` executam o **gate
+real** em projetos temporários com `tsc` de verdade — 22 casos ponta a ponta,
+além dos casos unitários de parser, glob e canonicalização.
 
 ## Fechamento de escopo dentro das functions
 
@@ -117,9 +160,37 @@ código de `base44/functions/**` e reprova quando:
 
 - uma chave-fonte de `PROPAGATION_RULES` está fora de `allowedBase44Entities`;
 - um destino `entity: 'X'` está fora do manifesto;
-- há acesso dinâmico literal (`entities.X`, `entities['X']`) fora do manifesto;
+- há acesso literal (`entities.X`, `entities['X']`) fora do manifesto;
 - uma entidade de `forbiddenBase44Entities` é citada em código executável;
-- a function invoca outra function fora de `allowedBase44Functions`.
+- a function invoca outra function fora de `allowedBase44Functions`;
+- há acesso **computado não literal** — `entities[nome]`, `functions.invoke(nome)`
+  — que o gate não consegue provar (`P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE`).
+
+A análise é feita sobre a **AST do TypeScript** (D-PROD-15), não sobre regex de
+texto. A versão anterior casava `^ {2}Nome: [`: quatro espaços, tabulação ou
+chave entre aspas passavam despercebidos. Formatação não pode decidir se o
+escopo do produto está fechado.
+
+Por isso `syncEntityReferences` deixou de fazer
+`base44.asServiceRole.entities?.[nome]`. As 14 entidades que ela pode tocar
+vivem num registro literal (`buildEntityRegistry`), e o nome dinâmico indexa
+esse mapa local — cujo domínio está visível no código — em vez do SDK.
+
+## Scanner de segredos — o valor, não a linha
+
+O gate varre todo arquivo de texto listado por `git ls-files`, com 11 detectores.
+O relato é sempre `arquivo:linha + tipo do segredo`; **o valor nunca é impresso**.
+
+Cada detector declara qual grupo do match é o valor. A decisão de "mascarado"
+olha só para esse valor (D-PROD-14). Ignorar a linha inteira era um bypass real:
+
+| Linha | Antes | Agora |
+|---|---|---|
+| `const k = import.meta.env.K \|\| "AIza…real…"` | passava | **reprova** |
+| `const demo = "SUA_CHAVE"; const t = "ghp_…real…"` | passava | **reprova** |
+| `const API_KEY = "…real…"; // EXAMPLE` | passava | **reprova** |
+| `const k = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;` | passava | passa |
+| `VITE_GOOGLE_MAPS_API_KEY=SUA_CHAVE` | passava | passa |
 
 ## Smoke automatizado
 
@@ -131,7 +202,35 @@ rejection reprova o teste.
 Cobertura mínima: registro das 16 páginas, importabilidade de cada uma, raiz
 apontando para `/MapaGeral`, fallback do `MapaGeral` sem chave, `MapaCadastro`
 com SDK mockado, montagem do `App`, e o contrato completo do carregador do
-Google Maps (idempotência, concorrência, timeout, retentativa, ausência de DOM).
+Google Maps.
+
+### Contrato do carregador do Google Maps (D-PROD-16)
+
+`loadGoogleMaps` só resolve com **capacidade comprovada**:
+
+```
+google.maps.Map  ∧  google.maps.geometry  ∧  google.maps.drawing
+```
+
+O evento `load` e `dataset.loaded` são pistas de que o script terminou, nunca
+prova de que o SDK está utilizável. Depois do `load`, o loader observa as
+capacidades até o timeout total; se seguir incompleto, rejeita com
+`MAPS_SDK_INCOMPLETE`, remove o script e limpa a promise — sucesso falso não
+fica em cache e a retentativa funciona.
+
+Também reprovam: script com o ID correto mas URL fora de
+`https://maps.googleapis.com/maps/api/js`, libraries incompletas na URL, e
+`window.gm_authFailure` (o handler anterior é encadeado e restaurado).
+
+| Código | Situação |
+|---|---|
+| `MAPS_CONFIG_MISSING` | `VITE_GOOGLE_MAPS_API_KEY` ausente |
+| `MAPS_SCRIPT_FAILED` | erro de rede, URL inesperada ou falha de autenticação |
+| `MAPS_SCRIPT_TIMEOUT` | o script nunca respondeu |
+| `MAPS_SDK_INCOMPLETE` | carregou sem as capacidades exigidas |
+| `MAPS_ENV_UNAVAILABLE` | ambiente sem DOM |
+
+A chave nunca aparece em log nem em mensagem de erro — há teste específico.
 
 ## Integração contínua
 

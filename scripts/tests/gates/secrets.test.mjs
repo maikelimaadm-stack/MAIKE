@@ -11,6 +11,7 @@ const GATE = 'gate-no-hardcoded-secrets.mjs';
 const CHAVE_GOOGLE = 'AIza' + 'S'.repeat(4) + 'y'.repeat(31);
 const PAT_GITHUB = 'ghp_' + 'a'.repeat(36);
 const CHAVE_AWS = 'AKIA' + 'B'.repeat(16);
+const VALOR_ATRIBUIDO = 'v4l0r' + '-r34l-de-producao';
 
 const makeRepo = (arquivos = {}) => {
   const dir = makeTempDir('maike-secrets-');
@@ -114,6 +115,97 @@ describe('gate:no-secrets', () => {
     assert.equal(r.status, 1);
     assert.ok(!r.output.includes(CHAVE_GOOGLE), 'a saída não pode conter o segredo');
     assert.match(r.output, /Google API key/);
+    cleanup(d);
+  });
+
+  // ── Bypass de linha mascarada (P0.1-R2) ────────────────────────────────
+  // A avaliação de "mascarado" é feita sobre o VALOR capturado, nunca sobre a
+  // linha. Antes bastava citar `import.meta.env` ou `EXAMPLE` na mesma linha.
+
+  test('env com fallback literal para chave Google real reprova', () => {
+    const d = makeRepo({
+      'src/mapa.js': `const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "${CHAVE_GOOGLE}";\n`,
+    });
+    const r = run(d);
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /P01-SECRET-HARDCODED/);
+    assert.match(r.output, /Google API key/);
+    cleanup(d);
+  });
+
+  test('env com fallback literal para PAT do GitHub reprova', () => {
+    const d = makeRepo({
+      'scripts/ci.mjs': `const token = process.env.GITHUB_TOKEN || "${PAT_GITHUB}";\n`,
+    });
+    const r = run(d);
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /GitHub PAT/);
+    cleanup(d);
+  });
+
+  test('placeholder e segredo real na mesma linha reprova', () => {
+    const d = makeRepo({
+      'src/demo.js': `const demo = "SUA_CHAVE"; const leaked = "${PAT_GITHUB}";\n`,
+    });
+    const r = run(d);
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /GitHub PAT/);
+    cleanup(d);
+  });
+
+  test('comentário EXAMPLE não isenta segredo real na mesma linha', () => {
+    const d = makeRepo({
+      'src/config.js': `const API_KEY = "${VALOR_ATRIBUIDO}"; // EXAMPLE\n`,
+    });
+    const r = run(d);
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /Segredo atribuído diretamente/);
+    cleanup(d);
+  });
+
+  test('placeholder puro continua permitido', () => {
+    const d = makeRepo({
+      '.env.example': 'VITE_GOOGLE_MAPS_API_KEY=SUA_CHAVE\n',
+      'docs/guia.md': 'Defina `API_KEY="<coloque-a-sua-chave-aqui>"`.\n',
+    });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('leitura de env sem fallback continua permitida', () => {
+    const d = makeRepo({
+      'src/ok.js':
+        'const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;\nconst outro = process.env.TOKEN;\n',
+    });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('segredo real dentro de .env.example reprova', () => {
+    const d = makeRepo({ '.env.example': `VITE_GOOGLE_MAPS_API_KEY=${CHAVE_GOOGLE}\n` });
+    const r = run(d);
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /\.env\.example:1/);
+    assert.ok(!r.output.includes(CHAVE_GOOGLE));
+    cleanup(d);
+  });
+
+  test('template com interpolação vazia não é segredo', () => {
+    const d = makeRepo({ 'src/tpl.js': 'const apiKey = `${config.googleMapsKey}`;\n' });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('nunca imprime o valor mesmo quando há env na linha', () => {
+    const d = makeRepo({
+      'src/misto.js': `const k = import.meta.env.K || "${CHAVE_GOOGLE}";\n`,
+    });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.ok(!r.output.includes(CHAVE_GOOGLE), 'a saída não pode conter o segredo');
     cleanup(d);
   });
 

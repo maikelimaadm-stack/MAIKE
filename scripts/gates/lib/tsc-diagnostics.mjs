@@ -82,6 +82,30 @@ export const toFileCounts = (diagnostics) => {
   return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
 };
 
+/** Argumentos exatos do compilador. Versionados no baseline como `effectiveCommand`. */
+export const tscArgs = (project) => ['-p', project, '--pretty', 'false', '--noEmit'];
+
+/** Comando textual equivalente, gravado e comparado pelo contrato de tipos. */
+export const tscCommand = (project) => `tsc ${tscArgs(project).join(' ')}`;
+
+/**
+ * Versão do TypeScript efetivamente usada.
+ * @returns {{ok: true, version: string} | {ok: false, detail: string}}
+ */
+export const getTypescriptVersion = (cwd = process.cwd()) => {
+  let tscBin;
+  try {
+    tscBin = require_resolve_tsc(cwd);
+  } catch (error) {
+    return { ok: false, detail: error.message };
+  }
+  const r = spawnSync(process.execPath, [tscBin, '--version'], { cwd, encoding: 'utf8' });
+  if (r.error) return { ok: false, detail: r.error.message };
+  const m = String(r.stdout || '').match(/Version\s+([0-9][^\s]*)/);
+  if (!m) return { ok: false, detail: `saída inesperada de "tsc --version": ${String(r.stdout).trim().slice(0, 200)}` };
+  return { ok: true, version: m[1] };
+};
+
 /**
  * Roda o compilador e devolve os diagnósticos.
  *
@@ -100,14 +124,7 @@ export const runTypecheck = ({ project, cwd = process.cwd() }) => {
 
   const result = spawnSync(
     process.execPath,
-    [
-      tscBin,
-      '-p',
-      project,
-      '--pretty',
-      'false',
-      '--noEmit',
-    ],
+    [tscBin, ...tscArgs(project)],
     { cwd, encoding: 'utf8', maxBuffer: 1024 * 1024 * 128 }
   );
 
