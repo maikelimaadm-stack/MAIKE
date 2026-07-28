@@ -22,7 +22,7 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missão atual** | **P0.1 — Product Scope Reset** (entregue) |
+| **Missão atual** | **P0.1 — Product Scope Reset** (entregue e certificada, corrigida por P0.1-R1) |
 | **Próxima missão** | **P1 — Native Foundation Bootstrap** |
 | **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
@@ -39,10 +39,12 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Métrica | Valor |
 |---|---|
 | Páginas | 16 |
-| Arquivos em `src/` | 231 |
+| Arquivos em `src/` | 203 |
 | Schemas Base44 | 38 |
 | Functions Base44 | 1 (`syncEntityReferences`) |
 | Arquivos em `src/` com SDK | 71 |
+| Dependências diretas | 49 |
+| Dívida de tipos versionada | 2.803 diagnósticos |
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
@@ -123,13 +125,23 @@ Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ---
 
-## Etapa vermelha conhecida
+## O que "verde" significa aqui
 
-`npm run typecheck` **falha desde antes desta missão** e continua falhando. É
-`tsc -p ./jsconfig.json` com `checkJs: true` sobre código JavaScript sem tipos.
-Erros: 10.935 na `main`, 2.788 depois do P0.1 — a queda vem da exclusão de
-escopo, nenhum erro novo foi introduzido. Tratamento em P1 (DBT-03).
-**Não desabilite o gate nem edite `jsconfig.json` para esconder isso.**
+`npm run verify:all` sai com **0**. Duas das doze etapas são **catracas**, e o
+significado delas é literal:
+
+| Etapa | Verde significa | Verde **não** significa |
+|---|---|---|
+| `gate:base44` | o acoplamento com a Base44 não cresceu | que a Base44 saiu |
+| `gate:types` | a dívida de tipos não cresceu | que o `tsc` está sem erros |
+
+O projeto **tem** 2.803 diagnósticos de tipo, versionados em
+`scripts/gates/typecheck-baseline.json` e sempre visíveis em
+`npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`, que inclui
+todo o `src/`. P1 deve reduzir a dívida monotonicamente (DBT-03).
+
+**Não desabilite o gate, não afrouxe o `jsconfig.typecheck.json` e não semeie
+baseline para cima.** `--update` só aceita redução.
 
 ---
 
@@ -143,4 +155,7 @@ Toda missão termina com relatório em `docs/engineering/` contendo:
 4. Pendências e riscos identificados
 5. Decisões que precisam de aprovação humana
 
-Último relatório: `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md`.
+Relatórios da P0.1:
+
+1. `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md` — a limpeza
+2. `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md` — a correção e a certificação

@@ -191,4 +191,66 @@ foram removidos.
 (`ConfiguracaoIcone`), consumido pelo mapa. `gate:product-scope` valida que toda
 `url` do menu existe em `config/mapa-manejo-scope.json`.
 
-<!-- Próxima decisão: D-PROD-10 -->
+---
+
+## D-PROD-10 — D-04 (shim de compatibilidade) está superada
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R1
+
+**Decisão:** `D-04 — Shim de compatibilidade antes de migrar componentes` está
+**superada** para o produto atual. Não haverá shim compatível com toda a
+superfície da Base44.
+
+**Justificativa:** D-04 foi escrita quando o alvo era migrar um ERP de 87
+entidades e 2.801 chamadas sem reescrever componentes. Depois de D-PROD-01 e
+D-PROD-02 o produto é Mapa Geral + Manejo, com 38 entidades e 371 chamadas, e
+a estratégia passou a ser reconstrução direta (`docs/engineering/ROADMAP.md`).
+Um shim genérico agora seria a "solução paralela" que a Constituição (P2) proíbe.
+
+**Consequência:** a transição acontece por **capacidade**, com contratos
+próprios em `src/apis/` (P1) e persistência nativa (P4–P6). A Base44 permanece
+como provider temporário apenas na cadeia preservada, até ser substituída
+capacidade a capacidade e removida em P7 (D-PROD-04).
+
+**D-04 não é apagada** — o registro é append-only. Ela permanece como história
+da decisão anterior.
+
+---
+
+## D-PROD-11 — Catraca de dívida de tipos em vez de conversão em massa
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R1
+
+**Decisão:** `npm run typecheck` passa a ser a catraca
+`scripts/gates/gate-typecheck-ratchet.mjs`, com baseline versionado em
+`scripts/gates/typecheck-baseline.json`. A cobertura é `jsconfig.typecheck.json`,
+que inclui **todo** o `src/` — inclusive `src/components/ui`, `src/api` e
+`src/lib`, que o `jsconfig.json` original excluía.
+
+**Justificativa:** converter milhares de arquivos legados não é escopo do P0.1,
+e afrouxar o `jsconfig.json` seria esconder o problema. A regra honesta é que a
+dívida nunca cresce.
+
+**Consequência:** o significado de verde é explícito — *nenhuma regressão sobre
+a dívida legada versionada*, **não** "sem erros". A dívida bruta continua
+visível em `npm run typecheck:raw`. P1 deve reduzi-la monotonicamente até zero,
+quando a catraca vira um gate comum.
+
+---
+
+## D-PROD-12 — Fechamento de código sem arquivo órfão
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R1
+
+**Decisão:** todo arquivo executável em `src/` precisa ser alcançável a partir
+das entradas reais do produto (`gate:source-closure`). Órfão é removido ou entra
+em `orphanAllowlist` com caminho, justificativa, consumidor dinâmico e decisão
+associada. Allowlist por diretório ou padrão não é aceita, e "pode ser usado no
+futuro" não é justificativa.
+
+**Consequência:** 27 componentes de `src/components/ui` sem nenhum consumidor e
+`src/hooks/use-mobile.jsx` foram excluídos, junto com 33 dependências que só
+existiam para eles. A decisão do P0.1 de preservar `src/components/ui/**`
+integralmente fica restrita ao que a cadeia preservada realmente importa.
+
+<!-- Próxima decisão: D-PROD-13 -->

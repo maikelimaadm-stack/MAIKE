@@ -19,7 +19,10 @@ Não existe `backend/` ainda. Ele entra em **P3** — ver `docs/engineering/ROAD
 |---|---|
 | Frontend | `npm run dev` |
 | Lint | `npm run lint` |
-| Typecheck | `npm run typecheck` |
+| Dívida de tipos (catraca) | `npm run typecheck` |
+| Dívida de tipos (bruta) | `npm run typecheck:raw` |
+| Smoke automatizado | `npm run test:smoke` |
+| Testes dos gates | `npm run test:gates` |
 | Build | `npm run build` |
 
 ## Gates
@@ -28,19 +31,29 @@ Todos os scripts vivem em `scripts/gates/`.
 
 | Gate | Comando | Verifica |
 |---|---|---|
+| Testes dos gates | `npm run test:gates` | Os próprios gates, com casos de falha |
 | Governança | `npm run gate:governance-paths` | Documentos, links e gates coerentes |
-| Escopo do produto | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro do manifesto |
+| Package/lock | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem |
+| Escopo do produto | `npm run gate:product-scope` | Rotas, menu, schemas, functions **e entidades dentro das functions** |
+| Fechamento de código | `npm run gate:source-closure` | Nenhum arquivo executável órfão em `src/` |
 | Integridade de imports | `npm run gate:import-integrity` | Nenhum import quebrado em `src/` |
-| Segredos | `npm run gate:no-secrets` | Nenhuma chave literal; nenhum `.env` versionado |
-| Base44 | `npm run gate:base44` | Acoplamento só diminui |
-| **Todos** | `npm run verify:all` | Os 5 gates + lint + typecheck + build |
+| Segredos | `npm run gate:no-secrets` | Nenhum segredo em arquivo versionado; nenhum `.env` |
+| Base44 | `npm run gate:base44` | Acoplamento só diminui (10 eixos) |
+| Tipos | `npm run gate:types` | A dívida de tipos não cresce |
+| **Todos** | `npm run verify:all` | 12 etapas, build por último |
 
-Baseline da catraca: `scripts/gates/base44-baseline.json`.
-Para regravá-lo depois de uma redução real:
+### Baselines
+
+Ambos são versionados. **Baseline ausente reprova** — nenhum gate cria baseline
+sozinho. Execução normal nunca escreve arquivo.
 
 ```bash
+# só grava se não houver regressão E houver pelo menos uma redução
 node scripts/gates/gate-base44-ratchet.mjs --update
+node scripts/gates/gate-typecheck-ratchet.mjs --update
 ```
+
+`scripts/gates/base44-baseline.json` · `scripts/gates/typecheck-baseline.json`
 
 ## Escopo do produto
 
@@ -59,7 +72,11 @@ Para adicionar uma página ou entidade:
 - **`base44/` é a especificação de origem.** Não altere o desenho de um schema
   preservado. Excluir schema fora do escopo é permitido por D-PROD-02.
 - **Nenhum schema ou function Base44 novo.** A Base44 só sai (D-PROD-04).
-- **`npm run typecheck` está vermelho desde antes do P0.1** (DBT-03). Não
-  desabilite o gate nem edite `jsconfig.json` para esconder isso.
+- **`gate:types` verde significa "a dívida não cresceu", não "sem erros".**
+  São 2.803 diagnósticos versionados (DBT-03). Veja os reais com
+  `npm run typecheck:raw`. Não afrouxe `jsconfig.typecheck.json`.
+- **Arquivo órfão reprova** (`gate:source-closure`). Remova-o ou justifique em
+  `orphanAllowlist` com consumidor dinâmico real — "pode ser útil depois" não
+  é justificativa.
 - **Branch.** Uma missão, uma branch, um PR. Não trabalhe na `main`.
 - **Menu e rotas têm SSOT único**: `src/lib/menuConfig.js` e `src/pages.config.js`.
