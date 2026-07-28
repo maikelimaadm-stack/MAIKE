@@ -1,0 +1,128 @@
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+
+import { makeTempDir, cleanup, writeFile, runGate, initGitRepo } from './helpers.mjs';
+
+const GATE = 'gate-no-hardcoded-secrets.mjs';
+
+/** Chaves sintéticas com formato válido, geradas em tempo de execução. */
+const CHAVE_GOOGLE = 'AIza' + 'S'.repeat(4) + 'y'.repeat(31);
+const PAT_GITHUB = 'ghp_' + 'a'.repeat(36);
+const CHAVE_AWS = 'AKIA' + 'B'.repeat(16);
+
+const makeRepo = (arquivos = {}) => {
+  const dir = makeTempDir('maike-secrets-');
+  writeFile(dir, 'README.md', '# projeto de teste\n');
+  for (const [rel, conteudo] of Object.entries(arquivos)) {
+    if (Buffer.isBuffer(conteudo)) {
+      const abs = join(dir, rel);
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, conteudo);
+    } else {
+      writeFile(dir, rel, conteudo);
+    }
+  }
+  initGitRepo(dir);
+  return dir;
+};
+
+const run = (dir) => runGate(GATE, { cwd: dir });
+
+describe('gate:no-secrets', () => {
+  test('repositório limpo passa', () => {
+    const d = makeRepo({ 'src/index.js': 'export const a = 1;\n' });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('detecta chave Google em src/', () => {
+    const d = makeRepo({ 'src/mapa.js': `const k = "${CHAVE_GOOGLE}";\n` });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P01-SECRET-HARDCODED/);
+    assert.match(r.output, /src\/mapa\.js:1/);
+    cleanup(d);
+  });
+
+  test('detecta segredo em scripts/ — fora de src/', () => {
+    const d = makeRepo({ 'scripts/deploy.mjs': `const token = "${PAT_GITHUB}";\n` });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.match(r.output, /scripts\/deploy\.mjs/);
+    cleanup(d);
+  });
+
+  test('detecta segredo em base44/', () => {
+    const d = makeRepo({ 'base44/functions/x/entry.ts': `const aws = "${CHAVE_AWS}";\n` });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.match(r.output, /base44\/functions\/x\/entry\.ts/);
+    cleanup(d);
+  });
+
+  test('detecta segredo em subdiretório profundo', () => {
+    const d = makeRepo({ 'a/b/c/d/config.json': `{ "apiKey": "${CHAVE_GOOGLE}" }\n` });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.match(r.output, /a\/b\/c\/d\/config\.json/);
+    cleanup(d);
+  });
+
+  test('detecta .env versionado em subdiretório', () => {
+    const d = makeRepo({ 'apps/web/.env.production': 'API=1\n' });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P01-SECRET-ENV-TRACKED/);
+    assert.match(r.output, /apps\/web\/\.env\.production/);
+    cleanup(d);
+  });
+
+  test('.env.example é permitido', () => {
+    const d = makeRepo({ '.env.example': 'VITE_GOOGLE_MAPS_API_KEY=\n' });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('exemplo mascarado não é falso positivo', () => {
+    const d = makeRepo({
+      'docs/setup.md': 'Use `VITE_GOOGLE_MAPS_API_KEY=AIzaSUA_CHAVE_AQUI_XXXXXXXXXXXXXXXXXXXX`\n',
+      'src/ok.js': 'const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;\n',
+    });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('binário é ignorado mesmo contendo o padrão', () => {
+    const conteudo = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00]),
+      Buffer.from(CHAVE_GOOGLE),
+    ]);
+    const d = makeRepo({ 'assets/logo.png': conteudo });
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('nunca imprime o valor do segredo', () => {
+    const d = makeRepo({ 'src/vaza.js': `const k = "${CHAVE_GOOGLE}";\n` });
+    const r = run(d);
+    assert.equal(r.status, 1);
+    assert.ok(!r.output.includes(CHAVE_GOOGLE), 'a saída não pode conter o segredo');
+    assert.match(r.output, /Google API key/);
+    cleanup(d);
+  });
+
+  test('arquivo não versionado não é varrido', () => {
+    const d = makeRepo({ 'src/ok.js': 'export const a = 1;\n' });
+    // Escrito depois do `git add`: não está no índice.
+    writeFile(d, 'src/naoVersionado.js', `const k = "${CHAVE_GOOGLE}";\n`);
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+});

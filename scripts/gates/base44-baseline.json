@@ -1,11 +1,15 @@
 {
-  "arquivosComSdk": 71,
-  "importsSdk": 1,
-  "entitiesRefs": 371,
-  "authRefs": 16,
-  "integrationsRefs": 6,
-  "functionsRefs": 5,
-  "vitePlugin": 1,
-  "schemas": 38,
-  "functionsBase44": 1
+  "version": 2,
+  "axes": {
+    "arquivosComSdk": 71,
+    "importsSdk": 1,
+    "entitiesRefs": 371,
+    "authRefs": 16,
+    "integrationsRefs": 6,
+    "functionsRefs": 5,
+    "vitePlugin": 1,
+    "runtimeConfigRefs": 1,
+    "schemas": 38,
+    "functionsBase44": 1
+  }
 }
