@@ -77,16 +77,52 @@ export const isGoogleMapsConfigured = () => readEnvKey() !== null;
 
 const hasDom = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
+/**
+ * Forma mínima do namespace que o SDK instala em `window.google.maps`.
+ *
+ * O produto não depende do formato interno dessas capacidades — só da presença
+ * delas. Por isso são `unknown`: declarar mais do que se sabe seria inventar
+ * contrato.
+ *
+ * @typedef {object} GoogleMapsNamespace
+ * @property {unknown} [Map]
+ * @property {unknown} [geometry]
+ * @property {unknown} [drawing]
+ */
+
+/**
+ * Globais que o SDK do Google Maps instala na janela.
+ *
+ * `gm_authFailure` é o callback que o próprio Google chama quando a chave é
+ * inválida ou o faturamento está suspenso.
+ *
+ * @typedef {object} GoogleMapsGlobals
+ * @property {{maps?: GoogleMapsNamespace}} [google]
+ * @property {(...args: unknown[]) => void} [gm_authFailure]
+ */
+
+/** @typedef {Window & typeof globalThis & GoogleMapsGlobals} GoogleMapsWindow */
+
+/**
+ * A janela com os globais do SDK declarados.
+ *
+ * A conversão não silencia nada: ela **declara** o contrato real do runtime —
+ * o SDK instala `google` e o Google chama `gm_authFailure`. Ambos são opcionais
+ * porque, antes da carga, nenhum dos dois existe.
+ *
+ * @returns {GoogleMapsWindow | null} `null` em ambiente sem DOM
+ */
+const mapsWindow = () => (hasDom() ? /** @type {GoogleMapsWindow} */ (window) : null);
+
 /** O SDK está pronto com as capacidades que o produto exige? */
 export const isGoogleMapsReady = () => {
-  if (!hasDom()) return false;
-  const maps = window.google?.maps;
+  const maps = mapsWindow()?.google?.maps;
   return Boolean(maps?.Map && maps?.geometry && maps?.drawing);
 };
 
 /** Quais capacidades exigidas ainda faltam. Usado só para diagnóstico. */
 const missingCapabilities = () => {
-  const maps = hasDom() ? window.google?.maps : null;
+  const maps = mapsWindow()?.google?.maps;
   return [
     !maps?.Map && 'Map',
     !maps?.geometry && 'geometry',
@@ -158,6 +194,8 @@ export const loadGoogleMaps = (options = {}) => {
     return Promise.reject(new GoogleMapsError(MAPS_ERROR_CODES.CONFIG_MISSING));
   }
 
+  const janela = /** @type {GoogleMapsWindow} */ (mapsWindow());
+
   const promise = new Promise((resolve, reject) => {
     let settled = false;
     let deadlineId = null;
@@ -166,8 +204,8 @@ export const loadGoogleMaps = (options = {}) => {
     // O `load` já aconteceu? Distingue "script não respondeu" de "SDK incompleto".
     let scriptCarregou = false;
 
-    const authHandlerAnterior = window.gm_authFailure;
-    const tinhaAuthHandler = 'gm_authFailure' in window;
+    const authHandlerAnterior = janela.gm_authFailure;
+    const tinhaAuthHandler = 'gm_authFailure' in janela;
 
     const cleanup = () => {
       if (deadlineId !== null) clearTimeout(deadlineId);
@@ -176,8 +214,8 @@ export const loadGoogleMaps = (options = {}) => {
       pollId = null;
       script?.removeEventListener('load', onLoad);
       script?.removeEventListener('error', onError);
-      if (tinhaAuthHandler) window.gm_authFailure = authHandlerAnterior;
-      else delete window.gm_authFailure;
+      if (tinhaAuthHandler) janela.gm_authFailure = authHandlerAnterior;
+      else delete janela.gm_authFailure;
     };
 
     const succeed = () => {
@@ -243,7 +281,7 @@ export const loadGoogleMaps = (options = {}) => {
     script.addEventListener('load', onLoad);
     script.addEventListener('error', onError);
 
-    window.gm_authFailure = (...args) => {
+    janela.gm_authFailure = (...args) => {
       fail(MAPS_ERROR_CODES.SCRIPT_FAILED, new Error('gm_authFailure'));
       if (typeof authHandlerAnterior === 'function') authHandlerAnterior(...args);
     };
