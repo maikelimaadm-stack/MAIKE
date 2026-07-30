@@ -10,8 +10,6 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
-
 import {
   parseDiagnostics,
   toFingerprintCounts,
@@ -704,13 +702,18 @@ describe('baseline versionado do repositório', () => {
   });
 
   test('o conjunto atual é subconjunto do certificado na P0.1-R1', () => {
+    // O snapshot certificado é versionado como fixture, não lido do histórico
+    // Git: `actions/checkout` usa `fetch-depth: 1`, e um teste de certificação
+    // não pode depender da profundidade do clone nem de acesso à rede.
+    // Cópia verbatim de 9713c3a:scripts/gates/typecheck-baseline.json —
+    // conferível com `git show 9713c3a:scripts/gates/typecheck-baseline.json |
+    // diff - scripts/gates/typecheck-baseline.r1-certified.json`.
     const r1 = JSON.parse(
-      execFileSync('git', ['show', '9713c3a7b13d569e489bdd76fca6c14b4b2566b1:scripts/gates/typecheck-baseline.json'], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        maxBuffer: 1024 * 1024 * 32,
-      })
+      readFileSync(join(REPO_ROOT, 'scripts/gates/typecheck-baseline.r1-certified.json'), 'utf8')
     );
+    assert.equal(r1.version, 1, 'o snapshot da R1 é schema 1');
+    assert.equal(r1.total, TETO_R1);
+
     const novos = Object.keys(oficial.fingerprints).filter((fp) => !(fp in r1.fingerprints));
     assert.deepEqual(novos, [], 'nenhum fingerprint pode ser novo em relação à R1');
 
