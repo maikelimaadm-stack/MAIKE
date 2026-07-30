@@ -1,6 +1,7 @@
 # Estado Atual
 
-**Atualizado em:** 2026-07-28 (missão P0.1 + correções P0.1-R1, P0.1-R2 e P0.1-R3)
+**Atualizado em:** 2026-07-30 (missão P0.1 + correções P0.1-R1, P0.1-R2, P0.1-R3
+e sincronização documental P0.1-R4)
 
 ---
 
@@ -62,11 +63,17 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Erros de lint | 64 | **0** |
 | Diagnósticos `tsc` (cobertura total) | — | **2.802** (dívida versionada, teto certificado 2.802) |
 | Testes automatizados | 0 | **183** (153 de gate + 30 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | **2.461,33 kB** |
+| Bundle de produção — JS | 4.347,45 kB | **2.461,36 kB** |
 | Bundle de produção — CSS | 120,36 kB | **77,00 kB** |
 
-O bundle é o do build final desta branch (`dist/assets/index-BHVPObYO.js`),
-medido depois de `rm -rf node_modules && npm ci`.
+Os números do bundle são os da **CI**, não de um build local: run
+[30576628418](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30576628418),
+etapa `build` do HEAD funcional `eb94fa8`.
+
+| Artefato | Tamanho | gzip |
+|---|---|---|
+| `dist/assets/index-CAtW8f23.js` | 2.461,36 kB | 657,62 kB |
+| `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
 `scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
@@ -85,11 +92,14 @@ CI em `.github/workflows/quality.yml`.
 |---|---|---|---|
 | `40d06f9` | correção P0.1-R3 (gate, baseline, loader, testes, documentação) | [30575888595](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30575888595) | **vermelho** — 152/153 testes; `git show` de commit ausente no clone raso |
 | `7927562` | snapshot da R1 versionado como fixture | [30576400806](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30576400806) | **verde**, 12/12 |
-| HEAD atual | só esta atualização de estado | ver corpo da PR #1 | — |
+| `eb94fa8` | **HEAD funcional** — certificação da P0.1-R3 | [30576628418](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30576628418) | **verde**, 12/12 · 153 testes de gate, 30 de smoke |
+| HEAD atual | só a sincronização documental da P0.1-R4 | ver corpo da PR #1 | — |
 
-Um commit não pode conter o resultado da própria execução de CI. O commit
-funcional é `7927562` e sua execução está registrada acima; a execução do commit
-de documentação que o sucede fica no corpo da PR #1.
+Node vem do `.nvmrc` (20.19.0) via `node-version-file`.
+
+Um commit não pode conter o resultado da própria execução de CI. O último commit
+com execução registrada aqui é `eb94fa8`; a execução do commit documental da
+P0.1-R4 que o sucede fica no corpo da PR #1.
 
 ## Débito conhecido
 

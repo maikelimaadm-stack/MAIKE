@@ -361,7 +361,7 @@ qualquer log ou mensagem de erro, com teste específico.
 
 ## D-PROD-17 — Rebase de contrato nunca autoriza regressão de dívida
 
-**Data:** 2026-07-28 · **Missão:** P0.1-R3
+**Data:** 2026-07-30 · **Missão:** P0.1-R3
 
 **Decisão:** a barreira de não regressão da catraca de tipos vale em **todos os
 modos** — execução normal, `--update` e `--rebase-contract` — e roda antes de
