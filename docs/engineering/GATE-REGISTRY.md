@@ -19,7 +19,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **qualquer arquivo versionado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
 | **base44** | `npm run gate:base44` | Acoplamento com a Base44 só diminui (catraca, 10 eixos) | D-PROD-04 | `scripts/gates/gate-base44-ratchet.mjs` |
-| **types** | `npm run gate:types` | A dívida de tipos nunca cresce (catraca por fingerprint) | D-PROD-11 | `scripts/gates/gate-typecheck-ratchet.mjs` |
+| **types** | `npm run gate:types` | A dívida de tipos nunca cresce, em nenhum modo (catraca por fingerprint) | D-PROD-11 · D-PROD-13 · D-PROD-17 | `scripts/gates/gate-typecheck-ratchet.mjs` |
 | **verify:all** | `npm run verify:all` | Toda a cadeia, na ordem abaixo | — | `scripts/gates/verify-all.mjs` |
 
 ## Ordem do `verify:all`
@@ -53,6 +53,8 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P01-BASE44-CONTRACT` | base44 |
 | `P01-BASE44-REGRESSION` | base44 |
 | `P01-TYPE-BASELINE` | types |
+| `P01-TYPE-BASELINE-MISSING` | types |
+| `P01-TYPE-SEED-FORBIDDEN` | types |
 | `P01-TYPE-REGRESSION` | types |
 | `P01-TYPE-RUNNER` | types |
 | `P01-TYPE-CONTRACT` | types |
@@ -68,10 +70,13 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 Ambas seguem o mesmo contrato:
 
 - **baseline ausente ou malformado é falha dura.** Execução normal **nunca** cria
-  nem escreve o baseline.
+  nem escreve o baseline. `gate:types` não tem mais nenhuma porta de semeadura
+  (D-PROD-17): baseline perdido se restaura do Git.
 - `--update` só grava quando **não há regressão** e **houve pelo menos uma
   redução**. A escrita é atômica (arquivo temporário + rename).
 - O baseline é versionado no Git e tem versão de schema própria.
+- **Nenhuma flag desativa a barreira de não regressão.** Quando ela dispara, o
+  processo encerra com o baseline byte a byte intacto.
 
 ### `gate:base44` — 10 eixos
 
@@ -144,14 +149,53 @@ Mudança consciente de configuração ou de versão do compilador usa
 `--rebase-contract`, uma flag separada de `--update`. **A cobertura obrigatória
 não é rebaseável**: ela é validada antes de qualquer gravação.
 
-Baseline: `scripts/gates/typecheck-baseline.json` (schema versão 2).
+#### A não regressão vale em todos os modos (P0.1-R3, D-PROD-17)
 
-**Estado atual:** 2.808 diagnósticos de dívida legada. P1 deve reduzi-los
-monotonicamente (DBT-03).
+A versão anterior condicionava a falha por regressão a `&& !rebasear`. Com isso
+`--rebase-contract` podia gravar um baseline com dívida **maior** — a própria
+operação de rebase redefinia a dívida para cima. E foi o que aconteceu: o
+baseline subiu de 2.803 para 2.808 absorvendo cinco diagnósticos de código novo.
+
+Agora a barreira roda antes de qualquer escrita, em execução normal, `--update` e
+`--rebase-contract`, e reprova com `P01-TYPE-REGRESSION` diante de:
+
+- fingerprint novo;
+- multiplicidade aumentada;
+- arquivo com contagem maior;
+- total maior que o do baseline;
+- total acima do `certifiedCeiling`.
+
+`--rebase-contract` atualiza **metadados de contrato**, não o teto de qualidade.
+Ele só grava quando o contrato realmente mudou, a cobertura continua válida e
+não há nenhuma regressão.
+
+#### `certifiedCeiling` — o teto só desce
+
+| Regra | Comportamento |
+|---|---|
+| tipo | inteiro não negativo, obrigatório no schema 3 |
+| ausente ou inválido | `P01-TYPE-BASELINE` |
+| `baseline.total > teto` | `P01-TYPE-BASELINE` (baseline incoerente) |
+| total atual `>` teto | `P01-TYPE-REGRESSION` |
+| gravação (`--update` / `--rebase-contract`) | grava `min(teto, total atual)` |
+| execução normal | nunca altera o teto |
+
+#### Sem semeadura
+
+`--seed` foi removido. Baseline ausente reprova com `P01-TYPE-BASELINE-MISSING`
+em todos os modos; passar `--seed` reprova com `P01-TYPE-SEED-FORBIDDEN`.
+Fixtures de teste montam o próprio baseline — o gate de produção nunca semeia.
+
+Baseline: `scripts/gates/typecheck-baseline.json` (schema versão 3).
+
+**Estado atual:** 2.802 diagnósticos de dívida legada, teto certificado 2.802.
+P1 deve reduzi-los monotonicamente (DBT-03).
 
 Os testes de `scripts/tests/gates/typecheck-ratchet.test.mjs` executam o **gate
-real** em projetos temporários com `tsc` de verdade — 22 casos ponta a ponta,
-além dos casos unitários de parser, glob e canonicalização.
+real** em projetos temporários com `tsc` de verdade — 27 casos de baseline, teto
+e contrato, mais 11 casos dedicados a `--rebase-contract`, além dos casos
+unitários de parser, glob e canonicalização e de quatro asserções sobre o
+baseline versionado do próprio repositório.
 
 ## Fechamento de escopo dentro das functions
 

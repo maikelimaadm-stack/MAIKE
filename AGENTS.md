@@ -53,8 +53,12 @@ node scripts/gates/gate-base44-ratchet.mjs --update
 node scripts/gates/gate-typecheck-ratchet.mjs --update
 
 # mudança consciente de jsconfig.typecheck.json ou de versão do TypeScript
+# (sujeita à mesma barreira de não regressão)
 node scripts/gates/gate-typecheck-ratchet.mjs --rebase-contract
 ```
+
+`gate:types` não tem `--seed`. Baseline perdido se restaura do Git:
+`git checkout -- scripts/gates/typecheck-baseline.json`.
 
 `scripts/gates/base44-baseline.json` · `scripts/gates/typecheck-baseline.json`
 
@@ -80,9 +84,12 @@ Para adicionar uma página ou entidade:
   preservado. Excluir schema fora do escopo é permitido por D-PROD-02.
 - **Nenhum schema ou function Base44 novo.** A Base44 só sai (D-PROD-04).
 - **`gate:types` verde significa "a dívida não cresceu", não "sem erros".**
-  São 2.808 diagnósticos versionados (DBT-03). Veja os reais com
-  `npm run typecheck:raw`. Afrouxar `jsconfig.typecheck.json` não passa:
-  a configuração está no baseline (D-PROD-13).
+  São 2.802 diagnósticos versionados, com teto certificado de 2.802 (DBT-03).
+  Veja os reais com `npm run typecheck:raw`. Afrouxar `jsconfig.typecheck.json`
+  não passa: a configuração está no baseline (D-PROD-13). Rebasear também não
+  passa: **nenhum modo** aceita diagnóstico novo (D-PROD-17).
+- **Código novo entra com zero diagnóstico.** Absorver erro novo no baseline é
+  proibido — corrija no código.
 - **Function Base44 não pode indexar `entities` com variável.** Use acesso
   literal ou um registro literal local — senão `gate:product-scope` reprova com
   `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` (D-PROD-15).

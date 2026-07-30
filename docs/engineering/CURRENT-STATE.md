@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-07-28 (missão P0.1 + correções P0.1-R1 e P0.1-R2)
+**Atualizado em:** 2026-07-28 (missão P0.1 + correções P0.1-R1, P0.1-R2 e P0.1-R3)
 
 ---
 
@@ -13,8 +13,8 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão atual | **P0.1 — Product Scope Reset**, corrigida por **P0.1-R1** e **P0.1-R2** |
-| Estado da missão | **entregue e certificada após P0.1-R2** — `npm run verify:all` sai com 0, 12/12 etapas |
+| Missão atual | **P0.1 — Product Scope Reset**, corrigida por **P0.1-R1**, **P0.1-R2** e **P0.1-R3** |
+| Estado da missão | **em correção P0.1-R3** — certificada só depois da CI verde no HEAD final |
 | Próxima missão | P1 — Native Foundation Bootstrap |
 | Branch | `claude/maike-scope-reset-ona5vs` (PR #1, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
@@ -29,7 +29,7 @@ a rotação da chave do Google Maps** — ver OWNER-SECURITY-01 no relatório
 
 | Missão | Nome | Estado |
 |---|---|---|
-| P0 | Product Scope Reset | **entregue e certificada após P0.1-R2** |
+| P0 | Product Scope Reset | **em correção P0.1-R3** |
 | P1 | Native Foundation Bootstrap | não iniciada |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
@@ -43,7 +43,7 @@ a rotação da chave do Google Maps** — ver OWNER-SECURITY-01 no relatório
 
 Números medidos após `npm ci` e `npm run build` finais.
 
-| Métrica | `main` | Depois do P0.1-R2 |
+| Métrica | `main` | Depois do P0.1-R3 |
 |---|---|---|
 | Páginas em `src/pages` | 102 | **16** |
 | Arquivos em `src/` | 472 | **203** |
@@ -60,8 +60,8 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Acoplamento Base44 fora de `src/` | 22 | **1** |
 | Chaves Google Maps literais | 8 | **0** |
 | Erros de lint | 64 | **0** |
-| Diagnósticos `tsc` (cobertura total) | — | **2.808** (dívida versionada) |
-| Testes automatizados | 0 | **161** (131 de gate + 30 de smoke) |
+| Diagnósticos `tsc` (cobertura total) | — | **2.802** (dívida versionada, teto certificado 2.802) |
+| Testes automatizados | 0 | **183** (153 de gate + 30 de smoke) |
 | Bundle de produção — JS | 4.347,45 kB | **2.461,33 kB** |
 | Bundle de produção — CSS | 120,36 kB | **77,00 kB** |
 
@@ -69,8 +69,8 @@ O bundle é o do build final desta branch (`dist/assets/index-BHVPObYO.js`),
 medido depois de `rm -rf node_modules && npm ci`.
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
-`scripts/gates/typecheck-baseline.json` (schema 2, agora com contrato de
-configuração — D-PROD-13).
+`scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
+D-PROD-13 — e teto certificado monotônico — D-PROD-17).
 
 ## Gates ativos
 
@@ -79,17 +79,9 @@ Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.
 
-CI em `.github/workflows/quality.yml`.
-
-| Commit | Conteúdo | Run | Resultado |
-|---|---|---|---|
-| `00faed0` | correção P0.1-R2 (código, gates, testes, documentação) | [30395240855](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30395240855) | **verde**, 12/12 |
-| HEAD atual | só esta atualização de estado | ver corpo da PR #1 | — |
-
-Um commit não pode conter o resultado da própria execução de CI. O commit
-funcional é `00faed0` e sua execução está registrada acima; a execução do commit
-de documentação que sucede a ele fica no corpo da PR #1, publicada depois de
-terminar.
+CI em `.github/workflows/quality.yml`. O registro do HEAD final e da execução
+correspondente é publicado no corpo da PR #1 e neste documento depois que a
+execução termina — um commit não pode conter o resultado da própria CI.
 
 ## Débito conhecido
 
@@ -97,7 +89,7 @@ terminar.
 |---|---|---|
 | DBT-01 | Componentes acessam `base44` direto; não existe camada `src/apis/`. 371 chamadas `base44.entities` dentro de componentes React | P1 |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.808 diagnósticos de dívida de tipos versionados na catraca. `gate:types` impede crescer — e agora impede também afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
+| DBT-03 | 2.802 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.802. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,46 MB, sem code splitting | P8 |
@@ -107,4 +99,4 @@ terminar.
 | DBT-10 | `eslint.config.js` só cobre `src/components`, `src/pages` e `src/Layout.jsx`. `src/lib`, `src/api`, `src/services` e `scripts/` ficam fora do lint | P1 |
 | DBT-11 | `npm audit` reporta vulnerabilidades nas dependências transitivas remanescentes | P8 |
 | DBT-12 | `gate:types` fixa `typescriptVersion` no baseline. Atualizar o TypeScript exige `--rebase-contract` consciente — por desenho, mas é passo manual em toda subida de versão | P1 |
-| DBT-13 | `test:gates` leva ~27 s porque a catraca de tipos roda `tsc` de verdade 22 vezes. É o preço de testar o gate real em vez do parser | P8 |
+| DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |

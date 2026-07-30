@@ -22,7 +22,7 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missão atual** | **P0.1 — Product Scope Reset** (entregue e certificada após P0.1-R2) |
+| **Missão atual** | **P0.1 — Product Scope Reset** (em correção P0.1-R3) |
 | **Próxima missão** | **P1 — Native Foundation Bootstrap** |
 | **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
@@ -44,8 +44,8 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Functions Base44 | 1 (`syncEntityReferences`) |
 | Arquivos em `src/` com SDK | 71 |
 | Dependências diretas | 49 |
-| Dívida de tipos versionada | 2.808 diagnósticos |
-| Testes automatizados | 161 (131 de gate + 30 de smoke) |
+| Dívida de tipos versionada | 2.802 diagnósticos (teto certificado 2.802) |
+| Testes automatizados | 183 (153 de gate + 30 de smoke) |
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
@@ -136,7 +136,7 @@ significado delas é literal:
 | `gate:base44` | o acoplamento com a Base44 não cresceu | que a Base44 saiu |
 | `gate:types` | a dívida de tipos não cresceu | que o `tsc` está sem erros |
 
-O projeto **tem** 2.808 diagnósticos de tipo, versionados em
+O projeto **tem** 2.802 diagnósticos de tipo, versionados em
 `scripts/gates/typecheck-baseline.json` e sempre visíveis em
 `npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`, que inclui
 todo o `src/`. P1 deve reduzir a dívida monotonicamente (DBT-03).
@@ -145,8 +145,17 @@ todo o `src/`. P1 deve reduzir a dívida monotonicamente (DBT-03).
 (D-PROD-13) o baseline grava o hash canônico da configuração, o comando, a
 versão do TypeScript e o contrato de cobertura. `checkJs: false`, `include: []`
 ou excluir `src/lib` reprovam com `P01-TYPE-CONTRACT` — a cobertura não é
-rebaseável. `--update` só aceita redução de diagnósticos; mudança consciente de
-configuração exige `--rebase-contract`.
+rebaseável.
+
+**E não adianta rebasear.** Desde o P0.1-R3 (D-PROD-17) a barreira de não
+regressão vale em **todos** os modos: nem `--update` nem `--rebase-contract`
+aceitam fingerprint novo, multiplicidade aumentada, arquivo pior, total maior ou
+total acima do `certifiedCeiling`. Quando ela dispara, o baseline fica byte a
+byte intacto. `--seed` não existe mais: baseline ausente é falha dura, e o
+arquivo se restaura do Git.
+
+**Código novo nasce limpo.** Diagnóstico introduzido por código novo é corrigido
+no código, nunca absorvido pelo baseline.
 
 ---
 
@@ -164,4 +173,5 @@ Relatórios da P0.1:
 
 1. `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md` — a limpeza
 2. `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md` — o endurecimento
-3. `docs/engineering/P0.1-R2-FINAL-CONTRACT-CLOSURE-REPORT.md` — o fechamento de contratos e a certificação
+3. `docs/engineering/P0.1-R2-FINAL-CONTRACT-CLOSURE-REPORT.md` — o fechamento de contratos
+4. `docs/engineering/P0.1-R3-TYPE-RATCHET-NON-REGRESSION-REPORT.md` — a monotonicidade da catraca e a certificação

@@ -357,4 +357,49 @@ libraries incompletas, é inválido. `window.gm_authFailure` derruba a carga em
 andamento, encadeando e restaurando o handler anterior. A chave continua fora de
 qualquer log ou mensagem de erro, com teste específico.
 
-<!-- Próxima decisão: D-PROD-17 -->
+---
+
+## D-PROD-17 — Rebase de contrato nunca autoriza regressão de dívida
+
+**Data:** 2026-07-28 · **Missão:** P0.1-R3
+
+**Decisão:** a barreira de não regressão da catraca de tipos vale em **todos os
+modos** — execução normal, `--update` e `--rebase-contract` — e roda antes de
+qualquer escrita. `--rebase-contract` atualiza **metadados de contrato** (hash da
+configuração, cadeia local de `extends`, versão do TypeScript, comando efetivo,
+metadados de cobertura); ele não move o teto de qualidade.
+
+Junto com isso:
+
+1. **Nenhum modo aceita fingerprint novo**, multiplicidade aumentada, arquivo com
+   contagem maior, total maior ou total acima do teto certificado. Falha
+   qualquer uma delas, o baseline fica byte a byte intacto.
+2. **`--seed` foi removido do gate de produção.** Baseline ausente é falha dura
+   em todos os modos (`P01-TYPE-BASELINE-MISSING`), e passar `--seed` reprova
+   explicitamente (`P01-TYPE-SEED-FORBIDDEN`). Fixtures de teste montam o próprio
+   baseline; o gate nunca semeia.
+3. **`certifiedCeiling` só diminui.** É um inteiro não negativo, obrigatório no
+   schema 3. `total` do baseline e total atual não podem excedê-lo. `--update` e
+   `--rebase-contract` gravam `min(teto, total atual)` — nunca mais que isso.
+4. **Código novo nasce limpo em relação ao baseline.** Diagnóstico introduzido
+   por código novo é corrigido no código, não absorvido pelo baseline.
+
+**Justificativa:** a auditoria da P0.1-R2 encontrou duas coisas ligadas. A falha
+por regressão estava condicionada a `&& !rebasear`, de modo que
+`--rebase-contract` podia gravar um baseline com dívida maior — a própria
+operação de rebase redefinia a dívida para cima. E foi exatamente isso que
+aconteceu na prática: o baseline subiu de 2.803 para 2.808 porque cinco
+diagnósticos do loader novo do Google Maps foram absorvidos por uma nova
+semeadura, e o relatório da R2 aceitou o aumento. CI verde não representava a
+propriedade declarada pela catraca.
+
+**Consequência:** os cinco diagnósticos foram corrigidos no próprio
+`src/lib/googleMaps.js`, com `@typedef` locais para `window.google` e
+`window.gm_authFailure` — contratos reais do runtime, não silenciamento. O
+arquivo passou de 6 para **0** diagnósticos, incluindo o que já existia desde a
+R1. O baseline foi migrado a partir do arquivo **certificado na R1** (commit
+`9713c3a`), não do da R2, e só foi gravado depois de provado que o conjunto
+atual é subconjunto do histórico: 0 fingerprints novos, 0 multiplicidades
+aumentadas, 1 redução. Total 2.802, teto 2.802.
+
+<!-- Próxima decisão: D-PROD-18 -->
