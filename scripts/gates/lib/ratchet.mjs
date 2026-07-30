@@ -35,8 +35,9 @@ export const readBaseline = (path, { expectedVersion, code }) => {
   if (!existsSync(path)) {
     return {
       ok: false,
+      missing: true,
       code,
-      message: `baseline ausente: ${path}. Ele é versionado e obrigatório — gere-o conscientemente com --update numa execução autorizada.`,
+      message: `baseline ausente: ${path}. Ele é versionado e obrigatório — restaure-o do Git.`,
     };
   }
 
