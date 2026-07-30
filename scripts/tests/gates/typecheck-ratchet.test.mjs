@@ -10,12 +10,15 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 import {
   parseDiagnostics,
   toFingerprintCounts,
   toFileCounts,
   normalizeMessage,
+  runTypecheck,
+  tscCommand,
 } from '../../gates/lib/tsc-diagnostics.mjs';
 import { compareMultisets, isCount } from '../../gates/lib/ratchet.mjs';
 import {
@@ -24,6 +27,7 @@ import {
   patternToRegExp,
   validateCoverage,
   hashConfigChain,
+  buildTypeContract,
 } from '../../gates/lib/type-config.mjs';
 import { makeTempDir, cleanup, writeFile, runGate, REPO_ROOT } from './helpers.mjs';
 
@@ -206,31 +210,69 @@ const env = (dir, extra = {}) => ({
 const rodar = (dir, { args = [], extraEnv = {} } = {}) =>
   runGate(GATE, { cwd: dir, args, env: env(dir, extraEnv) });
 
-const semear = (dir) => {
-  const r = rodar(dir, { args: ['--seed'] });
-  assert.equal(r.status, 0, `seed falhou: ${r.output}`);
-  return r;
+
+/**
+ * Cria o baseline diretamente, sem passar pelo gate.
+ *
+ * O gate de produção não semeia mais (P0.1-R3): `--seed` foi removido. Fixture
+ * que precisa de baseline monta o arquivo por conta própria.
+ */
+const criarBaseline = (dir, { certifiedCeiling, patch } = {}) => {
+  const run = runTypecheck({ project: PROJETO, cwd: dir });
+  assert.equal(run.ok, true, `tsc falhou na fixture: ${run.detail || ''}`);
+
+  const contrato = buildTypeContract({
+    project: PROJETO,
+    cwd: dir,
+    command: tscCommand(PROJETO),
+    typescriptVersion: VERSAO_TS,
+  });
+  assert.equal(contrato.ok, true, contrato.message);
+
+  const total = run.diagnostics.length;
+  const baseline = {
+    version: 3,
+    ...contrato.contract,
+    certifiedCeiling: certifiedCeiling ?? total,
+    total,
+    byFile: toFileCounts(run.diagnostics),
+    fingerprints: toFingerprintCounts(run.diagnostics),
+    ...(patch || {}),
+  };
+  gravarBaseline(dir, baseline);
+  return baseline;
 };
 
 const lerBaseline = (dir) => JSON.parse(readFileSync(join(dir, BASELINE_REL), 'utf8'));
+const bytesBaseline = (dir) => readFileSync(join(dir, BASELINE_REL), 'utf8');
 const gravarBaseline = (dir, dados) =>
   writeFileSync(join(dir, BASELINE_REL), `${JSON.stringify(dados, null, 2)}\n`);
 
-describe('gate:types — execução real do gate', () => {
-  test('1. baseline ausente reprova', () => {
+/** Roda o gate esperando falha e prova que o baseline não foi tocado. */
+const falhaSemEscrever = (dir, { args = [], extraEnv = {} } = {}) => {
+  const antes = bytesBaseline(dir);
+  const r = rodar(dir, { args, extraEnv });
+  assert.equal(r.status, 1, `esperava exit 1:\n${r.output}`);
+  assert.equal(bytesBaseline(dir), antes, 'o baseline foi alterado numa execução que deveria falhar');
+  const temporarios = readdirSync(dir).filter((f) => f.includes('.tmp'));
+  assert.deepEqual(temporarios, [], 'nenhum arquivo temporário pode sobrar');
+  return r;
+};
+
+describe('gate:types — baseline, teto e contrato', () => {
+  test('1. baseline ausente reprova e não cria arquivo', () => {
     const d = makeTypeProject();
     const r = rodar(d);
     assert.equal(r.status, 1);
-    assert.match(r.output, /P01-TYPE-BASELINE/);
-    assert.match(r.output, /baseline ausente/);
+    assert.match(r.output, /P01-TYPE-BASELINE-MISSING/);
+    assert.equal(existsSync(join(d, BASELINE_REL)), false, 'o gate não pode criar baseline');
     cleanup(d);
   });
 
   test('2. baseline com JSON inválido reprova', () => {
     const d = makeTypeProject();
     writeFile(d, BASELINE_REL, '{ isso não é json');
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-BASELINE/);
     assert.match(r.output, /não é JSON válido/);
     cleanup(d);
@@ -238,20 +280,18 @@ describe('gate:types — execução real do gate', () => {
 
   test('3. versão de baseline desconhecida reprova', () => {
     const d = makeTypeProject();
-    semear(d);
-    gravarBaseline(d, { ...lerBaseline(d), version: 99 });
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const b = criarBaseline(d);
+    gravarBaseline(d, { ...b, version: 99 });
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /versão de baseline desconhecida/);
     cleanup(d);
   });
 
   test('4. caminho de projeto divergente reprova', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'jsconfig.alternativo.json', configBase());
-    const r = rodar(d, { extraEnv: { TYPECHECK_PROJECT: './jsconfig.alternativo.json' } });
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d, { extraEnv: { TYPECHECK_PROJECT: './jsconfig.alternativo.json' } });
     assert.match(r.output, /P01-TYPE-CONFIG-DRIFT/);
     assert.match(r.output, /projeto divergente/);
     cleanup(d);
@@ -259,11 +299,9 @@ describe('gate:types — execução real do gate', () => {
 
   test('5. conteúdo da configuração alterado reprova pelo hash', () => {
     const d = makeTypeProject();
-    semear(d);
-    // Mantém include/exclude/checkJs: só o hash denuncia a alteração.
+    criarBaseline(d);
     writeFile(d, 'jsconfig.typecheck.json', configBase({ compilerOptions: { strict: false } }));
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-CONFIG-DRIFT/);
     assert.match(r.output, /sha256/);
     cleanup(d);
@@ -271,10 +309,9 @@ describe('gate:types — execução real do gate', () => {
 
   test('6. checkJs:false reprova', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'jsconfig.typecheck.json', configBase({ compilerOptions: { checkJs: false } }));
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-CONTRACT/);
     assert.match(r.output, /"checkJs" precisa ser true/);
     cleanup(d);
@@ -282,10 +319,9 @@ describe('gate:types — execução real do gate', () => {
 
   test('7. include vazio reprova', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'jsconfig.typecheck.json', configBase({ include: [] }));
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-CONTRACT/);
     assert.match(r.output, /"include" ausente ou vazio/);
     cleanup(d);
@@ -293,10 +329,9 @@ describe('gate:types — execução real do gate', () => {
 
   test('8. excluir src/lib reprova', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'jsconfig.typecheck.json', configBase({ exclude: ['node_modules', 'src/lib'] }));
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-CONTRACT/);
     assert.match(r.output, /diretório protegido excluído: src\/lib/);
     cleanup(d);
@@ -304,10 +339,9 @@ describe('gate:types — execução real do gate', () => {
 
   test('9. comando divergente reprova', () => {
     const d = makeTypeProject();
-    semear(d);
-    gravarBaseline(d, { ...lerBaseline(d), effectiveCommand: 'tsc --noEmit' });
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const b = criarBaseline(d);
+    gravarBaseline(d, { ...b, effectiveCommand: 'tsc --noEmit' });
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-CONFIG-DRIFT/);
     assert.match(r.output, /comando divergente/);
     cleanup(d);
@@ -315,20 +349,18 @@ describe('gate:types — execução real do gate', () => {
 
   test('10. versão do TypeScript divergente reprova', () => {
     const d = makeTypeProject();
-    semear(d);
-    gravarBaseline(d, { ...lerBaseline(d), typescriptVersion: '0.0.0-inexistente' });
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const b = criarBaseline(d);
+    gravarBaseline(d, { ...b, typescriptVersion: '0.0.0-inexistente' });
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-VERSION-DRIFT/);
     cleanup(d);
   });
 
   test('11. fingerprint novo reprova', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'src/services/d.js', "/** @type {string} */\nexport const d = 42;\n");
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /P01-TYPE-REGRESSION/);
     assert.match(r.output, /diagnóstico novo/);
     cleanup(d);
@@ -336,29 +368,25 @@ describe('gate:types — execução real do gate', () => {
 
   test('12. multiplicidade aumentada reprova', () => {
     const d = makeTypeProject();
-    semear(d);
-    // Mesmo arquivo, mesma mensagem, duas vezes: fingerprint idêntico, x2.
+    criarBaseline(d);
     writeFile(d, 'src/lib/a.js', ERRO('a') + ERRO('a2'));
-    const r = rodar(d);
-    assert.equal(r.status, 1);
-    assert.match(r.output, /P01-TYPE-REGRESSION/);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /multiplicidade aumentou/);
     cleanup(d);
   });
 
   test('13. arquivo que piora é reportado', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'src/components/ui/c.jsx', LIMPO('c') + ERRO('c2'));
-    const r = rodar(d);
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d);
     assert.match(r.output, /arquivo piorou: src\/components\/ui\/c\.jsx: 0 -> 1/);
     cleanup(d);
   });
 
   test('14. somente redução passa', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'src/api/b.js', LIMPO('b'));
     const r = rodar(d);
     assert.equal(r.status, 0, r.output);
@@ -366,70 +394,86 @@ describe('gate:types — execução real do gate', () => {
     cleanup(d);
   });
 
-  test('15. execução normal não escreve no baseline', () => {
+  test('15. execução normal nunca escreve', () => {
     const d = makeTypeProject();
-    semear(d);
-    const antes = readFileSync(join(d, BASELINE_REL), 'utf8');
+    criarBaseline(d);
+    const antes = bytesBaseline(d);
     const r = rodar(d);
     assert.equal(r.status, 0, r.output);
-    assert.equal(readFileSync(join(d, BASELINE_REL), 'utf8'), antes);
-    const temporarios = readdirSync(d).filter((f) => f.includes('.tmp'));
-    assert.deepEqual(temporarios, [], 'nenhum arquivo temporário pode sobrar');
+    assert.equal(bytesBaseline(d), antes);
+    assert.deepEqual(readdirSync(d).filter((f) => f.includes('.tmp')), []);
     cleanup(d);
   });
 
-  test('16. --update com redução regrava o baseline', () => {
+  test('16. --update com redução baixa total e teto', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     assert.equal(lerBaseline(d).total, 2);
+    assert.equal(lerBaseline(d).certifiedCeiling, 2);
     writeFile(d, 'src/api/b.js', LIMPO('b'));
     const r = rodar(d, { args: ['--update'] });
     assert.equal(r.status, 0, r.output);
     assert.equal(lerBaseline(d).total, 1);
+    assert.equal(lerBaseline(d).certifiedCeiling, 1, 'o teto acompanha a redução');
     cleanup(d);
   });
 
-  test('17. --update com regressão é recusado', () => {
+  test('17. --update com regressão não escreve', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'src/services/d.js', ERRO('d'));
-    const r = rodar(d, { args: ['--update'] });
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d, { args: ['--update'] });
     assert.match(r.output, /P01-TYPE-REGRESSION/);
-    assert.equal(lerBaseline(d).total, 2, 'o baseline não pode ter sido regravado');
+    assert.equal(lerBaseline(d).total, 2);
     cleanup(d);
   });
 
-  test('18. --seed com baseline existente é recusado', () => {
+  test('18. --update sem redução não escreve', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
+    const r = falhaSemEscrever(d, { args: ['--update'] });
+    assert.match(r.output, /--update exige pelo menos um diagnóstico removido/);
+    cleanup(d);
+  });
+
+  test('19. --seed foi removido e reprova explicitamente', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    const r = falhaSemEscrever(d, { args: ['--seed'] });
+    assert.match(r.output, /P01-TYPE-SEED-FORBIDDEN/);
+    assert.match(r.output, /--seed não existe mais/);
+    cleanup(d);
+  });
+
+  test('20. --seed com baseline ausente também reprova e não cria', () => {
+    const d = makeTypeProject();
     const r = rodar(d, { args: ['--seed'] });
     assert.equal(r.status, 1);
-    assert.match(r.output, /--seed recusado/);
+    assert.match(r.output, /P01-TYPE-SEED-FORBIDDEN/);
+    assert.equal(existsSync(join(d, BASELINE_REL)), false);
     cleanup(d);
   });
 
-  test('19. runner sem diagnóstico parseável reprova como runner', () => {
+  test('21. runner sem diagnóstico parseável reprova como runner', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     const runner = writeFile(
       d,
       'runner-quebrado.mjs',
       `if (process.argv.includes('--version')) { console.log('Version ${VERSAO_TS}'); process.exit(0); }\n` +
         `process.stderr.write('falha interna do compilador\\n');\nprocess.exit(1);\n`
     );
-    const r = rodar(d, { extraEnv: { TSC_BIN: runner } });
-    assert.equal(r.status, 1);
+    const r = falhaSemEscrever(d, { extraEnv: { TSC_BIN: runner } });
     assert.match(r.output, /P01-TYPE-RUNNER/);
     assert.match(r.output, /falha interna do compilador/);
     cleanup(d);
   });
 
-  test('20. projeto sem nenhum erro passa', () => {
+  test('22. projeto sem nenhum erro passa', () => {
     const d = makeTypeProject({
       arquivos: { 'src/lib/a.js': LIMPO('a'), 'src/api/b.js': LIMPO('b') },
     });
-    semear(d);
+    criarBaseline(d);
     assert.equal(lerBaseline(d).total, 0);
     const r = rodar(d);
     assert.equal(r.status, 0, r.output);
@@ -437,42 +481,243 @@ describe('gate:types — execução real do gate', () => {
     cleanup(d);
   });
 
-  test('21. deslocar o código não cria diagnóstico novo', () => {
+  test('23. deslocar o código não cria diagnóstico novo', () => {
     const d = makeTypeProject();
-    semear(d);
+    criarBaseline(d);
     writeFile(d, 'src/lib/a.js', `${'\n'.repeat(40)}// deslocado\n${ERRO('a')}`);
     const r = rodar(d);
     assert.equal(r.status, 0, r.output);
     cleanup(d);
   });
 
-  test('22. --rebase-contract aceita mudança consciente e valida a cobertura', () => {
+  // ── certifiedCeiling ────────────────────────────────────────────────────
+
+  test('24. certifiedCeiling ausente reprova', () => {
     const d = makeTypeProject();
-    semear(d);
-    const shaAntes = lerBaseline(d).projectSha256;
+    const b = criarBaseline(d);
+    delete b.certifiedCeiling;
+    gravarBaseline(d, b);
+    const r = falhaSemEscrever(d);
+    assert.match(r.output, /"certifiedCeiling" ausente ou inválido/);
+    cleanup(d);
+  });
 
-    writeFile(d, 'jsconfig.typecheck.json', configBase({ compilerOptions: { strict: false } }));
-    const ok = rodar(d, { args: ['--rebase-contract'] });
-    assert.equal(ok.status, 0, ok.output);
-    assert.notEqual(lerBaseline(d).projectSha256, shaAntes);
+  for (const [rotulo, valor] of [
+    ['negativo', -1],
+    ['fracionário', 1.5],
+    ['string', '2'],
+    ['nulo', null],
+  ]) {
+    test(`25. certifiedCeiling ${rotulo} reprova`, () => {
+      const d = makeTypeProject();
+      const b = criarBaseline(d);
+      gravarBaseline(d, { ...b, certifiedCeiling: valor });
+      const r = falhaSemEscrever(d);
+      assert.match(r.output, /"certifiedCeiling" ausente ou inválido/);
+      cleanup(d);
+    });
+  }
 
-    // Rebasear não é porta de fuga: cobertura reduzida continua reprovando.
-    writeFile(d, 'jsconfig.typecheck.json', configBase({ exclude: ['node_modules', 'src/api'] }));
-    const recusado = rodar(d, { args: ['--rebase-contract'] });
-    assert.equal(recusado.status, 1);
-    assert.match(recusado.output, /P01-TYPE-CONTRACT/);
+  test('26. baseline.total acima do teto reprova', () => {
+    const d = makeTypeProject();
+    const b = criarBaseline(d);
+    gravarBaseline(d, { ...b, certifiedCeiling: b.total - 1 });
+    const r = falhaSemEscrever(d);
+    assert.match(r.output, /excede "certifiedCeiling"/);
+    cleanup(d);
+  });
+
+  test('27. total atual acima do teto reprova', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    writeFile(d, 'src/services/d.js', ERRO('d'));
+    const r = falhaSemEscrever(d);
+    assert.match(r.output, /excede o teto certificado/);
     cleanup(d);
   });
 });
 
-describe('contrato de tipos do próprio repositório', () => {
-  test('o baseline versionado descreve a configuração real', () => {
-    const baseline = JSON.parse(readFileSync(join(REPO_ROOT, 'scripts/gates/typecheck-baseline.json'), 'utf8'));
-    assert.equal(baseline.projectPath, 'jsconfig.typecheck.json');
-    assert.equal(baseline.coverageContract.checkJs, true);
+describe('gate:types — --rebase-contract não autoriza regressão (D-PROD-17)', () => {
+  /** Muda o contrato sem mexer na cobertura nem nos diagnósticos. */
+  const mudarContrato = (dir) =>
+    writeFile(dir, 'jsconfig.typecheck.json', configBase({ compilerOptions: { strict: false } }));
+
+  test('1. contrato mudou + dívida igual: passa e grava os metadados', () => {
+    const d = makeTypeProject();
+    const shaAntes = criarBaseline(d).projectSha256;
+    mudarContrato(d);
+    const r = rodar(d, { args: ['--rebase-contract'] });
+    assert.equal(r.status, 0, r.output);
+    const depois = lerBaseline(d);
+    assert.notEqual(depois.projectSha256, shaAntes);
+    assert.equal(depois.total, 2);
+    assert.equal(depois.certifiedCeiling, 2);
+    cleanup(d);
+  });
+
+  test('2. contrato mudou + dívida menor: passa e baixa total e teto', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    mudarContrato(d);
+    writeFile(d, 'src/api/b.js', LIMPO('b'));
+    const r = rodar(d, { args: ['--rebase-contract'] });
+    assert.equal(r.status, 0, r.output);
+    assert.equal(lerBaseline(d).total, 1);
+    assert.equal(lerBaseline(d).certifiedCeiling, 1);
+    cleanup(d);
+  });
+
+  test('3. contrato mudou + fingerprint novo: FALHA', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    mudarContrato(d);
+    writeFile(d, 'src/services/d.js', "/** @type {string} */\nexport const d = 42;\n");
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /P01-TYPE-REGRESSION/);
+    assert.match(r.output, /diagnóstico novo/);
+    assert.match(r.output, /não autoriza regressão/);
+    cleanup(d);
+  });
+
+  test('4. contrato mudou + multiplicidade aumentada: FALHA', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    mudarContrato(d);
+    writeFile(d, 'src/lib/a.js', ERRO('a') + ERRO('a2'));
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /multiplicidade aumentou/);
+    cleanup(d);
+  });
+
+  test('5. contrato mudou + arquivo pior: FALHA', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    mudarContrato(d);
+    writeFile(d, 'src/components/ui/c.jsx', LIMPO('c') + ERRO('c2'));
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /arquivo piorou/);
+    cleanup(d);
+  });
+
+  test('6. contrato mudou + total maior: FALHA', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    mudarContrato(d);
+    writeFile(d, 'src/services/d.js', ERRO('d'));
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /total aumentou: 2 -> 3/);
+    cleanup(d);
+  });
+
+  test('7. versão do TypeScript mudou + diagnóstico novo: FALHA', () => {
+    const d = makeTypeProject();
+    const b = criarBaseline(d);
+    gravarBaseline(d, { ...b, typescriptVersion: '0.0.0-anterior' });
+    writeFile(d, 'src/services/d.js', "/** @type {string} */\nexport const d = 42;\n");
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /P01-TYPE-REGRESSION/);
+    assert.doesNotMatch(r.output, /REBASEADO/);
+    cleanup(d);
+  });
+
+  test('8. regressão com --rebase-contract não altera o baseline', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    const antes = bytesBaseline(d);
+    mudarContrato(d);
+    writeFile(d, 'src/services/d.js', ERRO('d'));
+    rodar(d, { args: ['--rebase-contract'] });
+    assert.equal(bytesBaseline(d), antes, 'byte a byte inalterado');
+    cleanup(d);
+  });
+
+  test('9. --rebase-contract sem mudança de contrato reprova', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /o contrato gravado já é igual ao atual/);
+    cleanup(d);
+  });
+
+  test('10. --rebase-contract com cobertura inválida reprova', () => {
+    const d = makeTypeProject();
+    criarBaseline(d);
+    writeFile(d, 'jsconfig.typecheck.json', configBase({ exclude: ['node_modules', 'src/api'] }));
+    const r = falhaSemEscrever(d, { args: ['--rebase-contract'] });
+    assert.match(r.output, /P01-TYPE-CONTRACT/);
+    cleanup(d);
+  });
+
+  test('11. --rebase-contract nunca aumenta o teto', () => {
+    const d = makeTypeProject();
+    criarBaseline(d, { certifiedCeiling: 50 });
+    mudarContrato(d);
+    const r = rodar(d, { args: ['--rebase-contract'] });
+    assert.equal(r.status, 0, r.output);
+    assert.equal(lerBaseline(d).certifiedCeiling, 2, 'o teto só pode descer');
+    cleanup(d);
+  });
+});
+
+describe('baseline versionado do repositório', () => {
+  const oficial = JSON.parse(
+    readFileSync(join(REPO_ROOT, 'scripts/gates/typecheck-baseline.json'), 'utf8')
+  );
+
+  /** Teto certificado na P0.1-R1, antes da regressão introduzida pela R2. */
+  const TETO_R1 = 2803;
+
+  /** Fingerprints que a R2 introduziu no loader do Google Maps. */
+  const FINGERPRINTS_R2 = [
+    "src/lib/googleMaps.js|TS2339|Property 'gm_authFailure' does not exist on type 'Window & typeof globalThis'.",
+    "src/lib/googleMaps.js|TS2339|Property 'google' does not exist on type 'Window & typeof globalThis'.",
+  ];
+
+  test('schema, teto e total coerentes', () => {
+    assert.equal(oficial.version, 3);
+    assert.equal(oficial.projectPath, 'jsconfig.typecheck.json');
+    assert.ok(Number.isInteger(oficial.certifiedCeiling) && oficial.certifiedCeiling >= 0);
+    assert.ok(oficial.certifiedCeiling <= TETO_R1, `teto ${oficial.certifiedCeiling} acima do certificado na R1`);
+    assert.ok(oficial.total <= oficial.certifiedCeiling);
+    assert.equal(
+      Object.values(oficial.fingerprints).reduce((a, b) => a + b, 0),
+      oficial.total
+    );
+  });
+
+  test('a cobertura obrigatória continua declarada', () => {
+    assert.equal(oficial.coverageContract.checkJs, true);
     assert.ok(existsSync(join(REPO_ROOT, 'jsconfig.typecheck.json')));
     for (const dir of ['src/components/ui', 'src/api', 'src/lib', 'src/services']) {
-      assert.ok(baseline.coverageContract.protectedDirs.includes(dir));
+      assert.ok(oficial.coverageContract.protectedDirs.includes(dir));
     }
+  });
+
+  test('os diagnósticos introduzidos pela R2 no loader não estão no baseline', () => {
+    for (const fp of FINGERPRINTS_R2) {
+      assert.equal(oficial.fingerprints[fp], undefined, `fingerprint da R2 ainda presente: ${fp}`);
+    }
+    assert.ok(
+      (oficial.byFile['src/lib/googleMaps.js'] ?? 0) <= 1,
+      'src/lib/googleMaps.js precisa ter no máximo 1 diagnóstico'
+    );
+  });
+
+  test('o conjunto atual é subconjunto do certificado na P0.1-R1', () => {
+    const r1 = JSON.parse(
+      execFileSync('git', ['show', '9713c3a7b13d569e489bdd76fca6c14b4b2566b1:scripts/gates/typecheck-baseline.json'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        maxBuffer: 1024 * 1024 * 32,
+      })
+    );
+    const novos = Object.keys(oficial.fingerprints).filter((fp) => !(fp in r1.fingerprints));
+    assert.deepEqual(novos, [], 'nenhum fingerprint pode ser novo em relação à R1');
+
+    const aumentos = Object.entries(oficial.fingerprints)
+      .filter(([fp, n]) => n > (r1.fingerprints[fp] ?? 0))
+      .map(([fp, n]) => `${fp}: ${r1.fingerprints[fp]} -> ${n}`);
+    assert.deepEqual(aumentos, []);
+    assert.ok(oficial.total <= r1.total, `total ${oficial.total} acima do certificado ${r1.total}`);
   });
 });
