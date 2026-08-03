@@ -4,7 +4,6 @@ export const ENTIDADES_RELACIONAIS = [
   { value: "CategoriaManejo", label: "Categoria de Manejo", fields: ["nome", "categoria_oficial", "sexo", "raca"] },
   { value: "Setor", label: "Setor", fields: ["nome", "numero_setor"] },
   { value: "AreaPastagem", label: "Área / Piquete", fields: ["nome", "numero_area", "setor_nome"] },
-  { value: "CentroCusto", label: "Centro de Custo", fields: ["nome", "tipo", "centro_custo_pai_nome"] },
   { value: "LocalEstoque", label: "Local de Estoque", fields: ["nome", "numero_local", "descricao"] }
 ];
 

@@ -5,24 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { X, MapPin, Check } from "lucide-react";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
-
-const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.google?.maps) {
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 42) => {
   if (!marker || !iconUrl || !window.google?.maps) return;

@@ -60,13 +60,13 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem("colunas_ordem_pontos_geo");
-    if (saved) { try { return JSON.parse(saved); } catch {} }
+    if (saved) { try { return JSON.parse(saved); } catch { /* falha ignorada intencionalmente: operação best-effort */ } }
     return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem("colunas_visiveis_pontos_geo");
-    if (saved) { try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch {} }
+    if (saved) { try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS])); } catch { /* falha ignorada intencionalmente: operação best-effort */ } }
     return DEFAULT_VISIBLE_COLUMNS;
   });
 

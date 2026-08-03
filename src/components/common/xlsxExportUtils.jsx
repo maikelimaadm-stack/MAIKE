@@ -7,7 +7,7 @@ const escapeXml = (value) => String(value ?? "")
   .replaceAll('"', "&quot;");
 
 const sanitizeSheetName = (name) => String(name || "Planilha")
-  .replace(/[\\/?*\[\]:]/g, " ")
+  .replace(/[\\/?*[\]:]/g, " ")
   .trim()
   .slice(0, 31) || "Planilha";
 

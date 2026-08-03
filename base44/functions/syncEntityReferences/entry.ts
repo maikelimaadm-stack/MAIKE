@@ -1,23 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+// Regras de propagação — escopo Pecuária Mapa Geral + Manejo (P0.1-R1).
+//
+// Toda chave-fonte e todo `entity` de destino precisam existir em
+// `config/mapa-manejo-scope.json` → `allowedBase44Entities`.
+// Validado por `npm run gate:product-scope` (P01-SCOPE-FUNCTION-ENTITY).
+//
+// As chaves-fonte são exatamente as cinco invocadas pela cadeia preservada:
+//   Produto        → src/pages/Produtos.jsx
+//   Setor          → src/pages/CadastroSetores.jsx
+//   TipoTarefa     → src/pages/TiposTarefa.jsx
+//   GrupoAtividade → src/pages/GruposAtividades.jsx
+//   Lote           → src/core/repositories/loteRepository.js
 const PROPAGATION_RULES = {
   Produto: [
-    {
-      entity: 'CustoSafra',
-      matchType: 'id',
-      queryField: 'produto_id',
-      fieldMap: {
-        produto_nome: 'nome_produto',
-      },
-    },
-    {
-      entity: 'HistoricoEntrega',
-      matchType: 'id',
-      queryField: 'produto_id',
-      fieldMap: {
-        produto_nome: 'nome_produto',
-      },
-    },
     {
       entity: 'MovimentacaoEstoque',
       matchType: 'id',
@@ -34,15 +30,6 @@ const PROPAGATION_RULES = {
       queryField: 'produto_id',
       fieldMap: {
         produto: 'nome_produto',
-      },
-    },
-    {
-      entity: 'OperacaoAgricola',
-      matchType: 'value',
-      sourceField: 'nome_produto',
-      matchFields: ['produto_aplicado'],
-      fieldMap: {
-        produto_aplicado: 'nome_produto',
       },
     },
     {
@@ -65,155 +52,6 @@ const PROPAGATION_RULES = {
       },
     },
   ],
-  Fornecedor: [
-    {
-      entity: 'CustoSafra',
-      matchType: 'id',
-      queryField: 'fornecedor_id',
-      fieldMap: {
-        fornecedor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'HistoricoEntrega',
-      matchType: 'id',
-      queryField: 'fornecedor_id',
-      fieldMap: {
-        fornecedor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'MovimentacaoEstoque',
-      matchType: 'id',
-      queryField: 'fornecedor_id',
-      fieldMap: {
-        fornecedor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'LancamentoFinanceiro',
-      matchType: 'id',
-      queryField: 'fornecedor_id',
-      fieldMap: {
-        fornecedor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'Lote',
-      matchType: 'id',
-      queryField: 'fornecedor_id',
-      fieldMap: {
-        fornecedor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'AtivoFixo',
-      matchType: 'id',
-      queryField: 'fornecedor_id',
-      fieldMap: {
-        fornecedor_nome: 'nome',
-      },
-    },
-  ],
-  Safra: [
-    {
-      entity: 'MovimentacaoEstoque',
-      matchType: 'id',
-      queryField: 'safra_id',
-      fieldMap: {
-        safra_nome: '__safra_label__',
-      },
-    },
-    {
-      entity: 'LancamentoFinanceiro',
-      matchType: 'id',
-      queryField: 'safra_id',
-      fieldMap: {
-        safra_nome: '__safra_label__',
-      },
-    },
-  ],
-  UnidadeMedida: [
-    {
-      entity: 'Produto',
-      matchType: 'value',
-      sourceField: 'sigla',
-      matchFields: ['unidade_medida'],
-      fieldMap: {
-        unidade_medida: 'sigla',
-      },
-    },
-    {
-      entity: 'MovimentacaoEstoque',
-      matchType: 'value',
-      sourceField: 'sigla',
-      matchFields: ['unidade_medida'],
-      fieldMap: {
-        unidade_medida: 'sigla',
-      },
-    },
-  ],
-  Categoria: [
-    {
-      entity: 'Produto',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'nome',
-      },
-    },
-  ],
-  LocalEstoque: [
-    {
-      entity: 'Produto',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['local_estoque'],
-      fieldMap: {
-        local_estoque: 'nome',
-      },
-    },
-    {
-      entity: 'LancamentoFinanceiro',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['local_estoque'],
-      fieldMap: {
-        local_estoque: 'nome',
-      },
-    },
-    {
-      entity: 'MovimentacaoEstoque',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['local_origem', 'local_destino', 'local_estoque_origem', 'local_estoque_destino'],
-      fieldMap: {
-        local_origem: 'nome',
-        local_destino: 'nome',
-        local_estoque_origem: 'nome',
-        local_estoque_destino: 'nome',
-      },
-    },
-  ],
-  CentroCusto: [
-    {
-      entity: 'LancamentoFinanceiro',
-      matchType: 'id',
-      queryField: 'centro_custo_id',
-      fieldMap: {
-        centro_custo_nome: 'nome',
-      },
-    },
-    {
-      entity: 'MovimentacaoEstoque',
-      matchType: 'id',
-      queryField: 'centro_custo_id',
-      fieldMap: {
-        centro_custo_nome: 'nome',
-      },
-    },
-  ],
   GrupoAtividade: [
     {
       entity: 'TipoTarefa',
@@ -231,14 +69,6 @@ const PROPAGATION_RULES = {
         grupo_atividade_nome: 'nome_grupo',
       },
     },
-    {
-      entity: 'TarefaMapa',
-      matchType: 'id',
-      queryField: 'grupo_atividade_id',
-      fieldMap: {
-        grupo_atividade_nome: 'nome_grupo',
-      },
-    },
   ],
   TipoTarefa: [
     {
@@ -249,140 +79,6 @@ const PROPAGATION_RULES = {
         tipo_tarefa_nome: 'nome_tipo',
         grupo_atividade_id: 'grupo_atividade_id',
         grupo_atividade_nome: 'grupo_atividade_nome',
-      },
-    },
-    {
-      entity: 'TarefaMapa',
-      matchType: 'id',
-      queryField: 'tipo_tarefa_id',
-      fieldMap: {
-        tipo_tarefa_nome: 'nome_tipo',
-        grupo_atividade_id: 'grupo_atividade_id',
-        grupo_atividade_nome: 'grupo_atividade_nome',
-      },
-    },
-  ],
-  CategoriaManejo: [
-    {
-      entity: 'Lote',
-      matchType: 'id',
-      queryField: 'categoria_manejo_id',
-      fieldMap: {
-        categoria_manejo_nome: 'nome',
-        categoria: 'categoria_oficial',
-      },
-    },
-    {
-      entity: 'Lote',
-      matchType: 'id',
-      queryField: 'categoria_manejo_entrada_id',
-      fieldMap: {
-        categoria_manejo_entrada_nome: 'nome',
-        categoria_entrada: 'categoria_oficial',
-      },
-    },
-    {
-      entity: 'Lote',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['categoria_manejo_nome', 'categoria_manejo_entrada_nome'],
-      fieldMap: {
-        categoria_manejo_nome: 'nome',
-        categoria_manejo_entrada_nome: 'nome',
-        categoria_manejo_id: 'id',
-        categoria_manejo_entrada_id: 'id',
-      },
-      targetMatchFieldMap: {
-        categoria_manejo_id: 'categoria_manejo_nome',
-        categoria_manejo_entrada_id: 'categoria_manejo_entrada_nome',
-      },
-    },
-    {
-      entity: 'Lote',
-      matchType: 'value',
-      sourceField: 'categoria_oficial',
-      matchFields: ['categoria', 'categoria_entrada'],
-      fieldMap: {
-        categoria: 'categoria_oficial',
-        categoria_entrada: 'categoria_oficial',
-      },
-    },
-    {
-      entity: 'MovimentacaoPecuaria',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'],
-      fieldMap: {
-        categoria_animal: 'nome',
-        categoria_nova: 'nome',
-        transferencia_origem: 'nome',
-        transferencia_destino: 'nome',
-      },
-    },
-    {
-      entity: 'MovimentacaoPecuaria',
-      matchType: 'value',
-      sourceField: 'categoria_oficial',
-      matchFields: ['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'],
-      fieldMap: {
-        categoria_animal: 'categoria_oficial',
-        categoria_nova: 'categoria_oficial',
-        transferencia_origem: 'categoria_oficial',
-        transferencia_destino: 'categoria_oficial',
-      },
-    },
-    {
-      entity: 'ManejoTecnicoRebanho',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'nome',
-      },
-    },
-    {
-      entity: 'ManejoTecnicoRebanho',
-      matchType: 'value',
-      sourceField: 'categoria_oficial',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'categoria_oficial',
-      },
-    },
-    {
-      entity: 'FatorConsumoCategoria',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'nome',
-      },
-    },
-    {
-      entity: 'FatorConsumoCategoria',
-      matchType: 'value',
-      sourceField: 'categoria_oficial',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'categoria_oficial',
-      },
-    },
-    {
-      entity: 'SuplementacaoLote',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'nome',
-      },
-    },
-    {
-      entity: 'SuplementacaoLote',
-      matchType: 'value',
-      sourceField: 'categoria_oficial',
-      matchFields: ['categoria'],
-      fieldMap: {
-        categoria: 'categoria_oficial',
       },
     },
   ],
@@ -451,48 +147,6 @@ const PROPAGATION_RULES = {
       },
     },
     {
-      entity: 'ControleArea',
-      matchType: 'id',
-      queryField: 'setor_id',
-      fieldMap: {
-        setor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'ControleArea',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['setor_nome'],
-      fieldMap: {
-        setor_nome: 'nome',
-        setor_id: 'id',
-      },
-      targetMatchFieldMap: {
-        setor_id: 'setor_nome',
-      },
-    },
-    {
-      entity: 'OperacaoAgricola',
-      matchType: 'id',
-      queryField: 'setor_id',
-      fieldMap: {
-        setor_nome: 'nome',
-      },
-    },
-    {
-      entity: 'OperacaoAgricola',
-      matchType: 'value',
-      sourceField: 'nome',
-      matchFields: ['setor_nome'],
-      fieldMap: {
-        setor_nome: 'nome',
-        setor_id: 'id',
-      },
-      targetMatchFieldMap: {
-        setor_id: 'setor_nome',
-      },
-    },
-    {
       entity: 'LancamentoTarefa',
       matchType: 'value',
       sourceField: 'nome',
@@ -589,98 +243,6 @@ const PROPAGATION_RULES = {
         setor_id: 'setor_nome',
         setor_origem_id: 'setor_origem_nome',
         setor_destino_id: 'setor_destino_nome',
-      },
-    },
-  ],
-  AreaPastagem: [
-    {
-      entity: 'MovimentacaoPecuaria',
-      matchType: 'id',
-      queryField: 'area_origem_id',
-      fieldMap: {
-        area_origem_nome: 'nome',
-      },
-    },
-    {
-      entity: 'MovimentacaoPecuaria',
-      matchType: 'id',
-      queryField: 'area_destino_id',
-      fieldMap: {
-        area_destino_nome: 'nome',
-      },
-    },
-    {
-      entity: 'SuplementacaoEvento',
-      matchType: 'id',
-      queryField: 'area_id',
-      fieldMap: {
-        area_nome: 'nome',
-      },
-    },
-    {
-      entity: 'LancamentoTarefa',
-      matchType: 'id',
-      queryField: 'area_id',
-      fieldMap: {
-        area_nome: 'nome',
-      },
-    },
-    {
-      entity: 'TarefaMapa',
-      matchType: 'id',
-      queryField: 'area_id',
-      fieldMap: {
-        area_nome: 'nome',
-      },
-    },
-    {
-      entity: 'Lote',
-      matchType: 'id',
-      queryField: 'area_entrada_id',
-      fieldMap: {
-        area_entrada_nome: 'nome',
-      },
-    },
-    {
-      entity: 'Lote',
-      matchType: 'id',
-      queryField: 'area_atual_id',
-      fieldMap: {
-        area_atual_nome: 'nome',
-      },
-    },
-    {
-      entity: 'ControleArea',
-      matchType: 'id',
-      queryField: 'area_id',
-      fieldMap: {
-        area_nome: 'nome',
-      },
-    },
-    {
-      entity: 'OperacaoAgricola',
-      matchType: 'id',
-      queryField: 'area_id',
-      fieldMap: {
-        area_nome: 'nome',
-      },
-    },
-    {
-      entity: 'PontoSuplementacao',
-      matchType: 'id',
-      queryField: 'area_vinculada_id',
-      fieldMap: {
-        area_vinculada_nome: 'nome',
-      },
-    },
-  ],
-  PontoSuplementacao: [
-    {
-      entity: 'SuplementacaoEvento',
-      matchType: 'id',
-      queryField: 'ponto_suplementacao_id',
-      fieldMap: {
-        ponto_nome: 'nome_ponto',
       },
     },
   ],
@@ -709,16 +271,54 @@ const PROPAGATION_RULES = {
         lote_nome: 'nome',
       },
     },
-    {
-      entity: 'TarefaMapa',
-      matchType: 'id',
-      queryField: 'lote_id',
-      fieldMap: {
-        lote_nome: 'nome',
-      },
-    },
   ],
 };
+
+// Registro literal das entidades que esta function pode tocar (P0.1-R2).
+//
+// Antes o código fazia `base44.asServiceRole.entities?.[nome]` com um nome vindo
+// de variável. Isso é indecidível estaticamente: `gate:product-scope` não tem
+// como provar que o conjunto acessado cabe no manifesto, e reprova com
+// P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE.
+//
+// Aqui cada entidade aparece como acesso literal. O nome dinâmico passa a
+// indexar este mapa local — cujo domínio é visível no código — e não o SDK.
+// A lista é exatamente a união das chaves-fonte e dos destinos de
+// PROPAGATION_RULES; entrada desconhecida devolve null, como antes.
+function buildEntityRegistry(base44) {
+  const entities = base44.asServiceRole.entities;
+  return {
+    AreaPastagem: entities?.AreaPastagem,
+    GrupoAtividade: entities?.GrupoAtividade,
+    LancamentoTarefa: entities?.LancamentoTarefa,
+    Lote: entities?.Lote,
+    ManejoTecnicoRebanho: entities?.ManejoTecnicoRebanho,
+    MovimentacaoEstoque: entities?.MovimentacaoEstoque,
+    MovimentacaoMapa: entities?.MovimentacaoMapa,
+    MovimentacaoPecuaria: entities?.MovimentacaoPecuaria,
+    PontoSuplementacao: entities?.PontoSuplementacao,
+    Produto: entities?.Produto,
+    Setor: entities?.Setor,
+    SuplementacaoEvento: entities?.SuplementacaoEvento,
+    SuplementacaoLote: entities?.SuplementacaoLote,
+    TipoTarefa: entities?.TipoTarefa,
+  };
+}
+
+const ENTITY_REGISTRY_CACHE = new WeakMap();
+
+function resolveEntityApi(base44, entityName) {
+  if (!base44 || typeof entityName !== 'string' || !entityName) return null;
+
+  let registry = ENTITY_REGISTRY_CACHE.get(base44);
+  if (!registry) {
+    registry = buildEntityRegistry(base44);
+    ENTITY_REGISTRY_CACHE.set(base44, registry);
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(registry, entityName)) return null;
+  return registry[entityName] || null;
+}
 
 function normalizeValue(value) {
   if (value === null || value === undefined) return '';
@@ -727,10 +327,6 @@ function normalizeValue(value) {
 
 function getSourceFieldValue(data, sourceField) {
   if (!data) return null;
-  if (sourceField === '__safra_label__') {
-    if (data.ano_inicio && data.ano_fim) return `${data.ano_inicio}/${data.ano_fim}`;
-    return data.descricao || null;
-  }
   return data?.[sourceField] ?? null;
 }
 
@@ -740,12 +336,6 @@ function getRelevantSourceFields(rules) {
   rules.forEach((rule) => {
     Object.values(rule.fieldMap || {}).forEach((sourceField) => {
       if (!sourceField || sourceField === 'id') return;
-      if (sourceField === '__safra_label__') {
-        fields.add('ano_inicio');
-        fields.add('ano_fim');
-        fields.add('descricao');
-        return;
-      }
       fields.add(sourceField);
     });
   });
@@ -799,7 +389,7 @@ async function getCachedEntityRecords(base44, entityName, empresaId, cache) {
     return cache.get(cacheKey);
   }
 
-  const entityApi = base44.asServiceRole.entities?.[entityName];
+  const entityApi = resolveEntityApi(base44, entityName);
   if (!entityApi) {
     cache.set(cacheKey, []);
     return [];
@@ -814,7 +404,7 @@ async function getCachedEntityRecords(base44, entityName, empresaId, cache) {
 }
 
 async function listRecordsForRule(base44, rule, sourceData, oldData, cache) {
-  const entityApi = base44.asServiceRole.entities?.[rule.entity];
+  const entityApi = resolveEntityApi(base44, rule.entity);
   if (!entityApi) return [];
 
   const empresaFilter = sourceData?.empresa_id ? { empresa_id: sourceData.empresa_id } : null;
@@ -863,7 +453,7 @@ function buildPatchForRecord(record, rule, sourceData, oldData) {
 }
 
 async function propagateRulesForEntity(base44, entityName, rules, sourceData, oldData, cache) {
-  const entityApi = base44.asServiceRole.entities?.[entityName];
+  const entityApi = resolveEntityApi(base44, entityName);
   if (!entityApi) {
     return { entity: entityName, updated_count: 0 };
   }

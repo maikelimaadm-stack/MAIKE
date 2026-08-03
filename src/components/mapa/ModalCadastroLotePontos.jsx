@@ -18,21 +18,9 @@ import {
   SheetTitle } from
 "@/components/ui/sheet";
 import FormularioPonto from "./FormularioPonto";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
-
-const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.google?.maps) {resolve();return;}
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 44) => {
   if (!marker || !iconUrl || !window.google?.maps) return;

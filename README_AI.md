@@ -1,8 +1,8 @@
 # README — Ponto de Entrada para Agentes de IA
 
 **Status:** Oficial — pre-flight obrigatório antes de qualquer implementação
-**Versão:** 1.0.0
-**Repositório:** MAKGESTAO
+**Versão:** 2.0.0
+**Repositório:** MAIKE
 
 ---
 
@@ -20,27 +20,34 @@ e decisão vivem neste repositório.
 
 | Campo | Valor |
 |---|---|
-| **Programa ativo** | Independência da Base44 |
-| **Fase atual** | Fase 0 — Pré-requisitos |
-| **Próxima fase** | Fase 1 — Fundação do backend |
-| **Branch de trabalho** | `saas-migration` |
-| **Ponto de retorno** | tag `base44-freeze` |
-| **Tenancy** | Cliente único (D-01) |
-| **Molde arquitetural** | repositório PROJETOMG |
-| **Roadmap** | `docs/engineering/ROADMAP-SAAS.md` |
+| **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
+| **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
+| **Missão atual** | **P0.1 — Product Scope Reset** (entregue e certificada após P0.1-R3) |
+| **Próxima missão** | **P1 — Native Foundation Bootstrap** |
+| **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
+| **Escopo executável** | `config/mapa-manejo-scope.json` |
+| **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
+| **Roadmap** | `docs/engineering/ROADMAP.md` |
 
-### Inventário do legado
+O MAIKE **não é mais um ERP amplo**. Financeiro, fiscal, folha, máquinas,
+combustível, agrícola, safra, comercial, cotação, pesagens individuais,
+relatórios genéricos, dashboards paralelos, fichas personalizadas e editor visual
+**saíram do produto** e foram fisicamente excluídos (D-PROD-02).
+
+### Inventário atual
 
 | Métrica | Valor |
 |---|---|
-| Entidades Base44 | 87 |
-| Campos totais | 1.332 |
-| Entidades com `empresa_id` | 68 |
-| Páginas | 102 |
-| Funções de backend | 11 |
-| Chamadas ao SDK | 2.801 |
-| Repositórios existentes | 2 |
-| Linhas em `src/` | 116.217 |
+| Páginas | 16 |
+| Arquivos em `src/` | 203 |
+| Schemas Base44 | 38 |
+| Functions Base44 | 1 (`syncEntityReferences`) |
+| Arquivos em `src/` com SDK | 71 |
+| Dependências diretas | 49 |
+| Dívida de tipos versionada | 2.802 diagnósticos (teto certificado 2.802) |
+| Testes automatizados | 183 (153 de gate + 30 de smoke) |
+
+Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
 ---
 
@@ -56,9 +63,10 @@ Antes de alterar **qualquer** arquivo, leia e verifique:
 | 3 | Regras de IA | `docs/constitution/08-REGRAS-DE-IA.md` |
 | 4 | Estado atual | `docs/engineering/CURRENT-STATE.md` |
 | 5 | Decisões | `docs/engineering/DECISIONS.md` |
-| 6 | Roadmap | `docs/engineering/ROADMAP-SAAS.md` |
+| 6 | Roadmap | `docs/engineering/ROADMAP.md` |
 | 7 | Registro de gates | `docs/engineering/GATE-REGISTRY.md` |
-| 8 | Comandos | `AGENTS.md` |
+| 8 | Escopo do produto | `config/mapa-manejo-scope.json` |
+| 9 | Comandos | `AGENTS.md` |
 
 **Se algum documento estiver desatualizado em relação ao código, atualize-o antes
 de prosseguir.**
@@ -67,11 +75,11 @@ de prosseguir.**
 
 ## Durante a implementação — três perspectivas
 
-Toda mudança deve ser analisada sob:
-
-### 1. Tenancy
-O dado é isolável por cliente? O índice suporta a consulta filtrada?
-Existe caminho em que `cliente_id` pode ser omitido?
+### 1. Escopo do produto
+A mudança serve ao Mapa Geral, ao manejo iniciado pelo Mapa Geral ou à
+configuração indispensável dessas capacidades? Se não, ela não entra
+(D-PROD-06). Em conflito entre preservar código antigo e cumprir o escopo,
+**o escopo do produto vence**.
 
 ### 2. Arquitetura
 Respeita o molde do PROJETOMG? Cria solução paralela a algo que já existe?
@@ -100,6 +108,7 @@ O agente **não deve**:
 - Afirmar que gate passou sem ter rodado
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
+- Ampliar `config/mapa-manejo-scope.json` sem aprovação humana
 
 ---
 
@@ -108,22 +117,61 @@ O agente **não deve**:
 | Tipo de missão | Comportamento |
 |---|---|
 | **Levantamento** | Somente leitura. Produz documento. Zero alteração de código |
-| **Fundação** | Só `backend/`. Não tocar em `src/` |
+| **Fundação** | Só a camada declarada na missão |
 | **Schema** | Só `backend/prisma/`. Um módulo por vez |
-| **Shim** | Só `src/api/`. Não alterar componentes |
-| **Migração de módulo** | Só o módulo declarado. Nunca dois ao mesmo tempo |
+| **Migração de capacidade** | Só a capacidade declarada. Nunca duas ao mesmo tempo |
 
 Quando a missão disser "não altere X", não altere X — **mesmo que encontre um bug**.
 Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ---
 
+## O que "verde" significa aqui
+
+`npm run verify:all` sai com **0**. Duas das doze etapas são **catracas**, e o
+significado delas é literal:
+
+| Etapa | Verde significa | Verde **não** significa |
+|---|---|---|
+| `gate:base44` | o acoplamento com a Base44 não cresceu | que a Base44 saiu |
+| `gate:types` | a dívida de tipos não cresceu | que o `tsc` está sem erros |
+
+O projeto **tem** 2.802 diagnósticos de tipo, versionados em
+`scripts/gates/typecheck-baseline.json` e sempre visíveis em
+`npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`, que inclui
+todo o `src/`. P1 deve reduzir a dívida monotonicamente (DBT-03).
+
+**Não adianta afrouxar o `jsconfig.typecheck.json`.** Desde o P0.1-R2
+(D-PROD-13) o baseline grava o hash canônico da configuração, o comando, a
+versão do TypeScript e o contrato de cobertura. `checkJs: false`, `include: []`
+ou excluir `src/lib` reprovam com `P01-TYPE-CONTRACT` — a cobertura não é
+rebaseável.
+
+**E não adianta rebasear.** Desde o P0.1-R3 (D-PROD-17) a barreira de não
+regressão vale em **todos** os modos: nem `--update` nem `--rebase-contract`
+aceitam fingerprint novo, multiplicidade aumentada, arquivo pior, total maior ou
+total acima do `certifiedCeiling`. Quando ela dispara, o baseline fica byte a
+byte intacto. `--seed` não existe mais: baseline ausente é falha dura, e o
+arquivo se restaura do Git.
+
+**Código novo nasce limpo.** Diagnóstico introduzido por código novo é corrigido
+no código, nunca absorvido pelo baseline.
+
+---
+
 ## Certificação de fim de missão
 
-Toda fase termina com relatório em `docs/FASE-N-RELATORIO.md` contendo:
+Toda missão termina com relatório em `docs/engineering/` contendo:
 
 1. Arquivos criados ou alterados
 2. Resultado de `npm run verify:all` (colado, não resumido)
 3. Divergências em relação ao molde do PROJETOMG, com justificativa
 4. Pendências e riscos identificados
 5. Decisões que precisam de aprovação humana
+
+Relatórios da P0.1:
+
+1. `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md` — a limpeza
+2. `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md` — o endurecimento
+3. `docs/engineering/P0.1-R2-FINAL-CONTRACT-CLOSURE-REPORT.md` — o fechamento de contratos
+4. `docs/engineering/P0.1-R3-TYPE-RATCHET-NON-REGRESSION-REPORT.md` — a monotonicidade da catraca e a certificação

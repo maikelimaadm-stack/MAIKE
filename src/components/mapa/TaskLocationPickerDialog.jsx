@@ -4,24 +4,9 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MapPin } from "lucide-react";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
-let googleMapsPromise = null;
-
-const loadGoogleMapsScript = () => {
-  if (window.google?.maps?.Map) return Promise.resolve();
-  if (googleMapsPromise) return googleMapsPromise;
-  googleMapsPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
-    if (existing) { existing.addEventListener("load", resolve); existing.addEventListener("error", reject); return; }
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry`;
-    script.async = true; script.defer = true;
-    script.onload = resolve; script.onerror = reject;
-    document.head.appendChild(script);
-  });
-  return googleMapsPromise;
-};
+const loadGoogleMapsScript = () => loadGoogleMaps();
 
 const calcCentroid = (paths) => {
   let cLat = 0, cLng = 0, sA = 0;
@@ -86,7 +71,7 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   const clearDrawn = useCallback(() => {
     if (!window.google?.maps) return;
     const d = drawnRef.current;
-    d.listeners.forEach(l => { try { google.maps.event.removeListener(l); } catch(e) {} });
+    d.listeners.forEach(l => { try { google.maps.event.removeListener(l); } catch(e) { /* falha ignorada intencionalmente: operação best-effort */ } });
     d.polygons.forEach(p => p.setMap(null));
     d.labels.forEach(l => l.setMap(null));
     d.taskMarkers.forEach(m => m.setMap(null));

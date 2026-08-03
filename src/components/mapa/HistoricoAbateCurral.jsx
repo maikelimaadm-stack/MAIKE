@@ -42,7 +42,7 @@ export default function HistoricoAbateCurral({ areaId }) {
       queryClient.invalidateQueries({ queryKey: ["historico-abate-curral"] });
       queryClient.invalidateQueries({ queryKey: ["mapa-lotes"] });
       queryClient.invalidateQueries({ queryKey: ["lotes"] });
-      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch {}
+      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
       toast.success("Abate excluído");
     },
   });

@@ -94,13 +94,13 @@ export default function TabelaCategoriasProduto({ categorias = [], onEdit, onDel
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_ordem`);
-    if (saved) try { return JSON.parse(saved); } catch {}
+    if (saved) try { return JSON.parse(saved); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     return COLUNAS_DISPONIVEIS.map(c => c.id);
   });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}_visiveis`);
-    if (saved) try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE])); } catch {}
+    if (saved) try { return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE])); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     return DEFAULT_VISIBLE;
   });
 

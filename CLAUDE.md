@@ -1,20 +1,27 @@
-# CLAUDE.md — MAKGESTAO
+# CLAUDE.md — MAIKE
 
 > **Claude Code: leia este arquivo primeiro.** Pre-flight obrigatório em [`README_AI.md`](./README_AI.md).
 
-## Projeto
+## Produto
 
-ERP de pecuária construído originalmente na plataforma Base44. O trabalho atual é
-torná-lo um sistema completo e independente, removendo integralmente a Base44.
+Sistema nativo e escalável de **Pecuária — Mapa Geral + Manejo**.
 
-**Programa ativo:** Independência da Base44 — ver `docs/engineering/CURRENT-STATE.md`
+Foi originalmente construído na plataforma Base44 como um ERP amplo. O escopo foi
+redefinido: o produto agora é **exclusivamente** o Mapa Geral e o manejo iniciado
+a partir dele. Ver [`docs/engineering/DECISIONS.md`](./docs/engineering/DECISIONS.md) (D-PROD-01).
+
+**Superfície primária:** `src/pages/MapaGeral.jsx`. A raiz `/` redireciona para lá.
+
+**Missão ativa:** ver [`docs/engineering/CURRENT-STATE.md`](./docs/engineering/CURRENT-STATE.md)
 
 ## Referência arquitetural
 
-O repositório **PROJETOMG** já resolveu esta mesma migração. Ele é o **molde**.
+O repositório **PROJETOMG** é o molde de **disciplina e arquitetura**:
+API → service → repository → Prisma, migrations versionadas, tenancy desde o
+primeiro model, erros padronizados, gates obrigatórios, uma missão por PR.
 
-Antes de desenhar qualquer coisa nova, leia como o PROJETOMG fez e replique o padrão.
-**Não invente arquitetura. Copie a que já funciona.**
+**Não é fonte** para copiar Studio, MDP/MMM, marketplace, runtime universal,
+low-code ou intelligence engines (D-PROD-03).
 
 ## Leitura obrigatória (ordem)
 
@@ -24,8 +31,9 @@ Antes de desenhar qualquer coisa nova, leia como o PROJETOMG fez e replique o pa
 4. [`docs/constitution/08-REGRAS-DE-IA.md`](./docs/constitution/08-REGRAS-DE-IA.md)
 5. [`docs/engineering/CURRENT-STATE.md`](./docs/engineering/CURRENT-STATE.md)
 6. [`docs/engineering/DECISIONS.md`](./docs/engineering/DECISIONS.md)
-7. [`docs/engineering/ROADMAP-SAAS.md`](./docs/engineering/ROADMAP-SAAS.md)
-8. [`AGENTS.md`](./AGENTS.md) — comandos
+7. [`docs/engineering/ROADMAP.md`](./docs/engineering/ROADMAP.md)
+8. [`docs/engineering/GATE-REGISTRY.md`](./docs/engineering/GATE-REGISTRY.md)
+9. [`AGENTS.md`](./AGENTS.md) — comandos
 
 **Histórico de chat de sessões anteriores não é autoritativo.**
 
@@ -33,14 +41,18 @@ Antes de desenhar qualquer coisa nova, leia como o PROJETOMG fez e replique o pa
 
 | # | Regra | Gate |
 |---|---|---|
-| R1 | Todo model Prisma tem `cliente_id` | `gate:tenancy` |
-| R2 | Todo índice de consulta começa por `cliente_id` | `gate:indices` |
-| R3 | Chave única de negócio é `@@unique([cliente_id, ...])` | `gate:indices` |
-| R4 | Componente React nunca acessa provider de dados direto | `gate:apis` |
+| R1 | Rotas, menu, schemas e functions vivem dentro de `config/mapa-manejo-scope.json` | `gate:product-scope` |
+| R2 | `MapaGeral` é a superfície primária | `gate:product-scope` |
+| R3 | Nenhum import em `src/` pode apontar para arquivo inexistente | `gate:import-integrity` |
+| R4 | Nenhum segredo literal em `src/`; nenhum `.env` versionado | `gate:no-secrets` |
 | R5 | Referências a Base44 só podem **diminuir** | `gate:base44` |
-| R6 | `base44/` é somente leitura — é a especificação de origem | `gate:base44` |
-| R7 | 1 fase = 1 PR. Sem misturar fases | revisão humana |
-| R8 | Toda fase termina com relatório em `docs/` | revisão humana |
+| R6 | Governança vive em `docs/`, sem SSOT duplicado na raiz | `gate:governance-paths` |
+| R7 | 1 missão = 1 PR. Sem misturar missões | revisão humana |
+| R8 | Toda missão termina com relatório em `docs/engineering/` | revisão humana |
+
+Regras futuras de backend (`cliente_id` em todo model, índice composto por
+`cliente_id`, componente sem acesso direto a dado) entram com os gates
+correspondentes em P1/P3 — ver [`docs/engineering/GATE-REGISTRY.md`](./docs/engineering/GATE-REGISTRY.md).
 
 ## Antes de qualquer PR
 
@@ -51,4 +63,4 @@ npm run verify:all
 ## Memória
 
 Memória do projeto é o **repositório**, não o chat. Toda decisão vai para
-`docs/engineering/DECISIONS.md` com identificador `D-xx`.
+[`docs/engineering/DECISIONS.md`](./docs/engineering/DECISIONS.md) com identificador próprio.

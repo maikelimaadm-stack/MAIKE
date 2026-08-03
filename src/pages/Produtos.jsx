@@ -28,24 +28,20 @@ import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
 
-// Função global para obter próximo número único do sistema
+// Próximo número de produto. Escopo P0.1: a sequência era global (Pesagem +
+// Fornecedor + Produto); os domínios de pesagem e safra saíram do produto, então
+// a numeração passa a considerar apenas Produto.
 const getNextSystemNumber = async () => {
   try {
-    const [pesagens, fornecedores, produtos] = await Promise.all([
-      base44.entities.Pesagem.list(),
-      base44.entities.Fornecedor.list(),
-      base44.entities.Produto.list()
-    ]);
+    const produtos = await base44.entities.Produto.list();
 
-    const numeros = [
-      ...pesagens.map(p => parseInt(p.numero_registro) || 0),
-      ...fornecedores.map(f => parseInt(f.numero_cadastro) || 0),
-      ...produtos.map(p => parseInt(p.numero_produto) || 0)
-    ].filter(n => n > 0 && n < 1000000000); // Filtrar timestamps acidentais
+    const numeros = produtos.
+    map((p) => parseInt(p.numero_produto) || 0).
+    filter((n) => n > 0 && n < 1000000000); // Filtrar timestamps acidentais
 
     return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
   } catch (error) {
-    console.error('Erro:', error);
+    console.error('Erro ao calcular próximo número de produto:', error);
     // Em caso de erro, retornar 1 ao invés de timestamp
     return 1;
   }
@@ -182,13 +178,6 @@ export default function Produtos() {
       const movimentacoesRelacionadas = todasMovimentacoes.filter((m) => m.produto_id === id);
       if (movimentacoesRelacionadas.length > 0) {
         abrirBloqueio(`O produto ${produto?.nome_produto || ''} já possui ${movimentacoesRelacionadas.length} registro(s) lançados em movimentações de estoque e não pode ser excluído.`);
-        throw new Error('DELETE_BLOCKED');
-      }
-
-      const todosCustos = await base44.entities.CustoSafra.list();
-      const custosRelacionados = todosCustos.filter((c) => c.produto_id === id);
-      if (custosRelacionados.length > 0) {
-        abrirBloqueio(`O produto ${produto?.nome_produto || ''} já possui ${custosRelacionados.length} registro(s) lançados em custos de safra e não pode ser excluído.`);
         throw new Error('DELETE_BLOCKED');
       }
 

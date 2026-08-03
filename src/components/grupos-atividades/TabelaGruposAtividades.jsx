@@ -66,7 +66,7 @@ export default function TabelaGruposAtividades({ grupos = [], onEdit, onDelete, 
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch {}
+      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     }
     return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
@@ -76,7 +76,7 @@ export default function TabelaGruposAtividades({ grupos = [], onEdit, onDelete, 
     if (saved) {
       try {
         return Array.from(new Set([...JSON.parse(saved), ...DEFAULT_VISIBLE_COLUMNS]));
-      } catch {}
+      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
     }
     return DEFAULT_VISIBLE_COLUMNS;
   });

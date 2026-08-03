@@ -443,9 +443,9 @@ export default function useMapRenderer(mapInstanceRef) {
       const updateIndicatorPos = (marker, overlay) => {
         if (!overlay) return;
         const proj = overlay.getProjection?.();
-        if (!proj) { try { overlay.draw(); } catch(e) {} return; }
+        if (!proj) { try { overlay.draw(); } catch(e) { /* falha ignorada intencionalmente: operação best-effort */ } return; }
         const pos = marker.getPosition();
-        if (pos) { overlay._pos = pos; try { overlay.draw(); } catch(e) {} }
+        if (pos) { overlay._pos = pos; try { overlay.draw(); } catch(e) { /* falha ignorada intencionalmente: operação best-effort */ } }
       };
 
       if (markersRef.current.has(key)) {
@@ -471,7 +471,7 @@ export default function useMapRenderer(mapInstanceRef) {
           if (cfg?.icone_url) applyMarkerIconPreservingAspectRatio(existing, cfg.icone_url, 50, true);
           markerStateCache.set(key, nextState);
           const ind = lotesIndicatorsRef.current.get(key);
-          if (ind) { ind._pos = offsetCenter; try { ind.draw(); } catch(e) {} }
+          if (ind) { ind._pos = offsetCenter; try { ind.draw(); } catch(e) { /* falha ignorada intencionalmente: operação best-effort */ } }
         }
         setMarkerBlink(existing, false);
         existing._lotesNaArea = lotesNaArea;
@@ -578,7 +578,7 @@ export default function useMapRenderer(mapInstanceRef) {
           indicatorOverlay._state = stateStr;
         }
         setOverlayBlink(indicatorOverlay, blinkAlerts && totalAlertas > 0);
-        try { indicatorOverlay.draw(); } catch(e) {}
+        try { indicatorOverlay.draw(); } catch(e) { /* falha ignorada intencionalmente: operação best-effort */ }
       } else if (indicatorOverlay) {
         setOverlayBlink(indicatorOverlay, false);
         indicatorOverlay.setMap(null);

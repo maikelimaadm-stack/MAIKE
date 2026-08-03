@@ -677,7 +677,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] }),
         queryClient.invalidateQueries({ queryKey: ['mapa-cache'] }),
       ]);
-      try { window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } })); } catch {}
+      try { window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } })); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
       toast.success('Lançamento excluído e saldo revertido');
     } catch (error) {
       console.error('Erro ao excluir lançamento:', error);

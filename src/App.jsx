@@ -4,26 +4,12 @@ import GlobalDeleteBlockDialog from '@/components/common/GlobalDeleteBlockDialog
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import ManejosTecnicosRebanho from './pages/ManejosTecnicosRebanho';
-import MovimentacoesLote from './pages/MovimentacoesLote';
-import ContasFinanceiras from './pages/ContasFinanceiras';
-import TiposDocumento from './pages/TiposDocumento';
-import MotivosCompra from './pages/MotivosCompra';
-import Marcas from './pages/Marcas';
-import LancamentosAbastecimento from './pages/LancamentosAbastecimento';
-import ConfiguracaoPesagens from './pages/ConfiguracaoPesagens';
-import Bebedouros from './pages/Bebedouros';
-import RelatorioGadoMapaGeral from './pages/RelatorioGadoMapaGeral';
-import RelatorioEstoqueDepositos from './pages/RelatorioEstoqueDepositos';
-import DiagnosticoDepositoCocho from './pages/DiagnosticoDepositoCocho';
 
 const { Pages, Layout, mainPage } = pagesConfig;
-const mainPageKey = mainPage ?? Object.keys(Pages)[0];
-const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
@@ -52,14 +38,10 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Render the main app
+  // Render the main app. A raiz encaminha para a superfície primária (D-PROD-05).
   return (
     <Routes>
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
+      <Route path="/" element={<Navigate to={`/${mainPage}`} replace />} />
       {Object.entries(Pages).map(([path, Page]) => (
         <Route
           key={path}
@@ -71,66 +53,6 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
-      <Route path="/ManejosTecnicosRebanho" element={
-        <LayoutWrapper currentPageName="ManejosTecnicosRebanho">
-          <ManejosTecnicosRebanho />
-        </LayoutWrapper>
-      } />
-      <Route path="/MovimentacoesLote" element={
-        <LayoutWrapper currentPageName="MovimentacoesLote">
-          <MovimentacoesLote />
-        </LayoutWrapper>
-      } />
-      <Route path="/ContasFinanceiras" element={
-        <LayoutWrapper currentPageName="ContasFinanceiras">
-          <ContasFinanceiras />
-        </LayoutWrapper>
-      } />
-      <Route path="/TiposDocumento" element={
-        <LayoutWrapper currentPageName="TiposDocumento">
-          <TiposDocumento />
-        </LayoutWrapper>
-      } />
-      <Route path="/MotivosCompra" element={
-        <LayoutWrapper currentPageName="MotivosCompra">
-          <MotivosCompra />
-        </LayoutWrapper>
-      } />
-      <Route path="/Marcas" element={
-        <LayoutWrapper currentPageName="Marcas">
-          <Marcas />
-        </LayoutWrapper>
-      } />
-      <Route path="/LancamentosAbastecimento" element={
-        <LayoutWrapper currentPageName="LancamentosAbastecimento">
-          <LancamentosAbastecimento />
-        </LayoutWrapper>
-      } />
-      <Route path="/ConfiguracaoPesagens" element={
-        <LayoutWrapper currentPageName="ConfiguracaoPesagens">
-          <ConfiguracaoPesagens />
-        </LayoutWrapper>
-      } />
-      <Route path="/Bebedouros" element={
-        <LayoutWrapper currentPageName="Bebedouros">
-          <Bebedouros />
-        </LayoutWrapper>
-      } />
-      <Route path="/RelatorioGadoMapaGeral" element={
-        <LayoutWrapper currentPageName="RelatorioGadoMapaGeral">
-          <RelatorioGadoMapaGeral />
-        </LayoutWrapper>
-      } />
-      <Route path="/RelatorioEstoqueDepositos" element={
-        <LayoutWrapper currentPageName="RelatorioEstoqueDepositos">
-          <RelatorioEstoqueDepositos />
-        </LayoutWrapper>
-      } />
-      <Route path="/DiagnosticoDepositoCocho" element={
-        <LayoutWrapper currentPageName="DiagnosticoDepositoCocho">
-          <DiagnosticoDepositoCocho />
-        </LayoutWrapper>
-      } />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
