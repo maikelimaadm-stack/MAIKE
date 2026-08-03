@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 **sob correção P1.1-R2**)
+**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 entregue após P1.1-R2)
 
 ---
 
@@ -14,7 +14,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.1** |
-| Estado da missão | **P1.1 sob correção P1.1-R2** — bloqueadores de superfície pública, cadeia de service e contrato de `ApiError` |
+| Estado da missão | **P1.1 entregue após P1.1-R2** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P1.2 — Mapa |
 | Branch | `claude/p1-1-native-api-boundary-empresa` (PR #2, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
@@ -34,7 +34,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 sob correção P1.1-R2; P1.2 a P1.4 não iniciadas |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 entregue (corrigida por P1.1-R1 e P1.1-R2); P1.2 a P1.4 não iniciadas |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -66,13 +66,25 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Erros de lint | 64 | 0 | **0** |
 | Diagnósticos `tsc` (cobertura total) | — | 2.802 | **2.797** (teto 2.797) |
 | Testes automatizados | 0 | 183 | **322** (234 de gate + 88 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | <!--BUNDLE-JS--> |
-| Bundle de produção — CSS | 120,36 kB | 77,00 kB | <!--BUNDLE-CSS--> |
+| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | **2.464,58 kB** |
+| Bundle de produção — CSS | 120,36 kB | 77,00 kB | **77,00 kB** |
 
 Os artefatos do bundle vêm da CI do **último commit com mudanças executáveis**
 desta PR — não de um build local nem de uma execução anterior.
 
-<!--BUNDLE-BLOCO-->
+Artefatos medidos no run [30818797942](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30818797942)
+(commit `4acd1d4`), etapa `build`:
+
+| Artefato | Tamanho | gzip |
+|---|---|---|
+| `dist/assets/index-zrBH5BbN.js` | 2.464,58 kB | 658,99 kB |
+| `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
+| `dist/index.html` | 0,48 kB | 0,31 kB |
+
+O hash do JS mudou (`index-B13TdukM.js` → `index-zrBH5BbN.js`) porque
+`src/apis/_core/ApiError.js` mudou: o construtor deixou de aceitar `message`. Os
+0,03 kB a menos são o ramo `info.message ||` removido. O CSS é bit a bit o mesmo
+da P1.1-R1 — nada de estilo foi tocado.
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
 `scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
@@ -107,12 +119,14 @@ CI em `.github/workflows/quality.yml`.
 | `3c03ecf` | **commit funcional** da P1.1 | [30812723777](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30812723777) | **verde**, 13/13 |
 | `df3e6f1` | certificação de estado da P1.1 | [30812950738](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30812950738) | **verde**, 13/13 |
 | `8866768` | **commit funcional** da P1.1-R1 | [30815360716](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815360716) | **vermelha** — `no-secrets` (ver abaixo) |
-| `9447884` | correção do relatório | [30815727984](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815727984) | **verde**, 13/13 — origem dos artefatos |
-<!--CI-R2-->
+| `9447884` | correção do relatório da P1.1-R1 | [30815727984](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815727984) | **verde**, 13/13 |
+| `4acd1d4` | **commit funcional** da P1.1-R2 | [30818797942](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30818797942) | **verde**, 13/13 — origem dos artefatos |
 | HEAD atual | só esta certificação de estado | ver corpo da PR #2 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
-commit documental que sucede `9447884` fica no corpo da PR #2.
+commit documental que sucede `4acd1d4` fica no corpo da PR #2. Os artefatos
+acima vêm do run de `4acd1d4` — o último commit com mudanças executáveis, cuja
+árvore de código é idêntica à do HEAD documental.
 
 O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
 legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
