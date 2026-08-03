@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 em implementação)
+**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 entregue após P1.1-R1)
 
 ---
 
@@ -14,7 +14,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.1** |
-| Estado da missão | **P1.1 entregue** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Estado da missão | **P1.1 entregue após P1.1-R1** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P1.2 — Mapa |
 | Branch | `claude/p1-1-native-api-boundary-empresa` (PR #2, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
@@ -34,7 +34,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 entregue, P1.2 a P1.4 não iniciadas |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 entregue (corrigida por P1.1-R1); P1.2 a P1.4 não iniciadas |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -47,36 +47,32 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 
 Números medidos após `npm ci` e `npm run build` finais.
 
-| Métrica | `main` (pós-merge P0.1) | Depois da P1.1 |
-|---|---|---|
-| Páginas em `src/pages` | 102 | **16** |
-| Arquivos em `src/` | 203 | **209** |
-| Arquivos em `src/components` | 312 | **157** |
-| Schemas em `base44/entities` | 87 | **38** |
-| Functions em `base44/functions` | 11 | **1** |
-| Dependências diretas (`dependencies`) | 63 | **31** |
-| Dependências diretas (`devDependencies`) | 15 | **18** |
-| Arquivos em `src/` com SDK/base44Client | 197 | **71** |
-| Ocorrências de `base44.entities` | 371 | **368** |
-| Ocorrências de `base44.auth` | 29 | **16** |
-| Ocorrências de `base44.integrations` | 24 | **6** |
-| Ocorrências de `base44.functions` | 9 | **5** |
-| Acoplamento Base44 fora de `src/` | 22 | **1** |
-| Chaves Google Maps literais | 8 | **0** |
-| Erros de lint | 64 | **0** |
-| Diagnósticos `tsc` (cobertura total) | 2.802 | **2.797** (teto certificado 2.797) |
-| Testes automatizados | 183 | **255** (185 de gate + 70 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | **2.461,36 kB** |
-| Bundle de produção — CSS | 120,36 kB | **77,00 kB** |
+| Métrica | Antes da P0.1 | `main` pós-P0.1 | Depois da P1.1-R1 |
+|---|---|---|---|
+| Páginas em `src/pages` | 102 | 16 | **16** |
+| Arquivos em `src/` | 472 | 203 | **209** |
+| Arquivos em `src/components` | 312 | 157 | **157** |
+| Schemas em `base44/entities` | 87 | 38 | **38** |
+| Functions em `base44/functions` | 11 | 1 | **1** |
+| Dependências diretas (`dependencies`) | 63 | 31 | **31** |
+| Dependências diretas (`devDependencies`) | 15 | 18 | **18** |
+| Arquivos em `src/` com SDK/base44Client | 197 | 71 | **71** |
+| Ocorrências de `base44.entities` | 1014 | 371 | **368** |
+| Ocorrências de `base44.auth` | 29 | 16 | **16** |
+| Ocorrências de `base44.integrations` | 24 | 6 | **6** |
+| Ocorrências de `base44.functions` | 9 | 5 | **5** |
+| Acoplamento Base44 fora de `src/` | 22 | 1 | **1** |
+| Chaves Google Maps literais | 8 | 0 | **0** |
+| Erros de lint | 64 | 0 | **0** |
+| Diagnósticos `tsc` (cobertura total) | — | 2.802 | **2.797** (teto 2.797) |
+| Testes automatizados | 0 | 183 | **289** (209 de gate + 80 de smoke) |
+| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | **ver artefatos abaixo** |
+| Bundle de produção — CSS | 120,36 kB | 77,00 kB | **ver artefatos abaixo** |
 
-Os números do bundle são os da **CI**, não de um build local: run
-[30576628418](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30576628418),
-etapa `build` do HEAD funcional `eb94fa8`.
+Os artefatos do bundle vêm da **CI do HEAD final desta PR**, não de um build
+local nem de uma execução anterior — ver a tabela de CI em "Gates ativos".
 
-| Artefato | Tamanho | gzip |
-|---|---|---|
-| `dist/assets/index-CAtW8f23.js` | 2.461,36 kB | 657,62 kB |
-| `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
+<!--BUNDLE-->
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
 `scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
@@ -84,7 +80,7 @@ D-PROD-13 — e teto certificado monotônico — D-PROD-17).
 
 ## Fronteira de dados (P1.1, D-PROD-18)
 
-| Eixo do `gate:api-boundary` | `main` | Depois da P1.1 |
+| Eixo do `gate:api-boundary` | `main` pós-P0.1 | Depois da P1.1-R1 |
 |---|---|---|
 | arquivos que importam `@/api/base44Client` | 68 | **67** |
 | arquivos que usam `base44.entities` | 64 | **63** |
@@ -120,7 +116,7 @@ commit documental que sucede `3c03ecf` fica no corpo da PR #2.
 |---|---|---|
 | DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1, com Empresa migrada; restam 368 chamadas `base44.entities` fora dela | P1 |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.802 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.802. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
+| DBT-03 | 2.797 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.797. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,46 MB, sem code splitting | P8 |

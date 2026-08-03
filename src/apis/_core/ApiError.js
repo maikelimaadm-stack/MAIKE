@@ -5,7 +5,11 @@
  * Quando a Base44 sair (P7), o provider muda e os códigos ficam.
  *
  * Segurança: `message` é sempre uma frase pública. O erro original vive em
- * `cause`, que não é serializado por `toString()` nem por `JSON.stringify`.
+ * `cause`, definido como **não enumerável** — não aparece em `Object.keys` nem
+ * em `JSON.stringify`, mesmo quando é um objeto simples com `Authorization`,
+ * `config` ou `response` dentro. Atribuir `this.cause = x` criaria propriedade
+ * enumerável e vazaria tudo isso no primeiro `JSON.stringify(erro)` de um log.
+ *
  * Nenhum token, chave ou payload entra na mensagem.
  */
 
@@ -44,28 +48,47 @@ export class ApiError extends Error {
     this.retryable = RETRYABLE[code] === true;
     /** Contexto seguro (ids, nomes de campo). Nunca payload inteiro. */
     this.details = info.details ?? null;
-    if (info.cause !== undefined) this.cause = info.cause;
+    if (info.cause !== undefined) {
+      // Acessível para diagnóstico, invisível para serialização.
+      Object.defineProperty(this, 'cause', {
+        value: info.cause,
+        enumerable: false,
+        configurable: true,
+        writable: false,
+      });
+    }
   }
 }
 
 /** É um {@link ApiError}? */
 export const isApiError = (erro) => erro instanceof ApiError;
 
+/** Última linha de defesa quando nem o fallback do chamador serve. */
+const MENSAGEM_PADRAO = 'Não foi possível concluir a operação.';
+
 /**
  * Mensagem pronta para a UI.
  *
- * Aceita qualquer coisa: `ApiError`, `Error` do provider, string, `null`.
- * Nunca devolve `undefined` — o fallback é determinístico (QLT-P11-04).
+ * **Só `ApiError` tem mensagem exibível.** Qualquer outra coisa — `Error` do
+ * provider, string solta, objeto, `null` — cai no fallback público.
+ *
+ * A versão anterior devolvia `erro.message` de um `Error` desconhecido. Isso
+ * colocava texto não normalizado direto no toast: mensagem de SDK costuma
+ * carregar URL com query string, cabeçalho ou trecho de payload. Erro que não
+ * passou pela normalização não tem mensagem pública — tem fallback.
+ *
+ * Nunca devolve `undefined`, string vazia ou só espaço (QLT-P11-04).
  *
  * @param {unknown} erro
  * @param {string} [fallback]
  * @returns {string}
  */
-export const getApiErrorMessage = (erro, fallback = 'Não foi possível concluir a operação.') => {
-  if (isApiError(erro)) return erro.message || fallback;
-  if (erro instanceof Error && erro.message) return erro.message;
-  if (typeof erro === 'string' && erro.trim()) return erro.trim();
-  return fallback;
+export const getApiErrorMessage = (erro, fallback = MENSAGEM_PADRAO) => {
+  const seguro = typeof fallback === 'string' && fallback.trim() ? fallback.trim() : MENSAGEM_PADRAO;
+  if (isApiError(erro) && typeof erro.message === 'string' && erro.message.trim()) {
+    return erro.message;
+  }
+  return seguro;
 };
 
 /**

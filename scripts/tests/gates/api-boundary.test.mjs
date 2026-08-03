@@ -60,7 +60,7 @@ const lerBaseline = (dir) => JSON.parse(readFileSync(join(dir, BASELINE_REL), 'u
 const bytesBaseline = (dir) => readFileSync(join(dir, BASELINE_REL), 'utf8');
 
 /** Constrói o baseline a partir da medição real do projeto — sem passar pelo gate. */
-const criarBaseline = (dir, { certifiedFromMain = 'main-de-teste' } = {}) => {
+const criarBaseline = (dir, { certifiedFromMain = '0'.repeat(40) } = {}) => {
   const atual = scanBoundary(dir);
   const baseline = {
     version: 1,
@@ -138,7 +138,7 @@ describe('gate:api-boundary — baseline', () => {
     delete b.certifiedFromMain;
     gravarBaseline(d, b);
     const r = falhaSemEscrever(d);
-    assert.match(r.output, /"certifiedFromMain" ausente ou inválido/);
+    assert.match(r.output, /"certifiedFromMain" precisa ser um SHA de 40 caracteres/);
     cleanup(d);
   });
 
@@ -226,7 +226,7 @@ describe('gate:api-boundary — monotonicidade por identidade de arquivo', () =>
     assert.equal(r.status, 0, r.output);
     const depois = lerBaseline(d);
     assert.deepEqual(depois.axes.importsLegacyClient, ['src/pages/Outra.jsx']);
-    assert.equal(depois.certifiedFromMain, 'main-de-teste', 'a origem certificada é preservada');
+    assert.equal(depois.certifiedFromMain, '0'.repeat(40), 'a origem certificada é preservada');
     cleanup(d);
   });
 
@@ -342,6 +342,156 @@ describe('gate:api-boundary — invariantes absolutas', () => {
     const r = falhaSemEscrever(d);
     assert.match(r.output, /P11-API-BOUNDARY-REGRESSION/);
     assert.match(r.output, /src\/pages\/Empresa\.jsx/);
+    cleanup(d);
+  });
+});
+
+describe('gate:api-boundary — enforcement de camada (P1.1-R1)', () => {
+  /** Consumidor do provider por caminho arbitrário. */
+  const IMPORTA_PROVIDER = (spec = '@/apis/_providers/base44Provider') =>
+    `import { empresaProvider } from '${spec}';\nexport const carregar = () => empresaProvider.list('-created_date');\n`;
+
+  for (const [rotulo, caminho] of [
+    ['L1 página', 'src/pages/Empresa.jsx'],
+    ['L2 componente', 'src/components/empresa/TabelaEmpresas.jsx'],
+    ['L3 service', 'src/services/empresaService.js'],
+    ['L4 hook', 'src/hooks/useEmpresas.js'],
+    ['L5 repository', 'src/core/repositories/empresaRepository.js'],
+    ['L5b lib', 'src/lib/atalhoEmpresa.js'],
+    ['L5c _core', 'src/apis/_core/atalho.js'],
+  ]) {
+    test(`${rotulo} importando o provider reprova`, () => {
+      const d = makeProject({ legados: { [caminho]: IMPORTA_PROVIDER() } });
+      criarBaseline(d);
+      const r = falhaSemEscrever(d);
+      assert.match(r.output, /P11-API-BOUNDARY-LAYER-BYPASS/);
+      assert.ok(r.output.includes(caminho), `esperava o caminho ${caminho} na saída`);
+      cleanup(d);
+    });
+  }
+
+  test('L6 — a API do módulo importando o provider passa', () => {
+    const d = makeProject({
+      legados: { 'src/apis/empresa/empresaApi.js': IMPORTA_PROVIDER() },
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('L7 — página reexportando o provider reprova', () => {
+    const d = makeProject({
+      legados: { 'src/pages/Empresa.jsx': "export { empresaProvider } from '@/apis/_providers/base44Provider';\n" },
+    });
+    criarBaseline(d);
+    const r = falhaSemEscrever(d);
+    assert.match(r.output, /P11-API-BOUNDARY-LAYER-BYPASS/);
+    cleanup(d);
+  });
+
+  test('L8 — import relativo do provider por página reprova', () => {
+    const d = makeProject({
+      legados: { 'src/apis/_core/vizinho.js': IMPORTA_PROVIDER('../_providers/base44Provider.js') },
+    });
+    criarBaseline(d);
+    const r = falhaSemEscrever(d);
+    assert.match(r.output, /P11-API-BOUNDARY-LAYER-BYPASS/);
+    cleanup(d);
+  });
+
+  test('L9 — import dinâmico do provider por página reprova', () => {
+    const d = makeProject({
+      legados: {
+        'src/pages/Empresa.jsx':
+          "export const carregar = async () => (await import('@/apis/_providers/base44Provider')).empresaProvider.list();\n",
+      },
+    });
+    criarBaseline(d);
+    const r = falhaSemEscrever(d);
+    assert.match(r.output, /P11-API-BOUNDARY-LAYER-BYPASS/);
+    cleanup(d);
+  });
+});
+
+describe('gate:api-boundary — carregamento do SDK em qualquer forma (P1.1-R1)', () => {
+  for (const [rotulo, corpo] of [
+    ['S1 import estático', "import { createClient } from '@base44/sdk';\nexport const c = createClient({});\n"],
+    ['S2 export from', "export { createClient } from '@base44/sdk';\n"],
+    ['S3 import() sem await', "export const carregar = () => import('@base44/sdk');\n"],
+    ['S4 await import()', "export const carregar = async () => { const sdk = await import('@base44/sdk'); return sdk; };\n"],
+    ['S5 require()', "const sdk = require('@base44/sdk');\nexport const c = sdk;\n"],
+  ]) {
+    test(`${rotulo} fora do client oficial reprova`, () => {
+      const d = makeProject({ legados: { 'src/lib/atalho.js': corpo } });
+      criarBaseline(d);
+      const r = falhaSemEscrever(d);
+      assert.match(r.output, /P11-API-BOUNDARY-SDK-IMPORT/);
+      assert.match(r.output, /src\/lib\/atalho\.js/);
+      cleanup(d);
+    });
+  }
+
+  test('S6 — comentário citando o pacote não reprova', () => {
+    const d = makeProject({
+      legados: { 'src/lib/nota.js': "// não use @base44/sdk aqui\n/* @base44/sdk */\nexport const a = 1;\n" },
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('S7 — string comum com o nome do pacote não reprova', () => {
+    const d = makeProject({
+      legados: { 'src/lib/rotulo.js': "export const NOME_DO_PACOTE = '@base44/sdk';\n" },
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('S8 — o client oficial pode carregar o SDK', () => {
+    const d = makeProject();
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+});
+
+describe('gate:api-boundary — origem certificada (P1.1-R1)', () => {
+  for (const [rotulo, valor] of [
+    ['SHA curto', '508cf62'],
+    ['texto arbitrário', 'main-de-teste'],
+    ['caractere não hexadecimal', 'z08cf62949530e8a55bd1b4c55a68dd1da2e6b64'],
+    ['SHA longo demais', '508cf62949530e8a55bd1b4c55a68dd1da2e6b640'],
+  ]) {
+    test(`certifiedFromMain inválido reprova — ${rotulo}`, () => {
+      const d = makeProject();
+      const b = criarBaseline(d);
+      gravarBaseline(d, { ...b, certifiedFromMain: valor });
+      const r = falhaSemEscrever(d);
+      assert.match(r.output, /"certifiedFromMain" precisa ser um SHA de 40 caracteres/);
+      cleanup(d);
+    });
+  }
+
+  test('--update preserva o certifiedFromMain', () => {
+    const SHA = 'a'.repeat(40);
+    const d = makeProject({
+      legados: {
+        'src/pages/Antiga.jsx': PAGINA_LEGADA('Lote'),
+        'src/pages/Outra.jsx': PAGINA_LEGADA('Lote'),
+      },
+    });
+    criarBaseline(d, { certifiedFromMain: SHA });
+    writeFile(d, 'src/pages/Antiga.jsx', 'export const carregar = () => [];\n');
+
+    const r = rodar(d, { args: ['--update'] });
+    assert.equal(r.status, 0, r.output);
+    assert.equal(lerBaseline(d).certifiedFromMain, SHA);
     cleanup(d);
   });
 });

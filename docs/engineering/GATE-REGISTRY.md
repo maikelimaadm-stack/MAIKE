@@ -51,6 +51,7 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P11-API-BOUNDARY-PROVIDER-LEAK` | api-boundary |
 | `P11-API-BOUNDARY-DYNAMIC-ENTITY` | api-boundary |
 | `P11-API-BOUNDARY-SCOPE` | api-boundary |
+| `P11-API-BOUNDARY-LAYER-BYPASS` | api-boundary |
 | `P01-SCOPE-ORPHAN` | source-closure |
 | `P01-SCOPE-DYNAMIC-ALLOWLIST` | source-closure |
 | `P01-IMPORT-BROKEN` | import-integrity |
@@ -273,11 +274,45 @@ Independem do baseline e não têm exceção histórica:
 
 | Situação | Código |
 |---|---|
-| `@base44/sdk` importado fora de `src/api/base44Client.js` | `P11-API-BOUNDARY-SDK-IMPORT` |
+| `@base44/sdk` carregado fora de `src/api/base44Client.js` | `P11-API-BOUNDARY-SDK-IMPORT` |
+| arquivo fora de `src/apis/<modulo>/` importando `src/apis/_providers/` | `P11-API-BOUNDARY-LAYER-BYPASS` |
 | arquivo em `src/apis/` importando o client legado sem ser o adapter | `P11-API-BOUNDARY-PROVIDER-LEAK` |
 | objeto do provider reexportado (`export { base44 }`, `export default base44`, alias, reexport direto) | `P11-API-BOUNDARY-PROVIDER-LEAK` |
 | acesso computado a `entities` **dentro de `src/apis/`** | `P11-API-BOUNDARY-DYNAMIC-ENTITY` |
 | registry com entidade fora de `allowedBase44Entities` | `P11-API-BOUNDARY-SCOPE` |
+
+#### Enforcement de camada (P1.1-R1)
+
+Bloquear só `base44` não bastava. Uma página podia importar `empresaProvider`
+direto de `src/apis/_providers/` — sem tocar em `base44`, sem reexportar nada — e
+pular a fronteira inteira com o gate verde.
+
+`src/apis/_providers/**` é **interno**. Só `src/apis/<modulo>/**` importa de lá,
+com `<modulo>` sem prefixo `_`. A regra escala sozinha: módulo novo já nasce
+autorizado; `_core/` e `_providers/` continuam de fora, e página, componente,
+hook, service, repository e `src/lib/` nunca entram.
+
+A resolução é por AST e cobre alias `@/`, caminho relativo, extensão opcional,
+`import()` e `export ... from`.
+
+#### Carregamento do SDK — todas as formas
+
+`@base44/sdk` só entra por `src/api/base44Client.js`, em qualquer sintaxe:
+
+```
+import … from '@base44/sdk'      export … from '@base44/sdk'
+import('@base44/sdk')            await import('@base44/sdk')
+require('@base44/sdk')           import x = require('@base44/sdk')
+```
+
+Comentário ou string comum contendo o nome do pacote **não** reprova — a
+detecção é sintática, não textual.
+
+#### Origem certificada
+
+`certifiedFromMain` precisa ser um SHA de 40 caracteres hexadecimais. String
+livre permitiria um rótulo como `main-de-teste` e o baseline deixaria de ser
+rastreável. `--update` preserva o campo.
 
 Fora de `src/apis/`, o acesso computado herdado fica congelado no eixo
 `dynamicEntityFiles`: os arquivos existentes só podem sair, e nenhum novo entra.

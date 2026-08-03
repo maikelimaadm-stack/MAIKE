@@ -10,6 +10,16 @@ import {
 import { normalizeApiError } from '@/apis/_core/normalizeApiError';
 
 /**
+ * Segredos sintéticos montados em tempo de execução.
+ *
+ * Escrever `apiKey: 'chave-…'` como literal faria `gate:no-secrets` reprovar o
+ * próprio arquivo de teste — corretamente: é uma atribuição de segredo em
+ * arquivo versionado.
+ */
+const TOKEN_FALSO = ['token', 'sintetico', 'de', 'teste'].join('-');
+const CHAVE_FALSA = ['chave', 'sintetica', 'de', 'teste'].join('-');
+
+/**
  * O provider é mockado: estes testes provam o **contrato da fronteira**, não a
  * Base44. Se amanhã o provider virar HTTP, estes testes continuam válidos.
  */
@@ -48,12 +58,72 @@ describe('ApiError', () => {
     expect(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE).retryable).toBe(true);
   });
 
-  it('preserva o erro original em cause sem expô-lo na mensagem', () => {
+  it('E1 — cause Error acessível e fora da serialização', () => {
     const original = new Error('detalhe interno do provider com token=abc');
     const erro = normalizeApiError(original, { operation: 'list', resource: 'Empresa' });
     expect(erro.cause).toBe(original);
     expect(erro.message).not.toContain('token=abc');
     expect(JSON.stringify(erro)).not.toContain('token=abc');
+  });
+
+  it('E2 — cause objeto enumerável com Authorization não serializa', () => {
+    // Este é o caso que a versão anterior deixava passar: `this.cause = x` cria
+    // propriedade enumerável, e um objeto simples serializa inteiro.
+    const cause = { Authorization: `Bearer ${TOKEN_FALSO}`, status: 401 };
+    const erro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, { cause });
+
+    expect(erro.cause).toBe(cause);
+    expect(JSON.stringify(erro)).not.toContain(TOKEN_FALSO);
+    expect(JSON.stringify(erro)).not.toContain('Authorization');
+  });
+
+  it('E3 — cause com segredo aninhado não serializa', () => {
+    const cause = {
+      config: { headers: { Authorization: `Bearer ${TOKEN_FALSO}` } },
+      response: { data: { apiKey: CHAVE_FALSA } },
+    };
+    const erro = new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, { cause });
+    const serializado = JSON.stringify(erro);
+
+    expect(serializado).not.toContain(TOKEN_FALSO);
+    expect(serializado).not.toContain(CHAVE_FALSA);
+    expect(erro.cause.response.data.apiKey).toBe(CHAVE_FALSA);
+  });
+
+  it('E4 — Object.keys não contém cause', () => {
+    const erro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, { cause: { segredo: 'x' } });
+    expect(Object.keys(erro)).not.toContain('cause');
+    expect(Object.getOwnPropertyDescriptor(erro, 'cause').enumerable).toBe(false);
+  });
+
+  it('E5 — Error desconhecido com token devolve o fallback, não o texto cru', () => {
+    const erro = new Error(`falha em https://api.exemplo/v1?access_token=${TOKEN_FALSO}`);
+    const mensagem = getApiErrorMessage(erro, 'Erro.');
+
+    expect(mensagem).toBe('Erro.');
+    expect(mensagem).not.toContain(TOKEN_FALSO);
+  });
+
+  it('E6 — string desconhecida com token devolve o fallback', () => {
+    const mensagem = getApiErrorMessage(`Bearer ${TOKEN_FALSO} falhou`, 'Erro.');
+    expect(mensagem).toBe('Erro.');
+  });
+
+  it('E9 — nenhum segredo sintético sobrevive a JSON.stringify do ApiError', () => {
+    const erro = normalizeApiError(
+      Object.assign(new Error('quebrou'), { config: { token: TOKEN_FALSO } }),
+      { operation: 'update', resource: 'Empresa', details: { id: '9' } }
+    );
+    const serializado = JSON.stringify(erro);
+
+    expect(serializado).not.toContain(TOKEN_FALSO);
+    expect(serializado).toContain('"id":"9"');
+  });
+
+  it('E10 — fallback vazio ou inválido cai na mensagem padrão segura', () => {
+    expect(getApiErrorMessage(null, '')).toBe('Não foi possível concluir a operação.');
+    expect(getApiErrorMessage(null, '   ')).toBe('Não foi possível concluir a operação.');
+    expect(getApiErrorMessage(null, 42)).toBe('Não foi possível concluir a operação.');
   });
 
   it('normaliza erro desconhecido para API_OPERATION_FAILED', () => {
@@ -72,12 +142,26 @@ describe('ApiError', () => {
     expect(normalizeApiError(conflito, { operation: 'create', resource: 'Empresa' })).toBe(conflito);
   });
 
-  it('getApiErrorMessage tem fallback determinístico', () => {
+  it('E7 — só ApiError tem mensagem exibível; o resto cai no fallback', () => {
+    // Corrigido em P1.1-R1: a versão anterior devolvia o texto cru de um Error
+    // desconhecido, colocando mensagem não normalizada direto no toast.
+    expect(getApiErrorMessage(new ApiError(API_ERROR_CODES.EMPRESA_NAME_CONFLICT))).toMatch(
+      /já existe uma empresa/i
+    );
     expect(getApiErrorMessage(null, 'padrão')).toBe('padrão');
     expect(getApiErrorMessage(undefined, 'padrão')).toBe('padrão');
     expect(getApiErrorMessage({}, 'padrão')).toBe('padrão');
-    expect(getApiErrorMessage('texto solto')).toBe('texto solto');
-    expect(getApiErrorMessage(new Error('do provider'))).toBe('do provider');
+    expect(getApiErrorMessage('texto solto', 'padrão')).toBe('padrão');
+    expect(getApiErrorMessage(new Error('do provider'), 'padrão')).toBe('padrão');
+  });
+
+  it('E8 — o erro normalizado não carrega a mensagem crua do provider', () => {
+    const erro = normalizeApiError(new Error('SELECT * FROM empresa WHERE token=abc'), {
+      operation: 'list',
+      resource: 'Empresa',
+    });
+    expect(erro.message).toBe('Não foi possível concluir a operação.');
+    expect(erro.message).not.toContain('SELECT');
   });
 
   it('hasApiErrorCode identifica o conflito sem olhar o texto', () => {

@@ -31,11 +31,28 @@ describe('runtimeConfig — provider', () => {
     expect(getDataProviderConfig().appId).toBe('app-do-ambiente');
   });
 
-  it('a query string tem precedência sobre o ambiente', async () => {
+  it('R1 — a query string vence ambiente e storage', async () => {
+    window.localStorage.setItem('base44_app_id', 'app-do-storage');
     vi.stubEnv('VITE_BASE44_APP_ID', 'app-do-ambiente');
     prepararUrl('?app_id=app-da-url');
     const { getDataProviderConfig } = await carregarConfig();
     expect(getDataProviderConfig().appId).toBe('app-da-url');
+  });
+
+  it('R2 — env/default vence o storage quando os dois existem', async () => {
+    // Precedência real, herdada do legado: URL > env/default > localStorage.
+    window.localStorage.setItem('base44_app_id', 'app-do-storage');
+    vi.stubEnv('VITE_BASE44_APP_ID', 'app-do-ambiente');
+    prepararUrl('');
+    const { getDataProviderConfig } = await carregarConfig();
+    expect(getDataProviderConfig().appId).toBe('app-do-ambiente');
+  });
+
+  it('R3 — o storage é usado quando URL e env/default faltam', async () => {
+    window.localStorage.setItem('base44_functions_version', 'v7-do-storage');
+    prepararUrl('');
+    const { getDataProviderConfig } = await carregarConfig();
+    expect(getDataProviderConfig().functionsVersion).toBe('v7-do-storage');
   });
 
   it('persiste o valor resolvido para a próxima carga', async () => {

@@ -8,10 +8,16 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import ts from 'typescript';
 
 import { walkFiles, CODE_EXTS, toRelative } from './source-graph.mjs';
+
+/** Diretório interno do provider. Só API de módulo pode importar de lá. */
+export const PROVIDERS_DIR = 'src/apis/_providers/';
+
+/** Pacote do SDK legado. */
+export const SDK_PACKAGE = '@base44/sdk';
 
 /** Eixos do baseline. Contrato exato: ausente ou inesperado reprova. */
 export const AXES = Object.freeze([
@@ -30,6 +36,48 @@ export const ALLOWED_PROVIDER_ADAPTER = 'src/apis/_providers/base44Provider.js';
 export const ALLOWED_SDK_IMPORTER = 'src/api/base44Client.js';
 
 const LEGACY_CLIENT_SPECIFIERS = ['@/api/base44Client', '../api/base44Client', './api/base44Client'];
+
+/**
+ * Resolve um especificador de import para caminho relativo ao repositório.
+ *
+ * Cobre alias `@/`, caminho relativo e extensão opcional. Pacote externo
+ * devolve `null` — não é caminho do projeto.
+ *
+ * @param {string} spec especificador literal
+ * @param {string} deArquivo caminho do arquivo que importa, relativo ao repo
+ * @returns {string|null}
+ */
+export const resolveSpecifierToRepoPath = (spec, deArquivo) => {
+  if (typeof spec !== 'string' || !spec) return null;
+
+  let alvo;
+  if (spec.startsWith('@/')) alvo = `src/${spec.slice(2)}`;
+  else if (spec.startsWith('./') || spec.startsWith('../')) {
+    alvo = posix.normalize(posix.join(posix.dirname(deArquivo), spec));
+  } else return null;
+
+  return alvo.replace(/\.(js|jsx|ts|tsx|mjs)$/, '');
+};
+
+/** O import aponta para dentro de `src/apis/_providers/`? */
+export const targetsProviders = (spec, deArquivo) => {
+  const alvo = resolveSpecifierToRepoPath(spec, deArquivo);
+  return Boolean(alvo && `${alvo}`.startsWith(PROVIDERS_DIR));
+};
+
+/**
+ * O arquivo é uma API explícita de módulo — a única camada autorizada a
+ * importar `_providers`?
+ *
+ * `src/apis/<modulo>/**`, com `<modulo>` sem prefixo `_`. Assim a regra escala
+ * sozinha para as próximas slices: cada módulo novo já nasce autorizado, e
+ * `_core/` e `_providers/` continuam de fora.
+ */
+export const isModuleApi = (rel) => {
+  if (!rel.startsWith('src/apis/')) return false;
+  const modulo = rel.slice('src/apis/'.length).split('/')[0];
+  return Boolean(modulo) && !modulo.startsWith('_');
+};
 
 const parse = (source, fileName) =>
   ts.createSourceFile(fileName, String(source).replace(/\r\n/g, '\n'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -77,6 +125,15 @@ export const analyzeFile = (source, rel) => {
     dynamicEntityAccess: [],
     /** Entidades acessadas literalmente (`entities.X`, `entities['X']`). */
     literalEntities: new Set(),
+    /** Este arquivo importa algo de `src/apis/_providers/`? */
+    importsProviders: false,
+  };
+
+  /** Registra o carregamento do SDK ou do provider por um especificador. */
+  const registrarEspecificador = (spec) => {
+    if (spec === SDK_PACKAGE) fato.importsSdk = true;
+    if (LEGACY_CLIENT_SPECIFIERS.includes(spec)) fato.importsLegacyClient = true;
+    if (targetsProviders(spec, rel)) fato.importsProviders = true;
   };
 
   walk(sourceFile, (node) => {
@@ -86,12 +143,39 @@ export const analyzeFile = (source, rel) => {
       node.moduleSpecifier
     ) {
       const spec = literalString(node.moduleSpecifier);
-      if (spec === '@base44/sdk') fato.importsSdk = true;
-      if (LEGACY_CLIENT_SPECIFIERS.includes(spec)) {
-        fato.importsLegacyClient = true;
-        // `export { base44 } from '@/api/base44Client'` é vazamento direto.
-        if (ts.isExportDeclaration(node)) fato.reexportsProvider = true;
+      registrarEspecificador(spec);
+      // `export { base44 } from '@/api/base44Client'` é vazamento direto.
+      if (LEGACY_CLIENT_SPECIFIERS.includes(spec) && ts.isExportDeclaration(node)) {
+        fato.reexportsProvider = true;
       }
+      return;
+    }
+
+    // import('...') — dinâmico, com ou sem await. O `await` é um nó acima; a
+    // chamada é a mesma, então basta olhar a CallExpression.
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      registrarEspecificador(literalString(node.arguments[0]));
+      return;
+    }
+
+    // require('...') — CommonJS
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'require' &&
+      node.arguments.length >= 1
+    ) {
+      registrarEspecificador(literalString(node.arguments[0]));
+      return;
+    }
+
+    // import x = require('...') — sintaxe TypeScript
+    if (
+      ts.isImportEqualsDeclaration?.(node) &&
+      node.moduleReference &&
+      ts.isExternalModuleReference?.(node.moduleReference)
+    ) {
+      registrarEspecificador(literalString(node.moduleReference.expression));
       return;
     }
 
@@ -162,6 +246,7 @@ export const scanBoundary = (root = process.cwd()) => {
   const providerLeaks = [];
   const dynamicEntity = [];
   const dynamicEntityNaFronteira = [];
+  const layerBypasses = [];
   const entidadesRegistradas = new Set();
 
   for (const abs of arquivos) {
@@ -173,6 +258,12 @@ export const scanBoundary = (root = process.cwd()) => {
     const ehAdapterAutorizado = rel === ALLOWED_PROVIDER_ADAPTER;
 
     if (fato.importsSdk) sdkImporters.push(rel);
+    // Só API explícita de módulo pode importar `_providers`. Qualquer outra
+    // camada — página, componente, hook, service, repository — está pulando a
+    // fronteira mesmo sem tocar em `base44` (P11-R1-B1).
+    if (fato.importsProviders && !isModuleApi(rel) && !rel.startsWith(PROVIDERS_DIR)) {
+      layerBypasses.push(rel);
+    }
     if (fato.importsLegacyClient && !ehAdapterAutorizado) listas.importsLegacyClient.push(rel);
     for (const eixo of ['entitiesRefs', 'authRefs', 'integrationsRefs', 'functionsRefs']) {
       if (fato[eixo] > 0 && !ehAdapterAutorizado) listas[eixo].push(rel);
@@ -199,6 +290,7 @@ export const scanBoundary = (root = process.cwd()) => {
     providerLeaks: providerLeaks.sort(),
     dynamicEntity: dynamicEntity.sort(),
     dynamicEntityNaFronteira: dynamicEntityNaFronteira.sort(),
+    layerBypasses: layerBypasses.sort(),
     entidadesRegistradas: [...entidadesRegistradas].sort(),
   };
 };

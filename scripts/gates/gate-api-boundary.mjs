@@ -24,6 +24,7 @@
  * Códigos: P11-API-BOUNDARY-BASELINE · P11-API-BOUNDARY-REGRESSION
  *          P11-API-BOUNDARY-SDK-IMPORT · P11-API-BOUNDARY-PROVIDER-LEAK
  *          P11-API-BOUNDARY-DYNAMIC-ENTITY · P11-API-BOUNDARY-SCOPE
+ *          P11-API-BOUNDARY-LAYER-BYPASS
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -33,6 +34,8 @@ import {
   AXES,
   ALLOWED_PROVIDER_ADAPTER,
   ALLOWED_SDK_IMPORTER,
+  PROVIDERS_DIR,
+  SDK_PACKAGE,
   scanBoundary,
   diffPaths,
 } from './lib/api-boundary.mjs';
@@ -72,13 +75,26 @@ console.log(
 console.log(`gate:api-boundary — registry do provider: ${atual.entidadesRegistradas.join(', ') || '(vazio)'}`);
 
 // ── 2. Invariantes absolutas ──────────────────────────────────────────────
+// O SDK só entra pelo client oficial — em qualquer forma sintática: `import`,
+// `export ... from`, `import()`, `await import()`, `require()`.
 for (const arquivo of atual.sdkImporters) {
   if (arquivo !== ALLOWED_SDK_IMPORTER) {
     registrar(
       'P11-API-BOUNDARY-SDK-IMPORT',
-      `@base44/sdk importado fora de ${ALLOWED_SDK_IMPORTER}: ${arquivo}`
+      `${SDK_PACKAGE} carregado fora de ${ALLOWED_SDK_IMPORTER}: ${arquivo}`
     );
   }
+}
+
+// Enforcement de camada: `_providers` é interno. Só API explícita de módulo
+// (`src/apis/<modulo>/**`) pode importar de lá. Página, componente, hook,
+// service ou repository que importe o adapter está pulando a fronteira mesmo
+// sem tocar em `base44`.
+for (const arquivo of atual.layerBypasses) {
+  registrar(
+    'P11-API-BOUNDARY-LAYER-BYPASS',
+    `${arquivo} importa ${PROVIDERS_DIR} direto. O acesso passa por src/apis/<modulo>/, não pelo provider interno.`
+  );
 }
 
 for (const arquivo of atual.listas.importsLegacyClient) {
@@ -141,8 +157,13 @@ if (!lido.ok) {
 
 const base = lido.data;
 
-if (typeof base.certifiedFromMain !== 'string' || !base.certifiedFromMain) {
-  registrar('P11-API-BOUNDARY-BASELINE', 'campo "certifiedFromMain" ausente ou inválido no baseline');
+// A origem certificada é um SHA de commit, não um rótulo. String livre
+// permitiria "main-de-teste" e o baseline deixaria de ser rastreável.
+if (typeof base.certifiedFromMain !== 'string' || !/^[0-9a-f]{40}$/.test(base.certifiedFromMain)) {
+  registrar(
+    'P11-API-BOUNDARY-BASELINE',
+    `"certifiedFromMain" precisa ser um SHA de 40 caracteres hexadecimais: ${JSON.stringify(base.certifiedFromMain)}`
+  );
 }
 if (base.allowedProviderAdapter !== ALLOWED_PROVIDER_ADAPTER) {
   registrar(

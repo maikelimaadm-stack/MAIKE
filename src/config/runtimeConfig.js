@@ -7,7 +7,9 @@
  * própria noção de precedência e de o que fazer sem `window`.
  *
  * Este módulo centraliza a leitura. Ele **não** muda comportamento:
- *  - a precedência continua sendo query string > `localStorage` > env/default;
+ *  - a precedência continua sendo **query string > env/default > `localStorage`**,
+ *    exatamente como o legado fazia: um valor de ambiente presente vence o que
+ *    está persistido, e o `localStorage` só entra quando os dois faltam;
  *  - `access_token` continua sendo removido da URL na primeira leitura;
  *  - os valores continuam sendo persistidos em `localStorage` com o mesmo
  *    prefixo `base44_`, porque a Base44 segue como provider temporário;
