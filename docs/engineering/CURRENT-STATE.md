@@ -14,9 +14,9 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.1** |
-| Estado da missão | **P1.1 em implementação** — certificada só depois da CI verde no HEAD final |
+| Estado da missão | **P1.1 entregue** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P1.2 — Mapa |
-| Branch | `claude/p1-1-native-api-boundary-empresa` (PR nova, draft) |
+| Branch | `claude/p1-1-native-api-boundary-empresa` (PR #2, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -106,9 +106,13 @@ temporários.
 
 CI em `.github/workflows/quality.yml`.
 
-A execução do HEAD final da P1.1 é registrada no corpo da PR desta slice — um
-commit não pode conter o resultado da própria execução. A última execução verde
-da P0.1 foi o run `30578175907` (`7cb0fe3`), antes do merge.
+| Commit | Conteúdo | Run | Resultado |
+|---|---|---|---|
+| `3c03ecf` | **commit funcional** da P1.1 | [30812723777](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30812723777) | **verde**, 13/13 |
+| HEAD atual | só esta certificação de estado | ver corpo da PR #2 | — |
+
+Um commit não pode conter o resultado da própria execução de CI. A execução do
+commit documental que sucede `3c03ecf` fica no corpo da PR #2.
 
 ## Débito conhecido
 
