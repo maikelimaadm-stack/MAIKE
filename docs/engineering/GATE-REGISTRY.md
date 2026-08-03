@@ -339,6 +339,40 @@ alvo público. Não há dois padrões.
 A regra vale por construção para módulos futuros (`lote`, `mapa`, `setor`): nada
 no analisador cita `empresa`.
 
+#### Proveniência de carregamento (P1.1-R3)
+
+A R2 provou a regra para `import` estático. Faltavam as outras formas de
+**carregar** o provider e a referência a **membro** dele. O analisador passa a
+trabalhar com proveniência, não com uma lista de nomes:
+
+| Origem de proveniência | Exemplo |
+|---|---|
+| import estático nomeado, default ou namespace | `import * as p from '../_providers/…'` |
+| `import x = require(…)` (TypeScript) | `import p = require('../_providers/…')` |
+| `import()` literal do módulo provider | `import('../_providers/…')` |
+| `require()` literal do módulo provider | `require('../_providers/…')` |
+| desestruturação de qualquer origem acima | `const { empresaProvider } = require(…)` |
+| alias local de qualquer origem acima | `const raw = empresaProvider` |
+
+Uma expressão **entrega capacidade** — e portanto reprova — quando é uma origem,
+um acesso a membro enraizado numa origem, um `await` de origem, ou um
+objeto/array/spread/função que devolva qualquer uma dessas. Uma `CallExpression`
+comum devolve **resultado da operação**, que é dado, não capacidade:
+
+```js
+export const criar     = (d) => empresaProvider.create(d);   // resultado → passa
+export const createRaw = empresaProvider.create;             // método     → reprova
+export const getModule = () => import('../_providers/…');    // namespace  → reprova
+```
+
+A referência crua de método é vazamento porque permite chamar a operação fora de
+`runProviderCall`, da normalização de erro e da validação de argumento.
+
+**Parser por extensão.** `scriptKindOf()` mapeia `.js`/`.mjs`/`.cjs` → JS,
+`.jsx` → JSX, `.ts`/`.mts`/`.cts` → TS, `.tsx` → TSX. Sob `ScriptKind.TS` um
+arquivo `.tsx` produz erro de parse, e arquivo que o parser não entende é
+arquivo cujas invariantes não são verificadas.
+
 #### Carregamento do SDK — todas as formas
 
 `@base44/sdk` só entra por `src/api/base44Client.js`, em qualquer sintaxe:

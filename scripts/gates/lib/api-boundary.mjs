@@ -129,8 +129,45 @@ export const UI_FILES = Object.freeze(['src/Layout.jsx', 'src/App.jsx']);
 export const isUiLayer = (rel) =>
   UI_DIRS.some((d) => rel.startsWith(d)) || UI_FILES.includes(rel);
 
+/**
+ * `ScriptKind` pela extensão real do arquivo.
+ *
+ * Usar `ScriptKind.JS` para tudo fazia o parser tratar `.ts` como JavaScript, e
+ * sintaxe exclusiva de TypeScript — `import x = require(…)` — não virava nó
+ * algum. A R2 declarava essa forma coberta sem que ela chegasse ao analisador
+ * (R3-B5). Declarar cobertura que o parser não processa é pior que não cobrir.
+ *
+ * @param {string} fileName
+ * @returns {import('typescript').ScriptKind}
+ */
+export const scriptKindOf = (fileName) => {
+  const ext = String(fileName).toLowerCase().match(/\.[a-z]+$/)?.[0] ?? '';
+  switch (ext) {
+    case '.ts':
+    case '.mts':
+    case '.cts':
+      return ts.ScriptKind.TS;
+    case '.tsx':
+      return ts.ScriptKind.TSX;
+    case '.jsx':
+      return ts.ScriptKind.JSX;
+    case '.js':
+    case '.mjs':
+    case '.cjs':
+      return ts.ScriptKind.JS;
+    default:
+      return ts.ScriptKind.JS;
+  }
+};
+
 const parse = (source, fileName) =>
-  ts.createSourceFile(fileName, String(source).replace(/\r\n/g, '\n'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  ts.createSourceFile(
+    fileName,
+    String(source).replace(/\r\n/g, '\n'),
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindOf(fileName)
+  );
 
 const walk = (node, visit) => {
   visit(node);
@@ -168,55 +205,130 @@ const bindingsDoImport = (node) => {
   return nomes;
 };
 
+/** Descasca envoltórios que não mudam o valor: `(x)`, `x!`, `x as T`, `<T>x`. */
+const semEnvoltorio = (expr) => {
+  let atual = expr;
+  while (
+    atual &&
+    (ts.isParenthesizedExpression(atual) ||
+      ts.isNonNullExpression(atual) ||
+      (ts.isAsExpression?.(atual) ?? false) ||
+      (ts.isTypeAssertionExpression?.(atual) ?? false) ||
+      (ts.isSatisfiesExpression?.(atual) ?? false))
+  ) {
+    atual = atual.expression;
+  }
+  return atual;
+};
+
+/** `import('<provider>')` ou `require('<provider>')` — carregamento do provider. */
+const carregaProvider = (expr, rel) => {
+  if (!ts.isCallExpression(expr) || expr.arguments.length < 1) return false;
+  const alvoProvider = () => targetsProviders(literalString(expr.arguments[0]), rel);
+
+  if (expr.expression.kind === ts.SyntaxKind.ImportKeyword) return alvoProvider();
+  if (ts.isIdentifier(expr.expression) && expr.expression.text === 'require') return alvoProvider();
+  return false;
+};
+
 /**
- * A expressão **entrega a referência** de um binding do provider?
+ * A expressão **entrega uma capacidade derivada do provider**?
  *
- * Esta é a distinção que separa uso legítimo de vazamento:
+ * Esta é a única distinção que separa uso legítimo de vazamento:
  *
  * ```js
- * export const listar = () => empresaProvider.list(ordem);  // usa  → ok
- * export const obter  = () => empresaProvider;              // entrega → vaza
+ * export const listar = () => empresaProvider.list(ordem);  // resultado  → ok
+ * export const obter  = () => empresaProvider;              // referência → vaza
+ * export const criar  = empresaProvider.create;             // referência → vaza
  * ```
  *
- * Chamar um método devolve **o resultado**; devolver o identificador devolve o
- * próprio provider, e a partir daí o consumidor faz o que quiser.
+ * Uma `CallExpression` comum devolve **o resultado da operação**, e o resultado
+ * é dado — não capacidade. Já um identificador, um acesso a membro enraizado no
+ * provider, ou o próprio `import()`/`require()` do módulo `_providers` entregam
+ * a capacidade crua, e com ela o consumidor chama a operação por fora de
+ * `runProviderCall`, da normalização de erro e da validação de argumento.
  *
- * @param {import('typescript').Node|undefined} expr
- * @param {Set<string>} bindings
+ * `import()` e `require()` do módulo provider são **origem**, não resultado: o
+ * valor que produzem é o namespace do provider (R3-B1, R3-B2).
+ *
+ * @param {import('typescript').Node|undefined} bruto
+ * @param {Set<string>} origens nomes locais de proveniência provider
+ * @param {string} rel caminho do arquivo, para resolver especificadores
  * @returns {boolean}
  */
-const entregaProvider = (expr, bindings) => {
-  if (!expr || bindings.size === 0) return false;
+const origemProvider = (bruto, origens, rel) => {
+  const expr = semEnvoltorio(bruto);
+  if (!expr) return false;
 
-  if (ts.isParenthesizedExpression(expr) || ts.isNonNullExpression(expr) || ts.isAsExpression?.(expr)) {
-    return entregaProvider(expr.expression, bindings);
+  // `empresaProvider` · `providers` · alias local
+  if (ts.isIdentifier(expr)) return origens.has(expr.text);
+
+  // `providers.empresaProvider` · `empresaProvider.create` · `p['create']`
+  if (ts.isPropertyAccessExpression(expr) || ts.isElementAccessExpression(expr)) {
+    return origemProvider(expr.expression, origens, rel);
   }
-  if (ts.isIdentifier(expr)) return bindings.has(expr.text);
 
-  // `export const provider = { empresaProvider }` · `{ p: empresaProvider }`
+  // `await import('…')` · `await carregar()`
+  if (ts.isAwaitExpression(expr)) return origemProvider(expr.expression, origens, rel);
+
+  // `import('<provider>')` e `require('<provider>')` são origem.
+  if (carregaProvider(expr, rel)) return true;
+
+  // Qualquer outra chamada devolve resultado, não capacidade.
+  return false;
+};
+
+/**
+ * O export entrega origem do provider, direta ou embrulhada?
+ *
+ * @param {import('typescript').Node|undefined} bruto
+ * @param {Set<string>} origens
+ * @param {string} rel
+ * @returns {boolean}
+ */
+const entregaProvider = (bruto, origens, rel) => {
+  const expr = semEnvoltorio(bruto);
+  if (!expr) return false;
+
+  if (origemProvider(expr, origens, rel)) return true;
+
+  // `export const provider = { empresaProvider }` · `{ create: p.create }` · `{ ...p }`
   if (ts.isObjectLiteralExpression(expr)) {
     return expr.properties.some((p) => {
-      if (ts.isShorthandPropertyAssignment(p)) return bindings.has(p.name.text);
-      if (ts.isPropertyAssignment(p)) return entregaProvider(p.initializer, bindings);
-      if (ts.isSpreadAssignment(p)) return entregaProvider(p.expression, bindings);
+      if (ts.isShorthandPropertyAssignment(p)) return origens.has(p.name.text);
+      if (ts.isPropertyAssignment(p)) return entregaProvider(p.initializer, origens, rel);
+      if (ts.isSpreadAssignment(p)) return entregaProvider(p.expression, origens, rel);
       return false;
     });
   }
   if (ts.isArrayLiteralExpression(expr)) {
-    return expr.elements.some((e) => entregaProvider(e, bindings));
+    return expr.elements.some((e) => entregaProvider(e, origens, rel));
   }
 
-  // `export const getProvider = () => empresaProvider` e a forma com bloco.
+  // `() => empresaProvider`, `async () => (await import(…)).empresaProvider`,
+  // e as mesmas formas com corpo em bloco.
   if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
-    return entregaProvider(expr.body, bindings);
+    return entregaProvider(expr.body, origens, rel);
   }
   if (ts.isBlock(expr)) {
     return expr.statements.some(
-      (s) => ts.isReturnStatement(s) && entregaProvider(s.expression, bindings)
+      (s) => ts.isReturnStatement(s) && entregaProvider(s.expression, origens, rel)
     );
   }
 
   return false;
+};
+
+/** Nomes ligados por um padrão de desestruturação ou por um identificador. */
+const nomesDoBindingName = (name) => {
+  if (!name) return [];
+  if (ts.isIdentifier(name)) return [name.text];
+  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+    return name.elements.flatMap((el) =>
+      ts.isBindingElement(el) ? nomesDoBindingName(el.name) : []
+    );
+  }
+  return [];
 };
 
 /** A expressão termina em `entities`/`auth`/`integrations`/`functions` de `base44`? */
@@ -326,7 +438,11 @@ export const analyzeFile = (source, rel) => {
       node.moduleReference &&
       ts.isExternalModuleReference?.(node.moduleReference)
     ) {
-      registrarEspecificador(literalString(node.moduleReference.expression));
+      const spec = literalString(node.moduleReference.expression);
+      registrarEspecificador(spec);
+      // `import providers = require('../_providers/…')` liga um nome local ao
+      // namespace do provider, igual a um namespace import (R3-B5).
+      if (targetsProviders(spec, rel) && node.name) fato.providerBindings.add(node.name.text);
       return;
     }
 
@@ -381,38 +497,58 @@ export const analyzeFile = (source, rel) => {
     }
   });
 
-  // ── Segunda passada: o provider escapa por algum export? ────────────────
-  // Separada da primeira porque `import` pode aparecer depois de um `export`
-  // no texto; só com todos os bindings coletados a detecção é confiável.
-  if (fato.providerBindings.size) {
+  // ── Segunda passada: proveniência local ─────────────────────────────────
+  // `const providers = require('…/_providers/…')` e `const raw = empresaProvider`
+  // criam nomes novos com a mesma proveniência. Ponto fixo porque um alias pode
+  // depender de outro declarado depois dele no texto; o laço termina porque cada
+  // volta só adiciona nomes, e o conjunto de nomes do arquivo é finito.
+  const origens = fato.providerBindings;
+  for (let volta = 0; volta < 8; volta += 1) {
+    const antes = origens.size;
+    walk(sourceFile, (node) => {
+      if (!ts.isVariableDeclaration(node) || !node.initializer) return;
+      if (!origemProvider(node.initializer, origens, rel)) return;
+      for (const nome of nomesDoBindingName(node.name)) origens.add(nome);
+    });
+    if (origens.size === antes) break;
+  }
+
+  // ── Terceira passada: o provider escapa por algum export? ───────────────
+  // Separada porque `import` pode aparecer depois de um `export` no texto, e
+  // porque só depois do ponto fixo o conjunto de origens está completo.
+  //
+  // Roda **sempre**, mesmo sem nenhum binding: `export const f = () =>
+  // import('../_providers/…')` não liga nome local nenhum — a origem está
+  // inline na própria expressão exportada (R3-B1).
+  {
     const temExport = (node) =>
-      node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) === true;
+      node?.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) === true;
 
     walk(sourceFile, (node) => {
       // export { empresaProvider } · export { interno as provider }
       if (ts.isExportSpecifier(node) && !node.parent?.parent?.moduleSpecifier) {
-        const origem = (node.propertyName || node.name).text;
-        if (fato.providerBindings.has(origem)) {
-          fato.publicProviderLeaks.push(`export { ${origem} as ${node.name.text} }`);
+        const nome = (node.propertyName || node.name).text;
+        if (origens.has(nome)) {
+          fato.publicProviderLeaks.push(`export { ${nome} as ${node.name.text} }`);
         }
         return;
       }
 
-      // export default empresaProvider
-      if (ts.isExportAssignment(node) && entregaProvider(node.expression, fato.providerBindings)) {
+      // export default <origem>
+      if (ts.isExportAssignment(node) && entregaProvider(node.expression, origens, rel)) {
         fato.publicProviderLeaks.push('export default <provider>');
         return;
       }
 
-      // export const provider = … · export function getProvider() { … }
+      // export const x = … · export function f() { … }
       if (ts.isVariableDeclaration(node) && temExport(node.parent?.parent)) {
-        if (entregaProvider(node.initializer, fato.providerBindings)) {
+        if (entregaProvider(node.initializer, origens, rel)) {
           fato.publicProviderLeaks.push(`export ${node.name.getText(sourceFile)} = <provider>`);
         }
         return;
       }
       if (ts.isFunctionDeclaration(node) && temExport(node) && node.body) {
-        if (entregaProvider(node.body, fato.providerBindings)) {
+        if (entregaProvider(node.body, origens, rel)) {
           fato.publicProviderLeaks.push(`export function ${node.name?.text ?? '(anônima)'} → <provider>`);
         }
       }

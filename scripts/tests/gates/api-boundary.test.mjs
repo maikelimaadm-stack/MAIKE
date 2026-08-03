@@ -11,7 +11,9 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { makeTempDir, cleanup, writeFile, runGate, REPO_ROOT } from './helpers.mjs';
-import { ALLOWED_PROVIDER_ADAPTER, scanBoundary } from '../../gates/lib/api-boundary.mjs';
+import ts from 'typescript';
+
+import { ALLOWED_PROVIDER_ADAPTER, scanBoundary, scriptKindOf, analyzeFile } from '../../gates/lib/api-boundary.mjs';
 
 const GATE = 'gate-api-boundary.mjs';
 const BASELINE_REL = 'api-boundary-baseline.json';
@@ -729,5 +731,130 @@ describe('gate:api-boundary — R2-B2 a UI passa pelo service', () => {
     criarBaseline(d);
     falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
     cleanup(d);
+  });
+});
+
+// ── R3 ────────────────────────────────────────────────────────────────────
+// A R2 provou os vazamentos por import estático. Ficaram de fora as outras
+// formas de CARREGAR o provider — import(), require(), import equals — e as
+// referências a MEMBRO do provider. A propriedade que a R2 declarou absoluta
+// ("nenhum símbolo de _providers pode ser exportado, em forma nenhuma") só
+// passa a ser verdadeira aqui.
+
+describe('gate:api-boundary — R3 proveniência de carregamento', () => {
+  const P = '../_providers/base44Provider.js';
+
+  /** Casos que entregam capacidade: todos reprovam. */
+  const VAZAMENTOS = [
+    ['PD1  export de import() do provider', `export const getModule = () => import('${P}');\n`],
+    ['PD2  await import() devolvendo o provider', `export const getProvider = async () => (await import('${P}')).empresaProvider;\n`],
+    ['PD3  export default import()', `export default import('${P}');\n`],
+    ['PD4  require() inline devolvendo o provider', `export const getProvider = () => require('${P}').empresaProvider;\n`],
+    ['PD5  require() armazenado e reexportado', `const providers = require('${P}');\nexport { providers };\n`],
+    ['PD6  desestruturação de require() reexportada', `const { empresaProvider } = require('${P}');\nexport { empresaProvider };\n`],
+    ['PD7  namespace import devolvendo membro', `import * as providers from '${P}';\nexport const getProvider = () => providers.empresaProvider;\n`],
+    ['PD8  referência crua de método', `import { empresaProvider } from '${P}';\nexport const createRaw = empresaProvider.create;\n`],
+    ['PD9  objeto com referência de método', `import { empresaProvider } from '${P}';\nexport const operations = { create: empresaProvider.create };\n`],
+    ['PD16 alias local do provider', `import { empresaProvider } from '${P}';\nconst raw = empresaProvider;\nexport const getProvider = () => raw;\n`],
+    ['extra namespace dentro de objeto', `import * as providers from '${P}';\nexport const bag = { empresa: providers.empresaProvider };\n`],
+    ['extra export default de membro do namespace', `import * as providers from '${P}';\nexport default providers.empresaProvider;\n`],
+    ['extra função que devolve o método', `import { empresaProvider } from '${P}';\nexport const getCreate = () => empresaProvider.create;\n`],
+    ['extra spread do provider', `import { empresaProvider } from '${P}';\nexport const tudo = { ...empresaProvider };\n`],
+  ];
+
+  for (const [nome, conteudo] of VAZAMENTOS) {
+    test(`${nome} reprova`, () => {
+      const d = comModulo({ 'src/apis/empresa/index.js': conteudo });
+      criarBaseline(d);
+      const r = falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+      assert.match(r.output, /src\/apis\/empresa\/index\.js/, `a saída precisa citar o arquivo:\n${r.output}`);
+      cleanup(d);
+    });
+  }
+
+  /** Casos que devolvem o RESULTADO da operação: todos passam. */
+  const LEGITIMOS = [
+    ['PD12 chamada estática do provider', `import { empresaProvider } from '${P}';\nexport const createEmpresa = (dados) => empresaProvider.create(dados);\n`],
+    ['PD13 await import() seguido de chamada', `export const createEmpresa = async (dados) => (await import('${P}')).empresaProvider.create(dados);\n`],
+    ['PD14 require() seguido de chamada', `export const createEmpresa = (dados) => require('${P}').empresaProvider.create(dados);\n`],
+    ['PD15 namespace seguido de chamada', `import * as providers from '${P}';\nexport const listEmpresas = () => providers.empresaProvider.list('-created_date');\n`],
+  ];
+
+  for (const [nome, conteudo] of LEGITIMOS) {
+    test(`${nome} passa`, () => {
+      const d = comModulo({ 'src/apis/empresa/index.js': conteudo });
+      criarBaseline(d);
+      const r = rodar(d);
+      assert.equal(r.status, 0, r.output);
+      cleanup(d);
+    });
+  }
+});
+
+describe('gate:api-boundary — R3 parser por extensão', () => {
+  const P = '../_providers/base44Provider.js';
+
+  test('PD10 import equals reexportado em .ts reprova', () => {
+    const d = comModulo({
+      'src/apis/empresa/index.ts': `import providers = require('${P}');\nexport { providers };\n`,
+    });
+    criarBaseline(d);
+    const r = falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    assert.match(r.output, /index\.ts/, r.output);
+    cleanup(d);
+  });
+
+  test('PD11 import equals devolvendo membro em .ts reprova', () => {
+    const d = comModulo({
+      'src/apis/empresa/index.ts': `import providers = require('${P}');\nexport const getProvider = () => providers.empresaProvider;\n`,
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('a mesma sintaxe em .tsx também reprova', () => {
+    const d = comModulo({
+      'src/apis/empresa/index.tsx': `import providers = require('${P}');\nexport { providers };\n`,
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('scriptKindOf mapeia cada extensão para o ScriptKind real', () => {
+    const esperado = {
+      'a.js': ts.ScriptKind.JS,
+      'a.jsx': ts.ScriptKind.JSX,
+      'a.mjs': ts.ScriptKind.JS,
+      'a.cjs': ts.ScriptKind.JS,
+      'a.ts': ts.ScriptKind.TS,
+      'a.tsx': ts.ScriptKind.TSX,
+      'a.mts': ts.ScriptKind.TS,
+      'a.cts': ts.ScriptKind.TS,
+    };
+    for (const [arquivo, kind] of Object.entries(esperado)) {
+      assert.equal(scriptKindOf(arquivo), kind, `extensão de ${arquivo}`);
+    }
+  });
+
+  test('import equals também é detectado em .js — o parser do TS é tolerante', () => {
+    // Medido, não suposto: `ts.createSourceFile` produz ImportEqualsDeclaration
+    // mesmo sob ScriptKind.JS. Logo o que faltava para PD10/PD11 não era o
+    // ScriptKind — era registrar o binding desse nó, que a R2 não fazia.
+    const fato = analyzeFile("import providers = require('../_providers/base44Provider.js');\nexport { providers };\n", 'src/apis/empresa/index.js');
+    assert.equal(fato.publicProviderLeaks.length, 1);
+  });
+
+  test('o ScriptKind correto importa de verdade para JSX em .tsx', () => {
+    // Aqui o mapeamento por extensão deixa de ser cosmético: sob ScriptKind.TS
+    // o mesmo arquivo .tsx produz erros de parse, e um arquivo que o parser não
+    // entende é um arquivo cujas invariantes não são verificadas.
+    const jsx = 'const f = () => <div a={1} />;\nexport const g = f;\n';
+    const comTs = ts.createSourceFile('x.tsx', jsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const comTsx = ts.createSourceFile('x.tsx', jsx, ts.ScriptTarget.Latest, true, scriptKindOf('x.tsx'));
+
+    assert.ok(comTs.parseDiagnostics.length > 0, 'ScriptKind.TS deveria falhar em JSX');
+    assert.equal(comTsx.parseDiagnostics.length, 0, 'scriptKindOf deveria escolher TSX');
   });
 });

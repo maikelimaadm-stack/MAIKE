@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 entregue após P1.1-R2)
+**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 **sob correção P1.1-R3**)
 
 ---
 
@@ -14,7 +14,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.1** |
-| Estado da missão | **P1.1 entregue após P1.1-R2** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Estado da missão | **P1.1 sob correção P1.1-R3** — proveniência de carregamento do provider e referências de método |
 | Próxima slice | P1.2 — Mapa |
 | Branch | `claude/p1-1-native-api-boundary-empresa` (PR #2, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
@@ -34,7 +34,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 entregue (corrigida por P1.1-R1 e P1.1-R2); P1.2 a P1.4 não iniciadas |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 sob correção P1.1-R3; P1.2 a P1.4 não iniciadas |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -47,7 +47,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 
 Números medidos após `npm ci` e `npm run build` finais.
 
-| Métrica | Antes da P0.1 | `main` pós-P0.1 | Depois da P1.1-R2 |
+| Métrica | Antes da P0.1 | `main` pós-P0.1 | Depois da P1.1-R3 |
 |---|---|---|---|
 | Páginas em `src/pages` | 102 | 16 | **16** |
 | Arquivos em `src/` | 472 | 203 | **209** |
@@ -65,26 +65,14 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Chaves Google Maps literais | 8 | 0 | **0** |
 | Erros de lint | 64 | 0 | **0** |
 | Diagnósticos `tsc` (cobertura total) | — | 2.802 | **2.797** (teto 2.797) |
-| Testes automatizados | 0 | 183 | **322** (234 de gate + 88 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | **2.464,58 kB** |
-| Bundle de produção — CSS | 120,36 kB | 77,00 kB | **77,00 kB** |
+| Testes automatizados | 0 | 183 | **346** (258 de gate + 88 de smoke) |
+| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | <!--BUNDLE-JS--> |
+| Bundle de produção — CSS | 120,36 kB | 77,00 kB | <!--BUNDLE-CSS--> |
 
 Os artefatos do bundle vêm da CI do **último commit com mudanças executáveis**
 desta PR — não de um build local nem de uma execução anterior.
 
-Artefatos medidos no run [30818797942](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30818797942)
-(commit `4acd1d4`), etapa `build`:
-
-| Artefato | Tamanho | gzip |
-|---|---|---|
-| `dist/assets/index-zrBH5BbN.js` | 2.464,58 kB | 658,99 kB |
-| `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
-| `dist/index.html` | 0,48 kB | 0,31 kB |
-
-O hash do JS mudou (`index-B13TdukM.js` → `index-zrBH5BbN.js`) porque
-`src/apis/_core/ApiError.js` mudou: o construtor deixou de aceitar `message`. Os
-0,03 kB a menos são o ramo `info.message ||` removido. O CSS é bit a bit o mesmo
-da P1.1-R1 — nada de estilo foi tocado.
+<!--BUNDLE-BLOCO-->
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
 `scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
@@ -92,7 +80,7 @@ D-PROD-13 — e teto certificado monotônico — D-PROD-17).
 
 ## Fronteira de dados (P1.1, D-PROD-18)
 
-| Eixo do `gate:api-boundary` | `main` pós-P0.1 | Depois da P1.1-R2 |
+| Eixo do `gate:api-boundary` | `main` pós-P0.1 | Depois da P1.1-R3 |
 |---|---|---|
 | arquivos que importam `@/api/base44Client` | 68 | **67** |
 | arquivos que usam `base44.entities` | 64 | **63** |
@@ -121,6 +109,7 @@ CI em `.github/workflows/quality.yml`.
 | `8866768` | **commit funcional** da P1.1-R1 | [30815360716](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815360716) | **vermelha** — `no-secrets` (ver abaixo) |
 | `9447884` | correção do relatório da P1.1-R1 | [30815727984](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815727984) | **verde**, 13/13 |
 | `4acd1d4` | **commit funcional** da P1.1-R2 | [30818797942](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30818797942) | **verde**, 13/13 — origem dos artefatos |
+<!--CI-R3-->
 | HEAD atual | só esta certificação de estado | ver corpo da PR #2 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
@@ -138,7 +127,7 @@ motivo de o `verify:all` local não ter pego antes.
 
 | # | Item | Tratamento |
 |---|---|---|
-| DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1, com Empresa migrada e superfície pública protegida desde a P1.1-R2; restam 368 chamadas `base44.entities` fora dela | P1 |
+| DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1, com Empresa migrada e superfície pública protegida por proveniência desde a P1.1-R3; restam 368 chamadas `base44.entities` fora dela | P1 |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
 | DBT-03 | 2.797 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.797. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
@@ -153,6 +142,6 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-14 | 67 arquivos ainda importam `@/api/base44Client` direto. A migração continua em P1.2–P1.4, protegida por `gate:api-boundary` | P1 |
 | DBT-15 | `FormularioEmpresa` ainda usa `base44.integrations.Core.UploadFile` para o logotipo. Upload não é dado de módulo e ganha fronteira própria em slice posterior | P1 |
 | DBT-16 | 3 arquivos legados (`loteRepository`, `entityDeleteGuards`, `offlineEntitySync`) acessam `entities` por nome dinâmico. Congelados no eixo `dynamicEntityFiles`; migram com seus módulos | P1 |
-| DBT-18 | `gate:api-boundary` detecta o vazamento do provider por análise sintática direta. Um repasse em dois saltos (`const x = provider; export const y = x;`) escapa. A forma direta — que é a que aparece na prática e a que a auditoria encontrou — está fechada; fechar a indireta exige rastreio de alias dentro do arquivo | P1.4 |
+| DBT-18 | `gate:api-boundary` fecha proveniência **local ao arquivo**, incluindo alias direto (P1.1-R3). Continua fora do alcance o repasse realmente interprocedural — um módulo intermediário do próprio pacote que receba o provider por parâmetro e o devolva. Fechar isso exige dataflow entre arquivos | P1.4 |
 | DBT-17 | `gate:no-secrets` varre `git ls-files`, então arquivo novo ainda não adicionado ao índice não é varrido: `verify:all` local dá verde e a CI reprova. Aconteceu de verdade na P1.1-R1. Mitigação atual é `git add` antes de `verify:all`; varrer também não-rastreados não-ignorados é mudança de contrato do gate, fica para slice própria | P1.4 |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |
