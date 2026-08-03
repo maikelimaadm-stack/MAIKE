@@ -52,6 +52,9 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P11-API-BOUNDARY-DYNAMIC-ENTITY` | api-boundary |
 | `P11-API-BOUNDARY-SCOPE` | api-boundary |
 | `P11-API-BOUNDARY-LAYER-BYPASS` | api-boundary |
+| `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK` | api-boundary |
+| `P11-API-BOUNDARY-SERVICE-BYPASS` | api-boundary |
+| `P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS` | api-boundary |
 | `P01-SCOPE-ORPHAN` | source-closure |
 | `P01-SCOPE-DYNAMIC-ALLOWLIST` | source-closure |
 | `P01-IMPORT-BROKEN` | import-integrity |
@@ -278,6 +281,9 @@ Independem do baseline e não têm exceção histórica:
 | arquivo fora de `src/apis/<modulo>/` importando `src/apis/_providers/` | `P11-API-BOUNDARY-LAYER-BYPASS` |
 | arquivo em `src/apis/` importando o client legado sem ser o adapter | `P11-API-BOUNDARY-PROVIDER-LEAK` |
 | objeto do provider reexportado (`export { base44 }`, `export default base44`, alias, reexport direto) | `P11-API-BOUNDARY-PROVIDER-LEAK` |
+| símbolo de `src/apis/_providers/` exportado por `src/apis/<modulo>/` | `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK` |
+| página, componente, hook ou `Layout.jsx` importando API de módulo | `P11-API-BOUNDARY-SERVICE-BYPASS` |
+| import de implementação interna de módulo vindo de fora do módulo | `P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS` |
 | acesso computado a `entities` **dentro de `src/apis/`** | `P11-API-BOUNDARY-DYNAMIC-ENTITY` |
 | registry com entidade fora de `allowedBase44Entities` | `P11-API-BOUNDARY-SCOPE` |
 
@@ -294,6 +300,44 @@ hook, service, repository e `src/lib/` nunca entram.
 
 A resolução é por AST e cobre alias `@/`, caminho relativo, extensão opcional,
 `import()` e `export ... from`.
+
+#### Superfície pública de módulo (P1.1-R2)
+
+A autorização da R1 é para **usar** `_providers`, não para republicá-lo. Sem essa
+distinção a fronteira vazava de forma transitiva: o módulo reexportava o
+provider, o consumidor importava `@/apis/empresa` — que o gate autoriza — e
+recebia o objeto do provider sem nunca citar `_providers`.
+
+Nenhum símbolo vindo de `src/apis/_providers/**` pode ser exportado por
+`src/apis/<modulo>/**`, em nenhuma forma: `export … from`, `export *`, reexport
+de binding, alias, `export default`, `const` igual ao binding, objeto que o
+contém, ou função que o devolve → `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK`.
+
+A linha que separa uso de vazamento é o que a expressão entrega:
+
+```js
+export const listEmpresas = () => empresaProvider.list(ordem);  // resultado → ok
+export const getProvider  = () => empresaProvider;              // referência → vaza
+```
+
+**Camadas.** Para cada módulo, `src/apis/<modulo>/index.js` é a superfície
+pública; qualquer outro arquivo do módulo é implementação interna.
+
+| Camada | Pode importar |
+|---|---|
+| `src/pages/`, `src/components/`, `src/hooks/`, `src/Layout.jsx` | `src/services/` e `src/apis/_core/` — **nunca** API de dados |
+| `src/services/` | `@/apis/<modulo>` (ou `@/apis/<modulo>/index`), nunca arquivo interno, nunca `_providers/` |
+| `src/apis/<modulo>/` | irmãos do próprio módulo e `_providers/` |
+
+`_core/` não é API de módulo — o prefixo `_` o mantém fora da regra, e é por isso
+que a página continua podendo importar `getApiErrorMessage`.
+
+Decisão única sobre extensão: o especificador é resolvido sem extensão, então
+`@/apis/empresa`, `@/apis/empresa/index` e `@/apis/empresa/index.js` são o mesmo
+alvo público. Não há dois padrões.
+
+A regra vale por construção para módulos futuros (`lote`, `mapa`, `setor`): nada
+no analisador cita `empresa`.
 
 #### Carregamento do SDK — todas as formas
 

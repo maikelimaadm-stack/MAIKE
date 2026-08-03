@@ -73,11 +73,61 @@ export const targetsProviders = (spec, deArquivo) => {
  * sozinha para as próximas slices: cada módulo novo já nasce autorizado, e
  * `_core/` e `_providers/` continuam de fora.
  */
-export const isModuleApi = (rel) => {
-  if (!rel.startsWith('src/apis/')) return false;
-  const modulo = rel.slice('src/apis/'.length).split('/')[0];
-  return Boolean(modulo) && !modulo.startsWith('_');
+export const isModuleApi = (rel) => Boolean(moduleOf(rel));
+
+/**
+ * Nome do módulo de dados a que este caminho pertence, ou `null`.
+ *
+ * `src/apis/empresa/empresaApi.js` → `empresa`. `src/apis/_core/ApiError.js` →
+ * `null`: prefixo `_` significa interno, e interno nunca é módulo.
+ *
+ * @param {string} rel caminho relativo ao repositório, sem barra inicial
+ * @returns {string|null}
+ */
+export const moduleOf = (rel) => {
+  if (typeof rel !== 'string' || !rel.startsWith('src/apis/')) return null;
+  const resto = rel.slice('src/apis/'.length);
+  if (!resto.includes('/')) return null; // `src/apis/algo.js` não é módulo
+  const modulo = resto.split('/')[0];
+  return modulo && !modulo.startsWith('_') ? modulo : null;
 };
+
+/**
+ * O caminho é a **superfície pública** de um módulo?
+ *
+ * Decisão única (R2): `src/apis/<modulo>` e `src/apis/<modulo>/index` são a
+ * mesma coisa — o especificador já chega aqui sem extensão, então
+ * `@/apis/empresa`, `@/apis/empresa/index` e `@/apis/empresa/index.js`
+ * convergem. Qualquer outro arquivo do módulo é implementação interna.
+ */
+export const isModulePublicSurface = (alvo) => {
+  const modulo = moduleTargetedBy(alvo);
+  if (!modulo) return false;
+  return alvo === `src/apis/${modulo}` || alvo === `src/apis/${modulo}/index`;
+};
+
+/**
+ * Que módulo este **alvo de import** endereça?
+ *
+ * Diferente de {@link moduleOf}, aceita o diretório do módulo sem arquivo:
+ * `src/apis/empresa` (de `@/apis/empresa`) endereça `empresa`.
+ *
+ * @param {string|null} alvo caminho já resolvido, sem extensão
+ * @returns {string|null}
+ */
+export const moduleTargetedBy = (alvo) => {
+  if (typeof alvo !== 'string' || !alvo.startsWith('src/apis/')) return null;
+  const modulo = alvo.slice('src/apis/'.length).split('/')[0];
+  return modulo && !modulo.startsWith('_') ? modulo : null;
+};
+
+/** Camadas de apresentação: nunca falam com API de dados diretamente. */
+export const UI_DIRS = Object.freeze(['src/pages/', 'src/components/', 'src/hooks/']);
+export const UI_FILES = Object.freeze(['src/Layout.jsx', 'src/App.jsx']);
+
+/** O arquivo é UI — página, componente, hook ou layout raiz? */
+export const isUiLayer = (rel) =>
+  UI_DIRS.some((d) => rel.startsWith(d)) || UI_FILES.includes(rel);
 
 const parse = (source, fileName) =>
   ts.createSourceFile(fileName, String(source).replace(/\r\n/g, '\n'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -91,6 +141,82 @@ const literalString = (node) => {
   if (!node) return null;
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
   return null;
+};
+
+/**
+ * Nomes locais introduzidos por um `import`.
+ *
+ * Cobre `import x from`, `import * as x from` e `import { a, b as c } from`.
+ * O nome que interessa é sempre o **local** (`c`), porque é ele que pode ser
+ * reexportado depois.
+ *
+ * @param {import('typescript').ImportDeclaration} node
+ * @returns {string[]}
+ */
+const bindingsDoImport = (node) => {
+  const clause = node.importClause;
+  if (!clause) return [];
+  const nomes = [];
+  if (clause.name) nomes.push(clause.name.text);
+  const bindings = clause.namedBindings;
+  if (bindings) {
+    if (ts.isNamespaceImport(bindings)) nomes.push(bindings.name.text);
+    else if (ts.isNamedImports(bindings)) {
+      for (const el of bindings.elements) nomes.push(el.name.text);
+    }
+  }
+  return nomes;
+};
+
+/**
+ * A expressão **entrega a referência** de um binding do provider?
+ *
+ * Esta é a distinção que separa uso legítimo de vazamento:
+ *
+ * ```js
+ * export const listar = () => empresaProvider.list(ordem);  // usa  → ok
+ * export const obter  = () => empresaProvider;              // entrega → vaza
+ * ```
+ *
+ * Chamar um método devolve **o resultado**; devolver o identificador devolve o
+ * próprio provider, e a partir daí o consumidor faz o que quiser.
+ *
+ * @param {import('typescript').Node|undefined} expr
+ * @param {Set<string>} bindings
+ * @returns {boolean}
+ */
+const entregaProvider = (expr, bindings) => {
+  if (!expr || bindings.size === 0) return false;
+
+  if (ts.isParenthesizedExpression(expr) || ts.isNonNullExpression(expr) || ts.isAsExpression?.(expr)) {
+    return entregaProvider(expr.expression, bindings);
+  }
+  if (ts.isIdentifier(expr)) return bindings.has(expr.text);
+
+  // `export const provider = { empresaProvider }` · `{ p: empresaProvider }`
+  if (ts.isObjectLiteralExpression(expr)) {
+    return expr.properties.some((p) => {
+      if (ts.isShorthandPropertyAssignment(p)) return bindings.has(p.name.text);
+      if (ts.isPropertyAssignment(p)) return entregaProvider(p.initializer, bindings);
+      if (ts.isSpreadAssignment(p)) return entregaProvider(p.expression, bindings);
+      return false;
+    });
+  }
+  if (ts.isArrayLiteralExpression(expr)) {
+    return expr.elements.some((e) => entregaProvider(e, bindings));
+  }
+
+  // `export const getProvider = () => empresaProvider` e a forma com bloco.
+  if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
+    return entregaProvider(expr.body, bindings);
+  }
+  if (ts.isBlock(expr)) {
+    return expr.statements.some(
+      (s) => ts.isReturnStatement(s) && entregaProvider(s.expression, bindings)
+    );
+  }
+
+  return false;
 };
 
 /** A expressão termina em `entities`/`auth`/`integrations`/`functions` de `base44`? */
@@ -127,6 +253,12 @@ export const analyzeFile = (source, rel) => {
     literalEntities: new Set(),
     /** Este arquivo importa algo de `src/apis/_providers/`? */
     importsProviders: false,
+    /** Nomes locais ligados a símbolos vindos de `_providers/`. */
+    providerBindings: new Set(),
+    /** Símbolos de `_providers/` que este arquivo exporta. Cada um é um vazamento. */
+    publicProviderLeaks: [],
+    /** Imports que endereçam API de módulo: `{alvo, modulo, publico}`. */
+    moduleApiImports: [],
   };
 
   /** Registra o carregamento do SDK ou do provider por um especificador. */
@@ -134,6 +266,12 @@ export const analyzeFile = (source, rel) => {
     if (spec === SDK_PACKAGE) fato.importsSdk = true;
     if (LEGACY_CLIENT_SPECIFIERS.includes(spec)) fato.importsLegacyClient = true;
     if (targetsProviders(spec, rel)) fato.importsProviders = true;
+
+    const alvo = resolveSpecifierToRepoPath(spec, rel);
+    const modulo = moduleTargetedBy(alvo);
+    if (modulo) {
+      fato.moduleApiImports.push({ alvo, modulo, publico: isModulePublicSurface(alvo) });
+    }
   };
 
   walk(sourceFile, (node) => {
@@ -147,6 +285,19 @@ export const analyzeFile = (source, rel) => {
       // `export { base44 } from '@/api/base44Client'` é vazamento direto.
       if (LEGACY_CLIENT_SPECIFIERS.includes(spec) && ts.isExportDeclaration(node)) {
         fato.reexportsProvider = true;
+      }
+      if (targetsProviders(spec, rel)) {
+        // `export … from '../_providers/…'` entrega o provider ao consumidor
+        // sem que ele precise citar `_providers`. É o vazamento transitivo.
+        if (ts.isExportDeclaration(node)) {
+          const quais = node.exportClause && ts.isNamedExports(node.exportClause)
+            ? node.exportClause.elements.map((e) => e.name.text).join(', ')
+            : '*';
+          fato.publicProviderLeaks.push(`export ${quais} from '${spec}'`);
+        } else {
+          // Guarda os nomes locais para reconhecer o vazamento indireto adiante.
+          for (const nome of bindingsDoImport(node)) fato.providerBindings.add(nome);
+        }
       }
       return;
     }
@@ -230,6 +381,44 @@ export const analyzeFile = (source, rel) => {
     }
   });
 
+  // ── Segunda passada: o provider escapa por algum export? ────────────────
+  // Separada da primeira porque `import` pode aparecer depois de um `export`
+  // no texto; só com todos os bindings coletados a detecção é confiável.
+  if (fato.providerBindings.size) {
+    const temExport = (node) =>
+      node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) === true;
+
+    walk(sourceFile, (node) => {
+      // export { empresaProvider } · export { interno as provider }
+      if (ts.isExportSpecifier(node) && !node.parent?.parent?.moduleSpecifier) {
+        const origem = (node.propertyName || node.name).text;
+        if (fato.providerBindings.has(origem)) {
+          fato.publicProviderLeaks.push(`export { ${origem} as ${node.name.text} }`);
+        }
+        return;
+      }
+
+      // export default empresaProvider
+      if (ts.isExportAssignment(node) && entregaProvider(node.expression, fato.providerBindings)) {
+        fato.publicProviderLeaks.push('export default <provider>');
+        return;
+      }
+
+      // export const provider = … · export function getProvider() { … }
+      if (ts.isVariableDeclaration(node) && temExport(node.parent?.parent)) {
+        if (entregaProvider(node.initializer, fato.providerBindings)) {
+          fato.publicProviderLeaks.push(`export ${node.name.getText(sourceFile)} = <provider>`);
+        }
+        return;
+      }
+      if (ts.isFunctionDeclaration(node) && temExport(node) && node.body) {
+        if (entregaProvider(node.body, fato.providerBindings)) {
+          fato.publicProviderLeaks.push(`export function ${node.name?.text ?? '(anônima)'} → <provider>`);
+        }
+      }
+    });
+  }
+
   return fato;
 };
 
@@ -247,6 +436,9 @@ export const scanBoundary = (root = process.cwd()) => {
   const dynamicEntity = [];
   const dynamicEntityNaFronteira = [];
   const layerBypasses = [];
+  const publicProviderLeaks = [];
+  const serviceBypasses = [];
+  const moduleInternalBypasses = [];
   const entidadesRegistradas = new Set();
 
   for (const abs of arquivos) {
@@ -269,6 +461,25 @@ export const scanBoundary = (root = process.cwd()) => {
       if (fato[eixo] > 0 && !ehAdapterAutorizado) listas[eixo].push(rel);
     }
     if (fato.reexportsProvider) providerLeaks.push(rel);
+
+    // O módulo pode **usar** `_providers` internamente, nunca republicá-lo.
+    // Sem esta regra a fronteira vaza de forma transitiva: o consumidor importa
+    // `@/apis/empresa` — que o gate autoriza — e recebe o provider (R2-B1).
+    for (const leak of fato.publicProviderLeaks) {
+      publicProviderLeaks.push(`${rel} — ${leak}`);
+    }
+
+    // UI → service → API de módulo → provider. Página, componente ou hook que
+    // importe a API pula o service, e com ele a regra de negócio (R2-B2).
+    const moduloDoArquivo = moduleOf(rel);
+    for (const imp of fato.moduleApiImports) {
+      if (imp.modulo === moduloDoArquivo) continue; // irmão dentro do módulo
+      if (isUiLayer(rel)) {
+        serviceBypasses.push(`${rel} → ${imp.alvo}`);
+      } else if (!imp.publico) {
+        moduleInternalBypasses.push(`${rel} → ${imp.alvo}`);
+      }
+    }
     if (fato.dynamicEntityAccess.length) {
       dynamicEntity.push(...fato.dynamicEntityAccess);
       listas.dynamicEntityFiles.push(rel);
@@ -291,6 +502,9 @@ export const scanBoundary = (root = process.cwd()) => {
     dynamicEntity: dynamicEntity.sort(),
     dynamicEntityNaFronteira: dynamicEntityNaFronteira.sort(),
     layerBypasses: layerBypasses.sort(),
+    publicProviderLeaks: publicProviderLeaks.sort(),
+    serviceBypasses: serviceBypasses.sort(),
+    moduleInternalBypasses: moduleInternalBypasses.sort(),
     entidadesRegistradas: [...entidadesRegistradas].sort(),
   };
 };

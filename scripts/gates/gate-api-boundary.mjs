@@ -24,7 +24,8 @@
  * Códigos: P11-API-BOUNDARY-BASELINE · P11-API-BOUNDARY-REGRESSION
  *          P11-API-BOUNDARY-SDK-IMPORT · P11-API-BOUNDARY-PROVIDER-LEAK
  *          P11-API-BOUNDARY-DYNAMIC-ENTITY · P11-API-BOUNDARY-SCOPE
- *          P11-API-BOUNDARY-LAYER-BYPASS
+ *          P11-API-BOUNDARY-LAYER-BYPASS · P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK
+ *          P11-API-BOUNDARY-SERVICE-BYPASS · P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -110,6 +111,34 @@ for (const arquivo of atual.providerLeaks) {
   registrar(
     'P11-API-BOUNDARY-PROVIDER-LEAK',
     `o objeto do provider é reexportado: ${arquivo}. A fronteira exporta funções, não o provider.`
+  );
+}
+
+// O módulo pode usar `_providers` internamente; republicá-lo devolve a fronteira
+// ao ponto de partida, porque o consumidor recebe o provider sem nunca citar
+// `_providers`. Usar (`provider.list(...)`) é permitido; entregar a referência,
+// não.
+for (const ocorrencia of atual.publicProviderLeaks) {
+  registrar(
+    'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK',
+    `símbolo de ${PROVIDERS_DIR} exportado pela superfície do módulo: ${ocorrencia}`
+  );
+}
+
+// UI → service → API de módulo → provider. A regra de negócio mora no service;
+// página que importa a API de dados a contorna.
+for (const ocorrencia of atual.serviceBypasses) {
+  registrar(
+    'P11-API-BOUNDARY-SERVICE-BYPASS',
+    `camada de apresentação importa API de dados direto: ${ocorrencia}. O acesso passa por src/services/.`
+  );
+}
+
+// Fora do módulo só existe o index. `empresaApi.js` é implementação.
+for (const ocorrencia of atual.moduleInternalBypasses) {
+  registrar(
+    'P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS',
+    `import de implementação interna de módulo: ${ocorrencia}. Use a superfície pública src/apis/<modulo>.`
   );
 }
 

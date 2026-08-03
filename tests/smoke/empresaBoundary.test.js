@@ -169,6 +169,75 @@ describe('ApiError', () => {
     expect(hasApiErrorCode(erro, 'EMPRESA_NAME_CONFLICT')).toBe(true);
     expect(hasApiErrorCode(new Error('Já existe uma empresa'), 'EMPRESA_NAME_CONFLICT')).toBe(false);
   });
+
+  // ── R2-B3: a mensagem pública vem só do catálogo ─────────────────────────
+  // Enquanto o construtor aceitava `info.message`, a afirmação "message é
+  // sempre pública" era falsa: bastava um chamador repassar o texto cru do
+  // provider para o segredo chegar ao toast carimbado como confiável.
+
+  it('AE1 — message passado em info é ignorado', () => {
+    const erro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, {
+      message: 'texto arbitrario do chamador',
+    });
+    expect(erro.message).not.toContain('arbitrario');
+    expect(erro.message).toMatch(/não foi possível concluir/i);
+  });
+
+  it('AE2 — segredo em info.message não aparece em lugar nenhum', () => {
+    const cru = `falha em https://api.exemplo/v1?access_token=${TOKEN_FALSO}`;
+    const erro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, { message: cru });
+
+    expect(erro.message).not.toContain(TOKEN_FALSO);
+    expect(JSON.stringify(erro)).not.toContain(TOKEN_FALSO);
+    expect(getApiErrorMessage(erro)).not.toContain(TOKEN_FALSO);
+  });
+
+  it('AE3 — código conhecido usa a mensagem catalogada', () => {
+    expect(new ApiError(API_ERROR_CODES.EMPRESA_NAME_CONFLICT).message).toMatch(
+      /já existe uma empresa/i
+    );
+    expect(new ApiError(API_ERROR_CODES.INVALID_ARGUMENT).message).toMatch(/dados inválidos/i);
+    expect(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE).message).toMatch(/indisponível/i);
+  });
+
+  it('AE4 — código desconhecido cai no fallback interno', () => {
+    const erro = new ApiError('CODIGO_QUE_NAO_EXISTE', { message: CHAVE_FALSA });
+    expect(erro.message).toMatch(/não foi possível concluir/i);
+    expect(erro.message).not.toContain(CHAVE_FALSA);
+  });
+
+  it('AE5 — getApiErrorMessage continua aceitando somente ApiError', () => {
+    expect(getApiErrorMessage(new Error('cru'), 'Erro.')).toBe('Erro.');
+    expect(getApiErrorMessage({ message: 'objeto' }, 'Erro.')).toBe('Erro.');
+    expect(getApiErrorMessage(null, 'Erro.')).toBe('Erro.');
+    expect(getApiErrorMessage(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE))).toMatch(
+      /indisponível/i
+    );
+  });
+
+  it('AE6 — cause permanece não enumerável mesmo sem message', () => {
+    const cause = { Authorization: `Bearer ${TOKEN_FALSO}` };
+    const erro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, { cause });
+    expect(erro.cause).toBe(cause);
+    expect(Object.propertyIsEnumerable.call(erro, 'cause')).toBe(false);
+  });
+
+  it('AE7 — details seguros continuam serializando', () => {
+    const porId = new ApiError(API_ERROR_CODES.OPERATION_FAILED, { details: { id: 'emp-1' } });
+    const porCampo = new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, { details: { campo: 'nome' } });
+
+    expect(JSON.parse(JSON.stringify(porId)).details).toEqual({ id: 'emp-1' });
+    expect(JSON.parse(JSON.stringify(porCampo)).details).toEqual({ campo: 'nome' });
+  });
+
+  it('AE8 — nenhum código catalogado depende de texto livre', () => {
+    for (const code of Object.values(API_ERROR_CODES)) {
+      const semInfo = new ApiError(code).message;
+      const comTentativa = new ApiError(code, { message: 'tentativa de sobrescrever' }).message;
+      expect(comTentativa).toBe(semInfo);
+      expect(semInfo.trim().length).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('empresaApi — adaptador de dados', () => {

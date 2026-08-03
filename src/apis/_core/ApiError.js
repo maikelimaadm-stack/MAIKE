@@ -4,7 +4,8 @@
  * A UI trata erro por **código**, nunca por texto nem pelo formato do provider.
  * Quando a Base44 sair (P7), o provider muda e os códigos ficam.
  *
- * Segurança: `message` é sempre uma frase pública. O erro original vive em
+ * Segurança: `message` é sempre uma frase pública **do catálogo** — o
+ * construtor não aceita texto do chamador (R2-B3). O erro original vive em
  * `cause`, definido como **não enumerável** — não aparece em `Object.keys` nem
  * em `JSON.stringify`, mesmo quando é um objeto simples com `Authorization`,
  * `config` ou `response` dentro. Atribuir `this.cause = x` criaria propriedade
@@ -34,13 +35,32 @@ const RETRYABLE = Object.freeze({
   [API_ERROR_CODES.PROVIDER_UNAVAILABLE]: true,
 });
 
+/** Última linha de defesa quando o código não está catalogado. */
+const MENSAGEM_PADRAO = 'Não foi possível concluir a operação.';
+
 export class ApiError extends Error {
   /**
+   * A mensagem pública vem **só do catálogo**, indexada pelo código.
+   *
+   * A versão anterior aceitava `info.message` e usava `info.message || catálogo`.
+   * Isso tornava falsa a única garantia que a UI tinha: qualquer chamador podia
+   * escrever `new ApiError(code, { message: erroCruDoProvider.message })` e a
+   * mensagem — com URL, query string ou cabeçalho dentro — ia direto para o
+   * toast, agora carimbada como confiável por ser `ApiError` (R2-B3).
+   *
+   * `message` recebido é **ignorado**, não recusado: lançar aqui transformaria
+   * um vazamento de texto em quebra de fluxo de erro em produção, e o objetivo
+   * é o contrário. O contexto do chamador continua inteiro em `cause` e
+   * `details`, que a UI nunca exibe.
+   *
+   * Mensagem parametrizada, se um dia houver necessidade real, entra como
+   * código próprio com formatador público — nunca como texto livre.
+   *
    * @param {string} code um valor de {@link API_ERROR_CODES}
-   * @param {{operation?: string, resource?: string, cause?: unknown, details?: object, message?: string}} [info]
+   * @param {{operation?: string, resource?: string, cause?: unknown, details?: object}} [info]
    */
   constructor(code, info = {}) {
-    super(info.message || MENSAGENS[code] || MENSAGENS[API_ERROR_CODES.OPERATION_FAILED]);
+    super(MENSAGENS[code] || MENSAGEM_PADRAO);
     this.name = 'ApiError';
     this.code = code;
     this.operation = info.operation ?? null;
@@ -62,9 +82,6 @@ export class ApiError extends Error {
 
 /** É um {@link ApiError}? */
 export const isApiError = (erro) => erro instanceof ApiError;
-
-/** Última linha de defesa quando nem o fallback do chamador serve. */
-const MENSAGEM_PADRAO = 'Não foi possível concluir a operação.';
 
 /**
  * Mensagem pronta para a UI.

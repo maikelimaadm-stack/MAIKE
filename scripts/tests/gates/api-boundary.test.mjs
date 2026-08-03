@@ -519,3 +519,215 @@ describe('gate:api-boundary — baseline versionado do repositório', () => {
     }
   });
 });
+
+// ── R2 ────────────────────────────────────────────────────────────────────
+// A R1 autorizou `src/apis/<modulo>/**` a importar `_providers`. Isso é
+// necessário para a API do módulo funcionar — e abriu duas brechas: o módulo
+// podia **reexportar** o provider, e a UI podia importar a API pulando o
+// service. Os blocos abaixo fecham as duas.
+
+/** API de módulo legítima: usa o provider, devolve o resultado da chamada. */
+const EMPRESA_API = `import { empresaProvider } from '../_providers/base44Provider.js';
+export const EMPRESA_DEFAULT_ORDER = '-created_date';
+export const listEmpresas = () => empresaProvider.list(EMPRESA_DEFAULT_ORDER);
+export const criar = (dados) => empresaProvider.create(dados);
+`;
+
+/** Projeto com um módulo `empresa` completo, para exercitar a superfície. */
+const comModulo = (arquivos = {}) =>
+  makeProject({
+    legados: {
+      'src/apis/empresa/empresaApi.js': EMPRESA_API,
+      'src/apis/empresa/index.js': "export { listEmpresas } from './empresaApi.js';\n",
+      ...arquivos,
+    },
+  });
+
+/** Falha esperada com código específico, baseline intacto. */
+const falhaCom = (dir, code) => {
+  const r = falhaSemEscrever(dir);
+  assert.match(r.output, new RegExp(code), `esperava ${code}:\n${r.output}`);
+  return r;
+};
+
+describe('gate:api-boundary — R2-B1 provider não vaza pela superfície pública', () => {
+  /** Cada caso é um jeito diferente de entregar a referência do provider. */
+  const VAZAMENTOS = [
+    ['PP1 export from direto', "export { empresaProvider } from '../_providers/base44Provider.js';\n"],
+    ['PP2 export *', "export * from '../_providers/base44Provider.js';\n"],
+    [
+      'PP3 importa e reexporta binding',
+      "import { empresaProvider } from '../_providers/base44Provider.js';\nexport { empresaProvider };\n",
+    ],
+    [
+      'PP4 reexporta alias',
+      "import { empresaProvider as interno } from '../_providers/base44Provider.js';\nexport { interno as provider };\n",
+    ],
+    [
+      'PP5 export default',
+      "import { empresaProvider } from '../_providers/base44Provider.js';\nexport default empresaProvider;\n",
+    ],
+    [
+      'PP6 const igual ao provider',
+      "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const provider = empresaProvider;\n",
+    ],
+    [
+      'PP7 objeto contendo o provider',
+      "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const provider = { empresaProvider };\n",
+    ],
+    [
+      'PP8 função que devolve o provider',
+      "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const getProvider = () => empresaProvider;\n",
+    ],
+  ];
+
+  for (const [nome, conteudo] of VAZAMENTOS) {
+    test(`${nome} reprova`, () => {
+      const d = comModulo({ 'src/apis/empresa/index.js': conteudo });
+      criarBaseline(d);
+      falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+      cleanup(d);
+    });
+  }
+
+  test('PP9 usar o provider internamente e devolver o resultado passa', () => {
+    const d = comModulo();
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('PP10 index reexportando somente símbolos do próprio módulo passa', () => {
+    const d = comModulo({
+      'src/apis/empresa/index.js':
+        "export { listEmpresas, criar, EMPRESA_DEFAULT_ORDER } from './empresaApi.js';\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('função que devolve o provider por bloco também reprova', () => {
+    const d = comModulo({
+      'src/apis/empresa/index.js':
+        "import { empresaProvider } from '../_providers/base44Provider.js';\n" +
+        'export function obter() { return empresaProvider; }\n',
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('o vazamento é detectado mesmo com o import escrito depois do export', () => {
+    const d = comModulo({
+      'src/apis/empresa/index.js':
+        'export { empresaProvider };\n' +
+        "import { empresaProvider } from '../_providers/base44Provider.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+});
+
+describe('gate:api-boundary — R2-B2 a UI passa pelo service', () => {
+  const CASOS_UI = [
+    ['SC1 página importa a superfície pública', 'src/pages/Empresa.jsx', "import { listEmpresas } from '@/apis/empresa';\nexport default function P() { return listEmpresas(); }\n"],
+    ['SC2 página importa o index explícito', 'src/pages/Empresa.jsx', "import { listEmpresas } from '@/apis/empresa/index.js';\nexport default function P() { return listEmpresas(); }\n"],
+    ['SC3 página importa a implementação interna', 'src/pages/Empresa.jsx', "import { listEmpresas } from '@/apis/empresa/empresaApi';\nexport default function P() { return listEmpresas(); }\n"],
+    ['SC4 componente importa API de módulo', 'src/components/empresa/Tabela.jsx', "import { listEmpresas } from '@/apis/empresa';\nexport const T = () => listEmpresas();\n"],
+    ['SC5 hook importa API de módulo', 'src/hooks/useEmpresas.js', "import { listEmpresas } from '@/apis/empresa';\nexport const useEmpresas = () => listEmpresas();\n"],
+  ];
+
+  for (const [nome, caminho, conteudo] of CASOS_UI) {
+    test(`${nome} reprova`, () => {
+      const d = comModulo({ [caminho]: conteudo });
+      criarBaseline(d);
+      falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
+      cleanup(d);
+    });
+  }
+
+  test('SC6 service importando a superfície pública passa', () => {
+    const d = comModulo({
+      'src/services/empresaService.js': "import { listEmpresas } from '@/apis/empresa';\nexport const listar = () => listEmpresas();\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('SC7 service importando o index explícito passa — mesma superfície', () => {
+    const d = comModulo({
+      'src/services/empresaService.js': "import { listEmpresas } from '@/apis/empresa/index.js';\nexport const listar = () => listEmpresas();\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('SC8 service importando empresaApi.js reprova', () => {
+    const d = comModulo({
+      'src/services/empresaService.js': "import { listEmpresas } from '@/apis/empresa/empresaApi.js';\nexport const listar = () => listEmpresas();\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS');
+    cleanup(d);
+  });
+
+  test('SC9 página importando _core passa — _core não é API de dados', () => {
+    const d = comModulo({
+      'src/apis/_core/ApiError.js': 'export const getApiErrorMessage = () => "erro";\n',
+      'src/pages/Empresa.jsx': "import { getApiErrorMessage } from '@/apis/_core/ApiError';\nexport default function P() { return getApiErrorMessage(); }\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('SC10 página → service → API de módulo passa', () => {
+    const d = comModulo({
+      'src/services/empresaService.js': "import { listEmpresas } from '@/apis/empresa';\nexport const listar = () => listEmpresas();\n",
+      'src/pages/Empresa.jsx': "import * as empresaService from '@/services/empresaService';\nexport default function P() { return empresaService.listar(); }\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('irmão dentro do próprio módulo pode importar implementação', () => {
+    const d = comModulo({
+      'src/apis/empresa/helpers.js': "import { listEmpresas } from './empresaApi.js';\nexport const l = () => listEmpresas();\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('a regra vale para módulo futuro sem tocar no gate', () => {
+    const d = comModulo({
+      'src/apis/lote/loteApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lote/index.js': "export { listLotes } from './loteApi.js';\n",
+      'src/pages/Lotes.jsx': "import { listLotes } from '@/apis/lote';\nexport default function P() { return listLotes(); }\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
+    cleanup(d);
+  });
+
+  test('import dinâmico da API por página também reprova', () => {
+    const d = comModulo({
+      'src/pages/Empresa.jsx': "export default async function P() { const m = await import('@/apis/empresa'); return m.listEmpresas(); }\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
+    cleanup(d);
+  });
+});
