@@ -521,6 +521,51 @@ A chave nunca aparece em log nem em mensagem de erro — há teste específico.
 `pull_request` e em `push` para `main`. Node vem de `.nvmrc`. O workflow apenas
 chama os scripts oficiais — nenhuma lógica de gate é duplicada em YAML.
 
+## Disciplina de execução do `verify:all` (P1.2-R1)
+
+`verify:all` é o gate; o shell em volta dele não pode enfraquecê-lo. Três formas
+são proibidas em qualquer script ou sessão:
+
+| Forma | Por que é defeito |
+|---|---|
+| `verify:all \| tail -N` | `tail` só imprime quando o processo termina. Durante os ~100 s a saída fica vazia e parece travamento — e as últimas N linhas podem esconder a etapa vermelha. |
+| `verify:all \| algo` sem `set -o pipefail` | o status do pipeline vira o status do último comando. Um `verify:all` vermelho devolve 0. |
+| `verify:all ; git push` | `;` torna o push **incondicional** — ele roda mesmo com a verificação vermelha. |
+
+Somadas, as três significam que um `verify:all` vermelho pode ser seguido de
+push. Forma correta quando é preciso guardar log:
+
+```bash
+set -o pipefail
+npm run verify:all 2>&1 | tee /tmp/verify.log
+status=${PIPESTATUS[0]}
+test "$status" -eq 0
+```
+
+Push só depois de exit 0 confirmado, uma tentativa, erro visível — nada de laço
+com espera exponencial escondendo a causa.
+
+### Verificar na versão de runtime da CI
+
+O `.nvmrc` fixa **Node 20.19.0** e a CI usa exatamente essa versão
+(`node-version-file: .nvmrc`). Rodar `verify:all` local em outra versão **não é
+verificação**: API que existe no Node novo e não no fixado passa na máquina e
+reprova na CI.
+
+Aconteceu de verdade na P1.2-R1: quatro testes usavam `fs.globSync`, que só
+existe a partir do Node 22. Local em 22.22.2 deu 13/13; a CI, em 20.19.0,
+reprovou `test:smoke`. Ver run [30849901416](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30849901416).
+
+Antes de empurrar, use a versão do `.nvmrc` — `nvm use` ou o caminho explícito
+do binário. Preferir API disponível na versão fixada resolve na origem:
+`readdirSync(dir, { recursive: true })` cobre Node 18.17+, `globSync` não.
+
+**Nenhum script versionado do repositório faz isso hoje**: `verify:all` é um
+script Node que propaga o exit code, e `quality.yml` chama `npm run verify:all`
+direto, sem pipe. Por isso a proteção vive aqui e no relatório da P1.2-R1, e não
+como gate — não existe script responsável para um gate vigiar, e analisar shell
+arbitrário não é objetivo deste registro.
+
 ## Alterações de escopo
 
 Ampliar `config/mapa-manejo-scope.json` para admitir módulo, página ou entidade

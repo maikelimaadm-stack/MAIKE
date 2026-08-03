@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { sep } from 'node:path';
 
 /**
  * A configuração do provider é resolvida uma única vez, no carregamento do
@@ -151,9 +152,12 @@ describe('ENV — variáveis de build com referência estática', () => {
     expect(codigoConfig()).toContain(`import.meta.env.${variavel}`);
   });
 
-  it('nenhuma outra fonte de src/ lê import.meta.env por conta própria', async () => {
-    const { globSync } = await import('node:fs');
-    const arquivos = globSync('src/**/*.{js,jsx}');
+  it('nenhuma outra fonte de src/ lê import.meta.env por conta própria', () => {
+    // `readdirSync` recursivo em vez de `globSync`: este último só existe no
+    // Node 22, e o `.nvmrc` fixa 20.19.0 — a diferença reprovou a CI uma vez.
+    const arquivos = readdirSync('src', { recursive: true })
+      .map((rel) => `src/${String(rel).split(sep).join('/')}`)
+      .filter((rel) => /\.(js|jsx)$/.test(rel));
     // Sem isto o teste passaria vazio se o glob mudasse de comportamento.
     expect(arquivos.length).toBeGreaterThan(100);
     const infratores = arquivos.filter(

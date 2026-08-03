@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync, globSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { sep } from 'node:path';
 
 import {
   loadGoogleMaps,
@@ -386,9 +387,21 @@ describe('loadGoogleMaps — falhas de rede', () => {
  * produto quebraria em runtime com a library ausente, em vez de falhar na
  * carga. Estes testes varrem `src/` inteiro.
  */
+/**
+ * Varredura de `src/` sem depender de `fs.globSync`.
+ *
+ * `globSync` só existe a partir do Node 22. O `.nvmrc` do projeto fixa 20.19.0,
+ * então usá-lo passava na máquina de quem tem Node novo e reprovava na CI —
+ * foi exatamente o que aconteceu no run 30849901416. `readdirSync` com
+ * `recursive: true` existe desde o Node 18.17 e cobre os dois.
+ */
+const fontesDeSrc = () =>
+  readdirSync('src', { recursive: true })
+    .map((rel) => `src/${String(rel).split(sep).join('/')}`)
+    .filter((rel) => /\.(js|jsx)$/.test(rel));
+
 describe('MAP13/MAP16 — nenhuma dependência da Drawing Library', () => {
-  const fontes = () =>
-    globSync('src/**/*.{js,jsx}').map((rel) => [rel, readFileSync(rel, 'utf8')]);
+  const fontes = () => fontesDeSrc().map((rel) => [rel, readFileSync(rel, 'utf8')]);
 
   /** Sem comentários: `googleMaps.js` explica por que `drawing` saiu. */
   const semComentarios = (fonte) =>
