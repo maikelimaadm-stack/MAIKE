@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -7,6 +6,8 @@ import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
 import TabelaEmpresas from "../components/empresa/TabelaEmpresas";
+import * as empresaService from "@/services/empresaService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
 export default function Empresa() {
   const [showForm, setShowForm] = useState(false);
@@ -16,23 +17,13 @@ export default function Empresa() {
 
   const { data: empresas, isLoading } = useQuery({
     queryKey: ['empresas'],
-    queryFn: () => base44.entities.Empresa.list('-created_date'),
+    queryFn: () => empresaService.listEmpresas(),
     initialData: [],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const existente = empresas.find(e => 
-        e.nome.toUpperCase().trim() === data.nome.toUpperCase().trim() && 
-        (!editingEmpresa || e.id !== editingEmpresa.id)
-      );
-      
-      if (existente) {
-        throw new Error('Já existe uma empresa cadastrada com este nome.');
-      }
-      
-      return base44.entities.Empresa.create(data);
-    },
+    // A validação de nome duplicado vive no service (D-PROD-18).
+    mutationFn: (data) => empresaService.createEmpresa(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setShowForm(false);
@@ -40,23 +31,12 @@ export default function Empresa() {
       toast.success('Empresa cadastrada!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro.');
+      toast.error(getApiErrorMessage(error, 'Erro.'));
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      const existente = empresas.find(e => 
-        e.nome.toUpperCase().trim() === data.nome.toUpperCase().trim() && 
-        e.id !== id
-      );
-      
-      if (existente) {
-        throw new Error('Já existe uma empresa cadastrada com este nome.');
-      }
-      
-      return base44.entities.Empresa.update(id, data);
-    },
+    mutationFn: ({ id, data }) => empresaService.updateEmpresa(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setShowForm(false);
@@ -64,12 +44,12 @@ export default function Empresa() {
       toast.success('Empresa atualizada!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro.');
+      toast.error(getApiErrorMessage(error, 'Erro.'));
     }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Empresa.delete(id),
+    mutationFn: (id) => empresaService.deleteEmpresa(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       toast.success('Empresa excluída!');

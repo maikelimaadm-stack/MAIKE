@@ -15,6 +15,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **governance-paths** | `npm run gate:governance-paths` | Documentos obrigatórios existem, links resolvem, sem SSOT duplicado na raiz, gates do registro ligados ao `package.json` | D-PROD-01 | `scripts/gates/gate-governance-paths.mjs` |
 | **package-sync** | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem em name, version e dependências diretas | D-PROD-02 | `scripts/gates/gate-package-sync.mjs` |
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
+| **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **qualquer arquivo versionado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
@@ -27,8 +28,9 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 Contratos baratos primeiro, build por último:
 
 ```
-test:gates → governance-paths → package-sync → product-scope → source-closure
-→ import-integrity → no-secrets → base44 → types → lint → test:smoke → build
+test:gates → governance-paths → package-sync → product-scope → api-boundary
+→ source-closure → import-integrity → no-secrets → base44 → types → lint
+→ test:smoke → build
 ```
 
 O resumo imprime nome, PASS/FAIL, código de saída, duração e comando executado.
@@ -43,6 +45,12 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P01-SCOPE-FUNCTION` | product-scope |
 | `P01-SCOPE-FUNCTION-ENTITY` | product-scope |
 | `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` | product-scope |
+| `P11-API-BOUNDARY-BASELINE` | api-boundary |
+| `P11-API-BOUNDARY-REGRESSION` | api-boundary |
+| `P11-API-BOUNDARY-SDK-IMPORT` | api-boundary |
+| `P11-API-BOUNDARY-PROVIDER-LEAK` | api-boundary |
+| `P11-API-BOUNDARY-DYNAMIC-ENTITY` | api-boundary |
+| `P11-API-BOUNDARY-SCOPE` | api-boundary |
 | `P01-SCOPE-ORPHAN` | source-closure |
 | `P01-SCOPE-DYNAMIC-ALLOWLIST` | source-closure |
 | `P01-IMPORT-BROKEN` | import-integrity |
@@ -235,6 +243,56 @@ olha só para esse valor (D-PROD-14). Ignorar a linha inteira era um bypass real
 | `const API_KEY = "…real…"; // EXAMPLE` | passava | **reprova** |
 | `const k = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;` | passava | passa |
 | `VITE_GOOGLE_MAPS_API_KEY=SUA_CHAVE` | passava | passa |
+
+## `gate:api-boundary` — fronteira de dados (D-PROD-18)
+
+A catraca `gate:base44` conta ocorrências. Esta mede **identidade de arquivo**:
+quais caminhos ainda falam com a Base44 diretamente.
+
+A diferença importa. Contagem sozinha deixa passar troca — remover um acesso
+aqui e criar outro ali fecharia o número e abriria caminho novo. Por isso o
+baseline guarda **listas ordenadas de caminhos** por eixo, e rename também é
+regressão: o caminho antigo sai da lista e o novo entra.
+
+| Eixo | O que lista |
+|---|---|
+| `importsLegacyClient` | arquivos que importam `@/api/base44Client` |
+| `entitiesRefs` | arquivos que referenciam `base44.entities` |
+| `authRefs` | arquivos que referenciam `base44.auth` |
+| `integrationsRefs` | arquivos que referenciam `base44.integrations` |
+| `functionsRefs` | arquivos que referenciam `base44.functions` |
+| `dynamicEntityFiles` | arquivos com acesso computado a `entities` |
+
+O adapter autorizado — `src/apis/_providers/base44Provider.js` — fica **fora**
+das listas: ele não é dívida, é a fronteira. Por isso o número significa "quanto
+falta migrar".
+
+### Invariantes, válidas sempre
+
+Independem do baseline e não têm exceção histórica:
+
+| Situação | Código |
+|---|---|
+| `@base44/sdk` importado fora de `src/api/base44Client.js` | `P11-API-BOUNDARY-SDK-IMPORT` |
+| arquivo em `src/apis/` importando o client legado sem ser o adapter | `P11-API-BOUNDARY-PROVIDER-LEAK` |
+| objeto do provider reexportado (`export { base44 }`, `export default base44`, alias, reexport direto) | `P11-API-BOUNDARY-PROVIDER-LEAK` |
+| acesso computado a `entities` **dentro de `src/apis/`** | `P11-API-BOUNDARY-DYNAMIC-ENTITY` |
+| registry com entidade fora de `allowedBase44Entities` | `P11-API-BOUNDARY-SCOPE` |
+
+Fora de `src/apis/`, o acesso computado herdado fica congelado no eixo
+`dynamicEntityFiles`: os arquivos existentes só podem sair, e nenhum novo entra.
+
+### Contrato do baseline
+
+Igual ao das outras catracas: baseline ausente ou malformado é falha dura, não
+existe `--seed`, execução normal nunca escreve, e `--update` só aceita
+**subconjunto estrito** — com pelo menos um caminho removido. `certifiedFromMain`
+registra a `main` de origem e é preservado nas atualizações.
+
+Baseline: `scripts/gates/api-boundary-baseline.json` (schema 1).
+
+**Estado atual (P1.1):** 67 arquivos legados importam o client, 63 usam
+`entities`. Empresa saiu de todos os eixos.
 
 ## Smoke automatizado
 

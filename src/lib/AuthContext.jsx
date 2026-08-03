@@ -1,8 +1,10 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { appParams } from '@/lib/app-params';
+import { getDataProviderConfig } from '@/config/runtimeConfig';
 
 const AuthContext = createContext();
+
+const appParams = getDataProviderConfig();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

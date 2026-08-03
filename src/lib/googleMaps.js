@@ -23,6 +23,8 @@
  * Nenhuma chave literal pode existir em `src/` — `gate:no-secrets` reprova.
  */
 
+import { getGoogleMapsApiKey, isGoogleMapsConfigured } from '@/config/runtimeConfig';
+
 export const GOOGLE_MAPS_LIBRARIES = 'drawing,geometry';
 export const GOOGLE_MAPS_REQUIRED_LIBRARIES = Object.freeze(['drawing', 'geometry']);
 export const GOOGLE_MAPS_SCRIPT_ID = 'maike-google-maps-sdk';
@@ -61,19 +63,10 @@ export class GoogleMapsError extends Error {
   }
 }
 
-const readEnvKey = () => {
-  try {
-    const key = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
-    return typeof key === 'string' && key.trim() ? key.trim() : null;
-  } catch {
-    // `import.meta.env` pode não existir fora do bundler.
-    return null;
-  }
-};
-
-export const getGoogleMapsApiKey = () => readEnvKey();
-
-export const isGoogleMapsConfigured = () => readEnvKey() !== null;
+// A leitura da chave passou para `src/config/runtimeConfig.js` (P1.1): quem
+// resolve configuração é uma camada só. O contrato do loader não mudou —
+// os dois nomes seguem exportados daqui para os consumidores já existentes.
+export { getGoogleMapsApiKey, isGoogleMapsConfigured };
 
 const hasDom = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 

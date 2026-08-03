@@ -15,6 +15,7 @@
     "gate:governance-paths": "node scripts/gates/gate-governance-paths.mjs",
     "gate:package-sync": "node scripts/gates/gate-package-sync.mjs",
     "gate:product-scope": "node scripts/gates/gate-product-scope.mjs",
+    "gate:api-boundary": "node scripts/gates/gate-api-boundary.mjs",
     "gate:source-closure": "node scripts/gates/gate-source-closure.mjs",
     "gate:import-integrity": "node scripts/gates/gate-import-integrity.mjs",
     "gate:no-secrets": "node scripts/gates/gate-no-hardcoded-secrets.mjs",
