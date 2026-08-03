@@ -858,3 +858,149 @@ describe('gate:api-boundary — R3 parser por extensão', () => {
     assert.equal(comTsx.parseDiagnostics.length, 0, 'scriptKindOf deveria escolher TSX');
   });
 });
+
+// ── R4 ────────────────────────────────────────────────────────────────────
+// A R3 classificava um binding local só quando o initializer era origem
+// DIRETA. Contêiner, função e alias de qualquer um dos dois ficavam de fora do
+// conjunto, então declarar primeiro e exportar depois driblava a regra que a
+// forma `export const … = …` já reprovava. Separar declaração e export não pode
+// mudar o resultado do gate.
+
+describe('gate:api-boundary — R4 wrapper local exportado depois', () => {
+  const P = "import { empresaProvider } from '../_providers/base44Provider.js';\n";
+
+  /** Cadeia de N aliases em ordem INVERSA — exige uma volta por elo. */
+  const cadeiaInversa = (n) =>
+    Array.from({ length: n }, (_, i) => i)
+      .reverse()
+      .map((i) => `const a${i + 1} = ${i === 0 ? 'empresaProvider' : `a${i}`};`)
+      .join('\n');
+
+  const VAZAMENTOS = [
+    ['LW1  contêiner local + export nomeado', `${P}const bag = { empresaProvider };\nexport { bag };\n`],
+    ['LW2  array local + export nomeado', `${P}const bag = [empresaProvider];\nexport { bag };\n`],
+    ['LW3  objeto com método + export default', `${P}const bag = { create: empresaProvider.create };\nexport default bag;\n`],
+    ['LW4  spread do provider + export com alias', `${P}const bag = { ...empresaProvider };\nexport { bag as providerBag };\n`],
+    ['LW5  função local + export nomeado', `${P}const getProvider = () => empresaProvider;\nexport { getProvider };\n`],
+    ['LW6  função que devolve método + export default', `${P}const getCreate = () => empresaProvider.create;\nexport default getCreate;\n`],
+    ['LW7  FunctionDeclaration local + export', `${P}function getProvider() {\n  return empresaProvider;\n}\nexport { getProvider };\n`],
+    ['LW8  alias de contêiner', `${P}const bag = { empresaProvider };\nconst alias = bag;\nexport { alias };\n`],
+    ['LW9  alias de função', `${P}const getProvider = () => empresaProvider;\nconst alias = getProvider;\nexport { alias };\n`],
+    ['LW10 cadeia de 12 aliases em ordem inversa', `${P}${cadeiaInversa(12)}\nexport { a12 };\n`],
+    ['LW11 ternário devolvendo o provider', `${P}export const getProvider = (c) => (c ? empresaProvider : null);\n`],
+    ['LW12 return dentro de if', `${P}export function getProvider(c) {\n  if (c) return empresaProvider;\n  return null;\n}\n`],
+    ['LW13 .bind() inline exportado', `${P}export const createRaw = empresaProvider.create.bind(empresaProvider);\n`],
+    ['LW14 .bind() local + export depois', `${P}const createRaw = empresaProvider.create.bind(empresaProvider);\nexport { createRaw };\n`],
+    ['extra curto-circuito &&', `${P}export const getProvider = (c) => c && empresaProvider;\n`],
+    ['extra return dentro de switch', `${P}export function getProvider(v) {\n  switch (v) {\n    case 'p':\n      return empresaProvider;\n    default:\n      return null;\n  }\n}\n`],
+    ['extra return dentro de try', `${P}export function g() {\n  try {\n    return empresaProvider;\n  } catch (e) {\n    return null;\n  }\n}\n`],
+    ['extra alias de .bind()', `${P}const b = empresaProvider.create.bind(empresaProvider);\nconst c = b;\nexport { c };\n`],
+  ];
+
+  for (const [nome, conteudo] of VAZAMENTOS) {
+    test(`${nome} reprova`, () => {
+      const d = comModulo({ 'src/apis/empresa/index.js': conteudo });
+      criarBaseline(d);
+      const r = falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+      assert.match(r.output, /src\/apis\/empresa\/index\.js/, `a saída precisa citar o arquivo:\n${r.output}`);
+      cleanup(d);
+    });
+  }
+
+  const LEGITIMOS = [
+    ['LW15 chamada da operação + export depois', `${P}const createEmpresa = (dados) => empresaProvider.create(dados);\nexport { createEmpresa };\n`],
+    ['LW16 await da operação + export depois', `${P}const listEmpresas = async () => await empresaProvider.list('-created_date');\nexport { listEmpresas };\n`],
+    ['LW17 .call() executa a operação', `${P}export const createEmpresa = (d) => empresaProvider.create.call(empresaProvider, d);\n`],
+    ['extra .apply() executa a operação', `${P}export const criar = (d) => empresaProvider.create.apply(empresaProvider, [d]);\n`],
+    ['extra função interna não devolvida', `${P}export function g() {\n  const interna = () => empresaProvider;\n  return 1;\n}\n`],
+    ['extra resultado materializado em contêiner', `${P}export const carregar = async () => ({ itens: await empresaProvider.list('x') });\n`],
+  ];
+
+  for (const [nome, conteudo] of LEGITIMOS) {
+    test(`${nome} passa`, () => {
+      const d = comModulo({ 'src/apis/empresa/index.js': conteudo });
+      criarBaseline(d);
+      const r = rodar(d);
+      assert.equal(r.status, 0, r.output);
+      cleanup(d);
+    });
+  }
+
+  test('declarar-e-exportar tem o mesmo resultado que exportar na declaração', () => {
+    // A propriedade que a R4 fecha, escrita como teste: as duas formas do mesmo
+    // código precisam produzir a mesma classificação.
+    const pares = [
+      ['const bag = { empresaProvider };\nexport { bag };\n', 'export const bag = { empresaProvider };\n'],
+      ['const f = () => empresaProvider;\nexport { f };\n', 'export const f = () => empresaProvider;\n'],
+      ['const c = empresaProvider.create;\nexport { c };\n', 'export const c = empresaProvider.create;\n'],
+      ['const ok = (d) => empresaProvider.create(d);\nexport { ok };\n', 'export const ok = (d) => empresaProvider.create(d);\n'],
+    ];
+    for (const [separado, junto] of pares) {
+      const a = analyzeFile(P + separado, 'src/apis/empresa/index.js').publicProviderLeaks.length > 0;
+      const b = analyzeFile(P + junto, 'src/apis/empresa/index.js').publicProviderLeaks.length > 0;
+      assert.equal(a, b, `separado=${a} junto=${b} para:\n${separado}`);
+    }
+  });
+
+  test('o ponto fixo não tem limite silencioso — cadeia de 40 elos invertida', () => {
+    const fato = analyzeFile(`${P}${cadeiaInversa(40)}\nexport { a40 };\n`, 'src/apis/empresa/index.js');
+    assert.equal(fato.publicProviderLeaks.length, 1, 'cadeia longa precisa ser classificada por inteiro');
+  });
+});
+
+describe('gate:api-boundary — R4 LW18 consistência do parser', () => {
+  const P = "import { empresaProvider } from '../_providers/base44Provider.js';\n";
+
+  test('scriptKindOf mapeia as oito extensões', () => {
+    const esperado = {
+      'a.js': ts.ScriptKind.JS,
+      'a.jsx': ts.ScriptKind.JSX,
+      'a.mjs': ts.ScriptKind.JS,
+      'a.cjs': ts.ScriptKind.JS,
+      'a.ts': ts.ScriptKind.TS,
+      'a.tsx': ts.ScriptKind.TSX,
+      'a.mts': ts.ScriptKind.TS,
+      'a.cts': ts.ScriptKind.TS,
+    };
+    for (const [arquivo, kind] of Object.entries(esperado)) {
+      assert.equal(scriptKindOf(arquivo), kind, `extensão de ${arquivo}`);
+    }
+  });
+
+  test('a razão real do mapeamento: TS quebra JSX, TSX não', () => {
+    const jsx = 'const f = () => <div a={1} />;\nexport const g = f;\n';
+    const comTs = ts.createSourceFile('x.tsx', jsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const comTsx = ts.createSourceFile('x.tsx', jsx, ts.ScriptTarget.Latest, true, scriptKindOf('x.tsx'));
+    assert.ok(comTs.parseDiagnostics.length > 0);
+    assert.equal(comTsx.parseDiagnostics.length, 0);
+  });
+
+  test('o parser produz ImportEqualsDeclaration em .js e em .ts — a tolerância é real', () => {
+    // Este é o comportamento que o comentário de scriptKindOf afirma. Se um dia
+    // o TypeScript deixar de ser tolerante, este teste falha e o comentário
+    // precisa mudar junto — em vez de virar folclore.
+    const src = "import providers = require('../_providers/base44Provider.js');\nexport { providers };\n";
+    for (const kind of [ts.ScriptKind.JS, ts.ScriptKind.TS]) {
+      const sf = ts.createSourceFile('x.ts', src, ts.ScriptTarget.Latest, true, kind);
+      let achou = false;
+      const visitar = (n) => {
+        if (ts.isImportEqualsDeclaration(n)) achou = true;
+        n.forEachChild(visitar);
+      };
+      visitar(sf);
+      assert.ok(achou, `ImportEqualsDeclaration deveria existir sob ScriptKind ${kind}`);
+    }
+  });
+
+  test('o binding de ImportEquals continua detectado em .ts e .tsx', () => {
+    const src = `import providers = require('../_providers/base44Provider.js');\nexport { providers };\n`;
+    for (const arquivo of ['src/apis/empresa/index.ts', 'src/apis/empresa/index.tsx']) {
+      assert.equal(analyzeFile(src, arquivo).publicProviderLeaks.length, 1, arquivo);
+    }
+  });
+
+  test('wrapper local também é detectado em .ts', () => {
+    const src = `${P}const bag = { empresaProvider };\nexport { bag };\n`;
+    assert.equal(analyzeFile(src, 'src/apis/empresa/index.ts').publicProviderLeaks.length, 1);
+  });
+});

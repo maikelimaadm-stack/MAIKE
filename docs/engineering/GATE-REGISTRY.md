@@ -373,6 +373,53 @@ A referência crua de método é vazamento porque permite chamar a operação fo
 arquivo `.tsx` produz erro de parse, e arquivo que o parser não entende é
 arquivo cujas invariantes não são verificadas.
 
+#### Wrapper local e ponto fixo (P1.1-R4)
+
+A classificação de um binding local e a verificação de um export usam **a mesma
+função**. Era a diferença entre as duas que deixava passar:
+
+```js
+const bag = { empresaProvider };   // não entrava no conjunto de capacidades
+export { bag };                    // …e o export só checava o conjunto
+```
+
+enquanto `export const bag = { empresaProvider };` já reprovava. Declarar
+primeiro e exportar depois não pode mudar o resultado do gate.
+
+Um binding local é **capacidade** quando seu initializer é: origem do provider,
+membro derivado de origem, contêiner (objeto, array, spread) que a contenha,
+função que a devolva, `.bind()` de método derivado, ou alias de outro binding já
+classificado. Não é capacidade quando o initializer chama a operação e devolve o
+resultado.
+
+| Forma | Classificação |
+|---|---|
+| `empresaProvider.create(d)` | resultado → passa |
+| `empresaProvider.create.call(p, d)` · `.apply(p, [d])` | resultado → passa |
+| `empresaProvider.create` | capacidade → reprova |
+| `empresaProvider.create.bind(p)` | capacidade → reprova |
+| `c ? empresaProvider : null` · `c && empresaProvider` | capacidade → reprova |
+| `return empresaProvider` em `if`/`switch`/`try` | capacidade → reprova |
+
+`.bind()` é a exceção à regra "chamada devolve dado": ela devolve uma função que
+ainda executa a operação, fora de `runProviderCall`, da normalização de erro e
+da validação de argumento. `.call`/`.apply` executam ali mesmo.
+
+Corpo em bloco é percorrido em **qualquer profundidade**, parando em fronteiras
+de escopo (funções e classes aninhadas) — o `return` de uma função interna
+pertence a ela.
+
+**Ponto fixo real, sem limite de voltas.** A terminação vem da monotonicidade:
+cada volta só adiciona nomes já presentes no AST, e o arquivo tem um número
+finito de identificadores. A guarda residual **lança**; ela nunca devolve
+resultado parcial. Um limite que sai calado transformaria "não consegui
+analisar" em "está tudo certo" — foi o que a versão anterior fazia com cadeias
+de alias declaradas em ordem inversa.
+
+**Alcance declarado com precisão:** proveniência **local ao arquivo**, para os
+bindings e expressões acima. Repasse interprocedural — capacidade passada por
+parâmetro para função de outro módulo — continua fora (DBT-18).
+
 #### Carregamento do SDK — todas as formas
 
 `@base44/sdk` só entra por `src/api/base44Client.js`, em qualquer sintaxe:

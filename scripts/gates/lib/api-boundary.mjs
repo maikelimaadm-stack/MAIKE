@@ -132,10 +132,15 @@ export const isUiLayer = (rel) =>
 /**
  * `ScriptKind` pela extensão real do arquivo.
  *
- * Usar `ScriptKind.JS` para tudo fazia o parser tratar `.ts` como JavaScript, e
- * sintaxe exclusiva de TypeScript — `import x = require(…)` — não virava nó
- * algum. A R2 declarava essa forma coberta sem que ela chegasse ao analisador
- * (R3-B5). Declarar cobertura que o parser não processa é pior que não cobrir.
+ * O AST precisa corresponder ao arquivo real: `.tsx` lido como `TS` produz erro
+ * de parse em JSX, e arquivo que o parser não entende é arquivo cujas
+ * invariantes não são verificadas.
+ *
+ * **Não** é isto que faltava para `import x = require(…)`. Medido: o parser do
+ * TypeScript é tolerante e produz `ImportEqualsDeclaration` mesmo sob
+ * `ScriptKind.JS`. O que faltava na R2 era **coletar o binding** desse nó — o
+ * nó existia e era ignorado. O mapeamento por extensão está aqui para não
+ * depender dessa tolerância acidental, não para consertar aquele caso.
  *
  * @param {string} fileName
  * @returns {import('typescript').ScriptKind}
@@ -256,68 +261,126 @@ const carregaProvider = (expr, rel) => {
  * @param {string} rel caminho do arquivo, para resolver especificadores
  * @returns {boolean}
  */
-const origemProvider = (bruto, origens, rel) => {
+const ehCapacidade = (bruto, caps, rel) => {
   const expr = semEnvoltorio(bruto);
   if (!expr) return false;
 
-  // `empresaProvider` · `providers` · alias local
-  if (ts.isIdentifier(expr)) return origens.has(expr.text);
+  // `empresaProvider` · `providers` · qualquer binding local já classificado
+  if (ts.isIdentifier(expr)) return caps.has(expr.text);
 
   // `providers.empresaProvider` · `empresaProvider.create` · `p['create']`
   if (ts.isPropertyAccessExpression(expr) || ts.isElementAccessExpression(expr)) {
-    return origemProvider(expr.expression, origens, rel);
+    return ehCapacidade(expr.expression, caps, rel);
   }
 
-  // `await import('…')` · `await carregar()`
-  if (ts.isAwaitExpression(expr)) return origemProvider(expr.expression, origens, rel);
+  // `await import('…')`
+  if (ts.isAwaitExpression(expr)) return ehCapacidade(expr.expression, caps, rel);
 
-  // `import('<provider>')` e `require('<provider>')` são origem.
-  if (carregaProvider(expr, rel)) return true;
+  if (ts.isCallExpression(expr)) {
+    // `import('<provider>')` e `require('<provider>')` produzem o namespace.
+    if (carregaProvider(expr, rel)) return true;
 
-  // Qualquer outra chamada devolve resultado, não capacidade.
-  return false;
-};
+    // `empresaProvider.create.bind(empresaProvider)` devolve uma função que
+    // ainda executa a operação — capacidade, não dado (R4-B6). `.call` e
+    // `.apply` executam ali mesmo e caem na regra geral abaixo.
+    const alvo = semEnvoltorio(expr.expression);
+    if (
+      ts.isPropertyAccessExpression(alvo) &&
+      alvo.name.text === 'bind' &&
+      ehCapacidade(alvo.expression, caps, rel)
+    ) {
+      return true;
+    }
 
-/**
- * O export entrega origem do provider, direta ou embrulhada?
- *
- * @param {import('typescript').Node|undefined} bruto
- * @param {Set<string>} origens
- * @param {string} rel
- * @returns {boolean}
- */
-const entregaProvider = (bruto, origens, rel) => {
-  const expr = semEnvoltorio(bruto);
-  if (!expr) return false;
+    // Qualquer outra chamada devolve o resultado da operação, que é dado.
+    return false;
+  }
 
-  if (origemProvider(expr, origens, rel)) return true;
-
-  // `export const provider = { empresaProvider }` · `{ create: p.create }` · `{ ...p }`
+  // `{ empresaProvider }` · `{ create: p.create }` · `{ ...p }`
   if (ts.isObjectLiteralExpression(expr)) {
     return expr.properties.some((p) => {
-      if (ts.isShorthandPropertyAssignment(p)) return origens.has(p.name.text);
-      if (ts.isPropertyAssignment(p)) return entregaProvider(p.initializer, origens, rel);
-      if (ts.isSpreadAssignment(p)) return entregaProvider(p.expression, origens, rel);
+      if (ts.isShorthandPropertyAssignment(p)) return caps.has(p.name.text);
+      if (ts.isPropertyAssignment(p)) return ehCapacidade(p.initializer, caps, rel);
+      if (ts.isSpreadAssignment(p)) return ehCapacidade(p.expression, caps, rel);
       return false;
     });
   }
   if (ts.isArrayLiteralExpression(expr)) {
-    return expr.elements.some((e) => entregaProvider(e, origens, rel));
+    return expr.elements.some((e) => ehCapacidade(e, caps, rel));
   }
 
-  // `() => empresaProvider`, `async () => (await import(…)).empresaProvider`,
-  // e as mesmas formas com corpo em bloco.
-  if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
-    return entregaProvider(expr.body, origens, rel);
+  // `c ? empresaProvider : null` · `c && empresaProvider` (R4-B5): basta um ramo
+  // poder entregar. O gate não interpreta a condição — se existe caminho que
+  // devolve capacidade, o export entrega capacidade.
+  if (ts.isConditionalExpression(expr)) {
+    return ehCapacidade(expr.whenTrue, caps, rel) || ehCapacidade(expr.whenFalse, caps, rel);
   }
-  if (ts.isBlock(expr)) {
-    return expr.statements.some(
-      (s) => ts.isReturnStatement(s) && entregaProvider(s.expression, origens, rel)
-    );
+  if (ts.isBinaryExpression(expr)) {
+    const op = expr.operatorToken.kind;
+    const curto =
+      op === ts.SyntaxKind.AmpersandAmpersandToken ||
+      op === ts.SyntaxKind.BarBarToken ||
+      op === ts.SyntaxKind.QuestionQuestionToken;
+    if (curto) return ehCapacidade(expr.left, caps, rel) || ehCapacidade(expr.right, caps, rel);
+    return false;
+  }
+
+  // Função que entrega capacidade é, ela própria, capacidade.
+  if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
+    return corpoEntregaCapacidade(expr.body, caps, rel);
   }
 
   return false;
 };
+
+/**
+ * O corpo de uma função entrega capacidade?
+ *
+ * Corpo conciso: a própria expressão. Corpo em bloco: **qualquer** `return`
+ * alcançável, em qualquer profundidade — dentro de `if`, `switch`, `try`,
+ * `for`, bloco aninhado (R4-B5). Olhar só o primeiro nível de `statements`
+ * deixava passar `if (c) return empresaProvider;`.
+ *
+ * A descida **para** em funções aninhadas: o `return` de uma função interna
+ * pertence a ela, não a esta. Se a interna for devolvida, a própria expressão
+ * de retorno já é classificada por {@link ehCapacidade}.
+ */
+const corpoEntregaCapacidade = (corpo, caps, rel) => {
+  if (!corpo) return false;
+  if (!ts.isBlock(corpo)) return ehCapacidade(corpo, caps, rel);
+
+  let achou = false;
+  const visitar = (node) => {
+    if (achou) return;
+    if (
+      ts.isArrowFunction(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isFunctionDeclaration(node) ||
+      ts.isClassDeclaration(node) ||
+      ts.isClassExpression(node)
+    ) {
+      return; // fronteira de escopo: aquele `return` não é deste corpo
+    }
+    if (ts.isReturnStatement(node) && ehCapacidade(node.expression, caps, rel)) {
+      achou = true;
+      return;
+    }
+    node.forEachChild(visitar);
+  };
+  corpo.forEachChild(visitar);
+  return achou;
+};
+
+/**
+ * O export entrega capacidade derivada do provider?
+ *
+ * Alias histórico de {@link ehCapacidade}: desde a R4 a classificação de um
+ * binding local e a verificação de um export usam **exatamente** a mesma
+ * função. Era a diferença entre as duas que deixava
+ * `const bag = { p }; export { bag };` passar enquanto
+ * `export const bag = { p };` reprovava (R4-B1).
+ */
+const entregaProvider = (bruto, caps, rel) => ehCapacidade(bruto, caps, rel);
 
 /** Nomes ligados por um padrão de desestruturação ou por um identificador. */
 const nomesDoBindingName = (name) => {
@@ -498,19 +561,49 @@ export const analyzeFile = (source, rel) => {
   });
 
   // ── Segunda passada: proveniência local ─────────────────────────────────
-  // `const providers = require('…/_providers/…')` e `const raw = empresaProvider`
-  // criam nomes novos com a mesma proveniência. Ponto fixo porque um alias pode
-  // depender de outro declarado depois dele no texto; o laço termina porque cada
-  // volta só adiciona nomes, e o conjunto de nomes do arquivo é finito.
+  // `const providers = require('…')`, `const raw = empresaProvider`,
+  // `const bag = { empresaProvider }` e `function f() { return empresaProvider }`
+  // criam nomes novos que carregam a mesma capacidade.
+  //
+  // Ponto fixo **real**, sem limite de voltas (R4-B4): a versão anterior parava
+  // em 8 iterações e saía em silêncio, então uma cadeia de aliases declarada em
+  // ordem inversa ficava classificada pela metade e o export passava. Um limite
+  // que sai calado transforma "não consegui analisar" em "está tudo certo".
+  //
+  // A terminação não depende do limite: cada volta só **adiciona** nomes já
+  // presentes no AST, o conjunto é monotônico e o número de identificadores do
+  // arquivo é finito. `maxVoltas` existe só como rede contra um bug futuro que
+  // quebre a monotonicidade — e por isso **lança**, nunca devolve resultado
+  // parcial.
   const origens = fato.providerBindings;
-  for (let volta = 0; volta < 8; volta += 1) {
+  const declaracoes = [];
+  walk(sourceFile, (node) => {
+    if (ts.isVariableDeclaration(node) && node.initializer) declaracoes.push(node);
+    else if (ts.isFunctionDeclaration(node) && node.name && node.body) declaracoes.push(node);
+  });
+
+  const maxVoltas = declaracoes.length + 2;
+  let voltas = 0;
+  let cresceu = true;
+  while (cresceu) {
+    voltas += 1;
+    if (voltas > maxVoltas) {
+      throw new Error(
+        `api-boundary: ponto fixo não convergiu em ${rel} após ${maxVoltas} voltas — ` +
+          'a classificação deixou de ser monotônica. Analisar antes de confiar no gate.'
+      );
+    }
     const antes = origens.size;
-    walk(sourceFile, (node) => {
-      if (!ts.isVariableDeclaration(node) || !node.initializer) return;
-      if (!origemProvider(node.initializer, origens, rel)) return;
+    for (const node of declaracoes) {
+      if (ts.isFunctionDeclaration(node)) {
+        // Função declarada entrega capacidade → o próprio nome é capacidade.
+        if (corpoEntregaCapacidade(node.body, origens, rel)) origens.add(node.name.text);
+        continue;
+      }
+      if (!ehCapacidade(node.initializer, origens, rel)) continue;
       for (const nome of nomesDoBindingName(node.name)) origens.add(nome);
-    });
-    if (origens.size === antes) break;
+    }
+    cresceu = origens.size > antes;
   }
 
   // ── Terceira passada: o provider escapa por algum export? ───────────────
@@ -548,7 +641,9 @@ export const analyzeFile = (source, rel) => {
         return;
       }
       if (ts.isFunctionDeclaration(node) && temExport(node) && node.body) {
-        if (entregaProvider(node.body, origens, rel)) {
+        // Corpo em bloco tem regra própria: o `return` pode estar dentro de
+        // `if`, `switch` ou `try`, em qualquer profundidade (R4-B5).
+        if (corpoEntregaCapacidade(node.body, origens, rel)) {
           fato.publicProviderLeaks.push(`export function ${node.name?.text ?? '(anônima)'} → <provider>`);
         }
       }
