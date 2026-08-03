@@ -66,13 +66,25 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Erros de lint | 64 | 0 | **0** |
 | Diagnósticos `tsc` (cobertura total) | — | 2.802 | **2.797** (teto 2.797) |
 | Testes automatizados | 0 | 183 | **289** (209 de gate + 80 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | **ver artefatos abaixo** |
-| Bundle de produção — CSS | 120,36 kB | 77,00 kB | **ver artefatos abaixo** |
+| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | **2.464,61 kB** |
+| Bundle de produção — CSS | 120,36 kB | 77,00 kB | **77,00 kB** |
 
 Os artefatos do bundle vêm da **CI do HEAD final desta PR**, não de um build
 local nem de uma execução anterior — ver a tabela de CI em "Gates ativos".
 
-<!--BUNDLE-->
+Artefatos medidos no run [30815727984](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815727984)
+(commit `9447884`), etapa `build`:
+
+| Artefato | Tamanho | gzip |
+|---|---|---|
+| `dist/assets/index-B13TdukM.js` | 2.464,61 kB | 659,00 kB |
+| `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
+| `dist/index.html` | 0,48 kB | 0,31 kB |
+
+Os hashes mudaram em relação à P0.1 (`index-D78Hw0UA.js`, `index-CAtW8f23.js`):
+o código de `src/apis/`, `src/config/` e `src/services/` entrou no bundle. Os
++3,25 kB de JS são o custo da fronteira — `_core`, provider, módulo `empresa`,
+service e `runtimeConfig` — menos o `app-params.js` removido.
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
 `scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
@@ -105,10 +117,19 @@ CI em `.github/workflows/quality.yml`.
 | Commit | Conteúdo | Run | Resultado |
 |---|---|---|---|
 | `3c03ecf` | **commit funcional** da P1.1 | [30812723777](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30812723777) | **verde**, 13/13 |
+| `df3e6f1` | certificação de estado da P1.1 | [30812950738](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30812950738) | **verde**, 13/13 |
+| `8866768` | **commit funcional** da P1.1-R1 | [30815360716](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815360716) | **vermelha** — `no-secrets` (ver abaixo) |
+| `9447884` | correção do relatório | [30815727984](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30815727984) | **verde**, 13/13 — origem dos artefatos |
 | HEAD atual | só esta certificação de estado | ver corpo da PR #2 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
-commit documental que sucede `3c03ecf` fica no corpo da PR #2.
+commit documental que sucede `9447884` fica no corpo da PR #2.
+
+O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
+legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
+literal ao explicar um achado, e `gate:no-secrets` casa esse padrão em qualquer
+arquivo versionado, prosa incluída. Corrigido em `9447884`; ver DBT-17 para o
+motivo de o `verify:all` local não ter pego antes.
 
 ## Débito conhecido
 
