@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1 mergeada · P1 em andamento · P1.1 entregue após P1.1-R4)
+**Atualizado em:** 2026-08-03 (P0.1 e P1.1 mergeadas · P1 em andamento · P1.2 em implementação)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.1** |
-| Estado da missão | **P1.1 entregue após P1.1-R4** — `npm run verify:all` sai com 0, 13/13 etapas |
-| Próxima slice | P1.2 — Mapa |
-| Branch | `claude/p1-1-native-api-boundary-empresa` (PR #2, draft) |
+| Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.2** |
+| Estado da missão | **P1.2 em implementação** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Próxima slice | P1.3 — telas legadas restantes |
+| Branch | `claude/p1-2-native-api-boundary-mapa` (PR draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -34,7 +34,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 entregue (corrigida por P1.1-R1 a R4); P1.2 a P1.4 não iniciadas |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 mergeada (PR #2, merge `fee0d1e`); P1.2 em implementação; P1.3 e P1.4 não iniciadas |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -47,43 +47,44 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 
 Números medidos após `npm ci` e `npm run build` finais.
 
-| Métrica | Antes da P0.1 | `main` pós-P0.1 | Depois da P1.1-R4 |
-|---|---|---|---|
-| Páginas em `src/pages` | 102 | 16 | **16** |
-| Arquivos em `src/` | 472 | 203 | **209** |
-| Arquivos em `src/components` | 312 | 157 | **157** |
-| Schemas em `base44/entities` | 87 | 38 | **38** |
-| Functions em `base44/functions` | 11 | 1 | **1** |
-| Dependências diretas (`dependencies`) | 63 | 31 | **31** |
-| Dependências diretas (`devDependencies`) | 15 | 18 | **18** |
-| Arquivos em `src/` com SDK/base44Client | 197 | 71 | **71** |
-| Ocorrências de `base44.entities` | 1014 | 371 | **368** |
-| Ocorrências de `base44.auth` | 29 | 16 | **16** |
-| Ocorrências de `base44.integrations` | 24 | 6 | **6** |
-| Ocorrências de `base44.functions` | 9 | 5 | **5** |
-| Acoplamento Base44 fora de `src/` | 22 | 1 | **1** |
-| Chaves Google Maps literais | 8 | 0 | **0** |
-| Erros de lint | 64 | 0 | **0** |
-| Diagnósticos `tsc` (cobertura total) | — | 2.802 | **2.797** (teto 2.797) |
-| Testes automatizados | 0 | 183 | **377** (289 de gate + 88 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | **2.464,58 kB** |
-| Bundle de produção — CSS | 120,36 kB | 77,00 kB | **77,00 kB** |
+| Métrica | Antes da P0.1 | `main` pós-P0.1 | `main` pós-P1.1 | Depois da P1.2 |
+|---|---|---|---|---|
+| Páginas em `src/pages` | 102 | 16 | 16 | **16** |
+| Arquivos em `src/` | 472 | 203 | 209 | **230** |
+| Arquivos em `src/components` | 312 | 157 | 157 | **156** |
+| Schemas em `base44/entities` | 87 | 38 | 38 | **38** |
+| Functions em `base44/functions` | 11 | 1 | 1 | **1** |
+| Dependências diretas (`dependencies`) | 63 | 31 | 31 | **31** |
+| Dependências diretas (`devDependencies`) | 15 | 18 | 18 | **18** |
+| Arquivos em `src/` com SDK/base44Client | 197 | 71 | 71 | **46** |
+| Ocorrências de `base44.entities` | 1014 | 371 | 368 | **230** |
+| Ocorrências de `base44.auth` | 29 | 16 | 16 | **14** |
+| Ocorrências de `base44.integrations` | 24 | 6 | 6 | **5** |
+| Ocorrências de `base44.functions` | 9 | 5 | 5 | **5** |
+| Acoplamento Base44 fora de `src/` | 22 | 1 | 1 | **1** |
+| Chaves Google Maps literais | 8 | 0 | 0 | **0** |
+| Erros de lint | 64 | 0 | 0 | **0** |
+| Diagnósticos `tsc` (cobertura total) | — | 2.802 | 2.797 | **2.759** (teto 2.759) |
+| Testes automatizados | 0 | 183 | 377 | **478** (289 de gate + 189 de smoke) |
+| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | 2.464,58 kB | **2.474,37 kB** |
+| Bundle de produção — CSS | 120,36 kB | 77,00 kB | 77,00 kB | **77,00 kB** |
 
 Os artefatos do bundle vêm da CI do **último commit com mudanças executáveis**
 desta PR — não de um build local nem de uma execução anterior.
 
-Artefatos medidos no run [30841392611](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30841392611)
-(commit `9767545`), etapa `build`:
+Artefatos medidos no run [30847666490](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30847666490)
+(commit `48d6d66`, funcional da P1.2), etapa `build`:
 
 | Artefato | Tamanho | gzip |
 |---|---|---|
-| `dist/assets/index-zrBH5BbN.js` | 2.464,58 kB | 658,99 kB |
+| `dist/assets/index-B4todyOY.js` | 2.474,37 kB | 662,42 kB |
 | `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
 | `dist/index.html` | 0,48 kB | 0,31 kB |
 
-Os hashes são os mesmos desde a P1.1-R2, e isso está certo: R3 e R4 alteraram
-`scripts/` e `docs/`, nenhum arquivo de `src/`. Os valores foram lidos do run
-acima, que os produziu de novo — não reaproveitados.
+O hash do JS mudou em relação à P1.1 (`index-zrBH5BbN.js`) porque a P1.2 alterou
+`src/`; o do CSS não mudou porque nenhuma folha de estilo foi tocada. O bundle
+cresceu 9,79 kB (+0,4%) — a camada de API, os services e os módulos de domínio
+custam mais do que os acessos diretos que substituíram.
 
 Baselines mecânicos: `scripts/gates/base44-baseline.json` (schema 2) e
 `scripts/gates/typecheck-baseline.json` (schema 3: contrato de configuração —
@@ -91,18 +92,31 @@ D-PROD-13 — e teto certificado monotônico — D-PROD-17).
 
 ## Fronteira de dados (P1.1, D-PROD-18)
 
-| Eixo do `gate:api-boundary` | `main` pós-P0.1 | Depois da P1.1-R4 |
-|---|---|---|
-| arquivos que importam `@/api/base44Client` | 68 | **67** |
-| arquivos que usam `base44.entities` | 64 | **63** |
-| arquivos que usam `base44.auth` | 13 | 13 |
-| arquivos que usam `base44.integrations` | 5 | 5 |
-| arquivos que usam `base44.functions` | 5 | 5 |
-| arquivos com acesso computado a `entities` | 3 | 3 |
+| Eixo do `gate:api-boundary` | `main` pós-P0.1 | `main` pós-P1.1 | Depois da P1.2 |
+|---|---|---|---|
+| arquivos que importam `@/api/base44Client` | 68 | 67 | **42** |
+| arquivos que usam `base44.entities` | 64 | 63 | **38** |
+| arquivos que usam `base44.auth` | 13 | 13 | **9** |
+| arquivos que usam `base44.integrations` | 5 | 5 | **3** |
+| arquivos que usam `base44.functions` | 5 | 5 | 5 |
+| arquivos com acesso computado a `entities` | 3 | 3 | 3 |
 
-`src/pages/Empresa.jsx` saiu de todos os eixos. O adapter autorizado
-`src/apis/_providers/base44Provider.js` não conta como dívida — ele é a
-fronteira. Registry do provider nesta slice: `Empresa`, e mais nada.
+Cada eixo é uma **lista de caminhos**, não um número: trocar um arquivo por
+outro do mesmo tamanho reprova. Todos os eixos acima são subconjuntos estritos
+do estado anterior — nenhum arquivo entrou.
+
+Saíram de todos os eixos: `src/pages/Empresa.jsx` (P1.1) e, na P1.2,
+`MapaGeral`, `MapaCadastro`, `useSetorAreas`, os 20 componentes de
+`src/components/mapa/`, `manejoValidations` e o antigo `mapaOfflineCache`, que
+foi removido e substituído por `src/services/mapaCacheService.js`.
+
+O adapter autorizado `src/apis/_providers/base44Provider.js` não conta como
+dívida — ele é a fronteira. Registry literal do provider após a P1.2: 26
+entidades (`Empresa` e as 25 do mapa e do manejo iniciado por ele).
+
+Os 42 arquivos restantes são telas fora do escopo do mapa — cadastros de
+produto, unidade, marca, usuário, setor, categorias e `Layout.jsx`. Entram nas
+slices P1.3 e P1.4.
 
 ## Gates ativos
 
@@ -123,10 +137,12 @@ CI em `.github/workflows/quality.yml`.
 | `5946809` | **commit funcional** da P1.1-R3 | [30836332701](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30836332701) | **verde**, 13/13 |
 | `6d88794` | certificação de estado da P1.1-R3 | [30836737386](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30836737386) | **verde**, 13/13 |
 | `9767545` | **commit funcional** da P1.1-R4 | [30841392611](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30841392611) | **verde**, 13/13 — origem dos artefatos |
-| HEAD atual | só esta certificação de estado | ver corpo da PR #2 | — |
+| `48d6d66` | **commit funcional** da P1.2 | [30847666490](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30847666490) | **verde**, 13/13 — origem dos artefatos |
+| HEAD atual | só esta certificação de estado | ver corpo da PR #3 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
-commit documental que sucede o último commit executável fica no corpo da PR #2.
+commit documental que sucede o último commit executável fica no corpo da PR
+aberta — PR #2 para a P1.1, PR #3 para a P1.2.
 
 O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
 legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
@@ -138,21 +154,23 @@ motivo de o `verify:all` local não ter pego antes.
 
 | # | Item | Tratamento |
 |---|---|---|
-| DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1, com Empresa migrada e superfície pública protegida por proveniência local desde a P1.1-R4; restam 368 chamadas `base44.entities` fora dela | P1 |
+| DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1; Empresa migrou na P1.1 e todo o Mapa e o manejo iniciado por ele migraram na P1.2. Restam 230 chamadas `base44.entities` fora dela | P1 |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.797 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.797. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
+| DBT-03 | 2.759 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.759. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,46 MB, sem code splitting | P8 |
 | DBT-07 | `LayoutCampo`/`LayoutSecao`/`LayoutConfiguracao` + `src/services/campoEngine.js` sustentam o formulário dinâmico de lote — um mini-motor de layout dentro do produto | P2 |
-| DBT-08 | `src/lib/offlineEntitySync.js` e `src/components/offline/mapaOfflineCache.jsx` mantêm listas de entidades duplicadas e desalinhadas entre si | P1 |
+| DBT-08 | `src/lib/offlineEntitySync.js` mantém lista própria de entidades. O par desalinhado foi desfeito na P1.2: `mapaOfflineCache.jsx` foi removido e o cache do mapa passou a declarar as 18 capacidades explicitamente em `src/services/mapaCacheService.js` | P1 |
 | DBT-09 | `getNextSystemNumber` em `src/pages/Produtos.jsx` lista a coleção inteira para calcular o próximo número | P6 |
 | DBT-10 | `eslint.config.js` cobre `src/components`, `src/pages`, `src/Layout.jsx` e, desde a P1.1, `src/apis/`, `src/config/` e `src/services/empresaService.js`. `src/lib`, `src/api`, o restante de `src/services` e `scripts/` seguem fora — fechamento em P1.4 | P1 |
 | DBT-11 | `npm audit` reporta vulnerabilidades nas dependências transitivas remanescentes | P8 |
 | DBT-12 | `gate:types` fixa `typescriptVersion` no baseline. Atualizar o TypeScript exige `--rebase-contract` consciente — por desenho, mas é passo manual em toda subida de versão | P1 |
-| DBT-14 | 67 arquivos ainda importam `@/api/base44Client` direto. A migração continua em P1.2–P1.4, protegida por `gate:api-boundary` | P1 |
+| DBT-14 | 42 arquivos ainda importam `@/api/base44Client` direto — todos fora do escopo do mapa. A migração continua em P1.3 e P1.4, protegida por `gate:api-boundary` | P1 |
 | DBT-15 | `FormularioEmpresa` ainda usa `base44.integrations.Core.UploadFile` para o logotipo. Upload não é dado de módulo e ganha fronteira própria em slice posterior | P1 |
 | DBT-16 | 3 arquivos legados (`loteRepository`, `entityDeleteGuards`, `offlineEntitySync`) acessam `entities` por nome dinâmico. Congelados no eixo `dynamicEntityFiles`; migram com seus módulos | P1 |
 | DBT-18 | `gate:api-boundary` fecha proveniência **local ao arquivo** para os bindings e expressões cobertos: origem, membro, contêiner, função, alias, `.bind()`, ternário, curto-circuito e `return` em bloco (P1.1-R4). Continua fora do alcance o repasse **interprocedural** — capacidade passada por parâmetro para função de outro arquivo, ou wrapper cujo comportamento exige análise semântica entre módulos. Fechar isso exige dataflow repo-wide | P1.4 |
 | DBT-17 | `gate:no-secrets` varre `git ls-files`, então arquivo novo ainda não adicionado ao índice não é varrido: `verify:all` local dá verde e a CI reprova. Aconteceu de verdade na P1.1-R1. Mitigação atual é `git add` antes de `verify:all`; varrer também não-rastreados não-ignorados é mudança de contrato do gate, fica para slice própria | P1.4 |
+| DBT-19 | Operação composta de manejo não é atômica: a Base44 não oferece transação multi-entidade. A P1.2 tornou a falha parcial **visível** (`MAPA_PARTIAL_OPERATION` com etapa concluída e etapa de falha), não a eliminou. Some com o backend próprio | P3 |
+| DBT-20 | `DetalhesLote.jsx` segue com ~1.300 linhas. A fronteira de dados fechou na P1.2 e as decisões puras saíram para `src/domain/lotes/`, mas o componente continua grande demais para revisão confortável | P5 |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |

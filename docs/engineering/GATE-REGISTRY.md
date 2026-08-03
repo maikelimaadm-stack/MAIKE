@@ -451,8 +451,12 @@ registra a `main` de origem e é preservado nas atualizações.
 
 Baseline: `scripts/gates/api-boundary-baseline.json` (schema 1).
 
-**Estado atual (P1.1):** 67 arquivos legados importam o client, 63 usam
-`entities`. Empresa saiu de todos os eixos.
+**Estado atual (P1.2):** 42 arquivos legados importam o client, 38 usam
+`entities`, 9 usam `auth`, 3 usam `integrations`. Empresa saiu na P1.1; todo o
+Mapa e o manejo iniciado por ele saíram na P1.2 — `MapaGeral`, `MapaCadastro`,
+`useSetorAreas`, os 20 componentes de `src/components/mapa/`,
+`manejoValidations` e o antigo `mapaOfflineCache` (removido). Todos os eixos são
+subconjuntos estritos do estado anterior.
 
 ## Smoke automatizado
 
@@ -465,6 +469,16 @@ Cobertura mínima: registro das 16 páginas, importabilidade de cada uma, raiz
 apontando para `/MapaGeral`, fallback do `MapaGeral` sem chave, `MapaCadastro`
 com SDK mockado, montagem do `App`, e o contrato completo do carregador do
 Google Maps.
+
+Desde a P1.2, também: a fronteira de dados do mapa (nenhuma tela do mapa fala
+Base44, a UI só chama service, o service só chama superfície pública), a
+política do cache offline (dedup, intervalo mínimo, cooldown por **código** de
+erro, stale-while-revalidate), as regras de exclusão do `MapaCadastro`, a
+decisão de permissão do `MapaGeral` e as regras puras de manejo de lote.
+
+Asserção que olha código-fonte usa um helper que **remove comentários antes de
+comparar**: um comentário explicando que o módulo não usa `localStorage` não
+pode reprovar a busca por `localStorage`.
 
 ### Contrato do carregador do Google Maps (D-PROD-16)
 
