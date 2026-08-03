@@ -402,4 +402,52 @@ R1. O baseline foi migrado a partir do arquivo **certificado na R1** (commit
 atual é subconjunto do histórico: 0 fingerprints novos, 0 multiplicidades
 aumentadas, 1 redução. Total 2.802, teto 2.802.
 
-<!-- Próxima decisão: D-PROD-18 -->
+---
+
+## D-PROD-18 — UI acessa dados por API explícita de módulo
+
+**Data:** 2026-08-03 · **Missão:** P1.1
+
+**Decisão:** página e componente não conhecem provider de dados. O acesso passa
+por uma fronteira nativa:
+
+```
+página → service do módulo → src/apis/<modulo>/ → provider interno
+```
+
+Regras que essa fronteira carrega:
+
+1. `src/apis/<modulo>/` é a **superfície pública** do módulo. Quem consome
+   importa dali, nunca de `_core/` nem de `_providers/`.
+2. O provider Base44 é **temporário e interno**. Um único arquivo —
+   `src/apis/_providers/base44Provider.js` — pode importar `@/api/base44Client`,
+   e o objeto do provider **nunca** é exportado.
+3. O registro de entidade é **literal**. Nada de `entities[nome]`: o domínio do
+   registry está escrito no código e é conferível por AST. Entidade entra uma
+   por slice, quando tem consumidor migrado.
+4. A migração é **monotônica por módulo**. Cada slice remove caminhos legados;
+   nenhuma adiciona.
+5. `gate:api-boundary` protege isso por **identidade de arquivo**, não por
+   contagem — rename e troca de caminho são regressão.
+
+**Justificativa:** 371 chamadas `base44.entities` viviam dentro de componentes
+React (DBT-01). Trocar o provider nessa forma exigiria tocar em todas elas ao
+mesmo tempo. Com a fronteira, trocar Base44 por HTTP em P7 é alterar o adapter —
+a página não muda (QLT-P11-02).
+
+Não é wrapper: a página deixou de falar o formato do provider. `Empresa.jsx`
+chama `empresaService.listEmpresas()`, não `entities.Empresa.list('-created_date')`.
+
+**Consequência:** a regra de nome duplicado saiu da mutation da página para
+`empresaService`, e passou a comparar contra a leitura atual em vez do cache do
+React Query. A UI identifica conflito pelo código `EMPRESA_NAME_CONFLICT`, não
+pelo texto da mensagem. Erro do provider é normalizado em `ApiError`, com o
+original preso em `cause` e fora da mensagem pública.
+
+A configuração de runtime foi centralizada em `src/config/runtimeConfig.js` e
+`src/lib/app-params.js` foi removido — sem shim. Autenticação e
+`requiresAuth: false` não foram tocados.
+
+Esta slice migra **apenas** o módulo Empresa. P1 continua em andamento.
+
+<!-- Próxima decisão: D-PROD-19 -->

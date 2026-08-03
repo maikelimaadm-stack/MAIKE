@@ -15,6 +15,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **governance-paths** | `npm run gate:governance-paths` | Documentos obrigatórios existem, links resolvem, sem SSOT duplicado na raiz, gates do registro ligados ao `package.json` | D-PROD-01 | `scripts/gates/gate-governance-paths.mjs` |
 | **package-sync** | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem em name, version e dependências diretas | D-PROD-02 | `scripts/gates/gate-package-sync.mjs` |
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
+| **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **qualquer arquivo versionado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
@@ -27,8 +28,9 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 Contratos baratos primeiro, build por último:
 
 ```
-test:gates → governance-paths → package-sync → product-scope → source-closure
-→ import-integrity → no-secrets → base44 → types → lint → test:smoke → build
+test:gates → governance-paths → package-sync → product-scope → api-boundary
+→ source-closure → import-integrity → no-secrets → base44 → types → lint
+→ test:smoke → build
 ```
 
 O resumo imprime nome, PASS/FAIL, código de saída, duração e comando executado.
@@ -43,6 +45,16 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P01-SCOPE-FUNCTION` | product-scope |
 | `P01-SCOPE-FUNCTION-ENTITY` | product-scope |
 | `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` | product-scope |
+| `P11-API-BOUNDARY-BASELINE` | api-boundary |
+| `P11-API-BOUNDARY-REGRESSION` | api-boundary |
+| `P11-API-BOUNDARY-SDK-IMPORT` | api-boundary |
+| `P11-API-BOUNDARY-PROVIDER-LEAK` | api-boundary |
+| `P11-API-BOUNDARY-DYNAMIC-ENTITY` | api-boundary |
+| `P11-API-BOUNDARY-SCOPE` | api-boundary |
+| `P11-API-BOUNDARY-LAYER-BYPASS` | api-boundary |
+| `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK` | api-boundary |
+| `P11-API-BOUNDARY-SERVICE-BYPASS` | api-boundary |
+| `P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS` | api-boundary |
 | `P01-SCOPE-ORPHAN` | source-closure |
 | `P01-SCOPE-DYNAMIC-ALLOWLIST` | source-closure |
 | `P01-IMPORT-BROKEN` | import-integrity |
@@ -235,6 +247,212 @@ olha só para esse valor (D-PROD-14). Ignorar a linha inteira era um bypass real
 | `const API_KEY = "…real…"; // EXAMPLE` | passava | **reprova** |
 | `const k = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;` | passava | passa |
 | `VITE_GOOGLE_MAPS_API_KEY=SUA_CHAVE` | passava | passa |
+
+## `gate:api-boundary` — fronteira de dados (D-PROD-18)
+
+A catraca `gate:base44` conta ocorrências. Esta mede **identidade de arquivo**:
+quais caminhos ainda falam com a Base44 diretamente.
+
+A diferença importa. Contagem sozinha deixa passar troca — remover um acesso
+aqui e criar outro ali fecharia o número e abriria caminho novo. Por isso o
+baseline guarda **listas ordenadas de caminhos** por eixo, e rename também é
+regressão: o caminho antigo sai da lista e o novo entra.
+
+| Eixo | O que lista |
+|---|---|
+| `importsLegacyClient` | arquivos que importam `@/api/base44Client` |
+| `entitiesRefs` | arquivos que referenciam `base44.entities` |
+| `authRefs` | arquivos que referenciam `base44.auth` |
+| `integrationsRefs` | arquivos que referenciam `base44.integrations` |
+| `functionsRefs` | arquivos que referenciam `base44.functions` |
+| `dynamicEntityFiles` | arquivos com acesso computado a `entities` |
+
+O adapter autorizado — `src/apis/_providers/base44Provider.js` — fica **fora**
+das listas: ele não é dívida, é a fronteira. Por isso o número significa "quanto
+falta migrar".
+
+### Invariantes, válidas sempre
+
+Independem do baseline e não têm exceção histórica:
+
+| Situação | Código |
+|---|---|
+| `@base44/sdk` carregado fora de `src/api/base44Client.js` | `P11-API-BOUNDARY-SDK-IMPORT` |
+| arquivo fora de `src/apis/<modulo>/` importando `src/apis/_providers/` | `P11-API-BOUNDARY-LAYER-BYPASS` |
+| arquivo em `src/apis/` importando o client legado sem ser o adapter | `P11-API-BOUNDARY-PROVIDER-LEAK` |
+| objeto do provider reexportado (`export { base44 }`, `export default base44`, alias, reexport direto) | `P11-API-BOUNDARY-PROVIDER-LEAK` |
+| símbolo de `src/apis/_providers/` exportado por `src/apis/<modulo>/` | `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK` |
+| página, componente, hook ou `Layout.jsx` importando API de módulo | `P11-API-BOUNDARY-SERVICE-BYPASS` |
+| import de implementação interna de módulo vindo de fora do módulo | `P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS` |
+| acesso computado a `entities` **dentro de `src/apis/`** | `P11-API-BOUNDARY-DYNAMIC-ENTITY` |
+| registry com entidade fora de `allowedBase44Entities` | `P11-API-BOUNDARY-SCOPE` |
+
+#### Enforcement de camada (P1.1-R1)
+
+Bloquear só `base44` não bastava. Uma página podia importar `empresaProvider`
+direto de `src/apis/_providers/` — sem tocar em `base44`, sem reexportar nada — e
+pular a fronteira inteira com o gate verde.
+
+`src/apis/_providers/**` é **interno**. Só `src/apis/<modulo>/**` importa de lá,
+com `<modulo>` sem prefixo `_`. A regra escala sozinha: módulo novo já nasce
+autorizado; `_core/` e `_providers/` continuam de fora, e página, componente,
+hook, service, repository e `src/lib/` nunca entram.
+
+A resolução é por AST e cobre alias `@/`, caminho relativo, extensão opcional,
+`import()` e `export ... from`.
+
+#### Superfície pública de módulo (P1.1-R2)
+
+A autorização da R1 é para **usar** `_providers`, não para republicá-lo. Sem essa
+distinção a fronteira vazava de forma transitiva: o módulo reexportava o
+provider, o consumidor importava `@/apis/empresa` — que o gate autoriza — e
+recebia o objeto do provider sem nunca citar `_providers`.
+
+Nenhum símbolo vindo de `src/apis/_providers/**` pode ser exportado por
+`src/apis/<modulo>/**`, em nenhuma forma: `export … from`, `export *`, reexport
+de binding, alias, `export default`, `const` igual ao binding, objeto que o
+contém, ou função que o devolve → `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK`.
+
+A linha que separa uso de vazamento é o que a expressão entrega:
+
+```js
+export const listEmpresas = () => empresaProvider.list(ordem);  // resultado → ok
+export const getProvider  = () => empresaProvider;              // referência → vaza
+```
+
+**Camadas.** Para cada módulo, `src/apis/<modulo>/index.js` é a superfície
+pública; qualquer outro arquivo do módulo é implementação interna.
+
+| Camada | Pode importar |
+|---|---|
+| `src/pages/`, `src/components/`, `src/hooks/`, `src/Layout.jsx` | `src/services/` e `src/apis/_core/` — **nunca** API de dados |
+| `src/services/` | `@/apis/<modulo>` (ou `@/apis/<modulo>/index`), nunca arquivo interno, nunca `_providers/` |
+| `src/apis/<modulo>/` | irmãos do próprio módulo e `_providers/` |
+
+`_core/` não é API de módulo — o prefixo `_` o mantém fora da regra, e é por isso
+que a página continua podendo importar `getApiErrorMessage`.
+
+Decisão única sobre extensão: o especificador é resolvido sem extensão, então
+`@/apis/empresa`, `@/apis/empresa/index` e `@/apis/empresa/index.js` são o mesmo
+alvo público. Não há dois padrões.
+
+A regra vale por construção para módulos futuros (`lote`, `mapa`, `setor`): nada
+no analisador cita `empresa`.
+
+#### Proveniência de carregamento (P1.1-R3)
+
+A R2 provou a regra para `import` estático. Faltavam as outras formas de
+**carregar** o provider e a referência a **membro** dele. O analisador passa a
+trabalhar com proveniência, não com uma lista de nomes:
+
+| Origem de proveniência | Exemplo |
+|---|---|
+| import estático nomeado, default ou namespace | `import * as p from '../_providers/…'` |
+| `import x = require(…)` (TypeScript) | `import p = require('../_providers/…')` |
+| `import()` literal do módulo provider | `import('../_providers/…')` |
+| `require()` literal do módulo provider | `require('../_providers/…')` |
+| desestruturação de qualquer origem acima | `const { empresaProvider } = require(…)` |
+| alias local de qualquer origem acima | `const raw = empresaProvider` |
+
+Uma expressão **entrega capacidade** — e portanto reprova — quando é uma origem,
+um acesso a membro enraizado numa origem, um `await` de origem, ou um
+objeto/array/spread/função que devolva qualquer uma dessas. Uma `CallExpression`
+comum devolve **resultado da operação**, que é dado, não capacidade:
+
+```js
+export const criar     = (d) => empresaProvider.create(d);   // resultado → passa
+export const createRaw = empresaProvider.create;             // método     → reprova
+export const getModule = () => import('../_providers/…');    // namespace  → reprova
+```
+
+A referência crua de método é vazamento porque permite chamar a operação fora de
+`runProviderCall`, da normalização de erro e da validação de argumento.
+
+**Parser por extensão.** `scriptKindOf()` mapeia `.js`/`.mjs`/`.cjs` → JS,
+`.jsx` → JSX, `.ts`/`.mts`/`.cts` → TS, `.tsx` → TSX. Sob `ScriptKind.TS` um
+arquivo `.tsx` produz erro de parse, e arquivo que o parser não entende é
+arquivo cujas invariantes não são verificadas.
+
+#### Wrapper local e ponto fixo (P1.1-R4)
+
+A classificação de um binding local e a verificação de um export usam **a mesma
+função**. Era a diferença entre as duas que deixava passar:
+
+```js
+const bag = { empresaProvider };   // não entrava no conjunto de capacidades
+export { bag };                    // …e o export só checava o conjunto
+```
+
+enquanto `export const bag = { empresaProvider };` já reprovava. Declarar
+primeiro e exportar depois não pode mudar o resultado do gate.
+
+Um binding local é **capacidade** quando seu initializer é: origem do provider,
+membro derivado de origem, contêiner (objeto, array, spread) que a contenha,
+função que a devolva, `.bind()` de método derivado, ou alias de outro binding já
+classificado. Não é capacidade quando o initializer chama a operação e devolve o
+resultado.
+
+| Forma | Classificação |
+|---|---|
+| `empresaProvider.create(d)` | resultado → passa |
+| `empresaProvider.create.call(p, d)` · `.apply(p, [d])` | resultado → passa |
+| `empresaProvider.create` | capacidade → reprova |
+| `empresaProvider.create.bind(p)` | capacidade → reprova |
+| `c ? empresaProvider : null` · `c && empresaProvider` | capacidade → reprova |
+| `return empresaProvider` em `if`/`switch`/`try` | capacidade → reprova |
+
+`.bind()` é a exceção à regra "chamada devolve dado": ela devolve uma função que
+ainda executa a operação, fora de `runProviderCall`, da normalização de erro e
+da validação de argumento. `.call`/`.apply` executam ali mesmo.
+
+Corpo em bloco é percorrido em **qualquer profundidade**, parando em fronteiras
+de escopo (funções e classes aninhadas) — o `return` de uma função interna
+pertence a ela.
+
+**Ponto fixo real, sem limite de voltas.** A terminação vem da monotonicidade:
+cada volta só adiciona nomes já presentes no AST, e o arquivo tem um número
+finito de identificadores. A guarda residual **lança**; ela nunca devolve
+resultado parcial. Um limite que sai calado transformaria "não consegui
+analisar" em "está tudo certo" — foi o que a versão anterior fazia com cadeias
+de alias declaradas em ordem inversa.
+
+**Alcance declarado com precisão:** proveniência **local ao arquivo**, para os
+bindings e expressões acima. Repasse interprocedural — capacidade passada por
+parâmetro para função de outro módulo — continua fora (DBT-18).
+
+#### Carregamento do SDK — todas as formas
+
+`@base44/sdk` só entra por `src/api/base44Client.js`, em qualquer sintaxe:
+
+```
+import … from '@base44/sdk'      export … from '@base44/sdk'
+import('@base44/sdk')            await import('@base44/sdk')
+require('@base44/sdk')           import x = require('@base44/sdk')
+```
+
+Comentário ou string comum contendo o nome do pacote **não** reprova — a
+detecção é sintática, não textual.
+
+#### Origem certificada
+
+`certifiedFromMain` precisa ser um SHA de 40 caracteres hexadecimais. String
+livre permitiria um rótulo como `main-de-teste` e o baseline deixaria de ser
+rastreável. `--update` preserva o campo.
+
+Fora de `src/apis/`, o acesso computado herdado fica congelado no eixo
+`dynamicEntityFiles`: os arquivos existentes só podem sair, e nenhum novo entra.
+
+### Contrato do baseline
+
+Igual ao das outras catracas: baseline ausente ou malformado é falha dura, não
+existe `--seed`, execução normal nunca escreve, e `--update` só aceita
+**subconjunto estrito** — com pelo menos um caminho removido. `certifiedFromMain`
+registra a `main` de origem e é preservado nas atualizações.
+
+Baseline: `scripts/gates/api-boundary-baseline.json` (schema 1).
+
+**Estado atual (P1.1):** 67 arquivos legados importam o client, 63 usam
+`entities`. Empresa saiu de todos os eixos.
 
 ## Smoke automatizado
 

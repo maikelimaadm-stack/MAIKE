@@ -1,10 +1,10 @@
 import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+import { getDataProviderConfig } from '@/config/runtimeConfig';
 import { applyDeleteGuards } from '@/lib/entityDeleteGuards';
 import { installTextNormalization } from '@/lib/textNormalization';
 import { installOfflineEntitySync } from '@/lib/offlineEntitySync';
 
-const { appId, serverUrl, token, functionsVersion } = appParams;
+const { appId, serverUrl, token, functionsVersion } = getDataProviderConfig();
 
 const base44Client = createClient({
   appId,

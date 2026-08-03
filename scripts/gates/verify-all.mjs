@@ -16,6 +16,7 @@ const ETAPAS = [
   ['governance-paths', npm('gate:governance-paths')],
   ['package-sync', npm('gate:package-sync')],
   ['product-scope', npm('gate:product-scope')],
+  ['api-boundary', npm('gate:api-boundary')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],

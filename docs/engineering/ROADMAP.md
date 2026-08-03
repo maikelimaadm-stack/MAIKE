@@ -19,7 +19,9 @@ Reduzir o repositório à cadeia funcional do Mapa Geral + Manejo. Excluir pági
 componentes, schemas e functions fora do produto. Corrigir a governança para
 caminhos executáveis. Instalar os gates de escopo.
 
-**Estado:** P0.1 entregue — ver `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md`
+**Estado:** P0.1 **mergeada** (PR #1) — relatórios `P0.1-MAPA-MANEJO-SCOPE-RESET`,
+`P0.1-R1-CORRECTIVE-HARDENING`, `P0.1-R2-FINAL-CONTRACT-CLOSURE`,
+`P0.1-R3-TYPE-RATCHET-NON-REGRESSION` e `P0.1-R4-SSOT-FINAL-SYNCHRONIZATION`.
 
 ---
 
@@ -32,6 +34,21 @@ direto.
 
 **Critério de aceite:** nenhuma tela do escopo importa `base44` diretamente;
 toda leitura/escrita passa por `src/apis/`.
+
+**Estado:** em andamento.
+
+A P1 é executada em slices, uma PR por slice. Cada uma **remove** caminhos do
+baseline de `gate:api-boundary`; nenhuma adiciona (SCL-P11-01).
+
+| Slice | Escopo | Estado |
+|---|---|---|
+| **P1.1** | fundação (`src/apis/`, `ApiError`, `runtimeConfig`, provider interno) + piloto **Empresa** | entregue |
+| **P1.2** | Mapa — `MapaGeral`, `MapaCadastro`, `DetalhesLote` | não iniciada |
+| **P1.3** | Manejo — `CadastroLotes`, `CadastroSetores`, `Categorias`, `CategoriasManejo`, `Bebedouros` | não iniciada |
+| **P1.4** | Suporte e Administração + fechamento da P1 (cobertura de lint remanescente, DBT-01) | não iniciada |
+
+A P1 só é declarada concluída na P1.4, quando o baseline de fronteira chegar a
+zero caminho legado nas telas do escopo.
 
 ---
 
