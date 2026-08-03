@@ -1,8 +1,9 @@
 /* global google */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { getCurrentUser } from "@/services/sessionService";
+import { listarBebedourosAtivos } from "@/services/mapaService";
 import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { Button } from "@/components/ui/button";
@@ -171,15 +172,9 @@ export default function MapaGeral() {
 
   const { data: currentUser = null } = useQuery({
     queryKey: ['mapa-geral-user'],
-    queryFn: async () => {
-      if (navigator.onLine) {
-        const me = await base44.auth.me();
-        localStorage.setItem('offline_current_user', JSON.stringify(me));
-        return me;
-      }
-      const cachedUser = localStorage.getItem('offline_current_user');
-      return cachedUser ? JSON.parse(cachedUser) : null;
-    },
+    // Online lê do provider e persiste; offline devolve o último conhecido.
+    // A política inteira vive no service (P1.2, seção 10).
+    queryFn: () => getCurrentUser(),
     staleTime: 5 * 60 * 1000
   });
 
@@ -617,8 +612,11 @@ export default function MapaGeral() {
   const handleClickPontoReferencia = useCallback(async (ponto) => {
     if (!normalizeText(ponto?.tipo).includes("BEBEDOURO")) return;
 
-    const listaBebedouros = navigator.onLine ? await base44.entities.Bebedouro.list("-updated_date") : bebedouros;
-    const bebedourosEmpresa = listaBebedouros.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
+    // Online busca a lista atual pelo service; offline reaproveita o que
+    // `useBebedouros` já carregou. A UI não fala com o provider.
+    const bebedourosEmpresa = navigator.onLine
+      ? await listarBebedourosAtivos(empresaSelecionadaId)
+      : bebedouros.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
     const pontoNumero = normalizeText(ponto.numero_ponto);
     const pontoNome = normalizeText(ponto.nome);
     const pontoSigla = normalizeText(ponto.sigla);

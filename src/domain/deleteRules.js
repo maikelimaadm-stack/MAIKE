@@ -1,0 +1,170 @@
+/**
+ * Regras de bloqueio de exclusão (extraídas em P1.2).
+ *
+ * **Fonte única de verdade.** Antes, a tabela vivia dentro de
+ * `src/lib/entityDeleteGuards.js`, acoplada a `base44.entities[nome]`. O
+ * caminho novo do mapa não pode receber provider, e copiar a tabela criaria
+ * duas versões que divergiriam em silêncio — exatamente o que a missão proíbe.
+ *
+ * Este módulo é **puro**: sem React, sem provider, sem `window`, sem storage.
+ * Recebe registros já carregados e responde quem bloqueia.
+ */
+
+export const ENTITY_LABELS = {
+  Empresa: "empresa",
+  Setor: "setor",
+  AreaPastagem: "área",
+  CategoriaManejo: "categoria de manejo",
+  Produto: "produto",
+  Lote: "lote",
+  UnidadeMedida: "unidade de medida",
+  Categoria: "categoria",
+  LocalEstoque: "local de estoque",
+  PontoSuplementacao: "ponto de suplementação",
+  GrupoAtividade: "grupo de atividades",
+  TipoTarefa: "tipo de tarefa",
+};
+
+const EMPRESA_DEPENDENCIES = [
+  { entity: "Setor", fields: ["empresa_id"], label: "setores" },
+  { entity: "AreaPastagem", fields: ["empresa_id"], label: "áreas" },
+  { entity: "Lote", fields: ["empresa_id"], label: "lotes" },
+  { entity: "MovimentacaoPecuaria", fields: ["empresa_id"], label: "movimentações pecuárias" },
+  { entity: "MovimentacaoMapa", fields: ["empresa_id"], label: "movimentações do mapa" },
+  { entity: "Produto", fields: ["empresa_id"], label: "produtos" },
+  { entity: "MovimentacaoEstoque", fields: ["empresa_id"], label: "movimentações de estoque" },
+  { entity: "SuplementacaoEvento", fields: ["empresa_id"], label: "lançamentos de suplementação" },
+  { entity: "SuplementacaoLote", fields: ["empresa_id"], label: "lotes de suplementação" },
+  { entity: "PontoSuplementacao", fields: ["empresa_id"], label: "pontos de suplementação" },
+  { entity: "LancamentoTarefa", fields: ["empresa_id"], label: "lançamentos de tarefas" },
+  { entity: "HistoricoLancamentoTarefa", fields: ["empresa_id"], label: "históricos de tarefas" },
+  { entity: "ManejoTecnicoRebanho", fields: ["empresa_id"], label: "manejos técnicos" },
+];
+
+export const DELETE_RULES = {
+  Empresa: EMPRESA_DEPENDENCIES,
+  Setor: [
+    { entity: "AreaPastagem", fields: ["setor_id"], valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome"] }], label: "áreas" },
+    { entity: "LancamentoTarefa", valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome"] }], label: "lançamentos de tarefas" },
+    { entity: "MovimentacaoMapa", fields: ["setor_id", "setor_origem_id", "setor_destino_id"], valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome", "setor_origem_nome", "setor_destino_nome", "transferencia_origem", "transferencia_destino"] }], label: "movimentações do mapa" },
+    { entity: "MovimentacaoPecuaria", fields: ["setor_id", "setor_origem_id", "setor_destino_id"], valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome", "setor_origem_nome", "setor_destino_nome", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
+  ],
+  AreaPastagem: [
+    { entity: "Lote", fields: ["area_entrada_id", "area_atual_id"], label: "lotes" },
+    { entity: "MovimentacaoMapa", fields: ["area_id", "area_origem_id", "area_destino_id"], label: "movimentações do mapa" },
+    { entity: "MovimentacaoPecuaria", fields: ["area_origem_id", "area_destino_id"], label: "movimentações pecuárias" },
+    { entity: "SuplementacaoEvento", fields: ["area_id"], arrayFields: ["area_ids"], label: "lançamentos de suplementação" },
+    { entity: "PontoSuplementacao", fields: ["area_vinculada_id"], arrayFields: ["area_vinculada_ids"], label: "pontos de suplementação" },
+    { entity: "LancamentoTarefa", fields: ["area_id"], label: "lançamentos de tarefas" },
+    { entity: "ManejoTecnicoRebanho", fields: ["area_id"], label: "manejos técnicos" },
+  ],
+  CategoriaManejo: [
+    { entity: "Lote", fields: ["categoria_manejo_id", "categoria_manejo_entrada_id"], label: "lotes" },
+    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome"] }, { sourceField: "categoria_oficial", targetFields: ["categoria", "categoria_entrada"] }], label: "lotes" },
+    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }, { sourceField: "categoria_oficial", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
+    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "manejos técnicos" },
+    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "lotes de suplementação" },
+  ],
+  Produto: [
+    { entity: "MovimentacaoEstoque", fields: ["produto_id"], label: "movimentações de estoque" },
+    { entity: "SuplementacaoEvento", fields: ["produto_id"], label: "lançamentos de suplementação" },
+    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome_produto", targetFields: ["produto", "produto_utilizado"] }], label: "manejos técnicos" },
+    { entity: "PontoSuplementacao", valueMatches: [{ sourceField: "nome_produto", targetFields: ["produto_padrao"] }], label: "pontos de suplementação" },
+  ],
+  Lote: [
+    { entity: "MovimentacaoMapa", fields: ["lote_id"], label: "movimentações do mapa" },
+    { entity: "SuplementacaoLote", fields: ["lote_id"], label: "lotes de suplementação" },
+    { entity: "LancamentoTarefa", fields: ["lote_id"], label: "lançamentos de tarefas" },
+    { entity: "MovimentacaoPecuaria", fields: ["lote_id"], label: "movimentações pecuárias" },
+    { entity: "ManejoTecnicoRebanho", fields: ["lote_id"], label: "manejos técnicos" },
+  ],
+  UnidadeMedida: [
+    { entity: "Produto", valueMatches: [{ sourceField: "sigla", targetFields: ["unidade_medida"] }], label: "produtos" },
+    { entity: "MovimentacaoEstoque", valueMatches: [{ sourceField: "sigla", targetFields: ["unidade_medida"] }], label: "movimentações de estoque" },
+    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "sigla", targetFields: ["unidade"] }], label: "manejos técnicos" },
+  ],
+  Categoria: [
+    { entity: "Produto", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "produtos" },
+  ],
+  LocalEstoque: [
+    { entity: "Produto", valueMatches: [{ sourceField: "nome", targetFields: ["local_estoque"] }], label: "produtos" },
+    { entity: "MovimentacaoEstoque", valueMatches: [{ sourceField: "nome", targetFields: ["local_origem", "local_destino", "local_estoque_origem", "local_estoque_destino"] }], label: "movimentações de estoque" },
+    { entity: "PontoSuplementacao", valueMatches: [{ sourceField: "nome", targetFields: ["local_estoque_nome"] }], label: "pontos de suplementação" },
+  ],
+  PontoSuplementacao: [
+    { entity: "SuplementacaoEvento", fields: ["ponto_suplementacao_id"], label: "lançamentos de suplementação" },
+    { entity: "LancamentoTarefa", fields: ["ponto_suplementacao_id"], label: "lançamentos de tarefas" },
+    { entity: "MovimentacaoEstoque", fields: ["ponto_suplementacao_id", "deposito_id"], label: "movimentações de estoque" },
+  ],
+  GrupoAtividade: [
+    { entity: "TipoTarefa", fields: ["grupo_atividade_id"], label: "tipos de tarefa" },
+    { entity: "LancamentoTarefa", fields: ["grupo_atividade_id"], label: "lançamentos de tarefas" },
+  ],
+  TipoTarefa: [
+    { entity: "LancamentoTarefa", fields: ["tipo_tarefa_id"], label: "lançamentos de tarefas" },
+  ],
+};
+
+const normalizeValue = (value) => (value === null || value === undefined ? '' : String(value).trim().toLowerCase());
+
+const fieldMatchesValue = (recordValue, expectedValue) => {
+  if (Array.isArray(recordValue)) {
+    return recordValue.some((item) => normalizeValue(item) === expectedValue);
+  }
+  return normalizeValue(recordValue) === expectedValue;
+};
+
+/** O registro referencia `id` segundo esta regra? */
+export const hasMatchingReference = (record, id, rule, currentRecord) => {
+  const matchesField = (rule.fields || []).some((field) => record?.[field] === id);
+  const matchesArray = (rule.arrayFields || []).some(
+    (field) => Array.isArray(record?.[field]) && record[field].includes(id)
+  );
+  const matchesValue = (rule.valueMatches || []).some(({ sourceField, targetFields }) => {
+    const sourceValue = normalizeValue(currentRecord?.[sourceField]);
+    if (!sourceValue) return false;
+    return (targetFields || []).some((field) => fieldMatchesValue(record?.[field], sourceValue));
+  });
+  return matchesField || matchesArray || matchesValue;
+};
+
+/** Entidades que uma exclusão precisa consultar. */
+export const dependenciesOf = (entityName) => DELETE_RULES[entityName] || [];
+
+/**
+ * Avalia o bloqueio a partir de registros **já carregados**.
+ *
+ * @param {object} p
+ * @param {string} p.entityName
+ * @param {string} p.id
+ * @param {object|null} p.currentRecord registro que se quer excluir
+ * @param {Record<string, Array<object>>} p.recordsByEntity registros por entidade dependente
+ * @returns {{blocked: boolean, label?: string, linkedCount?: number, message?: string}}
+ */
+export const evaluateDeleteBlock = ({ entityName, id, currentRecord, recordsByEntity }) => {
+  const rules = dependenciesOf(entityName);
+  if (!rules.length) return { blocked: false };
+
+  const empresaId = currentRecord?.empresa_id;
+
+  for (const rule of rules) {
+    const registros = recordsByEntity?.[rule.entity] || [];
+    const linkedCount = registros.filter((record) => {
+      if (entityName !== 'Empresa' && empresaId && record?.empresa_id && record.empresa_id !== empresaId) return false;
+      return hasMatchingReference(record, id, rule, currentRecord);
+    }).length;
+
+    if (linkedCount > 0) {
+      const entityLabel = ENTITY_LABELS[entityName] || 'registro';
+      const registroTexto = linkedCount === 1 ? '1 registro vinculado' : `${linkedCount} registros vinculados`;
+      return {
+        blocked: true,
+        label: rule.label,
+        linkedCount,
+        message: `Não é possível excluir este ${entityLabel} porque existem ${registroTexto} em ${rule.label}.`,
+      };
+    }
+  }
+
+  return { blocked: false };
+};

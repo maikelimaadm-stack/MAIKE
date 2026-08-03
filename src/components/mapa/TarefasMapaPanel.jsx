@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarTarefasDaEmpresa, listarIconesPorTipo, criarTarefa, atualizarTarefa, excluirTarefa, registrarHistorico as registrarHistoricoApi, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,8 +20,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const { data: tarefas = [], isLoading: loadingTarefas } = useQuery({
     queryKey: ['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId],
     queryFn: async () => {
-      const all = await base44.entities.LancamentoTarefa.list('-updated_date');
-      let filtered = all.filter((t) => t.empresa_id === empresaSelecionadaId);
+      let filtered = await listarTarefasDaEmpresa(empresaSelecionadaId, { order: '-updated_date' });
       if (areaId) filtered = filtered.filter((t) => t.area_id === areaId);
       if (loteId) filtered = filtered.filter((t) => t.lote_id === loteId);
       if (pontoSuplId) filtered = filtered.filter((t) => t.ponto_suplementacao_id === pontoSuplId);
@@ -35,8 +34,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const { data: iconesPrioridade = [] } = useQuery({
     queryKey: ['icones-prioridade-tarefa-mapa'],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((icone) => icone.ativo !== false && icone.tipo_entidade === 'Prioridade Tarefa');
+      return listarIconesPorTipo('Prioridade Tarefa');
     },
     initialData: [],
     staleTime: 10 * 60 * 1000
@@ -71,7 +69,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const uploadImages = async (pendingImageFiles = []) => {
     const uploadedUrls = [];
     for (const file of pendingImageFiles) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await enviarAnexo({ file });
       uploadedUrls.push(file_url);
     }
     return uploadedUrls;
@@ -81,8 +79,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: async ({ data, pendingImageFiles = [] }) => {
       const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
-      const created = await base44.entities.LancamentoTarefa.create(payload);
-      await base44.entities.HistoricoLancamentoTarefa.create({
+      const created = await criarTarefa(payload);
+      await registrarHistoricoApi({
         empresa_id: created.empresa_id,
         tarefa_id: created.id,
         titulo_tarefa: created.titulo,
@@ -112,12 +110,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: async ({ id, data, previous, pendingImageFiles = [] }) => {
       const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
-      const updated = await base44.entities.LancamentoTarefa.update(id, payload);
+      const updated = await atualizarTarefa(id, payload);
       const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== previous?.status;
       const evento = mudouLocal ? 'Mudança de Local' : updated.status === 'Concluída' && mudouStatus ? 'Conclusão' : updated.status === 'Cancelada' && mudouStatus ? 'Cancelamento' : mudouStatus ? 'Mudança de Status' : 'Edição';
       const descricao = mudouLocal ? 'Local da tarefa alterado pelo mapa.' : updated.status === 'Concluída' && mudouStatus ? 'Tarefa concluída pelo mapa.' : updated.status === 'Cancelada' && mudouStatus ? 'Tarefa cancelada pelo mapa.' : mudouStatus ? `Status alterado para ${updated.status}.` : 'Tarefa atualizada pelo mapa.';
-      await base44.entities.HistoricoLancamentoTarefa.create({
+      await registrarHistoricoApi({
         empresa_id: updated.empresa_id,
         tarefa_id: updated.id,
         titulo_tarefa: updated.titulo,
@@ -146,7 +144,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const deleteMutation = useMutation({
     mutationFn: async (ids) => {
       const lista = Array.isArray(ids) ? ids : [ids];
-      for (const id of lista) await base44.entities.LancamentoTarefa.delete(id);
+      for (const id of lista) await excluirTarefa(id);
       return lista;
     },
     onSuccess: (ids) => {
@@ -177,7 +175,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
           setEditingTarefa(tarefa);
           setShowForm(true);
         }}
-        getIconePrioridade={getIconePrioridade}
         normalizeTaskPriority={normalizeTaskPriority}
         showConfigColunas={showConfigColunas}
         setShowConfigColunas={setShowConfigColunas}

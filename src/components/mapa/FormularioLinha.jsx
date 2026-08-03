@@ -1,6 +1,6 @@
 /* global google */
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarTodasLinhas, criarLinha, atualizarLinha } from "@/services/mapaService";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
   const createLinhaMutation = useMutation({
     mutationFn: async (data) => {
       if (item) {
-        return base44.entities.LinhaGeografica.update(item.id, {
+        return atualizarLinha(item.id, {
           ...data,
           coordenadas: {
             coords: (coordenadasGPS || coordenadas || item.coordenadas?.coords)?.map((p) => [p.lat || p[0], p.lng || p[1]]),
@@ -52,7 +52,8 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
         });
       }
 
-      const allLinhas = await base44.entities.LinhaGeografica.list();
+      // Numeração calculada sobre todas as linhas, como antes da P1.2.
+      const allLinhas = await listarTodasLinhas();
       const maxNum = allLinhas.reduce((max, l) => Math.max(max, parseInt(l.numero_linha) || 0), 0);
       const coords = coordenadasGPS || coordenadas;
       let comprimentoMetros = 0;
@@ -61,7 +62,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
         comprimentoMetros = google.maps.geometry.spherical.computeLength(path);
       }
 
-      return base44.entities.LinhaGeografica.create({
+      return criarLinha({
         nome: data.nome,
         sigla: data.sigla,
         tipo: data.tipo,

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { excluirTransferenciaDeposito } from "./historicoSuplementacaoUtils";
 import { formatKg } from "./formatters";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 
 function formatObsKgPtBR(obs) {
   if (!obs) return "";

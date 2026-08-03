@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarTodasMovimentacoes, listarTodosLotes, atualizarLote, excluirMovimentacao } from "@/services/loteManejoService";
 import { toast } from "sonner";
 
 function formatDateOnly(value) {
@@ -21,22 +21,22 @@ export default function HistoricoAbateCurral({ areaId }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (item) => {
-      const mov = await base44.entities.MovimentacaoMapa.list("-data_movimentacao");
+      const mov = await listarTodasMovimentacoes();
       const registro = mov.find((m) => m.id === item.id);
       if (!registro) return;
 
       if (registro.lote_id) {
-        const lotes = await base44.entities.Lote.list();
+        const lotes = await listarTodosLotes();
         const lote = lotes.find((l) => l.id === registro.lote_id);
         if (lote) {
-          await base44.entities.Lote.update(lote.id, {
+          await atualizarLote(lote.id, {
             quantidade_cabecas: (lote.quantidade_cabecas || 0) + (registro.quantidade_animais || 0),
             status: "Ativo"
           });
         }
       }
 
-      await base44.entities.MovimentacaoMapa.delete(item.id);
+      await excluirMovimentacao(item.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["historico-abate-curral"] });
@@ -50,7 +50,7 @@ export default function HistoricoAbateCurral({ areaId }) {
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["historico-abate-curral", areaId, empresaSelecionadaId],
     queryFn: async () => {
-      const movimentacoes = await base44.entities.MovimentacaoMapa.list("-data_movimentacao");
+      const movimentacoes = await listarTodasMovimentacoes();
       return movimentacoes
         .filter((mov) => mov.empresa_id === empresaSelecionadaId)
         .filter((mov) => mov.tipo === "Abate")

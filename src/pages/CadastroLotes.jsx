@@ -10,7 +10,7 @@ import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposL
 import ConfiguracaoExportacaoPdfLotesDialog from "@/components/lotes/ConfiguracaoExportacaoPdfLotesDialog";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
-import { refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import loteRepository from "@/core/repositories/loteRepository";
 import campoEngine from "@/services/campoEngine";
 import { exportVisibleLotesTableToExcel, printVisibleLotesTable } from "@/components/lotes/loteTableExportUtils";

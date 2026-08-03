@@ -7,12 +7,15 @@ export default function AutocompleteGenerico({
   items,
   value,
   onChange,
-  className,
+  // Já usado como `${className || ''}` no corpo: o default não muda render.
+  className = "",
   placeholder = "Buscar...",
   displayField = "nome",
   searchFields = ["nome"],
-  renderItem,
-  renderSubtext,
+  // Opcionais: o corpo já guarda com `renderItem ? …` e `renderSubtext &&`.
+  // Sem o default, o tipo inferido os tornava obrigatórios em todo call site.
+  renderItem = null,
+  renderSubtext = null,
   inputClassName = "",
   disabled = false,
   readOnly = false,

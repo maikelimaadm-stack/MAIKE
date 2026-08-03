@@ -1,6 +1,6 @@
 /* global google */
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarSetoresAtivos, listarTodasAreas, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
@@ -65,7 +65,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   const { data: setores = [] } = useQuery({
     queryKey: ["setores-form-area", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Setor.list();
+      const all = await listarSetoresAtivos(empresaSelecionadaId);
       return all.filter((setor) => setor.empresa_id === empresaSelecionadaId && setor.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
@@ -78,7 +78,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   const createAreaMutation = useMutation({
     mutationFn: async (data) => {
       if (item) {
-        return base44.entities.AreaPastagem.update(item.id, {
+        return atualizarArea(item.id, {
           ...data,
           numero_area: data.numero_area || item.numero_area,
           coordenadas: {
@@ -87,10 +87,11 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           },
         });
       }
-      const allAreas = await base44.entities.AreaPastagem.list();
+      // Numeração sobre todas as áreas, como antes da P1.2.
+      const allAreas = await listarTodasAreas();
       const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
       const proximo = String(maxNum + 1);
-      return base44.entities.AreaPastagem.create({
+      return criarArea({
         ...data,
         empresa_id: empresaSelecionadaId,
         numero_area: (data.numero_area && String(data.numero_area)) || proximo,

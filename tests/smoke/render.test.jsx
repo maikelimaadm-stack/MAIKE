@@ -10,8 +10,10 @@ vi.mock('@/api/base44Client', async () => {
   return { base44: createBase44Stub() };
 });
 
-// O cache offline usa IndexedDB, que não existe no jsdom.
-vi.mock('@/components/offline/mapaOfflineCache', () => ({
+// O cache offline usa IndexedDB, que não existe no jsdom. Desde a P1.2 a
+// política vive em `@/services/mapaCacheService`; o arquivo antigo não existe
+// mais e não há shim com o nome anterior.
+vi.mock('@/services/mapaCacheService', () => ({
   getMapaCachedData: () => Promise.resolve([]),
   refreshMapaCacheEntry: () => Promise.resolve([]),
   updateMapaCachedData: () => Promise.resolve([]),

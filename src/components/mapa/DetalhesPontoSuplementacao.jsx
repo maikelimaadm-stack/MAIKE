@@ -2,8 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { listarTodosProdutos } from "@/services/estoqueMapaService";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
@@ -96,7 +96,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
         // Se estiver offline, retorna o que tiver na Query Cache do TanStack ou vazio
         return [];
       }
-      const all = await base44.entities.Produto.list();
+      const all = await listarTodosProdutos();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,

@@ -1,7 +1,7 @@
 /* global google */
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { base44 } from "@/api/base44Client";
+import { listarAreasAtivas, atualizarArea } from "@/services/mapaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -98,8 +98,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaId && a.ativo !== false);
+      return listarAreasAtivas(empresaId);
     },
     enabled: !!empresaId
   });
@@ -177,16 +176,16 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
     if (ids.length === 0) {toast.error('Selecione áreas no mapa');return;}
     try {
       if (batchType === 'aproveitamento') {
-        await Promise.all(ids.map((id) => base44.entities.AreaPastagem.update(id, { aproveitamento_classificacao: batchValue })));
+        await Promise.all(ids.map((id) => atualizarArea(id, { aproveitamento_classificacao: batchValue })));
       } else if (batchType === 'uso') {
-        await Promise.all(ids.map((id) => base44.entities.AreaPastagem.update(id, { tipo_cultura: batchValue })));
+        await Promise.all(ids.map((id) => atualizarArea(id, { tipo_cultura: batchValue })));
       } else if (batchType === 'cultura') {
-        await Promise.all(ids.map((id) => base44.entities.AreaPastagem.update(id, { tipo_pastagem: batchValue })));
+        await Promise.all(ids.map((id) => atualizarArea(id, { tipo_pastagem: batchValue })));
       } else if (batchType === 'cor') {
         await Promise.all(ids.map((id) => {
           const area = areas.find((a) => a.id === id);
           const coords = area?.coordenadas?.coords || [];
-          return base44.entities.AreaPastagem.update(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
+          return atualizarArea(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
         }));
       }
       toast.success('Atualizado');
@@ -341,7 +340,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
                 if (!ids.length) {toast.error('Selecione áreas no mapa');return;}
                 const start = parseInt(startNumber || '1');
                 const selecionadas = areas.filter((a) => ids.includes(a.id)).sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-                await Promise.all(selecionadas.map((a, idx) => base44.entities.AreaPastagem.update(a.id, { numero_area: String(start + idx) })));
+                await Promise.all(selecionadas.map((a, idx) => atualizarArea(a.id, { numero_area: String(start + idx) })));
                 toast.success('Códigos reatribuídos');
                 setBatchType(null);setStartNumber('');selecionadosRef.current.clear();
                 queryClient.invalidateQueries({ queryKey: ['areas'] });

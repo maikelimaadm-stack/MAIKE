@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarTodosLocais, listarTodosProdutos, listarTodosLotesNota } from "@/services/estoqueMapaService";
+import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,13 +32,13 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
 
-  const { data: user } = useQuery({ queryKey: ["user-transferencia-deposito"], queryFn: () => base44.auth.me() });
-  const { data: locais = [] } = useQuery({ queryKey: ["locais-estoque-deposito"], queryFn: () => base44.entities.LocalEstoque.list() });
+  const { data: user } = useQuery({ queryKey: ["user-transferencia-deposito"], queryFn: () => getCurrentUser() });
+  const { data: locais = [] } = useQuery({ queryKey: ["locais-estoque-deposito"], queryFn: () => listarTodosLocais() });
 
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-suplementacao-transferencia", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Produto.list();
+      const all = await listarTodosProdutos();
       return all.filter((p) => p.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
@@ -46,7 +47,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const { data: lotesNota = [] } = useQuery({
     queryKey: ["estoque-lotes-transferencia", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.EstoqueLoteNota.list();
+      const all = await listarTodosLotesNota();
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId,

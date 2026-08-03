@@ -1,7 +1,8 @@
 /* global google */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { base44 } from "@/api/base44Client";
+import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIconesPorTipoEntidade, listarTodosPontos, listarTodosPontosSuplementacao, criarPonto, criarPontoSuplementacao } from "@/services/mapaService";
+import { criarLocal } from "@/services/estoqueMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,32 +133,32 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
   const { data: areas = [] } = useQuery({
     queryKey: ["areas", empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.AreaPastagem.list();return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);},
+    queryFn: () => listarAreasAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: pontosExistentes = [] } = useQuery({
     queryKey: ["pontos", empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.PontoReferencia.list();return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);},
+    queryFn: () => listarPontosAtivos(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: linhas = [] } = useQuery({
     queryKey: ["linhas", empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.LinhaGeografica.list();return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);},
+    queryFn: () => listarLinhasAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
-    queryFn: async () => {const all = await base44.entities.ConfiguracaoIcone.list();return all.filter((i) => i.tipo_entidade === "Ponto" && i.ativo !== false);},
+    queryFn: () => listarIconesPorTipoEntidade("Ponto"),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: pontosSuplementacao = [] } = useQuery({
     queryKey: ["pontos-suplementacao-lote", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
+      const all = await listarTodosPontosSuplementacao();
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId
@@ -555,11 +556,11 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const pontosValidos = pontos.filter((item) => item.nome && item.tipo && item.coordenadas);
       if (!pontosValidos.length) throw new Error("Preencha nome e tipo de pelo menos um ponto.");
 
-      const existentes = await base44.entities.PontoReferencia.list();
+      const existentes = await listarTodosPontos();
       const maxNum = existentes.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
 
       // Suplementacao Data
-      const pontosSuplementacaoEmpresa = await base44.entities.PontoSuplementacao.list();
+      const pontosSuplementacaoEmpresa = await listarTodosPontosSuplementacao();
       const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((p) => p.empresa_id === empresaSelecionadaId && p.status === "Ativo");
       const maiorNumero = pontosAtivosEmpresa.reduce((max, p) => Math.max(max, parseInt(String(p.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
 
@@ -569,7 +570,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
         const item = pontosValidos[index];
         const configIcone = iconesConfig.find((ic) => ic.categoria === item.tipo) || iconesConfig.find((ic) => ic.id === item.configuracao_icone_id);
 
-        await base44.entities.PontoReferencia.create({
+        await criarPonto({
           empresa_id: empresaSelecionadaId,
           numero_ponto: String(maxNum + index + 1),
           nome: item.nome.toUpperCase(),
@@ -590,7 +591,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
 
           if (item.tipo_categoria === "DEPOSITO") {
             const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${item.nome.toUpperCase()}`;
-            const localCriado = await base44.entities.LocalEstoque.create({ nome: item.nome.toUpperCase(), descricao: descricaoLocal });
+            const localCriado = await criarLocal({ nome: item.nome.toUpperCase(), descricao: descricaoLocal });
             localEstoqueId = localCriado.id;
             localEstoqueNome = localCriado.nome;
           }
@@ -606,7 +607,7 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
             if (existingDep) deposito_origem_nome = existingDep.nome_ponto;
           }
 
-          await base44.entities.PontoSuplementacao.create({
+          await criarPontoSuplementacao({
             empresa_id: empresaSelecionadaId,
             numero_ponto: `${prefixo}-${String(maiorNumero + offsetSuplementacao).padStart(4, "0")}`,
             setor_id: item.setor_id || null,

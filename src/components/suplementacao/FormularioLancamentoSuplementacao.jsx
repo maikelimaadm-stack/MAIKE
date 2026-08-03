@@ -10,7 +10,7 @@ import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { updateMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { updateMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { Progress } from "@/components/ui/progress";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuplementacao } from "./estoqueSuplementacaoUtils";
 import { formatDecimal } from "./formatters";

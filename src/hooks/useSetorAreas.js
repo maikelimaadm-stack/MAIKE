@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarSetoresAtivos, listarAreasAtivas } from "@/services/mapaService";
 
 const collator = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
 
@@ -16,10 +16,8 @@ export default function useSetorAreas(empresaSelecionadaId) {
   const { data: setores = [], ...setoresQuery } = useQuery({
     queryKey: ["setores-por-area", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Setor.list();
-      return all
-        .map((item) => ({ ...(item.data || item), id: item.id }))
-        .filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
+      const setoresAtivos = await listarSetoresAtivos(empresaSelecionadaId);
+      return setoresAtivos.map((item) => ({ ...(item.data || item), id: item.id }));
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
@@ -28,10 +26,8 @@ export default function useSetorAreas(empresaSelecionadaId) {
   const { data: areas = [], ...areasQuery } = useQuery({
     queryKey: ["areas-por-setor", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all
-        .map((item) => ({ ...(item.data || item), id: item.id }))
-        .filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
+      const areasAtivas = await listarAreasAtivas(empresaSelecionadaId);
+      return areasAtivas.map((item) => ({ ...(item.data || item), id: item.id }));
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
