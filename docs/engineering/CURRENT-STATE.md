@@ -129,4 +129,5 @@ commit documental que sucede `3c03ecf` fica no corpo da PR #2.
 | DBT-14 | 67 arquivos ainda importam `@/api/base44Client` direto. A migração continua em P1.2–P1.4, protegida por `gate:api-boundary` | P1 |
 | DBT-15 | `FormularioEmpresa` ainda usa `base44.integrations.Core.UploadFile` para o logotipo. Upload não é dado de módulo e ganha fronteira própria em slice posterior | P1 |
 | DBT-16 | 3 arquivos legados (`loteRepository`, `entityDeleteGuards`, `offlineEntitySync`) acessam `entities` por nome dinâmico. Congelados no eixo `dynamicEntityFiles`; migram com seus módulos | P1 |
+| DBT-17 | `gate:no-secrets` varre `git ls-files`, então arquivo novo ainda não adicionado ao índice não é varrido: `verify:all` local dá verde e a CI reprova. Aconteceu de verdade na P1.1-R1. Mitigação atual é `git add` antes de `verify:all`; varrer também não-rastreados não-ignorados é mudança de contrato do gate, fica para slice própria | P1.4 |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |
